@@ -155,9 +155,8 @@
 
     &__item {
         display: grid;
-        grid-template-columns: 64px minmax(0, 1fr) auto;
-        grid-template-areas: 'poster info actions';
-        align-items: center;
+        grid-template-columns: 64px minmax(0, 1fr);
+        align-items: stretch;
         gap: 1rem;
         padding: 1rem;
         min-width: 0;
@@ -197,7 +196,6 @@
         }
 
         &-poster {
-            grid-area: poster;
             width: 64px;
             height: 90px;
             border-radius: 10px;
@@ -228,9 +226,9 @@
         }
 
         &-info {
-            grid-area: info;
             flex: 1;
             min-width: 0;
+            min-height: 90px;
             display: flex;
             flex-direction: column;
             gap: 0.5rem;
@@ -240,12 +238,19 @@
             font-size: 1.05rem;
             font-weight: 600;
             color: var(--mat-sys-on-surface);
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
             display: flex;
-            align-items: center;
+            align-items: flex-start;
             gap: 0.5rem;
+            min-width: 0;
+        }
+
+        &-title-text {
+            min-width: 0;
+            display: -webkit-box;
+            overflow: hidden;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            line-height: 1.3;
         }
 
         &-meta {
@@ -321,31 +326,49 @@
         }
 
         &-actions {
-            grid-area: actions;
             display: flex;
-            gap: 0.25rem;
-            flex-shrink: 0;
-            justify-self: end;
-            opacity: 1;
-            transition: all 0.2s ease;
+            align-items: center;
+            justify-content: flex-end;
+            gap: 0.2rem;
+            margin-top: auto;
+            padding-top: 0.65rem;
+            border-top: 1px solid
+                color-mix(
+                    in srgb,
+                    var(--app-separator, var(--mat-sys-outline-variant)) 72%,
+                    transparent
+                );
 
             button {
-                width: 34px;
-                height: 34px;
-                border-radius: 10px;
+                width: 32px;
+                height: 32px;
+                min-width: 32px;
+                min-height: 32px;
+                padding: 0;
+                border-radius: 9px;
+                --mdc-icon-button-state-layer-size: 32px;
                 transition:
                     background-color 0.15s ease,
-                    transform 0.15s ease;
+                    transform 0.15s ease,
+                    opacity 0.15s ease;
+                opacity: 0.86;
 
                 &:hover {
                     background: var(--app-selection-surface);
                     transform: translateY(-1px);
+                    opacity: 1;
                 }
+            }
+
+            mat-icon {
+                width: 18px;
+                height: 18px;
+                font-size: 18px;
             }
         }
 
         mat-progress-bar {
-            margin-top: 0.5rem;
+            margin-top: 0.15rem;
             border-radius: 4px;
         }
     }
@@ -390,23 +413,6 @@
 
 @container (max-width: 760px) {
     .downloads__item {
-        grid-template-columns: 64px minmax(0, 1fr);
-        grid-template-areas:
-            'poster info'
-            'actions actions';
         align-items: start;
-        row-gap: 10px;
-    }
-
-    .downloads__item-actions {
-        width: 100%;
-        justify-content: flex-end;
-    }
-
-    .downloads__item-title {
-        white-space: normal;
-        display: -webkit-box;
-        -webkit-line-clamp: 2;
-        -webkit-box-orient: vertical;
     }
 }

@@ -9,7 +9,7 @@
                 </button>
             }
         </div>
-        @if (selectedSeason) {
+        @if (selectedSeason && !showSeasonEmptyState()) {
             <div class="view-toggle">
                 <mat-button-toggle-group
                     [value]="viewMode()"
@@ -31,6 +31,17 @@
         @if (isLoading()) {
             <div class="loading-container">
                 <mat-spinner diameter="40"></mat-spinner>
+            </div>
+        } @else if (showSeriesEmptyState()) {
+            <div class="empty-state-panel" role="status">
+                <div class="empty-state-panel__icon" aria-hidden="true">
+                    <mat-icon>video_library</mat-icon>
+                </div>
+                <h4 class="empty-state-panel__title">No episodes available</h4>
+                <p class="empty-state-panel__message">
+                    This series is listed by your provider, but no seasons or
+                    episodes are available to play.
+                </p>
             </div>
         } @else if (!selectedSeason) {
             <!-- Seasons Grid -->
@@ -61,6 +72,17 @@
                         </div>
                     </button>
                 }
+            </div>
+        } @else if (showSeasonEmptyState()) {
+            <div class="empty-state-panel empty-state-panel--season" role="status">
+                <div class="empty-state-panel__icon" aria-hidden="true">
+                    <mat-icon>video_library</mat-icon>
+                </div>
+                <h4 class="empty-state-panel__title">This season is empty</h4>
+                <p class="empty-state-panel__message">
+                    This season is listed by your provider, but no playable
+                    episodes are available.
+                </p>
             </div>
         } @else {
             @if (viewMode() === 'grid') {

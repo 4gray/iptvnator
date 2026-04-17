@@ -1,6 +1,7 @@
 import { KeyValuePipe } from '@angular/common';
 import {
     Component,
+    DoCheck,
     OnInit,
     inject,
     input,
@@ -78,9 +79,10 @@ function parseDuration(duration: string | number | undefined): number {
         WatchedBadgeComponent,
     ],
 })
-export class SeasonContainerComponent implements OnInit {
+export class SeasonContainerComponent implements OnInit, DoCheck {
     private readonly downloadsService = inject(DownloadsService);
     private readonly logger = createLogger('SeasonContainer');
+    private previousSeasonKeysSignature = '';
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -112,6 +114,11 @@ export class SeasonContainerComponent implements OnInit {
         if (savedMode === 'grid' || savedMode === 'list') {
             this.viewMode.set(savedMode);
         }
+        this.previousSeasonKeysSignature = this.getSeasonKeys().join('|');
+    }
+
+    ngDoCheck(): void {
+        this.syncSelectedSeason();
     }
 
     setViewMode(mode: EpisodeViewMode) {
@@ -121,6 +128,18 @@ export class SeasonContainerComponent implements OnInit {
 
     compareSeasons(a: { key: string }, b: { key: string }): number {
         return Number(a.key) - Number(b.key);
+    }
+
+    hasSeasons(): boolean {
+        return this.getSeasonKeys().length > 0;
+    }
+
+    showSeriesEmptyState(): boolean {
+        return !this.selectedSeason && !this.hasSeasons();
+    }
+
+    showSeasonEmptyState(): boolean {
+        return Boolean(this.selectedSeason) && !this.selectedSeasonHasEpisodes();
     }
 
     selectSeason(seasonKey: string) {
@@ -382,6 +401,35 @@ export class SeasonContainerComponent implements OnInit {
         episode: XtreamSerieEpisode
     ): PlaybackPositionData | undefined {
         return this.playbackPositions().get(this.getEpisodeContentId(episode));
+    }
+
+    private selectedSeasonHasEpisodes(): boolean {
+        if (!this.selectedSeason) {
+            return false;
+        }
+
+        return (this.seasons()[this.selectedSeason]?.length ?? 0) > 0;
+    }
+
+    private getSeasonKeys(): string[] {
+        return Object.keys(this.seasons());
+    }
+
+    private hasSeasonKey(seasonKey: string): boolean {
+        return Object.prototype.hasOwnProperty.call(this.seasons(), seasonKey);
+    }
+
+    private syncSelectedSeason(): void {
+        const seasonKeysSignature = this.getSeasonKeys().join('|');
+        if (seasonKeysSignature === this.previousSeasonKeysSignature) {
+            return;
+        }
+
+        this.previousSeasonKeysSignature = seasonKeysSignature;
+
+        if (this.selectedSeason && !this.hasSeasonKey(this.selectedSeason)) {
+            this.selectedSeason = undefined;
+        }
     }
 
     private hashString(str: string): number {

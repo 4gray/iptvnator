@@ -109,7 +109,9 @@
 
                             <div class="downloads__item-info">
                                 <div class="downloads__item-title">
-                                    {{ item.title }}
+                                    <span class="downloads__item-title-text">
+                                        {{ item.title }}
+                                    </span>
                                     @if (item.contentType === 'episode') {
                                         <span class="downloads__episode-badge">
                                             {{ formatEpisodeLabel(item) }}
@@ -164,147 +166,147 @@
                                         [value]="getProgress(item)"
                                     ></mat-progress-bar>
                                 }
-                            </div>
 
-                            <div class="downloads__item-actions">
-                                <button
-                                    mat-icon-button
-                                    (click)="
-                                        $event.stopPropagation();
-                                        copyUrl(item)
-                                    "
-                                    [matTooltip]="
-                                        'DOWNLOADS.COPY_URL' | translate
-                                    "
-                                >
-                                    <mat-icon>content_copy</mat-icon>
-                                </button>
-                                @switch (item.status) {
-                                    @case ('queued') {
-                                        <button
-                                            mat-icon-button
-                                            (click)="
-                                                $event.stopPropagation();
-                                                cancel(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.CANCEL' | translate
-                                            "
-                                        >
-                                            <mat-icon>close</mat-icon>
-                                        </button>
+                                <div class="downloads__item-actions">
+                                    <button
+                                        mat-icon-button
+                                        (click)="
+                                            $event.stopPropagation();
+                                            copyUrl(item)
+                                        "
+                                        [matTooltip]="
+                                            'DOWNLOADS.COPY_URL' | translate
+                                        "
+                                    >
+                                        <mat-icon>content_copy</mat-icon>
+                                    </button>
+                                    @switch (item.status) {
+                                        @case ('queued') {
+                                            <button
+                                                mat-icon-button
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    cancel(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.CANCEL' | translate
+                                                "
+                                            >
+                                                <mat-icon>close</mat-icon>
+                                            </button>
+                                        }
+                                        @case ('downloading') {
+                                            <button
+                                                mat-icon-button
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    cancel(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.CANCEL' | translate
+                                                "
+                                            >
+                                                <mat-icon>close</mat-icon>
+                                            </button>
+                                        }
+                                        @case ('completed') {
+                                            <button
+                                                mat-icon-button
+                                                color="primary"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    play(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.PLAY' | translate
+                                                "
+                                            >
+                                                <mat-icon>play_arrow</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    reveal(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.REVEAL' | translate
+                                                "
+                                            >
+                                                <mat-icon>folder_open</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                color="warn"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    remove(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.REMOVE' | translate
+                                                "
+                                            >
+                                                <mat-icon>delete</mat-icon>
+                                            </button>
+                                        }
+                                        @case ('failed') {
+                                            <button
+                                                mat-icon-button
+                                                color="accent"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    retry(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.RETRY' | translate
+                                                "
+                                            >
+                                                <mat-icon>refresh</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                color="warn"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    remove(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.REMOVE' | translate
+                                                "
+                                            >
+                                                <mat-icon>delete</mat-icon>
+                                            </button>
+                                        }
+                                        @case ('canceled') {
+                                            <button
+                                                mat-icon-button
+                                                color="accent"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    retry(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.RETRY' | translate
+                                                "
+                                            >
+                                                <mat-icon>refresh</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                color="warn"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    remove(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.REMOVE' | translate
+                                                "
+                                            >
+                                                <mat-icon>delete</mat-icon>
+                                            </button>
+                                        }
                                     }
-                                    @case ('downloading') {
-                                        <button
-                                            mat-icon-button
-                                            (click)="
-                                                $event.stopPropagation();
-                                                cancel(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.CANCEL' | translate
-                                            "
-                                        >
-                                            <mat-icon>close</mat-icon>
-                                        </button>
-                                    }
-                                    @case ('completed') {
-                                        <button
-                                            mat-icon-button
-                                            color="primary"
-                                            (click)="
-                                                $event.stopPropagation();
-                                                play(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.PLAY' | translate
-                                            "
-                                        >
-                                            <mat-icon>play_arrow</mat-icon>
-                                        </button>
-                                        <button
-                                            mat-icon-button
-                                            (click)="
-                                                $event.stopPropagation();
-                                                reveal(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.REVEAL' | translate
-                                            "
-                                        >
-                                            <mat-icon>folder_open</mat-icon>
-                                        </button>
-                                        <button
-                                            mat-icon-button
-                                            color="warn"
-                                            (click)="
-                                                $event.stopPropagation();
-                                                remove(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.REMOVE' | translate
-                                            "
-                                        >
-                                            <mat-icon>delete</mat-icon>
-                                        </button>
-                                    }
-                                    @case ('failed') {
-                                        <button
-                                            mat-icon-button
-                                            color="accent"
-                                            (click)="
-                                                $event.stopPropagation();
-                                                retry(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.RETRY' | translate
-                                            "
-                                        >
-                                            <mat-icon>refresh</mat-icon>
-                                        </button>
-                                        <button
-                                            mat-icon-button
-                                            color="warn"
-                                            (click)="
-                                                $event.stopPropagation();
-                                                remove(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.REMOVE' | translate
-                                            "
-                                        >
-                                            <mat-icon>delete</mat-icon>
-                                        </button>
-                                    }
-                                    @case ('canceled') {
-                                        <button
-                                            mat-icon-button
-                                            color="accent"
-                                            (click)="
-                                                $event.stopPropagation();
-                                                retry(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.RETRY' | translate
-                                            "
-                                        >
-                                            <mat-icon>refresh</mat-icon>
-                                        </button>
-                                        <button
-                                            mat-icon-button
-                                            color="warn"
-                                            (click)="
-                                                $event.stopPropagation();
-                                                remove(item)
-                                            "
-                                            [matTooltip]="
-                                                'DOWNLOADS.REMOVE' | translate
-                                            "
-                                        >
-                                            <mat-icon>delete</mat-icon>
-                                        </button>
-                                    }
-                                }
+                                </div>
                             </div>
                         </div>
                     }
