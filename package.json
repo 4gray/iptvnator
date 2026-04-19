@@ -79,7 +79,7 @@
         "fix-path": "5.0.0",
         "hls.js": "1.6.13",
         "iptv-playlist-parser": "github:4gray/iptv-playlist-parser",
-        "lodash": "4.17.21",
+        "lodash": "4.18.1",
         "mpegts.js": "1.8.0",
         "ngx-indexed-db": "21.0.0",
         "ngx-skeleton-loader": "11.3.0",
