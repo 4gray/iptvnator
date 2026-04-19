@@ -21,15 +21,19 @@ export const withFavorites = function () {
                 dbService = inject(DatabaseService),
                 favoritesService = inject(FavoritesService)
             ) => ({
-                async toggleFavorite(xtreamId: number, playlistId: string) {
+                async toggleFavorite(
+                    xtreamId: number,
+                    playlistId: string,
+                    contentType: 'live' | 'movie' | 'series'
+                ) {
                     if (!xtreamId || !playlistId) {
                         return false;
                     }
 
-                    // Get content by xtream ID
                     const content = await dbService.getContentByXtreamId(
                         xtreamId,
-                        playlistId
+                        playlistId,
+                        contentType
                     );
                     if (!content) {
                         logger.error(
@@ -62,17 +66,18 @@ export const withFavorites = function () {
 
                 async checkFavoriteStatus(
                     xtreamId: number,
-                    playlistId: string
+                    playlistId: string,
+                    contentType: 'live' | 'movie' | 'series'
                 ) {
                     if (!xtreamId || !playlistId) {
                         patchState(store, { isFavorite: false });
                         return;
                     }
 
-                    // Get content by xtream ID
                     const content = await dbService.getContentByXtreamId(
                         xtreamId,
-                        playlistId
+                        playlistId,
+                        contentType
                     );
                     if (!content) {
                         patchState(store, { isFavorite: false });

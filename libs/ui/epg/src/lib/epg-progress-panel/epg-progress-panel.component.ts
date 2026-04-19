@@ -84,4 +84,8 @@ export class EpgProgressPanelComponent {
     dismissAll(): void {
         this.epgProgress.dismissAll();
     }
+
+    retry(url: string): void {
+        this.epgProgress.retry(url);
+    }
 }

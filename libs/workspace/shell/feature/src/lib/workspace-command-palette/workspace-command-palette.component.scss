@@ -7,9 +7,9 @@
 
 // ─── Shell ───────────────────────────────────────────────────────────────────
 .palette-shell {
-    background: var(--app-header-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-widget-bg);
     color: var(--mat-sys-on-surface);
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: 1px solid var(--app-separator);
     border-radius: 14px;
     box-shadow:
         0 24px 48px -28px rgba(0, 0, 0, 0.5),
@@ -79,8 +79,7 @@
 // ─── Divider ─────────────────────────────────────────────────────────────────
 .palette-divider {
     height: 1px;
-    background: var(--mat-sys-outline-variant);
-    opacity: 0.6;
+    background: var(--app-separator);
 }
 
 // ─── Results ─────────────────────────────────────────────────────────────────

@@ -1,26 +1,53 @@
-<div
-    class="file-upload"
-    appDragDropFileUpload
-    (click)="openDialog(fileField)"
-    (fileDropped)="upload($event)"
->
-    <mat-icon class="upload-icon">upload_file</mat-icon>
-    <span class="label"
-        >{{
-            ('HOME.FILE_UPLOAD.DRAG_DROP' | translate) +
-                ' ' +
-                ('HOME.FILE_UPLOAD.OR' | translate)
-        }}
-        <br />
-        {{ 'HOME.FILE_UPLOAD.CHOOSE_PLAYLIST' | translate }}</span
+@if (selectedFile(); as file) {
+    <div class="file-selected">
+        <div class="file-selected__icon">
+            <mat-icon>description</mat-icon>
+        </div>
+        <div class="file-selected__meta">
+            <div class="file-selected__name" [title]="file.name">
+                {{ file.name }}
+            </div>
+            <div class="file-selected__size">{{ formatSize(file.size) }}</div>
+        </div>
+        <button
+            type="button"
+            class="file-selected__remove"
+            (click)="clearSelection()"
+            [attr.aria-label]="'CLEAR' | translate"
+        >
+            <mat-icon>close</mat-icon>
+        </button>
+    </div>
+} @else {
+    <button
+        type="button"
+        class="file-drop"
+        [class.file-drop--dragging]="isDragging()"
+        appDragDropFileUpload
+        (fileDropped)="onFilesDropped($event)"
+        (dragStateChanged)="onDragStateChange($event)"
+        (click)="openPicker(fileField)"
     >
-    <input
-        type="file"
-        name="playlist"
-        #fileField
-        (change)="upload($any($event).target.files)"
-        accept=".m3u,.m3u8"
-        hidden
-        multiple
-    />
-</div>
+        <span class="file-drop__icon">
+            <mat-icon>file_download</mat-icon>
+        </span>
+        <span class="file-drop__title">
+            {{ 'HOME.FILE_UPLOAD.DRAG_DROP' | translate }}
+        </span>
+        <span class="file-drop__subtitle">
+            {{ 'HOME.FILE_UPLOAD.OR' | translate }}
+            {{ 'HOME.FILE_UPLOAD.CHOOSE_PLAYLIST' | translate }}
+        </span>
+        <span class="file-drop__browse">
+            {{ 'HOME.FILE_UPLOAD.BROWSE' | translate }}
+        </span>
+    </button>
+}
+<input
+    type="file"
+    name="playlist"
+    #fileField
+    (change)="onPicked(fileField)"
+    accept=".m3u,.m3u8"
+    hidden
+/>

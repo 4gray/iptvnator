@@ -57,6 +57,12 @@
             },
             "defaultConfiguration": "production"
         },
+        "build-e2e": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run remote-control-web:build:development"
+            }
+        },
         "serve": {
             "continuous": true,
             "executor": "@angular/build:dev-server",

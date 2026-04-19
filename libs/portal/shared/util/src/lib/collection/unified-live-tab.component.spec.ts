@@ -7,6 +7,7 @@ import {
     signal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { TranslateModule } from '@ngx-translate/core';
 import {
     GlobalFavoritesListComponent,
     UnifiedLiveTabComponent,
@@ -23,7 +24,9 @@ import { SettingsStore } from 'services';
 import { Channel, EpgItem, EpgProgram } from 'shared-interfaces';
 import { EpgViewComponent } from 'shared-portals';
 import {
+    DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     PORTAL_PLAYER,
+    FavoritesChannelSortMode,
     StreamResolverService,
     UnifiedCollectionItem,
     UnifiedFavoriteChannel,
@@ -52,6 +55,9 @@ class StubGlobalFavoritesListComponent {
     readonly activeUid = input<string | null>(null);
     readonly searchTermInput = input('');
     readonly draggable = input(true);
+    readonly sortMode = input<FavoritesChannelSortMode>(
+        DEFAULT_FAVORITES_CHANNEL_SORT_MODE
+    );
 
     readonly channelSelected = output<UnifiedFavoriteChannel>();
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
@@ -154,7 +160,7 @@ describe('UnifiedLiveTabComponent', () => {
         };
 
         await TestBed.configureTestingModule({
-            imports: [UnifiedLiveTabComponent],
+            imports: [TranslateModule.forRoot(), UnifiedLiveTabComponent],
             providers: [
                 { provide: StreamResolverService, useValue: streamResolver },
                 { provide: UnifiedRecentDataService, useValue: recentData },

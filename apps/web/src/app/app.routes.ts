@@ -98,8 +98,8 @@ export const routes: Routes = [
                     defaultScope: 'all',
                 },
                 loadComponent: () =>
-                    import('@iptvnator/portal/shared/ui').then(
-                        (c) => c.UnifiedCollectionPageComponent
+                    import('./global-collection-route.component').then(
+                        (c) => c.GlobalCollectionRouteComponent
                     ),
             },
             {
@@ -109,8 +109,8 @@ export const routes: Routes = [
                     defaultScope: 'all',
                 },
                 loadComponent: () =>
-                    import('@iptvnator/portal/shared/ui').then(
-                        (c) => c.UnifiedCollectionPageComponent
+                    import('./global-collection-route.component').then(
+                        (c) => c.GlobalCollectionRouteComponent
                     ),
             },
             {

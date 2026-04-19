@@ -17,6 +17,7 @@ export default class EpgEvents {
     private static fetchedUrls: Set<string> = new Set();
     private static workers: Map<string, Worker> = new Map();
     private static readonly loggerLabel = '[EPG Events]';
+    private static readonly FETCH_TIMEOUT_MS = 5 * 60 * 1000;
 
     private static createEpgWorker(): Worker {
         const bootstrap = resolveWorkerRuntimeBootstrap({
@@ -215,8 +216,23 @@ export default class EpgEvents {
             };
         }
 
-        // Send queued status for all stale URLs first
-        staleUrls.forEach((url, index) => {
+        // Exclude URLs already processed this session — otherwise the loop sends
+        // a 'queued' status, then fetchEpgFromUrl silently skips the URL and no
+        // completion update ever arrives, leaving the UI stuck at "queued".
+        const urlsToFetch = staleUrls.filter(
+            (url) => !this.fetchedUrls.has(url)
+        );
+
+        if (urlsToFetch.length === 0) {
+            console.log(
+                this.loggerLabel,
+                `All ${staleUrls.length} stale URL(s) already fetched this session; skipping`
+            );
+            return { success: true, skipped: freshUrls };
+        }
+
+        // Send queued status for URLs that will actually be fetched
+        urlsToFetch.forEach((url, index) => {
             this.sendProgressToRenderer(
                 url,
                 'queued',
@@ -226,10 +242,10 @@ export default class EpgEvents {
             );
         });
 
-        // Process only stale URLs sequentially to avoid database locking
+        // Process URLs sequentially to avoid database locking
         const errors: string[] = [];
-        for (let i = 0; i < staleUrls.length; i++) {
-            const url = staleUrls[i];
+        for (let i = 0; i < urlsToFetch.length; i++) {
+            const url = urlsToFetch[i];
             try {
                 await this.fetchEpgFromUrl(url);
             } catch (error) {
@@ -246,7 +262,7 @@ export default class EpgEvents {
 
         if (errors.length > 0) {
             return {
-                success: errors.length < staleUrls.length, // Partial success if some worked
+                success: errors.length < urlsToFetch.length, // Partial success if some worked
                 message: errors.join('; '),
                 skipped: freshUrls,
             };
@@ -284,6 +300,32 @@ export default class EpgEvents {
             }
 
             this.workers.set(url, worker);
+
+            // Guards against double-settling and keeps the outer loop moving
+            // when the worker dies or hangs without sending EPG_COMPLETE/EPG_ERROR.
+            let settled = false;
+            const settle = (fn: () => void) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutId);
+                fn();
+            };
+
+            const timeoutId = setTimeout(() => {
+                const errorMessage = `EPG fetch timed out after ${
+                    this.FETCH_TIMEOUT_MS / 1000
+                }s`;
+                console.error(this.loggerLabel, `${errorMessage}: ${url}`);
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    errorMessage
+                );
+                worker.terminate();
+                this.workers.delete(url);
+                settle(() => reject(new Error(errorMessage)));
+            }, this.FETCH_TIMEOUT_MS);
 
             worker.on(
                 'message',
@@ -330,7 +372,7 @@ export default class EpgEvents {
                                 this.fetchedUrls.add(url);
                                 worker.terminate();
                                 this.workers.delete(url);
-                                resolve();
+                                settle(() => resolve());
                                 break;
 
                             case 'EPG_ERROR':
@@ -348,8 +390,12 @@ export default class EpgEvents {
                                 );
                                 worker.terminate();
                                 this.workers.delete(url);
-                                reject(
-                                    new Error(message.error || 'Unknown error')
+                                settle(() =>
+                                    reject(
+                                        new Error(
+                                            message.error || 'Unknown error'
+                                        )
+                                    )
                                 );
                                 break;
                         }
@@ -359,25 +405,47 @@ export default class EpgEvents {
                             'Error handling message:',
                             err
                         );
-                        reject(err);
+                        this.sendProgressToRenderer(
+                            url,
+                            'error',
+                            undefined,
+                            err instanceof Error ? err.message : String(err)
+                        );
+                        worker.terminate();
+                        this.workers.delete(url);
+                        settle(() => reject(err));
                     }
                 }
             );
 
             worker.on('error', (error) => {
                 console.error(this.loggerLabel, 'Worker error event:', error);
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    error.message
+                );
                 worker.terminate();
                 this.workers.delete(url);
-                reject(error);
+                settle(() => reject(error));
             });
 
             worker.on('exit', (code) => {
-                if (code !== 0) {
-                    console.error(
-                        this.loggerLabel,
-                        `Worker stopped with exit code ${code}`
-                    );
-                }
+                // If the worker exits without emitting EPG_COMPLETE/EPG_ERROR,
+                // settle the promise so the outer sequential loop can advance
+                // instead of hanging forever.
+                if (settled) return;
+                const errorMessage = `Worker exited unexpectedly (code ${code})`;
+                console.error(this.loggerLabel, `${errorMessage}: ${url}`);
+                this.sendProgressToRenderer(
+                    url,
+                    'error',
+                    undefined,
+                    errorMessage
+                );
+                this.workers.delete(url);
+                settle(() => reject(new Error(errorMessage)));
             });
         });
     }

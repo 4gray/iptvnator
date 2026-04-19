@@ -604,9 +604,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async getContentByXtreamId(
         xtreamId: number,
-        playlistId: string
+        playlistId: string,
+        contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContentItem | null> {
-        for (const type of ['live', 'movie', 'series']) {
+        const types = contentType
+            ? [contentType]
+            : (['live', 'movie', 'series'] as const);
+
+        for (const type of types) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 

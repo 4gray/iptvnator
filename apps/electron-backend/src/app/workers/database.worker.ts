@@ -401,11 +401,13 @@ async function executeRequest(message: DbWorkerRequestMessage) {
             const payload = message.payload as {
                 xtreamId: number;
                 playlistId: string;
+                contentType?: 'live' | 'movie' | 'series';
             };
             return getContentByXtreamId(
                 db,
                 payload.xtreamId,
-                payload.playlistId
+                payload.playlistId,
+                payload.contentType
             );
         }
 

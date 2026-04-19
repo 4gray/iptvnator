@@ -41,6 +41,27 @@
                 }
             }
         },
+        "build-e2e": {
+            "dependsOn": [
+                "electron-backend:build-worker",
+                {
+                    "projects": ["web"],
+                    "target": "build-e2e"
+                },
+                {
+                    "projects": ["remote-control-web"],
+                    "target": "build-e2e"
+                }
+            ],
+            "executor": "nx-electron:build",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/apps/electron-backend",
+                "main": "apps/electron-backend/src/main.ts",
+                "tsConfig": "apps/electron-backend/tsconfig.app.json",
+                "assets": ["apps/electron-backend/src/assets"]
+            }
+        },
         "serve": {
             "executor": "nx:run-commands",
             "options": {

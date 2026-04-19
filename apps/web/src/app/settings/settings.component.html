@@ -801,7 +801,7 @@
                     </div>
                     <div class="settings-group__header-text">
                         <h3>{{ 'SETTINGS.ABOUT' | translate }}</h3>
-                        <p>{{ 'SETTINGS.VERSION_DESCRIPTION' | translate }}</p>
+                        <p>{{ 'SETTINGS.ABOUT_SUBTITLE' | translate }}</p>
                     </div>
                 </header>
 
@@ -813,6 +813,170 @@
                     <div class="setting-item__control version-block">
                         <span>{{ version }}</span>
                         <small>{{ updateMessage }}</small>
+                    </div>
+                </div>
+
+                <div class="setting-item setting-item--full-control">
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.COMMUNITY' | translate }}</h4>
+                        <p>
+                            {{ 'SETTINGS.COMMUNITY_DESCRIPTION' | translate }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <div class="link-cards">
+                            <a
+                                class="link-card link-card--github"
+                                href="https://github.com/4gray/iptvnator"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                data-test-id="link-github"
+                            >
+                                <span class="link-card__glyph">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <path
+                                            fill="currentColor"
+                                            d="M12 0C5.374 0 0 5.373 0 12c0 5.302 3.438 9.8 8.207 11.387.6.112.793-.26.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23A11.52 11.52 0 0 1 12 5.803c1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576C20.565 21.796 24 17.3 24 12c0-6.627-5.373-12-12-12z"
+                                        />
+                                    </svg>
+                                </span>
+                                <span class="link-card__text">
+                                    <strong>GitHub</strong>
+                                    <span>{{
+                                        'SETTINGS.LINK_GITHUB_DESCRIPTION'
+                                            | translate
+                                    }}</span>
+                                </span>
+                                <mat-icon class="link-card__arrow"
+                                    >arrow_outward</mat-icon
+                                >
+                            </a>
+                            <a
+                                class="link-card link-card--blog"
+                                href="https://4gray.github.io/iptvnator/"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                data-test-id="link-blog"
+                            >
+                                <span class="link-card__glyph">
+                                    <mat-icon>menu_book</mat-icon>
+                                </span>
+                                <span class="link-card__text">
+                                    <strong>{{
+                                        'SETTINGS.LINK_BLOG' | translate
+                                    }}</strong>
+                                    <span>{{
+                                        'SETTINGS.LINK_BLOG_DESCRIPTION'
+                                            | translate
+                                    }}</span>
+                                </span>
+                                <mat-icon class="link-card__arrow"
+                                    >arrow_outward</mat-icon
+                                >
+                            </a>
+                            <a
+                                class="link-card link-card--telegram"
+                                href="https://t.me/iptvnator"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                data-test-id="link-telegram"
+                            >
+                                <span class="link-card__glyph">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <path
+                                            fill="currentColor"
+                                            d="M9.78 18.65l.28-4.23 7.68-6.92c.34-.31-.07-.46-.52-.19L7.74 13.3 3.64 12c-.88-.25-.89-.86.2-1.3l15.97-6.16c.73-.33 1.43.18 1.15 1.3l-2.72 12.81c-.19.91-.74 1.13-1.5.71L12.6 16.3l-1.99 1.93c-.23.23-.42.42-.83.42z"
+                                        />
+                                    </svg>
+                                </span>
+                                <span class="link-card__text">
+                                    <strong>Telegram</strong>
+                                    <span>{{
+                                        'SETTINGS.LINK_TELEGRAM_DESCRIPTION'
+                                            | translate
+                                    }}</span>
+                                </span>
+                                <mat-icon class="link-card__arrow"
+                                    >arrow_outward</mat-icon
+                                >
+                            </a>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="setting-item setting-item--full-control">
+                    <div class="support-card" data-test-id="support-card">
+                        <div class="support-card__intro">
+                            <div class="support-card__emblem">
+                                <mat-icon>favorite</mat-icon>
+                            </div>
+                            <div class="support-card__copy">
+                                <h4>
+                                    {{ 'SETTINGS.SUPPORT_TITLE' | translate }}
+                                </h4>
+                                <p>
+                                    {{
+                                        'SETTINGS.SUPPORT_DESCRIPTION'
+                                            | translate
+                                    }}
+                                </p>
+                            </div>
+                        </div>
+                        <div class="support-card__actions">
+                            <a
+                                class="support-btn support-btn--sponsors"
+                                href="https://github.com/sponsors/4gray"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                data-test-id="support-sponsors"
+                            >
+                                <span class="support-btn__glyph">
+                                    <svg
+                                        viewBox="0 0 24 24"
+                                        aria-hidden="true"
+                                        focusable="false"
+                                    >
+                                        <path
+                                            fill="currentColor"
+                                            d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z"
+                                        />
+                                    </svg>
+                                </span>
+                                <span class="support-btn__text">
+                                    <strong>GitHub Sponsors</strong>
+                                    <small>{{
+                                        'SETTINGS.SUPPORT_SPONSORS_HINT'
+                                            | translate
+                                    }}</small>
+                                </span>
+                            </a>
+                            <a
+                                class="support-btn support-btn--kofi"
+                                href="https://ko-fi.com/4gray"
+                                target="_blank"
+                                rel="noreferrer noopener"
+                                data-test-id="support-kofi"
+                            >
+                                <span class="support-btn__glyph">
+                                    <mat-icon>local_cafe</mat-icon>
+                                </span>
+                                <span class="support-btn__text">
+                                    <strong>Ko-fi</strong>
+                                    <small>{{
+                                        'SETTINGS.SUPPORT_KOFI_HINT'
+                                            | translate
+                                    }}</small>
+                                </span>
+                            </a>
+                        </div>
                     </div>
                 </div>
             </section>

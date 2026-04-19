@@ -27,9 +27,7 @@
             "@iptvnator/portal/shared/util": [
                 "libs/portal/shared/util/src/index.ts"
             ],
-            "@iptvnator/epg/data-access": [
-                "libs/epg/data-access/src/index.ts"
-            ],
+            "@iptvnator/epg/data-access": ["libs/epg/data-access/src/index.ts"],
             "@iptvnator/playlist/shared/ui": [
                 "libs/playlist/shared/ui/src/index.ts"
             ],
@@ -78,9 +76,7 @@
             "shared-portals": ["libs/ui/shared-portals/src/index.ts"],
             "remote-control": ["libs/ui/remote-control/src/index.ts"],
             "database": ["libs/shared/database/src/index.ts"],
-            "database-schema": [
-                "libs/shared/database/src/lib/schema.ts"
-            ],
+            "database-schema": ["libs/shared/database/src/lib/schema.ts"],
             "database-path-utils": [
                 "libs/shared/database/src/lib/path-utils.ts"
             ],
@@ -90,7 +86,9 @@
             "workspace-dashboard-data-access": [
                 "libs/workspace/dashboard/data-access/src/index.ts"
             ],
-            "workspace-dashboard-ui": ["libs/workspace/dashboard/ui/src/index.ts"]
+            "workspace-dashboard-ui": [
+                "libs/workspace/dashboard/ui/src/index.ts"
+            ]
         }
     },
     "exclude": ["node_modules", "tmp"],

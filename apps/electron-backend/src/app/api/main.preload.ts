@@ -511,8 +511,17 @@ const electronApi = {
         ipcRenderer.invoke('DB_CLEAR_PLAYLIST_RECENT_ITEMS', playlistId),
     dbRemoveRecentItem: (contentId: number, playlistId: string) =>
         ipcRenderer.invoke('DB_REMOVE_RECENT_ITEM', contentId, playlistId),
-    dbGetContentByXtreamId: (xtreamId: number, playlistId: string) =>
-        ipcRenderer.invoke('DB_GET_CONTENT_BY_XTREAM_ID', xtreamId, playlistId),
+    dbGetContentByXtreamId: (
+        xtreamId: number,
+        playlistId: string,
+        contentType?: 'live' | 'movie' | 'series'
+    ) =>
+        ipcRenderer.invoke(
+            'DB_GET_CONTENT_BY_XTREAM_ID',
+            xtreamId,
+            playlistId,
+            contentType
+        ),
     dbDeleteAllPlaylists: (operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_ALL_PLAYLISTS', operationId),
     dbCancelOperation: (operationId: string) =>

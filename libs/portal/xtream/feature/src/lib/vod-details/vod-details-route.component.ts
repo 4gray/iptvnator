@@ -391,7 +391,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     toggleFavorite(): void {
         this.xtreamStore.toggleFavorite(
             this.route.snapshot.params.vodId,
-            this.xtreamStore.currentPlaylist().id
+            this.xtreamStore.currentPlaylist().id,
+            'movie'
         );
     }
 
@@ -495,7 +496,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             vodId: String(vodId),
             categoryId,
         });
-        this.xtreamStore.checkFavoriteStatus(vodId, playlistId);
+        this.xtreamStore.checkFavoriteStatus(vodId, playlistId, 'movie');
         void this.loadVodPlaybackPosition(playlistId, vodId);
     }
 

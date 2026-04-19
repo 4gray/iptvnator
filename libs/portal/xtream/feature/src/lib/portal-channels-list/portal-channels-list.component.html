@@ -39,7 +39,7 @@
                 "
                 [showFavoriteButton]="true"
                 [showProgramInfoButton]="false"
-                [isFavorite]="favorites.get(item.xtream_id) ?? false"
+                [isFavorite]="favorites.get(favoriteKeyFor(item)) ?? false"
                 (clicked)="playClicked.emit(item)"
                 (favoriteToggled)="toggleFavorite($event, item)"
             />

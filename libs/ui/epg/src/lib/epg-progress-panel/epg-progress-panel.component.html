@@ -59,6 +59,17 @@
                             <span class="item-url" [title]="item.url">
                                 {{ getDisplayUrl(item.url) }}
                             </span>
+                            @if (item.status === 'error') {
+                                <button
+                                    mat-icon-button
+                                    class="retry-btn"
+                                    (click)="retry(item.url)"
+                                    [attr.aria-label]="'EPG.RETRY' | translate"
+                                    [matTooltip]="'EPG.RETRY' | translate"
+                                >
+                                    <mat-icon>refresh</mat-icon>
+                                </button>
+                            }
                             <button
                                 mat-icon-button
                                 class="dismiss-btn"

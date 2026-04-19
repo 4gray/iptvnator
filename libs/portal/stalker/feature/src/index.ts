@@ -1,4 +1,5 @@
 export * from './lib/stalker-inline-detail/stalker-inline-detail.component';
+export * from './lib/stalker-collection-detail.component';
 export * from './lib/stalker-collection-channels-list/stalker-collection-channels-list.component';
 export * from './lib/stalker-catalog-detail/stalker-catalog-detail.component';
 export * from './lib/stalker-favorites-button/stalker-favorites-button.component';

@@ -2,10 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import {
-    selectAllPlaylistsMeta,
-    selectPlaylistsLoadingFlag,
-} from 'm3u-state';
+import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from 'm3u-state';
 import { of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
 import { Playlist, PlaylistMeta } from 'shared-interfaces';
@@ -105,14 +102,12 @@ describe('DashboardDataService', () => {
     const playlistsServiceMock = {
         getPlaylistById: jest.fn().mockReturnValue(of(playlistMock)),
         setFavorites: jest.fn().mockReturnValue(of(undefined)),
-        removeFromM3uRecentlyViewed: jest
-            .fn()
-            .mockReturnValue(
-                of({
-                    ...playlistMock,
-                    recentlyViewed: [],
-                })
-            ),
+        removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(
+            of({
+                ...playlistMock,
+                recentlyViewed: [],
+            })
+        ),
     };
 
     beforeEach(() => {
@@ -241,10 +236,14 @@ describe('DashboardDataService', () => {
             ])
         );
         expect(
-            service.globalFavoriteItems().filter((item) => item.type === 'movie')
+            service
+                .globalFavoriteItems()
+                .filter((item) => item.type === 'movie')
         ).toHaveLength(1);
         expect(
-            service.globalFavoriteItems().filter((item) => item.type === 'series')
+            service
+                .globalFavoriteItems()
+                .filter((item) => item.type === 'series')
         ).toHaveLength(1);
     });
 
@@ -269,6 +268,45 @@ describe('DashboardDataService', () => {
                 itemId: 'channel-1',
                 title: 'Channel One',
                 imageUrl: 'https://example.com/logo-1.png',
+            },
+        });
+    });
+
+    it('routes Xtream non-live favorites through the global favorites page with inline detail state', async () => {
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: 51,
+                category_id: 12,
+                title: 'Action Movie',
+                rating: '8.0',
+                added_at: '2026-02-02T10:00:00.000Z',
+                poster_url: 'https://example.com/movie.png',
+                xtream_id: 5001,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+        const movieItem = service
+            .globalFavoriteItems()
+            .find((item) => item.type === 'movie');
+
+        expect(movieItem).toBeDefined();
+        expect(service.getGlobalFavoriteLink(movieItem!)).toEqual([
+            '/workspace',
+            'global-favorites',
+        ]);
+        expect(service.getGlobalFavoriteNavigationState(movieItem!)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    uid: 'xtream::xtream-1::5001',
+                    name: 'Action Movie',
+                    contentType: 'movie',
+                    sourceType: 'xtream',
+                    playlistId: 'xtream-1',
+                }),
             },
         });
     });
@@ -388,6 +426,45 @@ describe('DashboardDataService', () => {
         });
     });
 
+    it('routes Xtream non-live recents through the global recent page with inline detail state', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 91,
+                category_id: 18,
+                title: 'Recent Movie',
+                rating: '7.8',
+                viewed_at: '2026-02-04T10:00:00.000Z',
+                poster_url: 'https://example.com/recent-movie.png',
+                xtream_id: 7001,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+
+        await service.reloadGlobalRecentItems();
+        const movieItem = service
+            .globalRecentItems()
+            .find((item) => item.source === 'xtream');
+
+        expect(movieItem).toBeDefined();
+        expect(service.getRecentItemLink(movieItem!)).toEqual([
+            '/workspace',
+            'global-recent',
+        ]);
+        expect(service.getRecentItemNavigationState(movieItem!)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    uid: 'xtream::xtream-1::7001',
+                    name: 'Recent Movie',
+                    contentType: 'movie',
+                    sourceType: 'xtream',
+                    playlistId: 'xtream-1',
+                }),
+            },
+        });
+    });
+
     it('removes M3U recently viewed via PlaylistsService', async () => {
         const m3uItem = service
             .globalRecentItems()
@@ -399,9 +476,6 @@ describe('DashboardDataService', () => {
 
         expect(
             playlistsServiceMock.removeFromM3uRecentlyViewed
-        ).toHaveBeenCalledWith(
-            'm3u-1',
-            'https://example.com/stream-1.m3u8'
-        );
+        ).toHaveBeenCalledWith('m3u-1', 'https://example.com/stream-1.m3u8');
     });
 });

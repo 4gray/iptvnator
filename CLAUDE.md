@@ -15,9 +15,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 - Meaningful changes include new or changed user-visible behavior, architecture or data-flow changes, non-obvious maintenance workflows, new setup/debugging steps, and new subsystem contracts or boundaries.
 - Skip doc updates for trivial refactors with unchanged behavior, formatting-only edits, and isolated test-only changes.
 - Prefer updating an existing authoritative doc before creating a new one:
-  1. `README.md` for top-level developer or user workflows
-  2. `docs/architecture/` for architecture, ownership, and behavior contracts
-  3. the nearest module `README.md` for local usage or behavior
+    1. `README.md` for top-level developer or user workflows
+    2. `docs/architecture/` for architecture, ownership, and behavior contracts
+    3. the nearest module `README.md` for local usage or behavior
 - Repo docs are canonical even when they were originally drafted by an LLM. External wiki pages are derivative or synthesis content unless explicitly promoted back into the repo.
 - The external wiki sync is one-way by default: repo docs -> external wiki `_repo-context/`.
 - If repo docs changed and `IPTVNATOR_WIKI_VAULT` is configured, run `pnpm wiki:export --mode changed` after the doc update.
@@ -236,6 +236,7 @@ The Xtream Codes module uses NgRx Signal Store with a layered architecture:
 ```
 
 File structure:
+
 ```
 apps/web/src/app/xtream-electron/
 ├── stores/
@@ -263,6 +264,7 @@ apps/web/src/app/xtream-electron/
 ```
 
 Key patterns:
+
 - **Feature stores**: Each `with*.feature.ts` uses `signalStoreFeature()` for focused functionality
 - **Facade pattern**: `XtreamStore` composes all features, maintaining backward compatibility
 - **Data source abstraction**: `IXtreamDataSource` interface with environment-specific implementations
@@ -314,6 +316,7 @@ The M3U playlist module handles traditional M3U/M3U8 playlists with support for 
 ```
 
 Key radio behavior:
+
 - Detection: `channel.radio === 'true'` (string from M3U `radio` attribute)
 - The audio player always renders inline — `shouldShowInlinePlayer` is bypassed for radio
 - EPG panel is conditionally hidden in the template when radio is active
@@ -322,6 +325,7 @@ Key radio behavior:
 - Component: `libs/ui/playback/src/lib/audio-player/audio-player.component.ts`
 
 Channel List Component Structure (parent coordinator pattern):
+
 ```
 libs/ui/components/src/lib/channel-list-container/
 ├── channel-list-container.component.ts   # Parent - shared state coordinator
@@ -332,6 +336,7 @@ libs/ui/components/src/lib/channel-list-container/
 ```
 
 Key patterns:
+
 - **EnrichedChannel**: Pre-computed EPG data attached to channels for performance
 - **Parent coordinator**: Manages shared signals (`channelEpgMap`, `progressTick`, `favoriteIds`)
 - **Virtual scrolling**: CDK virtual scroll for 90,000+ channel lists
@@ -339,6 +344,7 @@ Key patterns:
 - **Global progress tick**: Single 30s interval instead of per-item intervals
 
 State management via NgRx (`libs/m3u-state/`):
+
 - `PlaylistActions`: loadPlaylists, addPlaylist, removePlaylist, parsePlaylist
 - `ChannelActions`: setChannels, setActiveChannel, setAdjacentChannelAsActive
 - `EpgActions`: setActiveEpgProgram, setCurrentEpgProgram, setEpgAvailableFlag
@@ -388,6 +394,7 @@ Keep TypeScript files under **300 lines**. Hard maximum is **350–400 lines**.
 - When you notice a file already exceeds 350 lines, **proactively suggest a refactoring** (or perform it if the change is straightforward) — even if the immediate task is small.
 
 Typical split strategies:
+
 - Angular components: extract child components, move logic to a dedicated service or store feature
 - Signal store features: split into smaller `with*` feature functions in separate files
 - Services: split by responsibility (e.g. separate API, transformation, and state concerns)
@@ -402,6 +409,7 @@ This rule exists to keep the codebase navigable and reviewable. A 150-line file 
 This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use the following:
 
 - **Component Queries**: Use `viewChild()`, `viewChildren()`, `contentChild()`, `contentChildren()` instead of `@ViewChild`, `@ViewChildren`, `@ContentChild`, `@ContentChildren` decorators
+
     ```typescript
     // ✅ Correct - Signal-based
     readonly menu = viewChild.required<MatMenu>('menuRef');
@@ -413,6 +421,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     ```
 
     **Important**: When using signals in templates with properties that expect non-signal values, unwrap the signal by calling it:
+
     ```html
     <!-- ✅ Correct - Unwrap the signal -->
     <button [matMenuTriggerFor]="menu()">Open Menu</button>
@@ -422,6 +431,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     ```
 
 - **Component Inputs/Outputs**: Use `input()` and `output()` functions instead of `@Input()` and `@Output()` decorators
+
     ```typescript
     // ✅ Correct - Signal-based
     readonly title = input.required<string>();
@@ -435,6 +445,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     ```
 
 - **Reactive State**: Use signal primitives for reactive state management
+
     ```typescript
     // ✅ Use signal(), computed(), effect(), linkedSignal()
     readonly count = signal(0);
@@ -448,12 +459,14 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     ```
 
 - **Host Bindings**: Use `@HostBinding()` and `@HostListener()` decorators (these don't have signal equivalents yet)
+
     ```typescript
     @HostBinding('class.active') get isActive() { return this.active(); }
     @HostListener('click') onClick() { /* ... */ }
     ```
 
 - **Control Flow**: Use `@if`, `@for`, `@switch` instead of `*ngIf`, `*ngFor`, `*ngSwitch`
+
     ```typescript
     // ✅ Correct - Modern syntax
     @if (isLoggedIn()) {
@@ -651,13 +664,23 @@ No formal migration system yet. Schema changes are applied via raw SQL in `conne
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
 
-# General Guidelines for working with Nx
+## General Guidelines for working with Nx
 
+- For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
 - When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
+- Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
 - You have access to the Nx MCP server and its tools, use them to help the user
-- When answering questions about the repository, use the `nx_workspace` tool first to gain an understanding of the workspace architecture where applicable.
-- When working in individual projects, use the `nx_project_details` mcp tool to analyze and understand the specific project structure and dependencies
-- For questions around nx configuration, best practices or if you're unsure, use the `nx_docs` tool to get relevant, up-to-date docs. Always use this instead of assuming things about nx configuration
-- If the user needs help with an Nx configuration or project graph error, use the `nx_workspace` tool to get any errors
+- For Nx plugin best practices, check `node_modules/@nx/<plugin>/PLUGIN.md`. Not all plugins have this file - proceed without it if unavailable.
+- NEVER guess CLI flags - always check nx_docs or `--help` first when unsure
+
+## Scaffolding & Generators
+
+- For scaffolding tasks (creating apps, libs, project structure, setup), ALWAYS invoke the `nx-generate` skill FIRST before exploring or calling MCP tools
+
+## When to use nx_docs
+
+- USE for: advanced config options, unfamiliar flags, migration guides, plugin configuration, edge cases
+- DON'T USE for: basic generator syntax (`nx g @nx/react:app`), standard commands, things you already know
+- The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
 
 <!-- nx configuration end-->

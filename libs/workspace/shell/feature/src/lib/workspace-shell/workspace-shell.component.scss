@@ -184,12 +184,6 @@ app-workspace-shell-context-sidebar {
     }
 }
 
-:host ::ng-deep .workspace-command-palette-overlay .mat-mdc-dialog-surface {
-    background: transparent;
-    box-shadow: none;
-    overflow: visible;
-}
-
 @media (max-width: 780px) {
     .workspace-shell {
         grid-template-columns: 56px 1fr;

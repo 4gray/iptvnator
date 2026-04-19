@@ -12,8 +12,11 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { TranslatePipe } from '@ngx-translate/core';
 import { isM3uCatchupPlaybackSupported } from 'm3u-utils';
 import {
+    DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
+    FavoritesChannelSortMode,
     matchesOpenLiveCollectionItem,
     OpenLiveCollectionItemState,
     PORTAL_PLAYER,
@@ -25,6 +28,7 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { EpgListComponent } from '@iptvnator/ui/epg';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
+import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 import {
     AudioPlayerComponent,
     ArtPlayerComponent,
@@ -51,7 +55,9 @@ import { EpgViewComponent } from 'shared-portals';
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
+        PortalEmptyStateComponent,
         ResizableDirective,
+        TranslatePipe,
         VjsPlayerComponent,
     ],
 })
@@ -60,6 +66,9 @@ export class UnifiedLiveTabComponent {
     readonly mode = input<'favorites' | 'recent'>('favorites');
     readonly searchTerm = input('');
     readonly autoOpenItem = input<OpenLiveCollectionItemState | null>(null);
+    readonly sortMode = input<FavoritesChannelSortMode>(
+        DEFAULT_FAVORITES_CHANNEL_SORT_MODE
+    );
 
     readonly removeItem = output<UnifiedCollectionItem>();
     readonly reorderItems = output<UnifiedCollectionItem[]>();
@@ -117,15 +126,6 @@ export class UnifiedLiveTabComponent {
     readonly isRadioSelection = computed(() => this.activeRadioChannel() !== null);
     readonly shouldUseInlinePlayer = computed(() => {
         return this.isRadioSelection() || this.isEmbeddedPlayer();
-    });
-    readonly layoutClass = computed(() => {
-        if (this.isRadioSelection()) {
-            return 'itv-container itv-container--radio';
-        }
-
-        return this.shouldUseInlinePlayer()
-            ? 'itv-container'
-            : 'itv-container--external';
     });
 
     readonly activeChannelForOverlay = computed((): Channel | undefined => {
@@ -232,10 +232,9 @@ export class UnifiedLiveTabComponent {
         const item = this.items().find(
             (candidate) => candidate.uid === channel.uid
         );
-        if (!item) {
-            return;
+        if (item) {
+            await this.activateItem(item);
         }
-        await this.activateItem(item);
     }
 
     onFavoriteToggled(channel: UnifiedFavoriteChannel): void {

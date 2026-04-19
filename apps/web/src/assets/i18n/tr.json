@@ -277,7 +277,8 @@
         "QUEUED": "Sırada",
         "TOTAL_CHANNELS": "Toplam kanal",
         "TOTAL_PROGRAMS": "Toplam program",
-        "UP_TO_DATE": "EPG güncel, senkronizasyona gerek yok"
+        "UP_TO_DATE": "EPG güncel, senkronizasyona gerek yok",
+        "RETRY": "Tekrar Dene"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

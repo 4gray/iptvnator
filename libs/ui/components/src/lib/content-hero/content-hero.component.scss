@@ -61,6 +61,8 @@
         top: 16px;
         left: 16px;
         z-index: 10;
+        app-region: no-drag;
+        -webkit-app-region: no-drag;
         display: flex;
         align-items: center;
         justify-content: center;
@@ -322,7 +324,7 @@
         font-size: 0.9375rem;
         line-height: 1.6;
         color: var(--text-secondary);
-        margin-bottom: 20px;
+        margin-bottom: 6px;
         max-width: 600px;
 
         // Truncate long descriptions
@@ -330,6 +332,58 @@
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
+
+        &--expanded {
+            display: block;
+            -webkit-line-clamp: unset;
+            overflow: visible;
+        }
+    }
+
+    &__description-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        margin: 0 0 20px 0;
+        padding: 4px 0;
+        background: transparent;
+        border: 0;
+        cursor: pointer;
+        color: var(--text-secondary);
+        font: inherit;
+        font-size: 0.8125rem;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        transition:
+            color 180ms ease,
+            transform 180ms ease;
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+            line-height: 16px;
+            transition: transform 180ms ease;
+        }
+
+        &:hover {
+            color: var(--text-primary);
+
+            mat-icon {
+                transform: translateY(2px);
+            }
+        }
+
+        &[aria-expanded='true']:hover mat-icon {
+            transform: translateY(-2px);
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--accent-color);
+            outline-offset: 2px;
+            border-radius: 2px;
+        }
     }
 
     &__meta {
@@ -429,7 +483,6 @@
     }
 }
 
-
 // ============================================================================
 // Mobile Responsive - Option A: Keep poster grid layout
 // ============================================================================
@@ -483,6 +536,10 @@
 
         &__description {
             -webkit-line-clamp: 3;
+
+            &--expanded {
+                -webkit-line-clamp: unset;
+            }
         }
 
         &__meta {

@@ -1,44 +1,118 @@
-@use '@angular/material' as mat;
-
-// Compact density themes scoped to this dialog only
-// Scale -1 for form fields: 52px height, labels still visible
-$form-field-theme: mat.define-theme((
-    density: (scale: -1),
-));
-
-// Scale -3 for button toggles: 36px height
-$toggle-theme: mat.define-theme((
-    density: (scale: -3),
-));
-
-:host {
-    @include mat.form-field-density($form-field-theme);
-    @include mat.button-toggle-density($toggle-theme);
+.apd {
+    --apd-border: var(--app-widget-header-border);
+    --apd-heading: var(--app-heading-color);
+    --apd-body: var(--app-body-color);
+    --apd-muted: var(--app-muted-color);
+    --apd-surface-raised: var(--app-widget-header-bg);
+    --apd-accent: var(--app-selection-color);
+    --apd-segment-track: color-mix(in srgb, var(--app-shell-bg) 70%, transparent);
+    --apd-segment-active: color-mix(
+        in srgb,
+        var(--app-widget-header-bg) 70%,
+        white 14%
+    );
 }
 
-// ─── Dialog title ────────────────────────────────────────────────────────────
-h2[mat-dialog-title] {
-    margin-bottom: 8px;
-}
+// ─── Segmented control ──────────────────────────────────────────────────────
+.apd-segmented {
+    display: grid;
+    grid-auto-flow: column;
+    grid-auto-columns: 1fr;
+    background: var(--apd-segment-track);
+    border-radius: 12px;
+    padding: 4px;
+    gap: 2px;
+    margin-bottom: 14px;
 
-// ─── Toggle groups ───────────────────────────────────────────────────────────
-.category-toggle,
-.subtype-toggle {
-    display: flex;
-    width: 100%;
-    margin-bottom: 8px;
-
-    mat-button-toggle {
-        flex: 1;
-        --mat-standard-button-toggle-label-text-size: 13px;
+    &--sub {
+        background: color-mix(in srgb, var(--apd-segment-track) 85%, transparent);
     }
 }
 
-.subtype-toggle mat-button-toggle {
-    --mat-standard-button-toggle-label-text-size: 12px;
+.apd-segment {
+    appearance: none;
+    border: 0;
+    background: transparent;
+    color: var(--apd-body);
+    padding: 8px 14px;
+    border-radius: 9px;
+    font: inherit;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    line-height: 1.3;
+    transition:
+        background-color 160ms ease,
+        color 160ms ease,
+        box-shadow 160ms ease;
+
+    &:hover:not(.active) {
+        color: var(--apd-heading);
+    }
+
+    &.active {
+        background: var(--apd-segment-active);
+        color: var(--apd-heading);
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.25),
+            inset 0 0 0 1px color-mix(in srgb, white 6%, transparent);
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--apd-accent);
+        outline-offset: 1px;
+    }
 }
 
-// ─── Form area — stable height across all views ─────────────────────────────
-.form-area {
+// ─── Form area ──────────────────────────────────────────────────────────────
+.apd-form-area {
     min-height: 0;
+
+    form {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .w-full,
+    .mat-mdc-form-field {
+        width: 100%;
+    }
+
+    // Textarea overrides the compact density so multi-line input has room.
+    textarea.mat-mdc-input-element {
+        min-height: 140px;
+        padding-top: 8px;
+    }
+
+    app-text-import .mat-mdc-form-field-infix {
+        min-height: auto;
+    }
+
+    app-text-import .mat-mdc-form-field {
+        min-height: 180px;
+    }
+
+    .cors-note {
+        margin: 6px 0 0;
+        padding: 10px 12px;
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--apd-surface-raised) 50%, transparent);
+        color: var(--apd-muted);
+        font-size: 11.5px;
+        line-height: 1.45;
+    }
+}
+
+// ─── Light-theme segmented control tweak ────────────────────────────────────
+// `.dark-theme` is on <body>, so target light mode via `body:not(...)`.
+body:not(.dark-theme) .apd {
+    --apd-segment-track: color-mix(in srgb, var(--app-content-bg) 70%, transparent);
+    --apd-segment-active: #ffffff;
+
+    .apd-segment.active {
+        box-shadow:
+            0 1px 2px rgba(0, 0, 0, 0.06),
+            0 0 0 1px rgba(0, 0, 0, 0.06);
+    }
 }

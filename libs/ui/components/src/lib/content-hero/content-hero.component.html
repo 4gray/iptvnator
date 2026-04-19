@@ -142,9 +142,37 @@
 
                 <!-- Description -->
                 @if (description()) {
-                    <p class="details__description">
+                    <p
+                        #descriptionEl
+                        class="details__description"
+                        [class.details__description--expanded]="
+                            isDescriptionExpanded()
+                        "
+                    >
                         {{ description() }}
                     </p>
+                    @if (hasDescriptionOverflow() || isDescriptionExpanded()) {
+                        <button
+                            type="button"
+                            class="details__description-toggle"
+                            (click)="toggleDescription()"
+                            [attr.aria-expanded]="isDescriptionExpanded()"
+                        >
+                            <span>{{
+                                (isDescriptionExpanded()
+                                    ? 'SHOW_LESS'
+                                    : 'SHOW_MORE'
+                                ) | translate
+                            }}</span>
+                            <mat-icon aria-hidden="true">
+                                {{
+                                    isDescriptionExpanded()
+                                        ? 'expand_less'
+                                        : 'expand_more'
+                                }}
+                            </mat-icon>
+                        </button>
+                    }
                 }
 
                 <!-- Metadata Grid Slot -->

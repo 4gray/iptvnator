@@ -36,13 +36,17 @@
     font-weight: 600;
     letter-spacing: -0.01em;
     color: var(--mat-sys-on-surface);
-    margin-right: auto;
+}
+
+.favorites-sort-button {
+    margin-left: -4px;
 }
 
 .collection-header-toggles {
     display: flex;
     align-items: center;
     gap: 12px;
+    margin-left: auto;
 }
 
 .toggle-placeholder {
@@ -75,7 +79,14 @@ app-unified-grid-tab {
     flex: 1;
     min-height: 0;
     display: flex;
+}
+
+app-unified-grid-tab {
     flex-direction: column;
+}
+
+app-unified-live-tab {
+    flex-direction: row;
 }
 
 .empty-state {

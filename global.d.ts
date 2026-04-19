@@ -263,7 +263,8 @@ declare global {
             ) => Promise<{ success: boolean }>;
             dbGetContentByXtreamId: (
                 xtreamId: number,
-                playlistId: string
+                playlistId: string,
+                contentType?: 'live' | 'movie' | 'series'
             ) => Promise<any | null>;
             dbGetAppState: (key: string) => Promise<string | null>;
             dbSetAppState: (

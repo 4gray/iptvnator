@@ -15,9 +15,9 @@ This file provides guidance to coding agents working in this repository.
 - Meaningful changes include new or changed user-visible behavior, architecture or data-flow changes, non-obvious maintenance workflows, new setup/debugging steps, and new subsystem contracts or boundaries.
 - Skip doc updates for trivial refactors with unchanged behavior, formatting-only edits, and isolated test-only changes.
 - Prefer updating an existing authoritative doc before creating a new one:
-  1. `README.md` for top-level developer or user workflows
-  2. `docs/architecture/` for architecture, ownership, and behavior contracts
-  3. the nearest module `README.md` for local usage or behavior
+    1. `README.md` for top-level developer or user workflows
+    2. `docs/architecture/` for architecture, ownership, and behavior contracts
+    3. the nearest module `README.md` for local usage or behavior
 - Repo docs are canonical even when they were originally drafted by an LLM. External wiki pages are derivative or synthesis content unless explicitly promoted back into the repo.
 - The external wiki sync is one-way by default: repo docs -> external wiki `_repo-context/`.
 - If repo docs changed and `IPTVNATOR_WIKI_VAULT` is configured, run `pnpm wiki:export --mode changed` after the doc update.
@@ -44,11 +44,11 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
 ```
 
 - Narrower trace flags:
-  - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
-  - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
-  - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
-  - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
-  - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
+    - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
+    - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
+    - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
+    - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
+    - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
 
 - GPU/compositor debugging:
 
@@ -99,6 +99,7 @@ M3U playlists can contain radio channels identified by the `radio="true"` attrib
 - Radio detection in the video player template: `activeChannel.radio === 'true'` — this is a string comparison, not boolean
 
 Key files:
+
 - `libs/ui/playback/src/lib/audio-player/audio-player.component.ts` — the audio player component
 - `libs/ui/playback/src/lib/audio-player/audio-player.component.scss` — cinematic hero styling
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
@@ -130,3 +131,27 @@ Key files:
   Repository-specific guidance for IPTVnator's Electron-first Xtream implementation, including feature/data-access boundaries, worker-backed DB flows, and Xtream loading/progress UX expectations.
   Use when working on Xtream routes, store/data-source logic, or Electron-backed Xtream import/search/delete behavior.
   File: `.codex/skills/xtream-electron/SKILL.md`
+
+<!-- nx configuration start-->
+<!-- Leave the start & end comments to automatically receive updates. -->
+
+## General Guidelines for working with Nx
+
+- For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
+- When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
+- Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
+- You have access to the Nx MCP server and its tools, use them to help the user
+- For Nx plugin best practices, check `node_modules/@nx/<plugin>/PLUGIN.md`. Not all plugins have this file - proceed without it if unavailable.
+- NEVER guess CLI flags - always check nx_docs or `--help` first when unsure
+
+## Scaffolding & Generators
+
+- For scaffolding tasks (creating apps, libs, project structure, setup), ALWAYS invoke the `nx-generate` skill FIRST before exploring or calling MCP tools
+
+## When to use nx_docs
+
+- USE for: advanced config options, unfamiliar flags, migration guides, plugin configuration, edge cases
+- DON'T USE for: basic generator syntax (`nx g @nx/react:app`), standard commands, things you already know
+- The `nx-generate` skill handles generator discovery internally - don't call nx_docs just to look up generator syntax
+
+<!-- nx configuration end-->

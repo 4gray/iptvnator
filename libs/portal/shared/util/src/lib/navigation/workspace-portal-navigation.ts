@@ -1,13 +1,17 @@
 import {
+    extractStalkerItemId,
     PortalActivityType,
     PortalFavoriteItem,
     PortalRecentItem,
     StalkerPortalItem,
 } from 'shared-interfaces';
 import {
+    buildCollectionUid,
+    CollectionContentType,
     CollectionSourceType,
     UnifiedCollectionItem,
 } from '../collection/unified-collection-item.interface';
+import { CollectionScope } from '../collection/scope-toggle.service';
 
 export interface WorkspaceNavigationTarget {
     link: string[];
@@ -15,8 +19,10 @@ export interface WorkspaceNavigationTarget {
 }
 
 export const OPEN_LIVE_COLLECTION_ITEM_STATE_KEY = 'openLiveCollectionItem';
+export const OPEN_COLLECTION_DETAIL_STATE_KEY = 'openCollectionDetailItem';
 export const OPEN_STALKER_ITEM_STATE_KEY = 'openStalkerItem';
 export const STALKER_RETURN_TO_STATE_KEY = 'stalkerReturnTo';
+export const COLLECTION_VIEW_STATE_KEY = 'collectionViewState';
 
 export interface OpenLiveCollectionItemState {
     contentType: 'live';
@@ -25,6 +31,15 @@ export interface OpenLiveCollectionItemState {
     itemId: string;
     title?: string;
     imageUrl?: string | null;
+}
+
+export interface OpenCollectionDetailItemState {
+    item: UnifiedCollectionItem;
+}
+
+export interface CollectionViewState {
+    selectedContentType?: CollectionContentType;
+    scope?: CollectionScope;
 }
 
 export function getRecentItemNavigation(
@@ -39,6 +54,14 @@ export function getRecentItemNavigation(
             title: item.title,
             imageUrl: item.poster_url,
         });
+    }
+
+    const collectionItem = buildDashboardCollectionDetailItem(item);
+    if (collectionItem) {
+        return buildGlobalCollectionDetailNavigationTarget(
+            'recent',
+            collectionItem
+        );
     }
 
     if (item.source === 'stalker') {
@@ -73,6 +96,14 @@ export function getGlobalFavoriteNavigation(
             title: item.title,
             imageUrl: item.poster_url,
         });
+    }
+
+    const collectionItem = buildDashboardCollectionDetailItem(item);
+    if (collectionItem) {
+        return buildGlobalCollectionDetailNavigationTarget(
+            'favorites',
+            collectionItem
+        );
     }
 
     if (item.source === 'stalker') {
@@ -134,13 +165,83 @@ export function buildLiveCollectionNavigationTarget(params: {
     imageUrl?: string | null;
 }): WorkspaceNavigationTarget {
     return {
-        link: buildCollectionRoute(params.sourceType, params.playlistId, params.mode),
+        link: buildCollectionRoute(
+            params.sourceType,
+            params.playlistId,
+            params.mode
+        ),
         state: {
-            [OPEN_LIVE_COLLECTION_ITEM_STATE_KEY]: buildOpenLiveCollectionItemState(
-                params
-            ),
+            [OPEN_LIVE_COLLECTION_ITEM_STATE_KEY]:
+                buildOpenLiveCollectionItemState(params),
         },
     };
+}
+
+export function buildGlobalCollectionDetailNavigationTarget(
+    mode: 'favorites' | 'recent',
+    item: UnifiedCollectionItem
+): WorkspaceNavigationTarget {
+    return {
+        link: [
+            '/workspace',
+            mode === 'favorites' ? 'global-favorites' : 'global-recent',
+        ],
+        state: {
+            [OPEN_COLLECTION_DETAIL_STATE_KEY]:
+                buildOpenCollectionDetailItemState(item),
+        },
+    };
+}
+
+export function buildCollectionViewState(params: {
+    selectedContentType?: CollectionContentType | null;
+    scope?: CollectionScope | null;
+}): CollectionViewState | null {
+    const selectedContentType = normalizeCollectionContentType(
+        params.selectedContentType
+    );
+    const scope = normalizeCollectionScope(params.scope);
+
+    if (!selectedContentType && !scope) {
+        return null;
+    }
+
+    return {
+        ...(selectedContentType ? { selectedContentType } : {}),
+        ...(scope ? { scope } : {}),
+    };
+}
+
+export function getCollectionViewState(
+    state: unknown
+): CollectionViewState | null {
+    const record = toStateRecord(state);
+    const candidate = toStateRecord(record?.[COLLECTION_VIEW_STATE_KEY]);
+
+    return buildCollectionViewState({
+        selectedContentType: candidate?.[
+            'selectedContentType'
+        ] as CollectionContentType | null,
+        scope: candidate?.['scope'] as CollectionScope | null,
+    });
+}
+
+export function buildOpenCollectionDetailItemState(
+    item: UnifiedCollectionItem
+): OpenCollectionDetailItemState {
+    return {
+        item: normalizeCollectionDetailItem(item),
+    };
+}
+
+export function getOpenCollectionDetailItemState(
+    state: unknown
+): OpenCollectionDetailItemState | null {
+    const record = toStateRecord(state);
+    const candidate = toStateRecord(record?.[OPEN_COLLECTION_DETAIL_STATE_KEY]);
+    const item = normalizeCollectionDetailItem(candidate?.['item']);
+
+    return item ? { item } : null;
 }
 
 export function buildOpenLiveCollectionItemState(params: {
@@ -175,7 +276,9 @@ export function getOpenLiveCollectionItemState(
     const playlistId = toPathSegment(
         (candidate as Record<string, unknown>)['playlistId']
     );
-    const itemId = toPathSegment((candidate as Record<string, unknown>)['itemId']);
+    const itemId = toPathSegment(
+        (candidate as Record<string, unknown>)['itemId']
+    );
 
     if (
         !playlistId ||
@@ -272,10 +375,7 @@ export function getUnifiedCollectionNavigation(
             item: buildStalkerStateItem(
                 item.stalkerItem as StalkerPortalItem | undefined,
                 {
-                    id:
-                        item.stalkerId ??
-                        getLastSegment(item.uid, '::') ??
-                        '',
+                    id: item.stalkerId ?? getLastSegment(item.uid, '::') ?? '',
                     title: item.name,
                     type: item.contentType,
                     category_id: item.categoryId,
@@ -300,7 +400,13 @@ export function buildStalkerDetailNavigationTarget(params: {
         params.categoryId ?? toStalkerCategoryId(params.type)
     );
     const link = normalizedCategoryId
-        ? ['/workspace', 'stalker', params.playlistId, section, normalizedCategoryId]
+        ? [
+              '/workspace',
+              'stalker',
+              params.playlistId,
+              section,
+              normalizedCategoryId,
+          ]
         : ['/workspace', 'stalker', params.playlistId, section];
 
     const state: Record<string, unknown> = {
@@ -394,7 +500,7 @@ export function matchesOpenLiveCollectionItem(
     const normalizedTargetTitle = target.title?.trim().toLowerCase();
     return Boolean(
         normalizedTargetTitle &&
-            item.name.trim().toLowerCase() === normalizedTargetTitle
+        item.name.trim().toLowerCase() === normalizedTargetTitle
     );
 }
 
@@ -416,6 +522,72 @@ function normalizeReturnToState(
     }
 
     return null;
+}
+
+function normalizeCollectionContentType(
+    value: CollectionContentType | null | undefined
+): CollectionContentType | null {
+    return value === 'live' || value === 'movie' || value === 'series'
+        ? value
+        : null;
+}
+
+function normalizeCollectionScope(
+    value: CollectionScope | null | undefined
+): CollectionScope | null {
+    return value === 'playlist' || value === 'all' ? value : null;
+}
+
+function buildDashboardCollectionDetailItem(
+    item: PortalFavoriteItem | PortalRecentItem
+): UnifiedCollectionItem | null {
+    if (
+        item.type === 'live' ||
+        (item.source !== 'xtream' && item.source !== 'stalker')
+    ) {
+        return null;
+    }
+
+    if (item.source === 'xtream') {
+        return normalizeCollectionDetailItem({
+            uid: buildCollectionUid('xtream', item.playlist_id, item.xtream_id),
+            name: item.title,
+            contentType: item.type,
+            sourceType: 'xtream',
+            playlistId: item.playlist_id,
+            playlistName: item.playlist_name ?? '',
+            posterUrl: item.poster_url ?? null,
+            xtreamId: toOptionalNumber(item.xtream_id),
+            contentId: toOptionalNumber(item.id),
+            categoryId: item.category_id,
+            addedAt: 'added_at' in item ? item.added_at : undefined,
+            viewedAt: 'viewed_at' in item ? item.viewed_at : undefined,
+        });
+    }
+
+    const stalkerItem = buildStalkerStateItem(item.stalker_item, {
+        id: item.id,
+        title: item.title,
+        type: item.type,
+        category_id: item.category_id,
+        poster_url: item.poster_url,
+    });
+    const stalkerId = extractStalkerItemId(stalkerItem, item.playlist_id);
+
+    return normalizeCollectionDetailItem({
+        uid: buildCollectionUid('stalker', item.playlist_id, stalkerId),
+        name: item.title,
+        contentType: item.type,
+        sourceType: 'stalker',
+        playlistId: item.playlist_id,
+        playlistName: item.playlist_name ?? '',
+        posterUrl: item.poster_url ?? null,
+        stalkerId,
+        categoryId: item.category_id,
+        stalkerItem,
+        addedAt: 'added_at' in item ? item.added_at : undefined,
+        viewedAt: 'viewed_at' in item ? item.viewed_at : undefined,
+    });
 }
 
 export function buildStalkerStateItem(
@@ -473,6 +645,69 @@ function toOptionalPathSegment(value: unknown): string | undefined {
     return normalized ? normalized : undefined;
 }
 
+function toOptionalNumber(value: unknown): number | undefined {
+    const rawValue = String(value ?? '').trim();
+    if (!rawValue) {
+        return undefined;
+    }
+
+    const normalized = Number(rawValue);
+    return Number.isFinite(normalized) ? normalized : undefined;
+}
+
+function normalizeCollectionDetailItem(
+    candidate: unknown
+): UnifiedCollectionItem | null {
+    const record = toStateRecord(candidate);
+    if (!record) {
+        return null;
+    }
+
+    const contentType = toPathSegment(record['contentType']);
+    const sourceType = toPathSegment(
+        record['sourceType']
+    ) as CollectionSourceType;
+    const uid = toPathSegment(record['uid']);
+    const name = toPathSegment(record['name']);
+    const playlistId = toPathSegment(record['playlistId']);
+
+    if (
+        !uid ||
+        !name ||
+        !playlistId ||
+        (contentType !== 'movie' && contentType !== 'series') ||
+        (sourceType !== 'xtream' && sourceType !== 'stalker')
+    ) {
+        return null;
+    }
+
+    return {
+        uid,
+        name,
+        contentType,
+        sourceType,
+        playlistId,
+        playlistName: toPathSegment(record['playlistName']),
+        posterUrl:
+            toOptionalPathSegment(record['posterUrl']) ??
+            toOptionalPathSegment(record['logo']) ??
+            null,
+        logo: toOptionalPathSegment(record['logo']) ?? null,
+        xtreamId: toOptionalNumber(record['xtreamId']),
+        contentId: toOptionalNumber(record['contentId']),
+        stalkerId: toOptionalPathSegment(record['stalkerId']),
+        stalkerCmd: toOptionalPathSegment(record['stalkerCmd']),
+        stalkerPortalUrl: toOptionalPathSegment(record['stalkerPortalUrl']),
+        stalkerMacAddress: toOptionalPathSegment(record['stalkerMacAddress']),
+        categoryId: toOptionalPathSegment(record['categoryId']),
+        rating: toOptionalPathSegment(record['rating']),
+        addedAt: toOptionalPathSegment(record['addedAt']),
+        viewedAt: toOptionalPathSegment(record['viewedAt']),
+        position: toOptionalNumber(record['position']),
+        stalkerItem: toStateRecord(record['stalkerItem']) ?? undefined,
+    };
+}
+
 function buildCollectionRoute(
     sourceType: CollectionSourceType,
     playlistId: string,
@@ -489,9 +724,7 @@ function buildCollectionRoute(
     return ['/workspace', 'playlists', playlistId, mode];
 }
 
-function toStateRecord(
-    state: unknown
-): Record<string, unknown> | null {
+function toStateRecord(state: unknown): Record<string, unknown> | null {
     return state && typeof state === 'object'
         ? (state as Record<string, unknown>)
         : null;

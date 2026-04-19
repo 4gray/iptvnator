@@ -1,142 +1,5 @@
 :host {
     display: block;
-    --settings-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --settings-action-bar-offset: 24px;
-    --settings-action-bar-space: 112px;
-    --settings-page-header-bg: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 94%,
-        rgba(255, 255, 255, 0.98)
-    );
-    --settings-page-header-border: color-mix(
-        in srgb,
-        var(--mat-sys-outline-variant) 72%,
-        transparent
-    );
-    --settings-page-header-shadow:
-        0 10px 20px -28px rgba(15, 23, 42, 0.16),
-        0 1px 0 rgba(255, 255, 255, 0.68) inset;
-    --settings-group-bg: color-mix(
-        in srgb,
-        var(--mat-sys-surface) 96%,
-        rgba(255, 255, 255, 0.96)
-    );
-    --settings-group-border: color-mix(
-        in srgb,
-        var(--mat-sys-outline-variant) 78%,
-        transparent
-    );
-    --settings-group-shadow: 0 14px 28px -32px rgba(15, 23, 42, 0.14);
-    --settings-group-active-bg: color-mix(
-        in srgb,
-        var(--app-selection-color) 2%,
-        rgba(255, 255, 255, 0.98)
-    );
-    --settings-group-active-ring: color-mix(
-        in srgb,
-        var(--app-selection-border) 68%,
-        var(--settings-group-border)
-    );
-    --settings-group-active-glow: color-mix(
-        in srgb,
-        var(--app-selection-glow) 28%,
-        transparent
-    );
-    --settings-group-active-shadow:
-        inset 0 0 0 1px var(--settings-group-active-ring),
-        0 12px 24px -28px var(--settings-group-active-glow);
-    --settings-item-border: var(--app-separator);
-    --settings-item-danger-bg: color-mix(
-        in srgb,
-        var(--mat-sys-error) 4%,
-        rgba(255, 255, 255, 0.96)
-    );
-    --settings-item-danger-border: color-mix(
-        in srgb,
-        var(--mat-sys-error) 14%,
-        transparent
-    );
-    --settings-action-bar-bg: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 94%,
-        rgba(255, 255, 255, 0.9)
-    );
-    --settings-action-bar-border: color-mix(
-        in srgb,
-        var(--mat-sys-outline-variant) 62%,
-        transparent
-    );
-    --settings-action-bar-shadow: 0 10px 26px -26px rgba(15, 23, 42, 0.22);
-    --settings-muted: color-mix(
-        in srgb,
-        var(--mat-sys-on-surface) 64%,
-        transparent
-    );
-}
-
-:host-context(.dark-theme),
-:host-context([data-theme='dark']),
-:host-context(.mat-app-background.dark) {
-    --settings-page-header-bg: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container) 92%,
-        rgba(12, 16, 24, 0.94)
-    );
-    --settings-page-header-border: color-mix(
-        in srgb,
-        var(--mat-sys-outline-variant) 38%,
-        transparent
-    );
-    --settings-page-header-shadow:
-        inset 0 1px 0 rgba(255, 255, 255, 0.05),
-        0 16px 26px -34px rgba(0, 0, 0, 0.4);
-    --settings-group-bg: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container) 94%,
-        rgba(10, 14, 22, 0.82)
-    );
-    --settings-group-border: rgba(255, 255, 255, 0.08);
-    --settings-group-shadow: 0 16px 28px -32px rgba(0, 0, 0, 0.42);
-    --settings-group-active-bg: color-mix(
-        in srgb,
-        var(--app-selection-surface) 24%,
-        rgba(255, 255, 255, 0.015)
-    );
-    --settings-group-active-ring: color-mix(
-        in srgb,
-        var(--app-selection-border) 54%,
-        rgba(255, 255, 255, 0.08)
-    );
-    --settings-group-active-glow: color-mix(
-        in srgb,
-        var(--app-selection-glow) 22%,
-        transparent
-    );
-    --settings-group-active-shadow:
-        inset 0 0 0 1px var(--settings-group-active-ring),
-        0 10px 22px -28px var(--settings-group-active-glow);
-    --settings-item-danger-bg: color-mix(
-        in srgb,
-        var(--mat-sys-error) 8%,
-        rgba(24, 10, 12, 0.86)
-    );
-    --settings-item-danger-border: color-mix(
-        in srgb,
-        var(--mat-sys-error) 24%,
-        transparent
-    );
-    --settings-action-bar-bg: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container) 92%,
-        transparent
-    );
-    --settings-action-bar-border: rgba(255, 255, 255, 0.08);
-    --settings-action-bar-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
-    --settings-muted: color-mix(
-        in srgb,
-        var(--mat-sys-on-surface) 68%,
-        transparent
-    );
 }
 
 .settings-container {
@@ -337,10 +200,6 @@
     .w-full {
         width: min(100%, 340px);
     }
-
-    mat-form-field {
-        font-size: 0.9rem;
-    }
 }
 
 .setting-item__toggle {
@@ -514,6 +373,149 @@
     }
 }
 
+.link-cards {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+.link-card {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 40px minmax(0, 1fr) 20px;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 14px;
+    border: 1px solid color-mix(
+        in srgb,
+        var(--mat-sys-outline-variant) 70%,
+        transparent
+    );
+    border-radius: 16px;
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-surface-container-low) 88%,
+        transparent
+    );
+    color: var(--mat-sys-on-surface);
+    text-decoration: none;
+    transition:
+        border-color 0.18s ease,
+        background 0.18s ease,
+        transform 0.18s ease,
+        box-shadow 0.18s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+        border-color: color-mix(
+            in srgb,
+            var(--app-selection-border) 54%,
+            var(--mat-sys-outline-variant)
+        );
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-surface-container-high) 92%,
+            transparent
+        );
+        box-shadow: 0 10px 20px -22px rgba(15, 23, 42, 0.5);
+
+        .link-card__arrow {
+            opacity: 1;
+            transform: translate(2px, -2px);
+        }
+    }
+
+    &:focus-visible {
+        outline: none;
+        box-shadow:
+            0 0 0 2px var(--mat-sys-surface),
+            0 0 0 4px
+                color-mix(in srgb, var(--app-selection-color) 40%, transparent);
+    }
+}
+
+.link-card__glyph {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-surface-container-high) 82%,
+        transparent
+    );
+    color: var(--mat-sys-on-surface-variant);
+
+    svg {
+        width: 20px;
+        height: 20px;
+    }
+
+    mat-icon {
+        font-size: 20px;
+        width: 20px;
+        height: 20px;
+    }
+}
+
+.link-card--github .link-card__glyph {
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-on-surface) 10%,
+        transparent
+    );
+    color: var(--mat-sys-on-surface);
+}
+
+.link-card--blog .link-card__glyph {
+    background: color-mix(in srgb, #ff7849 18%, transparent);
+    color: #ff8a5b;
+}
+
+.link-card--telegram .link-card__glyph {
+    background: color-mix(in srgb, #229ed9 22%, transparent);
+    color: #38b0e3;
+}
+
+.link-card__text {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+
+    strong {
+        font-size: 0.92rem;
+        font-weight: 650;
+        letter-spacing: -0.01em;
+    }
+
+    span {
+        color: var(--settings-muted);
+        font-size: 0.78rem;
+        line-height: 1.35;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+    }
+}
+
+.link-card__arrow {
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+    color: var(--settings-muted);
+    opacity: 0.6;
+    transition:
+        opacity 0.18s ease,
+        transform 0.18s ease;
+}
+
 .settings-note {
     margin: 12px 18px 18px;
     padding: 10px 12px;
@@ -612,6 +614,14 @@
     .remote-control-urls,
     .version-block {
         align-items: flex-start;
+    }
+
+    .link-cards {
+        grid-template-columns: 1fr;
+    }
+
+    .support-btn {
+        flex: 1 1 100%;
     }
 
     .url-row {

@@ -1,5 +1,12 @@
 import { Location, SlicePipe } from '@angular/common';
-import { Component, effect, inject, OnDestroy, OnInit, signal } from '@angular/core';
+import {
+    Component,
+    effect,
+    inject,
+    OnDestroy,
+    OnInit,
+    signal,
+} from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
@@ -32,7 +39,19 @@ type XtreamSerieDetailsView = XtreamSerieDetails & {
 @Component({
     selector: 'app-serial-details',
     templateUrl: './serial-details.component.html',
-    styleUrls: ['../../../../../../ui/components/src/lib/styles/detail-view.scss'],
+    styleUrls: [
+        '../../../../../../ui/components/src/lib/styles/detail-view.scss',
+    ],
+    styles: [
+        `
+            :host {
+                display: block;
+                width: 100%;
+                height: 100%;
+                min-height: 0;
+            }
+        `,
+    ],
     imports: [
         ContentHeroComponent,
         MatIcon,
@@ -198,7 +217,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             episodeNumber: Number(episode.episode_num),
         };
 
-        const position = this.episodePlaybackPositions().get(Number(episode.id));
+        const position = this.episodePlaybackPositions().get(
+            Number(episode.id)
+        );
 
         const playback: ResolvedPortalPlayback = {
             streamUrl,
@@ -214,7 +235,8 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     toggleFavorite(): void {
         this.xtreamStore.toggleFavorite(
             this.route.snapshot.params.serialId,
-            this.xtreamStore.currentPlaylist().id
+            this.xtreamStore.currentPlaylist().id,
+            'series'
         );
     }
 
@@ -308,10 +330,11 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         playlistId: string,
         seriesXtreamId: number
     ): Promise<void> {
-        const positions = await this.playbackPositions.getSeriesPlaybackPositions(
-            playlistId,
-            seriesXtreamId
-        );
+        const positions =
+            await this.playbackPositions.getSeriesPlaybackPositions(
+                playlistId,
+                seriesXtreamId
+            );
         const positionsMap = new Map<number, PlaybackPositionData>();
         positions.forEach((position) => {
             positionsMap.set(position.contentXtreamId, position);
@@ -319,7 +342,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         this.episodePlaybackPositions.set(positionsMap);
     }
 
-    private updateEpisodePlaybackPosition(position: PlaybackPositionData): void {
+    private updateEpisodePlaybackPosition(
+        position: PlaybackPositionData
+    ): void {
         const updated = new Map(this.episodePlaybackPositions());
         updated.set(position.contentXtreamId, position);
         this.episodePlaybackPositions.set(updated);
@@ -341,7 +366,11 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             categoryId: Number(categoryId),
         });
         const serialXtreamId = Number(serialId);
-        this.xtreamStore.checkFavoriteStatus(serialXtreamId, playlistId);
+        this.xtreamStore.checkFavoriteStatus(
+            serialXtreamId,
+            playlistId,
+            'series'
+        );
         void this.loadSeriesPlaybackPositions(playlistId, serialXtreamId);
     }
 }

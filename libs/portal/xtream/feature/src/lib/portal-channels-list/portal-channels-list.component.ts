@@ -42,6 +42,7 @@ export interface XtreamChannelListItem {
     readonly poster_url?: string;
     readonly stream_icon?: string;
     readonly title?: string;
+    readonly type?: 'live' | 'movie' | 'series' | 'vod';
     readonly xtream_id: number;
 }
 
@@ -106,7 +107,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         );
     });
 
-    favorites = new Map<number, boolean>();
+    favorites = new Map<string, boolean>();
     epgPrograms = new Map<number, EpgProgram>();
     currentProgramsProgress = new Map<number, number>();
 
@@ -147,7 +148,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 .getFavorites(playlist.id)
                 .subscribe((favorites) => {
                     favorites.forEach((fav) => {
-                        this.favorites.set(fav.xtream_id, true);
+                        this.favorites.set(
+                            this.getFavoriteKey(fav.xtream_id, fav.type),
+                            true
+                        );
                     });
                 });
         }
@@ -253,16 +257,55 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
             return;
         }
 
+        const favoriteKey = this.favoriteKeyFor(item);
+        const contentType = this.getContentTypeForItem(item);
+
         this.xtreamStore
-            .toggleFavorite(item.xtream_id, playlistId)
+            .toggleFavorite(item.xtream_id, playlistId, contentType)
             .then((result: boolean) => {
                 if (result) {
-                    this.favorites.set(item.xtream_id, true);
+                    this.favorites.set(favoriteKey, true);
                 } else {
-                    this.favorites.delete(item.xtream_id);
+                    this.favorites.delete(favoriteKey);
                 }
                 this.cdr.detectChanges();
             });
+    }
+
+    favoriteKeyFor(item: XtreamChannelListItem): string {
+        return this.getFavoriteKey(
+            item.xtream_id,
+            item.type ?? this.xtreamStore.selectedContentType()
+        );
+    }
+
+    private getFavoriteKey(
+        xtreamId: number,
+        type?: 'live' | 'movie' | 'series' | 'vod'
+    ): string {
+        return `${this.normalizeContentType(type)}:${xtreamId}`;
+    }
+
+    private getContentTypeForItem(
+        item: XtreamChannelListItem
+    ): 'live' | 'movie' | 'series' {
+        return this.normalizeContentType(
+            item.type ?? this.xtreamStore.selectedContentType()
+        );
+    }
+
+    private normalizeContentType(
+        type?: 'live' | 'movie' | 'series' | 'vod'
+    ): 'live' | 'movie' | 'series' {
+        if (type === 'movie' || type === 'vod') {
+            return 'movie';
+        }
+
+        if (type === 'series') {
+            return 'series';
+        }
+
+        return 'live';
     }
 
     ngOnDestroy(): void {

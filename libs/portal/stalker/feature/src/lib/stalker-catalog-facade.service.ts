@@ -129,6 +129,11 @@ export class StalkerCatalogFacadeService
                         return;
                     }
 
+                    void this.playbackPositions.savePlaybackPosition(
+                        data.playlistId,
+                        data
+                    );
+
                     if (data.contentType === 'vod') {
                         this.updateVodPlaybackPosition(data);
                     }

@@ -322,7 +322,8 @@ export interface IXtreamDataSource {
      */
     getContentByXtreamId(
         xtreamId: number,
-        playlistId: string
+        playlistId: string,
+        contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContentItem | null>;
 
     // =========================================================================

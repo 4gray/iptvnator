@@ -11,10 +11,15 @@ import {
     output,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { TranslatePipe } from '@ngx-translate/core';
 import { ChannelListItemComponent } from 'components';
 import { EpgProgram } from 'shared-interfaces';
-import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
+import {
+    DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
+    FavoritesChannelSortMode,
+    sortFavoriteChannelItems,
+    UnifiedFavoriteChannel,
+} from '@iptvnator/portal/shared/util';
+import { TranslateModule } from '@ngx-translate/core';
 
 export interface EnrichedUnifiedFavorite extends UnifiedFavoriteChannel {
     currentEpgProgram: EpgProgram | null;
@@ -30,7 +35,7 @@ export interface EnrichedUnifiedFavorite extends UnifiedFavoriteChannel {
         ChannelListItemComponent,
         DragDropModule,
         MatIconModule,
-        TranslatePipe,
+        TranslateModule,
     ],
 })
 export class GlobalFavoritesListComponent {
@@ -40,10 +45,18 @@ export class GlobalFavoritesListComponent {
     readonly activeUid = input<string | null>(null);
     readonly searchTermInput = input('');
     readonly draggable = input(true);
+    readonly sortMode = input<FavoritesChannelSortMode>(
+        DEFAULT_FAVORITES_CHANNEL_SORT_MODE
+    );
 
     readonly channelSelected = output<UnifiedFavoriteChannel>();
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
     readonly favoriteToggled = output<UnifiedFavoriteChannel>();
+
+    readonly isCustomSort = computed(() => this.sortMode() === 'custom');
+    readonly canDragDrop = computed(
+        () => this.draggable() && this.isCustomSort() && !this.hasSearchTerm()
+    );
 
     readonly hasSearchTerm = computed(
         () => this.searchTermInput().trim().length > 0
@@ -59,7 +72,12 @@ export class GlobalFavoritesListComponent {
             ? channels.filter((ch) => ch.name.toLowerCase().includes(term))
             : channels;
 
-        return filtered.map((ch) => {
+        const sorted = sortFavoriteChannelItems(filtered, this.sortMode(), {
+            getName: (ch) => ch.name,
+            getAddedAt: (ch) => ch.addedAt,
+        });
+
+        return sorted.map((ch) => {
             const epgKey = ch.tvgId?.trim() || ch.name?.trim();
             const currentEpgProgram = epgKey
                 ? (epgMap.get(epgKey) ?? null)
@@ -81,7 +99,7 @@ export class GlobalFavoritesListComponent {
     }
 
     onDrop(event: CdkDragDrop<EnrichedUnifiedFavorite[]>): void {
-        if (this.hasSearchTerm()) {
+        if (!this.canDragDrop()) {
             return;
         }
 

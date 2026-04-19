@@ -17,7 +17,8 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
         void import('@iptvnator/playlist/import/feature').then(
             ({ AddPlaylistDialogComponent }) => {
                 this.dialog.open(AddPlaylistDialogComponent, {
-                    width: '600px',
+                    width: '560px',
+                    maxWidth: '92vw',
                     data: type ? { type } : {},
                 });
             }

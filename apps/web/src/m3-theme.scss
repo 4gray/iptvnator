@@ -185,3 +185,56 @@ html {
         --app-hero-surface: rgba(30, 35, 48, 0.9);
     }
 }
+
+// ─── Global refined outlined inputs ──────────────────────────────────────────
+// Applied app-wide AFTER mat.all-component-themes so these overrides win the
+// cascade. Pairs with MAT_FORM_FIELD_DEFAULT_OPTIONS (outline + dynamic) set
+// in app.config.ts.
+$app-refined-input-density: mat.define-theme((
+    density: (scale: -2),
+));
+
+html {
+    @include mat.form-field-density($app-refined-input-density);
+
+    .mat-mdc-form-field {
+        --mdc-outlined-text-field-outline-color: var(--app-widget-header-border);
+        --mdc-outlined-text-field-hover-outline-color: var(--app-muted-color);
+        --mdc-outlined-text-field-focus-outline-color: var(--app-selection-color);
+        --mdc-outlined-text-field-container-shape: 10px;
+        --mdc-outlined-text-field-label-text-color: var(--app-muted-color);
+        --mdc-outlined-text-field-input-text-color: var(--app-heading-color);
+        --mdc-outlined-text-field-caret-color: var(--app-selection-color);
+        --mdc-outlined-text-field-label-text-size: 13px;
+        --mdc-outlined-text-field-input-text-size: 13.5px;
+    }
+
+    // Inputs sit slightly above the surrounding surface. color-mix is inlined
+    // here (not via a custom property on html) so var(--app-widget-bg)
+    // resolves at the wrapper — inside .dark-theme — rather than being
+    // locked to the light-mode value at html-level inheritance.
+    .mat-form-field-appearance-outline .mat-mdc-text-field-wrapper {
+        background: color-mix(in srgb, var(--app-widget-bg) 85%, white 7%);
+        border-radius: 10px;
+    }
+
+    .mat-mdc-form-field .mat-mdc-input-element,
+    .mat-mdc-form-field .mat-mdc-select-value {
+        font-size: 13.5px;
+    }
+
+    .mat-mdc-form-field-subscript-wrapper {
+        font-size: 11px;
+        letter-spacing: 0.01em;
+        margin-top: 2px;
+
+        .mat-mdc-form-field-hint-wrapper,
+        .mat-mdc-form-field-error-wrapper {
+            padding: 0 12px;
+        }
+
+        .mat-mdc-form-field-hint {
+            color: var(--app-muted-color);
+        }
+    }
+}

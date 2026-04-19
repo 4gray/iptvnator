@@ -30,6 +30,31 @@ import { Playlist, PlaylistMeta } from 'shared-interfaces';
             .spacer {
                 flex: 1 1 auto;
             }
+
+            mat-dialog-content {
+                display: flex;
+                flex-direction: column;
+                gap: 14px;
+            }
+
+            // Material's '.mat-mdc-dialog-title + .mat-mdc-dialog-content' rule
+            // zeroes padding-top with higher specificity than a scoped override,
+            // which clips the first field's floating label. Pushing the first
+            // field down with margin-top side-steps that entirely.
+            mat-dialog-content > mat-form-field:first-child {
+                margin-top: 10px;
+            }
+
+            mat-dialog-content mat-checkbox {
+                margin-top: 4px;
+            }
+
+            mat-dialog-content p {
+                margin: 0;
+                color: var(--app-muted-color);
+                font-size: 12.5px;
+                line-height: 1.45;
+            }
         `,
     ],
     providers: [DatePipe],

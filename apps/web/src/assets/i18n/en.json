@@ -1,6 +1,9 @@
 {
+    "CANCEL": "Cancel",
     "CLEAR": "Clear",
     "CLOSE": "Close",
+    "SHOW_MORE": "More",
+    "SHOW_LESS": "Less",
     "PLAYLISTS": "Playlists",
     "HOME": {
         "TITLE": "IPTVnator",
@@ -96,9 +99,10 @@
             "AUTO_REFRESH_ENABLED": "Auto-refresh enabled"
         },
         "FILE_UPLOAD": {
-            "DRAG_DROP": "Drag & drop files here",
+            "DRAG_DROP": "Drop an .m3u or .m3u8 file here",
             "OR": "or",
-            "CHOOSE_PLAYLIST": "choose a playlist",
+            "CHOOSE_PLAYLIST": "click to browse",
+            "BROWSE": "Browse files",
             "REJECTED": "File was rejected, unsupported file format {{filename}}."
         },
         "URL_UPLOAD": {
@@ -222,6 +226,17 @@
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Show now playing footer",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Keep the external-player status bar visible at the bottom of the workspace on desktop.",
         "VERSION_DESCRIPTION": "Current version of the application",
+        "ABOUT_SUBTITLE": "Version, project links and ways to support IPTVnator.",
+        "COMMUNITY": "Project & community",
+        "COMMUNITY_DESCRIPTION": "Star the repository, read the blog or join the Telegram group for updates and help.",
+        "LINK_BLOG": "Blog",
+        "LINK_GITHUB_DESCRIPTION": "Star the repo, open an issue or contribute",
+        "LINK_BLOG_DESCRIPTION": "Release notes, tips and project updates",
+        "LINK_TELEGRAM_DESCRIPTION": "Announcements, community and support",
+        "SUPPORT_TITLE": "Support the project",
+        "SUPPORT_DESCRIPTION": "IPTVnator is free and open source, built in the open. If it is part of your daily routine, a small contribution helps keep the project alive and shape what comes next — thank you.",
+        "SUPPORT_SPONSORS_HINT": "Recurring or one-time",
+        "SUPPORT_KOFI_HINT": "Buy me a coffee",
         "EPG_NOTE": "Currently EPG is available only in the electron-based version of IPTVnator.",
         "EPG_NOTE_URL_TEXT": "Check it here",
         "IMPORT_EXPORT_DATA": "Import/export playlists",
@@ -382,7 +397,8 @@
         "QUEUED": "Queued",
         "TOTAL_CHANNELS": "Total channels",
         "TOTAL_PROGRAMS": "Total programs",
-        "UP_TO_DATE": "EPG is up-to-date, no sync needed"
+        "UP_TO_DATE": "EPG is up-to-date, no sync needed",
+        "RETRY": "Retry"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",
@@ -639,6 +655,7 @@
     },
     "WORKSPACE": {
         "FAVORITES_ONLY": "Favorites only",
+        "SORT_CUSTOM": "Custom order",
         "SORT_DATE_DESC": "Date Added (Latest First)",
         "SORT_DATE_ASC": "Date Added (Oldest First)",
         "SORT_NAME_ASC": "Name A-Z",
@@ -777,6 +794,14 @@
             "CLEAR_COMPLETED_DOWNLOADS_THIS_PLAYLIST_ARIA": "Clear completed downloads for this playlist",
             "CLEAR_RECENTLY_VIEWED_SECTION": "Clear recently viewed",
             "CLEAR_RECENTLY_VIEWED_SECTION_ARIA": "Clear recently viewed for this section",
+            "CLEAR_RECENTLY_VIEWED_TYPE": "Clear recently viewed {{type}}",
+            "CLEAR_RECENTLY_VIEWED_DIALOG_TITLE": "Clear recently viewed {{type}}?",
+            "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_PLAYLIST": "All {{type}} items from this playlist will be removed from your recently viewed history. This action cannot be undone.",
+            "CLEAR_RECENTLY_VIEWED_DIALOG_MESSAGE_ALL": "All {{type}} items across all playlists will be removed from your recently viewed history. This action cannot be undone.",
+            "CLEAR_FAVORITES_TYPE": "Clear {{type}} favorites",
+            "CLEAR_FAVORITES_DIALOG_TITLE": "Remove all {{type}} favorites?",
+            "CLEAR_FAVORITES_DIALOG_MESSAGE_PLAYLIST": "All {{type}} favorites from this playlist will be removed. This action cannot be undone.",
+            "CLEAR_FAVORITES_DIALOG_MESSAGE_ALL": "All {{type}} favorites across all playlists will be removed. This action cannot be undone.",
             "XTREAM_CODE": "Xtream Code",
             "STALKER_PORTAL": "Stalker Portal",
             "CHANNELS_COUNT": "{{count}} channels",

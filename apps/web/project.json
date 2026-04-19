@@ -102,9 +102,21 @@
                     "optimization": false,
                     "extractLicenses": false,
                     "sourceMap": true
+                },
+                "electron-e2e": {
+                    "baseHref": "./",
+                    "optimization": false,
+                    "extractLicenses": false,
+                    "sourceMap": true
                 }
             },
             "defaultConfiguration": "production"
+        },
+        "build-e2e": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm nx run web:build:electron-e2e"
+            }
         },
         "serve": {
             "continuous": true,

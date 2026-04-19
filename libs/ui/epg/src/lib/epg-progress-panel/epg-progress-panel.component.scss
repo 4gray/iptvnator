@@ -28,7 +28,11 @@
     max-width: calc(100vw - 96px);
     background: var(--epg-panel-bg);
     border-radius: 12px;
-    box-shadow: var(--epg-shadow);
+    border: 1px solid var(--epg-separator);
+    box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.08),
+        0 8px 24px rgba(0, 0, 0, 0.18),
+        0 16px 48px rgba(0, 0, 0, 0.12);
     z-index: 900;
     overflow: hidden;
     animation: slideInFromLeft 0.3s cubic-bezier(0.16, 1, 0.3, 1);
@@ -154,20 +158,38 @@
             color: var(--epg-text-secondary);
         }
 
-        .dismiss-btn {
+        .dismiss-btn,
+        .retry-btn {
             width: 24px;
             height: 24px;
             padding: 0;
             line-height: 24px;
             border-radius: 6px;
             opacity: 0;
-            transition: opacity 0.15s ease;
+            transition:
+                opacity 0.15s ease,
+                color 0.15s ease;
             color: var(--epg-text-tertiary);
 
             mat-icon {
                 font-size: 16px;
                 width: 16px;
                 height: 16px;
+            }
+        }
+
+        // Retry is a deliberate action — keep it discoverable, not hover-only,
+        // and use the accent color so it reads as primary.
+        .retry-btn {
+            opacity: 1;
+            color: var(--epg-accent);
+
+            &:hover {
+                color: color-mix(
+                    in srgb,
+                    var(--epg-accent) 80%,
+                    var(--epg-text-primary)
+                );
             }
         }
     }
@@ -234,6 +256,14 @@
     margin: 2px 0 0;
     padding: 6px 10px 8px;
     border-top: 1px solid var(--epg-separator);
+
+    // When queue is the only content (no active imports above),
+    // the panel-header border-bottom already provides separation —
+    // suppress this border to avoid a visible double rule.
+    &:first-child {
+        margin-top: 0;
+        border-top: none;
+    }
 }
 
 .queue-header {

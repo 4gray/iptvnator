@@ -35,20 +35,20 @@ Registered widget types:
 Default layout:
 
 1. `continue-watching`
-   1. Enabled by default
-   2. Size `full`
+    1. Enabled by default
+    2. Size `full`
 2. `recently-watched`
-   1. Enabled by default
-   2. Size `two-thirds`
-   3. Scope-aware
+    1. Enabled by default
+    2. Size `two-thirds`
+    3. Scope-aware
 3. `global-favorites`
-   1. Enabled by default
-   2. Size `one-third`
-   3. Scope-aware
+    1. Enabled by default
+    2. Size `one-third`
+    3. Scope-aware
 4. `source-stats`
-   1. Present in the registry
-   2. Disabled by default
-   3. Size `one-third`
+    1. Present in the registry
+    2. Disabled by default
+    3. Size `one-third`
 
 The old refactor summary mentioned `Recent Sources`, but that widget is not in
 the current registry and should not be documented as shipped behavior.
@@ -62,13 +62,13 @@ Current storage details:
 1. Storage key: `workspace-dashboard-layout-v3`
 2. Schema version: `12`
 3. Size presets:
-   1. `one-third`
-   2. `half`
-   3. `two-thirds`
-   4. `full`
+    1. `one-third`
+    2. `half`
+    3. `two-thirds`
+    4. `full`
 4. Scope settings:
-   1. `providers: Array<'m3u' | 'xtream' | 'stalker'>`
-   2. `playlistIds: string[]`
+    1. `providers: Array<'m3u' | 'xtream' | 'stalker'>`
+    2. `playlistIds: string[]`
 
 Normalization rules in `DashboardLayoutService`:
 
@@ -88,6 +88,19 @@ Normalization rules in `DashboardLayoutService`:
 4. Widgets receive the normalized config, including size and optional scope.
 5. Data comes from `DashboardDataService` and existing provider/state services.
 6. Widget actions deep-link back into workspace/provider routes.
+
+Dashboard detail handoff contract:
+
+1. Live items continue to activate their existing playback/provider route flows.
+2. Xtream and Stalker movies/series from `global-favorites` or
+   `recently-watched` should route into `/workspace/global-favorites` or
+   `/workspace/global-recent` with collection detail pre-opened from navigation
+   state.
+3. Those collection detail opens must not switch the active playlist in the
+   header playlist switcher.
+4. Those collection detail opens must not show the workspace category sidebar.
+5. The detail close/back action should return to the dashboard-origin view
+   rather than reopening provider/category navigation.
 
 ## Customize Mode
 
@@ -111,7 +124,10 @@ than per-widget custom query systems.
 2. Each widget must own its loading, empty, and error states.
 3. Dashboard failures must stay isolated to the widget that failed.
 4. Widget navigation should resolve directly into the relevant content context.
-5. New widgets should fit the existing constrained layout model unless the
+5. Dashboard favorites/recent movie/series activations should preserve the
+   current playlist context and use the collection-owned detail host instead of
+   forcing provider/category side-navigation.
+6. New widgets should fit the existing constrained layout model unless the
    dashboard architecture is explicitly being expanded.
 
 ## Adding Or Changing Widgets

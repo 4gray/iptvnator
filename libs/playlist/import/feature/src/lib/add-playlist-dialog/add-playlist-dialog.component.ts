@@ -1,6 +1,12 @@
-import { Component, computed, inject, signal, viewChild } from '@angular/core';
+import {
+    Component,
+    computed,
+    inject,
+    signal,
+    ViewEncapsulation,
+    viewChild,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
-import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import {
     MAT_DIALOG_DATA,
     MatDialogModule,
@@ -23,11 +29,20 @@ import { TextImportComponent } from '../text-import/text-import.component';
 import { UrlUploadComponent } from '../url-upload/url-upload.component';
 import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-import.component';
 
+interface CategoryOption {
+    value: PlaylistCategory;
+    label: string;
+}
+
+interface SubtypeOption {
+    value: M3uSubType;
+    labelKey: string;
+}
+
 @Component({
     imports: [
         FileUploadComponent,
         MatButtonModule,
-        MatButtonToggleModule,
         MatDialogModule,
         StalkerPortalImportComponent,
         TextImportComponent,
@@ -38,6 +53,7 @@ import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-imp
     selector: 'app-add-playlist',
     templateUrl: './add-playlist-dialog.component.html',
     styleUrl: './add-playlist-dialog.component.scss',
+    encapsulation: ViewEncapsulation.None,
 })
 export class AddPlaylistDialogComponent {
     private dataService = inject(DataService);
@@ -50,12 +66,25 @@ export class AddPlaylistDialogComponent {
     });
 
     readonly urlUpload = viewChild(UrlUploadComponent);
+    readonly fileUpload = viewChild(FileUploadComponent);
     readonly textImport = viewChild(TextImportComponent);
     readonly xtreamImport = viewChild(XtreamCodeImportComponent);
     readonly stalkerImport = viewChild(StalkerPortalImportComponent);
 
     readonly category = signal<PlaylistCategory>('m3u');
     readonly m3uSubType = signal<M3uSubType>('url');
+
+    readonly categoryOptions: CategoryOption[] = [
+        { value: 'm3u', label: 'M3U' },
+        { value: 'xtream', label: 'Xtream' },
+        { value: 'stalker', label: 'Stalker' },
+    ];
+
+    readonly subtypeOptions: SubtypeOption[] = [
+        { value: 'url', labelKey: 'HOME.TABS.URL_UPLOAD' },
+        { value: 'file', labelKey: 'HOME.TABS.FILE_UPLOAD' },
+        { value: 'text', labelKey: 'HOME.TABS.TEXT_IMPORT' },
+    ];
 
     readonly playlistType = computed<PlaylistType>(() => {
         const cat = this.category();

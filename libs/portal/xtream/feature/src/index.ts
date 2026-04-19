@@ -8,6 +8,7 @@ export * from './lib/portal-channels-list/portal-channels-list.component';
 export * from './lib/recently-added/recently-added.component';
 export * from './lib/search-results/search-results.component';
 export * from './lib/serial-details/serial-details.component';
+export * from './lib/xtream-collection-detail.component';
 export * from './lib/vod-details/vod-details-route.component';
 export * from './lib/xtream-content-gate.component';
 export * from './lib/xtream-catalog-facade.service';

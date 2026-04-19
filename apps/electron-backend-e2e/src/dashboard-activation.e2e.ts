@@ -6,6 +6,7 @@ import {
     closeElectronApp,
     defaultXtreamPassword,
     defaultXtreamUsername,
+    expectPathname,
     expect,
     goToDashboard,
     launchElectronApp,
@@ -23,7 +24,7 @@ import {
 } from './portal-mock-fixtures';
 
 test.describe('Dashboard Activation', () => {
-    test('opens live favorites in the collection route and movies/series in source detail routes from the dashboard', async ({
+    test('opens live favorites in the collection route and movies/series in global collection detail views from the dashboard', async ({
         dataDir,
         request,
     }) => {
@@ -67,6 +68,7 @@ test.describe('Dashboard Activation', () => {
                 vodFixture.categoryName
             );
             const movieTitle = await clickFirstGridListCard(app.mainWindow);
+            await addCurrentDetailToFavorites(app.mainWindow);
             await playCurrentDetail(app.mainWindow);
             await goBackFromDetail(app.mainWindow);
 
@@ -99,30 +101,42 @@ test.describe('Dashboard Activation', () => {
 
             await dashboardActivityItemByTitle(
                 app.mainWindow,
+                'Global Favorites',
+                movieTitle
+            ).click();
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-favorites$/,
+                title: movieTitle,
+            });
+
+            await goBackFromDetail(app.mainWindow);
+            await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
+
+            await dashboardActivityItemByTitle(
+                app.mainWindow,
                 'Recently Watched',
                 movieTitle
             ).click();
-            await app.mainWindow.waitForURL(
-                /\/workspace\/xtreams\/[^/]+\/vod\/[^/]+\/[^/]+$/
-            );
-            await expect(
-                app.mainWindow.locator('app-content-hero')
-            ).toContainText(movieTitle);
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: movieTitle,
+            });
 
             await app.mainWindow.goBack();
-            await app.mainWindow.waitForURL(/\/workspace\/dashboard$/);
+            await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
 
             await dashboardActivityItemByTitle(
                 app.mainWindow,
                 'Recently Watched',
                 seriesTitle
             ).click();
-            await app.mainWindow.waitForURL(
-                /\/workspace\/xtreams\/[^/]+\/series\/[^/]+\/[^/]+$/
-            );
-            await expect(
-                app.mainWindow.locator('app-content-hero')
-            ).toContainText(seriesTitle);
+            await expectInlineCollectionDetail(app.mainWindow, {
+                pathname: /\/workspace\/global-recent$/,
+                title: seriesTitle,
+            });
+
+            await goBackFromDetail(app.mainWindow);
+            await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
         } finally {
             await closeElectronApp(app);
         }
@@ -154,7 +168,40 @@ async function goBackFromDetail(page: Page): Promise<void> {
         .first();
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
-    await backButton.click();
+    try {
+        await backButton.click({ timeout: 5000 });
+    } catch {
+        await backButton.evaluate((button: HTMLButtonElement) =>
+            button.click()
+        );
+    }
+}
+
+async function addCurrentDetailToFavorites(page: Page): Promise<void> {
+    const addButton = page.locator('button.favorite-btn').first();
+
+    await expect(addButton).toBeVisible({ timeout: 20000 });
+    await addButton.click();
+    await expect(
+        page.locator('button.favorite-btn--active').first()
+    ).toBeVisible({
+        timeout: 20000,
+    });
+}
+
+async function expectInlineCollectionDetail(
+    page: Page,
+    params: {
+        pathname: RegExp;
+        title: string;
+    }
+): Promise<void> {
+    await expectPathname(page, params.pathname);
+    await expect(page.locator('app-workspace-context-panel')).toHaveCount(0);
+    await expect(page.locator('app-content-hero')).toContainText(params.title);
+    await expect(
+        page.locator('app-content-hero .hero__back-button').first()
+    ).toBeVisible({ timeout: 20000 });
 }
 
 async function playCurrentDetail(page: Page): Promise<void> {

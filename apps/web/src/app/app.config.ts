@@ -8,6 +8,7 @@ import {
     importProvidersFrom,
     provideZoneChangeDetection,
 } from '@angular/core';
+import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
 import { provideAnimations } from '@angular/platform-browser/animations';
 import { provideRouter, withComponentInputBinding } from '@angular/router';
 import { provideServiceWorker } from '@angular/service-worker';
@@ -114,5 +115,9 @@ export const appConfig: ApplicationConfig = {
         },
         ...provideWorkspaceShellActions(),
         ...provideXtreamDataSource(),
+        {
+            provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
+            useValue: { appearance: 'outline', subscriptSizing: 'dynamic' },
+        },
     ],
 };

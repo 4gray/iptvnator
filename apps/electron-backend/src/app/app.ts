@@ -191,11 +191,13 @@ export default class App {
             App.mainWindow.show();
         });
 
-        // handle all external redirects in a new browser window
-        // App.mainWindow.webContents.on('will-navigate', App.onRedirect);
-        // App.mainWindow.webContents.on('new-window', (event, url, frameName, disposition, options) => {
-        //     App.onRedirect(event, url);
-        // });
+        // Route target="_blank" / window.open() to the OS default browser
+        App.mainWindow.webContents.setWindowOpenHandler(({ url }) => {
+            if (/^https?:\/\//.test(url)) {
+                shell.openExternal(url);
+            }
+            return { action: 'deny' };
+        });
 
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {

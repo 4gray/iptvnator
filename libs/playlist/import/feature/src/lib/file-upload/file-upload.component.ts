@@ -1,9 +1,11 @@
-import { Component, EventEmitter, inject, Output } from '@angular/core';
+import { Component, EventEmitter, Output, signal } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
-import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
 import { DragDropFileUploadDirective } from './drag-drop-file-upload.directive';
+
+const M3U_EXTENSIONS = ['.m3u', '.m3u8'];
+const MB = 1024 * 1024;
+const KB = 1024;
 
 @Component({
     imports: [DragDropFileUploadDirective, MatIconModule, TranslatePipe],
@@ -17,64 +19,63 @@ export class FileUploadComponent {
         file: File;
     }>();
     @Output() fileRejected = new EventEmitter<string>();
-    @Output() addClicked = new EventEmitter<void>();
     @Output() closeDialog = new EventEmitter<void>();
 
-    private readonly store = inject(Store);
+    readonly selectedFile = signal<File | null>(null);
+    readonly isDragging = signal(false);
 
-    private isDesktop = !!window.electron;
-
-    allowedContentTypes = [
-        'application/mpegurl',
-        'application/x-mpegurl',
-        'application/octet-stream',
-        'application/vnd.apple.mpegurl',
-        'application/vnd.apple.mpegurl.audio',
-        'audio/x-mpegurl',
-        'audio/mpegurl',
-    ];
-
-    async openDialog(fileField: HTMLInputElement) {
-        if (this.isDesktop) {
-            window.electron
-                .openPlaylistFromFile()
-                .then((playlistObject) => {
-                    if (playlistObject) {
-                        console.log(
-                            'Received playlist from Electron:',
-                            playlistObject
-                        );
-                        this.store.dispatch(
-                            PlaylistActions.addPlaylist({ playlist: playlistObject })
-                        );
-                    } else {
-                        // User canceled the dialog
-                        console.log('File selection was canceled.');
-                    }
-                })
-                .catch((error) => {
-                    console.error('Error opening file:', error);
-                });
-            this.closeDialog.emit();
-        } else {
-            fileField.click();
-        }
+    openPicker(input: HTMLInputElement): void {
+        input.value = '';
+        input.click();
     }
 
-    upload(fileList: FileList) {
-        if (this.isDesktop) return;
+    onDragStateChange(isDragging: boolean): void {
+        this.isDragging.set(isDragging);
+    }
 
-        if (!this.allowedContentTypes.includes(fileList[0].type)) {
-            this.fileRejected.emit(fileList[0].name);
+    onFilesDropped(files: FileList): void {
+        this.setFile(files[0]);
+    }
+
+    onPicked(input: HTMLInputElement): void {
+        const file = input.files?.[0];
+        if (file) {
+            this.setFile(file);
+        }
+        input.value = '';
+    }
+
+    clearSelection(): void {
+        this.selectedFile.set(null);
+    }
+
+    confirm(): void {
+        const file = this.selectedFile();
+        if (!file) return;
+
+        const reader = new FileReader();
+        reader.onload = (uploadEvent) =>
+            this.fileSelected.emit({ uploadEvent, file });
+        reader.readAsText(file);
+    }
+
+    formatSize(bytes: number): string {
+        if (bytes < KB) return `${bytes} B`;
+        if (bytes < MB) return `${(bytes / KB).toFixed(1)} KB`;
+        return `${(bytes / MB).toFixed(1)} MB`;
+    }
+
+    private setFile(file: File | undefined): void {
+        if (!file) return;
+        if (!this.hasAllowedExtension(file.name)) {
+            this.fileRejected.emit(file.name);
             return;
         }
-        const fileReader = new FileReader();
-        fileReader.onload = (uploadEvent) =>
-            this.fileSelected.emit({
-                uploadEvent,
-                file: fileList[0],
-            });
-        fileReader.readAsText(fileList[0]);
-        this.addClicked.emit();
+        this.selectedFile.set(file);
+    }
+
+    private hasAllowedExtension(name: string): boolean {
+        const lower = name.toLowerCase();
+        return M3U_EXTENSIONS.some((ext) => lower.endsWith(ext));
     }
 }

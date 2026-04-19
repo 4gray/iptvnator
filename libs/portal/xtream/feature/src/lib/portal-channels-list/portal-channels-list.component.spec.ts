@@ -5,6 +5,7 @@ import { ActivatedRoute } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of, Subject } from 'rxjs';
 import {
+    FavoriteItem,
     EpgQueueService,
     FavoritesService,
     XtreamStore,
@@ -52,11 +53,16 @@ describe('PortalChannelsListComponent', () => {
         currentPlaylist,
         selectedCategoryId,
         setSelectedCategory: jest.fn(),
+        toggleFavorite: jest.fn().mockResolvedValue(true),
     };
     const epgResults$ = new Subject<{ streamId: number; items: unknown[] }>();
+    const favoritesService = {
+        getFavorites: jest.fn().mockReturnValue(of([] as FavoriteItem[])),
+    };
 
     beforeEach(async () => {
         storeSignals.setSelectedCategory.mockClear();
+        storeSignals.toggleFavorite.mockClear();
         selectedChannels.set([]);
         selectedItem.set(null);
         epgItems.set([]);
@@ -64,6 +70,7 @@ describe('PortalChannelsListComponent', () => {
         selectedContentType.set('live');
         currentPlaylist.set(null);
         selectedCategoryId.set(1);
+        favoritesService.getFavorites.mockReturnValue(of([] as FavoriteItem[]));
 
         await TestBed.configureTestingModule({
             imports: [PortalChannelsListComponent, NoopAnimationsModule],
@@ -100,9 +107,7 @@ describe('PortalChannelsListComponent', () => {
                 },
                 {
                     provide: FavoritesService,
-                    useValue: {
-                        getFavorites: jest.fn().mockReturnValue(of([])),
-                    },
+                    useValue: favoritesService,
                 },
                 {
                     provide: EpgQueueService,
@@ -220,5 +225,75 @@ describe('PortalChannelsListComponent', () => {
             })
         );
         expect(component.currentProgramsProgress.get(50)).toBeCloseTo(50, 1);
+    });
+
+    it('does not mark a live item as favorite when only a colliding movie ID is favorited', () => {
+        favoritesService.getFavorites.mockReturnValue(
+            of([
+                {
+                    content_id: 42,
+                    playlist_id: 'playlist-1',
+                    type: 'movie',
+                    title: 'Krypton',
+                    category_id: 7,
+                    xtream_id: 290,
+                },
+            ] satisfies FavoriteItem[])
+        );
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            {
+                title: 'SE: V Film Premiere FHD',
+                type: 'live',
+                xtream_id: 290,
+            },
+        ]);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+
+        fixture.detectChanges();
+
+        const component = fixture.componentInstance;
+        expect(component.favorites.get('movie:290')).toBe(true);
+        expect(component.favorites.get('live:290')).toBeUndefined();
+        expect(
+            component.favoriteKeyFor({
+                title: 'SE: V Film Premiere FHD',
+                type: 'live',
+                xtream_id: 290,
+            })
+        ).toBe('live:290');
+    });
+
+    it('passes the live content type when toggling a channel favorite', async () => {
+        selectedTypeContentLoading.set(false);
+        currentPlaylist.set({
+            id: 'playlist-1',
+            password: 'secret',
+            serverUrl: 'http://demo.example',
+            username: 'demo',
+        });
+
+        fixture.detectChanges();
+
+        fixture.componentInstance.toggleFavorite(
+            new MouseEvent('click'),
+            {
+                title: 'Cartoon Network',
+                xtream_id: 253,
+            }
+        );
+        await Promise.resolve();
+
+        expect(storeSignals.toggleFavorite).toHaveBeenCalledWith(
+            253,
+            'playlist-1',
+            'live'
+        );
+        expect(fixture.componentInstance.favorites.get('live:253')).toBe(true);
     });
 });

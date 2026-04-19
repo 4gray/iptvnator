@@ -1,12 +1,17 @@
 import {
+    buildCollectionViewState,
     buildStalkerStateItem,
     buildXtreamItemLink,
+    COLLECTION_VIEW_STATE_KEY,
     getGlobalFavoriteNavigation,
+    getCollectionViewState,
+    getOpenCollectionDetailItemState,
     getOpenLiveCollectionItemState,
     getOpenStalkerItemState,
     getRecentItemNavigation,
     getStalkerReturnToState,
     getUnifiedCollectionNavigation,
+    OPEN_COLLECTION_DETAIL_STATE_KEY,
     matchesOpenLiveCollectionItem,
     OPEN_LIVE_COLLECTION_ITEM_STATE_KEY,
     OPEN_STALKER_ITEM_STATE_KEY,
@@ -33,14 +38,30 @@ describe('workspace-portal-navigation', () => {
                 categoryId: 42,
                 itemId: 99,
             })
-        ).toEqual([
-            '/workspace',
-            'xtreams',
-            'xtream-1',
-            'vod',
-            '42',
-            '99',
-        ]);
+        ).toEqual(['/workspace', 'xtreams', 'xtream-1', 'vod', '42', '99']);
+    });
+
+    it('normalizes collection view state for history persistence', () => {
+        expect(
+            buildCollectionViewState({
+                selectedContentType: 'movie',
+                scope: 'all',
+            })
+        ).toEqual({
+            selectedContentType: 'movie',
+            scope: 'all',
+        });
+        expect(
+            getCollectionViewState({
+                [COLLECTION_VIEW_STATE_KEY]: {
+                    selectedContentType: 'series',
+                    scope: 'playlist',
+                },
+            })
+        ).toEqual({
+            selectedContentType: 'series',
+            scope: 'playlist',
+        });
     });
 
     it('routes live M3U favorites to the playlist favorites collection with auto-open state', () => {
@@ -69,57 +90,57 @@ describe('workspace-portal-navigation', () => {
                 },
             },
         });
-        expect(
-            getOpenLiveCollectionItemState(navigation.state)
-        ).toEqual(navigation.state?.[OPEN_LIVE_COLLECTION_ITEM_STATE_KEY]);
+        expect(getOpenLiveCollectionItemState(navigation.state)).toEqual(
+            navigation.state?.[OPEN_LIVE_COLLECTION_ITEM_STATE_KEY]
+        );
     });
 
-    it('routes Stalker movie recents into the source category route with detail state', () => {
-        const navigation =
-            getGlobalFavoriteNavigation({
-                id: 'movie-7',
-                title: 'Movie Seven',
-                type: 'movie',
-                playlist_id: 'stalker-1',
-                category_id: '17',
-                xtream_id: 'movie-7',
-                source: 'stalker',
-                poster_url: 'https://example.com/poster.png',
-                added_at: '2026-03-01T00:00:00.000Z',
-            });
+    it('routes Stalker movie favorites into the global favorites page with inline detail state', () => {
+        const navigation = getGlobalFavoriteNavigation({
+            id: 'movie-7',
+            title: 'Movie Seven',
+            type: 'movie',
+            playlist_id: 'stalker-1',
+            category_id: '17',
+            xtream_id: 'movie-7',
+            source: 'stalker',
+            poster_url: 'https://example.com/poster.png',
+            added_at: '2026-03-01T00:00:00.000Z',
+        });
 
         expect(navigation).toEqual({
-            link: ['/workspace', 'stalker', 'stalker-1', 'vod', '17'],
+            link: ['/workspace', 'global-favorites'],
             state: {
-                openStalkerItem: expect.objectContaining({
-                    category_id: '17',
-                    id: 'movie-7',
-                    title: 'Movie Seven',
-                }),
-                stalkerReturnTo: '/workspace/dashboard',
+                openCollectionDetailItem: {
+                    item: expect.objectContaining({
+                        uid: 'stalker::stalker-1::movie-7',
+                        name: 'Movie Seven',
+                        contentType: 'movie',
+                        sourceType: 'stalker',
+                        playlistId: 'stalker-1',
+                        categoryId: '17',
+                        stalkerId: 'movie-7',
+                    }),
+                },
             },
         });
-        expect(getOpenStalkerItemState(navigation.state)).toEqual(
-            navigation.state?.[OPEN_STALKER_ITEM_STATE_KEY]
-        );
-        expect(getStalkerReturnToState(navigation.state)).toBe(
-            navigation.state?.[STALKER_RETURN_TO_STATE_KEY]
+        expect(getOpenCollectionDetailItemState(navigation.state)).toEqual(
+            navigation.state?.[OPEN_COLLECTION_DETAIL_STATE_KEY]
         );
     });
 
     it('routes Stalker live recents to the collection route with auto-open state', () => {
-        const navigation =
-            getRecentItemNavigation({
-                id: 'stalker-live-1',
-                title: 'Live One',
-                type: 'live',
-                playlist_id: 'stalker-1',
-                category_id: 'itv',
-                xtream_id: 'stalker-live-1',
-                source: 'stalker',
-                poster_url: 'https://example.com/poster.png',
-                viewed_at: '2026-03-01T00:00:00.000Z',
-            });
+        const navigation = getRecentItemNavigation({
+            id: 'stalker-live-1',
+            title: 'Live One',
+            type: 'live',
+            playlist_id: 'stalker-1',
+            category_id: 'itv',
+            xtream_id: 'stalker-live-1',
+            source: 'stalker',
+            poster_url: 'https://example.com/poster.png',
+            viewed_at: '2026-03-01T00:00:00.000Z',
+        });
 
         expect(navigation).toEqual({
             link: ['/workspace', 'stalker', 'stalker-1', 'recent'],

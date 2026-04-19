@@ -28,6 +28,8 @@ jest.mock('../services/stalker-playback-context.service', () => ({
 import {
     buildExternalPlayerSpawnSpec,
     isRunningInFlatpak,
+    parseVlcRcPlaybackState,
+    parseVlcRcNumericResponse,
     resolveExternalPlayerLaunchContext,
     shouldReuseMpvInstance,
     shouldUseMpvSocketBridge,
@@ -124,5 +126,47 @@ describe('player.events Flatpak launch helpers', () => {
         expect(shouldReuseMpvInstance(true, false)).toBe(true);
         expect(shouldReuseMpvInstance(false, false)).toBe(false);
         expect(shouldUseMpvSocketBridge(false)).toBe(true);
+    });
+
+    it('parses numeric VLC RC responses that include the prompt prefix', () => {
+        expect(
+            parseVlcRcNumericResponse(`VLC media player 3.0.20 Vetinari
+Command Line Interface initialized. Type \`help' for help.
+> 20
+> `)
+        ).toBe('20');
+
+        expect(
+            parseVlcRcNumericResponse(`VLC media player 3.0.20 Vetinari
+Command Line Interface initialized. Type \`help' for help.
+> 9281
+> `)
+        ).toBe('9281');
+    });
+
+    it('returns an empty string for non-numeric VLC RC responses', () => {
+        expect(
+            parseVlcRcNumericResponse(`VLC media player 3.0.20 Vetinari
+Command Line Interface initialized. Type \`help' for help.
+> ( state playing )
+> `)
+        ).toBe('');
+    });
+
+    it('parses VLC RC playback states from status output', () => {
+        expect(
+            parseVlcRcPlaybackState(`VLC media player 3.0.20 Vetinari
+Command Line Interface initialized. Type \`help' for help.
+> ( audio volume: 196 )
+( state playing )
+> `)
+        ).toBe('playing');
+
+        expect(
+            parseVlcRcPlaybackState(`VLC media player 3.0.20 Vetinari
+Command Line Interface initialized. Type \`help' for help.
+> ( state stopped )
+> `)
+        ).toBe('stopped');
     });
 });

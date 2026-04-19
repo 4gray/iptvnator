@@ -42,6 +42,9 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
+    buildStalkerDetailNavigationTarget,
+    buildStalkerStateItem,
+    buildXtreamNavigationTarget,
     getGlobalFavoriteNavigation,
     getRecentItemNavigation,
     WorkspaceNavigationTarget,
@@ -80,12 +83,15 @@ export class DashboardDataService {
     private readonly globalFavoritesLoadingState = signal(true);
     private readonly globalFavoritesLoadedState = signal(false);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
-    readonly playlistsLoaded = this.store.selectSignal(selectPlaylistsLoadingFlag);
+    readonly playlistsLoaded = this.store.selectSignal(
+        selectPlaylistsLoadingFlag
+    );
     readonly globalRecentLoading = this.globalRecentLoadingState.asReadonly();
     readonly globalRecentLoaded = this.globalRecentLoadedState.asReadonly();
     readonly globalFavoritesLoading =
         this.globalFavoritesLoadingState.asReadonly();
-    readonly globalFavoritesLoaded = this.globalFavoritesLoadedState.asReadonly();
+    readonly globalFavoritesLoaded =
+        this.globalFavoritesLoadedState.asReadonly();
 
     private readonly playlistFavoritesReloadKey = computed(() => {
         if (!this.playlistsLoaded()) {
@@ -96,7 +102,11 @@ export class DashboardDataService {
             .map((playlist) =>
                 [
                     playlist._id,
-                    playlist.serverUrl ? 'xtream' : playlist.macAddress ? 'stalker' : 'm3u',
+                    playlist.serverUrl
+                        ? 'xtream'
+                        : playlist.macAddress
+                          ? 'stalker'
+                          : 'm3u',
                     JSON.stringify(playlist.favorites ?? []),
                 ].join('::')
             )
@@ -281,7 +291,8 @@ export class DashboardDataService {
                 Array.isArray(playlist.favorites) &&
                 playlist.favorites.some(
                     (favorite): favorite is string =>
-                        typeof favorite === 'string' && favorite.trim().length > 0
+                        typeof favorite === 'string' &&
+                        favorite.trim().length > 0
                 )
         );
 
@@ -478,9 +489,7 @@ export class DashboardDataService {
         return this.getActivityItemTypeLabel(item);
     }
 
-    getRecentlyAddedItemTypeLabel(
-        item: DashboardRecentlyAddedItem
-    ): string {
+    getRecentlyAddedItemTypeLabel(item: DashboardRecentlyAddedItem): string {
         return this.getActivityItemTypeLabel(item);
     }
 
@@ -502,13 +511,57 @@ export class DashboardDataService {
     }
 
     getRecentlyAddedLink(item: DashboardRecentlyAddedItem): string[] {
-        return getGlobalFavoriteNavigation(item).link;
+        if (item.source === 'stalker' && item.type !== 'live') {
+            return buildStalkerDetailNavigationTarget({
+                playlistId: item.playlist_id,
+                type: item.type,
+                categoryId: item.category_id,
+                item: buildStalkerStateItem(item.stalker_item, {
+                    id: item.id,
+                    title: item.title,
+                    type: item.type,
+                    category_id: item.category_id,
+                    poster_url: item.poster_url,
+                }),
+            }).link;
+        }
+
+        return buildXtreamNavigationTarget({
+            playlistId: item.playlist_id,
+            type: item.type,
+            categoryId: item.category_id,
+            itemId: item.xtream_id,
+            title: item.title,
+            imageUrl: item.poster_url,
+        }).link;
     }
 
     getRecentlyAddedNavigationState(
         item: DashboardRecentlyAddedItem
     ): WorkspaceNavigationTarget['state'] {
-        return getGlobalFavoriteNavigation(item).state;
+        if (item.source === 'stalker' && item.type !== 'live') {
+            return buildStalkerDetailNavigationTarget({
+                playlistId: item.playlist_id,
+                type: item.type,
+                categoryId: item.category_id,
+                item: buildStalkerStateItem(item.stalker_item, {
+                    id: item.id,
+                    title: item.title,
+                    type: item.type,
+                    category_id: item.category_id,
+                    poster_url: item.poster_url,
+                }),
+            }).state;
+        }
+
+        return buildXtreamNavigationTarget({
+            playlistId: item.playlist_id,
+            type: item.type,
+            categoryId: item.category_id,
+            itemId: item.xtream_id,
+            title: item.title,
+            imageUrl: item.poster_url,
+        }).state;
     }
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
@@ -619,8 +672,7 @@ export class DashboardDataService {
             const channelId = String(channel.id ?? '').trim();
             const channelUrl = String(channel.url ?? '').trim();
             const matchedFavoriteId = favorites.find(
-                (favorite) =>
-                    favorite === channelId || favorite === channelUrl
+                (favorite) => favorite === channelId || favorite === channelUrl
             );
 
             if (!matchedFavoriteId) {

@@ -82,6 +82,24 @@ export class UnifiedFavoritesDataService {
         }
     }
 
+    async clearFavorites(items: UnifiedCollectionItem[]): Promise<void> {
+        if (items.length === 0) {
+            return;
+        }
+
+        await Promise.all([
+            this.clearM3uFavorites(
+                items.filter((item) => item.sourceType === 'm3u')
+            ),
+            this.clearXtreamFavorites(
+                items.filter((item) => item.sourceType === 'xtream')
+            ),
+            this.clearStalkerFavorites(
+                items.filter((item) => item.sourceType === 'stalker')
+            ),
+        ]);
+    }
+
     async reorder(
         items: UnifiedCollectionItem[],
         options?: {
@@ -170,6 +188,101 @@ export class UnifiedFavoritesDataService {
             this.getSavedOrder(),
         ]);
         return this.applyOrder([...m3u, ...xtream, ...stalker], order);
+    }
+
+    private async clearM3uFavorites(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
+        const groupedItems = this.groupItemsByPlaylist(items);
+
+        await Promise.all(
+            Array.from(groupedItems.entries()).map(
+                async ([playlistId, playlistItems]) => {
+                    const playlist = (await firstValueFrom(
+                        this.playlistsService.getPlaylistById(playlistId)
+                    )) as Playlist | undefined;
+                    const targetIds = new Set<string>();
+                    playlistItems.forEach((item) => {
+                        [item.streamUrl, item.channelId].forEach((value) => {
+                            const normalized = value?.trim();
+                            if (normalized) {
+                                targetIds.add(normalized);
+                            }
+                        });
+                    });
+                    const currentFavorites = Array.isArray(playlist?.favorites)
+                        ? playlist.favorites.filter(
+                              (favorite): favorite is string =>
+                                  typeof favorite === 'string'
+                          )
+                        : [];
+                    const nextFavorites = currentFavorites.filter(
+                        (favorite) => !targetIds.has(favorite.trim())
+                    );
+
+                    await firstValueFrom(
+                        this.playlistsService.setFavorites(
+                            playlistId,
+                            nextFavorites
+                        )
+                    );
+                }
+            )
+        );
+    }
+
+    private async clearXtreamFavorites(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
+        if (!window.electron) {
+            return;
+        }
+
+        await Promise.all(
+            items
+                .filter((item) => item.contentId != null)
+                .map((item) =>
+                    window.electron!.dbRemoveFavorite(
+                        item.contentId!,
+                        item.playlistId
+                    )
+                )
+        );
+    }
+
+    private async clearStalkerFavorites(
+        items: UnifiedCollectionItem[]
+    ): Promise<void> {
+        const groupedItems = this.groupItemsByPlaylist(items);
+
+        await Promise.all(
+            Array.from(groupedItems.entries()).map(
+                async ([playlistId, playlistItems]) => {
+                    const playlist = (await firstValueFrom(
+                        this.playlistsService.getPlaylistById(playlistId)
+                    )) as Playlist | undefined;
+                    const targetIds = new Set(
+                        playlistItems.map((item) =>
+                            this.getStalkerFavoriteId(item)
+                        )
+                    );
+                    const currentFavorites = Array.isArray(playlist?.favorites)
+                        ? playlist.favorites.filter(isStalkerItem)
+                        : [];
+                    const nextFavorites = currentFavorites.filter(
+                        (favorite) =>
+                            !targetIds.has(this.getStalkerFavoriteId(favorite))
+                    );
+
+                    await firstValueFrom(
+                        this.playlistsService.setPortalFavorites(
+                            playlistId,
+                            nextFavorites
+                        )
+                    );
+                }
+            )
+        );
     }
 
     private async getPlaylistFavorites(
@@ -405,6 +518,21 @@ export class UnifiedFavoritesDataService {
                 content_id: item.contentId!,
                 position: index,
             }));
+    }
+
+    private groupItemsByPlaylist(
+        items: UnifiedCollectionItem[]
+    ): Map<string, UnifiedCollectionItem[]> {
+        return items.reduce((groups, item) => {
+            const group = groups.get(item.playlistId);
+            if (group) {
+                group.push(item);
+            } else {
+                groups.set(item.playlistId, [item]);
+            }
+
+            return groups;
+        }, new Map<string, UnifiedCollectionItem[]>());
     }
 
     private getStalkerFavoriteId(

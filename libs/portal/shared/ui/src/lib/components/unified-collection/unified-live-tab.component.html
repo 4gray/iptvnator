@@ -1,26 +1,27 @@
-@if (activeDetail()) {
-    <div [class]="layoutClass()">
-        <div
-            class="sidebar"
-            appResizable
-            [minWidth]="250"
-            [maxWidth]="600"
-            [defaultWidth]="360"
-            storageKey="unified-live-tab-sidebar-width"
-        >
-            <app-global-favorites-list
-                [channels]="channelsForList()"
-                [epgMap]="epgMap()"
-                [progressTick]="progressTick()"
-                [activeUid]="activeUid()"
-                [searchTermInput]="searchTerm()"
-                [draggable]="mode() === 'favorites'"
-                (channelSelected)="onChannelSelected($event)"
-                (channelsReordered)="onReorder($event)"
-                (favoriteToggled)="onFavoriteToggled($event)"
-            />
-        </div>
+<div
+    class="sidebar"
+    appResizable
+    [minWidth]="250"
+    [maxWidth]="600"
+    [defaultWidth]="360"
+    storageKey="unified-live-tab-sidebar-width"
+>
+    <app-global-favorites-list
+        [channels]="channelsForList()"
+        [epgMap]="epgMap()"
+        [progressTick]="progressTick()"
+        [activeUid]="activeUid()"
+        [searchTermInput]="searchTerm()"
+        [draggable]="mode() === 'favorites'"
+        [sortMode]="sortMode()"
+        (channelSelected)="onChannelSelected($event)"
+        (channelsReordered)="onReorder($event)"
+        (favoriteToggled)="onFavoriteToggled($event)"
+    />
+</div>
 
+<div class="content-container">
+    @if (activeDetail()) {
         @if (shouldUseInlinePlayer()) {
             <div class="video-player" [class.video-player--radio]="isRadioSelection()">
                 @if (isRadioSelection()) {
@@ -122,19 +123,10 @@
                 </div>
             </div>
         }
-    </div>
-} @else {
-    <div class="full-list">
-        <app-global-favorites-list
-            [channels]="channelsForList()"
-            [epgMap]="epgMap()"
-            [progressTick]="progressTick()"
-            [activeUid]="activeUid()"
-            [searchTermInput]="searchTerm()"
-            [draggable]="mode() === 'favorites'"
-            (channelSelected)="onChannelSelected($event)"
-            (channelsReordered)="onReorder($event)"
-            (favoriteToggled)="onFavoriteToggled($event)"
+    } @else {
+        <app-portal-empty-state
+            icon="live_tv"
+            [message]="'CHANNELS.SELECT_CHANNEL_PLAYBACK' | translate"
         />
-    </div>
-}
+    }
+</div>

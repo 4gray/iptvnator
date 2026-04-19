@@ -70,9 +70,14 @@ handleWorkerRequest(
 
 handleWorkerRequest(
     'DB_GET_CONTENT_BY_XTREAM_ID',
-    (xtreamId: number, playlistId: string) => ({
+    (
+        xtreamId: number,
+        playlistId: string,
+        contentType?: 'live' | 'movie' | 'series'
+    ) => ({
         xtreamId,
         playlistId,
+        contentType,
     })
 );
 

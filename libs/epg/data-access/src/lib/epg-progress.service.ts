@@ -44,6 +44,13 @@ export class EpgProgressService {
         this.importsMap.set(new Map());
     }
 
+    retry(url: string): void {
+        // Clear the errored row so the backend's subsequent 'queued' event
+        // reappears cleanly rather than updating an existing error row.
+        this.removeImport(url);
+        void window.electron?.forceFetchEpg?.(url);
+    }
+
     private initializeListener(): void {
         if (this.initialized) {
             return;

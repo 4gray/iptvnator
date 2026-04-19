@@ -1,71 +1,42 @@
-:host {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-}
+@use '../../styles/portal-layout' as portal;
 
-.itv-container {
-    display: grid;
-    grid-template-columns: auto 1fr 1fr;
-    grid-template-rows: minmax(0, 1fr) minmax(0, 1fr);
-    grid-template-areas:
-        'sidebar video-player video-player'
-        'sidebar epg epg';
-    height: 100%;
-}
+@include portal.live-layout;
 
-.itv-container--radio {
-    grid-template-columns: auto minmax(0, 1fr);
-    grid-template-rows: minmax(0, 1fr);
-    grid-template-areas: 'sidebar video-player';
-}
-
-.itv-container--external {
-    display: grid;
-    grid-template-columns: auto 1fr;
-    grid-template-rows: 1fr;
-    grid-template-areas: 'sidebar epg';
-    height: 100%;
-
-    .epg {
-        border-top: none;
+.sidebar {
+    > app-global-favorites-list {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
     }
 }
 
-.full-list {
-    display: flex;
-    flex-direction: column;
-    flex: 1;
-    min-height: 0;
-    overflow: hidden;
-}
+.content-container {
+    background: var(--mat-sys-surface);
 
-.sidebar {
-    grid-area: sidebar;
-    width: 360px;
-    min-width: 250px;
-    max-width: 600px;
-    flex-shrink: 0;
-    position: relative;
-    border-right: 1px solid var(--mat-sys-outline-variant);
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
+    &:has(> app-portal-empty-state) {
+        align-items: center;
+        justify-content: center;
+    }
 }
 
 .video-player {
-    grid-area: video-player;
-    min-height: 0;
-    overflow: hidden;
+    background: #000;
     display: flex;
     flex-direction: column;
-}
 
-.video-player--radio {
-    position: relative;
-    background: var(--mat-sys-surface);
+    &--radio {
+        position: relative;
+        background: var(--mat-sys-surface);
+    }
+
+    > app-vjs-player,
+    > app-html-video-player,
+    > app-art-player,
+    > app-audio-player {
+        flex: 1;
+        min-height: 0;
+        display: block;
+    }
 }
 
 .player-toolbar {
@@ -108,20 +79,9 @@
     backdrop-filter: blur(12px);
 }
 
-.video-player > app-vjs-player,
-.video-player > app-html-video-player,
-.video-player > app-art-player,
-.video-player > app-audio-player {
-    flex: 1;
-    min-height: 0;
-    display: block;
-}
-
 .epg {
-    grid-area: epg;
-    min-height: 0;
-    overflow: hidden;
     border-top: 1px solid var(--mat-sys-outline-variant);
+    background: var(--mat-sys-surface);
     display: flex;
     flex-direction: column;
 }
@@ -132,9 +92,10 @@
     overflow: hidden;
     display: flex;
     flex-direction: column;
-}
 
-.epg-content > app-epg-view {
-    flex: 1;
-    min-height: 0;
+    > app-epg-view,
+    > app-epg-list {
+        flex: 1;
+        min-height: 0;
+    }
 }

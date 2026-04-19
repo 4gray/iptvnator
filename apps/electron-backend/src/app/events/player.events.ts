@@ -31,6 +31,11 @@ let mpvProcess: ChildProcess | null = null;
 let mpvSocketPath: string | null = null;
 let positionPollingInterval: NodeJS.Timeout | null = null;
 
+interface ExternalPlaybackSnapshot {
+    positionSeconds: number;
+    durationSeconds: number | null;
+}
+
 function sendExternalPlayerSessionUpdate(session: ExternalPlayerSession) {
     if (App.mainWindow && !App.mainWindow.isDestroyed()) {
         App.mainWindow.webContents.send(EXTERNAL_PLAYER_SESSION_UPDATE, session);
@@ -212,6 +217,24 @@ function sendPlayerErrorNotification(player: 'MPV' | 'VLC', error: string) {
     }
 }
 
+function sendPlaybackPositionUpdate(
+    sessionId: string,
+    contentInfo: any,
+    snapshot: ExternalPlaybackSnapshot
+) {
+    if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+        return;
+    }
+
+    externalPlayerSessions.markPlaying(sessionId);
+    App.mainWindow.webContents.send('playback-position-update', {
+        sessionId,
+        positionSeconds: snapshot.positionSeconds,
+        durationSeconds: snapshot.durationSeconds,
+        ...contentInfo,
+    });
+}
+
 // Query MPV property via IPC
 async function getMpvProperty(
     socketPath: string,
@@ -275,6 +298,16 @@ async function getMpvProperty(
             resolve(null);
         });
     });
+}
+
+export function parseVlcRcNumericResponse(data: string): string {
+    const match = data.match(/>\s*(-?\d+(?:\.\d+)?)/);
+    return match ? match[1] : '';
+}
+
+export function parseVlcRcPlaybackState(data: string): string | null {
+    const match = data.match(/\(\s*state\s+([^)]+)\s*\)/i);
+    return match ? match[1].trim().toLowerCase() : null;
 }
 
 function stopPositionPolling() {
@@ -351,25 +384,10 @@ function startPositionPolling(
                 // console.log(`[PlayerEvents] Polling MPV: pos=${position}, dur=${duration}`);
 
                 if (position !== null && App.mainWindow) {
-                    externalPlayerSessions.markPlaying(sessionId);
-                    /*
-                    console.log('[PlayerEvents] Sending playback-position-update', {
+                    sendPlaybackPositionUpdate(sessionId, contentInfo, {
                         positionSeconds: Math.floor(position),
                         durationSeconds: duration ? Math.floor(duration) : null,
-                        ...contentInfo,
                     });
-                    */
-                    App.mainWindow.webContents.send(
-                        'playback-position-update',
-                        {
-                            sessionId,
-                            positionSeconds: Math.floor(position),
-                            durationSeconds: duration
-                                ? Math.floor(duration)
-                                : null,
-                            ...contentInfo,
-                        }
-                    );
                 }
             } catch (err) {
                 // console.error('[PlayerEvents] Error during polling:', err);
@@ -390,7 +408,10 @@ function stopVlcPositionPolling() {
     }
 }
 
-async function getVlcProperty(port: number, command: string): Promise<string> {
+async function getVlcCommandResponse(
+    port: number,
+    command: string
+): Promise<string> {
     return new Promise((resolve) => {
         const client = createConnection({ port, host: '127.0.0.1' });
         let data = '';
@@ -414,9 +435,7 @@ async function getVlcProperty(port: number, command: string): Promise<string> {
             data += chunk.toString();
             // VLC prompt '>' means command finished
             if (data.includes('>')) {
-                // Parse: find numeric value (for get_time/get_length)
-                const match = data.match(/^(\d+(\.\d+)?)\s*$/m);
-                done(match ? match[1] : '');
+                done(data);
             }
         });
 
@@ -424,10 +443,43 @@ async function getVlcProperty(port: number, command: string): Promise<string> {
     });
 }
 
+async function getVlcProperty(port: number, command: string): Promise<string> {
+    return parseVlcRcNumericResponse(
+        await getVlcCommandResponse(port, command)
+    );
+}
+
+async function getVlcPlaybackState(port: number): Promise<string | null> {
+    return parseVlcRcPlaybackState(
+        await getVlcCommandResponse(port, 'status')
+    );
+}
+
+async function getVlcPlaybackSnapshot(
+    port: number
+): Promise<ExternalPlaybackSnapshot | null> {
+    const timeStr = await getVlcProperty(port, 'get_time');
+    const lenStr = await getVlcProperty(port, 'get_length');
+
+    const position = parseInt(timeStr, 10);
+    const duration = parseInt(lenStr, 10);
+
+    if (isNaN(position)) {
+        return null;
+    }
+
+    return {
+        positionSeconds: position,
+        durationSeconds: !isNaN(duration) ? duration : null,
+    };
+}
+
 function startVlcPositionPolling(
     port: number,
     contentInfo: any,
-    sessionId: string
+    sessionId: string,
+    onSnapshot?: (snapshot: ExternalPlaybackSnapshot) => void,
+    onStopped?: () => void
 ) {
     stopVlcPositionPolling();
 
@@ -441,30 +493,29 @@ function startVlcPositionPolling(
         */
         vlcPollingInterval = setInterval(async () => {
             try {
-                const timeStr = await getVlcProperty(port, 'get_time');
-                const lenStr = await getVlcProperty(port, 'get_length');
+                const snapshot = await getVlcPlaybackSnapshot(port);
 
-                const position = parseInt(timeStr, 10);
-                const duration = parseInt(lenStr, 10);
-
-                if (!isNaN(position) && App.mainWindow) {
-                    externalPlayerSessions.markPlaying(sessionId);
-                    App.mainWindow.webContents.send(
-                        'playback-position-update',
-                        {
-                            sessionId,
-                            positionSeconds: position,
-                            durationSeconds: !isNaN(duration) ? duration : null,
-                            ...contentInfo,
-                        }
+                if (snapshot && App.mainWindow) {
+                    onSnapshot?.(snapshot);
+                    sendPlaybackPositionUpdate(
+                        sessionId,
+                        contentInfo,
+                        snapshot
                     );
+                    return;
+                }
+
+                const playbackState = await getVlcPlaybackState(port);
+                if (playbackState === 'stopped') {
+                    onStopped?.();
+                    stopVlcPositionPolling();
                 }
             } catch (err) {
                 // console.error('[PlayerEvents] VLC polling error:', err);
                 stopVlcPositionPolling();
             }
-        }, 5000);
-    }, 3000);
+        }, 2000);
+    }, 1500);
 }
 
 // Helper function to send command to MPV via IPC
@@ -1003,6 +1054,7 @@ ipcMain.handle(
             }
 
             console.log('VLC Args:', args);
+            let lastVlcSnapshot: ExternalPlaybackSnapshot | null = null;
 
             // Wrap spawn in a promise to catch startup errors
             await new Promise<void>((resolve, reject) => {
@@ -1017,16 +1069,66 @@ ipcMain.handle(
                         stdio: 'ignore', // Use 'ignore' for detached to allow clean shutdown
                     });
 
+                    const markVlcSessionClosed = () => {
+                        if (
+                            externalPlayerSessions.getSession(session.id)?.status ===
+                            'closed'
+                        ) {
+                            return;
+                        }
+
+                        if (lastVlcSnapshot && contentInfo) {
+                            sendPlaybackPositionUpdate(
+                                session.id,
+                                contentInfo,
+                                lastVlcSnapshot
+                            );
+                        }
+
+                        externalPlayerSessions.markClosed(session.id);
+                    };
+
+                    const flushVlcPlaybackPosition = async () => {
+                        if (isRetry || rcPort <= 0 || !contentInfo) {
+                            return;
+                        }
+
+                        const snapshot =
+                            (await getVlcPlaybackSnapshot(rcPort)) ??
+                            lastVlcSnapshot;
+                        if (!snapshot) {
+                            return;
+                        }
+
+                        lastVlcSnapshot = snapshot;
+                        sendPlaybackPositionUpdate(
+                            session.id,
+                            contentInfo,
+                            snapshot
+                        );
+                    };
+
                     externalPlayerSessions.attachCloser(session.id, async () => {
+                        await flushVlcPlaybackPosition();
                         if (!proc.killed) {
                             proc.kill();
                         }
                     });
 
                     // Start polling if we have port and content info and NOT retrying (RC disabled on retry)
-                    if (!isRetry && rcPort > 0 && contentInfo) {
-                        startVlcPositionPolling(rcPort, contentInfo, session.id);
-                    }
+                        if (!isRetry && rcPort > 0 && contentInfo) {
+                            startVlcPositionPolling(
+                                rcPort,
+                                contentInfo,
+                                session.id,
+                                (snapshot) => {
+                                    lastVlcSnapshot = snapshot;
+                                },
+                                () => {
+                                    markVlcSessionClosed();
+                                }
+                            );
+                        }
 
                     // Capture stdout
                     if (proc.stdout) {
@@ -1077,6 +1179,20 @@ ipcMain.handle(
 
                     proc.on('exit', (code) => {
                         console.log(`VLC exited with code ${code}`);
+                        stopVlcPositionPolling();
+
+                        if (
+                            lastVlcSnapshot &&
+                            contentInfo &&
+                            externalPlayerSessions.getSession(session.id)
+                                ?.status !== 'closed'
+                        ) {
+                            sendPlaybackPositionUpdate(
+                                session.id,
+                                contentInfo,
+                                lastVlcSnapshot
+                            );
+                        }
 
                         if (code === 1 && !isRetry && rcPort > 0) {
                             console.log(

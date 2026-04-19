@@ -1,7 +1,7 @@
 <div
     class="nav-list"
     cdkDropList
-    [cdkDropListDisabled]="!draggable() || hasSearchTerm()"
+    [cdkDropListDisabled]="!canDragDrop()"
     (cdkDropListDropped)="onDrop($event)"
 >
     @if (enrichedChannels().length === 0) {
@@ -32,7 +32,7 @@
 
     @for (ch of enrichedChannels(); track trackByUid($index, ch)) {
         <app-channel-list-item
-            [isDraggable]="draggable() && !hasSearchTerm()"
+            [isDraggable]="canDragDrop()"
             [logo]="ch.logo"
             [name]="ch.name"
             [selected]="activeUid() === ch.uid"

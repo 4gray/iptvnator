@@ -10,7 +10,7 @@
     ],
     "targets": {
         "e2e": {
-            "dependsOn": ["electron-backend:build"]
+            "dependsOn": ["electron-backend:build-e2e"]
         }
     }
 }

@@ -1,5 +1,6 @@
 export * from './lib/logger';
 export * from './lib/channel-sort';
+export * from './lib/favorites-channel-sort';
 export * from './lib/portal-catalog-detail';
 export * from './lib/portal-catalog-facade';
 export * from './lib/portal-external-playback';

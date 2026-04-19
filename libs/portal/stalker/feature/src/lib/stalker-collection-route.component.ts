@@ -5,18 +5,33 @@ import {
     input,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { UnifiedCollectionPageComponent } from '@iptvnator/portal/shared/ui';
+import {
+    UnifiedCollectionDetailDirective,
+    UnifiedCollectionPageComponent,
+} from '@iptvnator/portal/shared/ui';
 import { routeParamSignal } from '@iptvnator/portal/shared/util';
+import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 
 @Component({
     selector: 'app-stalker-collection-route',
-    imports: [UnifiedCollectionPageComponent],
+    imports: [
+        StalkerCollectionDetailComponent,
+        UnifiedCollectionDetailDirective,
+        UnifiedCollectionPageComponent,
+    ],
     template: `
         <app-unified-collection-page
             [mode]="mode()"
             [portalType]="portalType()"
             [playlistId]="playlistId()"
-        />
+        >
+            <ng-template unifiedCollectionDetail let-item let-close="close">
+                <app-stalker-collection-detail
+                    [item]="item"
+                    (closeRequested)="close()"
+                />
+            </ng-template>
+        </app-unified-collection-page>
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })

@@ -280,6 +280,37 @@ Xtream search now guards against stale async responses:
 This prevents an older worker response from repainting over a newer query or a
 cleared search state.
 
+### Xtream favorites lookup
+
+Xtream favorites must treat `xtream_id` as only partially unique.
+
+Current contract:
+
+1. `xtream_id` can collide across `live`, `movie`, and `series` within the same
+   playlist.
+2. Any DB-backed lookup that starts from an Xtream result card, favorite button,
+   or detail route must resolve content by:
+   - `playlist_id`
+   - `xtream_id`
+   - `content.type`
+3. Favorites UI state for mixed Xtream collections must key entries by
+   `type + xtream_id`, not `xtream_id` alone.
+
+Why this matters:
+
+- Search results are already type-filtered, so resolving favorites by only
+  `playlist_id + xtream_id` can favorite the wrong persisted row when IDs
+  collide.
+- Mixed favorites maps keyed only by `xtream_id` can mark an unrelated live row
+  as favorited when the actual favorite is a movie or series with the same
+  numeric ID.
+
+Current implementation paths:
+
+1. `apps/electron-backend/src/app/database/operations/content.operations.ts`
+2. `libs/portal/xtream/data-access/src/lib/with-favorites.feature.ts`
+3. `libs/portal/xtream/feature/src/lib/portal-channels-list/portal-channels-list.component.ts`
+
 ### Busy states
 
 The UI now has explicit long-running state for destructive operations:

@@ -5,15 +5,21 @@ import {
     input,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { UnifiedCollectionPageComponent } from '@iptvnator/portal/shared/ui';
+import {
+    UnifiedCollectionDetailDirective,
+    UnifiedCollectionPageComponent,
+} from '@iptvnator/portal/shared/ui';
 import { routeParamSignal } from '@iptvnator/portal/shared/util';
 import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-notice.component';
+import { XtreamCollectionDetailComponent } from './xtream-collection-detail.component';
 
 @Component({
     selector: 'app-xtream-collection-route',
     imports: [
+        UnifiedCollectionDetailDirective,
         UnifiedCollectionPageComponent,
         XtreamCachedOfflineNoticeComponent,
+        XtreamCollectionDetailComponent,
     ],
     template: `
         <app-xtream-cached-offline-notice />
@@ -21,7 +27,11 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
             [mode]="mode()"
             [portalType]="portalType()"
             [playlistId]="playlistId()"
-        />
+        >
+            <ng-template unifiedCollectionDetail let-item>
+                <app-xtream-collection-detail [item]="item" />
+            </ng-template>
+        </app-unified-collection-page>
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
 })

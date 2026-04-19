@@ -14,6 +14,10 @@ import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 
 describe('UnifiedFavoritesDataService', () => {
     let service: UnifiedFavoritesDataService;
+    let electronApi: {
+        dbGetAllGlobalFavorites: jest.Mock;
+        dbRemoveFavorite: jest.Mock;
+    };
     let databaseService: {
         getAllGlobalFavorites: jest.Mock;
         getFavorites: jest.Mock;
@@ -79,10 +83,12 @@ describe('UnifiedFavoritesDataService', () => {
     ];
 
     beforeEach(() => {
+        electronApi = {
+            dbGetAllGlobalFavorites: jest.fn(),
+            dbRemoveFavorite: jest.fn().mockResolvedValue(undefined),
+        };
         Object.defineProperty(window, 'electron', {
-            value: {
-                dbGetAllGlobalFavorites: jest.fn(),
-            } as Window['electron'],
+            value: electronApi as Window['electron'],
             configurable: true,
         });
 
@@ -308,6 +314,129 @@ describe('UnifiedFavoritesDataService', () => {
         expect(playlistsService.setPortalFavorites).toHaveBeenCalledWith(
             'stalker-1',
             [stalkerFavorites[1], stalkerFavorites[0]]
+        );
+    });
+
+    it('clears M3U favorites once per playlist with the remaining favorites preserved', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                favorites: [
+                    'https://example.com/2.m3u8',
+                    'channel-1',
+                    'https://example.com/3.m3u8',
+                ],
+            } satisfies Partial<Playlist>)
+        );
+
+        await service.clearFavorites([
+            {
+                uid: 'm3u::m3u-1::https://example.com/2.m3u8',
+                name: 'Channel Two',
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'm3u-1',
+                playlistName: 'M3U List',
+                streamUrl: 'https://example.com/2.m3u8',
+                channelId: 'channel-2',
+            },
+            {
+                uid: 'm3u::m3u-1::channel-1',
+                name: 'Channel One',
+                contentType: 'live',
+                sourceType: 'm3u',
+                playlistId: 'm3u-1',
+                playlistName: 'M3U List',
+                streamUrl: 'https://example.com/1.m3u8',
+                channelId: 'channel-1',
+            },
+        ] satisfies UnifiedCollectionItem[]);
+
+        expect(playlistsService.setFavorites).toHaveBeenCalledTimes(1);
+        expect(playlistsService.setFavorites).toHaveBeenCalledWith('m3u-1', [
+            'https://example.com/3.m3u8',
+        ]);
+    });
+
+    it('clears Stalker favorites once per playlist with the remaining favorites preserved', async () => {
+        const remainingFavorite: StalkerPortalItem = {
+            id: '303',
+            title: 'Stalker Three',
+            category_id: 'itv',
+            cmd: 'ffmpeg http://stalker/303',
+            logo: 'three.png',
+            added_at: '2026-03-26T12:00:00.000Z',
+        };
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                macAddress: '00:11:22:33:44:55',
+                favorites: [...stalkerFavorites, remainingFavorite],
+            } satisfies Partial<Playlist>)
+        );
+
+        await service.clearFavorites([
+            {
+                uid: 'stalker::stalker-1::101',
+                name: 'Stalker One',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker List',
+                stalkerId: '101',
+            },
+            {
+                uid: 'stalker::stalker-1::202',
+                name: 'Stalker Two',
+                contentType: 'live',
+                sourceType: 'stalker',
+                playlistId: 'stalker-1',
+                playlistName: 'Stalker List',
+                stalkerId: '202',
+            },
+        ] satisfies UnifiedCollectionItem[]);
+
+        expect(playlistsService.setPortalFavorites).toHaveBeenCalledTimes(1);
+        expect(playlistsService.setPortalFavorites).toHaveBeenCalledWith(
+            'stalker-1',
+            [remainingFavorite]
+        );
+    });
+
+    it('clears Xtream favorites through the bulk removal path', async () => {
+        await service.clearFavorites([
+            {
+                uid: 'xtream::xtream-1::101',
+                name: 'Xtream One',
+                contentType: 'live',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                xtreamId: 101,
+                contentId: 10,
+            },
+            {
+                uid: 'xtream::xtream-1::102',
+                name: 'Xtream Two',
+                contentType: 'movie',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                xtreamId: 102,
+                contentId: 11,
+            },
+        ] satisfies UnifiedCollectionItem[]);
+
+        expect(electronApi.dbRemoveFavorite).toHaveBeenCalledTimes(2);
+        expect(electronApi.dbRemoveFavorite).toHaveBeenNthCalledWith(
+            1,
+            10,
+            'xtream-1'
+        );
+        expect(electronApi.dbRemoveFavorite).toHaveBeenNthCalledWith(
+            2,
+            11,
+            'xtream-1'
         );
     });
 });

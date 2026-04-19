@@ -1,37 +1,43 @@
 import {
     Directive,
     EventEmitter,
-    HostBinding,
     HostListener,
     Output,
 } from '@angular/core';
+
 @Directive({
     standalone: true,
     selector: '[appDragDropFileUpload]',
 })
 export class DragDropFileUploadDirective {
-    readonly defaultColor = 'rgb(255 255 255 / 15%)';
     @Output() fileDropped = new EventEmitter<FileList>();
-    @HostBinding('style.background-color') background = this.defaultColor;
+    @Output() dragStateChanged = new EventEmitter<boolean>();
+
+    @HostListener('dragenter', ['$event']) dragEnter(event: DragEvent): void {
+        event.preventDefault();
+        event.stopPropagation();
+        this.dragStateChanged.emit(true);
+    }
 
     @HostListener('dragover', ['$event']) dragOver(event: DragEvent): void {
         event.preventDefault();
         event.stopPropagation();
-        this.background = 'rgb(255 255 255 / 25%)';
+        if (event.dataTransfer) {
+            event.dataTransfer.dropEffect = 'copy';
+        }
+        this.dragStateChanged.emit(true);
     }
 
-    @HostListener('dragleave', ['$event'])
-    dragLeave(event: DragEvent): void {
+    @HostListener('dragleave', ['$event']) dragLeave(event: DragEvent): void {
         event.preventDefault();
         event.stopPropagation();
-        this.background = this.defaultColor;
+        this.dragStateChanged.emit(false);
     }
 
-    @HostListener('drop', ['$event'])
-    drop(event: DragEvent): void {
+    @HostListener('drop', ['$event']) drop(event: DragEvent): void {
         event.preventDefault();
         event.stopPropagation();
-        this.background = this.defaultColor;
+        this.dragStateChanged.emit(false);
         const files = event.dataTransfer?.files;
         if (files && files.length > 0) {
             this.fileDropped.emit(files);

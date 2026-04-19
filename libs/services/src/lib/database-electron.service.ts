@@ -781,12 +781,14 @@ export class DatabaseService {
      */
     async getContentByXtreamId(
         xtreamId: number,
-        playlistId: string
+        playlistId: string,
+        contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContent | null> {
         try {
             return await window.electron.dbGetContentByXtreamId(
                 xtreamId,
-                playlistId
+                playlistId,
+                contentType
             );
         } catch (error) {
             console.error('Error getting content by xtream ID:', error);

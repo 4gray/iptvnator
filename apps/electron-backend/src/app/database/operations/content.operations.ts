@@ -368,8 +368,18 @@ export async function clearXtreamImportCache(
 export async function getContentByXtreamId(
     db: AppDatabase,
     xtreamId: number,
-    playlistId: string
+    playlistId: string,
+    contentType?: 'live' | 'movie' | 'series'
 ) {
+    const conditions = [
+        eq(schema.content.xtreamId, xtreamId),
+        eq(schema.categories.playlistId, playlistId),
+    ];
+
+    if (contentType) {
+        conditions.push(eq(schema.content.type, contentType));
+    }
+
     const result = await db
         .select(selectContentFields())
         .from(schema.content)
@@ -377,12 +387,7 @@ export async function getContentByXtreamId(
             schema.categories,
             eq(schema.content.categoryId, schema.categories.id)
         )
-        .where(
-            and(
-                eq(schema.content.xtreamId, xtreamId),
-                eq(schema.categories.playlistId, playlistId)
-            )
-        )
+        .where(and(...conditions))
         .limit(1);
 
     return result[0] || null;
