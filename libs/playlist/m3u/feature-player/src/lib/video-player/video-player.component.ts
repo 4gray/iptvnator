@@ -190,6 +190,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 activeChannel.tvg?.name ||
                 playbackTarget.url,
             thumbnail: activeChannel.tvg?.logo ?? null,
+            isLive: true,
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent: playbackTarget.http['user-agent'] || undefined,
             referer: playbackTarget.http.referrer || undefined,

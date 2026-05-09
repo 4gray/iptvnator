@@ -200,10 +200,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 Validators.pattern(/^\d+$/),
             ],
         ],
+        recordingFolder: '',
         coverSize: 'medium' as CoverSize,
-        ...(this.isDesktop
-            ? { preferUploadedEpgOverXtream: false }
-            : {}),
+        ...(this.isDesktop ? { preferUploadedEpgOverXtream: false } : {}),
     });
 
     /** Form array with epg sources */
@@ -379,6 +378,24 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm.get('coverSize')?.markAsDirty();
         this.settingsForm.markAsDirty();
         this.settingsStore.updateSettings({ coverSize: size });
+    }
+
+    async selectRecordingFolder(): Promise<void> {
+        if (
+            !this.isDesktop ||
+            !window.electron?.selectEmbeddedMpvRecordingFolder
+        ) {
+            return;
+        }
+
+        const folder = await window.electron.selectEmbeddedMpvRecordingFolder();
+        if (!folder) {
+            return;
+        }
+
+        this.settingsForm.patchValue({ recordingFolder: folder });
+        this.settingsForm.get('recordingFolder')?.markAsDirty();
+        this.settingsForm.markAsDirty();
     }
 
     /**

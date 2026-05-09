@@ -99,6 +99,26 @@ describe('SettingsPlaybackSectionComponent', () => {
             )
         ).not.toBeNull();
     });
+
+    it('shows the recording folder setting only in desktop builds', () => {
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="recording-folder-setting"]'
+            )
+        ).not.toBeNull();
+
+        fixture.componentRef.setInput('isDesktop', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="recording-folder-setting"]'
+            )
+        ).toBeNull();
+    });
 });
 
 function createForm(player = VideoPlayer.VideoJs): FormGroup {
@@ -111,5 +131,6 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         mpvReuseInstance: new FormControl(false),
         vlcPlayerPath: new FormControl(''),
         vlcReuseInstance: new FormControl(false),
+        recordingFolder: new FormControl(''),
     });
 }

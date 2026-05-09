@@ -6,6 +6,7 @@ interface NodeModule {
 
 import {
     EmbeddedMpvBounds,
+    EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     EpgChannel,
@@ -381,6 +382,15 @@ declare global {
                 sessionId: string,
                 aspect: string
             ) => Promise<EmbeddedMpvSession | null>;
+            startEmbeddedMpvRecording?: (
+                sessionId: string,
+                options: EmbeddedMpvRecordingStartOptions
+            ) => Promise<EmbeddedMpvSession | null>;
+            stopEmbeddedMpvRecording?: (
+                sessionId: string
+            ) => Promise<EmbeddedMpvSession | null>;
+            getEmbeddedMpvDefaultRecordingFolder?: () => Promise<string>;
+            selectEmbeddedMpvRecordingFolder?: () => Promise<string | null>;
             disposeEmbeddedMpvSession: (
                 sessionId: string
             ) => Promise<EmbeddedMpvSession | null>;

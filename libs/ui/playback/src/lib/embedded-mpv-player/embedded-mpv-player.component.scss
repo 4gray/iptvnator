@@ -214,6 +214,40 @@
     font-variant-numeric: tabular-nums;
 }
 
+.embedded-mpv-player__recording-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: color-mix(in srgb, var(--mat-sys-on-surface) 78%, transparent);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.embedded-mpv-player__recording-status mat-icon {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: var(--mat-sys-primary);
+}
+
+.embedded-mpv-player__recording-status span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.embedded-mpv-player__recording-status--active {
+    color: var(--mat-sys-error);
+    font-weight: 700;
+}
+
+.embedded-mpv-player__recording-status--active mat-icon {
+    color: var(--mat-sys-error);
+}
+
 .embedded-mpv-player__live-badge {
     display: inline-flex;
     align-items: center;
@@ -254,6 +288,10 @@
 
 .embedded-mpv-player__control-button {
     position: relative;
+}
+
+.embedded-mpv-player__record-button--active {
+    color: var(--mat-sys-error) !important;
 }
 
 .embedded-mpv-player__slider {
@@ -442,11 +480,7 @@
 .embedded-mpv-player__audio-track:hover,
 .embedded-mpv-player__audio-track:focus-visible,
 .embedded-mpv-player__audio-track--selected {
-    background: color-mix(
-        in srgb,
-        var(--embedded-mpv-accent) 16%,
-        transparent
-    );
+    background: color-mix(in srgb, var(--embedded-mpv-accent) 16%, transparent);
 }
 
 .embedded-mpv-player__audio-track mat-icon {
@@ -462,11 +496,7 @@
 
 .embedded-mpv-player :is(button[mat-icon-button]:hover) {
     color: var(--mat-sys-on-surface);
-    background: color-mix(
-        in srgb,
-        var(--embedded-mpv-accent) 14%,
-        transparent
-    );
+    background: color-mix(in srgb, var(--embedded-mpv-accent) 14%, transparent);
 }
 
 @media (max-width: 720px) {

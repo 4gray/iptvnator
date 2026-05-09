@@ -1,6 +1,7 @@
 import { CommonModule } from '@angular/common';
-import { Component, input, ViewEncapsulation } from '@angular/core';
+import { Component, input, output, ViewEncapsulation } from '@angular/core';
 import { FormGroup, ReactiveFormsModule } from '@angular/forms';
+import { MatButtonModule } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -14,6 +15,7 @@ import { SettingsPlayerOption } from './settings.models';
     selector: 'app-settings-playback-section',
     imports: [
         CommonModule,
+        MatButtonModule,
         MatCheckboxModule,
         MatFormFieldModule,
         MatIconModule,
@@ -32,6 +34,7 @@ export class SettingsPlaybackSectionComponent {
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
+    readonly selectRecordingFolder = output<void>();
 
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;

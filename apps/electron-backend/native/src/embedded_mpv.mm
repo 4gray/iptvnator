@@ -21,6 +21,7 @@
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
+#include <ctime>
 #include <dlfcn.h>
 #include <memory>
 #include <mutex>
@@ -100,6 +101,10 @@ struct SessionSnapshot {
     int64_t selectedSubtitleTrackId = -1;
     double playbackSpeed = 1.0;
     std::string aspectOverride = "no";
+    bool recordingActive = false;
+    std::string recordingTargetPath;
+    std::string recordingStartedAt;
+    std::string recordingError;
 };
 
 struct Session {
@@ -398,6 +403,23 @@ void destroySession(const std::shared_ptr<Session>& session)
     }
 
     if (session->handle) {
+        bool recordingActive = false;
+        {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            recordingActive = session->snapshot.recordingActive;
+        }
+        if (recordingActive) {
+            const char* disabledValue = "";
+            mpv_set_property(
+                session->handle,
+                "stream-record",
+                MPV_FORMAT_STRING,
+                const_cast<char**>(&disabledValue)
+            );
+            std::lock_guard<std::mutex> lock(session->mutex);
+            session->snapshot.recordingActive = false;
+            session->snapshot.recordingStartedAt.clear();
+        }
         mpv_wakeup(session->handle);
     }
 
@@ -992,6 +1014,20 @@ void updateSessionError(const std::shared_ptr<Session>& session, const std::stri
 uint64_t nextAsyncRequestId()
 {
     return gNextAsyncRequestId.fetch_add(1);
+}
+
+std::string currentUtcTimestamp()
+{
+    std::time_t now = std::time(nullptr);
+    std::tm timeInfo{};
+#if defined(_WIN32)
+    gmtime_s(&timeInfo, &now);
+#else
+    gmtime_r(&now, &timeInfo);
+#endif
+    char buffer[32]{};
+    std::strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &timeInfo);
+    return buffer;
 }
 
 double clampVolumePercent(double volume)
@@ -1623,6 +1659,30 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
     const std::string referer = readOptionalString(playback, "referer");
     const double startTime = readOptionalNumber(playback, "startTime", -1);
 
+    bool recordingActive = false;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        recordingActive = session->snapshot.recordingActive;
+    }
+    if (recordingActive) {
+        const char* disabledValue = "";
+        const int stopResult = mpv_set_property_async(
+            session->handle,
+            nextAsyncRequestId(),
+            "stream-record",
+            MPV_FORMAT_STRING,
+            const_cast<char**>(&disabledValue)
+        );
+        if (stopResult < 0) {
+            updateSessionError(session, mpv_error_string(stopResult));
+            throw Napi::Error::New(
+                env,
+                std::string("Failed to stop recording before loading playback: ") +
+                    mpv_error_string(stopResult)
+            );
+        }
+    }
+
     std::vector<std::pair<std::string, std::string>> options;
     if (!title.empty()) {
         options.emplace_back("force-media-title", title);
@@ -1708,6 +1768,10 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
         session->snapshot.streamUrl = streamUrl;
         session->snapshot.error.clear();
         session->snapshot.status = SessionStatus::Loading;
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingTargetPath.clear();
+        session->snapshot.recordingStartedAt.clear();
+        session->snapshot.recordingError.clear();
     }
 
     return env.Undefined();
@@ -2013,6 +2077,96 @@ Napi::Value SetAspect(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+Napi::Value StartRecording(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsString()) {
+        throw Napi::TypeError::New(
+            env,
+            "Expected session id and recording target path."
+        );
+    }
+
+    const std::string sessionId = info[0].As<Napi::String>().Utf8Value();
+    const std::string targetPath = info[1].As<Napi::String>().Utf8Value();
+    if (targetPath.empty()) {
+        throw Napi::Error::New(env, "Recording target path is required.");
+    }
+
+    const auto session = getSessionOrThrow(env, sessionId);
+    const char* targetValue = targetPath.c_str();
+    const int result = mpv_set_property_async(
+        session->handle,
+        nextAsyncRequestId(),
+        "stream-record",
+        MPV_FORMAT_STRING,
+        const_cast<char**>(&targetValue)
+    );
+
+    if (result < 0) {
+        {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            session->snapshot.recordingActive = false;
+            session->snapshot.recordingError = mpv_error_string(result);
+        }
+        throw Napi::Error::New(
+            env,
+            std::string("Failed to start stream recording: ") +
+                mpv_error_string(result)
+        );
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.recordingActive = true;
+        session->snapshot.recordingTargetPath = targetPath;
+        session->snapshot.recordingStartedAt = currentUtcTimestamp();
+        session->snapshot.recordingError.clear();
+    }
+
+    return env.Undefined();
+}
+
+Napi::Value StopRecording(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 1 || !info[0].IsString()) {
+        throw Napi::TypeError::New(env, "Expected session id.");
+    }
+
+    const std::string sessionId = info[0].As<Napi::String>().Utf8Value();
+    const auto session = getSessionOrThrow(env, sessionId);
+    const char* disabledValue = "";
+    const int result = mpv_set_property_async(
+        session->handle,
+        nextAsyncRequestId(),
+        "stream-record",
+        MPV_FORMAT_STRING,
+        const_cast<char**>(&disabledValue)
+    );
+
+    if (result < 0) {
+        {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            session->snapshot.recordingError = mpv_error_string(result);
+        }
+        throw Napi::Error::New(
+            env,
+            std::string("Failed to stop stream recording: ") +
+                mpv_error_string(result)
+        );
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingStartedAt.clear();
+        session->snapshot.recordingError.clear();
+    }
+
+    return env.Undefined();
+}
+
 Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2122,6 +2276,34 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
         "aspectOverride",
         Napi::String::New(env, snapshot.aspectOverride)
     );
+    if (snapshot.recordingActive ||
+        !snapshot.recordingTargetPath.empty() ||
+        !snapshot.recordingError.empty()) {
+        auto recording = Napi::Object::New(env);
+        recording.Set(
+            "active",
+            Napi::Boolean::New(env, snapshot.recordingActive)
+        );
+        if (!snapshot.recordingTargetPath.empty()) {
+            recording.Set(
+                "targetPath",
+                Napi::String::New(env, snapshot.recordingTargetPath)
+            );
+        }
+        if (!snapshot.recordingStartedAt.empty()) {
+            recording.Set(
+                "startedAt",
+                Napi::String::New(env, snapshot.recordingStartedAt)
+            );
+        }
+        if (!snapshot.recordingError.empty()) {
+            recording.Set(
+                "error",
+                Napi::String::New(env, snapshot.recordingError)
+            );
+        }
+        result.Set("recording", recording);
+    }
 
     if (!snapshot.error.empty()) {
         result.Set("error", Napi::String::New(env, snapshot.error));
@@ -2170,6 +2352,8 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     );
     exports.Set("setSpeed", Napi::Function::New(env, SetSpeed));
     exports.Set("setAspect", Napi::Function::New(env, SetAspect));
+    exports.Set("startRecording", Napi::Function::New(env, StartRecording));
+    exports.Set("stopRecording", Napi::Function::New(env, StopRecording));
     exports.Set(
         "getSessionSnapshot",
         Napi::Function::New(env, GetSessionSnapshot)

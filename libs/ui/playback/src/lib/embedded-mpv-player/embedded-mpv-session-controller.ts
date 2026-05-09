@@ -15,7 +15,9 @@ import {
 } from 'shared-interfaces';
 import { measureBounds } from './embedded-mpv-format.utils';
 
-export type EmbeddedMpvBoundsProvider = (host: HTMLElement) => EmbeddedMpvBounds;
+export type EmbeddedMpvBoundsProvider = (
+    host: HTMLElement
+) => EmbeddedMpvBounds;
 
 const STALLED_TIMEOUT_MS = 30_000;
 
@@ -134,7 +136,9 @@ export class EmbeddedMpvSessionController {
         window.addEventListener('scroll', scheduleBoundsSync, true);
 
         const create = async () => {
-            this.session.set(this.createLoadingSession(playback, initialVolume));
+            this.session.set(
+                this.createLoadingSession(playback, initialVolume)
+            );
             await this.waitForStartupPaint();
             if (disposed) {
                 return;
@@ -150,11 +154,9 @@ export class EmbeddedMpvSessionController {
                         'Embedded MPV is not available in this environment.'
                 );
             }
-            // Do not call this.support.set(prepared) here: support is already
-            // populated by loadSupport() in the constructor, and writing it
-            // again would re-trigger the component's session-creation effect
-            // (which depends on this.support()), tearing down the session we
-            // just created and looping forever.
+            if (prepared?.supported) {
+                this.support.set(prepared);
+            }
 
             const created = await window.electron!.createEmbeddedMpvSession(
                 measureBounds(host),
@@ -170,12 +172,17 @@ export class EmbeddedMpvSessionController {
             activeSessionId = created.id;
             this.sessionId.set(created.id);
             this.session.set(created);
-            await window.electron!.loadEmbeddedMpvPlayback(created.id, playback);
+            await window.electron!.loadEmbeddedMpvPlayback(
+                created.id,
+                playback
+            );
             scheduleBoundsSync();
         };
 
         void create().catch((error) =>
-            this.session.set(this.createErrorSession(playback, initialVolume, error))
+            this.session.set(
+                this.createErrorSession(playback, initialVolume, error)
+            )
         );
 
         return () => {
@@ -314,9 +321,47 @@ export class EmbeddedMpvSessionController {
         }
     }
 
-    private async guardIpc<T>(
-        call: () => Promise<T>
-    ): Promise<T | null> {
+    async startRecording(
+        directory: string | undefined,
+        title: string
+    ): Promise<EmbeddedMpvSession['recording'] | null> {
+        const id = this.sessionId();
+        if (!id || !window.electron?.startEmbeddedMpvRecording) {
+            return null;
+        }
+
+        const resolvedDirectory =
+            directory?.trim() ||
+            (await window.electron.getEmbeddedMpvDefaultRecordingFolder?.());
+        const updated = await this.guardIpc(() =>
+            window.electron!.startEmbeddedMpvRecording!(id, {
+                directory: resolvedDirectory,
+                title,
+            })
+        );
+        if (updated) {
+            this.session.set(updated);
+            return updated.recording ?? null;
+        }
+        return null;
+    }
+
+    async stopRecording(): Promise<EmbeddedMpvSession['recording'] | null> {
+        const id = this.sessionId();
+        if (!id || !window.electron?.stopEmbeddedMpvRecording) {
+            return null;
+        }
+        const updated = await this.guardIpc(() =>
+            window.electron!.stopEmbeddedMpvRecording!(id)
+        );
+        if (updated) {
+            this.session.set(updated);
+            return updated.recording ?? null;
+        }
+        return null;
+    }
+
+    private async guardIpc<T>(call: () => Promise<T>): Promise<T | null> {
         try {
             return await call();
         } catch {
@@ -383,6 +428,7 @@ export class EmbeddedMpvSessionController {
             selectedSubtitleTrackId: null,
             playbackSpeed: 1,
             aspectOverride: 'no',
+            recording: { active: false },
             startedAt: now,
             updatedAt: now,
         };
@@ -409,6 +455,7 @@ export class EmbeddedMpvSessionController {
             selectedSubtitleTrackId: null,
             playbackSpeed: 1,
             aspectOverride: 'no',
+            recording: { active: false },
             startedAt: now,
             updatedAt: now,
             error: error instanceof Error ? error.message : String(error),

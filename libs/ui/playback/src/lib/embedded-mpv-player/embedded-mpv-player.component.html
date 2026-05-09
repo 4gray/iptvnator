@@ -80,7 +80,9 @@
     @if (showControls() && isSupported()) {
         <div
             class="embedded-mpv-player__controls"
-            [class.embedded-mpv-player__controls--visible]="controlsAreVisible()"
+            [class.embedded-mpv-player__controls--visible]="
+                controlsAreVisible()
+            "
         >
             <div class="embedded-mpv-player__transport">
                 <button
@@ -146,7 +148,9 @@
                 <div class="embedded-mpv-player__time">
                     <span>{{ formatTime(session()?.positionSeconds) }}</span>
                     @if (canSeek()) {
-                        <span>{{ formatTime(session()?.durationSeconds) }}</span>
+                        <span>{{
+                            formatTime(session()?.durationSeconds)
+                        }}</span>
                     } @else {
                         <span
                             class="embedded-mpv-player__live-badge"
@@ -160,6 +164,22 @@
                         </span>
                     }
                 </div>
+                @if (recordingStatusText(); as recordingStatus) {
+                    <div
+                        class="embedded-mpv-player__recording-status"
+                        [class.embedded-mpv-player__recording-status--active]="
+                            isRecording()
+                        "
+                        [attr.aria-live]="isRecording() ? 'off' : 'polite'"
+                    >
+                        <mat-icon>{{
+                            isRecording()
+                                ? 'fiber_manual_record'
+                                : 'check_circle'
+                        }}</mat-icon>
+                        <span>{{ recordingStatus }}</span>
+                    </div>
+                }
             </div>
 
             <div class="embedded-mpv-player__actions">
@@ -176,9 +196,7 @@
                         type="button"
                         class="embedded-mpv-player__control-button"
                         (click)="toggleMute()"
-                        [attr.aria-label]="
-                            volume() <= 0 ? 'Unmute' : 'Mute'
-                        "
+                        [attr.aria-label]="volume() <= 0 ? 'Unmute' : 'Mute'"
                         [matTooltip]="volume() <= 0 ? 'Unmute' : 'Mute'"
                         matTooltipPosition="above"
                     >
@@ -232,7 +250,9 @@
                                 <div class="embedded-mpv-player__menu-title">
                                     Audio tracks
                                 </div>
-                                <div class="embedded-mpv-player__audio-track-list">
+                                <div
+                                    class="embedded-mpv-player__audio-track-list"
+                                >
                                     @for (
                                         track of audioTracks();
                                         track track.id;
@@ -289,7 +309,9 @@
                                 <div class="embedded-mpv-player__menu-title">
                                     Subtitles
                                 </div>
-                                <div class="embedded-mpv-player__audio-track-list">
+                                <div
+                                    class="embedded-mpv-player__audio-track-list"
+                                >
                                     <button
                                         type="button"
                                         role="menuitemradio"
@@ -367,8 +389,13 @@
                                 <div class="embedded-mpv-player__menu-title">
                                     Speed
                                 </div>
-                                <div class="embedded-mpv-player__audio-track-list">
-                                    @for (preset of speedPresets; track preset.value) {
+                                <div
+                                    class="embedded-mpv-player__audio-track-list"
+                                >
+                                    @for (
+                                        preset of speedPresets;
+                                        track preset.value
+                                    ) {
                                         <button
                                             type="button"
                                             role="menuitemradio"
@@ -422,13 +449,19 @@
                                 <div class="embedded-mpv-player__menu-title">
                                     Aspect
                                 </div>
-                                <div class="embedded-mpv-player__audio-track-list">
-                                    @for (preset of aspectPresets; track preset.value) {
+                                <div
+                                    class="embedded-mpv-player__audio-track-list"
+                                >
+                                    @for (
+                                        preset of aspectPresets;
+                                        track preset.value
+                                    ) {
                                         <button
                                             type="button"
                                             role="menuitemradio"
                                             [attr.aria-checked]="
-                                                preset.value === aspectOverride()
+                                                preset.value ===
+                                                aspectOverride()
                                             "
                                             class="embedded-mpv-player__audio-track"
                                             [class.embedded-mpv-player__audio-track--selected]="
@@ -450,6 +483,33 @@
                             </div>
                         }
                     </div>
+                }
+
+                @if (canRecord()) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="embedded-mpv-player__control-button embedded-mpv-player__record-button"
+                        [class.embedded-mpv-player__record-button--active]="
+                            isRecording()
+                        "
+                        [disabled]="isLoading()"
+                        (click)="toggleRecording()"
+                        [attr.aria-pressed]="isRecording()"
+                        [attr.aria-label]="
+                            isRecording() ? 'Stop recording' : 'Start recording'
+                        "
+                        [matTooltip]="
+                            isRecording() ? 'Stop recording' : 'Start recording'
+                        "
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>{{
+                            isRecording()
+                                ? 'stop_circle'
+                                : 'fiber_manual_record'
+                        }}</mat-icon>
+                    </button>
                 }
 
                 <button

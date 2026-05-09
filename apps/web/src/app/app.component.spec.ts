@@ -50,6 +50,7 @@ const DEFAULT_SETTINGS: Settings = {
     remoteControl: false,
     remoteControlPort: 8765,
     downloadFolder: '',
+    recordingFolder: '',
 };
 
 describe('AppComponent', () => {

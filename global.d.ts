@@ -1,5 +1,6 @@
 import 'jest-extended';
 import { EmbeddedMpvBounds } from './libs/shared/interfaces/src/lib/embedded-mpv-session.interface';
+import { EmbeddedMpvRecordingStartOptions } from './libs/shared/interfaces/src/lib/embedded-mpv-session.interface';
 import { EmbeddedMpvSession } from './libs/shared/interfaces/src/lib/embedded-mpv-session.interface';
 import { EmbeddedMpvSupport } from './libs/shared/interfaces/src/lib/embedded-mpv-session.interface';
 import { ExternalPlayerSession } from './libs/shared/interfaces/src/lib/external-player-session.interface';
@@ -167,6 +168,15 @@ declare global {
                 sessionId: string,
                 aspect: string
             ) => Promise<EmbeddedMpvSession | null>;
+            startEmbeddedMpvRecording?: (
+                sessionId: string,
+                options: EmbeddedMpvRecordingStartOptions
+            ) => Promise<EmbeddedMpvSession | null>;
+            stopEmbeddedMpvRecording?: (
+                sessionId: string
+            ) => Promise<EmbeddedMpvSession | null>;
+            getEmbeddedMpvDefaultRecordingFolder?: () => Promise<string>;
+            selectEmbeddedMpvRecordingFolder?: () => Promise<string | null>;
             disposeEmbeddedMpvSession: (
                 sessionId: string
             ) => Promise<EmbeddedMpvSession | null>;

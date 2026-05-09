@@ -82,6 +82,7 @@ const DEFAULT_SETTINGS = {
     remoteControl: false,
     remoteControlPort: 8765,
     epgUrl: [],
+    recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
 };

@@ -46,6 +46,7 @@
                 [players]="players()"
                 [streamFormatEnum]="streamFormatEnum"
                 [isDesktop]="isDesktop"
+                (selectRecordingFolder)="selectRecordingFolder()"
             />
 
             @if (isDesktop) {

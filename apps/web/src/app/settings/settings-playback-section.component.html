@@ -113,6 +113,39 @@
                 ></mat-checkbox>
             </div>
         </div>
+
+        <div class="setting-item" data-test-id="recording-folder-setting">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.RECORDING_FOLDER_LABEL' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.RECORDING_FOLDER_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label for="recordingFolder">{{
+                        'SETTINGS.RECORDING_FOLDER' | translate
+                    }}</mat-label>
+                    <input
+                        matInput
+                        type="text"
+                        id="recordingFolder"
+                        formControlName="recordingFolder"
+                    />
+                    <button
+                        mat-icon-button
+                        matSuffix
+                        type="button"
+                        [attr.aria-label]="
+                            'SETTINGS.RECORDING_FOLDER_SELECT' | translate
+                        "
+                        (click)="selectRecordingFolder.emit()"
+                    >
+                        <mat-icon>folder_open</mat-icon>
+                    </button>
+                </mat-form-field>
+            </div>
+        </div>
     }
 
     @if (form().value.player === 'mpv') {

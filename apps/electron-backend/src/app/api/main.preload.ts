@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
 import type {
     EmbeddedMpvBounds,
+    EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     ExternalPlayerSession,
@@ -412,6 +413,19 @@ const electronApi = {
         aspect: string
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SET_ASPECT', sessionId, aspect),
+    startEmbeddedMpvRecording: (
+        sessionId: string,
+        options: EmbeddedMpvRecordingStartOptions
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_START_RECORDING', sessionId, options),
+    stopEmbeddedMpvRecording: (
+        sessionId: string
+    ): Promise<EmbeddedMpvSession | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_STOP_RECORDING', sessionId),
+    getEmbeddedMpvDefaultRecordingFolder: (): Promise<string> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER'),
+    selectEmbeddedMpvRecordingFolder: (): Promise<string | null> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SELECT_RECORDING_FOLDER'),
     disposeEmbeddedMpvSession: (
         sessionId: string
     ): Promise<EmbeddedMpvSession | null> =>
@@ -640,10 +654,7 @@ const electronApi = {
             playlistId,
             contentType
         ),
-    dbSetContentBackdropIfMissing: (
-        contentId: number,
-        backdropUrl?: string
-    ) =>
+    dbSetContentBackdropIfMissing: (contentId: number, backdropUrl?: string) =>
         ipcRenderer.invoke(
             'DB_SET_CONTENT_BACKDROP_IF_MISSING',
             contentId,

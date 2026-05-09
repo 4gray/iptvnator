@@ -36,7 +36,7 @@ export class PlayerService {
         title: string,
         thumbnail?: string,
         hideExternalInfoDialog = true,
-        _isLiveContent = false,
+        isLiveContent = false,
         userAgent?: string,
         referer?: string,
         origin?: string,
@@ -44,12 +44,12 @@ export class PlayerService {
         startTime?: number,
         headers?: Record<string, string>
     ): Promise<ExternalPlayerSession | void> {
-        void _isLiveContent;
         return this.openResolvedPlayback(
             {
                 streamUrl,
                 title,
                 thumbnail,
+                isLive: isLiveContent,
                 startTime,
                 contentInfo,
                 headers,
@@ -85,15 +85,15 @@ export class PlayerService {
             return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
                 OPEN_MPV_PLAYER,
                 {
-                url: streamUrl,
-                title,
-                thumbnail,
-                'user-agent': userAgent,
-                referer: referer,
-                origin: origin,
-                headers,
-                contentInfo,
-                startTime,
+                    url: streamUrl,
+                    title,
+                    thumbnail,
+                    'user-agent': userAgent,
+                    referer: referer,
+                    origin: origin,
+                    headers,
+                    contentInfo,
+                    startTime,
                 }
             );
         } else if (player === VideoPlayer.VLC) {
@@ -103,15 +103,15 @@ export class PlayerService {
             return await this.dataService.sendIpcEvent<ExternalPlayerSession>(
                 OPEN_VLC_PLAYER,
                 {
-                url: streamUrl,
-                title,
-                thumbnail,
-                'user-agent': userAgent,
-                referer: referer,
-                origin: origin,
-                headers,
-                contentInfo,
-                startTime,
+                    url: streamUrl,
+                    title,
+                    thumbnail,
+                    'user-agent': userAgent,
+                    referer: referer,
+                    origin: origin,
+                    headers,
+                    contentInfo,
+                    startTime,
                 }
             );
         }

@@ -36,6 +36,7 @@ const DEFAULT_SETTINGS: Settings = {
     remoteControlPort: 8765,
     epgUrl: [],
     downloadFolder: '',
+    recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
 };
@@ -142,6 +143,7 @@ export const SettingsStore = signalStore(
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),
                 downloadFolder: store.downloadFolder!(),
+                recordingFolder: store.recordingFolder!(),
                 coverSize: store.coverSize!(),
                 preferUploadedEpgOverXtream:
                     store.preferUploadedEpgOverXtream!(),
@@ -150,6 +152,10 @@ export const SettingsStore = signalStore(
 
         getDownloadFolder() {
             return store.downloadFolder!();
+        },
+
+        getRecordingFolder() {
+            return store.recordingFolder!();
         },
 
         getPlayer() {

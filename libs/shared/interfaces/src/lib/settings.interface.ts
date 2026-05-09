@@ -44,6 +44,8 @@ export interface Settings {
     remoteControlPort: number;
     /** Custom download folder path (uses system Downloads folder if not set) */
     downloadFolder?: string;
+    /** Custom live recording folder path (uses system Downloads folder if not set) */
+    recordingFolder?: string;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
     /**

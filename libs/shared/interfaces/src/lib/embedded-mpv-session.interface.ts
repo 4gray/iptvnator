@@ -18,6 +18,7 @@ export interface EmbeddedMpvCapabilities {
     playbackSpeed: boolean;
     aspectOverride: boolean;
     screenshot: boolean;
+    recording: boolean;
 }
 
 export interface EmbeddedMpvSupport {
@@ -38,6 +39,18 @@ export interface EmbeddedMpvAudioTrack {
 
 export type EmbeddedMpvSubtitleTrack = EmbeddedMpvAudioTrack;
 
+export interface EmbeddedMpvRecordingState {
+    active: boolean;
+    targetPath?: string;
+    startedAt?: string;
+    error?: string;
+}
+
+export interface EmbeddedMpvRecordingStartOptions {
+    directory?: string;
+    title?: string;
+}
+
 export interface EmbeddedMpvSession {
     id: string;
     title: string;
@@ -52,6 +65,7 @@ export interface EmbeddedMpvSession {
     selectedSubtitleTrackId: number | null;
     playbackSpeed: number;
     aspectOverride: string;
+    recording?: EmbeddedMpvRecordingState;
     startedAt: string;
     updatedAt: string;
     error?: string;

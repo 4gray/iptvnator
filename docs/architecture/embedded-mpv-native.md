@@ -48,6 +48,8 @@ The renderer never gets direct native-module access. It can only call the preloa
 - seek
 - set volume
 - set audio track
+- start/stop live stream recording
+- resolve/select the live recording folder
 - dispose session
 - subscribe to session updates
 
@@ -69,7 +71,23 @@ Audio tracks are discovered from MPV's `track-list` property. The selected track
 
 Subtitle tracks mirror the audio-track contract: same `track-list` source, same parsing pipeline, but selected through MPV's `sid` property. A `trackId` of `-1` from the renderer is interpreted as "disable subtitles" and translated to `sid=no` at the addon boundary. Playback speed is observed and set through MPV's `speed` property, clamped at the addon to `[0.25, 4.0]`. Aspect override uses MPV's `video-aspect-override` property as a passthrough string ("no", "16:9", "4:3", "21:9", "2.35:1"). All four properties (`sid`, `speed`, `video-aspect-override`, plus `aid`) are observed at session init so renderer state stays in sync with the native side without needing extra round-trips.
 
-The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. After a native rebuild, the new buttons light up automatically without renderer changes.
+The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. After a native rebuild, the new buttons light up automatically without renderer changes.
+
+## Live Stream Recording
+
+Embedded MPV can record live streams through mpv's `stream-record` option. IPTVnator exposes this only for `ResolvedPortalPlayback.isLive === true`; VOD, episodes, catchup playback, radio audio playback, and non-embedded players do not show the recording control.
+
+Recording is session-scoped:
+
+- `startEmbeddedMpvRecording(sessionId, { directory, title })` resolves a unique `.ts` filename in the requested directory and calls the native addon's `startRecording(sessionId, targetPath)`.
+- `stopEmbeddedMpvRecording(sessionId)` calls the native addon's `stopRecording(sessionId)`.
+- The native addon sets mpv's `stream-record` property to the target path on start and to an empty value on stop.
+- Loading a replacement stream or disposing the embedded session stops any active recording before the MPV handle is reused or destroyed.
+- `EmbeddedMpvSession.recording` carries `{ active, targetPath, startedAt, error }` so the renderer can show active elapsed time, final save path, or a failure.
+
+The default recording folder is `app.getPath('downloads')`, matching the desktop download manager's fallback. Users can override it in Settings through `Settings.recordingFolder`; an empty setting means system Downloads. Recordings are intentionally not inserted into the Downloads database or queue in v1 because MPV writes from the active playback session while the download manager owns independent backend download jobs.
+
+mpv's own caveats apply: the output container is inferred from the target extension, and seeking or switching streams while recording can produce broken output. IPTVnator limits the UI to live streams and stops recording on playback replacement to avoid the most obvious corruption path, but the feature should still be treated as an experimental embedded MPV capability.
 
 ## Renderer Architecture And Reactivity
 
@@ -79,7 +97,7 @@ The Angular side of the embedded MPV player is intentionally split so the player
 - `embedded-mpv-shortcuts.ts` — `EmbeddedMpvShortcuts` class with `attach(handlers)` / `detach()`. Owns the document keydown listener and routes through a callback interface; the component supplies the callbacks. Listens for Space/K (toggle), F (fullscreen), arrow keys (seek/volume), M (mute), Escape (close popovers).
 - `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/`afterAllClosed` for dialog-shaped overlays and falls back to a `MutationObserver` on the CDK overlay container for any remaining backdrop-bearing CDK overlays. The MPV NSView is hidden off-screen while a modal is open so DOM dialogs can paint above it.
 - `embedded-mpv-ui-state.ts` — `EmbeddedMpvMenuState` (single-open popover state machine with `volumeOpen`, `audioOpen`, `subtitleOpen`, `speedOpen`, `aspectOpen` signals plus `anyOpen` computed; `toggle`/`open`/`close`/`closeAll` helpers) and `EmbeddedMpvFeedback` (transient overlay that auto-clears after a configurable delay; used for keypress feedback).
-- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` service that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns bounds-sync (resize, scroll, overlay state), and exposes the imperative IPC surface (`startSession`, `togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `retry`).
+- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` service that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns bounds-sync (resize, scroll, overlay state), and exposes the imperative IPC surface (`startSession`, `togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `startRecording`, `stopRecording`, `retry`).
 - `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and three `effect()`s.
 
 ### Bounds compositing strategy
@@ -107,7 +125,7 @@ Concrete bugs from the audit, recorded so they don't get reintroduced:
 - **Spurious `timeUpdate` re-emits and `volume.set` calls.** The session-fan-out effect calls `scheduleControlsHide()`, which reads `isPlaying`, `menus.anyOpen`, `statusLabel`, and `controlsVisible`. Those reads became tracked deps, so opening any popover, pausing, or hovering re-ran the body. No loop in isolation, but a parent that wires `timeUpdate` back into `playback.startTime` would have hit the volume-restart bug class. Fix: wrap the side-effect block in `untracked()` so the effect listens only to session changes.
 - **2 Hz no-op stalled-tracker re-runs.** The controller's stalled effect tracked the full `session` signal, which updates on every position-poll snapshot. `handleStalledTracking` is a no-op for non-loading status, so the re-runs cost nothing useful. Fix: track a `sessionStatus = computed(() => this.session()?.status ?? null)` instead so the effect fires only on real status transitions.
 
-When adding a new effect, audit it the same way: list every tracked signal read explicitly, justify each one as a *re-trigger source*, and wrap everything else in `untracked()`. When extending an existing helper that is called from inside an effect, treat the helper's signal reads as if they were inline in the effect.
+When adding a new effect, audit it the same way: list every tracked signal read explicitly, justify each one as a _re-trigger source_, and wrap everything else in `untracked()`. When extending an existing helper that is called from inside an effect, treat the helper's signal reads as if they were inline in the effect.
 
 ### IPC safety
 
@@ -239,4 +257,5 @@ Do not expose embedded MPV broadly until these pass on both Apple Silicon and In
 - VOD resume starts near the saved offset
 - live HLS, MPEG-TS, MP4/VOD, headers, referrer, volume, seek, fullscreen, route changes, and cleanup work
 - audio-track switching works on a stream with multiple audio tracks
+- live stream recording starts, stops, writes a `.ts` file in Downloads/custom recording folder, and stops on route/playback changes
 - fallback behavior is clear when the addon or native dependencies are unavailable

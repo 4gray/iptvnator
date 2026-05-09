@@ -269,6 +269,7 @@ export class StreamResolverService {
             streamUrl,
             title: item.name,
             thumbnail: item.logo ?? null,
+            isLive: true,
         };
     }
 
@@ -310,6 +311,7 @@ export class StreamResolverService {
             streamUrl: this.normalizeStalkerCmd(rawCmd),
             title: item.name,
             thumbnail: item.logo ?? null,
+            isLive: true,
         };
     }
 

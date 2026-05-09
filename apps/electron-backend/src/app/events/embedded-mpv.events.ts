@@ -12,8 +12,13 @@ import {
     EMBEDDED_MPV_SET_SPEED,
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
     EMBEDDED_MPV_SET_VOLUME,
+    EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER,
+    EMBEDDED_MPV_SELECT_RECORDING_FOLDER,
+    EMBEDDED_MPV_START_RECORDING,
+    EMBEDDED_MPV_STOP_RECORDING,
     EMBEDDED_MPV_SUPPORT,
     EmbeddedMpvBounds,
+    EmbeddedMpvRecordingStartOptions,
     ResolvedPortalPlayback,
 } from 'shared-interfaces';
 import {
@@ -63,8 +68,10 @@ ipcMain.handle(
         getService().setPaused(sessionId, paused)
 );
 
-ipcMain.handle(EMBEDDED_MPV_SEEK, (_event, sessionId: string, seconds: number) =>
-    getService().seek(sessionId, seconds)
+ipcMain.handle(
+    EMBEDDED_MPV_SEEK,
+    (_event, sessionId: string, seconds: number) =>
+        getService().seek(sessionId, seconds)
 );
 
 ipcMain.handle(
@@ -95,6 +102,24 @@ ipcMain.handle(
     EMBEDDED_MPV_SET_ASPECT,
     (_event, sessionId: string, aspect: string) =>
         getService().setAspect(sessionId, aspect)
+);
+
+ipcMain.handle(
+    EMBEDDED_MPV_START_RECORDING,
+    (_event, sessionId: string, options: EmbeddedMpvRecordingStartOptions) =>
+        getService().startRecording(sessionId, options)
+);
+
+ipcMain.handle(EMBEDDED_MPV_STOP_RECORDING, (_event, sessionId: string) =>
+    getService().stopRecording(sessionId)
+);
+
+ipcMain.handle(EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER, () =>
+    getService().getDefaultRecordingFolder()
+);
+
+ipcMain.handle(EMBEDDED_MPV_SELECT_RECORDING_FOLDER, () =>
+    getService().selectRecordingFolder()
 );
 
 ipcMain.handle(EMBEDDED_MPV_DISPOSE_SESSION, (_event, sessionId: string) =>

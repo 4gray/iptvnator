@@ -264,6 +264,7 @@ export function withStalkerPlayer() {
                         streamUrl,
                         title: item.o_name || item.name || item.title || '',
                         thumbnail: item.logo ?? item.cover ?? null,
+                        isLive: true,
                         headers,
                         userAgent:
                             headers['User-Agent'] ||
