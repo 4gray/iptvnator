@@ -1,5 +1,12 @@
 import { app, dialog, powerSaveBlocker } from 'electron';
-import { existsSync, mkdirSync, readFileSync } from 'fs';
+import {
+    closeSync,
+    existsSync,
+    mkdirSync,
+    openSync,
+    readFileSync,
+    unlinkSync,
+} from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 import App from '../app';
@@ -383,11 +390,16 @@ export class EmbeddedMpvNativeService {
             options.directory?.trim() || this.getDefaultRecordingFolder();
         mkdirSync(directory, { recursive: true });
 
-        const targetPath = this.resolveRecordingTargetPath(
+        const targetPath = this.reserveRecordingTargetPath(
             directory,
             options.title || session.title || 'IPTVnator recording'
         );
-        addon.startRecording(sessionId, targetPath);
+        try {
+            addon.startRecording(sessionId, targetPath);
+        } catch (error) {
+            this.releaseReservedRecordingTargetPath(targetPath);
+            throw error;
+        }
         return this.refreshSession(sessionId);
     }
 
@@ -427,8 +439,15 @@ export class EmbeddedMpvNativeService {
             return null;
         }
 
+        let lastRecording: EmbeddedMpvRecordingState | undefined;
         try {
-            this.getAddon().disposeSession(sessionId);
+            const addon = this.getAddon();
+            try {
+                lastRecording = addon.getSessionSnapshot(sessionId)?.recording;
+            } catch {
+                lastRecording = undefined;
+            }
+            addon.disposeSession(sessionId);
         } finally {
             this.sessions.delete(sessionId);
             const payload: EmbeddedMpvSession = {
@@ -445,7 +464,7 @@ export class EmbeddedMpvNativeService {
                 selectedSubtitleTrackId: null,
                 playbackSpeed: 1,
                 aspectOverride: 'no',
-                recording: { active: false },
+                recording: this.createClosedRecordingState(lastRecording),
                 startedAt: session.startedAt,
                 updatedAt: new Date().toISOString(),
             };
@@ -614,7 +633,7 @@ export class EmbeddedMpvNativeService {
         return App.mainWindow.getNativeWindowHandle();
     }
 
-    private resolveRecordingTargetPath(
+    private reserveRecordingTargetPath(
         directory: string,
         title: string
     ): string {
@@ -623,15 +642,44 @@ export class EmbeddedMpvNativeService {
         let candidate = path.join(directory, `${baseName}-${timestamp}.ts`);
         let suffix = 2;
 
-        while (existsSync(candidate)) {
-            candidate = path.join(
-                directory,
-                `${baseName}-${timestamp}-${suffix}.ts`
-            );
-            suffix += 1;
-        }
+        while (true) {
+            try {
+                const fd = openSync(candidate, 'wx');
+                closeSync(fd);
+                return candidate;
+            } catch (error) {
+                if ((error as NodeJS.ErrnoException).code === 'EEXIST') {
+                    candidate = path.join(
+                        directory,
+                        `${baseName}-${timestamp}-${suffix}.ts`
+                    );
+                    suffix += 1;
+                    continue;
+                }
 
-        return candidate;
+                throw error;
+            }
+        }
+    }
+
+    private releaseReservedRecordingTargetPath(targetPath: string): void {
+        try {
+            unlinkSync(targetPath);
+        } catch {
+            // Ignore cleanup failures; the start error is more useful.
+        }
+    }
+
+    private createClosedRecordingState(
+        recording?: EmbeddedMpvRecordingState
+    ): EmbeddedMpvRecordingState {
+        return {
+            active: false,
+            ...(recording?.targetPath
+                ? { targetPath: recording.targetPath }
+                : {}),
+            ...(recording?.error ? { error: recording.error } : {}),
+        };
     }
 
     private sanitizeRecordingFileName(title: string): string {

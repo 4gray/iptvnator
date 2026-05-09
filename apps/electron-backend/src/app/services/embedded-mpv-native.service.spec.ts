@@ -3,6 +3,9 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from 'shared-interfaces';
+import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { tmpdir } from 'os';
+import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
 
 const powerSaveBlockerMock = {
@@ -95,6 +98,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     let addon: MockAddon;
     let nextBlockerId: number;
     let originalPlatform: NodeJS.Platform;
+    let tempDirs: string[];
 
     beforeEach(async () => {
         jest.resetModules();
@@ -103,6 +107,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         powerSaveBlockerMock.isStarted.mockReset();
         mainWindowSendMock.mockReset();
 
+        tempDirs = [];
         nextBlockerId = 1;
         powerSaveBlockerMock.start.mockImplementation(() => nextBlockerId++);
         powerSaveBlockerMock.isStarted.mockReturnValue(true);
@@ -123,10 +128,21 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     afterEach(() => {
         service.shutdown();
         jest.useRealTimers();
+        for (const tempDir of tempDirs) {
+            rmSync(tempDir, { recursive: true, force: true });
+        }
         Object.defineProperty(process, 'platform', {
             value: originalPlatform,
         });
     });
+
+    function createTempDir(): string {
+        const tempDir = mkdtempSync(
+            path.join(tmpdir(), 'iptvnator-recording-')
+        );
+        tempDirs.push(tempDir);
+        return tempDir;
+    }
 
     function startSession(sessionId: string, snapshot: MockSnapshot): void {
         addon.createSession.mockReturnValueOnce(sessionId);
@@ -249,12 +265,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(support.capabilities?.recording).toBe(true);
     });
 
-    it('starts recording to a sanitized unique ts file in the requested directory', () => {
+    it('starts recording to a sanitized reserved unique ts file in the requested directory', () => {
         jest.useFakeTimers();
         jest.setSystemTime(new Date(2026, 4, 9, 10, 11, 12));
+        const directory = createTempDir();
         startSession('s1', snapshot('playing'));
 
-        const targetPath = '/tmp/News_Live-20260509-101112.ts';
+        const targetPath = path.join(directory, 'News_Live-20260509-101112.ts');
         addon.getSessionSnapshot.mockReturnValueOnce(
             snapshot('playing', {
                 recording: {
@@ -266,13 +283,51 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         );
 
         const updated = service.startRecording('s1', {
-            directory: '/tmp',
+            directory,
             title: 'News/Live',
         });
 
         expect(addon.startRecording).toHaveBeenCalledWith('s1', targetPath);
+        expect(existsSync(targetPath)).toBe(true);
         expect(updated?.recording?.active).toBe(true);
         expect(updated?.recording?.targetPath).toBe(targetPath);
+    });
+
+    it('reserves the next unique recording path when the first candidate exists', () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date(2026, 4, 9, 10, 11, 12));
+        const directory = createTempDir();
+        const firstCandidate = path.join(
+            directory,
+            'News_Live-20260509-101112.ts'
+        );
+        const reservedCandidate = path.join(
+            directory,
+            'News_Live-20260509-101112-2.ts'
+        );
+        writeFileSync(firstCandidate, 'existing recording');
+        startSession('s1', snapshot('playing'));
+
+        addon.getSessionSnapshot.mockReturnValueOnce(
+            snapshot('playing', {
+                recording: {
+                    active: true,
+                    targetPath: reservedCandidate,
+                },
+            })
+        );
+
+        service.startRecording('s1', {
+            directory,
+            title: 'News/Live',
+        });
+
+        expect(addon.startRecording).toHaveBeenCalledWith(
+            's1',
+            reservedCandidate
+        );
+        expect(existsSync(firstCandidate)).toBe(true);
+        expect(existsSync(reservedCandidate)).toBe(true);
     });
 
     it('stops recording and keeps the last target path in the session snapshot', () => {
@@ -301,5 +356,45 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(addon.stopRecording).toHaveBeenCalledWith('s1');
         expect(updated?.recording?.active).toBe(false);
         expect(updated?.recording?.targetPath).toBe(targetPath);
+    });
+
+    it('preserves the recording target path when disposing an active recording session', () => {
+        const targetPath = '/tmp/News_Live-20260509-101112.ts';
+        startSession(
+            's1',
+            snapshot('playing', {
+                recording: {
+                    active: true,
+                    targetPath,
+                    startedAt: '2026-05-09T08:11:12.000Z',
+                },
+            })
+        );
+        addon.getSessionSnapshot.mockReturnValueOnce(
+            snapshot('playing', {
+                recording: {
+                    active: true,
+                    targetPath,
+                    startedAt: '2026-05-09T08:11:12.000Z',
+                },
+            })
+        );
+
+        const disposed = service.disposeSession('s1');
+
+        expect(addon.disposeSession).toHaveBeenCalledWith('s1');
+        expect(disposed?.recording).toEqual({
+            active: false,
+            targetPath,
+        });
+        expect(mainWindowSendMock).toHaveBeenLastCalledWith(
+            'EMBEDDED_MPV_SESSION_UPDATE',
+            expect.objectContaining({
+                recording: {
+                    active: false,
+                    targetPath,
+                },
+            })
+        );
     });
 });

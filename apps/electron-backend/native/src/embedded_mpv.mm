@@ -127,6 +127,11 @@ struct Session {
     std::atomic<uint64_t> totalRenderNanoseconds{0};
     std::mutex mutex;
     SessionSnapshot snapshot;
+    uint64_t pendingRecordingStartRequestId = 0;
+    uint64_t pendingRecordingStopRequestId = 0;
+    std::string pendingRecordingTargetPath;
+    std::string pendingRecordingStartedAt;
+    std::string pendingRecordingStopStartedAt;
     std::weak_ptr<Session>* renderCallbackContext = nullptr;
     RenderBackend renderBackend = RenderBackend::OpenGL;
     int renderWidthPixels = 0;
@@ -1030,6 +1035,59 @@ std::string currentUtcTimestamp()
     return buffer;
 }
 
+bool reconcileRecordingPropertyReply(
+    const std::shared_ptr<Session>& session,
+    uint64_t requestId,
+    int error
+)
+{
+    if (requestId == 0) {
+        return false;
+    }
+
+    if (requestId == session->pendingRecordingStartRequestId) {
+        session->pendingRecordingStartRequestId = 0;
+        const std::string targetPath = session->pendingRecordingTargetPath;
+        const std::string startedAt = session->pendingRecordingStartedAt;
+        session->pendingRecordingTargetPath.clear();
+        session->pendingRecordingStartedAt.clear();
+
+        if (error < 0) {
+            session->snapshot.recordingActive = false;
+            session->snapshot.recordingTargetPath = targetPath;
+            session->snapshot.recordingStartedAt.clear();
+            session->snapshot.recordingError = mpv_error_string(error);
+            return true;
+        }
+
+        session->snapshot.recordingActive = true;
+        session->snapshot.recordingTargetPath = targetPath;
+        session->snapshot.recordingStartedAt = startedAt;
+        session->snapshot.recordingError.clear();
+        return true;
+    }
+
+    if (requestId == session->pendingRecordingStopRequestId) {
+        session->pendingRecordingStopRequestId = 0;
+        const std::string startedAt = session->pendingRecordingStopStartedAt;
+        session->pendingRecordingStopStartedAt.clear();
+
+        if (error < 0) {
+            session->snapshot.recordingActive = true;
+            session->snapshot.recordingStartedAt = startedAt;
+            session->snapshot.recordingError = mpv_error_string(error);
+            return true;
+        }
+
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingStartedAt.clear();
+        session->snapshot.recordingError.clear();
+        return true;
+    }
+
+    return false;
+}
+
 double clampVolumePercent(double volume)
 {
     return std::clamp(volume, 0.0, 1.0) * 100.0;
@@ -1227,6 +1285,13 @@ void runEventLoop(const std::shared_ptr<Session>& session)
             }
             case MPV_EVENT_COMMAND_REPLY:
             case MPV_EVENT_SET_PROPERTY_REPLY:
+                if (reconcileRecordingPropertyReply(
+                        session,
+                        event->reply_userdata,
+                        event->error
+                    )) {
+                    break;
+                }
                 if (event->error < 0) {
                     session->snapshot.status = SessionStatus::Error;
                     session->snapshot.error = mpv_error_string(event->error);
@@ -2095,9 +2160,22 @@ Napi::Value StartRecording(const Napi::CallbackInfo& info)
 
     const auto session = getSessionOrThrow(env, sessionId);
     const char* targetValue = targetPath.c_str();
+    const uint64_t requestId = nextAsyncRequestId();
+    const std::string startedAt = currentUtcTimestamp();
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->pendingRecordingStartRequestId = requestId;
+        session->pendingRecordingTargetPath = targetPath;
+        session->pendingRecordingStartedAt = startedAt;
+        session->snapshot.recordingActive = true;
+        session->snapshot.recordingTargetPath = targetPath;
+        session->snapshot.recordingStartedAt = startedAt;
+        session->snapshot.recordingError.clear();
+    }
+
     const int result = mpv_set_property_async(
         session->handle,
-        nextAsyncRequestId(),
+        requestId,
         "stream-record",
         MPV_FORMAT_STRING,
         const_cast<char**>(&targetValue)
@@ -2106,7 +2184,13 @@ Napi::Value StartRecording(const Napi::CallbackInfo& info)
     if (result < 0) {
         {
             std::lock_guard<std::mutex> lock(session->mutex);
+            if (session->pendingRecordingStartRequestId == requestId) {
+                session->pendingRecordingStartRequestId = 0;
+                session->pendingRecordingTargetPath.clear();
+                session->pendingRecordingStartedAt.clear();
+            }
             session->snapshot.recordingActive = false;
+            session->snapshot.recordingStartedAt.clear();
             session->snapshot.recordingError = mpv_error_string(result);
         }
         throw Napi::Error::New(
@@ -2114,14 +2198,6 @@ Napi::Value StartRecording(const Napi::CallbackInfo& info)
             std::string("Failed to start stream recording: ") +
                 mpv_error_string(result)
         );
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(session->mutex);
-        session->snapshot.recordingActive = true;
-        session->snapshot.recordingTargetPath = targetPath;
-        session->snapshot.recordingStartedAt = currentUtcTimestamp();
-        session->snapshot.recordingError.clear();
     }
 
     return env.Undefined();
@@ -2137,9 +2213,20 @@ Napi::Value StopRecording(const Napi::CallbackInfo& info)
     const std::string sessionId = info[0].As<Napi::String>().Utf8Value();
     const auto session = getSessionOrThrow(env, sessionId);
     const char* disabledValue = "";
+    const uint64_t requestId = nextAsyncRequestId();
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->pendingRecordingStopRequestId = requestId;
+        session->pendingRecordingStopStartedAt =
+            session->snapshot.recordingStartedAt;
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingStartedAt.clear();
+        session->snapshot.recordingError.clear();
+    }
+
     const int result = mpv_set_property_async(
         session->handle,
-        nextAsyncRequestId(),
+        requestId,
         "stream-record",
         MPV_FORMAT_STRING,
         const_cast<char**>(&disabledValue)
@@ -2148,6 +2235,14 @@ Napi::Value StopRecording(const Napi::CallbackInfo& info)
     if (result < 0) {
         {
             std::lock_guard<std::mutex> lock(session->mutex);
+            const std::string startedAt =
+                session->pendingRecordingStopStartedAt;
+            if (session->pendingRecordingStopRequestId == requestId) {
+                session->pendingRecordingStopRequestId = 0;
+                session->pendingRecordingStopStartedAt.clear();
+            }
+            session->snapshot.recordingActive = true;
+            session->snapshot.recordingStartedAt = startedAt;
             session->snapshot.recordingError = mpv_error_string(result);
         }
         throw Napi::Error::New(
@@ -2155,13 +2250,6 @@ Napi::Value StopRecording(const Napi::CallbackInfo& info)
             std::string("Failed to stop stream recording: ") +
                 mpv_error_string(result)
         );
-    }
-
-    {
-        std::lock_guard<std::mutex> lock(session->mutex);
-        session->snapshot.recordingActive = false;
-        session->snapshot.recordingStartedAt.clear();
-        session->snapshot.recordingError.clear();
     }
 
     return env.Undefined();
