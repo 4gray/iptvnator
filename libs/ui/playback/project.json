@@ -6,6 +6,21 @@
     "projectType": "library",
     "tags": ["scope:shared", "domain:playback", "type:ui"],
     "targets": {
+        "test": {
+            "executor": "nx:run-commands",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "command": [
+                    "node",
+                    "./tools/testing/run-web-esm-lib-tests.mjs",
+                    "libs/ui/playback/src"
+                ],
+                "env": {
+                    "NODE_OPTIONS": "--experimental-vm-modules"
+                },
+                "forwardAllArgs": true
+            }
+        },
         "lint": {
             "executor": "@nx/eslint:lint"
         }

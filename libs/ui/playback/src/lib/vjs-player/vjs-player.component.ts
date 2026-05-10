@@ -198,14 +198,18 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      */
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['options']?.previousValue) {
-            const newSource = changes['options'].currentValue.sources[0];
-            if (this.isMpegTsSource(newSource?.src)) {
-                this.destroyMpegTs();
-                this.player.reset();
-                this.initMpegTs(newSource.src);
-            } else {
-                this.destroyMpegTs();
-                this.player.src(newSource);
+            const previousSource =
+                changes['options'].previousValue.sources?.[0];
+            const newSource = changes['options'].currentValue.sources?.[0];
+            if (newSource && !this.isSameSource(previousSource, newSource)) {
+                if (this.isMpegTsSource(newSource.src)) {
+                    this.destroyMpegTs();
+                    this.player.reset();
+                    this.initMpegTs(newSource.src);
+                } else {
+                    this.destroyMpegTs();
+                    this.player.src(newSource);
+                }
             }
         }
         if (changes['volume']?.currentValue !== undefined && this.player) {
@@ -230,6 +234,16 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private isMpegTsSource(url?: string): boolean {
         if (!url) return false;
         return getExtensionFromUrl(url) === 'ts' && mpegts.isSupported();
+    }
+
+    private isSameSource(
+        previousSource: VideoPlayerSource | undefined,
+        newSource: VideoPlayerSource
+    ): boolean {
+        return (
+            previousSource?.src === newSource.src &&
+            previousSource?.type === newSource.type
+        );
     }
 
     private initMpegTs(url: string): void {
