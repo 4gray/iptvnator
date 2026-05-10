@@ -93,8 +93,13 @@ function normalizePlayerPathForStore(value: string | null | undefined): string {
     return normalizeCustomPlayerPath(value) ?? '';
 }
 
+const macOSAppBundleExecutableNames: Record<ExternalPlayerName, string> = {
+    mpv: 'mpv',
+    vlc: 'VLC',
+};
+
 function getMacOSAppBundleExecutableName(player: ExternalPlayerName): string {
-    return player === 'mpv' ? 'mpv' : 'VLC';
+    return macOSAppBundleExecutableNames[player];
 }
 
 function removeTrailingPathSeparators(value: string): string {
