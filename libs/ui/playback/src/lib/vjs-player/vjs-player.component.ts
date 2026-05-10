@@ -201,13 +201,14 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const previousSource =
                 changes['options'].previousValue.sources?.[0];
             const newSource = changes['options'].currentValue.sources?.[0];
-            if (newSource && !this.isSameSource(previousSource, newSource)) {
-                if (this.isMpegTsSource(newSource.src)) {
-                    this.destroyMpegTs();
+            if (this.hasSourceChanged(previousSource, newSource)) {
+                this.destroyMpegTs();
+                if (!newSource) {
+                    this.player.reset();
+                } else if (this.isMpegTsSource(newSource.src)) {
                     this.player.reset();
                     this.initMpegTs(newSource.src);
                 } else {
-                    this.destroyMpegTs();
                     this.player.src(newSource);
                 }
             }
@@ -236,13 +237,13 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         return getExtensionFromUrl(url) === 'ts' && mpegts.isSupported();
     }
 
-    private isSameSource(
+    private hasSourceChanged(
         previousSource: VideoPlayerSource | undefined,
-        newSource: VideoPlayerSource
+        newSource: VideoPlayerSource | undefined
     ): boolean {
         return (
-            previousSource?.src === newSource.src &&
-            previousSource?.type === newSource.type
+            previousSource?.src !== newSource?.src ||
+            previousSource?.type !== newSource?.type
         );
     }
 

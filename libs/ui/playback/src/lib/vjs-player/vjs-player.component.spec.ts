@@ -114,4 +114,37 @@ describe('VjsPlayerComponent', () => {
         expect(player.src).not.toHaveBeenCalled();
         expect(player.volume).toHaveBeenCalledWith(0.75);
     });
+
+    it('tears down mpegts playback when options clear the source', () => {
+        const mpegtsPlayer = {
+            pause: jest.fn(),
+            unload: jest.fn(),
+            detachMediaElement: jest.fn(),
+            destroy: jest.fn(),
+        };
+        const componentInternals = component as unknown as {
+            mpegtsPlayer: typeof mpegtsPlayer | null;
+        };
+        componentInternals.mpegtsPlayer = mpegtsPlayer;
+        const previousOptions = {
+            sources: [
+                {
+                    src: 'https://example.com/live/stream.ts',
+                    type: 'video/mp2t',
+                },
+            ],
+        };
+
+        component.ngOnChanges({
+            options: new SimpleChange(previousOptions, { sources: [] }, false),
+        });
+
+        expect(mpegtsPlayer.pause).toHaveBeenCalled();
+        expect(mpegtsPlayer.unload).toHaveBeenCalled();
+        expect(mpegtsPlayer.detachMediaElement).toHaveBeenCalled();
+        expect(mpegtsPlayer.destroy).toHaveBeenCalled();
+        expect(componentInternals.mpegtsPlayer).toBeNull();
+        expect(player.reset).toHaveBeenCalled();
+        expect(player.src).not.toHaveBeenCalled();
+    });
 });
