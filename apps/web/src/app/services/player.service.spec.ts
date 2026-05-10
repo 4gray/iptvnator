@@ -102,4 +102,43 @@ describe('PlayerService', () => {
         );
         expect(result).toEqual(session);
     });
+
+    it('forces external playback without changing the selected embedded player', async () => {
+        const session: ExternalPlayerSession = {
+            id: 'session-2',
+            player: 'vlc',
+            status: 'opened',
+            title: 'Example Live',
+            streamUrl: 'https://example.com/live.m3u8',
+            startedAt: '2026-03-07T10:00:00.000Z',
+            updatedAt: '2026-03-07T10:00:00.000Z',
+            canClose: true,
+        };
+        settingsStore.player.mockReturnValue(VideoPlayer.VideoJs);
+        dataService.sendIpcEvent.mockResolvedValue(session);
+
+        const result = await service.openExternalPlayback(
+            {
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'Example Live',
+                userAgent: 'IPTVnator Test',
+                referer: 'https://referrer.example.com',
+                origin: 'https://origin.example.com',
+            },
+            'vlc'
+        );
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            'OPEN_VLC_PLAYER',
+            expect.objectContaining({
+                url: 'https://example.com/live.m3u8',
+                title: 'Example Live',
+                'user-agent': 'IPTVnator Test',
+                referer: 'https://referrer.example.com',
+                origin: 'https://origin.example.com',
+            })
+        );
+        expect(dialog.open).not.toHaveBeenCalled();
+        expect(result).toEqual(session);
+    });
 });

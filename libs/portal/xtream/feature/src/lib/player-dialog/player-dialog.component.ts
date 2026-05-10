@@ -6,9 +6,15 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_PLAYBACK_POSITIONS,
+    PORTAL_PLAYER,
+} from '@iptvnator/portal/shared/util';
 import { PlayerContentInfo, ResolvedPortalPlayback } from 'shared-interfaces';
-import { WebPlayerViewComponent } from 'shared-portals';
+import {
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
+} from 'shared-portals';
 
 export interface PlayerDialogData {
     streamUrl: string;
@@ -37,6 +43,7 @@ export class PlayerDialogComponent {
     private snackBar = inject(MatSnackBar);
     private translateService = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly portalPlayer = inject(PORTAL_PLAYER);
 
     readonly title: string;
     readonly streamUrl: string;
@@ -73,6 +80,13 @@ export class PlayerDialogComponent {
             {
                 duration: 2000,
             }
+        );
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
         );
     }
 }

@@ -143,6 +143,9 @@
             (timeUpdate)="onInlineTimeUpdate($event)"
             (closed)="closeInlinePlayback()"
             (streamUrlCopied)="onStreamUrlCopied()"
+            (externalFallbackRequested)="
+                onInlineExternalFallbackRequested($event)
+            "
         />
     }
 

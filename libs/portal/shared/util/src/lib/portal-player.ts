@@ -3,6 +3,7 @@ import {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
 } from 'shared-interfaces';
+import type { ExternalPlayerName } from 'shared-interfaces';
 
 export interface PortalPlayer {
     isEmbeddedPlayer(): boolean;
@@ -22,6 +23,10 @@ export interface PortalPlayer {
     openResolvedPlayback(
         playback: ResolvedPortalPlayback,
         hideExternalInfoDialog?: boolean
+    ): Promise<ExternalPlayerSession | void>;
+    openExternalPlayback(
+        playback: ResolvedPortalPlayback,
+        player: ExternalPlayerName
     ): Promise<ExternalPlayerSession | void>;
 }
 

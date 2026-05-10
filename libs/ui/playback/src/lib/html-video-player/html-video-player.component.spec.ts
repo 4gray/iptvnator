@@ -56,4 +56,29 @@ describe('HtmlVideoPlayerComponent', () => {
 
         expect(component.playChannel).toHaveBeenCalledWith(TEST_CHANNEL);
     });
+
+    it('emits a playback issue when the native video element reports an unsupported source', () => {
+        const issues: unknown[] = [];
+        component.channel = TEST_CHANNEL as never;
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+
+        Object.defineProperty(component.videoPlayer.nativeElement, 'error', {
+            configurable: true,
+            value: {
+                code: 4,
+                message: 'No compatible source was found',
+            },
+        });
+
+        component.videoPlayer.nativeElement.dispatchEvent(new Event('error'));
+
+        expect(issues).toEqual([
+            expect.objectContaining({
+                code: 'unsupported-container',
+                source: 'native',
+                sourceUrl: 'http://test.ts',
+                externalFallbackRecommended: true,
+            }),
+        ]);
+    });
 });

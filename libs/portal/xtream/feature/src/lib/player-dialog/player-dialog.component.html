@@ -6,6 +6,7 @@
         [playback]="data.playback ?? null"
         [startTime]="data.startTime || 0"
         (timeUpdate)="handleTimeUpdate($event)"
+        (externalFallbackRequested)="handleExternalFallbackRequest($event)"
     />
 </mat-dialog-content>
 <mat-dialog-actions class="align-actions">

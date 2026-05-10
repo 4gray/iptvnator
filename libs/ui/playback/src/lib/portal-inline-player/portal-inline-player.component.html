@@ -36,6 +36,9 @@
                 [playback]="playback()"
                 [startTime]="startTime()"
                 (timeUpdate)="onTimeUpdate($event)"
+                (externalFallbackRequested)="
+                    onExternalFallbackRequested($event)
+                "
             />
         </div>
     </section>

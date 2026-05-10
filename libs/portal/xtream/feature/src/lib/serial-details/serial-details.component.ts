@@ -23,7 +23,10 @@ import {
     PORTAL_PLAYER,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
+import {
+    type PlaybackFallbackRequest,
+    PortalInlinePlayerComponent,
+} from '@iptvnator/ui/playback';
 import {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -306,6 +309,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             {
                 duration: 2000,
             }
+        );
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
         );
     }
 

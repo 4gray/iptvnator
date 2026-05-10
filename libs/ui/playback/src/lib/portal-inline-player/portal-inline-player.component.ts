@@ -13,6 +13,7 @@ import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
 } from 'shared-interfaces';
+import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 
 @Component({
@@ -48,6 +49,7 @@ export class PortalInlinePlayerComponent {
         duration: number;
     }>();
     readonly streamUrlCopied = output<void>();
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 
     onClose(): void {
         this.closed.emit();
@@ -59,5 +61,9 @@ export class PortalInlinePlayerComponent {
 
     onCopied(): void {
         this.streamUrlCopied.emit();
+    }
+
+    onExternalFallbackRequested(request: PlaybackFallbackRequest): void {
+        this.externalFallbackRequested.emit(request);
     }
 }

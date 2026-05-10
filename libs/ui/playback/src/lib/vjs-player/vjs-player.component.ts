@@ -17,6 +17,13 @@ import mpegts from 'mpegts.js';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
 import 'videojs-quality-selector-hls';
+import {
+    InlinePlaybackPlayer,
+    PlaybackDiagnostic,
+    classifyMpegTsPlaybackIssue,
+    classifyNativePlaybackIssue,
+    createPlaybackSourceMetadata,
+} from '../playback-diagnostics/playback-diagnostics.util';
 
 /**
  * This component contains the implementation of video player that is based on video.js library
@@ -77,6 +84,7 @@ type VideoJsPlayer = Omit<
     audioTracks: () => VideoJsAudioTrackList | null;
     tech: (options?: unknown) => VideoJsTech | null;
     getChild: (name: string) => VideoJsControlChild | null;
+    error: () => { code?: number; message?: string } | null;
 };
 
 @Component({
@@ -101,6 +109,15 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         currentTime: number;
         duration: number;
     }>();
+    @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
+
+    private readonly handleNativePlaybackError = () => {
+        this.handleVideoJsPlaybackError();
+    };
+
+    private readonly clearPlaybackIssue = () => {
+        this.playbackIssue.emit(null);
+    };
 
     /**
      * Instantiate Video.js on component init
@@ -108,6 +125,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ngOnInit(): void {
         const source = this.options?.sources?.[0];
         const isMpegTs = this.isMpegTsSource(source?.src);
+        const targetVideo = this.target.nativeElement as HTMLVideoElement;
+        targetVideo.addEventListener('error', this.handleNativePlaybackError);
+        targetVideo.addEventListener('loadeddata', this.clearPlaybackIssue);
+        targetVideo.addEventListener('playing', this.clearPlaybackIssue);
 
         // For raw MPEG-TS streams, init Video.js without a source (UI/controls only)
         const vjsOptions = isMpegTs
@@ -128,8 +149,13 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     if (this.startTime > 0) {
                         this.player.currentTime(this.startTime);
                     }
+                    this.playbackIssue.emit(null);
                     this.logAudioTracks();
                     this.setupAudioTrackMenu();
+                });
+
+                this.player.on('error', () => {
+                    this.handleVideoJsPlaybackError();
                 });
 
                 // Audio tracks may be added after loadedmetadata (e.g. HLS alternate audio)
@@ -198,14 +224,19 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      */
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['options']?.previousValue) {
-            const newSource = changes['options'].currentValue.sources[0];
-            if (this.isMpegTsSource(newSource?.src)) {
-                this.destroyMpegTs();
-                this.player.reset();
-                this.initMpegTs(newSource.src);
-            } else {
-                this.destroyMpegTs();
-                this.player.src(newSource);
+            const previousSource =
+                changes['options'].previousValue.sources?.[0];
+            const newSource = changes['options'].currentValue.sources?.[0];
+            if (newSource && !this.isSameSource(previousSource, newSource)) {
+                this.playbackIssue.emit(null);
+                if (this.isMpegTsSource(newSource.src)) {
+                    this.destroyMpegTs();
+                    this.player.reset();
+                    this.initMpegTs(newSource.src);
+                } else {
+                    this.destroyMpegTs();
+                    this.player.src(newSource);
+                }
             }
         }
         if (changes['volume']?.currentValue !== undefined && this.player) {
@@ -222,6 +253,18 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      */
     ngOnDestroy(): void {
         this.destroyMpegTs();
+        if (this.target?.nativeElement) {
+            const targetVideo = this.target.nativeElement as HTMLVideoElement;
+            targetVideo.removeEventListener(
+                'error',
+                this.handleNativePlaybackError
+            );
+            targetVideo.removeEventListener(
+                'loadeddata',
+                this.clearPlaybackIssue
+            );
+            targetVideo.removeEventListener('playing', this.clearPlaybackIssue);
+        }
         if (this.player) {
             this.player.dispose();
         }
@@ -230,6 +273,16 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private isMpegTsSource(url?: string): boolean {
         if (!url) return false;
         return getExtensionFromUrl(url) === 'ts' && mpegts.isSupported();
+    }
+
+    private isSameSource(
+        previousSource: VideoPlayerSource | undefined,
+        newSource: VideoPlayerSource
+    ): boolean {
+        return (
+            previousSource?.src === newSource.src &&
+            previousSource?.type === newSource.type
+        );
     }
 
     private initMpegTs(url: string): void {
@@ -243,8 +296,53 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             url: url,
         });
         this.mpegtsPlayer.attachMediaElement(videoEl as HTMLVideoElement);
+        this.mpegtsPlayer.on(
+            mpegts.Events.ERROR,
+            (type: string, details: string, info: unknown): void => {
+                this.playbackIssue.emit(
+                    classifyMpegTsPlaybackIssue(
+                        {
+                            type,
+                            details,
+                            info,
+                        },
+                        this.createSourceMetadata(url, 'video/mp2t')
+                    )
+                );
+            }
+        );
         this.mpegtsPlayer.load();
         this.mpegtsPlayer.play();
+    }
+
+    private handleVideoJsPlaybackError(): void {
+        const source = this.options?.sources?.[0];
+        const targetVideo = this.target?.nativeElement as
+            | HTMLVideoElement
+            | undefined;
+        const videoJsError =
+            typeof this.player?.error === 'function'
+                ? this.player.error()
+                : null;
+        const nativeError = targetVideo?.error ?? null;
+
+        this.playbackIssue.emit(
+            classifyNativePlaybackIssue(
+                videoJsError ?? nativeError,
+                this.createSourceMetadata(
+                    source?.src ?? targetVideo?.currentSrc ?? '',
+                    source?.type
+                )
+            )
+        );
+    }
+
+    private createSourceMetadata(url: string, mimeType?: string) {
+        return createPlaybackSourceMetadata({
+            url,
+            mimeType,
+            player: InlinePlaybackPlayer.VideoJs,
+        });
     }
 
     private destroyMpegTs(): void {

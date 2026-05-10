@@ -34,6 +34,7 @@ import {
 import {
     ChannelActions,
     PlaylistActions,
+    buildExternalPlayerPayload,
     selectActive,
     selectActivePlaybackUrl,
     selectChannels,
@@ -66,11 +67,9 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
-    ArtPlayerComponent,
     AudioPlayerComponent,
-    HtmlVideoPlayerComponent,
+    type PlaybackFallbackRequest,
     SidebarComponent,
-    VjsPlayerComponent,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { LiveEpgPanelComponent, LiveEpgPanelSummary } from 'shared-portals';
@@ -80,6 +79,8 @@ import {
     Channel,
     EpgProgram,
     ExternalPlayerSession,
+    OPEN_MPV_PLAYER,
+    OPEN_VLC_PLAYER,
     PLAYLIST_PARSE_BY_URL,
     M3uRecentlyViewedItem,
     PlaylistMeta,
@@ -100,13 +101,11 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
 @Component({
     selector: 'app-video-player',
     imports: [
-        ArtPlayerComponent,
         AsyncPipe,
         AudioPlayerComponent,
         ChannelListLoadingStateComponent,
         CommonModule,
         EpgListComponent,
-        HtmlVideoPlayerComponent,
         LiveEpgPanelComponent,
         MatButtonModule,
         MatIconModule,
@@ -115,7 +114,6 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
         ResizableDirective,
         SidebarComponent,
         TranslatePipe,
-        VjsPlayerComponent,
         WebPlayerViewComponent,
     ],
     templateUrl: './video-player.component.html',
@@ -172,15 +170,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             return null;
         }
 
+        const http: Partial<Channel['http']> = playbackTarget.http ?? {};
         const headers: Record<string, string> = {};
-        if (playbackTarget.http['user-agent']) {
-            headers['User-Agent'] = playbackTarget.http['user-agent'];
+        if (http['user-agent']) {
+            headers['User-Agent'] = http['user-agent'];
         }
-        if (playbackTarget.http.referrer) {
-            headers['Referer'] = playbackTarget.http.referrer;
+        if (http.referrer) {
+            headers['Referer'] = http.referrer;
         }
-        if (playbackTarget.http.origin) {
-            headers['Origin'] = playbackTarget.http.origin;
+        if (http.origin) {
+            headers['Origin'] = http.origin;
         }
 
         return {
@@ -192,9 +191,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             thumbnail: activeChannel.tvg?.logo ?? null,
             isLive: true,
             headers: Object.keys(headers).length > 0 ? headers : undefined,
-            userAgent: playbackTarget.http['user-agent'] || undefined,
-            referer: playbackTarget.http.referrer || undefined,
-            origin: playbackTarget.http.origin || undefined,
+            userAgent: http['user-agent'] || undefined,
+            referer: http.referrer || undefined,
+            origin: http.origin || undefined,
         };
     });
     readonly sidebarStorageKey = computed(() =>
@@ -809,6 +808,21 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
 
         return !this.isExternalPlayer(this.playerSettings.player);
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        const payload = buildExternalPlayerPayload(
+            this.activeChannel(),
+            request.playback.streamUrl
+        );
+        if (!payload) {
+            return;
+        }
+
+        this.dataService.sendIpcEvent(
+            request.player === 'mpv' ? OPEN_MPV_PLAYER : OPEN_VLC_PLAYER,
+            payload
+        );
     }
 
     private toLiveEpgPanelSummary(

@@ -23,7 +23,10 @@ import {
     getPortalPlaybackProgressPercent,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
+import {
+    type PlaybackFallbackRequest,
+    PortalInlinePlayerComponent,
+} from '@iptvnator/ui/playback';
 import { DownloadsService, SettingsStore } from 'services';
 import {
     PlaybackPositionData,
@@ -463,6 +466,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             {
                 duration: 2000,
             }
+        );
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
         );
     }
 

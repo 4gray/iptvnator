@@ -25,7 +25,10 @@ import {
     StalkerSelectedVodItem,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
-import { VodDetailsComponent } from '@iptvnator/ui/playback';
+import {
+    type PlaybackFallbackRequest,
+    VodDetailsComponent,
+} from '@iptvnator/ui/playback';
 import { DownloadsService, PlaylistsService } from 'services';
 import {
     createStalkerVodItem,
@@ -258,6 +261,13 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             {
                 duration: 2000,
             }
+        );
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
         );
     }
 

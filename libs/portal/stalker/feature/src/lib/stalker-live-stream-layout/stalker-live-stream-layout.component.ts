@@ -42,6 +42,7 @@ import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import {
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
+    type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from 'shared-portals';
 import {
@@ -812,5 +813,12 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
 
         void this.playChannel(channel, true);
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
+        );
     }
 }

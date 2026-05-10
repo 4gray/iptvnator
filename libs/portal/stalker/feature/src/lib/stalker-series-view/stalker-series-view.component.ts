@@ -44,7 +44,10 @@ import {
     StalkerStore,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
-import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
+import {
+    type PlaybackFallbackRequest,
+    PortalInlinePlayerComponent,
+} from '@iptvnator/ui/playback';
 import { DownloadsService } from 'services';
 
 /**
@@ -471,6 +474,13 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             {
                 duration: 2000,
             }
+        );
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
         );
     }
 

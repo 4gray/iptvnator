@@ -154,6 +154,9 @@
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (streamUrlCopied)="showCopyNotification()"
+                (externalFallbackRequested)="
+                    handleExternalFallbackRequest($event)
+                "
             />
         }
 

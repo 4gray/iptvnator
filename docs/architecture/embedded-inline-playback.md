@@ -11,6 +11,7 @@ This document records the current contract for embedded playback in portal detai
 - Live playback stays inline in dedicated live layouts.
 - VOD and series detail playback now also stays inline on canonical detail surfaces.
 - Material dialog playback remains only as a fallback for older non-detail callers.
+- Browser-player failures are diagnosed client-side and can offer explicit MPV/VLC fallback actions without changing the saved player setting.
 
 ## Scope
 
@@ -84,6 +85,11 @@ Fallback dialog path:
 - `/Users/4gray/Code/iptvnator/apps/web/src/app/services/player.service.ts`
 - `/Users/4gray/Code/iptvnator/libs/portal/xtream/feature/src/lib/player-dialog/player-dialog.component.ts`
 
+Diagnostics and fallback UI:
+
+- `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/playback-diagnostics/playback-diagnostics.util.ts`
+- `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/web-player-view/web-player-view.component.ts`
+
 ## Playback Decision Rule
 
 When a detail view starts playback:
@@ -94,6 +100,30 @@ When a detail view starts playback:
 4. If the player is external, hand the same payload to `PlayerService` for MPV/VLC playback.
 
 The detail host owns inline state. `PlayerService` is no longer the primary owner of UI playback state for canonical VOD/series detail screens.
+
+## Codec And Container Diagnostics
+
+The shared `WebPlayerViewComponent` is the central browser-player viewport for M3U, Xtream, and Stalker inline playback. Video.js, HTML5, and ArtPlayer report native media errors, HLS.js errors, mpegts.js errors, and HLS manifest codec metadata into the shared diagnostics classifier.
+
+The diagnostics remain client-only:
+
+- no ffprobe or server-side probing
+- no extra manifest fetch beyond the active player
+- no automatic failover to an external player
+- no embedded MPV macOS diagnostics
+
+Supported diagnostic codes are:
+
+- `unsupported-container`
+- `unsupported-codec`
+- `media-decode-error`
+- `network-error`
+- `drm-or-encryption`
+- `unknown-playback-error`
+
+When a diagnostic is actionable in Electron, the inline banner may offer `Open in MPV`, `Open in VLC`, and `Copy URL`. Web builds only expose copy/help text. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact.
+
+`PortalPlayer.openExternalPlayback(playback, player)` is the forced external launch API. It sends the playback payload to MPV or VLC regardless of the current saved player setting, so fallback buttons do not mutate preferences.
 
 ## Flatpak External Players
 

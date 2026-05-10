@@ -58,7 +58,6 @@
         </button>
     }
     @if (activeChannel(); as activeChannel) {
-        @let playbackTarget = playbackChannel();
         @if (
             activeChannel.radio === 'true' ||
             shouldShowInlinePlayer(activeChannel)
@@ -73,43 +72,17 @@
                         "
                     />
                 } @else {
-                    @if (playerSettings.player === 'videojs') {
-                        <app-vjs-player
-                            [options]="{
-                                sources: [
-                                    {
-                                        src:
-                                            playbackTarget?.url +
-                                            playbackTarget?.epgParams,
-                                        type: 'application/x-mpegURL',
-                                    },
-                                ],
-                            }"
-                            [volume]="volume"
-                            [class.hide-captions]="!playerSettings.showCaptions"
-                        />
-                    }
-                    @if (playerSettings.player === 'html5') {
-                        <app-html-video-player
-                            [channel]="playbackTarget!"
-                            [volume]="volume"
-                            [showCaptions]="playerSettings.showCaptions!"
-                        />
-                    }
-                    @if (playerSettings.player === 'artplayer') {
-                        <app-art-player
-                            [channel]="playbackTarget!"
-                            [volume]="volume"
-                            [showCaptions]="playerSettings.showCaptions!"
-                        />
-                    }
-                    @if (playerSettings.player === 'embedded-mpv') {
-                        <app-web-player-view
-                            [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
-                            [title]="embeddedPlayback()?.title ?? ''"
-                            [playback]="embeddedPlayback()"
-                        />
-                    }
+                    <app-web-player-view
+                        [streamUrl]="embeddedPlayback()?.streamUrl ?? ''"
+                        [title]="embeddedPlayback()?.title ?? ''"
+                        [playback]="embeddedPlayback()"
+                        [playerOverride]="playerSettings.player ?? null"
+                        [volume]="volume"
+                        [showCaptions]="!!playerSettings.showCaptions"
+                        (externalFallbackRequested)="
+                            handleExternalFallbackRequest($event)
+                        "
+                    />
                 }
             </div>
         }

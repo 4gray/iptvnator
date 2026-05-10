@@ -99,6 +99,9 @@
                     [streamUrl]="streamUrl"
                     [title]="activePlayback()?.title ?? ''"
                     [playback]="activePlayback()"
+                    (externalFallbackRequested)="
+                        handleExternalFallbackRequest($event)
+                    "
                 />
             </div>
         }

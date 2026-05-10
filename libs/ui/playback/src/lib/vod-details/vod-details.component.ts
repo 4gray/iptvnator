@@ -18,6 +18,7 @@ import {
     normalizeVodDetails,
 } from 'shared-interfaces';
 import { DownloadsService } from 'services';
+import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
 
 /**
@@ -97,6 +98,10 @@ export class VodDetailsComponent {
 
     /** Emitted when the stream url is copied */
     readonly streamUrlCopied = output<void>();
+
+    /** Emitted when the inline player requests MPV/VLC fallback */
+    readonly inlineExternalFallbackRequested =
+        output<PlaybackFallbackRequest>();
 
     // ============ Services ============
 
@@ -286,6 +291,12 @@ export class VodDetailsComponent {
 
     onStreamUrlCopied(): void {
         this.streamUrlCopied.emit();
+    }
+
+    onInlineExternalFallbackRequested(
+        request: PlaybackFallbackRequest
+    ): void {
+        this.inlineExternalFallbackRequested.emit(request);
     }
 
     async stopExternalPlayback(): Promise<void> {

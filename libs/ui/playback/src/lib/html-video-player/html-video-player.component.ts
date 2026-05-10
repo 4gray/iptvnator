@@ -11,11 +11,20 @@ import {
     SimpleChanges,
     ViewChild,
 } from '@angular/core';
-import Hls from 'hls.js';
+import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
 import { getExtensionFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
 import { Channel } from 'shared-interfaces';
+import {
+    InlinePlaybackPlayer,
+    PlaybackDiagnostic,
+    classifyHlsPlaybackIssue,
+    classifyMpegTsPlaybackIssue,
+    classifyNativePlaybackIssue,
+    classifyUnsupportedHlsManifestCodecs,
+    createPlaybackSourceMetadata,
+} from '../playback-diagnostics/playback-diagnostics.util';
 
 /**
  * This component contains the implementation of HTML5 based video player
@@ -35,6 +44,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         currentTime: number;
         duration: number;
     }>();
+    @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
 
     private readonly dataService = inject(DataService);
 
@@ -49,6 +59,23 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     /** Captions/subtitles indicator */
     @Input() showCaptions!: boolean;
+
+    private readonly handleNativePlaybackError = () => {
+        const metadata = this.createSourceMetadata(
+            this.channel?.url ?? this.videoPlayer.nativeElement.currentSrc
+        );
+
+        this.playbackIssue.emit(
+            classifyNativePlaybackIssue(
+                this.videoPlayer.nativeElement.error,
+                metadata
+            )
+        );
+    };
+
+    private readonly clearPlaybackIssue = () => {
+        this.playbackIssue.emit(null);
+    };
 
     ngOnInit() {
         this.videoPlayer.nativeElement.addEventListener('volumechange', () => {
@@ -67,6 +94,19 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 duration: this.videoPlayer.nativeElement.duration,
             });
         });
+
+        this.videoPlayer.nativeElement.addEventListener(
+            'error',
+            this.handleNativePlaybackError
+        );
+        this.videoPlayer.nativeElement.addEventListener(
+            'loadeddata',
+            this.clearPlaybackIssue
+        );
+        this.videoPlayer.nativeElement.addEventListener(
+            'playing',
+            this.clearPlaybackIssue
+        );
     }
 
     /**
@@ -101,6 +141,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
         if (this.hls) this.hls.destroy();
         if (channel.url) {
+            this.playbackIssue.emit(null);
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getExtensionFromUrl(channel.url);
 
@@ -122,6 +163,25 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.mpegtsPlayer.attachMediaElement(
                     this.videoPlayer.nativeElement
                 );
+                this.mpegtsPlayer.on(
+                    mpegts.Events.ERROR,
+                    (
+                        type: string,
+                        details: string,
+                        info: unknown
+                    ): void => {
+                        this.playbackIssue.emit(
+                            classifyMpegTsPlaybackIssue(
+                                {
+                                    type,
+                                    details,
+                                    info,
+                                },
+                                this.createSourceMetadata(url, 'video/mp2t')
+                            )
+                        );
+                    }
+                );
                 this.mpegtsPlayer.load();
                 this.handlePlayOperation();
             } else if (
@@ -132,6 +192,12 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             ) {
                 console.log('... switching channel to ', channel.name, url);
                 this.hls = new Hls();
+                this.hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+                    this.handleHlsManifestParsed(url, data);
+                });
+                this.hls.on(Hls.Events.ERROR, (_, data) => {
+                    this.handleHlsError(url, data);
+                });
                 this.hls.attachMedia(this.videoPlayer.nativeElement);
                 this.hls.loadSource(url);
                 this.handlePlayOperation();
@@ -187,6 +253,55 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
     }
 
+    private handleHlsManifestParsed(
+        url: string,
+        data: ManifestParsedData
+    ): void {
+        const metadata = this.createSourceMetadata(
+            url,
+            'application/x-mpegURL',
+            data.levels
+                .map((level) => level.audioCodec)
+                .filter((codec): codec is string => Boolean(codec)),
+            data.levels
+                .map((level) => level.videoCodec)
+                .filter((codec): codec is string => Boolean(codec))
+        );
+        const issue = classifyUnsupportedHlsManifestCodecs(metadata);
+        if (issue) {
+            this.playbackIssue.emit(issue);
+        }
+    }
+
+    private handleHlsError(url: string, data: ErrorData): void {
+        this.playbackIssue.emit(
+            classifyHlsPlaybackIssue(
+                {
+                    type: data.type,
+                    details: data.details,
+                    fatal: data.fatal,
+                    message: data.error?.message,
+                },
+                this.createSourceMetadata(url, 'application/x-mpegURL')
+            )
+        );
+    }
+
+    private createSourceMetadata(
+        url: string,
+        mimeType?: string,
+        audioCodecs: readonly string[] = [],
+        videoCodecs: readonly string[] = []
+    ) {
+        return createPlaybackSourceMetadata({
+            url,
+            mimeType,
+            player: InlinePlaybackPlayer.Html5,
+            audioCodecs,
+            videoCodecs,
+        });
+    }
+
     /**
      * Save volume when user changes it
      */
@@ -203,6 +318,18 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.videoPlayer.nativeElement.removeEventListener(
             'volumechange',
             this.onVolumeChange
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'error',
+            this.handleNativePlaybackError
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'loadeddata',
+            this.clearPlaybackIssue
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'playing',
+            this.clearPlaybackIssue
         );
         if (this.mpegtsPlayer) {
             this.mpegtsPlayer.pause();

@@ -352,6 +352,35 @@
         "LIGHT_THEME": "Светлая тэма",
         "SYSTEM_THEME": "Сістэмная тэма"
     },
+        "PLAYBACK_DIAGNOSTICS": {
+            "UNSUPPORTED_CONTAINER": {
+                "TITLE": "This stream container is likely unsupported by the browser player",
+                "DESCRIPTION": "Chromium/Electron may not decode this container inline. Try MPV or VLC for broader codec support."
+            },
+            "UNSUPPORTED_CODEC": {
+                "TITLE": "This stream codec is likely unsupported by the browser player",
+                "DESCRIPTION": "The stream advertises codecs that the built-in Chromium player may not decode. MPV or VLC can often play it."
+            },
+            "MEDIA_DECODE_ERROR": {
+                "TITLE": "The browser player could not decode this stream",
+                "DESCRIPTION": "Playback started but the media pipeline failed while decoding. An external player may handle this stream better."
+            },
+            "NETWORK_ERROR": {
+                "TITLE": "The stream could not be loaded",
+                "DESCRIPTION": "The player reported a network or provider loading error. Check the stream URL, headers, or provider availability."
+            },
+            "DRM_OR_ENCRYPTION": {
+                "TITLE": "This stream may be encrypted or DRM-protected",
+                "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
+            },
+            "UNKNOWN_PLAYBACK_ERROR": {
+                "TITLE": "The browser player reported a playback error",
+                "DESCRIPTION": "The stream failed in the built-in player, but the error did not identify a specific codec, container, or network cause."
+            },
+            "ACTION_OPEN_MPV": "Open in MPV",
+            "ACTION_OPEN_VLC": "Open in VLC",
+            "ACTION_COPY_URL": "Copy URL"
+        },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Схаваць спіс каналаў",
         "SHOW_CHANNELS_LIST": "Паказаць спіс каналаў",

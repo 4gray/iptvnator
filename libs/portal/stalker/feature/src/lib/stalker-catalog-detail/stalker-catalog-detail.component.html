@@ -18,6 +18,9 @@
             (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
             (inlinePlaybackClosed)="closeInlinePlayer()"
             (streamUrlCopied)="showCopyNotification()"
+            (inlineExternalFallbackRequested)="
+                handleExternalFallbackRequest($event)
+            "
         />
     }
 } @else if (contentType() === 'series') {

@@ -64,6 +64,7 @@ class StubPortalInlinePlayerComponent {
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly streamUrlCopied = output<void>();
+    readonly externalFallbackRequested = output<unknown>();
 }
 
 @Component({

@@ -11,10 +11,19 @@ import {
     SimpleChanges,
 } from '@angular/core';
 import Artplayer from 'artplayer';
-import Hls from 'hls.js';
+import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import { getExtensionFromUrl } from 'm3u-utils';
 import mpegts from 'mpegts.js';
 import { Channel } from 'shared-interfaces';
+import {
+    InlinePlaybackPlayer,
+    PlaybackDiagnostic,
+    classifyHlsPlaybackIssue,
+    classifyMpegTsPlaybackIssue,
+    classifyNativePlaybackIssue,
+    classifyUnsupportedHlsManifestCodecs,
+    createPlaybackSourceMetadata,
+} from '../playback-diagnostics/playback-diagnostics.util';
 
 type AudioTrackSelector = {
     html: string | HTMLElement;
@@ -50,12 +59,28 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         currentTime: number;
         duration: number;
     }>();
+    @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
 
     private player!: Artplayer;
     private hls: Hls | null = null;
     private mpegtsPlayer: mpegts.Player | null = null;
 
     private readonly elementRef = inject(ElementRef);
+
+    private readonly handleNativePlaybackError = () => {
+        this.playbackIssue.emit(
+            classifyNativePlaybackIssue(
+                this.player?.video?.error,
+                this.createSourceMetadata(
+                    this.channel?.url ?? this.player?.video?.currentSrc ?? ''
+                )
+            )
+        );
+    };
+
+    private readonly clearPlaybackIssue = () => {
+        this.playbackIssue.emit(null);
+    };
 
     ngOnInit(): void {
         this.initPlayer();
@@ -85,11 +110,24 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             this.hls = null;
         }
         if (this.player) {
+            this.player.video?.removeEventListener(
+                'error',
+                this.handleNativePlaybackError
+            );
+            this.player.video?.removeEventListener(
+                'loadeddata',
+                this.clearPlaybackIssue
+            );
+            this.player.video?.removeEventListener(
+                'playing',
+                this.clearPlaybackIssue
+            );
             this.player.destroy();
         }
     }
 
     private initPlayer(): void {
+        this.playbackIssue.emit(null);
         const el = this.elementRef.nativeElement.querySelector(
             '.artplayer-container'
         );
@@ -125,6 +163,12 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                             this.hls.destroy();
                         }
                         this.hls = new Hls();
+                        this.hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
+                            this.handleHlsManifestParsed(url, data);
+                        });
+                        this.hls.on(Hls.Events.ERROR, (_, data) => {
+                            this.handleHlsError(url, data);
+                        });
                         this.hls.loadSource(url);
                         this.hls.attachMedia(video);
                         this.setupHlsAudioTracks();
@@ -145,19 +189,57 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                             url: url,
                         });
                         this.mpegtsPlayer.attachMediaElement(video);
+                        this.mpegtsPlayer.on(
+                            mpegts.Events.ERROR,
+                            (
+                                type: string,
+                                details: string,
+                                info: unknown
+                            ): void => {
+                                this.playbackIssue.emit(
+                                    classifyMpegTsPlaybackIssue(
+                                        {
+                                            type,
+                                            details,
+                                            info,
+                                        },
+                                        this.createSourceMetadata(
+                                            url,
+                                            'video/mp2t'
+                                        )
+                                    )
+                                );
+                            }
+                        );
                         this.mpegtsPlayer.load();
                         this.mpegtsPlayer.play();
                     }
                 },
-                mkv: function (video: HTMLVideoElement, url: string) {
+                mkv: (video: HTMLVideoElement, url: string) => {
                     video.src = url;
                     video.onerror = () => {
                         console.error('Error loading MKV file:', video.error);
+                        this.playbackIssue.emit(
+                            classifyNativePlaybackIssue(
+                                video.error,
+                                this.createSourceMetadata(
+                                    url,
+                                    'video/matroska'
+                                )
+                            )
+                        );
                         video.src = url;
                     };
                 },
             },
         });
+
+        this.player.video.addEventListener(
+            'error',
+            this.handleNativePlaybackError
+        );
+        this.player.video.addEventListener('loadeddata', this.clearPlaybackIssue);
+        this.player.video.addEventListener('playing', this.clearPlaybackIssue);
 
         if (this.startTime > 0) {
             this.player.on('ready', () => {
@@ -171,6 +253,40 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 duration: this.player.duration,
             });
         });
+    }
+
+    private handleHlsManifestParsed(
+        url: string,
+        data: ManifestParsedData
+    ): void {
+        const metadata = this.createSourceMetadata(
+            url,
+            'application/x-mpegURL',
+            data.levels
+                .map((level) => level.audioCodec)
+                .filter((codec): codec is string => Boolean(codec)),
+            data.levels
+                .map((level) => level.videoCodec)
+                .filter((codec): codec is string => Boolean(codec))
+        );
+        const issue = classifyUnsupportedHlsManifestCodecs(metadata);
+        if (issue) {
+            this.playbackIssue.emit(issue);
+        }
+    }
+
+    private handleHlsError(url: string, data: ErrorData): void {
+        this.playbackIssue.emit(
+            classifyHlsPlaybackIssue(
+                {
+                    type: data.type,
+                    details: data.details,
+                    fatal: data.fatal,
+                    message: data.error?.message,
+                },
+                this.createSourceMetadata(url, 'application/x-mpegURL')
+            )
+        );
     }
 
     /**
@@ -231,5 +347,20 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             default:
                 return 'auto';
         }
+    }
+
+    private createSourceMetadata(
+        url: string,
+        mimeType?: string,
+        audioCodecs: readonly string[] = [],
+        videoCodecs: readonly string[] = []
+    ) {
+        return createPlaybackSourceMetadata({
+            url,
+            mimeType,
+            player: InlinePlaybackPlayer.ArtPlayer,
+            audioCodecs,
+            videoCodecs,
+        });
     }
 }

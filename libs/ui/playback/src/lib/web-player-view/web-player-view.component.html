@@ -1,22 +1,28 @@
 @if (player === 'videojs') {
     <app-vjs-player
         [options]="vjsOptions"
+        [volume]="volume()"
         [startTime]="startTime()"
         (timeUpdate)="timeUpdate.emit($event)"
+        (playbackIssue)="handlePlaybackIssue($event)"
     />
 } @else if (player === 'html5') {
     <app-html-video-player
         [channel]="$any(channel)"
+        [volume]="volume()"
+        [showCaptions]="showCaptions()"
         [startTime]="startTime()"
         (timeUpdate)="timeUpdate.emit($event)"
+        (playbackIssue)="handlePlaybackIssue($event)"
     />
 } @else if (player === 'artplayer') {
     <app-art-player
         [channel]="$any(channel)"
-        [volume]="1"
-        [showCaptions]="false"
+        [volume]="volume()"
+        [showCaptions]="showCaptions()"
         [startTime]="startTime()"
         (timeUpdate)="timeUpdate.emit($event)"
+        (playbackIssue)="handlePlaybackIssue($event)"
     />
 } @else if (player === 'embedded-mpv') {
     <app-embedded-mpv-player
@@ -27,7 +33,66 @@
 } @else {
     <app-vjs-player
         [options]="vjsOptions"
+        [volume]="volume()"
         [startTime]="startTime()"
         (timeUpdate)="timeUpdate.emit($event)"
+        (playbackIssue)="handlePlaybackIssue($event)"
     />
+}
+
+@if (playbackDiagnostic(); as issue) {
+    <section
+        class="web-player-diagnostic"
+        data-test-id="playback-diagnostic-banner"
+        role="status"
+    >
+        <div class="web-player-diagnostic__icon" aria-hidden="true">
+            <mat-icon>warning</mat-icon>
+        </div>
+        <div class="web-player-diagnostic__body">
+            <div class="web-player-diagnostic__title">
+                {{ getDiagnosticTitleKey(issue) | translate }}
+            </div>
+            <div class="web-player-diagnostic__description">
+                {{ getDiagnosticDescriptionKey(issue) | translate }}
+            </div>
+            @if (getDiagnosticMeta(issue); as meta) {
+                <div class="web-player-diagnostic__meta">
+                    {{ meta }}
+                </div>
+            }
+        </div>
+        <div class="web-player-diagnostic__actions">
+            @if (canShowExternalFallbackActions()) {
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-test-id="playback-fallback-mpv"
+                    (click)="requestExternalFallback('mpv')"
+                >
+                    <mat-icon>open_in_new</mat-icon>
+                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV' | translate }}
+                </button>
+                <button
+                    mat-stroked-button
+                    type="button"
+                    data-test-id="playback-fallback-vlc"
+                    (click)="requestExternalFallback('vlc')"
+                >
+                    <mat-icon>open_in_new</mat-icon>
+                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC' | translate }}
+                </button>
+            }
+            <button
+                mat-button
+                type="button"
+                [cdkCopyToClipboard]="resolvedPlayback().streamUrl"
+                [matTooltip]="resolvedPlayback().streamUrl"
+                data-test-id="playback-copy-url"
+            >
+                <mat-icon>content_copy</mat-icon>
+                {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_URL' | translate }}
+            </button>
+        </div>
+    </section>
 }

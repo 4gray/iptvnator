@@ -51,6 +51,7 @@ import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
+    type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from 'shared-portals';
 import { EpgItem, EpgProgram, ResolvedPortalPlayback } from 'shared-interfaces';
@@ -450,6 +451,13 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         }
 
         this.playLive(channel, true);
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
+        );
     }
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {
