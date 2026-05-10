@@ -184,6 +184,10 @@ function getXtreamRouteCategoryId(
     return Number.isNaN(categoryId) ? null : categoryId;
 }
 
+function getRoutePath(url: string): string {
+    return url.split('?')[0] ?? url;
+}
+
 @Injectable()
 export class XtreamWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
@@ -193,6 +197,7 @@ export class XtreamWorkspaceRouteSession {
 
     private syncInFlight = false;
     private syncPending = false;
+    private lastSyncedRoutePath: string | null = null;
 
     constructor() {
         effect(() => {
@@ -357,13 +362,27 @@ export class XtreamWorkspaceRouteSession {
             return null;
         }
 
+        const routePath = getRoutePath(this.router.url);
+        const isQueryOnlyNavigation = this.lastSyncedRoutePath === routePath;
+        this.lastSyncedRoutePath = routePath;
+
         if (section === 'vod' || section === 'live' || section === 'series') {
             this.xtreamStore.setSelectedContentType(section);
         }
 
-        this.xtreamStore.setSelectedCategory(
-            getXtreamRouteCategoryId(this.router.url, section)
+        const routeCategoryId = getXtreamRouteCategoryId(
+            this.router.url,
+            section
         );
+        if (
+            section === 'live' &&
+            routeCategoryId === null &&
+            isQueryOnlyNavigation
+        ) {
+            return section;
+        }
+
+        this.xtreamStore.setSelectedCategory(routeCategoryId);
 
         return section;
     }

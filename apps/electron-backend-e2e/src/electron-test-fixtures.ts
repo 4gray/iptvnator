@@ -108,7 +108,7 @@ export type LaunchedElectronApp = {
 };
 
 export const test = base.extend<ElectronFixtures>({
-    dataDir: async ({}, use) => {
+    dataDir: async (_fixtures, use) => {
         const dataDir = mkdtempSync(join(tmpdir(), 'iptvnator-electron-e2e-'));
 
         await use(dataDir);
@@ -948,24 +948,22 @@ export async function clickCategoryByNameExact(
     const category = await pickPreferredCategory(categories);
 
     await expect(category).toBeVisible();
+    await expect(category).toBeEnabled();
     await category.scrollIntoViewIfNeeded();
     const categoryId =
         (await category.getAttribute('data-category-id'))?.trim() ?? '';
     await category.click();
-    await expect
-        .poll(async () => {
-            const pathname = new URL(page.url()).pathname;
-            const isSelected =
-                (await category.getAttribute('aria-current')) === 'true';
-
-            return (
-                isSelected ||
-                (categoryId.length > 0 &&
-                    (pathname.endsWith(`/${categoryId}`) ||
-                        pathname.includes(`/${categoryId}/`)))
-            );
-        })
-        .toBe(true);
+    const selectedCategory =
+        categoryId.length > 0
+            ? page
+                  .locator(
+                      `app-workspace-context-panel .category-item[data-category-id="${categoryId}"]:visible`
+                  )
+                  .first()
+            : category;
+    await expect(selectedCategory).toHaveAttribute('aria-current', 'true', {
+        timeout: 20000,
+    });
 }
 
 export function sourceRowByTitle(page: Page, title: string): Locator {

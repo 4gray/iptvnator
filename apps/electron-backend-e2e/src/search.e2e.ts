@@ -519,7 +519,12 @@ test.describe('Electron Workspace Search', () => {
             ).toHaveClass(/(^|\s)active(\s|$)/);
 
             await fillWorkspaceSearch(app.mainWindow, '');
+            await expectQueryParamAbsent(app.mainWindow, 'q');
             await clickCategoryByNameExact(app.mainWindow, sample.categoryName);
+            await expectWorkspaceSearchScope(
+                app.mainWindow,
+                `Live TV / ${sample.categoryName}`
+            );
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 
             await expectPathname(
@@ -1352,24 +1357,22 @@ async function clickCategoryByNameExact(
     const category = await pickPreferredCategory(categories);
 
     await expect(category).toBeVisible();
+    await expect(category).toBeEnabled();
     await category.scrollIntoViewIfNeeded();
     const categoryId =
         (await category.getAttribute('data-category-id'))?.trim() ?? '';
     await category.click();
-    await expect
-        .poll(async () => {
-            const pathname = new URL(page.url()).pathname;
-            const isSelected =
-                (await category.getAttribute('aria-current')) === 'true';
-
-            return (
-                isSelected ||
-                (categoryId.length > 0 &&
-                    (pathname.endsWith(`/${categoryId}`) ||
-                        pathname.includes(`/${categoryId}/`)))
-            );
-        })
-        .toBe(true);
+    const selectedCategory =
+        categoryId.length > 0
+            ? page
+                  .locator(
+                      `app-workspace-context-panel .category-item[data-category-id="${categoryId}"]:visible`
+                  )
+                  .first()
+            : category;
+    await expect(selectedCategory).toHaveAttribute('aria-current', 'true', {
+        timeout: 20000,
+    });
 }
 
 async function openWorkspaceSection(page: Page, label: string): Promise<void> {
@@ -1769,4 +1772,10 @@ async function expectQueryParam(
     await expect
         .poll(() => new URL(page.url()).searchParams.get(name))
         .toBe(value);
+}
+
+async function expectQueryParamAbsent(page: Page, name: string): Promise<void> {
+    await expect
+        .poll(() => new URL(page.url()).searchParams.has(name))
+        .toBe(false);
 }

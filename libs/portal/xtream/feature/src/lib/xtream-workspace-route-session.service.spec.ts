@@ -52,7 +52,7 @@ async function flushEffects(): Promise<void> {
 
 function getXtreamSectionFromUrl(url: string): string | null {
     const match = url.match(
-        /^\/workspace\/xtreams\/[^/]+\/([^/?]+)(?:\/|$)/
+        /^\/workspace\/xtreams\/[^/]+\/([^/?]+)(?:[/?]|$)/
     );
 
     return match?.[1] ?? null;
@@ -450,6 +450,31 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.fetchXtreamPlaylist).not.toHaveBeenCalled();
         expect(xtreamStore.checkPortalStatus).not.toHaveBeenCalled();
         expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
+    });
+
+    it('preserves the selected live category during query-only search navigation', async () => {
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live`;
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        playlistId.set(PLAYLIST_ID);
+        isContentInitialized.set(true);
+        contentLoadStateByType.set({
+            live: 'ready',
+            vod: 'ready',
+            series: 'ready',
+        });
+
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+
+        selectedCategoryId.set(101);
+        xtreamStore.setSelectedCategory.mockClear();
+
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/live?q=world`;
+        routerEvents.next(new NavigationEnd(1, router.url, router.url));
+        await flushEffects();
+
+        expect(xtreamStore.setSelectedCategory).not.toHaveBeenCalledWith(null);
+        expect(selectedCategoryId()).toBe(101);
     });
 
     it('does not rehydrate cached offline content when switching categories in a ready section', async () => {
