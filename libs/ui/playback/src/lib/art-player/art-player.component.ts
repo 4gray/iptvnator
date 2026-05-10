@@ -263,6 +263,10 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     private handleHlsError(url: string, data: ErrorData): void {
+        if (!data.fatal) {
+            return;
+        }
+
         this.playbackIssue.emit(
             classifyHlsPlaybackIssue(
                 {

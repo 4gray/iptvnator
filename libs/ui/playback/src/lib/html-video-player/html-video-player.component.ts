@@ -274,6 +274,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     private handleHlsError(url: string, data: ErrorData): void {
+        if (!data.fatal) {
+            return;
+        }
+
         this.playbackIssue.emit(
             classifyHlsPlaybackIssue(
                 {

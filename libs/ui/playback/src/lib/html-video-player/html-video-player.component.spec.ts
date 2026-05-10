@@ -81,4 +81,32 @@ describe('HtmlVideoPlayerComponent', () => {
             }),
         ]);
     });
+
+    it('does not emit a playback issue when HLS.js reports a recoverable error', () => {
+        const issues: unknown[] = [];
+        component.playbackIssue.subscribe((issue) => {
+            if (issue) issues.push(issue);
+        });
+
+        (
+            component as unknown as {
+                handleHlsError: (
+                    url: string,
+                    data: {
+                        type: string;
+                        details: string;
+                        fatal: boolean;
+                        error?: Error;
+                    }
+                ) => void;
+            }
+        ).handleHlsError('https://example.com/live/playlist.m3u8', {
+            type: 'networkError',
+            details: 'fragLoadError',
+            fatal: false,
+            error: new Error('segment retry'),
+        });
+
+        expect(issues).toEqual([]);
+    });
 });

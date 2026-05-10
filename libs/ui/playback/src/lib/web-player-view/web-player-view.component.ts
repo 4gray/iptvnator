@@ -135,7 +135,6 @@ export class WebPlayerViewComponent {
     }
 
     handlePlaybackIssue(issue: PlaybackDiagnostic | null): void {
-        this.isDesktop.set(this.detectDesktop());
         this.playbackDiagnostic.set(issue);
     }
 

@@ -169,6 +169,30 @@ describe('ArtPlayerComponent', () => {
         ]);
     });
 
+    it('does not emit a playback issue when HLS.js reports a recoverable error', () => {
+        createComponent({
+            url: 'https://example.com/live/playlist.m3u8',
+            name: 'HLS Live',
+        });
+        const issues: unknown[] = [];
+        component.playbackIssue.subscribe((issue) => {
+            if (issue) issues.push(issue);
+        });
+
+        getCustomType('m3u8')(
+            artPlayerInstances[0].video,
+            'https://example.com/live/playlist.m3u8'
+        );
+        hlsInstances[0].handlers.get(MockHls.Events.ERROR)?.(null, {
+            type: 'networkError',
+            details: 'fragLoadError',
+            fatal: false,
+            error: new Error('segment retry'),
+        });
+
+        expect(issues).toEqual([]);
+    });
+
     it('emits a playback issue when mpegts.js reports an unsupported codec', () => {
         createComponent({
             url: 'https://example.com/live/channel.ts',

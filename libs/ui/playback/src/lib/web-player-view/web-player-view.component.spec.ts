@@ -126,7 +126,15 @@ describe('WebPlayerViewComponent', () => {
 
     it('renders diagnostics and emits MPV fallback requests on desktop', () => {
         const requests: unknown[] = [];
+        fixture.destroy();
         window.electron = {} as typeof window.electron;
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/archive/movie.mkv'
+        );
+        fixture.componentRef.setInput('title', 'Example Movie');
         component.externalFallbackRequested.subscribe((request) =>
             requests.push(request)
         );
