@@ -2,9 +2,10 @@ import fs from 'fs';
 import { createRequire } from 'module';
 import path from 'path';
 
+import { buildElectronBuilderMetadata } from './generate-electron-builder-metadata.mjs';
+
 const require = createRequire(import.meta.url);
-const electronBuilderRequire = createRequire(require.resolve('electron-builder'));
-const { extractFile } = electronBuilderRequire('@electron/asar');
+const { extractFile } = require('@electron/asar');
 const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-macos.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
@@ -51,20 +52,10 @@ const workerRelativeDir = path.join(
     'workers'
 );
 const workerFiles = ['epg-parser.worker.js', 'database.worker.js'];
-const packagedPackageMetadata = {
-    name: packageMetadata.name,
-    productName:
-        electronBuilderConfig.productName ??
-        electronBuilderConfig.extraMetadata?.productName,
-    version: packageMetadata.version,
-    description: packageMetadata.description,
-    author: packageMetadata.author,
-    homepage: packageMetadata.homepage,
-    license: packageMetadata.license,
-    main:
-        electronBuilderConfig.extraMetadata?.main ??
-        'electron-backend/main.js',
-};
+const packagedPackageMetadata = buildElectronBuilderMetadata(
+    packageMetadata,
+    electronBuilderConfig
+).extraMetadata;
 const nativeModuleRelativeDirs = [
     path.join('app.asar.unpacked', 'node_modules'),
     path.join('app.asar.unpacked', 'electron-backend', 'node_modules'),
@@ -373,7 +364,7 @@ function parseEffectiveSnapConfig(yamlContent) {
 function loadSnapConfigInspection() {
     const builderEffectiveConfigPath = builderEffectiveConfigPaths.find(fileExists);
 
-    if (builderEffectiveConfigPath && fileExists(builderEffectiveConfigPath)) {
+    if (builderEffectiveConfigPath) {
         const effectiveConfigContent = fs.readFileSync(
             builderEffectiveConfigPath,
             'utf8'

@@ -125,6 +125,7 @@
         "@astrojs/mdx": "4.3.13",
         "@astrojs/sitemap": "3.7.0",
         "@astrojs/tailwind": "6.0.2",
+        "@electron/asar": "3.4.1",
         "@eslint/eslintrc": "3.3.1",
         "@eslint/js": "^9.38.0",
         "@faker-js/faker": "10.3.0",

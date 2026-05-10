@@ -40,6 +40,10 @@ const makerOptions = JSON.parse(
 );
 const generatedMetadataConfigPath =
     'apps/electron-backend/src/app/options/electron-builder.metadata.generated.json';
+const packageLayoutVerifier = fs.readFileSync(
+    join(currentDir, 'verify-electron-package-layout.mjs'),
+    'utf8'
+);
 
 test('Linux package identity does not expose the internal Electron backend project name', () => {
     assert.equal(electronBuilderConfig.productName, 'IPTVnator');
@@ -122,6 +126,24 @@ test('nx-electron packaging prepares metadata before make/package', () => {
         electronProjectConfig.targets.package.dependsOn.includes(
             'electron-backend:generate-builder-metadata'
         )
+    );
+});
+
+test('package layout verifier uses canonical helpers and direct dependencies', () => {
+    assert.ok(packageMetadata.devDependencies?.['@electron/asar']);
+    assert.match(packageLayoutVerifier, /require\(['"]@electron\/asar['"]\)/);
+    assert.doesNotMatch(packageLayoutVerifier, /electronBuilderRequire/);
+    assert.match(
+        packageLayoutVerifier,
+        /buildElectronBuilderMetadata\(\s*packageMetadata,\s*electronBuilderConfig\s*\)\.extraMetadata/s
+    );
+    assert.doesNotMatch(
+        packageLayoutVerifier,
+        /const packagedPackageMetadata = \{\s*name:/s
+    );
+    assert.doesNotMatch(
+        packageLayoutVerifier,
+        /builderEffectiveConfigPath && fileExists\(builderEffectiveConfigPath\)/
     );
 });
 
