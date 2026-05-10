@@ -1,15 +1,14 @@
 import {
     Component,
     ElementRef,
-    EventEmitter,
-    Input,
     OnChanges,
     OnDestroy,
     OnInit,
-    Output,
     SimpleChanges,
-    ViewChild,
     ViewEncapsulation,
+    input,
+    output,
+    viewChild,
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import { getExtensionFromUrl } from 'm3u-utils';
@@ -88,16 +87,16 @@ type VideoJsPlayer = Omit<
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     /** DOM-element reference */
-    @ViewChild('target', { static: true }) target!: ElementRef<Element>;
+    readonly target = viewChild.required<ElementRef<Element>>('target');
     /** Options of VideoJs player */
-    @Input() options!: VideoPlayerOptions;
+    readonly options = input.required<VideoPlayerOptions>();
     /** VideoJs object */
     player!: VideoJsPlayer;
     /** mpegts.js player for raw MPEG-TS streams */
     private mpegtsPlayer: mpegts.Player | null = null;
-    @Input() volume = 1;
-    @Input() startTime = 0;
-    @Output() timeUpdate = new EventEmitter<{
+    readonly volume = input(1);
+    readonly startTime = input(0);
+    readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
@@ -106,27 +105,27 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Instantiate Video.js on component init
      */
     ngOnInit(): void {
-        const source = this.options?.sources?.[0];
+        const source = this.options().sources?.[0];
         const isMpegTs = this.isMpegTsSource(source?.src);
 
         // For raw MPEG-TS streams, init Video.js without a source (UI/controls only)
         const vjsOptions = isMpegTs
-            ? { ...this.options, sources: [], autoplay: false }
-            : { ...this.options, autoplay: true };
+            ? { ...this.options(), sources: [], autoplay: false }
+            : { ...this.options(), autoplay: true };
 
         this.player = videoJs(
-            this.target.nativeElement,
+            this.target().nativeElement,
             vjsOptions,
             () => {
                 console.log(
                     'Setting VideoJS player initial volume to:',
-                    this.volume
+                    this.volume()
                 );
-                this.player.volume(this.volume);
+                this.player.volume(this.volume());
 
                 this.player.on('loadedmetadata', () => {
-                    if (this.startTime > 0) {
-                        this.player.currentTime(this.startTime);
+                    if (this.startTime() > 0) {
+                        this.player.currentTime(this.startTime());
                     }
                     this.logAudioTracks();
                     this.setupAudioTrackMenu();

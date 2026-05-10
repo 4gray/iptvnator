@@ -1,4 +1,5 @@
 import { SimpleChange } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 
 const videoJsMock = jest.fn();
@@ -23,19 +24,39 @@ describe('VjsPlayerComponent', () => {
     let VjsPlayerComponent: typeof import('./vjs-player.component').VjsPlayerComponent;
     let component: VjsPlayerComponentInstance;
     let player: VjsPlayerComponentInstance['player'];
+    type SignalApiShape = {
+        options: () => unknown;
+        volume: () => number;
+        startTime: () => number;
+        timeUpdate: { emit: (event: unknown) => void };
+    };
 
     beforeAll(async () => {
         ({ VjsPlayerComponent } = await import('./vjs-player.component'));
     });
 
-    beforeEach(() => {
-        component = new VjsPlayerComponent();
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [VjsPlayerComponent],
+        }).compileComponents();
+
+        component = TestBed.createComponent(VjsPlayerComponent).componentInstance;
         player = {
             src: jest.fn(),
             reset: jest.fn(),
             volume: jest.fn(),
+            dispose: jest.fn(),
         } as unknown as VjsPlayerComponentInstance['player'];
         component.player = player;
+    });
+
+    it('uses signal-based inputs and outputs', () => {
+        const signalComponent = component as unknown as SignalApiShape;
+
+        expect(typeof signalComponent.options).toBe('function');
+        expect(signalComponent.volume()).toBe(1);
+        expect(signalComponent.startTime()).toBe(0);
+        expect(typeof signalComponent.timeUpdate.emit).toBe('function');
     });
 
     it('does not reset VideoJS when options change without changing the source', () => {
