@@ -1,0 +1,12 @@
+diff --git a/src/executors/package/executor.js b/src/executors/package/executor.js
+index e36f61a825a280c26ec5064f1ba086ac170fb1b6..17a351dd4b91bf3b72743036f79c8300aba7f79e 100644
+--- a/src/executors/package/executor.js
++++ b/src/executors/package/executor.js
+@@ -111,7 +111,6 @@ function _createBaseConfig(options, context) {
+     return {
+         directories: Object.assign(Object.assign({}, options.directories), { output: (0, path_1.join)(context.root, outputPath) }),
+         files: files.concat([
+-            './package.json',
+             {
+                 from: (0, path_1.resolve)(options.sourcePath, options.name),
+                 to: options.name,

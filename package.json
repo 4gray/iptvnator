@@ -223,6 +223,9 @@
             "smol-toml@1.6.0": "1.6.1",
             "svgo@3.3.2": "3.3.3",
             "yaml@1.10.2": "1.10.3"
+        },
+        "patchedDependencies": {
+            "nx-electron@22.0.0": "patches/nx-electron@22.0.0.patch"
         }
     }
 }
