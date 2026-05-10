@@ -108,7 +108,8 @@ export type LaunchedElectronApp = {
 };
 
 export const test = base.extend<ElectronFixtures>({
-    dataDir: async (_fixtures, use) => {
+    dataDir: async ({ browserName }, use) => {
+        void browserName;
         const dataDir = mkdtempSync(join(tmpdir(), 'iptvnator-electron-e2e-'));
 
         await use(dataDir);
