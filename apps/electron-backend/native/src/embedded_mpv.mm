@@ -1731,14 +1731,32 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
     }
     if (recordingActive) {
         const char* disabledValue = "";
+        const uint64_t stopRecordingRequestId = nextAsyncRequestId();
+        {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            session->pendingRecordingStopRequestId = stopRecordingRequestId;
+            session->pendingRecordingStopStartedAt =
+                session->snapshot.recordingStartedAt;
+        }
+
         const int stopResult = mpv_set_property_async(
             session->handle,
-            nextAsyncRequestId(),
+            stopRecordingRequestId,
             "stream-record",
             MPV_FORMAT_STRING,
             const_cast<char**>(&disabledValue)
         );
         if (stopResult < 0) {
+            {
+                std::lock_guard<std::mutex> lock(session->mutex);
+                if (
+                    session->pendingRecordingStopRequestId ==
+                    stopRecordingRequestId
+                ) {
+                    session->pendingRecordingStopRequestId = 0;
+                    session->pendingRecordingStopStartedAt.clear();
+                }
+            }
             updateSessionError(session, mpv_error_string(stopResult));
             throw Napi::Error::New(
                 env,
