@@ -217,19 +217,6 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 },
                 mkv: (video: HTMLVideoElement, url: string) => {
                     video.src = url;
-                    video.onerror = () => {
-                        console.error('Error loading MKV file:', video.error);
-                        this.playbackIssue.emit(
-                            classifyNativePlaybackIssue(
-                                video.error,
-                                this.createSourceMetadata(
-                                    url,
-                                    'video/matroska'
-                                )
-                            )
-                        );
-                        video.src = url;
-                    };
                 },
             },
         });

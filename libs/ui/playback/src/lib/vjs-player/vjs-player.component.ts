@@ -111,10 +111,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
 
-    private readonly handleNativePlaybackError = () => {
-        this.handleVideoJsPlaybackError();
-    };
-
     private readonly clearPlaybackIssue = () => {
         this.playbackIssue.emit(null);
     };
@@ -126,7 +122,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         const source = this.options?.sources?.[0];
         const isMpegTs = this.isMpegTsSource(source?.src);
         const targetVideo = this.target.nativeElement as HTMLVideoElement;
-        targetVideo.addEventListener('error', this.handleNativePlaybackError);
         targetVideo.addEventListener('loadeddata', this.clearPlaybackIssue);
         targetVideo.addEventListener('playing', this.clearPlaybackIssue);
 
@@ -255,10 +250,6 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.destroyMpegTs();
         if (this.target?.nativeElement) {
             const targetVideo = this.target.nativeElement as HTMLVideoElement;
-            targetVideo.removeEventListener(
-                'error',
-                this.handleNativePlaybackError
-            );
             targetVideo.removeEventListener(
                 'loadeddata',
                 this.clearPlaybackIssue

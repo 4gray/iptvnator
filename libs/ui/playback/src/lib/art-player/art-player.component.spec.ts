@@ -121,6 +121,11 @@ describe('ArtPlayerComponent', () => {
             },
         });
 
+        getCustomType('mkv')(
+            artPlayerInstances[0].video,
+            'https://example.com/archive/movie.mkv'
+        );
+        expect(artPlayerInstances[0].video.onerror).toBeNull();
         artPlayerInstances[0].video.dispatchEvent(new Event('error'));
 
         expect(issues).toEqual([
@@ -200,7 +205,7 @@ describe('ArtPlayerComponent', () => {
     }
 
     function getCustomType(
-        type: 'm3u8' | 'ts'
+        type: 'm3u8' | 'ts' | 'mkv'
     ): (video: HTMLVideoElement, url: string) => void {
         return (
             artPlayerInstances[0].options['customType'] as Record<

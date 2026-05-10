@@ -76,16 +76,14 @@ export class WebPlayerViewComponent {
     channel!: { url: string };
     player!: VideoPlayer;
     vjsOptions!: { sources: { src: string; type: string }[] };
+    readonly isDesktop = signal(this.detectDesktop());
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     readonly canShowExternalFallbackActions = computed(
         () =>
-            this.isDesktop &&
+            this.isDesktop() &&
             !!this.playbackDiagnostic()?.externalFallbackRecommended
     );
 
-    get isDesktop(): boolean {
-        return typeof window !== 'undefined' && !!window.electron;
-    }
     readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => {
         const playback = this.playback();
         if (playback) {
@@ -137,6 +135,7 @@ export class WebPlayerViewComponent {
     }
 
     handlePlaybackIssue(issue: PlaybackDiagnostic | null): void {
+        this.isDesktop.set(this.detectDesktop());
         this.playbackDiagnostic.set(issue);
     }
 
@@ -186,5 +185,9 @@ export class WebPlayerViewComponent {
             default:
                 return 'PLAYBACK_DIAGNOSTICS.UNKNOWN_PLAYBACK_ERROR';
         }
+    }
+
+    private detectDesktop(): boolean {
+        return typeof window !== 'undefined' && !!window.electron;
     }
 }
