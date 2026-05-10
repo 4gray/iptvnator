@@ -526,9 +526,9 @@ export async function initDatabase(
         sqlite = new Database(filePath, {
             readonly,
             verbose: isSqlTraceEnabled()
-                ? (sql: string) => {
+                ? (message?: unknown) => {
                       traceSql('sql-main', 'query', {
-                          sql: compactSqlForTrace(sql),
+                          sql: compactSqlForTrace(String(message ?? '')),
                       });
                   }
                 : undefined,
