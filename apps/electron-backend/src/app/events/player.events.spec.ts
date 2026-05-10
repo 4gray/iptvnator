@@ -145,6 +145,60 @@ describe('player.events Flatpak launch helpers', () => {
         });
     });
 
+    it('resolves custom macOS MPV app bundles to their executable', () => {
+        const launchContext = resolveExternalPlayerLaunchContext(
+            'mpv',
+            '/Applications/mpv copy.app',
+            {
+                platform: 'darwin',
+                isFlatpak: false,
+            }
+        );
+
+        expect(launchContext).toEqual({
+            mode: 'direct',
+            playerPath: '/Applications/mpv copy.app/Contents/MacOS/mpv',
+            command: '/Applications/mpv copy.app/Contents/MacOS/mpv',
+            argsPrefix: [],
+        });
+    });
+
+    it('resolves custom macOS VLC app bundles to their executable', () => {
+        const launchContext = resolveExternalPlayerLaunchContext(
+            'vlc',
+            '/Applications/VLC.app/',
+            {
+                platform: 'darwin',
+                isFlatpak: false,
+            }
+        );
+
+        expect(launchContext).toEqual({
+            mode: 'direct',
+            playerPath: '/Applications/VLC.app/Contents/MacOS/VLC',
+            command: '/Applications/VLC.app/Contents/MacOS/VLC',
+            argsPrefix: [],
+        });
+    });
+
+    it('keeps custom macOS executable player paths unchanged', () => {
+        const launchContext = resolveExternalPlayerLaunchContext(
+            'mpv',
+            '/Applications/mpv.app/Contents/MacOS/mpv',
+            {
+                platform: 'darwin',
+                isFlatpak: false,
+            }
+        );
+
+        expect(launchContext).toEqual({
+            mode: 'direct',
+            playerPath: '/Applications/mpv.app/Contents/MacOS/mpv',
+            command: '/Applications/mpv.app/Contents/MacOS/mpv',
+            argsPrefix: [],
+        });
+    });
+
     it('disables MPV reuse and socket bridging only in Flatpak', () => {
         expect(shouldReuseMpvInstance(true, true)).toBe(false);
         expect(shouldUseMpvSocketBridge(true)).toBe(false);

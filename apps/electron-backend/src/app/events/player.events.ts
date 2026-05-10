@@ -93,6 +93,37 @@ function normalizePlayerPathForStore(value: string | null | undefined): string {
     return normalizeCustomPlayerPath(value) ?? '';
 }
 
+function getMacOSAppBundleExecutableName(player: ExternalPlayerName): string {
+    return player === 'mpv' ? 'mpv' : 'VLC';
+}
+
+function removeTrailingPathSeparators(value: string): string {
+    return value.replace(/[\\/]+$/, '') || value;
+}
+
+function resolveMacOSAppBundlePlayerPath(
+    player: ExternalPlayerName,
+    playerPath: string,
+    platform: NodeJS.Platform
+): string {
+    if (platform !== 'darwin') {
+        return playerPath;
+    }
+
+    const appBundlePath = removeTrailingPathSeparators(playerPath);
+
+    if (!/\.app$/i.test(appBundlePath)) {
+        return playerPath;
+    }
+
+    return path.join(
+        appBundlePath,
+        'Contents',
+        'MacOS',
+        getMacOSAppBundleExecutableName(player)
+    );
+}
+
 function getDefaultPlayerPath(
     player: ExternalPlayerName,
     options: PlayerPathOptions = {}
@@ -131,20 +162,25 @@ export function resolveExternalPlayerLaunchContext(
             isFlatpak,
             pathExists,
         });
+    const resolvedPlayerPath = resolveMacOSAppBundlePlayerPath(
+        player,
+        playerPath,
+        platform
+    );
 
     if (platform === 'linux' && isFlatpak) {
         return {
             mode: 'flatpak-host',
-            playerPath,
+            playerPath: resolvedPlayerPath,
             command: 'flatpak-spawn',
-            argsPrefix: ['--host', '--watch-bus', playerPath],
+            argsPrefix: ['--host', '--watch-bus', resolvedPlayerPath],
         };
     }
 
     return {
         mode: 'direct',
-        playerPath,
-        command: playerPath,
+        playerPath: resolvedPlayerPath,
+        command: resolvedPlayerPath,
         argsPrefix: [],
     };
 }
