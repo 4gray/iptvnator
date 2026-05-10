@@ -105,4 +105,24 @@ describe('playback diagnostics', () => {
         expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
         expect(issue.externalFallbackRecommended).toBe(true);
     });
+
+    it('prefers stream extension query metadata over web script path extensions', () => {
+        const metadata = createPlaybackSourceMetadata({
+            url: 'http://portal.example/play/live.php?stream=123&extension=ts',
+            player: 'html5',
+        });
+
+        expect(metadata.extension).toBe('ts');
+        expect(metadata.container).toBe('ts');
+    });
+
+    it('does not expose web script extensions as media containers', () => {
+        const metadata = createPlaybackSourceMetadata({
+            url: 'http://portal.example/play/live.php?stream=123',
+            player: 'html5',
+        });
+
+        expect(metadata.extension).toBe('');
+        expect(metadata.container).toBe('');
+    });
 });

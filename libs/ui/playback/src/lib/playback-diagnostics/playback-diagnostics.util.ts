@@ -111,6 +111,15 @@ const UNSUPPORTED_CONTAINER_EXTENSIONS = new Set([
     'wmv',
 ]);
 
+const NON_MEDIA_URL_EXTENSIONS = new Set([
+    'asp',
+    'aspx',
+    'cgi',
+    'jsp',
+    'php',
+    'pl',
+]);
+
 const SOURCE_NOT_SUPPORTED_CODE = 4;
 const DECODE_ERROR_CODE = 3;
 const NETWORK_ERROR_CODE = 2;
@@ -118,7 +127,7 @@ const NETWORK_ERROR_CODE = 2;
 export function createPlaybackSourceMetadata(
     input: PlaybackSourceMetadataInput
 ): PlaybackSourceMetadata {
-    const extension = normalizeToken(getExtensionFromUrl(input.url));
+    const extension = getMediaExtensionFromUrl(input.url);
     const mimeType = input.mimeType?.trim() || undefined;
 
     return {
@@ -384,6 +393,43 @@ function normalizeCodecs(codecs: readonly string[] | undefined): string[] {
 
 function normalizeToken(value: string | undefined): string {
     return value?.trim().toLowerCase() ?? '';
+}
+
+function normalizeExtensionToken(value: string | undefined): string {
+    return normalizeToken(value).replace(/^\.+/, '');
+}
+
+function getMediaExtensionFromUrl(url: string): string {
+    const queryExtension = getMediaExtensionFromQuery(url);
+    if (queryExtension) {
+        return queryExtension;
+    }
+
+    const pathExtension = normalizeExtensionToken(getExtensionFromUrl(url));
+    if (NON_MEDIA_URL_EXTENSIONS.has(pathExtension)) {
+        return '';
+    }
+
+    return pathExtension;
+}
+
+function getMediaExtensionFromQuery(url: string): string {
+    try {
+        const parsedUrl = new URL(url, 'http://iptvnator.local');
+        const declaredExtension = normalizeExtensionToken(
+            parsedUrl.searchParams.get('extension') ?? undefined
+        );
+
+        if (!declaredExtension) {
+            return '';
+        }
+
+        return NON_MEDIA_URL_EXTENSIONS.has(declaredExtension)
+            ? ''
+            : declaredExtension;
+    } catch {
+        return '';
+    }
 }
 
 function inferContainerFromMimeType(mimeType: string | undefined): string {
