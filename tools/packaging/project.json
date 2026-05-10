@@ -7,7 +7,14 @@
         "test": {
             "executor": "nx:run-commands",
             "cache": true,
-            "inputs": ["default", "{workspaceRoot}/electron-builder.json"],
+            "inputs": [
+                "default",
+                "{workspaceRoot}/package.json",
+                "{workspaceRoot}/electron-builder.json",
+                "{workspaceRoot}/apps/electron-backend/project.json",
+                "{workspaceRoot}/apps/electron-backend/src/app/options/maker.options.json",
+                "{workspaceRoot}/tools/packaging/generate-electron-builder-metadata.mjs"
+            ],
             "options": {
                 "command": "node --test tools/packaging/electron-package-identity.test.mjs",
                 "cwd": "{workspaceRoot}"

@@ -125,7 +125,10 @@
             }
         },
         "package": {
-            "dependsOn": ["electron-backend:build"],
+            "dependsOn": [
+                "electron-backend:build",
+                "electron-backend:generate-builder-metadata"
+            ],
             "executor": "nx-electron:package",
             "options": {
                 "name": "electron-backend",
@@ -136,13 +139,34 @@
             }
         },
         "make": {
-            "dependsOn": ["electron-backend:build"],
+            "dependsOn": [
+                "electron-backend:build",
+                "electron-backend:generate-builder-metadata"
+            ],
             "executor": "nx-electron:make",
             "options": {
                 "name": "electron-backend",
                 "frontendProject": "web",
                 "sourcePath": "dist/apps",
                 "outputPath": "dist/executables"
+            }
+        },
+        "generate-builder-metadata": {
+            "dependsOn": ["electron-backend:build"],
+            "executor": "nx:run-commands",
+            "cache": true,
+            "inputs": [
+                "{workspaceRoot}/package.json",
+                "{workspaceRoot}/electron-builder.json",
+                "{workspaceRoot}/tools/packaging/generate-electron-builder-metadata.mjs"
+            ],
+            "outputs": [
+                "{workspaceRoot}/apps/electron-backend/src/app/options/electron-builder.metadata.generated.json",
+                "{workspaceRoot}/dist/apps/electron-backend/package.json"
+            ],
+            "options": {
+                "command": "node tools/packaging/generate-electron-builder-metadata.mjs",
+                "cwd": "{workspaceRoot}"
             }
         },
         "lint": {

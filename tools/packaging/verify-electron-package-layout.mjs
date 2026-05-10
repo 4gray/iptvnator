@@ -3,6 +3,8 @@ import { createRequire } from 'module';
 import path from 'path';
 
 const require = createRequire(import.meta.url);
+const electronBuilderRequire = createRequire(require.resolve('electron-builder'));
+const { extractFile } = electronBuilderRequire('@electron/asar');
 const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-macos.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
@@ -16,15 +18,17 @@ if (!platform) {
 }
 
 const workspaceRoot = process.cwd();
-const executablesRoot = path.join(workspaceRoot, 'dist', 'executables');
+const packageOutputRoots = [
+    path.join(workspaceRoot, 'dist', 'executables'),
+    path.join(workspaceRoot, 'dist', 'packages'),
+];
 const packageJsonPath = path.join(workspaceRoot, 'package.json');
 const electronBuilderConfigPath = path.join(
     workspaceRoot,
     'electron-builder.json'
 );
-const builderEffectiveConfigPath = path.join(
-    executablesRoot,
-    'builder-effective-config.yaml'
+const builderEffectiveConfigPaths = packageOutputRoots.map((outputRoot) =>
+    path.join(outputRoot, 'builder-effective-config.yaml')
 );
 const flatpakMetainfoPath = path.join(
     workspaceRoot,
@@ -47,6 +51,20 @@ const workerRelativeDir = path.join(
     'workers'
 );
 const workerFiles = ['epg-parser.worker.js', 'database.worker.js'];
+const packagedPackageMetadata = {
+    name: packageMetadata.name,
+    productName:
+        electronBuilderConfig.productName ??
+        electronBuilderConfig.extraMetadata?.productName,
+    version: packageMetadata.version,
+    description: packageMetadata.description,
+    author: packageMetadata.author,
+    homepage: packageMetadata.homepage,
+    license: packageMetadata.license,
+    main:
+        electronBuilderConfig.extraMetadata?.main ??
+        'electron-backend/main.js',
+};
 const nativeModuleRelativeDirs = [
     path.join('app.asar.unpacked', 'node_modules'),
     path.join('app.asar.unpacked', 'electron-backend', 'node_modules'),
@@ -79,11 +97,11 @@ function isTruthy(value) {
 }
 
 function getMacResourceDirs() {
-    const candidates = [
+    const candidates = packageOutputRoots.flatMap((outputRoot) => [
         {
             arch: 'x64',
             directory: path.join(
-                executablesRoot,
+                outputRoot,
                 'mac',
                 'IPTVnator.app',
                 'Contents',
@@ -93,14 +111,14 @@ function getMacResourceDirs() {
         {
             arch: 'arm64',
             directory: path.join(
-                executablesRoot,
+                outputRoot,
                 'mac-arm64',
                 'IPTVnator.app',
                 'Contents',
                 'Resources'
             ),
         },
-    ];
+    ]);
 
     return candidates
         .filter((candidate) => !arch || candidate.arch === arch)
@@ -109,20 +127,20 @@ function getMacResourceDirs() {
 }
 
 function getUnpackedResourceDirs(prefix) {
-    if (!directoryExists(executablesRoot)) {
-        return [];
-    }
-
-    return fs
-        .readdirSync(executablesRoot, { withFileTypes: true })
-        .filter(
-            (entry) =>
-                entry.isDirectory() &&
-                entry.name.startsWith(prefix) &&
-                entry.name.endsWith('-unpacked')
-        )
-        .map((entry) => path.join(executablesRoot, entry.name, 'resources'))
-        .filter(directoryExists);
+    return packageOutputRoots
+        .filter(directoryExists)
+        .flatMap((outputRoot) =>
+            fs
+                .readdirSync(outputRoot, { withFileTypes: true })
+                .filter(
+                    (entry) =>
+                        entry.isDirectory() &&
+                        entry.name.startsWith(prefix) &&
+                        entry.name.endsWith('-unpacked')
+                )
+                .map((entry) => path.join(outputRoot, entry.name, 'resources'))
+                .filter(directoryExists)
+        );
 }
 
 function getResourceDirs() {
@@ -140,7 +158,15 @@ function getResourceDirs() {
 }
 
 function sanitizeExecutableName(value) {
-    return value.replace(/[<>:"/\\|?*\u0000-\u001f]/g, '');
+    const invalidCharacters = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*']);
+
+    return [...value]
+        .filter(
+            (character) =>
+                character.charCodeAt(0) >= 32 &&
+                !invalidCharacters.has(character)
+        )
+        .join('');
 }
 
 function getLinuxExecutableName() {
@@ -345,7 +371,9 @@ function parseEffectiveSnapConfig(yamlContent) {
 }
 
 function loadSnapConfigInspection() {
-    if (fileExists(builderEffectiveConfigPath)) {
+    const builderEffectiveConfigPath = builderEffectiveConfigPaths.find(fileExists);
+
+    if (builderEffectiveConfigPath && fileExists(builderEffectiveConfigPath)) {
         const effectiveConfigContent = fs.readFileSync(
             builderEffectiveConfigPath,
             'utf8'
@@ -366,6 +394,62 @@ function loadSnapConfigInspection() {
         config: electronBuilderConfig.snap ?? {},
         sourcePath: electronBuilderConfigPath,
     };
+}
+
+function formatJsonValue(value) {
+    return JSON.stringify(value);
+}
+
+function packageMetadataMatches(actualValue, expectedValue) {
+    return formatJsonValue(actualValue) === formatJsonValue(expectedValue);
+}
+
+function readAsarPackageMetadata(asarPath) {
+    return JSON.parse(extractFile(asarPath, 'package.json').toString('utf8'));
+}
+
+function verifyPackagedPackageMetadata(resourceDir, errors) {
+    const asarPath = path.join(resourceDir, 'app.asar');
+
+    if (!fileExists(asarPath)) {
+        errors.push(`Missing packaged app archive: ${asarPath}`);
+        return;
+    }
+
+    let appPackageMetadata;
+
+    try {
+        appPackageMetadata = readAsarPackageMetadata(asarPath);
+    } catch (error) {
+        errors.push(
+            `Unable to read package.json from ${asarPath}: ${error.message}`
+        );
+        return;
+    }
+
+    const mismatches = Object.entries(packagedPackageMetadata)
+        .filter(([, expectedValue]) => expectedValue !== undefined)
+        .filter(
+            ([fieldName, expectedValue]) =>
+                !packageMetadataMatches(
+                    appPackageMetadata[fieldName],
+                    expectedValue
+                )
+        )
+        .map(([fieldName, expectedValue]) => {
+            const actualValue = appPackageMetadata[fieldName];
+
+            return `- ${fieldName}: expected ${formatJsonValue(expectedValue)}, received ${formatJsonValue(actualValue)}`;
+        });
+
+    if (mismatches.length > 0) {
+        errors.push(
+            [
+                `Packaged app package.json metadata does not match root package identity in ${asarPath}.`,
+                ...mismatches,
+            ].join('\n')
+        );
+    }
 }
 
 function verifyLinuxLauncher(resourceDir, errors) {
@@ -461,6 +545,8 @@ function verifyResourceDir(resourceDir) {
     );
 
     const errors = [];
+
+    verifyPackagedPackageMetadata(resourceDir, errors);
 
     if (missingWorkers.length > 0) {
         errors.push(

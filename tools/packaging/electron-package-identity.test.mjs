@@ -7,12 +7,39 @@ import { fileURLToPath } from 'node:url';
 
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
+const packageMetadata = JSON.parse(
+    fs.readFileSync(join(currentDir, '..', '..', 'package.json'), 'utf8')
+);
 const electronBuilderConfig = JSON.parse(
     fs.readFileSync(
         join(currentDir, '..', '..', 'electron-builder.json'),
         'utf8'
     )
 );
+const electronProjectConfig = JSON.parse(
+    fs.readFileSync(
+        join(currentDir, '..', '..', 'apps', 'electron-backend', 'project.json'),
+        'utf8'
+    )
+);
+const makerOptions = JSON.parse(
+    fs.readFileSync(
+        join(
+            currentDir,
+            '..',
+            '..',
+            'apps',
+            'electron-backend',
+            'src',
+            'app',
+            'options',
+            'maker.options.json'
+        ),
+        'utf8'
+    )
+);
+const generatedMetadataConfigPath =
+    'apps/electron-backend/src/app/options/electron-builder.metadata.generated.json';
 
 test('Linux package identity does not expose the internal Electron backend project name', () => {
     assert.equal(electronBuilderConfig.productName, 'IPTVnator');
@@ -22,6 +49,79 @@ test('Linux package identity does not expose the internal Electron backend proje
     assert.equal(
         electronBuilderConfig.linux?.desktop?.entry?.StartupWMClass,
         'iptvnator'
+    );
+});
+
+test('generated Electron package metadata mirrors the root package identity', async () => {
+    const {
+        buildElectronBuilderMetadata,
+        buildElectronPackageMetadata,
+    } = await import(
+        './generate-electron-builder-metadata.mjs'
+    );
+    const generatedElectronPackage = buildElectronPackageMetadata(
+        packageMetadata,
+        electronBuilderConfig,
+        {
+            name: 'electron-backend',
+            version: '0.0.1',
+            dependencies: {
+                'better-sqlite3': '12.5.0',
+            },
+        }
+    );
+
+    assert.deepEqual(
+        buildElectronBuilderMetadata(packageMetadata, electronBuilderConfig)
+            .extraMetadata,
+        {
+            name: packageMetadata.name,
+            productName: electronBuilderConfig.productName,
+            version: packageMetadata.version,
+            description: packageMetadata.description,
+            author: packageMetadata.author,
+            homepage: packageMetadata.homepage,
+            license: packageMetadata.license,
+            main: electronBuilderConfig.extraMetadata.main,
+        }
+    );
+    assert.deepEqual(generatedElectronPackage, {
+        name: packageMetadata.name,
+        productName: electronBuilderConfig.productName,
+        version: packageMetadata.version,
+        description: packageMetadata.description,
+        author: packageMetadata.author,
+        homepage: packageMetadata.homepage,
+        license: packageMetadata.license,
+        main: electronBuilderConfig.extraMetadata.main,
+        dependencies: {
+            'better-sqlite3': '12.5.0',
+        },
+    });
+});
+
+test('nx-electron packaging prepares metadata before make/package', () => {
+    assert.equal(makerOptions.extends, generatedMetadataConfigPath);
+    assert.deepEqual(
+        electronProjectConfig.targets['generate-builder-metadata'].dependsOn,
+        ['electron-backend:build']
+    );
+    assert.deepEqual(
+        electronProjectConfig.targets['generate-builder-metadata'].outputs,
+        [
+            `{workspaceRoot}/${generatedMetadataConfigPath}`,
+            '{workspaceRoot}/dist/apps/electron-backend/package.json',
+        ]
+    );
+    assert.ok(
+        electronProjectConfig.targets.make.dependsOn.includes(
+            'electron-backend:generate-builder-metadata'
+        )
+    );
+    assert.ok(
+        electronProjectConfig.targets.package.dependsOn.includes(
+            'electron-backend:generate-builder-metadata'
+        )
     );
 });
 

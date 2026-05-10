@@ -1,3 +1,4 @@
 {
-  "$schema": "../../../../../node_modules/nx-electron/src/validation/maker.schema.json"
+  "$schema": "../../../../../node_modules/nx-electron/src/validation/maker.schema.json",
+  "extends": "apps/electron-backend/src/app/options/electron-builder.metadata.generated.json"
 }
