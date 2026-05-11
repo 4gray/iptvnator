@@ -21,7 +21,6 @@ export interface SeriesQuickStartAction {
     icon: string;
     episode: XtreamSerieEpisode;
     position: PlaybackPositionData | null;
-    startTime?: number;
     disabled: boolean;
 }
 
@@ -62,7 +61,6 @@ export function getSeriesQuickStartAction(
             icon: 'play_arrow',
             episode: resumeEpisode.episode,
             position: resumeEpisode.position,
-            startTime: resumeEpisode.position.positionSeconds,
             disabled: false,
         });
     }
@@ -86,7 +84,6 @@ export function getSeriesQuickStartAction(
             icon: 'play_arrow',
             episode: firstUnwatchedEpisode.episode,
             position: firstUnwatchedEpisode.position,
-            startTime: undefined,
             disabled: false,
         });
     }
@@ -102,7 +99,6 @@ export function getSeriesQuickStartAction(
         icon: 'check_circle',
         episode: finalEpisode.episode,
         position: finalEpisode.position,
-        startTime: undefined,
         disabled: true,
     });
 }
@@ -116,7 +112,9 @@ function createQuickStartAction(
     };
 }
 
-function getOrderedEpisodes(request: SeriesQuickStartRequest): OrderedEpisode[] {
+function getOrderedEpisodes(
+    request: SeriesQuickStartRequest
+): OrderedEpisode[] {
     const orderedEpisodes: OrderedEpisode[] = [];
 
     Object.entries(request.seasons)
@@ -176,14 +174,25 @@ function getTimestamp(value: string | undefined): number {
 }
 
 function getEpisodeLabel(episode: XtreamSerieEpisode): string {
-    const seasonNumber = getPositiveInteger(episode.season) ?? 1;
-    const episodeNumber = getPositiveInteger(episode.episode_num) ?? 1;
-    const episodeCode = `S${padEpisodePart(seasonNumber)}E${padEpisodePart(
-        episodeNumber
-    )}`;
+    const episodeCode = formatSeriesEpisodeCode(
+        episode.season,
+        episode.episode_num
+    );
     const title = episode.title.trim();
 
     return title ? `${episodeCode} · ${title}` : episodeCode;
+}
+
+export function formatSeriesEpisodeCode(
+    seasonNumber: number,
+    episodeNumber: number
+): string {
+    const safeSeasonNumber = getPositiveInteger(seasonNumber) ?? 1;
+    const safeEpisodeNumber = getPositiveInteger(episodeNumber) ?? 1;
+
+    return `S${padEpisodePart(safeSeasonNumber)}E${padEpisodePart(
+        safeEpisodeNumber
+    )}`;
 }
 
 function getPositiveInteger(value: number): number | null {

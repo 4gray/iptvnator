@@ -1,6 +1,7 @@
 import { PlaybackPositionData, XtreamSerieEpisode } from 'shared-interfaces';
 import {
     SERIES_QUICK_START_ACTION_KIND,
+    formatSeriesEpisodeCode,
     getSeriesQuickStartAction,
 } from './series-quick-start';
 
@@ -55,7 +56,6 @@ describe('getSeriesQuickStartAction', () => {
             icon: 'play_arrow',
             episode: firstEpisode,
             position: null,
-            startTime: undefined,
             disabled: false,
         });
     });
@@ -90,7 +90,7 @@ describe('getSeriesQuickStartAction', () => {
         expect(action?.labelKey).toBe('XTREAM.RESUME_EPISODE');
         expect(action?.episodeLabel).toBe('S01E02 · Episode 2');
         expect(action?.episode).toBe(latestEpisode);
-        expect(action?.startTime).toBe(30);
+        expect(action?.position?.positionSeconds).toBe(30);
     });
 
     it('plays the next unwatched episode after watched episodes', () => {
@@ -173,7 +173,6 @@ describe('getSeriesQuickStartAction', () => {
             icon: 'check_circle',
             episode: finalEpisode,
             position: expect.any(Object),
-            startTime: undefined,
             disabled: true,
         });
     });
@@ -241,5 +240,17 @@ describe('getSeriesQuickStartAction', () => {
         });
 
         expect(action).toBeNull();
+    });
+});
+
+describe('formatSeriesEpisodeCode', () => {
+    it('formats season and episode numbers with two digit minimums', () => {
+        expect(formatSeriesEpisodeCode(1, 2)).toBe('S01E02');
+        expect(formatSeriesEpisodeCode(12, 14)).toBe('S12E14');
+    });
+
+    it('falls back to S01E01 for invalid positive integer parts', () => {
+        expect(formatSeriesEpisodeCode(0, -1)).toBe('S01E01');
+        expect(formatSeriesEpisodeCode(Number.NaN, 2)).toBe('S01E02');
     });
 });

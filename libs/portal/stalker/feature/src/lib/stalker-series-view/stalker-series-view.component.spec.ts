@@ -4,10 +4,7 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import {
-    ContentHeroComponent,
-    SeasonContainerComponent,
-} from 'components';
+import { ContentHeroComponent, SeasonContainerComponent } from 'components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -131,8 +128,7 @@ describe('StalkerSeriesViewComponent', () => {
                         selectedItem,
                         selectedContentType,
                         currentPlaylist: signal({ _id: 'stalker-1' }),
-                        getSerialSeasonsResource: () =>
-                            serialSeasonsResource(),
+                        getSerialSeasonsResource: () => serialSeasonsResource(),
                         getVodSeriesSeasonsResource: () =>
                             vodSeriesSeasonsResource(),
                         isVodSeriesSeasonsLoading: signal(false),
@@ -241,9 +237,7 @@ describe('StalkerSeriesViewComponent', () => {
         expect(quickStartButton?.textContent).toContain(
             'XTREAM.PLAY_FIRST_EPISODE'
         );
-        expect(quickStartButton?.textContent).toContain(
-            'S01E01 · Episode 1'
-        );
+        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
         await fixture.whenStable();
@@ -286,6 +280,11 @@ describe('StalkerSeriesViewComponent', () => {
         ]);
         fetchVodSeriesEpisodes.mockResolvedValue([
             {
+                id: 'episode-10',
+                series_number: 10,
+                name: 'Finale',
+            },
+            {
                 id: 'episode-1',
                 series_number: 1,
                 name: 'Pilot',
@@ -302,6 +301,112 @@ describe('StalkerSeriesViewComponent', () => {
             );
 
         expect(quickStartButton).not.toBeNull();
+        expect(quickStartButton?.textContent).toContain('S01E01');
+
+        quickStartButton?.click();
+        await fixture.whenStable();
+
+        expect(fetchVodSeriesEpisodes).toHaveBeenCalledWith(
+            '50001',
+            'season-1'
+        );
+        expect(resolveVodPlayback).toHaveBeenCalledWith(
+            '/media/file_episode-1.mpg',
+            'VOD Flagged Series - Pilot',
+            'vod-series.jpg',
+            1,
+            expect.any(Number),
+            undefined
+        );
+    });
+
+    it('loads an earlier unloaded VOD-series season before showing completed', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockResolvedValue([
+            {
+                id: 'episode-1',
+                series_number: 1,
+                name: 'Pilot',
+            },
+        ]);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [
+                    {
+                        id: 'episode-2',
+                        series_number: 1,
+                        name: 'Second Season Pilot',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        const watchedEpisode =
+            fixture.componentInstance.mappedSeasons()['2'][0];
+        const watchedPosition: PlaybackPositionData = {
+            contentXtreamId: Number(watchedEpisode.id),
+            contentType: 'episode',
+            seriesXtreamId: 50001,
+            positionSeconds: 95,
+            durationSeconds: 100,
+        };
+        fixture.componentInstance.episodePlaybackPositions.set(
+            new Map([[Number(watchedEpisode.id), watchedPosition]])
+        );
+        fixture.detectChanges();
+
+        const quickStartButton: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+
+        expect(quickStartButton).not.toBeNull();
+        expect(quickStartButton?.disabled).toBe(false);
+        expect(quickStartButton?.textContent).toContain(
+            'XTREAM.PLAY_NEXT_EPISODE'
+        );
         expect(quickStartButton?.textContent).toContain('S01E01');
 
         quickStartButton?.click();
@@ -384,7 +489,8 @@ describe('StalkerSeriesViewComponent', () => {
                 isExpanded: false,
             },
         ]);
-        const watchedEpisode = fixture.componentInstance.mappedSeasons()['1'][0];
+        const watchedEpisode =
+            fixture.componentInstance.mappedSeasons()['1'][0];
         const watchedPosition: PlaybackPositionData = {
             contentXtreamId: Number(watchedEpisode.id),
             contentType: 'episode',

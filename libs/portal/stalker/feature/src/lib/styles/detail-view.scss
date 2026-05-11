@@ -2,6 +2,8 @@
 // Netflix-style Detail View - Cinematic Streaming Design
 // ============================================================================
 
+@use '../../../../../../ui/styles/detail-view-actions' as detail-actions;
+
 :host {
     --poster-width: 220px;
     --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
@@ -18,15 +20,30 @@
     --accent-color: #b81d24;
     --tag-bg: rgba(0, 0, 0, 0.06);
     --tag-border: rgba(0, 0, 0, 0.12);
-    --play-idle-bg: linear-gradient(135deg, #fffaf2 0%, #ffffff 52%, #f7ecdf 100%);
+    --play-idle-bg: linear-gradient(
+        135deg,
+        #fffaf2 0%,
+        #ffffff 52%,
+        #f7ecdf 100%
+    );
     --play-idle-fg: #161310;
     --play-idle-border: rgba(88, 48, 18, 0.12);
     --play-idle-shadow: 0 18px 38px rgba(91, 56, 24, 0.14);
-    --play-launching-bg: linear-gradient(135deg, #ffd36f 0%, #ffb14c 46%, #f57d35 100%);
+    --play-launching-bg: linear-gradient(
+        135deg,
+        #ffd36f 0%,
+        #ffb14c 46%,
+        #f57d35 100%
+    );
     --play-launching-fg: #241103;
     --play-launching-border: rgba(142, 66, 0, 0.2);
     --play-launching-shadow: 0 22px 44px rgba(244, 136, 55, 0.32);
-    --play-stop-bg: linear-gradient(135deg, #ffd1c8 0%, #ff9f8d 42%, #ef5e64 100%);
+    --play-stop-bg: linear-gradient(
+        135deg,
+        #ffd1c8 0%,
+        #ff9f8d 42%,
+        #ef5e64 100%
+    );
     --play-stop-fg: #321012;
     --play-stop-border: rgba(162, 38, 45, 0.18);
     --play-stop-shadow: 0 22px 46px rgba(214, 74, 86, 0.26);
@@ -54,15 +71,30 @@
     --tag-bg: rgba(255, 255, 255, 0.1);
     --tag-border: rgba(255, 255, 255, 0.2);
     --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
-    --play-idle-bg: linear-gradient(135deg, #fff5e6 0%, #f6efe5 58%, #e7dac9 100%);
+    --play-idle-bg: linear-gradient(
+        135deg,
+        #fff5e6 0%,
+        #f6efe5 58%,
+        #e7dac9 100%
+    );
     --play-idle-fg: #15110d;
     --play-idle-border: rgba(255, 255, 255, 0.18);
     --play-idle-shadow: 0 20px 42px rgba(0, 0, 0, 0.36);
-    --play-launching-bg: linear-gradient(135deg, #ffdd79 0%, #ffb347 42%, #ef6a3a 100%);
+    --play-launching-bg: linear-gradient(
+        135deg,
+        #ffdd79 0%,
+        #ffb347 42%,
+        #ef6a3a 100%
+    );
     --play-launching-fg: #1f1105;
     --play-launching-border: rgba(255, 223, 136, 0.26);
     --play-launching-shadow: 0 24px 50px rgba(255, 153, 71, 0.3);
-    --play-stop-bg: linear-gradient(135deg, #ffd7cf 0%, #ff9b8b 40%, #eb5961 100%);
+    --play-stop-bg: linear-gradient(
+        135deg,
+        #ffd7cf 0%,
+        #ff9b8b 40%,
+        #eb5961 100%
+    );
     --play-stop-fg: #2d1012;
     --play-stop-border: rgba(255, 205, 205, 0.24);
     --play-stop-shadow: 0 24px 50px rgba(235, 89, 97, 0.24);
@@ -221,34 +253,7 @@
             box-shadow 220ms ease;
     }
 
-    &__copy {
-        display: inline-flex;
-        flex-direction: column;
-        align-items: flex-start;
-        gap: 2px;
-        min-width: 0;
-        line-height: 1.1;
-        text-align: left;
-    }
-
-    &__label {
-        display: block;
-        min-width: 0;
-        line-height: 1.15;
-    }
-
-    &__meta {
-        display: block;
-        max-width: min(42vw, 360px);
-        overflow: hidden;
-        color: var(--play-btn-fg);
-        font-size: 0.78rem;
-        font-weight: 500;
-        line-height: 1.2;
-        opacity: 0.72;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-    }
+    @include detail-actions.play-button-copy(var(--play-btn-fg));
 
     &--state-launching,
     &--state-stop {
@@ -269,7 +274,8 @@
         }
 
         .play-btn__icon {
-            animation: playIconLaunch 1.15s cubic-bezier(0.55, 0, 0.45, 1) infinite;
+            animation: playIconLaunch 1.15s cubic-bezier(0.55, 0, 0.45, 1)
+                infinite;
         }
     }
 
@@ -338,79 +344,15 @@
 
 .favorite-btn,
 .download-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-    padding: 12px 20px;
-    font-size: 0.9375rem;
-    font-weight: 500;
-    background: rgba(109, 109, 110, 0.7);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-
-    &:hover {
-        background: rgba(109, 109, 110, 0.5);
-    }
-
-    mat-icon {
-        font-size: 20px;
-        width: 20px;
-        height: 20px;
-    }
-}
-
-.favorite-btn,
-.download-btn {
-    min-height: 64px;
-    padding: 0 24px;
-    border-radius: 16px;
-    font-size: 1rem;
-    font-weight: 600;
-
-    mat-icon {
-        font-size: 24px;
-        width: 24px;
-        height: 24px;
-    }
+    @include detail-actions.secondary-action-button;
 }
 
 .favorite-btn {
-    &--active {
-        background: rgba(229, 9, 20, 0.8);
-
-        &:hover {
-            background: rgba(229, 9, 20, 0.6);
-        }
-    }
+    @include detail-actions.favorite-button-state;
 }
 
 .download-btn {
-    background: rgba(33, 150, 243, 0.8);
-
-    &:hover {
-        background: rgba(33, 150, 243, 0.6);
-    }
-
-    &--completed {
-        background: rgba(76, 175, 80, 0.8);
-
-        &:hover {
-            background: rgba(76, 175, 80, 0.6);
-        }
-    }
-
-    &--downloading {
-        background: rgba(109, 109, 110, 0.5);
-        cursor: not-allowed;
-        opacity: 0.7;
-
-        &:hover {
-            background: rgba(109, 109, 110, 0.5);
-        }
-    }
+    @include detail-actions.download-button-state;
 }
 
 // ============================================================================
@@ -573,18 +515,7 @@
         // So we should target the buttons directly for mobile
     }
 
-    .play-btn,
-    .favorite-btn,
-    .download-btn {
-        flex: 1;
-        justify-content: center;
-        min-height: 58px;
-        padding: 10px 16px;
-    }
-
-    .play-btn__meta {
-        max-width: 100%;
-    }
+    @include detail-actions.mobile-action-buttons;
 
     .youtube-trailer {
         margin-top: 16px;
