@@ -129,11 +129,11 @@
     display: inline-flex;
     align-items: center;
     gap: 12px;
-    padding: 12px 26px;
-    min-height: 54px;
+    padding: 10px 24px 10px 18px;
+    min-height: 64px;
     font-size: 1rem;
     font-weight: 600;
-    letter-spacing: 0.01em;
+    letter-spacing: 0;
     background: var(--play-btn-bg);
     background-size: 140% 140%;
     background-position: 0% 50%;
@@ -221,10 +221,33 @@
             box-shadow 220ms ease;
     }
 
-    &__label {
+    &__copy {
         display: inline-flex;
-        align-items: center;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 2px;
         min-width: 0;
+        line-height: 1.1;
+        text-align: left;
+    }
+
+    &__label {
+        display: block;
+        min-width: 0;
+        line-height: 1.15;
+    }
+
+    &__meta {
+        display: block;
+        max-width: min(42vw, 360px);
+        overflow: hidden;
+        color: var(--play-btn-fg);
+        font-size: 0.78rem;
+        font-weight: 500;
+        line-height: 1.2;
+        opacity: 0.72;
+        text-overflow: ellipsis;
+        white-space: nowrap;
     }
 
     &--state-launching,
@@ -336,6 +359,21 @@
         font-size: 20px;
         width: 20px;
         height: 20px;
+    }
+}
+
+.favorite-btn,
+.download-btn {
+    min-height: 64px;
+    padding: 0 24px;
+    border-radius: 16px;
+    font-size: 1rem;
+    font-weight: 600;
+
+    mat-icon {
+        font-size: 24px;
+        width: 24px;
+        height: 24px;
     }
 }
 
@@ -540,7 +578,12 @@
     .download-btn {
         flex: 1;
         justify-content: center;
+        min-height: 58px;
         padding: 10px 16px;
+    }
+
+    .play-btn__meta {
+        max-width: 100%;
     }
 
     .youtube-trailer {

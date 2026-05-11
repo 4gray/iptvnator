@@ -141,6 +141,12 @@ Stalker has multiple real-world data shapes. The current implementation supports
 - Treated as series flow from VOD context.
 - Seasons are fetched lazily.
 - Episodes are fetched on season select.
+- The series quick-start CTA can load the first unloaded VOD-series season
+  before playback, then starts its first episode. If all currently loaded
+  episodes are watched and more season metadata exists, quick start loads the
+  next unloaded season instead of showing the completed state.
+- For unloaded VOD-series seasons, the CTA target label is derived from season
+  metadata and rendered as `SxxE01` until episode details are loaded.
 - Uses unique generated tracking IDs for episode playback position compatibility.
 
 Core decision logic and normalization are centralized in:

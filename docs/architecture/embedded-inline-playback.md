@@ -10,6 +10,8 @@ This document records the current contract for embedded playback in portal detai
 - Flatpak launches external players on the host via `flatpak-spawn --host`.
 - Live playback stays inline in dedicated live layouts.
 - VOD and series detail playback now also stays inline on canonical detail surfaces.
+- Xtream and Stalker series detail heroes expose a quick-start CTA driven by
+  saved episode playback positions.
 - Material dialog playback remains only as a fallback for older non-detail callers.
 - Browser-player failures are diagnosed client-side and can offer explicit MPV/VLC fallback actions without changing the saved player setting.
 
@@ -100,6 +102,28 @@ When a detail view starts playback:
 4. If the player is external, hand the same payload to `PlayerService` for MPV/VLC playback.
 
 The detail host owns inline state. `PlayerService` is no longer the primary owner of UI playback state for canonical VOD/series detail screens.
+
+## Series Quick Start CTA
+
+Xtream and Stalker series detail views share the quick-start decision helper in
+`/Users/4gray/Code/iptvnator/libs/portal/shared/util/src/lib/series-quick-start.ts`.
+The helper flattens the loaded season/episode map, sorts seasons and episodes in
+natural order, and returns the hero CTA state.
+
+Current contract:
+
+- the CTA shows the action label plus a compact episode target such as
+  `S01E02 · Episode title`
+- if an episode is in progress, resume the latest updated in-progress episode
+  with its saved offset
+- if no episode is in progress, play the first unwatched episode in season order
+- if watched episodes end at a season boundary, play the first episode of the
+  next loaded season
+- if every loaded episode is watched, render a disabled completed state
+
+The click path must continue through each detail host's normal episode playback
+method so recent-item updates, inline/external player selection, resume offsets,
+and playback-position saving keep the same behavior as manual episode clicks.
 
 ## Codec And Container Diagnostics
 

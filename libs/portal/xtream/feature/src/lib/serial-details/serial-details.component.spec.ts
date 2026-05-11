@@ -89,6 +89,9 @@ describe('SerialDetailsComponent', () => {
     });
     const fetchSerialDetailsWithMetadata = jest.fn();
     const checkFavoriteStatus = jest.fn();
+    const constructEpisodeStreamUrl = jest.fn();
+    const addRecentItem = jest.fn();
+    const openResolvedPlayback = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
 
     beforeEach(async () => {
@@ -117,7 +120,14 @@ describe('SerialDetailsComponent', () => {
         detailsError.set(null);
         fetchSerialDetailsWithMetadata.mockClear();
         checkFavoriteStatus.mockClear();
+        constructEpisodeStreamUrl.mockReset();
+        constructEpisodeStreamUrl.mockReturnValue(
+            'http://xtream.example/series/1001.mp4'
+        );
+        addRecentItem.mockClear();
+        openResolvedPlayback.mockClear();
         getSeriesPlaybackPositions.mockClear();
+        getSeriesPlaybackPositions.mockResolvedValue([]);
 
         await TestBed.configureTestingModule({
             imports: [SerialDetailsComponent],
@@ -148,8 +158,8 @@ describe('SerialDetailsComponent', () => {
                             selectedItem.set(value)
                         ),
                         toggleFavorite: jest.fn(),
-                        constructEpisodeStreamUrl: jest.fn(),
-                        addRecentItem: jest.fn(),
+                        constructEpisodeStreamUrl,
+                        addRecentItem,
                         backfillContentBackdrop: jest.fn(),
                     },
                 },
@@ -171,7 +181,7 @@ describe('SerialDetailsComponent', () => {
                     provide: PORTAL_PLAYER,
                     useValue: {
                         isEmbeddedPlayer: jest.fn().mockReturnValue(false),
-                        openResolvedPlayback: jest.fn(),
+                        openResolvedPlayback,
                     },
                 },
                 {
@@ -266,5 +276,93 @@ describe('SerialDetailsComponent', () => {
                 },
             ],
         });
+    });
+
+    it('renders quick start as the first episode action and opens that episode', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const quickStartButton: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+
+        expect(quickStartButton).not.toBeNull();
+        expect(quickStartButton?.textContent).toContain(
+            'XTREAM.PLAY_FIRST_EPISODE'
+        );
+        expect(quickStartButton?.textContent).toContain(
+            'S01E01 · Episode 1'
+        );
+
+        quickStartButton?.click();
+
+        expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
+            expect.objectContaining({ id: '1001' })
+        );
+        expect(addRecentItem).toHaveBeenCalledWith({
+            xtreamId: '103',
+            contentType: 'series',
+            playlist: currentPlaylist,
+            backdropUrl: undefined,
+        });
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'http://xtream.example/series/1001.mp4',
+                title: 'Episode 1',
+                startTime: undefined,
+                contentInfo: expect.objectContaining({
+                    contentXtreamId: 1001,
+                    contentType: 'episode',
+                    seriesXtreamId: 103,
+                }),
+            }),
+            true
+        );
+    });
+
+    it('resumes quick start from the stored episode position', async () => {
+        getSeriesPlaybackPositions.mockResolvedValue([
+            {
+                contentXtreamId: 1001,
+                contentType: 'episode',
+                seriesXtreamId: 103,
+                seasonNumber: 1,
+                episodeNumber: 1,
+                positionSeconds: 42,
+                durationSeconds: 120,
+                playlistId: 'xtream-1',
+                updatedAt: '2026-05-10T12:00:00.000Z',
+            },
+        ]);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const quickStartButton: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+
+        expect(quickStartButton?.textContent).toContain(
+            'XTREAM.RESUME_EPISODE'
+        );
+        expect(quickStartButton?.textContent).toContain(
+            'S01E01 · Episode 1'
+        );
+
+        quickStartButton?.click();
+
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                startTime: 42,
+                contentInfo: expect.objectContaining({
+                    contentXtreamId: 1001,
+                }),
+            }),
+            true
+        );
     });
 });

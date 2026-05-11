@@ -51,6 +51,30 @@
 
         <!-- Action Buttons -->
         <ng-container hero-actions>
+            @if (quickStartAction(); as action) {
+                <button
+                    class="play-btn"
+                    data-testid="series-quick-start"
+                    (click)="playQuickStartEpisode()"
+                    [disabled]="action.disabled"
+                >
+                    <span class="play-btn__icon-shell" aria-hidden="true">
+                        <mat-icon class="play-btn__icon">{{
+                            action.icon
+                        }}</mat-icon>
+                    </span>
+                    <span class="play-btn__copy">
+                        <span class="play-btn__label">
+                            {{ action.labelKey | translate }}
+                        </span>
+                        @if (action.episodeLabel) {
+                            <span class="play-btn__meta">
+                                {{ action.episodeLabel }}
+                            </span>
+                        }
+                    </span>
+                </button>
+            }
             <app-favorites-button
                 [itemId]="serial.id"
                 [item]="serial"

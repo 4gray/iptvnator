@@ -426,14 +426,15 @@
     ::ng-deep .play-btn {
         display: inline-flex;
         align-items: center;
-        gap: 8px;
-        padding: 12px 28px;
+        gap: 12px;
+        min-height: 64px;
+        padding: 10px 24px 10px 18px;
         font-size: 1rem;
         font-weight: 600;
         background: #fff;
         color: #141414;
         border: none;
-        border-radius: 4px;
+        border-radius: 16px;
         cursor: pointer;
         transition: all 0.2s ease;
 
@@ -447,19 +448,50 @@
             width: 24px;
             height: 24px;
         }
+
+        .play-btn__copy {
+            display: inline-flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 2px;
+            min-width: 0;
+            line-height: 1.1;
+            text-align: left;
+        }
+
+        .play-btn__label {
+            display: block;
+            min-width: 0;
+            line-height: 1.15;
+        }
+
+        .play-btn__meta {
+            display: block;
+            max-width: min(42vw, 360px);
+            overflow: hidden;
+            color: currentColor;
+            font-size: 0.78rem;
+            font-weight: 500;
+            line-height: 1.2;
+            opacity: 0.72;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     }
 
-    ::ng-deep .favorite-btn {
+    ::ng-deep .favorite-btn,
+    ::ng-deep .download-btn {
         display: inline-flex;
         align-items: center;
         gap: 8px;
-        padding: 12px 20px;
-        font-size: 0.9375rem;
-        font-weight: 500;
+        min-height: 64px;
+        padding: 0 24px;
+        font-size: 1rem;
+        font-weight: 600;
         background: rgba(109, 109, 110, 0.7);
         color: #fff;
         border: none;
-        border-radius: 4px;
+        border-radius: 16px;
         cursor: pointer;
         transition: all 0.2s ease;
 
@@ -467,6 +499,14 @@
             background: rgba(109, 109, 110, 0.5);
         }
 
+        mat-icon {
+            font-size: 24px;
+            width: 24px;
+            height: 24px;
+        }
+    }
+
+    ::ng-deep .favorite-btn {
         &--active {
             background: rgba(229, 9, 20, 0.8);
 
@@ -474,11 +514,31 @@
                 background: rgba(229, 9, 20, 0.6);
             }
         }
+    }
 
-        mat-icon {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
+    ::ng-deep .download-btn {
+        background: rgba(33, 150, 243, 0.8);
+
+        &:hover {
+            background: rgba(33, 150, 243, 0.6);
+        }
+
+        &--completed {
+            background: rgba(76, 175, 80, 0.8);
+
+            &:hover {
+                background: rgba(76, 175, 80, 0.6);
+            }
+        }
+
+        &--downloading {
+            background: rgba(109, 109, 110, 0.5);
+            cursor: not-allowed;
+            opacity: 0.7;
+
+            &:hover {
+                background: rgba(109, 109, 110, 0.5);
+            }
         }
     }
 }
@@ -551,10 +611,16 @@
         width: 100%;
 
         ::ng-deep .play-btn,
-        ::ng-deep .favorite-btn {
+        ::ng-deep .favorite-btn,
+        ::ng-deep .download-btn {
             flex: 1;
             justify-content: center;
+            min-height: 58px;
             padding: 10px 16px;
+        }
+
+        ::ng-deep .play-btn__meta {
+            max-width: 100%;
         }
     }
 }

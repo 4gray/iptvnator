@@ -1,6 +1,7 @@
 import { Location, SlicePipe } from '@angular/common';
 import {
     Component,
+    computed,
     effect,
     inject,
     OnDestroy,
@@ -21,6 +22,7 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    getSeriesQuickStartAction,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
@@ -92,6 +94,17 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
     readonly activeEpisodeId = signal<number | null>(null);
+    readonly quickStartAction = computed(() => {
+        const item = this.selectedItem();
+        if (!item) {
+            return null;
+        }
+
+        return getSeriesQuickStartAction({
+            seasons: item.episodes ?? {},
+            playbackPositions: this.episodePlaybackPositions(),
+        });
+    });
 
     constructor() {
         effect(() => {
@@ -258,6 +271,15 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         };
 
         this.startPlayback(playback);
+    }
+
+    playQuickStartEpisode(): void {
+        const action = this.quickStartAction();
+        if (!action || action.disabled) {
+            return;
+        }
+
+        this.playEpisode(action.episode);
     }
 
     toggleFavorite(): void {
