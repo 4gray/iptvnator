@@ -52,25 +52,14 @@ describe('PlayerService', () => {
         expect(service.isEmbeddedPlayer(VideoPlayer.VLC)).toBe(false);
     });
 
-    it('uses the dialog fallback for embedded players', async () => {
-        await service.openResolvedPlayback({
+    it('does not open a dialog or IPC for embedded players', async () => {
+        const result = await service.openResolvedPlayback({
             streamUrl: 'https://example.com/video.mp4',
             title: 'Example Video',
         });
 
-        expect(dialog.open).toHaveBeenCalledWith(
-            expect.anything(),
-            expect.objectContaining({
-                data: expect.objectContaining({
-                    streamUrl: 'https://example.com/video.mp4',
-                    title: 'Example Video',
-                    playback: expect.objectContaining({
-                        streamUrl: 'https://example.com/video.mp4',
-                        title: 'Example Video',
-                    }),
-                }),
-            })
-        );
+        expect(result).toBeUndefined();
+        expect(dialog.open).not.toHaveBeenCalled();
         expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
     });
 

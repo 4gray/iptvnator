@@ -67,7 +67,6 @@ export class PlayerService {
         hideExternalInfoDialog = true
     ): Promise<ExternalPlayerSession | void> {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
-        const { streamUrl, title, contentInfo, startTime } = playback;
 
         if (player === VideoPlayer.MPV) {
             if (!hideExternalInfoDialog) {
@@ -81,22 +80,7 @@ export class PlayerService {
             return await this.openExternalPlayback(playback, 'vlc');
         }
 
-        return import('@iptvnator/portal/xtream/feature').then(
-            ({ PlayerDialogComponent }) => {
-                this.dialog.open(PlayerDialogComponent, {
-                    data: {
-                        streamUrl,
-                        title,
-                        contentInfo,
-                        startTime,
-                        playback,
-                    },
-                    width: '80%',
-                    maxWidth: '1200px',
-                    maxHeight: '90vh',
-                });
-            }
-        );
+        return;
     }
 
     async openExternalPlayback(

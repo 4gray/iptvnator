@@ -9,25 +9,30 @@ This document records the current contract for embedded playback in portal detai
 - External players are `mpv` and `vlc`.
 - Flatpak launches external players on the host via `flatpak-spawn --host`.
 - Live playback stays inline in dedicated live layouts.
-- VOD and series detail playback now also stays inline on canonical detail surfaces.
+- VOD and series detail playback stays inline on canonical detail, collection,
+  favorites, recent, and search surfaces.
 - Xtream and Stalker series detail heroes expose a quick-start CTA driven by
   saved episode playback positions.
-- Material dialog playback remains only as a fallback for older non-detail callers.
+- Embedded playback UI is always hosted by the current view. `PlayerService`
+  launches MPV/VLC only and does not open an embedded-player dialog.
 - Browser-player failures are diagnosed client-side and can offer explicit MPV/VLC fallback actions without changing the saved player setting.
 
 ## Scope
 
-The first pass is intentionally limited:
+Inline embedded playback is required for these VOD/series entry points:
 
 - Xtream VOD detail route
 - Xtream series detail route
 - Stalker VOD detail view
 - Stalker series detail view
+- unified favorites collection details
+- unified recently viewed collection details
+- Stalker advanced search result details
 
-Not migrated in this pass:
-
-- Generic non-detail playback entry points that still call `PlayerService.openPlayer(...)`
-- Any collection/search surface that does not host a canonical detail surface of its own
+Collection/search VOD surfaces that expose embedded playback must host
+`ResolvedPortalPlayback` inline state locally. They must not call
+`PlayerService.openPlayer(...)` or `PlayerService.openResolvedPlayback(...)` to
+create embedded UI.
 
 ## Embedded MPV Harness
 
@@ -70,7 +75,7 @@ Current limitation:
 
 Shared inline player shell:
 
-- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/portal-inline-player/portal-inline-player.component.ts`
+- `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/portal-inline-player/portal-inline-player.component.ts`
 
 Xtream detail hosts:
 
@@ -79,13 +84,14 @@ Xtream detail hosts:
 
 Stalker detail hosts:
 
-- `/Users/4gray/Code/iptvnator/libs/portal/catalog/feature/src/lib/category-content-view/category-content-view.component.ts`
-- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-catalog-detail/stalker-catalog-detail.component.ts`
+- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-series-view/stalker-series-view.component.ts`
+- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-collection-detail.component.ts`
+- `/Users/4gray/Code/iptvnator/libs/portal/stalker/feature/src/lib/stalker-search/stalker-search.component.ts`
 
-Fallback dialog path:
-
-- `/Users/4gray/Code/iptvnator/apps/web/src/app/services/player.service.ts`
-- `/Users/4gray/Code/iptvnator/libs/portal/xtream/feature/src/lib/player-dialog/player-dialog.component.ts`
+Embedded playback does not have a fallback dialog path.
+`PlayerService.openResolvedPlayback(...)` remains the MPV/VLC external launch
+entry point; for embedded players it returns without creating UI.
 
 Diagnostics and fallback UI:
 
@@ -101,7 +107,8 @@ When a detail view starts playback:
 3. If the player is embedded, render the inline player inside the current detail view.
 4. If the player is external, hand the same payload to `PlayerService` for MPV/VLC playback.
 
-The detail host owns inline state. `PlayerService` is no longer the primary owner of UI playback state for canonical VOD/series detail screens.
+The detail or collection/search host owns inline state. `PlayerService` is not
+an owner of embedded UI playback state.
 
 ## Series Quick Start CTA
 
@@ -199,18 +206,20 @@ Stalker previously resolved playback and opened UI in the same method.
 Current contract:
 
 - `resolveVodPlayback(...)` returns a `ResolvedPortalPlayback`
-- `createLinkToPlayVod(...)` remains as a compatibility wrapper for untouched callers
-- canonical Stalker detail views use the resolver directly and decide inline vs external locally
+- `createLinkToPlayVod(...)` remains as a compatibility API but collection,
+  search, and canonical detail views use the resolver directly
+- Stalker detail, collection, and search views decide inline vs external locally
 
 This keeps:
 
 - inline/store-state detail navigation intact
 - series and VOD-as-series support intact
-- non-detail callers working until they are migrated
+- external MPV/VLC launches unchanged
 
 ## Playback Position Saving
 
-The old dialog path saved playback positions from inside `PlayerDialogComponent`.
+The old dialog path saved playback positions from inside the removed Xtream
+player dialog.
 
 The new contract is:
 
@@ -222,7 +231,7 @@ This avoids coupling inline UI state to a global dialog.
 
 ## Future Migration Rule
 
-If a non-detail surface is converted away from dialog playback:
+If a non-detail surface needs embedded playback:
 
 - give that surface a canonical inline host
 - switch it to `ResolvedPortalPlayback`

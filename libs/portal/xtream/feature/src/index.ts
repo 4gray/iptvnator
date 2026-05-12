@@ -3,7 +3,6 @@ export * from './lib/category-management-dialog/category-management-dialog.compo
 export * from './lib/global-search-results/global-search-results.component';
 export * from './lib/live-stream-layout/live-stream-layout.component';
 export * from './lib/loading-overlay.component';
-export * from './lib/player-dialog/player-dialog.component';
 export * from './lib/portal-channels-list/portal-channels-list.component';
 export * from './lib/recently-added/recently-added.component';
 export * from './lib/search-results/search-results.component';

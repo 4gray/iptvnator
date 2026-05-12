@@ -905,6 +905,16 @@ test.describe('Electron Workspace Search', () => {
             await expect(
                 contentCardByTitle(app.mainWindow, sample.targetTitle).first()
             ).toBeVisible({ timeout: 20000 });
+            await contentCardByTitle(app.mainWindow, sample.targetTitle)
+                .first()
+                .click();
+            await expect(
+                app.mainWindow.locator('app-content-hero')
+            ).toContainText(flexibleTextPattern(sample.targetTitle), {
+                timeout: 20000,
+            });
+            await playCurrentDetail(app.mainWindow);
+            await expectInlinePlayerWithoutDialog(app.mainWindow);
         } finally {
             await closeElectronApp(app);
         }
@@ -1533,6 +1543,22 @@ async function goBackFromDetail(page: Page): Promise<void> {
 
     await expect(backButton).toBeVisible({ timeout: 20000 });
     await backButton.click();
+}
+
+async function playCurrentDetail(page: Page): Promise<void> {
+    const playButton = page.locator('button.play-btn').first();
+
+    await expect(playButton).toBeVisible({ timeout: 20000 });
+    await playButton.click();
+}
+
+async function expectInlinePlayerWithoutDialog(page: Page): Promise<void> {
+    await expect(
+        page.locator('app-portal-inline-player app-web-player-view').first()
+    ).toBeVisible({ timeout: 20000 });
+    await expect(
+        page.locator('mat-dialog-container app-web-player-view')
+    ).toHaveCount(0);
 }
 
 async function pickPreferredCategory(categories: Locator): Promise<Locator> {

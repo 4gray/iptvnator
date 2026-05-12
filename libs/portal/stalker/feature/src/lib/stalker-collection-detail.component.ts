@@ -9,9 +9,14 @@ import {
     signal,
     untracked,
 } from '@angular/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
 import {
     buildStalkerStateItem,
+    PORTAL_EXTERNAL_PLAYBACK,
+    PORTAL_PLAYBACK_POSITIONS,
+    PORTAL_PLAYER,
     toStalkerCategoryId,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
@@ -29,8 +34,15 @@ import {
     StalkerStore,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
+import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import { PlaylistsService } from 'services';
-import { Playlist, StalkerPortalItem, VodDetailsItem } from 'shared-interfaces';
+import {
+    PlaybackPositionData,
+    Playlist,
+    ResolvedPortalPlayback,
+    StalkerPortalItem,
+    VodDetailsItem,
+} from 'shared-interfaces';
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 
@@ -61,9 +73,19 @@ interface StalkerCollectionDetailMode {
                 [isSeries]="inlineDetail().isSeries"
                 [vodDetailsItem]="inlineDetail().vodDetailsItem"
                 [isFavorite]="isSelectedVodFavorite()"
+                [playbackPosition]="selectedVodPlaybackPosition()"
+                [inlinePlayback]="inlinePlayback()"
+                [externalPlayback]="externalPlayback.activeSession()"
                 (backClicked)="closeRequested.emit()"
                 (playClicked)="onVodPlay($event)"
+                (resumeClicked)="onVodResume($event)"
                 (favoriteToggled)="onVodFavoriteToggled($event)"
+                (inlineTimeUpdated)="handleInlineTimeUpdate($event)"
+                (inlinePlaybackClosed)="closeInlinePlayer()"
+                (streamUrlCopied)="showCopyNotification()"
+                (inlineExternalFallbackRequested)="
+                    handleExternalFallbackRequest($event)
+                "
             />
         } @else {
             <app-content-hero [isLoading]="true" />
@@ -87,11 +109,20 @@ export class StalkerCollectionDetailComponent {
 
     private readonly playlistsService = inject(PlaylistsService);
     private readonly stalkerStore = inject(StalkerStore);
+    readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translateService = inject(TranslateService);
     private readonly originalState = this.captureStoreState();
     private readonly favoritesRefresh = createRefreshTrigger();
 
     readonly itemDetails = signal<StalkerSelectedVodItem | null>(null);
     readonly vodDetailsItem = signal<VodDetailsItem | null>(null);
+    readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    private readonly selectedVodPosition = signal<PlaybackPositionData | null>(
+        null
+    );
     readonly isSelectedVodFavorite = signal(false);
     readonly detailCategoryOverride = signal<StalkerDetailCategory | null>(
         null
@@ -109,8 +140,12 @@ export class StalkerCollectionDetailComponent {
         () => this.stalkerStore.currentPlaylist()?._id,
         () => this.favoritesRefresh.refreshVersion()
     );
+    readonly selectedVodPlaybackPosition = computed<number | null>(
+        () => this.selectedVodPosition()?.positionSeconds ?? null
+    );
 
     private initRequestId = 0;
+    private lastInlineSaveTime = 0;
 
     constructor() {
         effect(() => {
@@ -139,14 +174,29 @@ export class StalkerCollectionDetailComponent {
         this.stalkerStore.setSelectedItem(
             this.originalState.selectedItem as never
         );
+        this.closeInlinePlayer();
     }
 
     onVodPlay(item: VodDetailsItem): void {
         if (item.type === 'stalker') {
-            this.stalkerStore.createLinkToPlayVod(
+            void this.startStalkerVodPlayback(
                 item.cmd,
                 item.data.info?.name,
                 item.data.info?.movie_image
+            );
+        }
+    }
+
+    onVodResume(event: {
+        item: VodDetailsItem;
+        positionSeconds: number;
+    }): void {
+        if (event.item.type === 'stalker') {
+            void this.startStalkerVodPlayback(
+                event.item.cmd,
+                event.item.data.info?.name,
+                event.item.data.info?.movie_image,
+                event.positionSeconds
             );
         }
     }
@@ -170,6 +220,56 @@ export class StalkerCollectionDetailComponent {
         });
     }
 
+    handleInlineTimeUpdate(event: {
+        currentTime: number;
+        duration: number;
+    }): void {
+        const playback = this.inlinePlayback();
+        if (!playback?.contentInfo) {
+            return;
+        }
+
+        const now = Date.now();
+        if (now - this.lastInlineSaveTime <= 15000) {
+            return;
+        }
+
+        this.lastInlineSaveTime = now;
+        const position: PlaybackPositionData = {
+            ...playback.contentInfo,
+            positionSeconds: Math.floor(event.currentTime),
+            durationSeconds: Math.floor(event.duration),
+        };
+
+        void this.playbackPositions.savePlaybackPosition(
+            playback.contentInfo.playlistId,
+            position
+        );
+        this.selectedVodPosition.set(position);
+    }
+
+    closeInlinePlayer(): void {
+        this.inlinePlayback.set(null);
+        this.lastInlineSaveTime = 0;
+    }
+
+    showCopyNotification(): void {
+        this.snackBar.open(
+            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
+            null,
+            {
+                duration: 2000,
+            }
+        );
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
+        );
+    }
+
     private async prepareDetail(
         item: UnifiedCollectionItem | null
     ): Promise<void> {
@@ -177,6 +277,7 @@ export class StalkerCollectionDetailComponent {
 
         if (!item) {
             this.clearLocalDetailState();
+            this.closeInlinePlayer();
             return;
         }
 
@@ -222,12 +323,17 @@ export class StalkerCollectionDetailComponent {
             this.itemDetails.set(detailViewState.itemDetails);
             this.vodDetailsItem.set(detailViewState.vodDetailsItem);
             this.syncSelectedVodFavorite();
+            void this.loadSelectedVodPosition(
+                playlist._id,
+                Number(detailViewState.itemDetails?.id)
+            );
             return;
         }
 
         const cleared = clearStalkerDetailViewState();
         this.vodDetailsItem.set(cleared.vodDetailsItem);
         this.isSelectedVodFavorite.set(false);
+        this.selectedVodPosition.set(null);
     }
 
     private captureStoreState(): StalkerCollectionStateSnapshot {
@@ -332,5 +438,67 @@ export class StalkerCollectionDetailComponent {
         this.vodDetailsItem.set(cleared.vodDetailsItem);
         this.detailCategoryOverride.set(null);
         this.isSelectedVodFavorite.set(false);
+        this.selectedVodPosition.set(null);
+    }
+
+    private async startStalkerVodPlayback(
+        cmd?: string,
+        title?: string,
+        thumbnail?: string,
+        startTime?: number
+    ): Promise<void> {
+        try {
+            const playback =
+                startTime === undefined
+                    ? await this.stalkerStore.resolveVodPlayback(
+                          cmd,
+                          title,
+                          thumbnail
+                      )
+                    : await this.stalkerStore.resolveVodPlayback(
+                          cmd,
+                          title,
+                          thumbnail,
+                          undefined,
+                          undefined,
+                          startTime
+                      );
+
+            this.lastInlineSaveTime = 0;
+            if (this.portalPlayer.isEmbeddedPlayer()) {
+                this.inlinePlayback.set(playback);
+                return;
+            }
+
+            this.closeInlinePlayer();
+            void this.portalPlayer.openResolvedPlayback(playback, true);
+        } catch (error) {
+            const errorMessage =
+                error instanceof Error && error.message === 'nothing_to_play'
+                    ? this.translateService.instant(
+                          'PORTALS.CONTENT_NOT_AVAILABLE'
+                      )
+                    : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
+            this.snackBar.open(errorMessage, null, {
+                duration: 3000,
+            });
+        }
+    }
+
+    private async loadSelectedVodPosition(
+        playlistId: string,
+        vodId: number
+    ): Promise<void> {
+        if (!Number.isFinite(vodId)) {
+            this.selectedVodPosition.set(null);
+            return;
+        }
+
+        const position = await this.playbackPositions.getPlaybackPosition(
+            playlistId,
+            vodId,
+            'vod'
+        );
+        this.selectedVodPosition.set(position ?? null);
     }
 }
