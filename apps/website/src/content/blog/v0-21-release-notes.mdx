@@ -136,7 +136,7 @@ Not everyone is going to want the embedded MPV player, and a question that came 
 Turns out: **yes**, and a community member figured it out before I did. Huge thanks to them — credit where it’s due, even without naming them publicly.
 
 <Alert type="info" title="Using IINA as the external player on macOS">
-In **Settings → External player**, point IPTVnator at `IINA.app` (the bundle path, e.g. `/Applications/IINA.app`) where you would normally put the path to MPV or VLC. Streams open in IINA the same way they would in MPV — single instance, GUI controls included.
+In **Settings → External player**, select MPV and point IPTVnator at IINA's executable path, for example `/Applications/IINA.app/Contents/MacOS/iina-cli` or `/Applications/IINA.app/Contents/MacOS/IINA`. Do not use `/Applications/IINA.app` directly: IPTVnator only resolves `.app` bundle paths for the real MPV and VLC apps. Streams can launch in IINA, but IPTVnator controls, position polling, and reuse-instance behavior are only guaranteed for MPV IPC.
 </Alert>
 
 This also retroactively closes the long-standing request in [#896](https://github.com/4gray/iptvnator/issues/896) — IINA support was effectively already there, it just wasn’t documented.

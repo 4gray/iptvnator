@@ -6,7 +6,11 @@ This document records the current contract for embedded playback in portal detai
 
 - Embedded web players are `videojs`, `html5`, and `artplayer`.
 - `embedded-mpv` exists as a hidden macOS-only feasibility harness backed by a native `libmpv` addon.
-- External players are `mpv` and `vlc`.
+- Controlled external players are `mpv` and `vlc`.
+- macOS `.app` bundle paths are resolved only for real MPV/VLC apps. IINA may
+  launch through the MPV path field when the user supplies an executable path
+  such as `/Applications/IINA.app/Contents/MacOS/iina-cli`, but IPTVnator
+  controls, position polling, and instance reuse are not guaranteed for IINA.
 - Flatpak launches external players on the host via `flatpak-spawn --host`.
 - Live playback stays inline in dedicated live layouts.
 - VOD and series detail playback now also stays inline on canonical detail surfaces.

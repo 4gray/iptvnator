@@ -1,9 +1,16 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { StreamFormat, VideoPlayer } from 'shared-interfaces';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
+
+const MPV_PATH_DESCRIPTION =
+    'Set the path to MPV. On macOS you can use the MPV app bundle, such as /Applications/mpv.app, or the executable path.';
+const MPV_COMPATIBLE_PLAYER_TIP =
+    'IINA can be launched as an MPV-compatible player on macOS, but use its executable path, such as /Applications/IINA.app/Contents/MacOS/iina-cli or /Applications/IINA.app/Contents/MacOS/IINA. IPTVnator controls, position polling, and reuse-instance behavior are guaranteed only for MPV IPC.';
+const VLC_PATH_DESCRIPTION =
+    'Set the path to VLC. On macOS you can use the VLC app bundle, such as /Applications/VLC.app, or the executable path.';
 
 describe('SettingsPlaybackSectionComponent', () => {
     let fixture: ComponentFixture<SettingsPlaybackSectionComponent>;
@@ -17,6 +24,20 @@ describe('SettingsPlaybackSectionComponent', () => {
                 TranslateModule.forRoot(),
             ],
         }).compileComponents();
+
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation(
+            'en',
+            {
+                SETTINGS: {
+                    MPV_PLAYER_PATH_DESCRIPTION: MPV_PATH_DESCRIPTION,
+                    MPV_COMPATIBLE_PLAYER_TIP: MPV_COMPATIBLE_PLAYER_TIP,
+                    VLC_PLAYER_PATH_DESCRIPTION: VLC_PATH_DESCRIPTION,
+                },
+            },
+            true
+        );
+        translate.use('en');
 
         fixture = TestBed.createComponent(SettingsPlaybackSectionComponent);
         fixture.componentRef.setInput('form', createForm());
@@ -116,6 +137,59 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(
             fixture.nativeElement.querySelector(
                 '[data-test-id="recording-folder-setting"]'
+            )
+        ).toBeNull();
+    });
+
+    it('shows MPV bundle guidance and the IINA executable tip for desktop MPV playback', () => {
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain(
+            MPV_PATH_DESCRIPTION
+        );
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-compatible-player-tip"]'
+            )
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            MPV_COMPATIBLE_PLAYER_TIP
+        );
+    });
+
+    it('shows VLC bundle guidance without the IINA tip for desktop VLC playback', () => {
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).toContain(
+            VLC_PATH_DESCRIPTION
+        );
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-compatible-player-tip"]'
+            )
+        ).toBeNull();
+        expect(fixture.nativeElement.textContent).not.toContain(
+            MPV_COMPATIBLE_PLAYER_TIP
+        );
+    });
+
+    it('does not show external-player path guidance for embedded players', () => {
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).not.toContain(
+            MPV_PATH_DESCRIPTION
+        );
+        expect(fixture.nativeElement.textContent).not.toContain(
+            VLC_PATH_DESCRIPTION
+        );
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-compatible-player-tip"]'
             )
         ).toBeNull();
     });
