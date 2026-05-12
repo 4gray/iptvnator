@@ -116,7 +116,9 @@ function createQuickStartAction(
     };
 }
 
-function getOrderedEpisodes(request: SeriesQuickStartRequest): OrderedEpisode[] {
+function getOrderedEpisodes(
+    request: SeriesQuickStartRequest
+): OrderedEpisode[] {
     const orderedEpisodes: OrderedEpisode[] = [];
 
     Object.entries(request.seasons)
@@ -186,10 +188,10 @@ function getEpisodeLabel(episode: XtreamSerieEpisode): string {
     return title ? `${episodeCode} · ${title}` : episodeCode;
 }
 
-function getPositiveInteger(value: number): number | null {
+export function getPositiveInteger(value: number): number | null {
     return Number.isInteger(value) && value > 0 ? value : null;
 }
 
-function padEpisodePart(value: number): string {
+export function padEpisodePart(value: number): string {
     return value < 10 ? `0${value}` : String(value);
 }

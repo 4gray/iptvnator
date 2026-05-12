@@ -191,7 +191,10 @@ describe('StalkerCollectionDetailComponent', () => {
         })
             .overrideComponent(StalkerCollectionDetailComponent, {
                 remove: {
-                    imports: [ContentHeroComponent, StalkerInlineDetailComponent],
+                    imports: [
+                        ContentHeroComponent,
+                        StalkerInlineDetailComponent,
+                    ],
                 },
                 add: {
                     imports: [
@@ -230,7 +233,9 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(stalkerStore.setSelectedContentType).toHaveBeenLastCalledWith(
             'vod'
         );
-        expect(stalkerStore.setSelectedCategory).toHaveBeenLastCalledWith('vod');
+        expect(stalkerStore.setSelectedCategory).toHaveBeenLastCalledWith(
+            'vod'
+        );
         expect(stalkerStore.setSelectedItem).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 id: '1507',
@@ -350,6 +355,39 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(stalkerStore.createLinkToPlayVod).not.toHaveBeenCalled();
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
         expect(fixture.componentInstance.inlinePlayback()).toEqual(playback);
+    });
+
+    it('does not load VOD playback position when the playlist id is missing', async () => {
+        const playlistsService = TestBed.inject(PlaylistsService) as {
+            getPlaylistById: jest.Mock;
+        };
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...playlist,
+                _id: '',
+            })
+        );
+
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: {
+                    id: '1702',
+                    title: 'Collection Movie Without Playlist',
+                    category_id: 'vod',
+                    cmd: '/media/file_1702.mpg',
+                },
+            })
+        );
+
+        await settleDetail(fixture);
+
+        expect(playbackPositions.getPlaybackPosition).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.selectedVodPlaybackPosition()).toBe(
+            null
+        );
     });
 });
 

@@ -2,6 +2,8 @@ import { PlaybackPositionData, XtreamSerieEpisode } from 'shared-interfaces';
 import {
     SERIES_QUICK_START_ACTION_KIND,
     getSeriesQuickStartAction,
+    getPositiveInteger,
+    padEpisodePart,
 } from './series-quick-start';
 
 function episode(
@@ -241,5 +243,19 @@ describe('getSeriesQuickStartAction', () => {
         });
 
         expect(action).toBeNull();
+    });
+});
+
+describe('episode label helpers', () => {
+    it('normalizes only positive integers', () => {
+        expect(getPositiveInteger(1)).toBe(1);
+        expect(getPositiveInteger(0)).toBeNull();
+        expect(getPositiveInteger(1.5)).toBeNull();
+        expect(getPositiveInteger(Number.NaN)).toBeNull();
+    });
+
+    it('pads single digit episode label parts', () => {
+        expect(padEpisodePart(1)).toBe('01');
+        expect(padEpisodePart(10)).toBe('10');
     });
 });

@@ -14,6 +14,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
 import {
     buildStalkerStateItem,
+    createLogger,
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
@@ -45,6 +46,7 @@ import {
 } from 'shared-interfaces';
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
+import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';
 
 interface StalkerCollectionStateSnapshot {
     currentPlaylist: Playlist | undefined;
@@ -114,6 +116,7 @@ export class StalkerCollectionDetailComponent {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly logger = createLogger('StalkerCollectionDetail');
     private readonly originalState = this.captureStoreState();
     private readonly favoritesRefresh = createRefreshTrigger();
 
@@ -145,7 +148,16 @@ export class StalkerCollectionDetailComponent {
     );
 
     private initRequestId = 0;
-    private lastInlineSaveTime = 0;
+    private readonly vodPlayback = new StalkerVodPlaybackController({
+        inlinePlayback: this.inlinePlayback,
+        selectedVodPosition: this.selectedVodPosition,
+        playbackPositions: this.playbackPositions,
+        portalPlayer: this.portalPlayer,
+        snackBar: this.snackBar,
+        translateService: this.translateService,
+        logger: this.logger,
+        playbackErrorLogMessage: 'Failed to start collection VOD playback',
+    });
 
     constructor() {
         effect(() => {
@@ -224,50 +236,19 @@ export class StalkerCollectionDetailComponent {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) {
-            return;
-        }
-
-        const now = Date.now();
-        if (now - this.lastInlineSaveTime <= 15000) {
-            return;
-        }
-
-        this.lastInlineSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.selectedVodPosition.set(position);
+        this.vodPlayback.handleInlineTimeUpdate(event);
     }
 
     closeInlinePlayer(): void {
-        this.inlinePlayback.set(null);
-        this.lastInlineSaveTime = 0;
+        this.vodPlayback.closeInlinePlayer();
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
-            {
-                duration: 2000,
-            }
-        );
+        this.vodPlayback.showCopyNotification();
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
+        this.vodPlayback.handleExternalFallbackRequest(request);
     }
 
     private async prepareDetail(
@@ -304,7 +285,9 @@ export class StalkerCollectionDetailComponent {
         );
 
         this.detailCategoryOverride.set(detailMode.category);
-        this.stalkerStore.setSelectedContentType(detailMode.selectedContentType);
+        this.stalkerStore.setSelectedContentType(
+            detailMode.selectedContentType
+        );
         this.stalkerStore.setSelectedCategory(
             this.resolveSelectedCategory(item, stalkerItem, detailMode)
         );
@@ -379,11 +362,8 @@ export class StalkerCollectionDetailComponent {
         item: UnifiedCollectionItem,
         stalkerItem: StalkerPortalItem
     ): StalkerCollectionDetailMode {
-        const hasEmbeddedSeries = Array.isArray(
-            (stalkerItem as { series?: unknown[] }).series
-        )
-            ? (stalkerItem as { series?: unknown[] }).series!.length > 0
-            : false;
+        const series = (stalkerItem as { series?: unknown[] }).series;
+        const hasEmbeddedSeries = Array.isArray(series) && series.length > 0;
         const isVodSeries = isStalkerSeriesFlag(
             (stalkerItem as { is_series?: unknown }).is_series
         );
@@ -420,7 +400,9 @@ export class StalkerCollectionDetailComponent {
             return 'vod';
         }
 
-        return categoryId ?? toStalkerCategoryId(detailMode.selectedContentType);
+        return (
+            categoryId ?? toStalkerCategoryId(detailMode.selectedContentType)
+        );
     }
 
     private syncSelectedVodFavorite(): void {
@@ -447,58 +429,24 @@ export class StalkerCollectionDetailComponent {
         thumbnail?: string,
         startTime?: number
     ): Promise<void> {
-        try {
-            const playback =
-                startTime === undefined
-                    ? await this.stalkerStore.resolveVodPlayback(
-                          cmd,
-                          title,
-                          thumbnail
-                      )
-                    : await this.stalkerStore.resolveVodPlayback(
-                          cmd,
-                          title,
-                          thumbnail,
-                          undefined,
-                          undefined,
-                          startTime
-                      );
-
-            this.lastInlineSaveTime = 0;
-            if (this.portalPlayer.isEmbeddedPlayer()) {
-                this.inlinePlayback.set(playback);
-                return;
-            }
-
-            this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(playback, true);
-        } catch (error) {
-            const errorMessage =
-                error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
-                    : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, null, {
-                duration: 3000,
-            });
-        }
+        await this.vodPlayback.startVodPlayback(() =>
+            startTime === undefined
+                ? this.stalkerStore.resolveVodPlayback(cmd, title, thumbnail)
+                : this.stalkerStore.resolveVodPlayback(
+                      cmd,
+                      title,
+                      thumbnail,
+                      undefined,
+                      undefined,
+                      startTime
+                  )
+        );
     }
 
     private async loadSelectedVodPosition(
         playlistId: string,
         vodId: number
     ): Promise<void> {
-        if (!Number.isFinite(vodId)) {
-            this.selectedVodPosition.set(null);
-            return;
-        }
-
-        const position = await this.playbackPositions.getPlaybackPosition(
-            playlistId,
-            vodId,
-            'vod'
-        );
-        this.selectedVodPosition.set(position ?? null);
+        await this.vodPlayback.loadSelectedVodPosition(playlistId, vodId);
     }
 }

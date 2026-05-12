@@ -30,8 +30,10 @@ import {
     SERIES_QUICK_START_ACTION_KIND,
     SeriesQuickStartAction,
     createLogger,
+    getPositiveInteger,
     getSeriesQuickStartAction,
     getStalkerReturnToState,
+    padEpisodePart,
 } from '@iptvnator/portal/shared/util';
 import {
     getVodSeriesSeasonKey,
@@ -156,14 +158,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             const playlist = this.stalkerStore.currentPlaylist();
             if (item && playlist?._id) {
                 const normalizedSeriesId = this.toSeriesId(item.id);
-                this.logger.debug(
-                    'Loading positions for series',
-                    {
-                        id: item.id,
-                        seriesId: normalizedSeriesId,
-                        isSeries: item.is_series,
-                    }
-                );
+                this.logger.debug('Loading positions for series', {
+                    id: item.id,
+                    seriesId: normalizedSeriesId,
+                    isSeries: item.is_series,
+                });
                 if (!isNaN(normalizedSeriesId)) {
                     void this.loadSeriesPositions(
                         playlist._id,
@@ -578,8 +577,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         } catch (error) {
             this.logger.error('Failed to start inline series playback', error);
             const errorMessage =
-                error instanceof Error &&
-                error.message === 'nothing_to_play'
+                error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translateService.instant(
                           'PORTALS.CONTENT_NOT_AVAILABLE'
                       )
@@ -654,7 +652,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         const posterUrl = episodeInfo?.movie_image;
         const seasonNum = Number(episode.season || 1);
         const episodeNum = episode.episode_num || 1;
-        const seriesTitle = item.info?.name || this.displayItem()?.info?.name || 'Series';
+        const seriesTitle =
+            item.info?.name || this.displayItem()?.info?.name || 'Series';
         const episodeTitle = `${seriesTitle} - S${String(seasonNum).padStart(
             2,
             '0'
@@ -686,10 +685,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         playlistId: string,
         seriesXtreamId: number
     ): Promise<void> {
-        const positions = await this.playbackPositions.getSeriesPlaybackPositions(
-            playlistId,
-            seriesXtreamId
-        );
+        const positions =
+            await this.playbackPositions.getSeriesPlaybackPositions(
+                playlistId,
+                seriesXtreamId
+            );
         const positionsMap = new Map<number, PlaybackPositionData>();
         positions.forEach((position) => {
             positionsMap.set(position.contentXtreamId, position);
@@ -774,7 +774,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         return `S${padEpisodePart(seasonNumber)}E01`;
     }
 
-    private updateEpisodePlaybackPosition(position: PlaybackPositionData): void {
+    private updateEpisodePlaybackPosition(
+        position: PlaybackPositionData
+    ): void {
         const updated = new Map(this.episodePlaybackPositions());
         updated.set(position.contentXtreamId, position);
         this.episodePlaybackPositions.set(updated);
@@ -834,12 +836,4 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         }
         return Math.abs(hash);
     }
-}
-
-function getPositiveInteger(value: number): number | null {
-    return Number.isInteger(value) && value > 0 ? value : null;
-}
-
-function padEpisodePart(value: number): string {
-    return value < 10 ? `0${value}` : String(value);
 }

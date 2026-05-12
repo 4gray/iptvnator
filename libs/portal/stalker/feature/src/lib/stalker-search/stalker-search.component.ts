@@ -52,6 +52,7 @@ import {
     isStalkerSeriesFlag,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
+import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 
 interface StalkerFilter {
     key: string;
@@ -136,7 +137,16 @@ export class StalkerSearchComponent {
     readonly selectedVodPlaybackPosition = computed<number | null>(
         () => this.selectedVodPosition()?.positionSeconds ?? null
     );
-    private lastInlineSaveTime = 0;
+    private readonly vodPlayback = new StalkerVodPlaybackController({
+        inlinePlayback: this.inlinePlayback,
+        selectedVodPosition: this.selectedVodPosition,
+        playbackPositions: this.playbackPositions,
+        portalPlayer: this.portalPlayer,
+        snackBar: this.snackBar,
+        translateService: this.translateService,
+        logger: this.logger,
+        playbackErrorLogMessage: 'Failed to start search VOD playback',
+    });
 
     readonly portalFavorites = createPortalFavoritesResource(
         this.playlistService,
@@ -341,50 +351,19 @@ export class StalkerSearchComponent {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) {
-            return;
-        }
-
-        const now = Date.now();
-        if (now - this.lastInlineSaveTime <= 15000) {
-            return;
-        }
-
-        this.lastInlineSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.selectedVodPosition.set(position);
+        this.vodPlayback.handleInlineTimeUpdate(event);
     }
 
     closeInlinePlayer(): void {
-        this.inlinePlayback.set(null);
-        this.lastInlineSaveTime = 0;
+        this.vodPlayback.closeInlinePlayer();
     }
 
     showCopyNotification(): void {
-        this.snackBar.open(
-            this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
-            {
-                duration: 2000,
-            }
-        );
+        this.vodPlayback.showCopyNotification();
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
+        this.vodPlayback.handleExternalFallbackRequest(request);
     }
 
     removeFromFavorites(favoriteId: string, onDone?: () => void) {
@@ -454,59 +433,24 @@ export class StalkerSearchComponent {
         thumbnail?: string,
         startTime?: number
     ): Promise<void> {
-        try {
-            const playback =
-                startTime === undefined
-                    ? await this.stalkerStore.resolveVodPlayback(
-                          cmd,
-                          title,
-                          thumbnail
-                      )
-                    : await this.stalkerStore.resolveVodPlayback(
-                          cmd,
-                          title,
-                          thumbnail,
-                          undefined,
-                          undefined,
-                          startTime
-                      );
-
-            this.lastInlineSaveTime = 0;
-            if (this.portalPlayer.isEmbeddedPlayer()) {
-                this.inlinePlayback.set(playback);
-                return;
-            }
-
-            this.closeInlinePlayer();
-            void this.portalPlayer.openResolvedPlayback(playback, true);
-        } catch (error) {
-            this.logger.error('Failed to start search VOD playback', error);
-            const errorMessage =
-                error instanceof Error && error.message === 'nothing_to_play'
-                    ? this.translateService.instant(
-                          'PORTALS.CONTENT_NOT_AVAILABLE'
-                      )
-                    : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, null, {
-                duration: 3000,
-            });
-        }
+        await this.vodPlayback.startVodPlayback(() =>
+            startTime === undefined
+                ? this.stalkerStore.resolveVodPlayback(cmd, title, thumbnail)
+                : this.stalkerStore.resolveVodPlayback(
+                      cmd,
+                      title,
+                      thumbnail,
+                      undefined,
+                      undefined,
+                      startTime
+                  )
+        );
     }
 
     private async loadSelectedVodPosition(
         playlistId: string,
         vodId: number
     ): Promise<void> {
-        if (!playlistId || !Number.isFinite(vodId)) {
-            this.selectedVodPosition.set(null);
-            return;
-        }
-
-        const position = await this.playbackPositions.getPlaybackPosition(
-            playlistId,
-            vodId,
-            'vod'
-        );
-        this.selectedVodPosition.set(position ?? null);
+        await this.vodPlayback.loadSelectedVodPosition(playlistId, vodId);
     }
 }
