@@ -35,8 +35,10 @@ import {
 } from '../services/store.service';
 import {
     buildExternalPlayerSpawnSpec,
+    buildPlayerArgsWithCustomArguments,
     buildVlcEnqueueCommands,
     isRunningInFlatpak,
+    parseExternalPlayerArguments,
     parseVlcRcPlaybackState,
     parseVlcRcNumericResponse,
     resolveExternalPlayerLaunchContext,
@@ -67,21 +69,25 @@ function getIpcMainHandler(channel: string): (...args: unknown[]) => unknown {
 
 describe('player.events Flatpak launch helpers', () => {
     it('detects Flatpak only on Linux when /.flatpak-info exists', () => {
-        expect(isRunningInFlatpak(createPathExists(['/.flatpak-info']), 'linux')).toBe(
-            true
-        );
-        expect(isRunningInFlatpak(createPathExists(['/.flatpak-info']), 'darwin')).toBe(
-            false
-        );
+        expect(
+            isRunningInFlatpak(createPathExists(['/.flatpak-info']), 'linux')
+        ).toBe(true);
+        expect(
+            isRunningInFlatpak(createPathExists(['/.flatpak-info']), 'darwin')
+        ).toBe(false);
         expect(isRunningInFlatpak(createPathExists([]), 'linux')).toBe(false);
     });
 
     it('keeps direct Linux player launching outside Flatpak', () => {
-        const launchContext = resolveExternalPlayerLaunchContext('mpv', undefined, {
-            platform: 'linux',
-            isFlatpak: false,
-            pathExists: createPathExists(['/usr/local/bin/mpv']),
-        });
+        const launchContext = resolveExternalPlayerLaunchContext(
+            'mpv',
+            undefined,
+            {
+                platform: 'linux',
+                isFlatpak: false,
+                pathExists: createPathExists(['/usr/local/bin/mpv']),
+            }
+        );
         const spawnSpec = buildExternalPlayerSpawnSpec(launchContext, [
             '--ytdl=no',
             'https://example.com/stream.m3u8',
@@ -102,11 +108,15 @@ describe('player.events Flatpak launch helpers', () => {
     });
 
     it('builds Flatpak host launches with bare player names by default', () => {
-        const launchContext = resolveExternalPlayerLaunchContext('vlc', undefined, {
-            platform: 'linux',
-            isFlatpak: true,
-            pathExists: createPathExists(['/usr/bin/vlc']),
-        });
+        const launchContext = resolveExternalPlayerLaunchContext(
+            'vlc',
+            undefined,
+            {
+                platform: 'linux',
+                isFlatpak: true,
+                pathExists: createPathExists(['/usr/bin/vlc']),
+            }
+        );
         const spawnSpec = buildExternalPlayerSpawnSpec(launchContext, [
             '--extraintf=rc',
             'https://example.com/stream.m3u8',
@@ -197,6 +207,38 @@ describe('player.events Flatpak launch helpers', () => {
             command: '/Applications/mpv.app/Contents/MacOS/mpv',
             argsPrefix: [],
         });
+    });
+
+    it('parses custom player arguments as one argument per non-empty line', () => {
+        expect(
+            parseExternalPlayerArguments(
+                '  --screen=1\n\n--geometry=1280x720\r\n  --hwdec=auto-safe  '
+            )
+        ).toEqual(['--screen=1', '--geometry=1280x720', '--hwdec=auto-safe']);
+    });
+
+    it('treats missing custom player arguments as no arguments', () => {
+        expect(parseExternalPlayerArguments(undefined)).toEqual([]);
+        expect(parseExternalPlayerArguments('   \n  ')).toEqual([]);
+    });
+
+    it('adds custom player arguments before IPTVnator runtime arguments', () => {
+        expect(
+            buildPlayerArgsWithCustomArguments(
+                '--screen=1\n--geometry=1280x720',
+                [
+                    '--ytdl=no',
+                    '--force-media-title=News',
+                    'https://example.com/stream.m3u8',
+                ]
+            )
+        ).toEqual([
+            '--screen=1',
+            '--geometry=1280x720',
+            '--ytdl=no',
+            '--force-media-title=News',
+            'https://example.com/stream.m3u8',
+        ]);
     });
 
     it('disables MPV reuse and socket bridging only in Flatpak', () => {
@@ -315,9 +357,7 @@ describe('buildVlcEnqueueCommands', () => {
             origin: 'https://origin.example',
         });
 
-        expect(commands[1]).toContain(
-            ':http-referrer=https://origin.example'
-        );
+        expect(commands[1]).toContain(':http-referrer=https://origin.example');
     });
 
     it('appends a seek command when startTime is provided', () => {

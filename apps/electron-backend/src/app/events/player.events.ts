@@ -7,9 +7,11 @@ import {
 } from 'shared-interfaces';
 import App from '../app';
 import {
+    MPV_PLAYER_ARGUMENTS,
     MPV_PLAYER_PATH,
     MPV_REUSE_INSTANCE,
     store,
+    VLC_PLAYER_ARGUMENTS,
     VLC_PLAYER_PATH,
     VLC_REUSE_INSTANCE,
 } from '../services/store.service';
@@ -43,7 +45,10 @@ interface ExternalPlaybackSnapshot {
 
 function sendExternalPlayerSessionUpdate(session: ExternalPlayerSession) {
     if (App.mainWindow && !App.mainWindow.isDestroyed()) {
-        App.mainWindow.webContents.send(EXTERNAL_PLAYER_SESSION_UPDATE, session);
+        App.mainWindow.webContents.send(
+            EXTERNAL_PLAYER_SESSION_UPDATE,
+            session
+        );
     }
 }
 
@@ -200,6 +205,28 @@ export function buildExternalPlayerSpawnSpec(
         command: launchContext.command,
         args: [...launchContext.argsPrefix, ...playerArgs],
     };
+}
+
+export function parseExternalPlayerArguments(
+    value: string | string[] | null | undefined
+): string[] {
+    if (Array.isArray(value)) {
+        return value.map((argument) => argument.trim()).filter(Boolean);
+    }
+
+    return (
+        value
+            ?.split(/\r?\n/)
+            .map((argument) => argument.trim())
+            .filter(Boolean) ?? []
+    );
+}
+
+export function buildPlayerArgsWithCustomArguments(
+    customArguments: string | string[] | null | undefined,
+    playerArgs: string[]
+): string[] {
+    return [...parseExternalPlayerArguments(customArguments), ...playerArgs];
 }
 
 export function shouldReuseMpvInstance(
@@ -504,8 +531,10 @@ function isStalkerDirectStreamProfile(
     const icyMetaData = headers['Icy-MetaData'] ?? headers['icy-metadata'];
     const userAgent = headers['User-Agent'] ?? headers['user-agent'];
 
-    return String(icyMetaData).trim() === '1' &&
-        String(userAgent).trim().toLowerCase() === 'ksplayer';
+    return (
+        String(icyMetaData).trim() === '1' &&
+        String(userAgent).trim().toLowerCase() === 'ksplayer'
+    );
 }
 
 function startPositionPolling(
@@ -592,9 +621,7 @@ async function getVlcProperty(port: number, command: string): Promise<string> {
 }
 
 async function getVlcPlaybackState(port: number): Promise<string | null> {
-    return parseVlcRcPlaybackState(
-        await getVlcCommandResponse(port, 'status')
-    );
+    return parseVlcRcPlaybackState(await getVlcCommandResponse(port, 'status'));
 }
 
 async function getVlcPlaybackSnapshot(
@@ -661,7 +688,10 @@ function startVlcPositionPolling(
 }
 
 // Helper function to send command to MPV via IPC
-function sendMpvCommand(command: string, args: Array<string | number>): Promise<void> {
+function sendMpvCommand(
+    command: string,
+    args: Array<string | number>
+): Promise<void> {
     return new Promise((resolve, reject) => {
         if (!mpvSocketPath) {
             reject(new Error('No MPV socket path available'));
@@ -715,6 +745,7 @@ ipcMain.handle(
                 getMpvPath({ isFlatpak }),
                 { isFlatpak }
             );
+            const customMpvArguments = store.get(MPV_PLAYER_ARGUMENTS, '');
             const requestedReuseInstance = store.get(MPV_REUSE_INSTANCE, false);
             const reuseInstance = shouldReuseMpvInstance(
                 requestedReuseInstance,
@@ -760,6 +791,8 @@ ipcMain.handle(
                 headerCount: headerFields.length,
                 hasContentInfo: Boolean(contentInfo),
                 startTime: startTime ?? null,
+                customArgumentCount:
+                    parseExternalPlayerArguments(customMpvArguments).length,
             });
 
             // If reuse is enabled and there's an existing process, try to use it
@@ -810,15 +843,18 @@ ipcMain.handle(
                         'Successfully loaded new URL in existing MPV instance'
                     );
 
-                    externalPlayerSessions.attachCloser(session.id, async () => {
-                        try {
-                            await sendMpvCommand('quit', []);
-                        } catch {
-                            if (mpvProcess && !mpvProcess.killed) {
-                                mpvProcess.kill();
+                    externalPlayerSessions.attachCloser(
+                        session.id,
+                        async () => {
+                            try {
+                                await sendMpvCommand('quit', []);
+                            } catch {
+                                if (mpvProcess && !mpvProcess.killed) {
+                                    mpvProcess.kill();
+                                }
                             }
                         }
-                    });
+                    );
 
                     // Seek if startTime provided
                     if (startTime) {
@@ -904,7 +940,7 @@ ipcMain.handle(
             await new Promise<void>((resolve, reject) => {
                 const spawnSpec = buildExternalPlayerSpawnSpec(
                     mpvLaunchContext,
-                    args
+                    buildPlayerArgsWithCustomArguments(customMpvArguments, args)
                 );
                 const proc = spawn(spawnSpec.command, spawnSpec.args, {
                     shell: false,
@@ -1114,10 +1150,8 @@ ipcMain.handle(
                 getVlcPath({ isFlatpak }),
                 { isFlatpak }
             );
-            const requestedReuseInstance = store.get(
-                VLC_REUSE_INSTANCE,
-                false
-            );
+            const customVlcArguments = store.get(VLC_PLAYER_ARGUMENTS, '');
+            const requestedReuseInstance = store.get(VLC_REUSE_INSTANCE, false);
             const reuseInstance = shouldReuseVlcInstance(
                 requestedReuseInstance,
                 isFlatpak
@@ -1155,6 +1189,8 @@ ipcMain.handle(
                 hasOrigin: Boolean(effectiveOrigin),
                 hasContentInfo: Boolean(contentInfo),
                 startTime: startTime ?? null,
+                customArgumentCount:
+                    parseExternalPlayerArguments(customVlcArguments).length,
             });
 
             // Try to drive an already-running VLC via its RC port instead of
@@ -1316,7 +1352,10 @@ ipcMain.handle(
                 const spawnVlc = (playerArgs: string[], isRetry = false) => {
                     const spawnSpec = buildExternalPlayerSpawnSpec(
                         vlcLaunchContext,
-                        playerArgs
+                        buildPlayerArgsWithCustomArguments(
+                            customVlcArguments,
+                            playerArgs
+                        )
                     );
                     const trackProcess = reuseInstance && !isRetry;
                     const proc = spawn(spawnSpec.command, spawnSpec.args, {
@@ -1338,8 +1377,8 @@ ipcMain.handle(
 
                     const markVlcSessionClosed = () => {
                         if (
-                            externalPlayerSessions.getSession(session.id)?.status ===
-                            'closed'
+                            externalPlayerSessions.getSession(session.id)
+                                ?.status === 'closed'
                         ) {
                             return;
                         }
@@ -1375,27 +1414,30 @@ ipcMain.handle(
                         );
                     };
 
-                    externalPlayerSessions.attachCloser(session.id, async () => {
-                        await flushVlcPlaybackPosition();
-                        if (!proc.killed) {
-                            proc.kill();
+                    externalPlayerSessions.attachCloser(
+                        session.id,
+                        async () => {
+                            await flushVlcPlaybackPosition();
+                            if (!proc.killed) {
+                                proc.kill();
+                            }
                         }
-                    });
+                    );
 
                     // Start polling if we have port and content info and NOT retrying (RC disabled on retry)
-                        if (!isRetry && rcPort > 0 && contentInfo) {
-                            startVlcPositionPolling(
-                                rcPort,
-                                contentInfo,
-                                session.id,
-                                (snapshot) => {
-                                    lastVlcSnapshot = snapshot;
-                                },
-                                () => {
-                                    markVlcSessionClosed();
-                                }
-                            );
-                        }
+                    if (!isRetry && rcPort > 0 && contentInfo) {
+                        startVlcPositionPolling(
+                            rcPort,
+                            contentInfo,
+                            session.id,
+                            (snapshot) => {
+                                lastVlcSnapshot = snapshot;
+                            },
+                            () => {
+                                markVlcSessionClosed();
+                            }
+                        );
+                    }
 
                     // Capture stdout
                     if (proc.stdout) {

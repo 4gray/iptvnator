@@ -160,6 +160,24 @@ When a diagnostic is actionable in Electron, the inline banner may offer `Open i
 
 `PortalPlayer.openExternalPlayback(playback, player)` is the forced external launch API. It sends the playback payload to MPV or VLC regardless of the current saved player setting, so fallback buttons do not mutate preferences.
 
+## External Player Arguments
+
+Electron settings expose optional MPV and VLC command-line argument fields only
+when the corresponding external player is selected. The executable path remains a
+path-only setting; extra flags are stored separately as `mpvPlayerArguments` and
+`vlcPlayerArguments`.
+
+Argument fields are line-oriented: one non-empty trimmed line becomes one argv
+entry. IPTVnator prepends those custom entries before its stream-specific runtime
+arguments, then keeps the stream URL last. This avoids shell parsing, keeps paths
+with spaces safe, and preserves existing settings for users who never configured
+extra arguments.
+
+The arguments apply only when IPTVnator spawns a new external player process. If
+MPV or VLC instance reuse is active and an existing process is reused, subsequent
+streams are loaded through MPV IPC or VLC RC commands and new process arguments
+are not re-applied until a fresh process starts.
+
 ## Flatpak External Players
 
 Flatpak cannot execute host-installed `mpv` or `vlc` binaries directly from the sandbox.

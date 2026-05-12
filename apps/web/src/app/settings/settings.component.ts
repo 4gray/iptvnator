@@ -187,8 +187,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         showExternalPlaybackBar: true,
         theme: Theme.SystemTheme,
         mpvPlayerPath: '',
+        mpvPlayerArguments: '',
         mpvReuseInstance: false,
         vlcPlayerPath: '',
+        vlcPlayerArguments: '',
         vlcReuseInstance: false,
         remoteControl: false,
         remoteControlPort: [
@@ -465,7 +467,21 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * the indexed db store
      */
     onSubmit(): void {
-        const settings = this.settingsForm.value;
+        const settings = {
+            ...this.settingsForm.value,
+            mpvPlayerPath: this.normalizeExternalPlayerPath(
+                this.settingsForm.value.mpvPlayerPath
+            ),
+            vlcPlayerPath: this.normalizeExternalPlayerPath(
+                this.settingsForm.value.vlcPlayerPath
+            ),
+            mpvPlayerArguments: this.normalizeExternalPlayerArguments(
+                this.settingsForm.value.mpvPlayerArguments
+            ),
+            vlcPlayerArguments: this.normalizeExternalPlayerArguments(
+                this.settingsForm.value.vlcPlayerArguments
+            ),
+        };
         const mpvPlayerPath = this.normalizeExternalPlayerPath(
             settings.mpvPlayerPath
         );
@@ -492,6 +508,18 @@ export class SettingsComponent implements OnInit, OnDestroy {
         playerPath: string | null | undefined
     ): string {
         return playerPath?.trim() ?? '';
+    }
+
+    private normalizeExternalPlayerArguments(
+        playerArguments: string | null | undefined
+    ): string {
+        return (
+            playerArguments
+                ?.split(/\r?\n/)
+                .map((argument) => argument.trim())
+                .filter(Boolean)
+                .join('\n') ?? ''
+        );
     }
 
     /**

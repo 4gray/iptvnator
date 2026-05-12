@@ -174,6 +174,38 @@
             </div>
         </div>
 
+        <div
+            class="setting-item setting-item--external-player-arguments"
+            data-test-id="mpv-player-arguments-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.MPV_PLAYER_ARGUMENTS_DESCRIPTION' | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label for="mpvPlayerArguments">{{
+                        'SETTINGS.MPV_PLAYER_ARGUMENTS' | translate
+                    }}</mat-label>
+                    <textarea
+                        matInput
+                        id="mpvPlayerArguments"
+                        formControlName="mpvPlayerArguments"
+                        rows="3"
+                        spellcheck="false"
+                        autocomplete="off"
+                    ></textarea>
+                    <mat-hint>{{
+                        'SETTINGS.EXTERNAL_PLAYER_ARGUMENTS_HINT' | translate
+                    }}</mat-hint>
+                </mat-form-field>
+            </div>
+        </div>
+
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_REUSE_INSTANCE_LABEL' | translate }}</h4>
@@ -206,6 +238,38 @@
                         id="vlcPlayerPath"
                         formControlName="vlcPlayerPath"
                     />
+                </mat-form-field>
+            </div>
+        </div>
+
+        <div
+            class="setting-item setting-item--external-player-arguments"
+            data-test-id="vlc-player-arguments-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.VLC_PLAYER_ARGUMENTS_DESCRIPTION' | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label for="vlcPlayerArguments">{{
+                        'SETTINGS.VLC_PLAYER_ARGUMENTS' | translate
+                    }}</mat-label>
+                    <textarea
+                        matInput
+                        id="vlcPlayerArguments"
+                        formControlName="vlcPlayerArguments"
+                        rows="3"
+                        spellcheck="false"
+                        autocomplete="off"
+                    ></textarea>
+                    <mat-hint>{{
+                        'SETTINGS.EXTERNAL_PLAYER_ARGUMENTS_HINT' | translate
+                    }}</mat-hint>
                 </mat-form-field>
             </div>
         </div>

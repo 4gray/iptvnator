@@ -226,6 +226,46 @@ describe('SettingsPlaybackSectionComponent', () => {
             )
         ).toBeNull();
     });
+
+    it('shows MPV command-line arguments only when MPV is selected', () => {
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-player-arguments-setting"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vlc-player-arguments-setting"]'
+            )
+        ).toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
+        );
+    });
+
+    it('shows VLC command-line arguments only when VLC is selected', () => {
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vlc-player-arguments-setting"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-player-arguments-setting"]'
+            )
+        ).toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
+        );
+    });
 });
 
 function createForm(player = VideoPlayer.VideoJs): FormGroup {
@@ -235,8 +275,10 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
         mpvPlayerPath: new FormControl(''),
+        mpvPlayerArguments: new FormControl(''),
         mpvReuseInstance: new FormControl(false),
         vlcPlayerPath: new FormControl(''),
+        vlcPlayerArguments: new FormControl(''),
         vlcReuseInstance: new FormControl(false),
         recordingFolder: new FormControl(''),
     });

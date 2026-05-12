@@ -76,8 +76,10 @@ const DEFAULT_SETTINGS = {
     showExternalPlaybackBar: true,
     theme: Theme.SystemTheme,
     mpvPlayerPath: '',
+    mpvPlayerArguments: '',
     mpvReuseInstance: false,
     vlcPlayerPath: '',
+    vlcPlayerArguments: '',
     vlcReuseInstance: false,
     remoteControl: false,
     remoteControlPort: 8765,
@@ -952,5 +954,32 @@ describe('SettingsComponent', () => {
 
         expect(setMpvPlayerPath).toHaveBeenCalledWith('');
         expect(setVlcPlayerPath).toHaveBeenCalledWith('');
+    });
+
+    it('saves external player command-line arguments with the settings payload', async () => {
+        const mockStore = settingsStore as unknown as MockSettingsStore;
+        mockStore.updateSettings.mockResolvedValue(undefined);
+        const updateSettings = jest.spyOn(window.electron, 'updateSettings');
+
+        component.settingsForm.patchValue({
+            mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
+            vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
+        });
+
+        component.onSubmit();
+        await fixture.whenStable();
+
+        expect(mockStore.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
+                vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
+            })
+        );
+        expect(updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                mpvPlayerArguments: '--screen=1\n--geometry=1280x720',
+                vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
+            })
+        );
     });
 });

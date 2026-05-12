@@ -37,8 +37,18 @@ export interface Settings {
     showExternalPlaybackBar?: boolean;
     theme: Theme;
     mpvPlayerPath: string;
+    /**
+     * Extra MPV CLI arguments entered one argument per line. Applied only when
+     * starting a new external MPV process.
+     */
+    mpvPlayerArguments?: string;
     mpvReuseInstance: boolean;
     vlcPlayerPath: string;
+    /**
+     * Extra VLC CLI arguments entered one argument per line. Applied only when
+     * starting a new external VLC process.
+     */
+    vlcPlayerArguments?: string;
     vlcReuseInstance: boolean;
     remoteControl: boolean;
     remoteControlPort: number;

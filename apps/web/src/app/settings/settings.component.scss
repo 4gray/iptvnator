@@ -211,6 +211,30 @@
     justify-content: stretch;
 }
 
+.setting-item--external-player-arguments {
+    grid-template-columns: 1fr;
+    gap: 10px;
+
+    .setting-item__control {
+        justify-content: stretch;
+        align-items: stretch;
+    }
+
+    mat-form-field {
+        width: 100%;
+    }
+
+    textarea {
+        min-height: 86px;
+        resize: vertical;
+        font-family:
+            'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
+            monospace;
+        font-size: 0.84rem;
+        line-height: 1.45;
+    }
+}
+
 .theme-switcher {
     width: min(100%, 540px);
     display: grid;
