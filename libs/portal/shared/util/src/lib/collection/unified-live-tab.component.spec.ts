@@ -564,6 +564,67 @@ describe('UnifiedLiveTabComponent', () => {
         expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
+    it('renders inline audio for Stalker radio items and skips external playback', async () => {
+        const item = {
+            ...buildLiveItem('stalker'),
+            name: 'Jazz Radio',
+            radio: 'true',
+        } satisfies UnifiedCollectionItem;
+        streamResolver.resolveLiveDetail.mockResolvedValue({
+            epgMode: 'portal',
+            playback: {
+                streamUrl: 'https://example.com/jazz.mp3',
+                title: 'Jazz Radio',
+                thumbnail: 'jazz.png',
+            },
+            channel: {
+                id: '40001',
+                name: 'Jazz Radio',
+                url: 'https://example.com/jazz.mp3',
+                group: { title: 'Radio' },
+                tvg: {
+                    id: '40001',
+                    name: 'Jazz Radio',
+                    url: '',
+                    logo: 'jazz.png',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'true',
+                epgParams: '',
+            },
+            epgItems: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(
+            fixture.nativeElement.querySelector('app-audio-player')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+
+        const audioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+        expect(audioPlayer.url()).toBe('https://example.com/jazz.mp3');
+        expect(audioPlayer.icon()).toBe('jazz.png');
+        expect(audioPlayer.channelName()).toBe('Jazz Radio');
+    });
+
     it('renders shared EPG view for Xtream items and records recent history', async () => {
         const item = buildLiveItem('xtream');
         streamResolver.resolveLiveDetail.mockResolvedValue({

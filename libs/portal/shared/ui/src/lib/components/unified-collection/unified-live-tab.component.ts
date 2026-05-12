@@ -128,6 +128,10 @@ export class UnifiedLiveTabComponent {
             return [];
         }
 
+        if (detail.channel?.radio === 'true') {
+            return [];
+        }
+
         return detail.epgPrograms ?? [];
     });
     readonly currentM3uChannel = computed(() => {
@@ -142,7 +146,7 @@ export class UnifiedLiveTabComponent {
         isM3uCatchupPlaybackSupported(this.currentM3uChannel())
     );
     readonly activeRadioChannel = computed(() => {
-        const channel = this.currentM3uChannel();
+        const channel = this.activeDetail()?.channel ?? null;
         return channel?.radio === 'true' ? channel : null;
     });
     readonly isRadioSelection = computed(
@@ -412,19 +416,20 @@ export class UnifiedLiveTabComponent {
         detail: ResolvedLiveCollectionDetail,
         startPlayback = false
     ): boolean {
-        if (this.isRadioDetail(detail) || this.portalPlayer.isEmbeddedPlayer()) {
+        if (
+            this.isRadioDetail(detail) ||
+            this.portalPlayer.isEmbeddedPlayer()
+        ) {
             return false;
         }
 
-        return (
-            !this.settingsStore.openStreamOnDoubleClick() || startPlayback
-        );
+        return !this.settingsStore.openStreamOnDoubleClick() || startPlayback;
     }
 
     private isRadioDetail(
         detail: ResolvedLiveCollectionDetail | null | undefined
     ): boolean {
-        return detail?.epgMode === 'm3u' && detail.channel?.radio === 'true';
+        return detail?.channel?.radio === 'true';
     }
 
     private async hydrateSelectedM3uPrograms(
@@ -433,6 +438,10 @@ export class UnifiedLiveTabComponent {
         requestId: number
     ): Promise<void> {
         if (detail.epgMode !== 'm3u') {
+            return;
+        }
+
+        if (detail.channel?.radio === 'true') {
             return;
         }
 

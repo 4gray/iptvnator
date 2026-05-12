@@ -118,6 +118,10 @@ The Stalker live route and radio route intentionally share
   radio stations do not have EPG data.
 - Radio always uses the inline audio player. External player settings are
   ignored for Stalker radio, matching M3U radio behavior.
+- Radio stations opened from favorites or recently viewed remain live
+  collection items with `radio: 'true'`; the shared collection resolver uses
+  `create_link` with `type=radio`, skips EPG loading, and renders the same
+  `AudioPlayerComponent` layout instead of the Stalker VOD detail layout.
 - Some Stalker portals do not expose radio categories. Radio category loading
   falls back to a synthetic `PORTALS.ALL_RADIO` category with
   `category_id: '*'` so the station list can still be loaded.
@@ -170,6 +174,9 @@ Navigation rule to preserve:
 
 - Stalker favorites, recently viewed, and search stay in their current screen and open inline detail state.
 - They should not redirect into a canonical content/category/item route because Stalker detail rendering is currently store-state/inline driven, not route driven.
+- Stalker radio favorites/recent items are the exception to VOD/series inline
+  detail opening: they are normalized as live items and must open through the
+  shared live collection audio-player path.
 - VOD-backed series favorites can be displayed in series collections, but detail
   opening must preserve their VOD origin: `is_series=1` favorites set the
   selected content type to `vod` so the lazy Ministra season/episode resources

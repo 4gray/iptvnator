@@ -118,10 +118,7 @@ describe('UnifiedFavoritesDataService', () => {
                     {
                         _id: 'm3u-1',
                         title: 'M3U List',
-                        favorites: [
-                            'https://example.com/2.m3u8',
-                            'channel-1',
-                        ],
+                        favorites: ['https://example.com/2.m3u8', 'channel-1'],
                     },
                     {
                         _id: 'stalker-1',
@@ -230,10 +227,7 @@ describe('UnifiedFavoritesDataService', () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'm3u-1',
-                favorites: [
-                    'https://example.com/2.m3u8',
-                    'channel-1',
-                ],
+                favorites: ['https://example.com/2.m3u8', 'channel-1'],
                 playlist: {
                     items: m3uChannels,
                 },
@@ -250,6 +244,47 @@ describe('UnifiedFavoritesDataService', () => {
         expect(items[0].radio).toBe('true');
         expect(items[0].m3uChannel).toBe(m3uChannels[1]);
         expect(items[1].m3uChannel).toBe(m3uChannels[0]);
+    });
+
+    it('keeps Stalker radio favorites in the live collection with radio metadata', async () => {
+        const radioFavorite = {
+            id: '40001',
+            title: 'Jazz Radio',
+            name: 'Jazz Radio',
+            category_id: 'radio-genre-1',
+            cmd: 'ffrt4://radio/40001/index.mp3',
+            logo: 'jazz.png',
+            radio: true,
+            added_at: '2026-03-26T12:00:00.000Z',
+        } satisfies StalkerPortalItem;
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                title: 'Stalker List',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                favorites: [radioFavorite],
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getFavorites(
+            'playlist',
+            'stalker-1',
+            'stalker'
+        );
+
+        expect(items).toEqual([
+            expect.objectContaining({
+                uid: 'stalker::stalker-1::40001',
+                name: 'Jazz Radio',
+                contentType: 'live',
+                logo: 'jazz.png',
+                posterUrl: null,
+                radio: 'true',
+                stalkerCmd: 'ffrt4://radio/40001/index.mp3',
+                categoryId: 'radio-genre-1',
+            }),
+        ]);
     });
 
     it('persists M3U playlist reorders through setFavorites', async () => {

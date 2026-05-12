@@ -1,4 +1,28 @@
-import { normalizeStalkerDate } from './stalker-item.normalizer';
+import {
+    extractStalkerItemType,
+    normalizeStalkerDate,
+} from './stalker-item.normalizer';
+
+describe('extractStalkerItemType', () => {
+    it('treats Stalker radio stations as live collection items', () => {
+        expect(
+            extractStalkerItemType({
+                id: '40001',
+                title: 'Jazz Radio',
+                category_id: 'radio',
+                radio: true,
+            })
+        ).toBe('live');
+        expect(
+            extractStalkerItemType({
+                id: '40002',
+                title: 'Rock Radio',
+                category_id: 'radio-genre-1',
+                radio: 'true',
+            })
+        ).toBe('live');
+    });
+});
 
 describe('normalizeStalkerDate', () => {
     it('normalizes SQLite UTC timestamps without relying on engine-specific parsing', () => {

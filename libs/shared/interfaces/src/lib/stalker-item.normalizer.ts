@@ -49,7 +49,7 @@ export function extractStalkerItemPoster(
 /**
  * Determine the normalised activity type of a Stalker item.
  *
- * - `itv` / `live` → `'live'`
+ * - `itv` / `live` / radio → `'live'`
  * - `series` or `is_series` truthy → `'series'`
  * - everything else → `'movie'`
  */
@@ -60,7 +60,11 @@ export function extractStalkerItemType(
     const categoryId = String(raw['category_id'] ?? '').toLowerCase();
     const streamType = String(raw['stream_type'] ?? '').toLowerCase();
 
-    if (categoryId === 'itv' || streamType === 'live') {
+    if (
+        categoryId === 'itv' ||
+        streamType === 'live' ||
+        isStalkerRadioItem(raw)
+    ) {
         return 'live';
     }
 
@@ -74,6 +78,40 @@ export function extractStalkerItemType(
     }
 
     return 'movie';
+}
+
+/**
+ * Detect radio station records from Stalker favorites/recently-viewed payloads.
+ */
+export function isStalkerRadioItem(
+    item: StalkerPortalItem | Record<string, unknown>
+): boolean {
+    const raw = item as Record<string, unknown>;
+    const radio = raw['radio'];
+    const radioFlag =
+        radio === true ||
+        radio === 1 ||
+        String(radio ?? '')
+            .trim()
+            .toLowerCase() === 'true' ||
+        String(radio ?? '').trim() === '1';
+    const categoryId = String(raw['category_id'] ?? '')
+        .trim()
+        .toLowerCase();
+    const streamType = String(raw['stream_type'] ?? '')
+        .trim()
+        .toLowerCase();
+    const cmd = String(raw['cmd'] ?? '')
+        .trim()
+        .toLowerCase();
+
+    return (
+        radioFlag ||
+        categoryId === 'radio' ||
+        streamType === 'radio' ||
+        cmd.includes('://radio/') ||
+        cmd.includes('/radio/')
+    );
 }
 
 /**
@@ -131,16 +169,8 @@ function normalizeSqliteUtcTimestamp(value: string): string | null {
         return null;
     }
 
-    const [
-        ,
-        year,
-        month,
-        day,
-        hours,
-        minutes,
-        seconds,
-        milliseconds = '0',
-    ] = match;
+    const [, year, month, day, hours, minutes, seconds, milliseconds = '0'] =
+        match;
 
     const normalizedMs = milliseconds.padEnd(3, '0').slice(0, 3);
     return new Date(

@@ -1,9 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import {
-    PlaylistActions,
-    selectAllPlaylistsMeta,
-} from 'm3u-state';
+import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
 import { firstValueFrom, map } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
 import {
@@ -12,6 +9,7 @@ import {
     extractStalkerItemPoster,
     extractStalkerItemTitle,
     extractStalkerItemType,
+    isStalkerRadioItem,
     isM3uRecentlyViewedItem,
     M3uRecentlyViewedItem,
     normalizeStalkerDate,
@@ -57,7 +55,10 @@ export class UnifiedRecentDataService {
                 return;
             }
 
-            await this.dbService.removeRecentItem(item.contentId, item.playlistId);
+            await this.dbService.removeRecentItem(
+                item.contentId,
+                item.playlistId
+            );
             return;
         }
 
@@ -167,7 +168,10 @@ export class UnifiedRecentDataService {
 
         await Promise.all(
             playlists
-                .filter((playlist) => Boolean(playlist.macAddress) || !playlist.serverUrl)
+                .filter(
+                    (playlist) =>
+                        Boolean(playlist.macAddress) || !playlist.serverUrl
+                )
                 .map(async (playlist) => {
                     const updatedPlaylist = await firstValueFrom(
                         this.playlistsService.clearPlaylistRecentlyViewed(
@@ -319,7 +323,8 @@ export class UnifiedRecentDataService {
                 playlistId: row.playlist_id,
                 playlistName: row.playlist_name ?? 'Xtream',
                 logo: row.type === 'live' ? (row.poster_url ?? null) : null,
-                posterUrl: row.type !== 'live' ? (row.poster_url ?? null) : null,
+                posterUrl:
+                    row.type !== 'live' ? (row.poster_url ?? null) : null,
                 xtreamId: row.xtream_id,
                 categoryId: row.category_id,
                 tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
@@ -350,7 +355,8 @@ export class UnifiedRecentDataService {
                 playlistId,
                 playlistName: meta?.title || 'Xtream',
                 logo: row.type === 'live' ? (row.poster_url ?? null) : null,
-                posterUrl: row.type !== 'live' ? (row.poster_url ?? null) : null,
+                posterUrl:
+                    row.type !== 'live' ? (row.poster_url ?? null) : null,
                 xtreamId: row.xtream_id,
                 categoryId: row.category_id,
                 tvgId: row.type === 'live' ? String(row.xtream_id) : undefined,
@@ -366,7 +372,9 @@ export class UnifiedRecentDataService {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
 
-        for (const meta of allMeta.filter((playlist) => this.isM3uPlaylist(playlist))) {
+        for (const meta of allMeta.filter((playlist) =>
+            this.isM3uPlaylist(playlist)
+        )) {
             results.push(...(await this.extractM3uRecent(meta)));
         }
 
@@ -384,7 +392,9 @@ export class UnifiedRecentDataService {
         const allMeta = await this.getAllMeta();
         const results: UnifiedCollectionItem[] = [];
 
-        for (const meta of allMeta.filter((playlist) => Boolean(playlist.macAddress))) {
+        for (const meta of allMeta.filter((playlist) =>
+            Boolean(playlist.macAddress)
+        )) {
             results.push(...(await this.extractStalkerRecent(meta)));
         }
 
@@ -504,6 +514,7 @@ export class UnifiedRecentDataService {
         return recentItems.map((item, index) => {
             const stalkerId = extractStalkerItemId(item, meta._id, index);
             const contentType = extractStalkerItemType(item);
+            const isRadio = isStalkerRadioItem(item);
             const imageUrl = extractStalkerItemPoster(item) || null;
 
             return {
@@ -516,6 +527,7 @@ export class UnifiedRecentDataService {
                 logo: contentType === 'live' ? imageUrl : null,
                 posterUrl: contentType !== 'live' ? imageUrl : null,
                 tvgId: contentType === 'live' ? stalkerId : undefined,
+                radio: isRadio ? 'true' : undefined,
                 stalkerId,
                 stalkerCmd: item.cmd,
                 stalkerPortalUrl: playlist?.portalUrl ?? playlist?.url,
@@ -530,7 +542,9 @@ export class UnifiedRecentDataService {
     private async getPlaylistMeta(
         id: string
     ): Promise<PlaylistMeta | undefined> {
-        return (await this.getAllMeta()).find((playlist) => playlist._id === id);
+        return (await this.getAllMeta()).find(
+            (playlist) => playlist._id === id
+        );
     }
 
     private async getAllMeta(): Promise<PlaylistMeta[]> {

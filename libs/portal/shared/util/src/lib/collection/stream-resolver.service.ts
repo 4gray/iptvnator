@@ -146,6 +146,10 @@ export class StreamResolverService {
                 continue;
             }
 
+            if (item.radio === 'true') {
+                continue;
+            }
+
             if (item.sourceType === 'xtream') {
                 const list = xtreamByPlaylist.get(item.playlistId) ?? [];
                 list.push(item);
@@ -212,6 +216,15 @@ export class StreamResolverService {
         item: UnifiedCollectionItem
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveStalker(item);
+        if (item.radio === 'true') {
+            return {
+                playback,
+                epgMode: 'portal',
+                channel: this.buildStalkerRadioChannel(item, playback),
+                epgItems: [],
+            };
+        }
+
         const epgItems = await this.withFallbackTimeout(
             this.loadStalkerEpgItems(item, 10),
             this.portalEpgTimeoutMs,
@@ -282,10 +295,11 @@ export class StreamResolverService {
         const portalUrl =
             item.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
         const macAddress = item.stalkerMacAddress ?? playlist?.macAddress ?? '';
+        const contentType = item.radio === 'true' ? 'radio' : 'itv';
         const params = {
             action: StalkerPortalActions.CreateLink,
             cmd: item.stalkerCmd ?? '',
-            type: 'itv' as const,
+            type: contentType,
             disable_ad: '0',
             download: '0',
             JsHttpRequest: '1-xml',
@@ -311,7 +325,37 @@ export class StreamResolverService {
             streamUrl: this.normalizeStalkerCmd(rawCmd),
             title: item.name,
             thumbnail: item.logo ?? null,
-            isLive: true,
+            isLive: item.radio === 'true' ? undefined : true,
+        };
+    }
+
+    private buildStalkerRadioChannel(
+        item: UnifiedCollectionItem,
+        playback: ResolvedPortalPlayback
+    ): Channel {
+        const channelId = String(
+            item.stalkerId ?? item.tvgId ?? item.uid.split('::')[2] ?? ''
+        );
+
+        return {
+            id: channelId,
+            name: item.name,
+            url: playback.streamUrl,
+            tvg: {
+                id: item.tvgId ?? channelId,
+                name: item.name,
+                url: '',
+                logo: item.logo ?? playback.thumbnail ?? '',
+                rec: '',
+            },
+            group: { title: '' },
+            http: {
+                referrer: playback.referer ?? '',
+                'user-agent': playback.userAgent ?? '',
+                origin: playback.origin ?? '',
+            },
+            radio: 'true',
+            epgParams: '',
         };
     }
 

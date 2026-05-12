@@ -112,12 +112,18 @@ describe('UnifiedRecentDataService', () => {
                     ],
                 })
             ),
-            removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(of({ recentlyViewed: [] })),
-            removeFromPortalRecentlyViewed: jest.fn().mockReturnValue(of({ recentlyViewed: [] })),
+            removeFromM3uRecentlyViewed: jest
+                .fn()
+                .mockReturnValue(of({ recentlyViewed: [] })),
+            removeFromPortalRecentlyViewed: jest
+                .fn()
+                .mockReturnValue(of({ recentlyViewed: [] })),
             removeFromPlaylistRecentlyViewedBatch: jest
                 .fn()
                 .mockReturnValue(of({ recentlyViewed: [] })),
-            clearPlaylistRecentlyViewed: jest.fn().mockReturnValue(of({ recentlyViewed: [] })),
+            clearPlaylistRecentlyViewed: jest
+                .fn()
+                .mockReturnValue(of({ recentlyViewed: [] })),
             getAllPlaylists: jest.fn().mockReturnValue(of([])),
         };
         dbService = {
@@ -260,7 +266,11 @@ describe('UnifiedRecentDataService', () => {
             },
         ]);
 
-        const items = await service.getRecentItems('playlist', 'xtream-1', 'xtream');
+        const items = await service.getRecentItems(
+            'playlist',
+            'xtream-1',
+            'xtream'
+        );
 
         expect(items).toEqual(
             expect.arrayContaining([
@@ -276,6 +286,57 @@ describe('UnifiedRecentDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('keeps Stalker radio recent items in the live collection with radio metadata', async () => {
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    macAddress: '00:11:22:33:44:55',
+                    recentlyViewed: [
+                        {
+                            id: '40001',
+                            title: 'Jazz Radio',
+                            name: 'Jazz Radio',
+                            category_id: 'radio-genre-1',
+                            cmd: 'ffrt4://radio/40001/index.mp3',
+                            logo: 'jazz.png',
+                            radio: true,
+                            added_at: '2026-03-26T12:00:00.000Z',
+                        },
+                    ],
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                title: 'Stalker Portal',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+            } satisfies Partial<Playlist>)
+        );
+
+        const items = await service.getRecentItems(
+            'playlist',
+            'stalker-1',
+            'stalker'
+        );
+
+        expect(items).toEqual([
+            expect.objectContaining({
+                uid: 'stalker::stalker-1::40001',
+                name: 'Jazz Radio',
+                contentType: 'live',
+                logo: 'jazz.png',
+                posterUrl: null,
+                radio: 'true',
+                stalkerCmd: 'ffrt4://radio/40001/index.mp3',
+                categoryId: 'radio-genre-1',
+            }),
+        ]);
     });
 
     it('coalesces multiple M3U items from one playlist into a single batched removal', async () => {
@@ -311,7 +372,9 @@ describe('UnifiedRecentDataService', () => {
             'https://example.com/1.m3u8',
             'https://example.com/2.m3u8',
         ]);
-        expect(playlistsService.removeFromM3uRecentlyViewed).not.toHaveBeenCalled();
+        expect(
+            playlistsService.removeFromM3uRecentlyViewed
+        ).not.toHaveBeenCalled();
         expect(store.dispatch).toHaveBeenCalledTimes(1);
     });
 
