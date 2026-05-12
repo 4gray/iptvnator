@@ -295,6 +295,18 @@ export class StreamResolverService {
         const portalUrl =
             item.stalkerPortalUrl ?? playlist?.portalUrl ?? playlist?.url ?? '';
         const macAddress = item.stalkerMacAddress ?? playlist?.macAddress ?? '';
+        const normalizedCmd = this.normalizeStalkerCmd(item.stalkerCmd ?? '');
+        if (item.radio === 'true' && this.isHttpUrl(normalizedCmd)) {
+            return {
+                streamUrl: normalizedCmd,
+                title: item.name,
+                thumbnail: item.logo ?? null,
+                userAgent: playlist?.userAgent,
+                referer: playlist?.referrer,
+                origin: playlist?.origin,
+            };
+        }
+
         const contentType = item.radio === 'true' ? 'radio' : 'itv';
         const params = {
             action: StalkerPortalActions.CreateLink,
@@ -869,5 +881,9 @@ export class StreamResolverService {
         }
 
         return trimmed;
+    }
+
+    private isHttpUrl(value: string): boolean {
+        return value.startsWith('http://') || value.startsWith('https://');
     }
 }

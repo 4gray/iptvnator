@@ -1,5 +1,6 @@
 import {
     extractStalkerItemType,
+    isStalkerRadioItem,
     normalizeStalkerDate,
 } from './stalker-item.normalizer';
 
@@ -21,6 +22,18 @@ describe('extractStalkerItemType', () => {
                 radio: 'true',
             })
         ).toBe('live');
+    });
+});
+
+describe('isStalkerRadioItem', () => {
+    it('does not infer radio from a generic HTTP path segment', () => {
+        expect(
+            isStalkerRadioItem({
+                id: '77',
+                title: 'News Channel',
+                cmd: 'https://media.example.com/live/radio/news/index.m3u8',
+            })
+        ).toBe(false);
     });
 });
 

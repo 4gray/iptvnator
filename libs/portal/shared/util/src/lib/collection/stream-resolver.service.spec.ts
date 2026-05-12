@@ -502,4 +502,59 @@ describe('StreamResolverService', () => {
             })
         );
     });
+
+    it('uses direct Stalker radio HTTP commands without create_link', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'stalker-1',
+                portalUrl: 'https://stalker.example.com/portal.php',
+                macAddress: '00:11:22:33:44:55',
+                isFullStalkerPortal: false,
+                userAgent: 'IPTVnator',
+                referrer: 'https://ref.example.com',
+                origin: 'https://origin.example.com',
+            } satisfies Partial<Playlist>)
+        );
+
+        const detail = await service.resolveLiveDetail({
+            uid: 'stalker::stalker-1::40002',
+            name: 'Direct Radio',
+            contentType: 'live',
+            sourceType: 'stalker',
+            playlistId: 'stalker-1',
+            playlistName: 'Stalker',
+            stalkerId: '40002',
+            stalkerCmd: 'ffmpeg https://media.example.com/direct-radio.mp3',
+            logo: 'direct-radio.png',
+            radio: 'true',
+        } satisfies UnifiedCollectionItem);
+
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(stalkerSession.makeAuthenticatedRequest).not.toHaveBeenCalled();
+        expect(detail).toEqual(
+            expect.objectContaining({
+                epgMode: 'portal',
+                epgItems: [],
+                channel: expect.objectContaining({
+                    id: '40002',
+                    name: 'Direct Radio',
+                    radio: 'true',
+                    url: 'https://media.example.com/direct-radio.mp3',
+                    http: expect.objectContaining({
+                        referrer: 'https://ref.example.com',
+                        'user-agent': 'IPTVnator',
+                        origin: 'https://origin.example.com',
+                    }),
+                }),
+                playback: expect.objectContaining({
+                    streamUrl: 'https://media.example.com/direct-radio.mp3',
+                    title: 'Direct Radio',
+                    thumbnail: 'direct-radio.png',
+                    userAgent: 'IPTVnator',
+                    referer: 'https://ref.example.com',
+                    origin: 'https://origin.example.com',
+                }),
+            })
+        );
+    });
 });

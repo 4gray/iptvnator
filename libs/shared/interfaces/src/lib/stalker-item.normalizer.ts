@@ -109,8 +109,7 @@ export function isStalkerRadioItem(
         radioFlag ||
         categoryId === 'radio' ||
         streamType === 'radio' ||
-        cmd.includes('://radio/') ||
-        cmd.includes('/radio/')
+        cmd.includes('://radio/')
     );
 }
 
