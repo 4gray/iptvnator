@@ -25,6 +25,7 @@ interface StalkerVodPlaybackControllerConfig {
 
 export class StalkerVodPlaybackController {
     private lastInlineSaveTime = 0;
+    private loadSelectedVodPositionRequestId = 0;
 
     constructor(private readonly config: StalkerVodPlaybackControllerConfig) {}
 
@@ -65,6 +66,8 @@ export class StalkerVodPlaybackController {
         playlistId: string,
         vodId: number
     ): Promise<void> {
+        const requestId = ++this.loadSelectedVodPositionRequestId;
+
         if (!playlistId || !Number.isFinite(vodId)) {
             this.config.selectedVodPosition.set(null);
             return;
@@ -76,6 +79,10 @@ export class StalkerVodPlaybackController {
                 vodId,
                 'vod'
             );
+        if (requestId !== this.loadSelectedVodPositionRequestId) {
+            return;
+        }
+
         this.config.selectedVodPosition.set(position ?? null);
     }
 
