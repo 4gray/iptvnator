@@ -159,6 +159,24 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
     });
 
+    it('hides MPV path guidance and the IINA executable tip outside desktop builds', () => {
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
+        fixture.componentRef.setInput('isDesktop', false);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).not.toContain(
+            MPV_PATH_DESCRIPTION
+        );
+        expect(fixture.nativeElement.textContent).not.toContain(
+            MPV_COMPATIBLE_PLAYER_TIP
+        );
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-compatible-player-tip"]'
+            )
+        ).toBeNull();
+    });
+
     it('shows VLC bundle guidance without the IINA tip for desktop VLC playback', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
         fixture.componentRef.setInput('isDesktop', true);
@@ -175,6 +193,21 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).not.toContain(
             MPV_COMPATIBLE_PLAYER_TIP
         );
+    });
+
+    it('hides VLC path guidance outside desktop builds', () => {
+        fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
+        fixture.componentRef.setInput('isDesktop', false);
+        fixture.detectChanges();
+
+        expect(fixture.nativeElement.textContent).not.toContain(
+            VLC_PATH_DESCRIPTION
+        );
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="mpv-compatible-player-tip"]'
+            )
+        ).toBeNull();
     });
 
     it('does not show external-player path guidance for embedded players', () => {

@@ -24,7 +24,7 @@ The application is a cross-platform, open-source project built with Electron and
 - M3u and M3u8 playlist support 📺
 - Radio playlist support with dedicated audio player 📻
 - Xtream Code (XC) and Stalker portal (STB) support
-- External player support - MPV and VLC; macOS accepts `mpv.app` / `VLC.app` bundle paths, while IINA can be launched through its executable path
+- External player support - MPV and VLC; macOS accepts `mpv.app` / `VLC.app` bundle paths. IINA can be launched via its executable path on macOS (best-effort: controls and position polling are MPV IPC only)
 - Add playlists from the file system or remote URLs 📂
 - Automatic playlist updates on application startup
 - Channel search functionality 🔍

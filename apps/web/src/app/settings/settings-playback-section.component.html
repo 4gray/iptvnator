@@ -148,7 +148,7 @@
         </div>
     }
 
-    @if (form().value.player === 'mpv') {
+    @if (isDesktop() && form().value.player === 'mpv') {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
@@ -187,7 +187,7 @@
         </div>
     }
 
-    @if (form().value.player === 'vlc') {
+    @if (isDesktop() && form().value.player === 'vlc') {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>
