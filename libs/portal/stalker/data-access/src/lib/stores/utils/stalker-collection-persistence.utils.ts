@@ -27,7 +27,6 @@ export function getStalkerSeriesRecentMetadata(
     selectedContentType: StalkerContentType
 ): {
     category_id?: 'series';
-    is_series?: true;
 } {
     if (selectedContentType !== 'series') {
         return {};
@@ -35,7 +34,6 @@ export function getStalkerSeriesRecentMetadata(
 
     return {
         category_id: 'series',
-        is_series: true,
     };
 }
 

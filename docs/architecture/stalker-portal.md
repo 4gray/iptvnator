@@ -144,9 +144,11 @@ Stalker has multiple real-world data shapes. The current implementation supports
 - The series quick-start CTA can load the first unloaded VOD-series season
   before playback. Unloaded seasons are considered unplayed in full season
   order, so an earlier unloaded season is not skipped just because a later
-  season was loaded manually. After a lazy load, quick start is recomputed from
-  the mapped episodes before playback so provider episode ordering cannot start
-  the wrong episode.
+  season was loaded manually. If all currently loaded episodes are watched and
+  more season metadata exists, quick start loads the next unloaded season
+  instead of showing the completed state. After a lazy load, quick start is
+  recomputed from the mapped episodes before playback so provider episode
+  ordering cannot start the wrong episode.
 - For unloaded VOD-series seasons, the CTA target label is derived from season
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Uses unique generated tracking IDs for episode playback position compatibility.

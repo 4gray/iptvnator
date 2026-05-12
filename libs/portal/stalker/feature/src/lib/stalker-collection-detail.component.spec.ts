@@ -1,10 +1,22 @@
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslateService } from '@ngx-translate/core';
 import { ContentHeroComponent } from 'components';
-import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import {
+    PORTAL_EXTERNAL_PLAYBACK,
+    PORTAL_PLAYBACK_POSITIONS,
+    PORTAL_PLAYER,
+    UnifiedCollectionItem,
+} from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from 'services';
-import { Playlist } from 'shared-interfaces';
+import {
+    Playlist,
+    ResolvedPortalPlayback,
+    VodDetailsItem,
+    createStalkerVodItem,
+} from 'shared-interfaces';
 import { of } from 'rxjs';
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
@@ -27,11 +39,19 @@ class StubStalkerInlineDetailComponent {
     readonly categoryId = input<'vod' | 'series' | null>(null);
     readonly seriesItem = input<unknown>(null);
     readonly isSeries = input(false);
-    readonly vodDetailsItem = input<unknown>(null);
+    readonly vodDetailsItem = input<VodDetailsItem | null>(null);
     readonly isFavorite = input(false);
+    readonly playbackPosition = input<number | null>(null);
+    readonly inlinePlayback = input<ResolvedPortalPlayback | null>(null);
+    readonly externalPlayback = input<unknown>(null);
     readonly backClicked = output<void>();
-    readonly playClicked = output<unknown>();
+    readonly playClicked = output<VodDetailsItem>();
+    readonly resumeClicked = output<unknown>();
     readonly favoriteToggled = output<unknown>();
+    readonly inlineTimeUpdated = output<unknown>();
+    readonly inlinePlaybackClosed = output<void>();
+    readonly streamUrlCopied = output<void>();
+    readonly inlineExternalFallbackRequested = output<unknown>();
 }
 
 describe('StalkerCollectionDetailComponent', () => {
@@ -54,6 +74,19 @@ describe('StalkerCollectionDetailComponent', () => {
         addToFavorites: jest.Mock;
         removeFromFavorites: jest.Mock;
         createLinkToPlayVod: jest.Mock;
+        resolveVodPlayback: jest.Mock;
+    };
+    let portalPlayer: {
+        isEmbeddedPlayer: jest.Mock;
+        openResolvedPlayback: jest.Mock;
+        openExternalPlayback: jest.Mock;
+    };
+    let playbackPositions: {
+        savePlaybackPosition: jest.Mock;
+        getPlaybackPosition: jest.Mock;
+        getSeriesPlaybackPositions: jest.Mock;
+        getAllPlaybackPositions: jest.Mock;
+        clearPlaybackPosition: jest.Mock;
     };
 
     const playlist = {
@@ -91,6 +124,19 @@ describe('StalkerCollectionDetailComponent', () => {
             addToFavorites: jest.fn(),
             removeFromFavorites: jest.fn(),
             createLinkToPlayVod: jest.fn(),
+            resolveVodPlayback: jest.fn(),
+        };
+        portalPlayer = {
+            isEmbeddedPlayer: jest.fn(() => true),
+            openResolvedPlayback: jest.fn(),
+            openExternalPlayback: jest.fn(),
+        };
+        playbackPositions = {
+            savePlaybackPosition: jest.fn(),
+            getPlaybackPosition: jest.fn(async () => null),
+            getSeriesPlaybackPositions: jest.fn(),
+            getAllPlaybackPositions: jest.fn(),
+            clearPlaybackPosition: jest.fn(),
         };
 
         await TestBed.configureTestingModule({
@@ -99,6 +145,40 @@ describe('StalkerCollectionDetailComponent', () => {
                 {
                     provide: StalkerStore,
                     useValue: stalkerStore,
+                },
+                {
+                    provide: PORTAL_PLAYER,
+                    useValue: portalPlayer,
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: playbackPositions,
+                },
+                {
+                    provide: PORTAL_EXTERNAL_PLAYBACK,
+                    useValue: {
+                        activeSession: signal(null),
+                        visibleSession: signal(null),
+                        dismissActiveSession: jest.fn(),
+                        closeSession: jest.fn(),
+                    },
+                },
+                {
+                    provide: MatSnackBar,
+                    useValue: {
+                        open: jest.fn(),
+                    },
+                },
+                {
+                    provide: TranslateService,
+                    useValue: {
+                        instant: (key: string) => key,
+                        get: (key: string) => of(key),
+                        stream: (key: string) => of(key),
+                        onLangChange: of(null),
+                        onTranslationChange: of(null),
+                        onDefaultLangChange: of(null),
+                    },
                 },
                 {
                     provide: PlaylistsService,
@@ -111,7 +191,10 @@ describe('StalkerCollectionDetailComponent', () => {
         })
             .overrideComponent(StalkerCollectionDetailComponent, {
                 remove: {
-                    imports: [ContentHeroComponent, StalkerInlineDetailComponent],
+                    imports: [
+                        ContentHeroComponent,
+                        StalkerInlineDetailComponent,
+                    ],
                 },
                 add: {
                     imports: [
@@ -150,7 +233,9 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(stalkerStore.setSelectedContentType).toHaveBeenLastCalledWith(
             'vod'
         );
-        expect(stalkerStore.setSelectedCategory).toHaveBeenLastCalledWith('vod');
+        expect(stalkerStore.setSelectedCategory).toHaveBeenLastCalledWith(
+            'vod'
+        );
         expect(stalkerStore.setSelectedItem).toHaveBeenLastCalledWith(
             expect.objectContaining({
                 id: '1507',
@@ -226,6 +311,83 @@ describe('StalkerCollectionDetailComponent', () => {
         expect(
             fixture.componentInstance.inlineDetail().seriesItem?.series
         ).toEqual([1, 2]);
+    });
+
+    it('plays regular VOD collection details inline for embedded players instead of using the legacy play wrapper', async () => {
+        const sourceItem = {
+            id: '1701',
+            title: 'Collection Movie',
+            category_id: 'vod',
+            cmd: '/media/file_1701.mpg',
+            info: {
+                name: 'Collection Movie',
+                movie_image: 'movie.jpg',
+            },
+        };
+        const playback: ResolvedPortalPlayback = {
+            streamUrl: 'https://streams.example.test/movie.mp4',
+            title: 'Collection Movie',
+            thumbnail: 'movie.jpg',
+        };
+        stalkerStore.resolveVodPlayback.mockResolvedValue(playback);
+
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: sourceItem,
+            })
+        );
+
+        await settleDetail(fixture);
+
+        fixture.componentInstance.onVodPlay(
+            createStalkerVodItem(sourceItem, playlist._id)
+        );
+        await settleDetail(fixture);
+
+        expect(stalkerStore.resolveVodPlayback).toHaveBeenCalledWith(
+            '/media/file_1701.mpg',
+            'Collection Movie',
+            'movie.jpg'
+        );
+        expect(stalkerStore.createLinkToPlayVod).not.toHaveBeenCalled();
+        expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.inlinePlayback()).toEqual(playback);
+    });
+
+    it('does not load VOD playback position when the playlist id is missing', async () => {
+        const playlistsService = TestBed.inject(PlaylistsService) as {
+            getPlaylistById: jest.Mock;
+        };
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                ...playlist,
+                _id: '',
+            })
+        );
+
+        fixture.componentRef.setInput(
+            'item',
+            buildCollectionItem({
+                contentType: 'movie',
+                categoryId: 'vod',
+                stalkerItem: {
+                    id: '1702',
+                    title: 'Collection Movie Without Playlist',
+                    category_id: 'vod',
+                    cmd: '/media/file_1702.mpg',
+                },
+            })
+        );
+
+        await settleDetail(fixture);
+
+        expect(playbackPositions.getPlaybackPosition).not.toHaveBeenCalled();
+        expect(fixture.componentInstance.selectedVodPlaybackPosition()).toBe(
+            null
+        );
     });
 });
 

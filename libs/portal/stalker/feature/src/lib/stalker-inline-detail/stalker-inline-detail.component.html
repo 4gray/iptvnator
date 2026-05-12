@@ -13,10 +13,19 @@
         <app-vod-details
             [item]="vodDetailsItem()"
             [isFavorite]="isFavorite()"
-            [externalPlayback]="externalPlayback.activeSession()"
+            [playbackPosition]="playbackPosition()"
+            [inlinePlayback]="inlinePlayback()"
+            [externalPlayback]="externalPlayback()"
             (playClicked)="onPlayClicked($event)"
+            (resumeClicked)="onResumeClicked($event)"
             (favoriteToggled)="onFavoriteToggled($event)"
             (backClicked)="onBackClicked()"
+            (inlineTimeUpdated)="onInlineTimeUpdated($event)"
+            (inlinePlaybackClosed)="onInlinePlaybackClosed()"
+            (streamUrlCopied)="onStreamUrlCopied()"
+            (inlineExternalFallbackRequested)="
+                onInlineExternalFallbackRequested($event)
+            "
         />
     }
 } @else if (categoryId() === 'series') {

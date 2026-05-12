@@ -202,6 +202,49 @@ describe('withStalkerPlayer', () => {
         });
     });
 
+    it('persists regular series recent metadata without marking it as a VOD series', async () => {
+        store.setSelectedContentType('series');
+        store.setSelectedItem({
+            id: '30000',
+            cmd: '',
+            title: 'Regular Series',
+            category_id: 'series',
+        });
+        dataService.sendIpcEvent.mockResolvedValueOnce({
+            js: {
+                cmd: 'ffmpeg http://cdn.example/episode_30000_1.mpg',
+            },
+        });
+
+        const playback = await store.resolveVodPlayback(
+            'ffrt4://series/30000/season/1',
+            'Episode One',
+            'series.jpg',
+            1,
+            3000001
+        );
+
+        expect(playlistService.addPortalRecentlyViewed).toHaveBeenCalledWith(
+            PLAYLIST._id,
+            expect.objectContaining({
+                id: '30000',
+                title: 'Episode One',
+                category_id: 'series',
+                cover: 'series.jpg',
+                added_at: expect.any(Number),
+            })
+        );
+        expect(
+            playlistService.addPortalRecentlyViewed.mock.calls[0][1]
+        ).not.toHaveProperty('is_series');
+        expect(playback.contentInfo).toEqual({
+            playlistId: PLAYLIST._id,
+            contentXtreamId: 3000001,
+            contentType: 'episode',
+            seriesXtreamId: 30000,
+        });
+    });
+
     it('resolves direct radio stream commands without external player side effects', async () => {
         store.setSelectedContentType('radio');
         store.setSelectedItem({

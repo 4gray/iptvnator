@@ -9,16 +9,20 @@ import {
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { DataService, PlaylistsService } from 'services';
 import {
+    PlaybackPositionData,
     Playlist,
+    ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
     VodDetailsItem,
 } from 'shared-interfaces';
+import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import { StalkerInlineDetailComponent } from '../stalker-inline-detail/stalker-inline-detail.component';
@@ -27,6 +31,9 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     isWorkspaceLayoutRoute,
+    PORTAL_EXTERNAL_PLAYBACK,
+    PORTAL_PLAYBACK_POSITIONS,
+    PORTAL_PLAYER,
     queryParamSignal,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
@@ -45,6 +52,7 @@ import {
     isStalkerSeriesFlag,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
+import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 
 interface StalkerFilter {
     key: string;
@@ -79,8 +87,13 @@ export class StalkerSearchComponent {
     private readonly dataService = inject(DataService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistService = inject(PlaylistsService);
+    readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly stalkerSession = inject(StalkerSessionService);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerSearch');
 
     readonly filters = signal({
@@ -119,6 +132,21 @@ export class StalkerSearchComponent {
 
     itemDetails: StalkerSelectedVodItem | null = null;
     vodDetailsItem: VodDetailsItem | null = null;
+    readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly selectedVodPosition = signal<PlaybackPositionData | null>(null);
+    readonly selectedVodPlaybackPosition = computed<number | null>(
+        () => this.selectedVodPosition()?.positionSeconds ?? null
+    );
+    private readonly vodPlayback = new StalkerVodPlaybackController({
+        inlinePlayback: this.inlinePlayback,
+        selectedVodPosition: this.selectedVodPosition,
+        playbackPositions: this.playbackPositions,
+        portalPlayer: this.portalPlayer,
+        snackBar: this.snackBar,
+        translateService: this.translateService,
+        logger: this.logger,
+        playbackErrorLogMessage: 'Failed to start search VOD playback',
+    });
 
     readonly portalFavorites = createPortalFavoritesResource(
         this.playlistService,
@@ -211,10 +239,6 @@ export class StalkerSearchComponent {
         return this.searchResultsResource.value()?.length ?? 0;
     }
 
-    createLinkToPlayVodItv(cmd?: string, title?: string, thumbnail?: string) {
-        this.stalkerStore.createLinkToPlayVod(cmd, title, thumbnail);
-    }
-
     updateSearchTerm(term: string) {
         this.searchTerm.set(term);
     }
@@ -234,6 +258,7 @@ export class StalkerSearchComponent {
     }
 
     selectItem(item: StalkerVodSource) {
+        this.closeInlinePlayer();
         const hasEmbeddedSeries = item.series?.length > 0;
         const needsSeriesFetch =
             this.selectedFilterType() === 'vod' &&
@@ -255,10 +280,15 @@ export class StalkerSearchComponent {
                     this.itemDetails = detailViewState.itemDetails;
                     this.vodDetailsItem = detailViewState.vodDetailsItem;
                     this.syncSelectedVodFavorite();
+                    void this.loadSelectedVodPosition(
+                        this.currentPlaylist()?._id ?? '',
+                        Number(detailViewState.itemDetails?.id)
+                    );
                 } else {
                     const cleared = clearStalkerDetailViewState();
                     this.vodDetailsItem = cleared.vodDetailsItem;
                     this.isSelectedVodFavorite.set(false);
+                    this.selectedVodPosition.set(null);
                 }
                 break;
             case 'series':
@@ -271,10 +301,24 @@ export class StalkerSearchComponent {
 
     onVodPlay(item: VodDetailsItem): void {
         if (item.type === 'stalker') {
-            this.createLinkToPlayVodItv(
+            void this.startStalkerVodPlayback(
                 item.cmd,
                 item.data.info?.name,
                 item.data.info?.movie_image
+            );
+        }
+    }
+
+    onVodResume(event: {
+        item: VodDetailsItem;
+        positionSeconds: number;
+    }): void {
+        if (event.item.type === 'stalker') {
+            void this.startStalkerVodPlayback(
+                event.item.cmd,
+                event.item.data.info?.name,
+                event.item.data.info?.movie_image,
+                event.positionSeconds
             );
         }
     }
@@ -299,6 +343,27 @@ export class StalkerSearchComponent {
         this.itemDetails = cleared.itemDetails;
         this.vodDetailsItem = cleared.vodDetailsItem;
         this.isSelectedVodFavorite.set(false);
+        this.selectedVodPosition.set(null);
+        this.closeInlinePlayer();
+    }
+
+    handleInlineTimeUpdate(event: {
+        currentTime: number;
+        duration: number;
+    }): void {
+        this.vodPlayback.handleInlineTimeUpdate(event);
+    }
+
+    closeInlinePlayer(): void {
+        this.vodPlayback.closeInlinePlayer();
+    }
+
+    showCopyNotification(): void {
+        this.vodPlayback.showCopyNotification();
+    }
+
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        this.vodPlayback.handleExternalFallbackRequest(request);
     }
 
     removeFromFavorites(favoriteId: string, onDone?: () => void) {
@@ -360,5 +425,32 @@ export class StalkerSearchComponent {
         } catch {
             return relativePath;
         }
+    }
+
+    private async startStalkerVodPlayback(
+        cmd?: string,
+        title?: string,
+        thumbnail?: string,
+        startTime?: number
+    ): Promise<void> {
+        await this.vodPlayback.startVodPlayback(() =>
+            startTime === undefined
+                ? this.stalkerStore.resolveVodPlayback(cmd, title, thumbnail)
+                : this.stalkerStore.resolveVodPlayback(
+                      cmd,
+                      title,
+                      thumbnail,
+                      undefined,
+                      undefined,
+                      startTime
+                  )
+        );
+    }
+
+    private async loadSelectedVodPosition(
+        playlistId: string,
+        vodId: number
+    ): Promise<void> {
+        await this.vodPlayback.loadSelectedVodPosition(playlistId, vodId);
     }
 }

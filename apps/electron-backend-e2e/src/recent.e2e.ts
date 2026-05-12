@@ -591,6 +591,8 @@ test.describe('Electron Recently Viewed', () => {
                 title: movieTitle,
                 playlistTitle: portalTitle,
             });
+            await playCurrentDetail(app.mainWindow);
+            await expectInlinePlayerWithoutDialog(app.mainWindow);
 
             await goBackFromDetail(app.mainWindow);
             await expectPathname(app.mainWindow, /\/workspace\/global-recent$/);
@@ -606,6 +608,8 @@ test.describe('Electron Recently Viewed', () => {
                 title: seriesTitle,
                 playlistTitle: portalTitle,
             });
+            await playFirstSeriesEpisode(app.mainWindow);
+            await expectInlinePlayerWithoutDialog(app.mainWindow);
 
             await goBackFromDetail(app.mainWindow);
             await expectPathname(app.mainWindow, /\/workspace\/global-recent$/);
@@ -675,6 +679,15 @@ async function expectInlineCollectionDetail(
     await expect(
         page.locator('app-content-hero .hero__back-button').first()
     ).toBeVisible({ timeout: 20000 });
+}
+
+async function expectInlinePlayerWithoutDialog(page: Page): Promise<void> {
+    await expect(
+        page.locator('app-portal-inline-player app-web-player-view').first()
+    ).toBeVisible({ timeout: 20000 });
+    await expect(
+        page.locator('mat-dialog-container app-web-player-view')
+    ).toHaveCount(0);
 }
 
 async function playCurrentDetail(page: Page): Promise<void> {
