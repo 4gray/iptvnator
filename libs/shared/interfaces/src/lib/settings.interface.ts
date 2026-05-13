@@ -41,14 +41,14 @@ export interface Settings {
      * Extra MPV CLI arguments entered one argument per line. Applied only when
      * starting a new external MPV process.
      */
-    mpvPlayerArguments?: string;
+    mpvPlayerArguments: string;
     mpvReuseInstance: boolean;
     vlcPlayerPath: string;
     /**
      * Extra VLC CLI arguments entered one argument per line. Applied only when
      * starting a new external VLC process.
      */
-    vlcPlayerArguments?: string;
+    vlcPlayerArguments: string;
     vlcReuseInstance: boolean;
     remoteControl: boolean;
     remoteControlPort: number;
