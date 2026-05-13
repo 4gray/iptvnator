@@ -193,6 +193,16 @@ describe('ArtPlayerComponent', () => {
         expect(issues).toEqual([]);
     });
 
+    it('uses HLS playback for URLs with a query-declared m3u8 extension', () => {
+        createComponent({
+            url: 'https://example.com/play?extension=m3u8&token=signed',
+            name: 'Signed HLS Live',
+        });
+
+        expect(artPlayerInstances[0].options['type']).toBe('m3u8');
+        expect(artPlayerInstances[0].options['isLive']).toBe(true);
+    });
+
     it('emits a playback issue when mpegts.js reports an unsupported codec', () => {
         createComponent({
             url: 'https://example.com/live/channel.ts',

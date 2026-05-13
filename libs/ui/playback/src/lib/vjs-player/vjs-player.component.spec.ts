@@ -149,6 +149,22 @@ describe('VjsPlayerComponent', () => {
         expect(player.volume).toHaveBeenCalledWith(0.75);
     });
 
+    it('does not treat query-declared HLS streams as MPEG-TS sources', () => {
+        mpegTsIsSupportedMock.mockReturnValue(true);
+        const isMpegTsSource = (
+            component as unknown as {
+                isMpegTsSource: (url?: string) => boolean;
+            }
+        ).isMpegTsSource.bind(component);
+
+        expect(
+            isMpegTsSource('https://example.com/play?extension=m3u8&token=x')
+        ).toBe(false);
+        expect(
+            isMpegTsSource('https://example.com/live.php?extension=ts')
+        ).toBe(true);
+    });
+
     it('emits a playback issue when VideoJS reports an unsupported source', () => {
         const issues: unknown[] = [];
         const videoElement = document.createElement('video');

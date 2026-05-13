@@ -106,13 +106,31 @@ export const createPlaylistObject = (
  * URLs like `https://proxy.example.com/ace/getstream?infohash=abc` where the
  * path segment has no dot-separated extension.
  */
-export const getExtensionFromUrl = (
-    url: string
-): string | undefined => {
+export const getExtensionFromUrl = (url: string): string | undefined => {
     const path = url.split(/[#?]/)[0];
     const lastSegment = path.split('/').pop() || '';
     const dotIndex = lastSegment.lastIndexOf('.');
     if (dotIndex < 1) return undefined;
     const ext = lastSegment.slice(dotIndex + 1).trim();
     return ext || undefined;
+};
+
+export const getStreamExtensionFromUrl = (url: string): string | undefined => {
+    return getExtensionFromUrlQuery(url) ?? getExtensionFromUrl(url);
+};
+
+const getExtensionFromUrlQuery = (url: string): string | undefined => {
+    try {
+        const parsedUrl = new URL(url, 'http://iptvnator.local');
+        return normalizeExtensionToken(parsedUrl.searchParams.get('extension'));
+    } catch {
+        return undefined;
+    }
+};
+
+const normalizeExtensionToken = (
+    value: string | null | undefined
+): string | undefined => {
+    const extension = value?.trim().replace(/^\.+/, '').toLowerCase();
+    return extension || undefined;
 };

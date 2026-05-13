@@ -1,5 +1,9 @@
 import { Channel, Playlist } from 'shared-interfaces';
-import { aggregateFavoriteChannels, getExtensionFromUrl } from './playlist.utils';
+import {
+    aggregateFavoriteChannels,
+    getExtensionFromUrl,
+    getStreamExtensionFromUrl,
+} from './playlist.utils';
 
 function createChannel(id: string, url: string, name = id): Channel {
     return {
@@ -86,5 +90,19 @@ describe('playlist utils', () => {
         ])('extracts the path extension from %s', (url, expected) => {
             expect(getExtensionFromUrl(url)).toBe(expected);
         });
+    });
+
+    describe('getStreamExtensionFromUrl', () => {
+        it.each([
+            ['https://host/play?extension=m3u8&token=x', 'm3u8'],
+            ['https://host/live.php?stream=123&extension=ts', 'ts'],
+            ['https://host/path/file.ts?token=x', 'ts'],
+            ['https://host/ace/getstream?infohash=x', undefined],
+        ])(
+            'prefers declared stream extension metadata from %s',
+            (url, expected) => {
+                expect(getStreamExtensionFromUrl(url)).toBe(expected);
+            }
+        );
     });
 });

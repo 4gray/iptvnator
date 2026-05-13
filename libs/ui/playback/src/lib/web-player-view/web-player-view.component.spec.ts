@@ -168,6 +168,20 @@ describe('WebPlayerViewComponent', () => {
             }),
         ]);
     });
+
+    it('keeps query-declared HLS streams on the HLS mime type', () => {
+        const streamUrl =
+            'https://example.com/play?extension=m3u8&token=signed';
+
+        component.setVjsOptions(streamUrl);
+
+        expect(component.vjsOptions.sources).toEqual([
+            {
+                src: streamUrl,
+                type: 'application/x-mpegURL',
+            },
+        ]);
+    });
 });
 
 function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {

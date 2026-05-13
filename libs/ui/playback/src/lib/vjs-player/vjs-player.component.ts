@@ -11,7 +11,7 @@ import {
     viewChild,
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
-import { getExtensionFromUrl } from 'm3u-utils';
+import { getStreamExtensionFromUrl } from 'm3u-utils';
 import mpegts from 'mpegts.js';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
@@ -254,7 +254,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     private isMpegTsSource(url?: string): boolean {
         if (!url) return false;
-        const extension = getExtensionFromUrl(url);
+        const extension = getStreamExtensionFromUrl(url);
         return (extension === 'ts' || !extension) && mpegts.isSupported();
     }
 

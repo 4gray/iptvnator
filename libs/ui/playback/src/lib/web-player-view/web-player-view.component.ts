@@ -17,7 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
-import { getExtensionFromUrl } from 'm3u-utils';
+import { getStreamExtensionFromUrl } from 'm3u-utils';
 import {
     ResolvedPortalPlayback,
     Settings,
@@ -115,7 +115,7 @@ export class WebPlayerViewComponent {
     }
 
     setVjsOptions(streamUrl: string) {
-        const extension = getExtensionFromUrl(streamUrl);
+        const extension = getStreamExtensionFromUrl(streamUrl);
         const mimeType =
             extension === 'm3u' || extension === 'm3u8'
                 ? 'application/x-mpegURL'
