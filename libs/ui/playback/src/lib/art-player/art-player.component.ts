@@ -132,7 +132,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             '.artplayer-container'
         );
         const extension = getExtensionFromUrl(this.channel?.url ?? '');
-        const isLive = extension === 'm3u8' || extension === 'ts';
+        const isLive = extension === 'm3u8' || extension === 'ts' || !extension;
 
         this.player = new Artplayer({
             container: el,
@@ -336,7 +336,9 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             case 'ts':
                 return 'ts';
             default:
-                return 'auto';
+                // No recognized extension (e.g. IPTV proxy URL) → default to
+                // MPEG-TS which is the most common format for live IPTV streams.
+                return extension ? 'auto' : 'ts';
         }
     }
 

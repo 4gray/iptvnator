@@ -153,7 +153,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
             }
 
-            if (extension === 'ts' && mpegts.isSupported()) {
+            if ((extension === 'ts' || !extension) && mpegts.isSupported()) {
                 console.log('Using mpegts.js for TS stream:', channel.name, url);
                 this.mpegtsPlayer = mpegts.createPlayer({
                     type: 'mpegts',

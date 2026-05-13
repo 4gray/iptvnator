@@ -99,6 +99,20 @@ export const createPlaylistObject = (
     };
 };
 
-export const getExtensionFromUrl = (url: string) => {
-    return url.split(/[#?]/)[0].split('.').pop()?.trim();
+/**
+ * Extract the file extension from a URL, ignoring query strings and fragments.
+ *
+ * Returns `undefined` when no real extension is found — e.g. for IPTV proxy
+ * URLs like `https://proxy.example.com/ace/getstream?infohash=abc` where the
+ * path segment has no dot-separated extension.
+ */
+export const getExtensionFromUrl = (
+    url: string
+): string | undefined => {
+    const path = url.split(/[#?]/)[0];
+    const lastSegment = path.split('/').pop() || '';
+    const dotIndex = lastSegment.lastIndexOf('.');
+    if (dotIndex < 1) return undefined;
+    const ext = lastSegment.slice(dotIndex + 1).trim();
+    return ext || undefined;
 };
