@@ -4,6 +4,8 @@ import {
     EXTERNAL_PLAYER_SESSION_UPDATE,
     ExternalPlayerName,
     ExternalPlayerSession,
+    parseExternalPlayerArguments,
+    type ExternalPlayerArgumentsInput,
 } from 'shared-interfaces';
 import App from '../app';
 import {
@@ -207,23 +209,10 @@ export function buildExternalPlayerSpawnSpec(
     };
 }
 
-export function parseExternalPlayerArguments(
-    value: string | string[] | null | undefined
-): string[] {
-    if (Array.isArray(value)) {
-        return value.map((argument) => argument.trim()).filter(Boolean);
-    }
-
-    return (
-        value
-            ?.split(/\r?\n/)
-            .map((argument) => argument.trim())
-            .filter(Boolean) ?? []
-    );
-}
+export { parseExternalPlayerArguments };
 
 export function buildPlayerArgsWithCustomArguments(
-    customArguments: string | string[] | null | undefined,
+    customArguments: ExternalPlayerArgumentsInput,
     playerArgs: string[]
 ): string[] {
     return [...parseExternalPlayerArguments(customArguments), ...playerArgs];

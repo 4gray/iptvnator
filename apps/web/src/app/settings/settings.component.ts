@@ -47,6 +47,7 @@ import {
     EmbeddedMpvSupport,
     CoverSize,
     Language,
+    normalizeExternalPlayerArguments,
     StartupBehavior,
     StreamFormat,
     Theme,
@@ -475,19 +476,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
             vlcPlayerPath: this.normalizeExternalPlayerPath(
                 this.settingsForm.value.vlcPlayerPath
             ),
-            mpvPlayerArguments: this.normalizeExternalPlayerArguments(
+            mpvPlayerArguments: normalizeExternalPlayerArguments(
                 this.settingsForm.value.mpvPlayerArguments
             ),
-            vlcPlayerArguments: this.normalizeExternalPlayerArguments(
+            vlcPlayerArguments: normalizeExternalPlayerArguments(
                 this.settingsForm.value.vlcPlayerArguments
             ),
         };
-        const mpvPlayerPath = this.normalizeExternalPlayerPath(
-            settings.mpvPlayerPath
-        );
-        const vlcPlayerPath = this.normalizeExternalPlayerPath(
-            settings.vlcPlayerPath
-        );
 
         this.settingsStore.updateSettings(settings).then(() => {
             this.applyChangedSettings();
@@ -495,8 +490,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
             if (window.electron) {
                 window.electron.updateSettings(settings);
 
-                window.electron.setMpvPlayerPath(mpvPlayerPath);
-                window.electron.setVlcPlayerPath(vlcPlayerPath);
+                window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
+                window.electron.setVlcPlayerPath(settings.vlcPlayerPath);
             }
         });
         if (this.isDialog) {
@@ -508,18 +503,6 @@ export class SettingsComponent implements OnInit, OnDestroy {
         playerPath: string | null | undefined
     ): string {
         return playerPath?.trim() ?? '';
-    }
-
-    private normalizeExternalPlayerArguments(
-        playerArguments: string | null | undefined
-    ): string {
-        return (
-            playerArguments
-                ?.split(/\r?\n/)
-                .map((argument) => argument.trim())
-                .filter(Boolean)
-                .join('\n') ?? ''
-        );
     }
 
     /**

@@ -1,4 +1,5 @@
 import { ipcMain } from 'electron';
+import { normalizeExternalPlayerArguments } from 'shared-interfaces';
 import {
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,
@@ -14,39 +15,20 @@ export default class SettingsEvents {
     }
 }
 
-function normalizeExternalPlayerArgumentsForStore(value: unknown): string {
-    if (Array.isArray(value)) {
-        return value
-            .map((argument) => String(argument).trim())
-            .filter(Boolean)
-            .join('\n');
-    }
-
-    if (typeof value !== 'string') {
-        return '';
-    }
-
-    return value
-        .split(/\r?\n/)
-        .map((argument) => argument.trim())
-        .filter(Boolean)
-        .join('\n');
-}
-
 ipcMain.handle('SETTINGS_UPDATE', (_event, arg) => {
     console.log('Received SETTINGS_UPDATE with data:', arg);
 
     if (arg.mpvPlayerArguments !== undefined) {
         store.set(
             MPV_PLAYER_ARGUMENTS,
-            normalizeExternalPlayerArgumentsForStore(arg.mpvPlayerArguments)
+            normalizeExternalPlayerArguments(arg.mpvPlayerArguments)
         );
     }
 
     if (arg.vlcPlayerArguments !== undefined) {
         store.set(
             VLC_PLAYER_ARGUMENTS,
-            normalizeExternalPlayerArgumentsForStore(arg.vlcPlayerArguments)
+            normalizeExternalPlayerArguments(arg.vlcPlayerArguments)
         );
     }
 
