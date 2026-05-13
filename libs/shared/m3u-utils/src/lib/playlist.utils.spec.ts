@@ -1,5 +1,5 @@
 import { Channel, Playlist } from 'shared-interfaces';
-import { aggregateFavoriteChannels } from './playlist.utils';
+import { aggregateFavoriteChannels, getExtensionFromUrl } from './playlist.utils';
 
 function createChannel(id: string, url: string, name = id): Channel {
     return {
@@ -74,5 +74,17 @@ describe('playlist utils', () => {
         ]);
 
         expect(result).toEqual([first, third]);
+    });
+
+    describe('getExtensionFromUrl', () => {
+        it.each([
+            ['https://host/path/file.ts?token=x', 'ts'],
+            ['https://host/ace/getstream?infohash=x', undefined],
+            ['https://host/path.with.dots/stream?x=y', undefined],
+            ['https://host/path/file.m3u8', 'm3u8'],
+            ['https://host/path/.ts', undefined],
+        ])('extracts the path extension from %s', (url, expected) => {
+            expect(getExtensionFromUrl(url)).toBe(expected);
+        });
     });
 });
