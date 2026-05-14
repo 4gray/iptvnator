@@ -1,16 +1,20 @@
 import { NgComponentOutlet } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import {
     ChangeDetectionStrategy,
     Component,
     computed,
     DestroyRef,
     ElementRef,
+    effect,
     inject,
     OnInit,
+    signal,
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
-import { MatIconButton } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
@@ -23,15 +27,21 @@ import {
 } from '@iptvnator/portal/shared/ui';
 import {
     clearNavigationStateKeys,
+    EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
     getOpenStalkerItemState,
+    isPortalCatalogLanguageFilterActive,
     PortalCatalogFacade,
+    PortalCatalogLanguageFilterSection,
     OPEN_STALKER_ITEM_STATE_KEY,
     PORTAL_CATALOG_DETAIL_COMPONENT,
     PORTAL_CATALOG_FACADE,
     PortalCatalogSortMode,
+    PortalCatalogVideoQualityFilterValue,
+    isPortalCatalogVideoQualityFilterActive,
 } from '@iptvnator/portal/shared/util';
 
 interface CategoryContentItem {
+    category_hidden?: boolean | number;
     id?: number | string;
     is_series?: number | string | boolean;
     xtream_id?: number | string;
@@ -41,13 +51,27 @@ interface CategoryContentItem {
     [key: string]: unknown;
 }
 
+interface CategoryContentSection {
+    key: 'all' | 'visible' | 'hidden' | 'filter-excluded';
+    titleKey: string | null;
+    items: CategoryContentItem[];
+}
+
+interface LanguageFilterSectionView {
+    key: PortalCatalogLanguageFilterSection;
+    titleKey: string;
+}
+
 @Component({
     selector: 'app-category-content-view',
     templateUrl: './category-content-view.component.html',
     styleUrls: ['./category-content-view.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
+        FormsModule,
         GridListComponent,
+        MatButtonModule,
+        MatCheckboxModule,
         MatIcon,
         MatIconButton,
         MatMenuModule,
@@ -73,6 +97,25 @@ export class CategoryContentViewComponent implements OnInit {
         CategoryContentItem,
         CategoryContentItem
     >;
+    readonly showLanguageFilterPanel = signal(false);
+    readonly languageFilterSections: LanguageFilterSectionView[] = [
+        {
+            key: 'audioInclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_INCLUDE',
+        },
+        {
+            key: 'audioExclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_EXCLUDE',
+        },
+        {
+            key: 'subtitleInclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_INCLUDE',
+        },
+        {
+            key: 'subtitleExclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_EXCLUDE',
+        },
+    ];
 
     readonly detailComponent = inject(PORTAL_CATALOG_DETAIL_COMPONENT);
     readonly contentType = this.catalog.contentType;
@@ -81,11 +124,54 @@ export class CategoryContentViewComponent implements OnInit {
     readonly pageSizeOptions = Array.from(this.catalog.pageSizeOptions);
     readonly selectedCategory = this.catalog.selectedCategory;
     readonly paginatedContent = this.catalog.paginatedContent;
+    readonly allContent = this.catalog.allContent;
+    readonly filterExcludedContent = this.catalog.filterExcludedContent;
     readonly selectedCategoryTitle = this.catalog.selectedCategoryTitle;
     readonly categoryItemCount = this.catalog.categoryItemCount;
     readonly selectedItem = this.catalog.selectedItem;
     readonly totalPages = this.catalog.totalPages;
     readonly contentSortMode = this.catalog.contentSortMode;
+    readonly languageFilter = computed(
+        () =>
+            this.catalog.languageFilter?.() ??
+            EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER
+    );
+    readonly languageFilterOptions = computed(
+        () => this.catalog.languageFilterOptions?.() ?? []
+    );
+    readonly canFilterLanguages = computed(() =>
+        Boolean(
+            this.catalog.languageFilter &&
+            this.catalog.toggleLanguageFilterOption
+        )
+    );
+    readonly languageFilterActive = computed(
+        () =>
+            this.catalog.languageFilterActive?.() ??
+            isPortalCatalogLanguageFilterActive(this.languageFilter())
+    );
+    readonly videoQualityFilter = computed(
+        () => this.catalog.videoQualityFilter?.() ?? 'all'
+    );
+    readonly videoQualityFilterOptions = computed(
+        () => this.catalog.videoQualityFilterOptions?.() ?? []
+    );
+    readonly canFilterVideoQuality = computed(() => {
+        const contentType = this.contentType();
+
+        return (
+            (contentType === 'vod' || contentType === 'series') &&
+            Boolean(this.catalog.setVideoQualityFilter)
+        );
+    });
+    readonly videoQualityFilterActive = computed(
+        () =>
+            this.catalog.videoQualityFilterActive?.() ??
+            isPortalCatalogVideoQualityFilterActive(this.videoQualityFilter())
+    );
+    readonly canWarmMediaMetadata = computed(() =>
+        Boolean(this.catalog.warmVisibleMediaMetadata)
+    );
     readonly isPaginatedContentLoading = this.catalog.isPaginatedContentLoading;
     readonly isXtreamLoadingSubtitle = computed(
         () =>
@@ -110,15 +196,139 @@ export class CategoryContentViewComponent implements OnInit {
     readonly selectedDetailComponent = computed(() =>
         this.selectedItem() ? this.detailComponent : null
     );
+    readonly showSearchVisibilitySections = computed(() => {
+        const selectedCategory = this.selectedCategory();
+        return (
+            this.catalog.provider === 'xtream' &&
+            this.searchTerm().trim().length > 0 &&
+            Number(selectedCategory?.['id']) === 0
+        );
+    });
     readonly contentWithProgress = computed(() =>
-        (this.paginatedContent() ?? []).map((item: CategoryContentItem) => ({
-            ...item,
-            ...this.catalog.getItemProgress(item),
-        }))
+        this.addProgress(this.paginatedContent() ?? [])
     );
+    readonly contentSectionsWithProgress = computed<CategoryContentSection[]>(
+        () => {
+            if (!this.showSearchVisibilitySections()) {
+                return [
+                    {
+                        key: 'all',
+                        titleKey: null,
+                        items: this.contentWithProgress(),
+                    },
+                ];
+            }
+
+            const items = this.addProgress(
+                (this.allContent?.() ?? this.paginatedContent() ?? []) as
+                    | CategoryContentItem[]
+                    | readonly CategoryContentItem[]
+            );
+            const visibleItems = items.filter(
+                (item) => !this.isHiddenCategory(item)
+            );
+            const hiddenItems = items.filter((item) =>
+                this.isHiddenCategory(item)
+            );
+            const filterExcludedItems = this.addProgress(
+                (this.filterExcludedContent?.() ?? []) as
+                    | CategoryContentItem[]
+                    | readonly CategoryContentItem[]
+            );
+            const sections: CategoryContentSection[] = [];
+
+            if (
+                visibleItems.length ||
+                (!hiddenItems.length && !filterExcludedItems.length)
+            ) {
+                sections.push({
+                    key: 'visible',
+                    titleKey: 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_SECTION',
+                    items: visibleItems,
+                });
+            }
+
+            if (hiddenItems.length) {
+                sections.push({
+                    key: 'hidden',
+                    titleKey: 'PORTALS.SEARCH_VIEW.HIDDEN_CATEGORIES_SECTION',
+                    items: hiddenItems,
+                });
+            }
+
+            if (filterExcludedItems.length) {
+                sections.push({
+                    key: 'filter-excluded',
+                    titleKey: 'PORTALS.SEARCH_VIEW.FILTER_EXCLUDED_SECTION',
+                    items: filterExcludedItems,
+                });
+            }
+
+            return sections;
+        }
+    );
+
+    constructor() {
+        effect(() => {
+            if (!this.canWarmMediaMetadata()) {
+                return;
+            }
+
+            this.catalog.warmVisibleMediaMetadata?.(this.contentWithProgress());
+        });
+    }
 
     setContentSortMode(mode: PortalCatalogSortMode): void {
         this.catalog.setContentSortMode(mode);
+    }
+
+    toggleLanguageFilterPanel(): void {
+        this.showLanguageFilterPanel.update((value) => !value);
+    }
+
+    resetLanguageFilter(): void {
+        this.catalog.resetLanguageFilter?.();
+    }
+
+    isLanguageFilterOptionChecked(
+        section: PortalCatalogLanguageFilterSection,
+        code: string
+    ): boolean {
+        return this.languageFilter()[section].includes(code);
+    }
+
+    toggleLanguageFilterOption(
+        section: PortalCatalogLanguageFilterSection,
+        code: string,
+        enabled: boolean
+    ): void {
+        this.catalog.toggleLanguageFilterOption?.(section, code, enabled);
+    }
+
+    selectAllLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.catalog.selectAllLanguageFilterOptions?.(section);
+    }
+
+    clearLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.catalog.clearLanguageFilterOptions?.(section);
+    }
+
+    invertLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.catalog.invertLanguageFilterOptions?.(section);
+    }
+
+    setVideoQualityFilter(filter: PortalCatalogVideoQualityFilterValue): void {
+        this.catalog.setVideoQualityFilter?.(filter);
+    }
+
+    resetVideoQualityFilter(): void {
+        this.catalog.resetVideoQualityFilter?.();
     }
 
     ngOnInit(): void {
@@ -192,9 +402,22 @@ export class CategoryContentViewComponent implements OnInit {
 
     private scrollGridToTop(): void {
         const gridList = this.hostElement.nativeElement.querySelector(
-            'app-grid-list'
+            '.category-search-sections, app-grid-list'
         ) as HTMLElement | null;
         gridList?.scrollTo?.({ top: 0 });
+    }
+
+    private addProgress(
+        items: readonly CategoryContentItem[]
+    ): CategoryContentItem[] {
+        return items.map((item: CategoryContentItem) => ({
+            ...item,
+            ...this.catalog.getItemProgress(item),
+        }));
+    }
+
+    private isHiddenCategory(item: CategoryContentItem): boolean {
+        return item.category_hidden === true || item.category_hidden === 1;
     }
 
     private clearPageQueryParam(): void {

@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     DoCheck,
+    OnDestroy,
     OnInit,
     inject,
     input,
@@ -17,31 +18,50 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import {
     createLogger,
+    buildMediaStreamMetadata,
+    getMediaMetadataUnavailableTag,
+    getMediaMetadataTags,
     getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
+    mergeMediaStreamMetadata,
 } from '@iptvnator/portal/shared/util';
 import {
+    MediaStreamMetadata,
     PlaybackPositionData,
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
 } from 'shared-interfaces';
-import { DownloadsService } from 'services';
+import {
+    DownloadsService,
+    MediaMetadataService,
+    SettingsStore,
+} from 'services';
 import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
 import { WatchedBadgeComponent } from '../watched-badge/watched-badge.component';
 
 type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
+const MAX_CONCURRENT_EPISODE_PROBES = 2;
 
 export interface SeasonContainerXtreamDownloadContext {
     serverUrl?: string;
     username?: string;
     password?: string;
+    userAgent?: string;
+    origin?: string;
+    referrer?: string;
 }
 
 export interface SeasonContainerPlaybackToggleRequest {
     contentXtreamId: number;
     nextPosition: PlaybackPositionData | null;
+}
+
+interface EpisodeProbeJob {
+    key: string;
+    url: string;
+    headers: Record<string, string>;
 }
 
 function parseDuration(duration: string | number | undefined): number {
@@ -64,6 +84,24 @@ function parseDuration(duration: string | number | undefined): number {
     return Number(duration) || 0;
 }
 
+function uniqueStrings(values: string[]): string[] {
+    return Array.from(new Set(values.filter(Boolean)));
+}
+
+function uniqueNumbers(values: number[]): number[] {
+    return Array.from(new Set(values));
+}
+
+function intersectStrings(valueSets: string[][]): string[] {
+    if (valueSets.length === 0) {
+        return [];
+    }
+
+    return uniqueStrings(valueSets[0]).filter((value) =>
+        valueSets.every((values) => values.includes(value))
+    );
+}
+
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
@@ -81,10 +119,17 @@ function parseDuration(duration: string | number | undefined): number {
         WatchedBadgeComponent,
     ],
 })
-export class SeasonContainerComponent implements OnInit, DoCheck {
+export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
     private readonly downloadsService = inject(DownloadsService);
+    private readonly mediaMetadataService = inject(MediaMetadataService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly logger = createLogger('SeasonContainer');
     private previousSeasonKeysSignature = '';
+    private readonly queuedEpisodeProbeKeys = new Set<string>();
+    private episodeProbeQueue: EpisodeProbeJob[] = [];
+    private activeEpisodeProbeCount = 0;
+    private destroyed = false;
+    private lastSeriesMetadataSignature = '';
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -104,8 +149,13 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
     readonly playbackToggleRequested =
         output<SeasonContainerPlaybackToggleRequest>();
     readonly seasonSelected = output<string>();
+    readonly seriesMediaMetadataChanged = output<MediaStreamMetadata | null>();
     readonly isElectron = this.downloadsService.isAvailable;
     readonly viewMode = signal<EpisodeViewMode>('grid');
+    readonly episodeProbeMetadata = signal<Record<string, MediaStreamMetadata>>(
+        {}
+    );
+    readonly episodeProbePending = signal<Record<string, boolean>>({});
 
     selectedSeason: string | undefined;
 
@@ -121,6 +171,14 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
 
     ngDoCheck(): void {
         this.syncSelectedSeason();
+        this.scheduleEpisodeMetadataProbes();
+        this.emitSeriesMediaMetadataIfChanged();
+    }
+
+    ngOnDestroy(): void {
+        this.destroyed = true;
+        this.episodeProbeQueue = [];
+        this.queuedEpisodeProbeKeys.clear();
     }
 
     setViewMode(mode: EpisodeViewMode) {
@@ -141,7 +199,9 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
     }
 
     showSeasonEmptyState(): boolean {
-        return Boolean(this.selectedSeason) && !this.selectedSeasonHasEpisodes();
+        return (
+            Boolean(this.selectedSeason) && !this.selectedSeasonHasEpisodes()
+        );
     }
 
     selectSeason(seasonKey: string) {
@@ -181,7 +241,9 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
                 contentXtreamId,
                 contentType: 'episode',
                 seriesXtreamId: this.seriesId(),
-                seasonNumber: Number(episode.season || this.selectedSeason || 1),
+                seasonNumber: Number(
+                    episode.season || this.selectedSeason || 1
+                ),
                 episodeNumber: Number(episode.episode_num || 1),
                 positionSeconds: duration,
                 durationSeconds: duration,
@@ -198,6 +260,21 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
             return undefined;
         }
         return episode.info;
+    }
+
+    getEpisodeMediaTags(episode: XtreamSerieEpisode): string[] {
+        const metadata = this.getEpisodeMergedMetadata(episode);
+        const tags = getMediaMetadataTags(metadata);
+        if (tags.length > 0) {
+            return tags;
+        }
+
+        if (this.isEpisodeProbePending(episode)) {
+            return ['Analisi qualita...'];
+        }
+
+        const unavailableTag = getMediaMetadataUnavailableTag(metadata);
+        return unavailableTag ? [unavailableTag] : [];
     }
 
     isEpisodeWatched(episode: XtreamSerieEpisode): boolean {
@@ -217,7 +294,9 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
     }
 
     getEpisodeProgress(episode: XtreamSerieEpisode): number {
-        return getPortalPlaybackProgressPercent(this.getEpisodePosition(episode));
+        return getPortalPlaybackProgressPercent(
+            this.getEpisodePosition(episode)
+        );
     }
 
     getEpisodePositionText(episode: XtreamSerieEpisode): string | null {
@@ -262,7 +341,8 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         if (!episodes) {
             return 0;
         }
-        return episodes.filter((episode) => this.isEpisodeWatched(episode)).length;
+        return episodes.filter((episode) => this.isEpisodeWatched(episode))
+            .length;
     }
 
     getSeasonProgressDash(seasonKey: string): string {
@@ -289,18 +369,21 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
             return;
         }
 
-        const serverUrl = xtreamDownload.serverUrl?.replace(/\/$/, '') || '';
-        const username = xtreamDownload.username || '';
-        const password = xtreamDownload.password || '';
-        const extension = episode.container_extension || 'mp4';
-        const url = `${serverUrl}/series/${username}/${password}/${episode.id}.${extension}`;
+        const url = this.getEpisodeStreamUrl(episode, xtreamDownload);
+        if (!url) {
+            return;
+        }
+
         const episodeInfo = this.getEpisodeInfo(episode);
         const posterUrl = episodeInfo?.movie_image;
         const seasonNum = episode.season || Number(this.selectedSeason) || 1;
         const episodeNum = episode.episode_num || 1;
         const episodeTitle = `${this.seriesTitle() || 'Series'} - S${String(
             seasonNum
-        ).padStart(2, '0')}E${String(episodeNum).padStart(2, '0')} - ${episode.title}`;
+        ).padStart(
+            2,
+            '0'
+        )}E${String(episodeNum).padStart(2, '0')} - ${episode.title}`;
 
         await this.downloadsService.startDownload({
             playlistId: this.playlistId(),
@@ -312,6 +395,11 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
             seriesXtreamId: this.seriesId(),
             seasonNumber: seasonNum,
             episodeNumber: episodeNum,
+            headers: {
+                userAgent: xtreamDownload.userAgent,
+                referer: xtreamDownload.referrer,
+                origin: xtreamDownload.origin,
+            },
         });
     }
 
@@ -432,6 +520,379 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         if (this.selectedSeason && !this.hasSeasonKey(this.selectedSeason)) {
             this.selectedSeason = undefined;
         }
+    }
+
+    private scheduleEpisodeMetadataProbes(): void {
+        const context = this.xtreamDownloadContext();
+        if (
+            !context?.serverUrl ||
+            !context.username ||
+            !context.password ||
+            this.destroyed
+        ) {
+            return;
+        }
+
+        const existingMetadata = this.episodeProbeMetadata();
+        const pendingMetadata = this.episodeProbePending();
+        const nextPendingMetadata = { ...pendingMetadata };
+        const headers = this.buildProbeHeaders(context);
+        let hasQueuedProbe = false;
+
+        for (const episode of this.getAllEpisodes()) {
+            const url = this.getEpisodeStreamUrl(episode, context);
+            if (!url) {
+                continue;
+            }
+
+            const key = this.getEpisodeProbeKey(url, headers);
+            if (
+                Object.prototype.hasOwnProperty.call(existingMetadata, key) ||
+                pendingMetadata[key] ||
+                this.queuedEpisodeProbeKeys.has(key)
+            ) {
+                continue;
+            }
+
+            this.queuedEpisodeProbeKeys.add(key);
+            this.episodeProbeQueue.push({ key, url, headers });
+            nextPendingMetadata[key] = true;
+            hasQueuedProbe = true;
+        }
+
+        if (hasQueuedProbe) {
+            this.episodeProbePending.set(nextPendingMetadata);
+        }
+
+        this.drainEpisodeProbeQueue();
+    }
+
+    private drainEpisodeProbeQueue(): void {
+        while (
+            !this.destroyed &&
+            this.activeEpisodeProbeCount < MAX_CONCURRENT_EPISODE_PROBES &&
+            this.episodeProbeQueue.length > 0
+        ) {
+            const job = this.episodeProbeQueue.shift();
+            if (!job) {
+                return;
+            }
+
+            this.queuedEpisodeProbeKeys.delete(job.key);
+            this.activeEpisodeProbeCount++;
+            void this.probeEpisodeMetadata(job);
+        }
+    }
+
+    private async probeEpisodeMetadata(job: EpisodeProbeJob): Promise<void> {
+        try {
+            const metadata = await this.mediaMetadataService.probe({
+                url: job.url,
+                headers: job.headers,
+            });
+
+            if (!this.destroyed) {
+                this.setEpisodeProbeMetadata(job.key, metadata);
+            }
+        } catch (error) {
+            if (!this.destroyed) {
+                this.setEpisodeProbeMetadata(job.key, {
+                    available: false,
+                    audioLanguages: [],
+                    audioCodecs: [],
+                    subtitleLanguages: [],
+                    subtitleCodecs: [],
+                    reason:
+                        error instanceof Error ? error.message : String(error),
+                });
+            }
+        } finally {
+            this.activeEpisodeProbeCount = Math.max(
+                0,
+                this.activeEpisodeProbeCount - 1
+            );
+
+            if (!this.destroyed) {
+                this.setEpisodeProbePending(job.key, false);
+                this.emitSeriesMediaMetadataIfChanged();
+                this.drainEpisodeProbeQueue();
+            }
+        }
+    }
+
+    private setEpisodeProbeMetadata(
+        key: string,
+        metadata: MediaStreamMetadata
+    ): void {
+        this.episodeProbeMetadata.update((current) => ({
+            ...current,
+            [key]: metadata,
+        }));
+    }
+
+    private setEpisodeProbePending(key: string, isPending: boolean): void {
+        this.episodeProbePending.update((current) => {
+            const isAlreadyPending = Boolean(current[key]);
+            if (isAlreadyPending === isPending) {
+                return current;
+            }
+
+            const next = { ...current };
+            if (isPending) {
+                next[key] = true;
+            } else {
+                delete next[key];
+            }
+            return next;
+        });
+    }
+
+    private emitSeriesMediaMetadataIfChanged(): void {
+        const metadata = this.getSharedSeriesMediaMetadata();
+        const signature = JSON.stringify(metadata);
+        if (signature === this.lastSeriesMetadataSignature) {
+            return;
+        }
+
+        this.lastSeriesMetadataSignature = signature;
+        this.seriesMediaMetadataChanged.emit(metadata);
+    }
+
+    private getSharedSeriesMediaMetadata(): MediaStreamMetadata | null {
+        const episodeMetadata = this.getAllEpisodes().map((episode) =>
+            this.getEpisodeMetadataForSeriesSummary(episode)
+        );
+
+        if (
+            episodeMetadata.length === 0 ||
+            episodeMetadata.some((metadata) => !metadata)
+        ) {
+            return null;
+        }
+
+        if (episodeMetadata.some((metadata) => !metadata?.qualityLabel)) {
+            return null;
+        }
+
+        const qualityLabels = uniqueStrings(
+            episodeMetadata.map((metadata) => metadata?.qualityLabel ?? '')
+        );
+        if (qualityLabels.length !== 1) {
+            return null;
+        }
+
+        const audioLanguages = intersectStrings(
+            episodeMetadata.map((metadata) => metadata?.audioLanguages ?? [])
+        );
+        const audioCodecs =
+            audioLanguages.length > 0
+                ? []
+                : intersectStrings(
+                      episodeMetadata.map(
+                          (metadata) => metadata?.audioCodecs ?? []
+                      )
+                  );
+        const subtitleLanguages = intersectStrings(
+            episodeMetadata.map((metadata) => metadata?.subtitleLanguages ?? [])
+        );
+        const subtitleCodecs =
+            subtitleLanguages.length > 0
+                ? []
+                : intersectStrings(
+                      episodeMetadata.map(
+                          (metadata) => metadata?.subtitleCodecs ?? []
+                      )
+                  );
+
+        const heights = episodeMetadata
+            .map((metadata) => metadata?.height)
+            .filter(
+                (height): height is number =>
+                    typeof height === 'number' && Number.isFinite(height)
+            );
+        const widths = episodeMetadata
+            .map((metadata) => metadata?.width)
+            .filter(
+                (width): width is number =>
+                    typeof width === 'number' && Number.isFinite(width)
+            );
+        const videoCodecs = uniqueStrings(
+            episodeMetadata.map((metadata) => metadata?.videoCodec ?? '')
+        );
+
+        return {
+            available: true,
+            qualityLabel: qualityLabels[0],
+            height:
+                uniqueNumbers(heights).length === 1 ? heights[0] : undefined,
+            width: uniqueNumbers(widths).length === 1 ? widths[0] : undefined,
+            videoCodec: videoCodecs.length === 1 ? videoCodecs[0] : undefined,
+            audioLanguages,
+            audioCodecs,
+            subtitleLanguages,
+            subtitleCodecs,
+            source: 'derived',
+        };
+    }
+
+    private getEpisodeMetadataForSeriesSummary(
+        episode: XtreamSerieEpisode
+    ): MediaStreamMetadata | null {
+        const context = this.xtreamDownloadContext();
+        const url = context ? this.getEpisodeStreamUrl(episode, context) : '';
+        const key = url
+            ? this.getEpisodeProbeKey(url, this.buildProbeHeaders(context))
+            : '';
+
+        if (
+            key &&
+            !Object.prototype.hasOwnProperty.call(
+                this.episodeProbeMetadata(),
+                key
+            )
+        ) {
+            return null;
+        }
+
+        return this.getEpisodeMergedMetadata(episode);
+    }
+
+    private getEpisodeMergedMetadata(
+        episode: XtreamSerieEpisode
+    ): MediaStreamMetadata | null {
+        const staticMetadata = this.getEpisodeStaticMetadata(episode);
+        const probeMetadata = this.getEpisodeProbedMetadata(episode);
+        return probeMetadata
+            ? mergeMediaStreamMetadata(probeMetadata, staticMetadata)
+            : staticMetadata;
+    }
+
+    private getEpisodeStaticMetadata(
+        episode: XtreamSerieEpisode
+    ): MediaStreamMetadata | null {
+        const info = this.getEpisodeInfo(episode);
+        return buildMediaStreamMetadata({
+            video: info?.video,
+            audio: info?.audio,
+            subtitles: info?.subtitles ?? info?.subtitle,
+            title: episode.title,
+            containerExtension: episode.container_extension,
+        });
+    }
+
+    private getEpisodeProbedMetadata(
+        episode: XtreamSerieEpisode
+    ): MediaStreamMetadata | null {
+        const context = this.xtreamDownloadContext();
+        const url = context ? this.getEpisodeStreamUrl(episode, context) : '';
+        if (!url) {
+            return null;
+        }
+
+        return (
+            this.episodeProbeMetadata()[
+                this.getEpisodeProbeKey(url, this.buildProbeHeaders(context))
+            ] ?? null
+        );
+    }
+
+    private isEpisodeProbePending(episode: XtreamSerieEpisode): boolean {
+        const context = this.xtreamDownloadContext();
+        const url = context ? this.getEpisodeStreamUrl(episode, context) : '';
+        if (!url) {
+            return false;
+        }
+
+        return Boolean(
+            this.episodeProbePending()[
+                this.getEpisodeProbeKey(url, this.buildProbeHeaders(context))
+            ]
+        );
+    }
+
+    private getAllEpisodes(): XtreamSerieEpisode[] {
+        return Object.values(this.seasons()).reduce<XtreamSerieEpisode[]>(
+            (episodes, seasonEpisodes) => {
+                episodes.push(...seasonEpisodes);
+                return episodes;
+            },
+            []
+        );
+    }
+
+    private getEpisodeStreamUrl(
+        episode: XtreamSerieEpisode,
+        context: SeasonContainerXtreamDownloadContext | null
+    ): string {
+        if (
+            !context?.serverUrl ||
+            !context.username ||
+            !context.password ||
+            this.isStalkerEpisode(episode)
+        ) {
+            return '';
+        }
+
+        const directSource = this.getDirectSourceUrl(episode.direct_source);
+        if (directSource) {
+            return directSource;
+        }
+
+        const serverUrl = context.serverUrl.replace(/\/$/, '');
+        const extension = episode.container_extension || 'mp4';
+        return `${serverUrl}/series/${context.username}/${context.password}/${episode.id}.${extension}`;
+    }
+
+    private getDirectSourceUrl(value: unknown): string | null {
+        if (
+            this.settingsStore.redirectIndirectStreamsToDirectSource?.() !==
+            true
+        ) {
+            return null;
+        }
+
+        if (typeof value !== 'string') {
+            return null;
+        }
+
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        try {
+            const parsed = new URL(trimmed);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+                ? trimmed
+                : null;
+        } catch {
+            return null;
+        }
+    }
+
+    private getEpisodeProbeKey(
+        url: string,
+        headers: Record<string, string>
+    ): string {
+        return JSON.stringify({ url, headers });
+    }
+
+    private buildProbeHeaders(
+        context: SeasonContainerXtreamDownloadContext | null
+    ): Record<string, string> {
+        const headers: Record<string, string> = {};
+
+        if (context?.userAgent) {
+            headers['User-Agent'] = context.userAgent;
+        }
+        if (context?.referrer) {
+            headers.Referer = context.referrer;
+        }
+        if (context?.origin) {
+            headers.Origin = context.origin;
+        }
+
+        return headers;
     }
 
     private hashString(str: string): number {

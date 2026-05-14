@@ -128,7 +128,7 @@ function resolveMacOSAppBundlePlayerPath(
         return playerPath;
     }
 
-    return path.join(
+    return path.posix.join(
         appBundlePath,
         'Contents',
         'MacOS',

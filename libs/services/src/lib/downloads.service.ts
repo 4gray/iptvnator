@@ -29,6 +29,11 @@ export interface DownloadItem {
     updatedAt?: string;
 }
 
+export interface DownloadThroughput {
+    bytesPerSecond: number;
+    sampledAt: number;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
@@ -37,9 +42,16 @@ export class DownloadsService implements OnDestroy {
 
     private readonly _isLoadingDownloads = signal(false);
     private readonly _hasLoadedDownloads = signal(false);
+    private readonly previousDownloadSamples = new Map<
+        number,
+        { bytesDownloaded: number; sampledAt: number }
+    >();
 
     /** Signal for the list of downloads */
     readonly downloads = signal<DownloadItem[]>([]);
+    readonly downloadThroughput = signal<Record<number, DownloadThroughput>>(
+        {}
+    );
 
     /** Whether the download list is currently being loaded */
     readonly isLoadingDownloads = this._isLoadingDownloads.asReadonly();
@@ -114,6 +126,7 @@ export class DownloadsService implements OnDestroy {
         try {
             const list = await window.electron.downloadsGetList(playlistId);
             if (requestId === this.loadDownloadsRequestId) {
+                this.updateThroughputSamples(list);
                 this.downloads.set(list);
                 this._hasLoadedDownloads.set(true);
             }
@@ -173,7 +186,12 @@ export class DownloadsService implements OnDestroy {
         episodeNumber?: number;
         // Playlist info for auto-creation if needed (Stalker playlists)
         playlistName?: string;
-        playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+        playlistType?:
+            | 'xtream'
+            | 'stalker'
+            | 'm3u-file'
+            | 'm3u-text'
+            | 'm3u-url';
         serverUrl?: string;
         portalUrl?: string;
         macAddress?: string;
@@ -244,10 +262,7 @@ export class DownloadsService implements OnDestroy {
         try {
             return await window.electron.downloadsRetry(downloadId, folder);
         } catch (error) {
-            console.error(
-                '[DownloadsService] Error retrying download:',
-                error
-            );
+            console.error('[DownloadsService] Error retrying download:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
@@ -268,10 +283,7 @@ export class DownloadsService implements OnDestroy {
         try {
             return await window.electron.downloadsRemove(downloadId);
         } catch (error) {
-            console.error(
-                '[DownloadsService] Error removing download:',
-                error
-            );
+            console.error('[DownloadsService] Error removing download:', error);
             return {
                 success: false,
                 error: error instanceof Error ? error.message : String(error),
@@ -334,14 +346,13 @@ export class DownloadsService implements OnDestroy {
             if (folder) {
                 this.downloadFolder.set(folder);
                 // Save to settings
-                await this.settingsStore.updateSettings({ downloadFolder: folder });
+                await this.settingsStore.updateSettings({
+                    downloadFolder: folder,
+                });
             }
             return folder;
         } catch (error) {
-            console.error(
-                '[DownloadsService] Error selecting folder:',
-                error
-            );
+            console.error('[DownloadsService] Error selecting folder:', error);
             return null;
         }
     }
@@ -349,9 +360,7 @@ export class DownloadsService implements OnDestroy {
     /**
      * Clear completed/failed downloads
      */
-    async clearCompleted(
-        playlistId?: string
-    ): Promise<{ success: boolean }> {
+    async clearCompleted(playlistId?: string): Promise<{ success: boolean }> {
         if (!this.isAvailable()) {
             return { success: false };
         }
@@ -379,6 +388,10 @@ export class DownloadsService implements OnDestroy {
         );
     }
 
+    getThroughputBytesPerSecond(item: DownloadItem): number {
+        return this.downloadThroughput()[item.id]?.bytesPerSecond ?? 0;
+    }
+
     /**
      * Get download item by xtreamId and playlistId
      */
@@ -403,7 +416,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): boolean {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         return download?.status === 'completed' && !!download.filePath;
     }
 
@@ -415,8 +432,14 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): boolean {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
-        return download?.status === 'downloading' || download?.status === 'queued';
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
+        return (
+            download?.status === 'downloading' || download?.status === 'queued'
+        );
     }
 
     /**
@@ -427,7 +450,11 @@ export class DownloadsService implements OnDestroy {
         playlistId: string,
         contentType: 'vod' | 'episode'
     ): string | undefined {
-        const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
+        const download = this.getDownloadByContent(
+            xtreamId,
+            playlistId,
+            contentType
+        );
         if (download?.status === 'completed') {
             return download.filePath;
         }
@@ -443,5 +470,51 @@ export class DownloadsService implements OnDestroy {
         const sizes = ['B', 'KB', 'MB', 'GB'];
         const i = Math.floor(Math.log(bytes) / Math.log(k));
         return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    private updateThroughputSamples(items: DownloadItem[]): void {
+        const now = Date.now();
+        const nextThroughput = { ...this.downloadThroughput() };
+        const activeIds = new Set<number>();
+
+        for (const item of items) {
+            activeIds.add(item.id);
+            const bytesDownloaded = item.bytesDownloaded ?? 0;
+            const previous = this.previousDownloadSamples.get(item.id);
+
+            if (
+                item.status === 'downloading' &&
+                previous &&
+                now > previous.sampledAt &&
+                bytesDownloaded >= previous.bytesDownloaded
+            ) {
+                const elapsedSeconds = (now - previous.sampledAt) / 1000;
+                const byteDelta = bytesDownloaded - previous.bytesDownloaded;
+                nextThroughput[item.id] = {
+                    bytesPerSecond:
+                        elapsedSeconds > 0 ? byteDelta / elapsedSeconds : 0,
+                    sampledAt: now,
+                };
+            }
+
+            if (item.status === 'downloading') {
+                this.previousDownloadSamples.set(item.id, {
+                    bytesDownloaded,
+                    sampledAt: now,
+                });
+            } else {
+                this.previousDownloadSamples.delete(item.id);
+                delete nextThroughput[item.id];
+            }
+        }
+
+        for (const id of Object.keys(nextThroughput)) {
+            if (!activeIds.has(Number(id))) {
+                delete nextThroughput[Number(id)];
+                this.previousDownloadSamples.delete(Number(id));
+            }
+        }
+
+        this.downloadThroughput.set(nextThroughput);
     }
 }

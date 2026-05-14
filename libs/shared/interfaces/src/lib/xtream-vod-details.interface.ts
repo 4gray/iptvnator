@@ -23,6 +23,8 @@ export interface XtreamVodInfo {
     duration: string;
     video: string[];
     audio: string[];
+    subtitles?: string[] | Record<string, string>;
+    subtitle?: string[] | Record<string, string>;
     bitrate: number;
     rating: number | string;
     runtime?: string;

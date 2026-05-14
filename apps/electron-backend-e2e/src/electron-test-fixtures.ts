@@ -33,8 +33,8 @@ export const m3uFixturePath = join(
 );
 export const stalkerMockPort = process.env['MOCK_PORT'] ?? '3210';
 export const xtreamMockPort = process.env['XTREAM_MOCK_PORT'] ?? '3211';
-export const stalkerMockServer = `http://localhost:${stalkerMockPort}`;
-export const xtreamMockServer = `http://localhost:${xtreamMockPort}`;
+export const stalkerMockServer = `http://127.0.0.1:${stalkerMockPort}`;
+export const xtreamMockServer = `http://127.0.0.1:${xtreamMockPort}`;
 export const defaultXtreamPortalName = 'Mock Xtream Portal';
 export const defaultStalkerPortalName = 'Mock Stalker Portal';
 export const defaultXtreamUsername = 'user1';
@@ -137,15 +137,18 @@ export async function launchElectronApp(
         args.unshift('--no-sandbox', '--disable-gpu');
     }
 
+    const env: Record<string, string> = {
+        ...process.env,
+        ...options.env,
+        ELECTRON_IS_DEV: '0',
+        IPTVNATOR_E2E_DATA_DIR: dataDir,
+        NODE_ENV: 'test',
+    };
+    delete env['ELECTRON_RUN_AS_NODE'];
+
     const electronApp = await electron.launch({
         args,
-        env: {
-            ...process.env,
-            ...options.env,
-            ELECTRON_IS_DEV: '0',
-            IPTVNATOR_E2E_DATA_DIR: dataDir,
-            NODE_ENV: 'test',
-        },
+        env,
     });
 
     const mainWindow = await findMainWindow(electronApp);
@@ -219,11 +222,11 @@ async function waitForAppReady(page: Page): Promise<void> {
     } catch (error) {
         const diagnostics = await page.evaluate(() => ({
             appRootLength:
-                document.querySelector('app-root')?.innerHTML.trim().length ?? 0,
+                document.querySelector('app-root')?.innerHTML.trim().length ??
+                0,
             baseHref:
-                document
-                    .querySelector('base')
-                    ?.getAttribute('href') ?? '<missing>',
+                document.querySelector('base')?.getAttribute('href') ??
+                '<missing>',
             readyState: document.readyState,
             title: document.title,
             url: location.href,
@@ -279,7 +282,7 @@ export async function importM3uPlaylistFromNativeDialog(
     const fileInput = dialog.locator('input[type="file"][name="playlist"]');
 
     await fileInput.evaluate((element, selectedFilePath) => {
-        (element as HTMLInputElement).dataset.filePathOverride =
+        (element as HTMLInputElement).dataset['filePathOverride'] =
             selectedFilePath;
     }, filePath);
     await fileInput.setInputFiles(filePath);
@@ -773,9 +776,7 @@ export async function switchUnifiedCollectionContent(
     await clickButtonToggleOption(toggleGroup, contentLabel);
 }
 
-export async function clearCurrentUnifiedCollection(
-    page: Page
-): Promise<void> {
+export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
     await page
         .getByRole('button', {
             name: /Clear .* (favorites|recently viewed)/i,

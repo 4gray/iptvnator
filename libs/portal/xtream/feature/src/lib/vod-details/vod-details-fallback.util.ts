@@ -18,6 +18,7 @@ type XtreamVodCatalogContext = Partial<XtreamVodStream> & {
     readonly poster_url?: string;
     readonly title?: string;
     readonly xtream_id?: string | number;
+    readonly imdbRating?: string | number;
 };
 
 type XtreamVodDetailsContext = XtreamVodDetails &
@@ -62,21 +63,21 @@ export function hasUsableXtreamVodMetadata(
 
     return Boolean(
         info.description ||
-            info.plot ||
-            info.movie_image ||
-            info.cover_big ||
-            info.genre ||
-            info.releasedate ||
-            info.duration ||
-            info.duration_secs ||
-            info.country ||
-            info.director ||
-            info.actors ||
-            info.cast ||
-            info.youtube_trailer ||
-            info.rating_imdb ||
-            info.rating_kinopoisk ||
-            info.backdrop_path?.length
+        info.plot ||
+        info.movie_image ||
+        info.cover_big ||
+        info.genre ||
+        info.releasedate ||
+        info.duration ||
+        info.duration_secs ||
+        info.country ||
+        info.director ||
+        info.actors ||
+        info.cast ||
+        info.youtube_trailer ||
+        info.rating_imdb ||
+        info.rating_kinopoisk ||
+        info.backdrop_path?.length
     );
 }
 
@@ -117,10 +118,9 @@ export function buildXtreamVodFallbackViewModel(
         sanitizeText(info?.cover_big) ??
         undefined;
     const rating =
-        sanitizeText(detailItem?.rating_imdb) ??
-        formatRating(detailItem?.rating) ??
+        formatRating(catalogItem?.imdbRating) ??
         sanitizeText(catalogItem?.rating_imdb) ??
-        formatRating(catalogItem?.rating);
+        sanitizeText(detailItem?.rating_imdb);
     const added = formatUnixDate(
         movieData?.added ??
             detailItem?.added_at ??

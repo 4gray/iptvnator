@@ -35,6 +35,20 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 
+type AcceleratedPlaybackApi = {
+    resolveAcceleratedPlaybackUrl?: (
+        url: string,
+        headers?: Record<string, string>
+    ) => Promise<{
+        url: string;
+        accelerated: boolean;
+        rangeSupported: boolean;
+        status: number;
+        reason: string;
+        totalBytes?: number;
+    }>;
+};
+
 @Component({
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
@@ -83,8 +97,11 @@ export class WebPlayerViewComponent {
             this.isDesktop() &&
             !!this.playbackDiagnostic()?.externalFallbackRecommended
     );
+    private readonly acceleratedPlayback =
+        signal<ResolvedPortalPlayback | null>(null);
+    private playbackResolutionId = 0;
 
-    readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => {
+    readonly basePlayback = computed<ResolvedPortalPlayback>(() => {
         const playback = this.playback();
         if (playback) {
             return playback;
@@ -96,6 +113,9 @@ export class WebPlayerViewComponent {
             startTime: this.startTime(),
         };
     });
+    readonly resolvedPlayback = computed<ResolvedPortalPlayback>(
+        () => this.acceleratedPlayback() ?? this.basePlayback()
+    );
     readonly selectedPlayer = computed(
         () =>
             this.playerOverride() ??
@@ -107,10 +127,12 @@ export class WebPlayerViewComponent {
         effect(() => {
             this.player = this.selectedPlayer();
 
-            const playback = this.resolvedPlayback();
+            const playback = this.basePlayback();
+            this.acceleratedPlayback.set(null);
             this.playbackDiagnostic.set(null);
             this.setChannel(playback.streamUrl);
             this.setVjsOptions(playback.streamUrl);
+            void this.resolveAcceleratedPlayback(playback);
         });
     }
 
@@ -188,5 +210,59 @@ export class WebPlayerViewComponent {
 
     private detectDesktop(): boolean {
         return typeof window !== 'undefined' && !!window.electron;
+    }
+
+    private async resolveAcceleratedPlayback(
+        playback: ResolvedPortalPlayback
+    ): Promise<void> {
+        const electron = window.electron as Window['electron'] &
+            AcceleratedPlaybackApi;
+
+        if (
+            !this.isDesktop() ||
+            this.settings()?.acceleratedDownloads === false ||
+            !electron?.resolveAcceleratedPlaybackUrl
+        ) {
+            return;
+        }
+
+        const resolutionId = ++this.playbackResolutionId;
+        const resolved = await electron.resolveAcceleratedPlaybackUrl(
+            playback.streamUrl,
+            this.buildPlaybackHeaders(playback)
+        );
+
+        if (
+            resolutionId !== this.playbackResolutionId ||
+            !resolved?.url ||
+            resolved.url === playback.streamUrl
+        ) {
+            return;
+        }
+
+        const resolvedPlayback = {
+            ...playback,
+            streamUrl: resolved.url,
+        };
+
+        this.acceleratedPlayback.set(resolvedPlayback);
+        this.setChannel(resolved.url);
+        this.setVjsOptions(resolved.url);
+    }
+
+    private buildPlaybackHeaders(
+        playback: ResolvedPortalPlayback
+    ): Record<string, string> {
+        const headers: Record<string, string> = { ...(playback.headers ?? {}) };
+        if (playback.userAgent && !headers['User-Agent']) {
+            headers['User-Agent'] = playback.userAgent;
+        }
+        if (playback.referer && !headers.Referer) {
+            headers.Referer = playback.referer;
+        }
+        if (playback.origin && !headers.Origin) {
+            headers.Origin = playback.origin;
+        }
+        return headers;
     }
 }

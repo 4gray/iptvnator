@@ -90,6 +90,7 @@
                 <div class="episodes-grid">
                     @for (episode of seasons()[selectedSeason]; track $index) {
                         @let episodeInfo = getEpisodeInfo(episode);
+                        @let mediaTags = getEpisodeMediaTags(episode);
                         <article
                             class="episode-card"
                             (click)="selectEpisode(episode)"
@@ -214,6 +215,15 @@
                                         {{ episodeInfo.duration }}
                                     </span>
                                 }
+                                @if (mediaTags.length > 0) {
+                                    <div class="episode-card__media-tags">
+                                        @for (tag of mediaTags; track tag) {
+                                            <span class="episode-media-tag">{{
+                                                tag
+                                            }}</span>
+                                        }
+                                    </div>
+                                }
                             </div>
                         </article>
                     }
@@ -223,6 +233,7 @@
                 <div class="episodes-list">
                     @for (episode of seasons()[selectedSeason]; track $index) {
                         @let episodeInfo = getEpisodeInfo(episode);
+                        @let mediaTags = getEpisodeMediaTags(episode);
                         <article
                             class="episode-list-item"
                             (click)="selectEpisode(episode)"
@@ -252,6 +263,11 @@
                                             <span class="episode-list-item__progress-text">
                                                 {{ time }}
                                             </span>
+                                        }
+                                        @for (tag of mediaTags; track tag) {
+                                            <span class="episode-media-tag">{{
+                                                tag
+                                            }}</span>
                                         }
                                     </div>
                                 </div>

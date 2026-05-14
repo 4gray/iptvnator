@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { DatabaseService } from 'services';
+import { DatabaseService, ImdbRatingsService } from 'services';
 import {
     XTREAM_DATA_SOURCE,
     XtreamPlaylistData,
@@ -103,6 +103,9 @@ describe('withContent import state', () => {
     let xtreamApiService: {
         cancelSession: jest.Mock;
     };
+    let imdbRatingsService: {
+        resolveMovieRatings: jest.Mock;
+    };
 
     beforeEach(() => {
         localStorage.clear();
@@ -120,20 +123,28 @@ describe('withContent import state', () => {
         databaseService = {
             clearXtreamImportCache: jest.fn().mockResolvedValue(true),
             cancelOperation: jest.fn().mockResolvedValue(true),
-            createOperationId: jest.fn().mockImplementation((prefix?: string) => {
-                if (prefix === 'xtream-import-session') {
-                    return 'xtream-import-session';
-                }
+            createOperationId: jest
+                .fn()
+                .mockImplementation((prefix?: string) => {
+                    if (prefix === 'xtream-import-session') {
+                        return 'xtream-import-session';
+                    }
 
-                operationCounter += 1;
-                return `${prefix ?? 'db-op'}-${operationCounter}`;
-            }),
+                    operationCounter += 1;
+                    return `${prefix ?? 'db-op'}-${operationCounter}`;
+                }),
             getXtreamImportStatus: jest.fn().mockResolvedValue('completed'),
             setXtreamImportStatus: jest.fn().mockResolvedValue(true),
             supportsDbOperationCancellation: jest.fn().mockReturnValue(true),
         };
         xtreamApiService = {
             cancelSession: jest.fn().mockResolvedValue(true),
+        };
+        imdbRatingsService = {
+            resolveMovieRatings: jest.fn().mockResolvedValue({
+                status: 'ready',
+                matches: {},
+            }),
         };
         checkPortalStatusMock = jest.fn().mockResolvedValue('active');
 
@@ -151,6 +162,10 @@ describe('withContent import state', () => {
                 {
                     provide: XtreamApiService,
                     useValue: xtreamApiService,
+                },
+                {
+                    provide: ImdbRatingsService,
+                    useValue: imdbRatingsService,
                 },
             ],
         });
@@ -350,11 +365,8 @@ describe('withContent import state', () => {
             ) => pendingCategories[type].promise
         );
         dataSource.getContent.mockImplementation(
-            (
-                _playlistId: string,
-                _credentials: unknown,
-                type: ContentType
-            ) => pending[type].promise
+            (_playlistId: string, _credentials: unknown, type: ContentType) =>
+                pending[type].promise
         );
 
         const initialization = store.initializeContent();
@@ -540,6 +552,135 @@ describe('withContent import state', () => {
         expect(store.isCachedContentScopeReady('vod')).toBe(true);
         expect(store.isContentInitialized()).toBe(true);
         expect(store.contentInitBlockReason()).toBeNull();
+    });
+
+    it('keeps provider IMDb ratings and still resolves missing IMDb IDs for VOD items', async () => {
+        dataSource.getCachedCategories.mockResolvedValueOnce([]);
+        dataSource.getCachedContent.mockResolvedValueOnce([
+            {
+                stream_id: 1,
+                category_id: 1,
+                title: 'Provider Rated',
+                rating_imdb: '8.8',
+                added: '1',
+                type: 'movie',
+            },
+            {
+                stream_id: 2,
+                category_id: 1,
+                title: 'La zona d interesse',
+                added: '2',
+                type: 'movie',
+            },
+        ]);
+        imdbRatingsService.resolveMovieRatings.mockResolvedValueOnce({
+            status: 'ready',
+            matches: {
+                '2': {
+                    id: '2',
+                    imdbId: 'tt7160372',
+                    rating: 7.4,
+                    votes: 116281,
+                    title: 'The Zone of Interest',
+                    year: 2023,
+                    confidence: 0.93,
+                    matchReason: 'imdb-search+rank',
+                },
+            },
+        });
+
+        await store.hydrateCachedContent('vod');
+        await waitForCondition(
+            () => imdbRatingsService.resolveMovieRatings.mock.calls.length === 1
+        );
+        await waitForCondition(() =>
+            store.vodStreams().some((stream) => stream.imdbRating === 7.4)
+        );
+
+        expect(imdbRatingsService.resolveMovieRatings).toHaveBeenCalledWith([
+            expect.objectContaining({
+                id: '1',
+                kind: 'movie',
+                title: 'Provider Rated',
+            }),
+            expect.objectContaining({
+                id: '2',
+                kind: 'movie',
+                title: 'La zona d interesse',
+            }),
+        ]);
+        expect(store.vodStreams()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    stream_id: 1,
+                    imdbRating: 8.8,
+                    imdbMatchReason: 'provider-rating_imdb',
+                }),
+                expect.objectContaining({
+                    stream_id: 2,
+                    imdb_id: 'tt7160372',
+                    imdbRating: 7.4,
+                    imdbMatchReason: 'imdb-search+rank',
+                }),
+            ])
+        );
+    });
+
+    it('resolves IMDb IDs and ratings for cached series items', async () => {
+        dataSource.getCachedCategories.mockResolvedValueOnce([]);
+        dataSource.getCachedContent.mockResolvedValueOnce([
+            {
+                series_id: 42,
+                category_id: 1,
+                title: 'La casa di carta',
+                added: '1',
+                type: 'series',
+            },
+        ]);
+        imdbRatingsService.resolveMovieRatings.mockResolvedValueOnce({
+            status: 'ready',
+            matches: {
+                '42': {
+                    id: '42',
+                    imdbId: 'tt6468322',
+                    rating: 8.2,
+                    votes: 560000,
+                    title: 'Money Heist',
+                    year: 2017,
+                    confidence: 0.95,
+                    matchReason: 'imdb-search+rank',
+                },
+            },
+        });
+
+        await store.hydrateCachedContent('series');
+        await waitForCondition(
+            () => imdbRatingsService.resolveMovieRatings.mock.calls.length === 1
+        );
+        await waitForCondition(() =>
+            store
+                .serialStreams()
+                .some((stream) => stream.imdb_id === 'tt6468322')
+        );
+
+        expect(imdbRatingsService.resolveMovieRatings).toHaveBeenCalledWith([
+            expect.objectContaining({
+                id: '42',
+                kind: 'series',
+                title: 'La casa di carta',
+            }),
+        ]);
+        expect(store.serialStreams()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    series_id: 42,
+                    imdb_id: 'tt6468322',
+                    imdbRating: 8.2,
+                    imdbMatchedTitle: 'Money Heist',
+                    imdbMatchReason: 'imdb-search+rank',
+                }),
+            ])
+        );
     });
 
     it('exposes loading state while cached section content is hydrating', async () => {

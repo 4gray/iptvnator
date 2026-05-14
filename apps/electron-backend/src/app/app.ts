@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron';
+import { existsSync } from 'fs';
 import { join } from 'path';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
@@ -101,11 +102,21 @@ export default class App {
         return process.env.ELECTRON_OPEN_DEVTOOLS === '1';
     }
 
+    private static hasBundledRendererBuild() {
+        return existsSync(join(__dirname, '..', rendererAppName, 'index.html'));
+    }
+
     public static isDevelopmentMode() {
         // First check ELECTRON_IS_DEV environment variable (used by E2E tests)
         // This allows E2E tests to run in production mode without packaging
         if ('ELECTRON_IS_DEV' in process.env) {
             return parseInt(process.env.ELECTRON_IS_DEV, 10) === 1;
+        }
+        // When launching the already-built dist app through the repo's local
+        // Electron binary, app.isPackaged is still false. In that case load the
+        // bundled renderer instead of trying localhost:4200.
+        if (App.hasBundledRendererBuild()) {
+            return false;
         }
         // Fall back to Electron's built-in app.isPackaged
         // This is the most reliable way to detect if the app is packaged

@@ -82,9 +82,8 @@ describe('WebPlayerViewComponent', () => {
     const originalElectron = window.electron;
 
     beforeAll(async () => {
-        ({ WebPlayerViewComponent } = await import(
-            './web-player-view.component'
-        ));
+        ({ WebPlayerViewComponent } =
+            await import('./web-player-view.component'));
     });
 
     beforeEach(async () => {
@@ -181,6 +180,61 @@ describe('WebPlayerViewComponent', () => {
                 type: 'application/x-mpegURL',
             },
         ]);
+    });
+
+    it('passes the accelerated playback URL to embedded MPV', async () => {
+        const resolveAcceleratedPlaybackUrl = jest.fn().mockResolvedValue({
+            url: 'https://cdn.example.com/live.ts',
+            accelerated: true,
+            rangeSupported: true,
+            status: 206,
+            reason: 'Range-supported playback URL resolved',
+        });
+
+        fixture.destroy();
+        storageMap.get.mockReturnValue(
+            of({
+                player: VideoPlayer.EmbeddedMpv,
+                acceleratedDownloads: true,
+            })
+        );
+        window.electron = {
+            resolveAcceleratedPlaybackUrl,
+        } as unknown as typeof window.electron;
+
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://origin.example.com/live.ts'
+        );
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://origin.example.com/live.ts',
+            title: 'Live Channel',
+            userAgent: 'IPTVnator Test',
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await Promise.resolve();
+        fixture.detectChanges();
+
+        const embedded = fixture.debugElement.query(
+            By.directive(StubEmbeddedMpvPlayerComponent)
+        );
+
+        expect(resolveAcceleratedPlaybackUrl).toHaveBeenCalledWith(
+            'https://origin.example.com/live.ts',
+            expect.objectContaining({
+                'User-Agent': 'IPTVnator Test',
+            })
+        );
+        expect(embedded.componentInstance.playback()).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://cdn.example.com/live.ts',
+                title: 'Live Channel',
+            })
+        );
     });
 });
 

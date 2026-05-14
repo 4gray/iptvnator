@@ -69,6 +69,74 @@
         </div>
     </div>
 
+    <div class="setting-item" data-test-id="accelerated-downloads-setting">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.ACCELERATED_DOWNLOADS' | translate }}</h4>
+            <p>
+                {{ 'SETTINGS.ACCELERATED_DOWNLOADS_DESCRIPTION' | translate }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox formControlName="acceleratedDownloads"></mat-checkbox>
+        </div>
+    </div>
+
+    <div class="setting-item" data-test-id="redirect-indirect-streams-setting">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.REDIRECT_INDIRECT_STREAMS' | translate }}</h4>
+            <p>
+                {{
+                    'SETTINGS.REDIRECT_INDIRECT_STREAMS_DESCRIPTION' | translate
+                }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox
+                formControlName="redirectIndirectStreamsToDirectSource"
+            ></mat-checkbox>
+        </div>
+    </div>
+
+    <div class="setting-item" data-test-id="media-metadata-cache-setting">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.MEDIA_METADATA_CACHE' | translate }}</h4>
+            <p>
+                {{ 'SETTINGS.MEDIA_METADATA_CACHE_DESCRIPTION' | translate }}
+            </p>
+        </div>
+        <div class="setting-item__control">
+            <button
+                mat-stroked-button
+                type="button"
+                data-test-id="clear-media-metadata-cache"
+                (click)="clearMediaMetadataCache.emit()"
+            >
+                <mat-icon>cleaning_services</mat-icon>
+                {{ 'SETTINGS.CLEAR_MEDIA_METADATA_CACHE' | translate }}
+            </button>
+        </div>
+    </div>
+
+    <div class="setting-item" data-test-id="imdb-overrides-setting">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.IMDB_OVERRIDES' | translate }}</h4>
+            <p>
+                {{ 'SETTINGS.IMDB_OVERRIDES_DESCRIPTION' | translate }}
+            </p>
+        </div>
+        <div class="setting-item__control">
+            <button
+                mat-stroked-button
+                type="button"
+                data-test-id="clear-imdb-overrides"
+                (click)="clearImdbOverrides.emit()"
+            >
+                <mat-icon>restart_alt</mat-icon>
+                {{ 'SETTINGS.CLEAR_IMDB_OVERRIDES' | translate }}
+            </button>
+        </div>
+    </div>
+
     @if (isDesktop() && isExternalPlayerSelected()) {
         <div
             class="setting-item"

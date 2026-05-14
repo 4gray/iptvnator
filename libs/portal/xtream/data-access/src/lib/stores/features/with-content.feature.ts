@@ -7,6 +7,9 @@ import {
     withState,
 } from '@ngrx/signals';
 import {
+    ImdbMovieRatingMatch,
+    ImdbMovieRatingRequestItem,
+    MediaStreamMetadata,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
@@ -16,6 +19,7 @@ import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     DatabaseService,
     DbOperationEvent,
+    ImdbRatingsService,
     isDbAbortError,
     XtreamPendingRestoreService,
     XtreamImportStatus,
@@ -215,13 +219,58 @@ export function withContent() {
             const databaseService = inject(DatabaseService);
             const pendingRestoreService = inject(XtreamPendingRestoreService);
             const xtreamApiService = inject(XtreamApiService);
+            const imdbRatingsService = inject(ImdbRatingsService);
             const importTypes: ContentType[] = ['live', 'vod', 'series'];
             let activeInitializationPromise: Promise<void> | null = null;
             let cachedHydrationGeneration = 0;
+            let imdbRatingHydrationGeneration = {
+                vod: 0,
+                series: 0,
+            };
             const activeCachedHydrationPromises = new Map<
                 string,
                 Promise<void>
             >();
+            type ImdbHydrationKind = 'movie' | 'series';
+            type ImdbHydrationGenerationKey = 'vod' | 'series';
+            type ImdbHydratableStream = (XtreamVodStream | XtreamSerieItem) & {
+                id?: string | number;
+                imdbId?: string;
+                imdb_id?: string;
+                imdbRating?: string | number;
+                imdbVotes?: number;
+                imdbMatchedTitle?: string;
+                imdbMatchedYear?: number;
+                imdbMatchConfidence?: number;
+                imdbMatchReason?: string;
+                info?:
+                    | {
+                          duration?: string | number;
+                          episode_run_time?: string | number;
+                          name?: string;
+                          o_name?: string;
+                          rating_imdb?: string | number;
+                          releaseDate?: string;
+                          releasedate?: string;
+                          title?: string;
+                      }
+                    | []
+                    | null;
+                movie_data?: {
+                    name?: string;
+                    title?: string;
+                };
+                original_name?: string;
+                o_name?: string;
+                rating_imdb?: string | number;
+                releaseDate?: string;
+                releasedate?: string;
+                series_id?: string | number;
+                stream_id?: string | number;
+                title?: string;
+                xtream_id?: string | number;
+                year?: string | number;
+            };
 
             const getCachedHydrationKey = (
                 playlistId: string,
@@ -266,6 +315,356 @@ export function withContent() {
 
             const asCachedContent = <T>(content: unknown): T[] =>
                 content as T[];
+
+            const asString = (value: unknown): string | undefined =>
+                typeof value === 'string' && value.trim()
+                    ? value.trim()
+                    : undefined;
+
+            const parseImdbRating = (value: unknown): number | undefined => {
+                if (typeof value === 'number') {
+                    return Number.isFinite(value) ? value : undefined;
+                }
+
+                if (typeof value !== 'string') {
+                    return undefined;
+                }
+
+                const match = value
+                    .trim()
+                    .replace(',', '.')
+                    .match(/\d+(\.\d+)?/);
+                if (!match) {
+                    return undefined;
+                }
+
+                const rating = Number.parseFloat(match[0]);
+                return Number.isFinite(rating) ? rating : undefined;
+            };
+
+            const getContentStreamKey = (
+                stream: ImdbHydratableStream
+            ): string => {
+                return String(
+                    stream.stream_id ??
+                        stream.series_id ??
+                        stream.xtream_id ??
+                        stream.id ??
+                        stream.title ??
+                        stream.o_name ??
+                        stream.name ??
+                        ''
+                );
+            };
+
+            const getProviderImdbRating = (
+                stream: ImdbHydratableStream
+            ): number | undefined => {
+                const info =
+                    stream.info && !Array.isArray(stream.info)
+                        ? stream.info
+                        : null;
+
+                return (
+                    parseImdbRating(stream.rating_imdb) ??
+                    parseImdbRating(info?.rating_imdb)
+                );
+            };
+
+            const applyProviderImdbRatingToStream = <
+                T extends ImdbHydratableStream,
+            >(
+                stream: T
+            ): T => {
+                const providerRating = getProviderImdbRating(stream);
+                if (providerRating === undefined) {
+                    return stream;
+                }
+
+                return {
+                    ...stream,
+                    imdbRating: providerRating,
+                    imdbMatchReason: 'provider-rating_imdb',
+                };
+            };
+
+            const extractYear = (value: unknown): number | undefined => {
+                if (typeof value === 'number' && Number.isFinite(value)) {
+                    return value;
+                }
+
+                if (typeof value !== 'string') {
+                    return undefined;
+                }
+
+                const match = value.match(/\b(19\d{2}|20\d{2})\b/);
+                return match ? Number.parseInt(match[1], 10) : undefined;
+            };
+
+            const parseDurationMinutes = (
+                value: unknown
+            ): number | undefined => {
+                if (typeof value === 'number' && Number.isFinite(value)) {
+                    return value;
+                }
+
+                if (typeof value !== 'string') {
+                    return undefined;
+                }
+
+                const parts = value
+                    .split(':')
+                    .map((part) => Number.parseInt(part, 10));
+                if (parts.length === 3 && parts.every(Number.isFinite)) {
+                    return parts[0] * 60 + parts[1] + Math.round(parts[2] / 60);
+                }
+
+                const numeric = Number.parseInt(value, 10);
+                return Number.isFinite(numeric) ? numeric : undefined;
+            };
+
+            const createImdbRatingRequestItems = (
+                streams: ImdbHydratableStream[],
+                kind: ImdbHydrationKind
+            ): ImdbMovieRatingRequestItem[] => {
+                return streams
+                    .map<ImdbMovieRatingRequestItem | null>((stream) => {
+                        const imdbId = asString(
+                            stream.imdb_id ?? stream.imdbId
+                        );
+                        const hasResolvedImdbRating =
+                            Boolean(imdbId) &&
+                            (getProviderImdbRating(stream) !== undefined ||
+                                parseImdbRating(stream.imdbRating) !==
+                                    undefined);
+
+                        if (hasResolvedImdbRating) {
+                            return null;
+                        }
+
+                        const title =
+                            asString(stream.title) ??
+                            asString(stream.name) ??
+                            asString(stream.movie_data?.name) ??
+                            asString(stream.movie_data?.title) ??
+                            asString(
+                                stream.info && !Array.isArray(stream.info)
+                                    ? (stream.info.title ?? stream.info.name)
+                                    : undefined
+                            );
+                        if (!title && !imdbId) {
+                            return null;
+                        }
+
+                        const originalTitle =
+                            asString(stream.o_name) ??
+                            asString(stream.original_name) ??
+                            asString(
+                                stream.info && !Array.isArray(stream.info)
+                                    ? stream.info.o_name
+                                    : undefined
+                            );
+                        const year =
+                            extractYear(stream.year) ??
+                            extractYear(stream.releaseDate) ??
+                            extractYear(stream.releasedate) ??
+                            extractYear(
+                                stream.info && !Array.isArray(stream.info)
+                                    ? stream.info.releaseDate
+                                    : undefined
+                            ) ??
+                            extractYear(
+                                stream.info && !Array.isArray(stream.info)
+                                    ? stream.info.releasedate
+                                    : undefined
+                            ) ??
+                            extractYear(title) ??
+                            extractYear(originalTitle);
+                        const durationMinutes =
+                            parseDurationMinutes(
+                                (
+                                    stream as ImdbHydratableStream & {
+                                        duration?: string | number;
+                                    }
+                                ).duration
+                            ) ??
+                            parseDurationMinutes(
+                                stream.info && !Array.isArray(stream.info)
+                                    ? (stream.info.duration ??
+                                          stream.info.episode_run_time)
+                                    : undefined
+                            ) ??
+                            parseDurationMinutes(
+                                (
+                                    stream as ImdbHydratableStream & {
+                                        episode_run_time?: string | number;
+                                    }
+                                ).episode_run_time
+                            );
+
+                        return {
+                            id: getContentStreamKey(stream),
+                            imdbId,
+                            kind,
+                            title,
+                            originalTitle,
+                            year,
+                            durationMinutes,
+                        };
+                    })
+                    .filter(
+                        (item): item is ImdbMovieRatingRequestItem =>
+                            item !== null
+                    );
+            };
+
+            const applyImdbMatchToStream = <T extends ImdbHydratableStream>(
+                stream: T,
+                match: ImdbMovieRatingMatch
+            ): T => {
+                const providerRating = getProviderImdbRating(stream);
+
+                return {
+                    ...stream,
+                    imdb_id: match.imdbId,
+                    imdbRating: providerRating ?? match.rating,
+                    imdbVotes: match.votes,
+                    imdbMatchedTitle: match.title,
+                    imdbMatchedYear: match.year,
+                    imdbMatchConfidence: match.confidence,
+                    imdbMatchReason:
+                        providerRating === undefined
+                            ? match.matchReason
+                            : `${match.matchReason}+provider-rating_imdb`,
+                };
+            };
+
+            const patchImdbHydratedStreams = <T extends ImdbHydratableStream>(
+                kind: ImdbHydrationKind,
+                hydrate: (stream: T) => T
+            ): void => {
+                patchState(store, (state) => {
+                    if (kind === 'movie') {
+                        return {
+                            vodStreams: (state.vodStreams as T[]).map(
+                                hydrate
+                            ) as XtreamVodStream[],
+                        };
+                    }
+
+                    return {
+                        serialStreams: (state.serialStreams as T[]).map(
+                            hydrate
+                        ) as XtreamSerieItem[],
+                    };
+                });
+            };
+
+            const hydrateImdbRatingsForContentStreams = async <
+                T extends ImdbHydratableStream,
+            >(
+                playlistId: string,
+                streams: T[],
+                kind: ImdbHydrationKind
+            ): Promise<void> => {
+                const generationKey: ImdbHydrationGenerationKey =
+                    kind === 'movie' ? 'vod' : 'series';
+                const providerRatedStreams = new Map(
+                    streams
+                        .map(
+                            (stream) =>
+                                [
+                                    getContentStreamKey(stream),
+                                    applyProviderImdbRatingToStream(stream),
+                                ] as const
+                        )
+                        .filter(
+                            ([, stream]) =>
+                                parseImdbRating(stream.imdbRating) !== undefined
+                        )
+                );
+
+                if (providerRatedStreams.size > 0) {
+                    patchImdbHydratedStreams<T>(kind, (stream) => {
+                        const providerRated = providerRatedStreams.get(
+                            getContentStreamKey(stream)
+                        );
+                        return providerRated ?? stream;
+                    });
+                }
+
+                const requestItems = createImdbRatingRequestItems(
+                    streams,
+                    kind
+                );
+                if (requestItems.length === 0) {
+                    return;
+                }
+
+                const generation = ++imdbRatingHydrationGeneration[
+                    generationKey
+                ];
+
+                try {
+                    const response =
+                        await imdbRatingsService.resolveMovieRatings(
+                            requestItems
+                        );
+
+                    if (
+                        generation !==
+                            imdbRatingHydrationGeneration[generationKey] ||
+                        getPortalStore().playlistId?.() !== playlistId
+                    ) {
+                        return;
+                    }
+
+                    if (response.status !== 'ready') {
+                        logger.warn(
+                            'IMDb rating resolution failed',
+                            response.error
+                        );
+                        return;
+                    }
+
+                    patchImdbHydratedStreams<T>(kind, (stream) => {
+                        const providerRating = getProviderImdbRating(stream);
+                        const match =
+                            response.matches[getContentStreamKey(stream)];
+                        if (match) {
+                            return applyImdbMatchToStream(stream, match);
+                        }
+
+                        if (providerRating !== undefined) {
+                            return applyProviderImdbRatingToStream(stream);
+                        }
+
+                        return stream;
+                    });
+                } catch (error) {
+                    logger.warn('Error resolving IMDb ratings', error);
+                }
+            };
+
+            const hydrateImdbRatingsForVodStreams = async (
+                playlistId: string,
+                streams: XtreamVodStream[]
+            ): Promise<void> =>
+                hydrateImdbRatingsForContentStreams(
+                    playlistId,
+                    streams,
+                    'movie'
+                );
+
+            const hydrateImdbRatingsForSeriesStreams = async (
+                playlistId: string,
+                streams: XtreamSerieItem[]
+            ): Promise<void> =>
+                hydrateImdbRatingsForContentStreams(
+                    playlistId,
+                    streams,
+                    'series'
+                );
 
             const markContentScopeLoading = (
                 scope?: XtreamCachedContentScope | null,
@@ -386,7 +785,10 @@ export function withContent() {
                 type: ContentType
             ): Promise<boolean> => {
                 const [hasCategories, hasContent] = await Promise.all([
-                    dataSource.hasCategories(playlistId, toDbCategoryType(type)),
+                    dataSource.hasCategories(
+                        playlistId,
+                        toDbCategoryType(type)
+                    ),
                     dataSource.hasContent(playlistId, toStreamType(type)),
                 ]);
 
@@ -399,10 +801,17 @@ export function withContent() {
             ): Promise<boolean> => {
                 const types = getTypesForCacheScope(scope);
 
-                if (scope === 'search' || scope === 'recently-added' || !scope) {
+                if (
+                    scope === 'search' ||
+                    scope === 'recently-added' ||
+                    !scope
+                ) {
                     const checks = await Promise.all(
                         types.map((type) =>
-                            dataSource.hasContent(playlistId, toStreamType(type))
+                            dataSource.hasContent(
+                                playlistId,
+                                toStreamType(type)
+                            )
                         )
                     );
                     return checks.some(Boolean);
@@ -476,10 +885,7 @@ export function withContent() {
                     );
                 } catch (error) {
                     if (
-                        !isCurrentCachedHydrationContext(
-                            playlistId,
-                            generation
-                        )
+                        !isCurrentCachedHydrationContext(playlistId, generation)
                     ) {
                         return;
                     }
@@ -505,9 +911,7 @@ export function withContent() {
                     throw error;
                 }
 
-                if (
-                    !isCurrentCachedHydrationContext(playlistId, generation)
-                ) {
+                if (!isCurrentCachedHydrationContext(playlistId, generation)) {
                     return;
                 }
 
@@ -554,6 +958,28 @@ export function withContent() {
                     updates.contentLoadStateByType = nextLoadStates;
                     return updates;
                 });
+
+                const cachedVodEntry = cachedEntries.find(
+                    (entry) => entry.type === 'vod'
+                );
+                if (cachedVodEntry) {
+                    void hydrateImdbRatingsForVodStreams(
+                        playlistId,
+                        asCachedContent<XtreamVodStream>(cachedVodEntry.content)
+                    );
+                }
+
+                const cachedSeriesEntry = cachedEntries.find(
+                    (entry) => entry.type === 'series'
+                );
+                if (cachedSeriesEntry) {
+                    void hydrateImdbRatingsForSeriesStreams(
+                        playlistId,
+                        asCachedContent<XtreamSerieItem>(
+                            cachedSeriesEntry.content
+                        )
+                    );
+                }
             };
 
             const hydrateCachedContentForScope = async (
@@ -572,10 +998,7 @@ export function withContent() {
                     return;
                 }
 
-                const requestKey = getCachedHydrationKey(
-                    ctx.playlistId,
-                    scope
-                );
+                const requestKey = getCachedHydrationKey(ctx.playlistId, scope);
                 const inFlightRequest =
                     activeCachedHydrationPromises.get(requestKey);
 
@@ -634,7 +1057,7 @@ export function withContent() {
                               : state.activeImportOperationIds.includes(
                                       operationId
                                   )
-                                    ? state.activeImportOperationIds
+                                ? state.activeImportOperationIds
                                 : [
                                       ...state.activeImportOperationIds,
                                       operationId,
@@ -1086,6 +1509,10 @@ export function withContent() {
                             vodStreams: vod,
                         });
                         updateContentTypeLoadState('vod', 'ready');
+                        void hydrateImdbRatingsForVodStreams(
+                            ctx.playlistId,
+                            vod
+                        );
 
                         throwIfImportCancelled(options?.importSessionId);
                         setActiveImportProgress('series');
@@ -1123,6 +1550,10 @@ export function withContent() {
                             isLoadingContent: false,
                         });
                         updateContentTypeLoadState('series', 'ready');
+                        void hydrateImdbRatingsForSeriesStreams(
+                            ctx.playlistId,
+                            series
+                        );
                     } catch (error) {
                         if (!isDbAbortError(error)) {
                             logger.error('Error fetching content', error);
@@ -1292,11 +1723,86 @@ export function withContent() {
                     patchState(store, updates);
                 },
 
+                setContentMediaMetadata(params: {
+                    contentType: ContentType | 'movie';
+                    xtreamId: string | number;
+                    metadata: MediaStreamMetadata | null;
+                }): void {
+                    const metadata = params.metadata;
+                    const contentType =
+                        params.contentType === 'movie'
+                            ? 'vod'
+                            : params.contentType;
+                    const targetId = Number(params.xtreamId);
+                    if (
+                        !metadata ||
+                        !Number.isFinite(targetId) ||
+                        targetId <= 0
+                    ) {
+                        return;
+                    }
+
+                    const patchItem = <
+                        T extends {
+                            audioLanguages?: string[];
+                            id?: string | number;
+                            mediaMetadata?: MediaStreamMetadata;
+                            series_id?: string | number;
+                            stream_id?: string | number;
+                            subtitleLanguages?: string[];
+                            xtream_id?: string | number;
+                        },
+                    >(
+                        item: T
+                    ): T => {
+                        const candidateId = Number(
+                            item.xtream_id ??
+                                item.stream_id ??
+                                item.series_id ??
+                                item.id
+                        );
+                        if (candidateId !== targetId) {
+                            return item;
+                        }
+
+                        return {
+                            ...item,
+                            mediaMetadata: metadata,
+                            audioLanguages: metadata.audioLanguages,
+                            subtitleLanguages: metadata.subtitleLanguages,
+                        };
+                    };
+
+                    patchState(store, (state) => {
+                        if (contentType === 'live') {
+                            return {
+                                liveStreams:
+                                    state.liveStreams.map(patchItem),
+                            };
+                        }
+
+                        if (contentType === 'vod') {
+                            return {
+                                vodStreams: state.vodStreams.map(patchItem),
+                            };
+                        }
+
+                        return {
+                            serialStreams:
+                                state.serialStreams.map(patchItem),
+                        };
+                    });
+                },
+
                 /**
                  * Reset content state
                  */
                 resetContent(): void {
                     cachedHydrationGeneration += 1;
+                    imdbRatingHydrationGeneration = {
+                        vod: imdbRatingHydrationGeneration.vod + 1,
+                        series: imdbRatingHydrationGeneration.series + 1,
+                    };
                     activeCachedHydrationPromises.clear();
                     patchState(store, initialContentState);
                 },

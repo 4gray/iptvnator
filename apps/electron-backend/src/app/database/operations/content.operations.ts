@@ -8,6 +8,30 @@ import {
     reportOperationProgress,
 } from './operation-control';
 
+const SEARCH_STOP_WORDS = new Set([
+    'a',
+    'al',
+    'alla',
+    'an',
+    'and',
+    'dei',
+    'del',
+    'della',
+    'di',
+    'e',
+    'gli',
+    'i',
+    'il',
+    'la',
+    'le',
+    'lo',
+    'of',
+    'the',
+    'un',
+    'una',
+    'uno',
+]);
+
 function escapeLikePattern(term: string): string {
     return term.replace(/[%_\\]/g, '\\$&');
 }
@@ -26,6 +50,31 @@ function buildLikePatterns(term: string): string[] {
     variants.add(titleCase);
 
     return [...variants].map((value) => `%${escapeLikePattern(value)}%`);
+}
+
+function normalizeSearchText(term: string): string {
+    return term
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .replace(/&/g, ' and ')
+        .replace(/['’`]/g, '')
+        .replace(/[^a-zA-Z0-9]+/g, ' ')
+        .trim()
+        .toLocaleLowerCase();
+}
+
+function buildSearchTokens(term: string): string[] {
+    const rawTokens = normalizeSearchText(term).split(/\s+/).filter(Boolean);
+    const meaningfulTokens = rawTokens.filter(
+        (token) => token.length > 1 && !SEARCH_STOP_WORDS.has(token)
+    );
+
+    return meaningfulTokens.length ? meaningfulTokens : rawTokens;
+}
+
+function titleMatchesSearchTokens(title: string | null, tokens: string[]) {
+    const normalizedTitle = normalizeSearchText(title ?? '');
+    return tokens.every((token) => normalizedTitle.includes(token));
 }
 
 export type GlobalRecentlyAddedKind = 'all' | 'vod' | 'series';
@@ -48,6 +97,8 @@ function selectContentFields() {
     return {
         id: schema.content.id,
         category_id: schema.content.categoryId,
+        category_hidden: schema.categories.hidden,
+        category_name: schema.categories.name,
         title: schema.content.title,
         rating: schema.content.rating,
         added: schema.content.added,
@@ -183,16 +234,16 @@ type XtreamContentSource = Record<string, unknown> & {
     last_modified?: string;
     added?: string;
     stream_icon?: string;
-        poster?: string;
-        cover?: string;
-        name?: string;
-        title?: string;
-        epg_channel_id?: string;
-        tv_archive?: string | number;
-        tv_archive_duration?: string | number;
-        direct_source?: string;
-        series_id?: string | number;
-        stream_id?: string | number;
+    poster?: string;
+    cover?: string;
+    name?: string;
+    title?: string;
+    epg_channel_id?: string;
+    tv_archive?: string | number;
+    tv_archive_duration?: string | number;
+    direct_source?: string;
+    series_id?: string | number;
+    stream_id?: string | number;
 };
 
 function toXtreamContentValue(
@@ -300,10 +351,9 @@ export async function saveContent(
             )
         );
 
-    const categoryMap = new Map(categories.map((category) => [
-        category.xtreamId,
-        category.id,
-    ]));
+    const categoryMap = new Map(
+        categories.map((category) => [category.xtreamId, category.id])
+    );
 
     const values = streams
         .map((stream) => toXtreamContentValue(stream, type, categoryMap))
@@ -317,8 +367,7 @@ export async function saveContent(
         await checkpointOperation(control);
         const chunk = values.slice(index, index + chunkSize);
         await db.transaction((tx) => {
-            tx
-                .insert(schema.content)
+            tx.insert(schema.content)
                 .values(chunk)
                 .onConflictDoNothing({
                     target: [
@@ -374,8 +423,7 @@ export async function clearXtreamImportCache(
         100
     )) {
         await db.transaction((tx) => {
-            tx
-                .delete(schema.content)
+            tx.delete(schema.content)
                 .where(inArray(schema.content.id, chunk))
                 .run();
         });
@@ -383,8 +431,7 @@ export async function clearXtreamImportCache(
 
     for (const chunk of chunkValues(categoryIds, 100)) {
         await db.transaction((tx) => {
-            tx
-                .delete(schema.categories)
+            tx.delete(schema.categories)
                 .where(inArray(schema.categories.id, chunk))
                 .run();
         });
@@ -432,16 +479,27 @@ export async function searchContent(
         return [];
     }
 
-    const searchTermLower = searchTerm.toLocaleLowerCase();
-    const likePatterns = buildLikePatterns(searchTerm);
-    const likeConditions = likePatterns.map(
-        (pattern) => sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+    const searchTokens = buildSearchTokens(searchTerm);
+    if (!searchTokens.length) {
+        return [];
+    }
+
+    const likeConditions = searchTokens.map((token) =>
+        or(
+            ...buildLikePatterns(token).map(
+                (pattern) =>
+                    sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+            )
+        )
     );
 
     const conditions = [
         eq(schema.categories.playlistId, playlistId),
-        inArray(schema.content.type, types as Array<'live' | 'movie' | 'series'>),
-        or(...likeConditions),
+        inArray(
+            schema.content.type,
+            types as Array<'live' | 'movie' | 'series'>
+        ),
+        ...likeConditions,
     ];
 
     if (excludeHidden) {
@@ -459,9 +517,7 @@ export async function searchContent(
         .limit(200);
 
     return candidates
-        .filter((item) =>
-            item.title?.toLocaleLowerCase().includes(searchTermLower)
-        )
+        .filter((item) => titleMatchesSearchTokens(item.title, searchTokens))
         .slice(0, 50);
 }
 
@@ -475,15 +531,26 @@ export async function globalSearch(
         return [];
     }
 
-    const searchTermLower = searchTerm.toLocaleLowerCase();
-    const likePatterns = buildLikePatterns(searchTerm);
-    const likeConditions = likePatterns.map(
-        (pattern) => sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+    const searchTokens = buildSearchTokens(searchTerm);
+    if (!searchTokens.length) {
+        return [];
+    }
+
+    const likeConditions = searchTokens.map((token) =>
+        or(
+            ...buildLikePatterns(token).map(
+                (pattern) =>
+                    sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+            )
+        )
     );
 
     const conditions = [
-        inArray(schema.content.type, types as Array<'live' | 'movie' | 'series'>),
-        or(...likeConditions),
+        inArray(
+            schema.content.type,
+            types as Array<'live' | 'movie' | 'series'>
+        ),
+        ...likeConditions,
     ];
 
     if (excludeHidden) {
@@ -510,8 +577,6 @@ export async function globalSearch(
         .limit(200);
 
     return candidates
-        .filter((item) =>
-            item.title?.toLocaleLowerCase().includes(searchTermLower)
-        )
+        .filter((item) => titleMatchesSearchTokens(item.title, searchTokens))
         .slice(0, 50);
 }

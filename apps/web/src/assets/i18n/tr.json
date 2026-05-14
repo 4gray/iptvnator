@@ -353,42 +353,50 @@
         "PORT_PATTERN": "Sadece rakamlara izin verilir",
         "REMOVE_ALL_IN_PROGRESS": "Deleting playlist data…",
         "REMOVE_ALL_PROGRESS": "Deleting playlist data… {{current}} / {{total}}",
-        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
+        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again.",
+        "MEDIA_METADATA_CACHE": "Media metadata cache",
+        "MEDIA_METADATA_CACHE_DESCRIPTION": "Clear cached quality, audio and subtitle probes so previews can analyze streams again.",
+        "CLEAR_MEDIA_METADATA_CACHE": "Clear metadata cache",
+        "MEDIA_METADATA_CACHE_CLEARED": "Media metadata cache cleared.",
+        "IMDB_OVERRIDES": "Manual IMDb corrections",
+        "IMDB_OVERRIDES_DESCRIPTION": "Clear locally saved IMDb IDs and rating corrections used for movie and series details.",
+        "CLEAR_IMDB_OVERRIDES": "Clear IMDb corrections",
+        "IMDB_OVERRIDES_CLEARED": "IMDb corrections cleared."
     },
     "THEMES": {
         "DARK_THEME": "Koyu tema",
         "LIGHT_THEME": "Açık tema",
         "SYSTEM_THEME": "Sistem teması"
     },
-        "PLAYBACK_DIAGNOSTICS": {
-            "UNSUPPORTED_CONTAINER": {
-                "TITLE": "This stream container is likely unsupported by the browser player",
-                "DESCRIPTION": "Chromium/Electron may not decode this container inline. Try MPV or VLC for broader codec support."
-            },
-            "UNSUPPORTED_CODEC": {
-                "TITLE": "This stream codec is likely unsupported by the browser player",
-                "DESCRIPTION": "The stream advertises codecs that the built-in Chromium player may not decode. MPV or VLC can often play it."
-            },
-            "MEDIA_DECODE_ERROR": {
-                "TITLE": "The browser player could not decode this stream",
-                "DESCRIPTION": "Playback started but the media pipeline failed while decoding. An external player may handle this stream better."
-            },
-            "NETWORK_ERROR": {
-                "TITLE": "The stream could not be loaded",
-                "DESCRIPTION": "The player reported a network or provider loading error. Check the stream URL, headers, or provider availability."
-            },
-            "DRM_OR_ENCRYPTION": {
-                "TITLE": "This stream may be encrypted or DRM-protected",
-                "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
-            },
-            "UNKNOWN_PLAYBACK_ERROR": {
-                "TITLE": "The browser player reported a playback error",
-                "DESCRIPTION": "The stream failed in the built-in player, but the error did not identify a specific codec, container, or network cause."
-            },
-            "ACTION_OPEN_MPV": "Open in MPV",
-            "ACTION_OPEN_VLC": "Open in VLC",
-            "ACTION_COPY_URL": "Copy URL"
+    "PLAYBACK_DIAGNOSTICS": {
+        "UNSUPPORTED_CONTAINER": {
+            "TITLE": "This stream container is likely unsupported by the browser player",
+            "DESCRIPTION": "Chromium/Electron may not decode this container inline. Try MPV or VLC for broader codec support."
         },
+        "UNSUPPORTED_CODEC": {
+            "TITLE": "This stream codec is likely unsupported by the browser player",
+            "DESCRIPTION": "The stream advertises codecs that the built-in Chromium player may not decode. MPV or VLC can often play it."
+        },
+        "MEDIA_DECODE_ERROR": {
+            "TITLE": "The browser player could not decode this stream",
+            "DESCRIPTION": "Playback started but the media pipeline failed while decoding. An external player may handle this stream better."
+        },
+        "NETWORK_ERROR": {
+            "TITLE": "The stream could not be loaded",
+            "DESCRIPTION": "The player reported a network or provider loading error. Check the stream URL, headers, or provider availability."
+        },
+        "DRM_OR_ENCRYPTION": {
+            "TITLE": "This stream may be encrypted or DRM-protected",
+            "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
+        },
+        "UNKNOWN_PLAYBACK_ERROR": {
+            "TITLE": "The browser player reported a playback error",
+            "DESCRIPTION": "The stream failed in the built-in player, but the error did not identify a specific codec, container, or network cause."
+        },
+        "ACTION_OPEN_MPV": "Open in MPV",
+        "ACTION_OPEN_VLC": "Open in VLC",
+        "ACTION_COPY_URL": "Copy URL"
+    },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Kanal listesini gizle",
         "SHOW_CHANNELS_LIST": "Kanal listesini göster",
@@ -623,7 +631,11 @@
             "PORTS": "Portlar",
             "HTTP_PORT": "HTTP",
             "HTTPS_PORT": "HTTPS",
-            "RTMP_PORT": "RTMP"
+            "RTMP_PORT": "RTMP",
+            "EXPORT_JSON": "Export JSON",
+            "EXPORT_CSV": "Export CSV",
+            "METADATA_KNOWN": "Metadata known",
+            "METADATA_UNKNOWN": "Metadata unknown"
         },
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Kategorileri Yönet",
@@ -635,7 +647,17 @@
             "NO_RESULTS": "Eşleşen kategori bulunamadı",
             "NO_CATEGORIES": "Kategori mevcut değil",
             "SAVE": "Kaydet"
-        }
+        },
+        "IMDB_OVERRIDE_TITLE": "IMDb correction",
+        "IMDB_OVERRIDE_HINT": "Use only when the automatic match is wrong",
+        "IMDB_ID": "IMDb ID",
+        "IMDB_RATING_OVERRIDE": "IMDb rating",
+        "IMDB_MATCH_TITLE": "IMDb title",
+        "SAVE_IMDB_OVERRIDE": "Save correction",
+        "CLEAR_IMDB_OVERRIDE": "Clear correction",
+        "IMDB_OVERRIDE_SAVED": "IMDb correction saved.",
+        "IMDB_OVERRIDE_CLEARED": "IMDb correction cleared.",
+        "IMDB_OVERRIDE_INVALID": "IMDb rating must be between 0 and 10."
     },
     "PORTALS": {
         "ALL_CATEGORIES": "Tüm kategoriler",
@@ -774,7 +796,22 @@
             "COMPLETED": "Tamamlandı",
             "FAILED": "Başarısız",
             "CANCELED": "İptal Edildi"
-        }
+        },
+        "BENCHMARK": "Benchmark download URL",
+        "BENCHMARK_RUNNING": "Benchmark running...",
+        "BENCHMARK_UNAVAILABLE": "Download benchmark is available only in the desktop app.",
+        "BENCHMARK_STATUS": "HTTP",
+        "BENCHMARK_RANGE_SUPPORTED": "Range supported",
+        "BENCHMARK_RANGE_UNSUPPORTED": "Range unavailable",
+        "BENCHMARK_DROP_NONE": "No drop detected",
+        "BENCHMARK_DROP_AT": "Drop at {{second}}s: {{speed}}",
+        "BENCHMARK_ALL": "Benchmark visible",
+        "BENCHMARK_ALL_HINT": "Measure all visible downloads one by one and build a reproducible throughput report.",
+        "EXPORT_BENCHMARK": "Export benchmark",
+        "BENCHMARK_REPORT_ITEMS": "Benchmarked {{count}}/{{total}}",
+        "BENCHMARK_REPORT_AVERAGE": "Average {{speed}}",
+        "BENCHMARK_REPORT_BYTES": "{{bytes}} read",
+        "BENCHMARK_REPORT_FAILED": "{{count}} failed"
     },
     "REMOTE_CONTROL": {
         "TITLE": "Uzaktan kontrol",

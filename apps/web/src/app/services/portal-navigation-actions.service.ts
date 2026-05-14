@@ -10,9 +10,7 @@ import { Playlist } from 'shared-interfaces';
 import { SettingsComponent } from '../settings/settings.component';
 
 @Injectable({ providedIn: 'root' })
-export class AppPortalNavigationActionsService
-    implements PortalNavigationActions
-{
+export class AppPortalNavigationActionsService implements PortalNavigationActions {
     private readonly dialog = inject(MatDialog);
     private readonly xtreamStore = inject(XtreamStore);
 
@@ -21,6 +19,7 @@ export class AppPortalNavigationActionsService
             vodStreamsCount: this.xtreamStore.vodStreams().length,
             liveStreamsCount: this.xtreamStore.liveStreams().length,
             seriesCount: this.xtreamStore.serialStreams().length,
+            vodStreams: this.xtreamStore.vodStreams(),
         };
 
         void import('@iptvnator/portal/xtream/feature').then(

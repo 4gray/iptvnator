@@ -39,6 +39,8 @@ import {
     DatabaseService,
     DataService,
     DbOperationEvent,
+    ImdbRatingOverridesService,
+    MediaMetadataService,
     PlaylistBackupImportSummary,
     PlaylistBackupService,
     PlaylistsService,
@@ -119,6 +121,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private matDialog = inject(MatDialog);
     private playlistBackupService = inject(PlaylistBackupService);
     private readonly databaseService = inject(DatabaseService);
+    private readonly imdbRatingOverrides = inject(ImdbRatingOverridesService);
+    private readonly mediaMetadataService = inject(MediaMetadataService);
     private readonly dialogData = inject<{ isDialog: boolean } | null>(
         MAT_DIALOG_DATA,
         { optional: true }
@@ -203,6 +207,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 Validators.pattern(/^\d+$/),
             ],
         ],
+        acceleratedDownloads: true,
+        redirectIndirectStreamsToDirectSource: false,
         recordingFolder: '',
         coverSize: 'medium' as CoverSize,
         ...(this.isDesktop ? { preferUploadedEpgOverXtream: false } : {}),
@@ -399,6 +405,20 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm.patchValue({ recordingFolder: folder });
         this.settingsForm.get('recordingFolder')?.markAsDirty();
         this.settingsForm.markAsDirty();
+    }
+
+    clearMediaMetadataCache(): void {
+        this.mediaMetadataService.clearCache();
+        this.openSettingsSnackbar(
+            this.translate.instant('SETTINGS.MEDIA_METADATA_CACHE_CLEARED')
+        );
+    }
+
+    clearImdbOverrides(): void {
+        this.imdbRatingOverrides.clearAll();
+        this.openSettingsSnackbar(
+            this.translate.instant('SETTINGS.IMDB_OVERRIDES_CLEARED')
+        );
     }
 
     /**

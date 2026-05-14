@@ -266,6 +266,10 @@
         "EPG_URL_ERROR": "The value is not a valid URL",
         "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
+        "ACCELERATED_DOWNLOADS": "Accelerate downloads",
+        "ACCELERATED_DOWNLOADS_DESCRIPTION": "Use the desktop multi-connection Range downloader for movies and series when the server supports it. Falls back automatically for live streams and non-seekable sources.",
+        "REDIRECT_INDIRECT_STREAMS": "Prefer direct provider URLs",
+        "REDIRECT_INDIRECT_STREAMS_DESCRIPTION": "When an Xtream item exposes a valid direct_source URL, use it for playback, probes, and downloads instead of the generated Xtream stream URL. Items without a valid direct source keep the standard route.",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",
         "COVER_SIZE": "Cover size",
@@ -359,42 +363,50 @@
         "PORT_PATTERN": "Only digits are allowed",
         "REMOVE_ALL_IN_PROGRESS": "Deleting playlist data…",
         "REMOVE_ALL_PROGRESS": "Deleting playlist data… {{current}} / {{total}}",
-        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
+        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again.",
+        "MEDIA_METADATA_CACHE": "Media metadata cache",
+        "MEDIA_METADATA_CACHE_DESCRIPTION": "Clear cached quality, audio and subtitle probes so previews can analyze streams again.",
+        "CLEAR_MEDIA_METADATA_CACHE": "Clear metadata cache",
+        "MEDIA_METADATA_CACHE_CLEARED": "Media metadata cache cleared.",
+        "IMDB_OVERRIDES": "Manual IMDb corrections",
+        "IMDB_OVERRIDES_DESCRIPTION": "Clear locally saved IMDb IDs and rating corrections used for movie and series details.",
+        "CLEAR_IMDB_OVERRIDES": "Clear IMDb corrections",
+        "IMDB_OVERRIDES_CLEARED": "IMDb corrections cleared."
     },
     "THEMES": {
         "DARK_THEME": "Dark theme",
         "LIGHT_THEME": "Light theme",
         "SYSTEM_THEME": "System theme"
     },
-        "PLAYBACK_DIAGNOSTICS": {
-            "UNSUPPORTED_CONTAINER": {
-                "TITLE": "This stream container is likely unsupported by the browser player",
-                "DESCRIPTION": "Chromium/Electron may not decode this container inline. Try MPV or VLC for broader codec support."
-            },
-            "UNSUPPORTED_CODEC": {
-                "TITLE": "This stream codec is likely unsupported by the browser player",
-                "DESCRIPTION": "The stream advertises codecs that the built-in Chromium player may not decode. MPV or VLC can often play it."
-            },
-            "MEDIA_DECODE_ERROR": {
-                "TITLE": "The browser player could not decode this stream",
-                "DESCRIPTION": "Playback started but the media pipeline failed while decoding. An external player may handle this stream better."
-            },
-            "NETWORK_ERROR": {
-                "TITLE": "The stream could not be loaded",
-                "DESCRIPTION": "The player reported a network or provider loading error. Check the stream URL, headers, or provider availability."
-            },
-            "DRM_OR_ENCRYPTION": {
-                "TITLE": "This stream may be encrypted or DRM-protected",
-                "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
-            },
-            "UNKNOWN_PLAYBACK_ERROR": {
-                "TITLE": "The browser player reported a playback error",
-                "DESCRIPTION": "The stream failed in the built-in player, but the error did not identify a specific codec, container, or network cause."
-            },
-            "ACTION_OPEN_MPV": "Open in MPV",
-            "ACTION_OPEN_VLC": "Open in VLC",
-            "ACTION_COPY_URL": "Copy URL"
+    "PLAYBACK_DIAGNOSTICS": {
+        "UNSUPPORTED_CONTAINER": {
+            "TITLE": "This stream container is likely unsupported by the browser player",
+            "DESCRIPTION": "Chromium/Electron may not decode this container inline. Try MPV or VLC for broader codec support."
         },
+        "UNSUPPORTED_CODEC": {
+            "TITLE": "This stream codec is likely unsupported by the browser player",
+            "DESCRIPTION": "The stream advertises codecs that the built-in Chromium player may not decode. MPV or VLC can often play it."
+        },
+        "MEDIA_DECODE_ERROR": {
+            "TITLE": "The browser player could not decode this stream",
+            "DESCRIPTION": "Playback started but the media pipeline failed while decoding. An external player may handle this stream better."
+        },
+        "NETWORK_ERROR": {
+            "TITLE": "The stream could not be loaded",
+            "DESCRIPTION": "The player reported a network or provider loading error. Check the stream URL, headers, or provider availability."
+        },
+        "DRM_OR_ENCRYPTION": {
+            "TITLE": "This stream may be encrypted or DRM-protected",
+            "DESCRIPTION": "The browser player cannot continue with the reported encryption/key error. External playback may still fail if provider DRM is required."
+        },
+        "UNKNOWN_PLAYBACK_ERROR": {
+            "TITLE": "The browser player reported a playback error",
+            "DESCRIPTION": "The stream failed in the built-in player, but the error did not identify a specific codec, container, or network cause."
+        },
+        "ACTION_OPEN_MPV": "Open in MPV",
+        "ACTION_OPEN_VLC": "Open in VLC",
+        "ACTION_COPY_URL": "Copy URL"
+    },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Hide channels list",
         "SHOW_CHANNELS_LIST": "Show channels list",
@@ -598,6 +610,9 @@
         "MARK_WATCHED": "Mark as Watched",
         "MARK_UNWATCHED": "Mark as Unwatched",
         "EPISODES_WATCHED": "{{count}} of {{total}} episodes watched",
+        "VARIANTS_TITLE": "Available versions",
+        "VARIANTS_HINT": "The highest quality is selected by default",
+        "VARIANTS_DEFAULT": "Default",
         "DETAIL_FALLBACK": {
             "STATUS": "Portal metadata unavailable",
             "NOTE": "Extended metadata was not provided by this portal.",
@@ -629,7 +644,26 @@
             "PORTS": "Ports",
             "HTTP_PORT": "HTTP",
             "HTTPS_PORT": "HTTPS",
-            "RTMP_PORT": "RTMP"
+            "RTMP_PORT": "RTMP",
+            "MOVIE_OVERVIEW": "Movie catalog",
+            "UNIQUE_MOVIES": "Unique movies",
+            "MOVIE_FILTERS": "Movie filters",
+            "AUDIO_LANGUAGE": "Audio language",
+            "SUBTITLE_LANGUAGE": "Subtitle language",
+            "SOURCE_MODE": "Source mode",
+            "VIDEO_QUALITY": "Video quality",
+            "ALL_AUDIO_LANGUAGES": "All audio languages",
+            "ALL_SUBTITLE_LANGUAGES": "All subtitle languages",
+            "ALL_SOURCE_MODES": "All source modes",
+            "ALL_VIDEO_QUALITIES": "All video qualities",
+            "DIRECT_SOURCE": "Direct",
+            "INDIRECT_SOURCE": "Indirect",
+            "RESET_FILTERS": "Reset filters",
+            "MOVIE_FILTER_NOTE": "Counts are unique movies with at least one matching variant.",
+            "EXPORT_JSON": "Export JSON",
+            "EXPORT_CSV": "Export CSV",
+            "METADATA_KNOWN": "Metadata known",
+            "METADATA_UNKNOWN": "Metadata unknown"
         },
         "CATEGORY_MANAGEMENT": {
             "TITLE": "Manage Categories",
@@ -641,7 +675,17 @@
             "NO_RESULTS": "No matching categories found",
             "NO_CATEGORIES": "No categories available",
             "SAVE": "Save"
-        }
+        },
+        "IMDB_OVERRIDE_TITLE": "IMDb correction",
+        "IMDB_OVERRIDE_HINT": "Use only when the automatic match is wrong",
+        "IMDB_ID": "IMDb ID",
+        "IMDB_RATING_OVERRIDE": "IMDb rating",
+        "IMDB_MATCH_TITLE": "IMDb title",
+        "SAVE_IMDB_OVERRIDE": "Save correction",
+        "CLEAR_IMDB_OVERRIDE": "Clear correction",
+        "IMDB_OVERRIDE_SAVED": "IMDb correction saved.",
+        "IMDB_OVERRIDE_CLEARED": "IMDb correction cleared.",
+        "IMDB_OVERRIDE_INVALID": "IMDb rating must be between 0 and 10."
     },
     "PORTALS": {
         "ALL_CATEGORIES": "All categories",
@@ -730,7 +774,28 @@
             "NO_RESULTS_FOR": "No results found for \"{{term}}\"",
             "GROUP_BY_PLAYLIST": "Group results by playlist",
             "XTREAM_ONLY_NOTE": "Global search is currently available for Xtream playlists only.",
-            "VISIBLE_CATEGORIES_ONLY": "Visible categories only"
+            "VISIBLE_CATEGORIES_ONLY": "Visible categories only",
+            "VISIBLE_CATEGORIES_SECTION": "Visible categories",
+            "HIDDEN_CATEGORIES_SECTION": "Hidden categories",
+            "FILTER_EXCLUDED_SECTION": "Hidden by active filters"
+        },
+        "LANGUAGE_FILTER": {
+            "TITLE": "Language filter",
+            "TOGGLE": "Language filter",
+            "DESCRIPTION": "Filter audio and subtitles like a category.",
+            "ACTIVE_HINT": "The language filter is active on these results.",
+            "AUDIO_INCLUDE": "Required audio",
+            "AUDIO_EXCLUDE": "Excluded audio",
+            "SUBTITLE_INCLUDE": "Required subtitles",
+            "SUBTITLE_EXCLUDE": "Excluded subtitles",
+            "SELECT_ALL": "Select all",
+            "DESELECT_ALL": "Deselect all",
+            "INVERT": "Invert",
+            "RESET": "Reset"
+        },
+        "VIDEO_QUALITY_FILTER": {
+            "TOGGLE": "Video quality filter",
+            "ALL": "All video qualities"
         },
         "STREAM_URL_COPIED": "Stream URL copied to clipboard",
         "COPY_STREAM_URL": "Copy Stream URL",
@@ -759,6 +824,8 @@
         "NO_FOLDER": "No download folder selected",
         "CHANGE_FOLDER": "Change Folder",
         "CLEAR_COMPLETED": "Clear Completed",
+        "ACCELERATED_DOWNLOADS": "Fast downloads",
+        "ACCELERATED_DOWNLOADS_HINT": "Use the accelerated downloader for movies and series when the server supports Range.",
         "CLEAR_COMPLETED_DIALOG": {
             "TITLE": "Clear completed downloads",
             "MESSAGE": "This removes completed, failed, and canceled entries from the current downloads view. It does not delete any files that were already downloaded to disk."
@@ -780,7 +847,22 @@
             "COMPLETED": "Completed",
             "FAILED": "Failed",
             "CANCELED": "Canceled"
-        }
+        },
+        "BENCHMARK": "Benchmark download URL",
+        "BENCHMARK_RUNNING": "Benchmark running...",
+        "BENCHMARK_UNAVAILABLE": "Download benchmark is available only in the desktop app.",
+        "BENCHMARK_STATUS": "HTTP",
+        "BENCHMARK_RANGE_SUPPORTED": "Range supported",
+        "BENCHMARK_RANGE_UNSUPPORTED": "Range unavailable",
+        "BENCHMARK_DROP_NONE": "No drop detected",
+        "BENCHMARK_DROP_AT": "Drop at {{second}}s: {{speed}}",
+        "BENCHMARK_ALL": "Benchmark visible",
+        "BENCHMARK_ALL_HINT": "Measure all visible downloads one by one and build a reproducible throughput report.",
+        "EXPORT_BENCHMARK": "Export benchmark",
+        "BENCHMARK_REPORT_ITEMS": "Benchmarked {{count}}/{{total}}",
+        "BENCHMARK_REPORT_AVERAGE": "Average {{speed}}",
+        "BENCHMARK_REPORT_BYTES": "{{bytes}} read",
+        "BENCHMARK_REPORT_FAILED": "{{count}} failed"
     },
     "REMOTE_CONTROL": {
         "TITLE": "Remote control",

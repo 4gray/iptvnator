@@ -9,7 +9,7 @@
             "continuous": true,
             "executor": "nx:run-commands",
             "options": {
-                "command": "pnpm tsx apps/stalker-mock-server/src/main.ts",
+                "command": "node ./node_modules/tsx/dist/cli.mjs apps/stalker-mock-server/src/main.ts",
                 "cwd": "{workspaceRoot}",
                 "color": true,
                 "env": {
@@ -22,7 +22,7 @@
             "continuous": true,
             "executor": "nx:run-commands",
             "options": {
-                "command": "pnpm tsx watch apps/stalker-mock-server/src/main.ts",
+                "command": "node ./node_modules/tsx/dist/cli.mjs watch apps/stalker-mock-server/src/main.ts",
                 "cwd": "{workspaceRoot}",
                 "color": true,
                 "env": {

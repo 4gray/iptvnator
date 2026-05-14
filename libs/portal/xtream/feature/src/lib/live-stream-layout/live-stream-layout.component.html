@@ -105,6 +105,13 @@
                 />
             </div>
         }
+        @if (liveMediaMetadataTags().length > 0) {
+            <div class="live-stream-metadata" aria-live="polite">
+                @for (tag of liveMediaMetadataTags(); track tag) {
+                    <span class="live-stream-metadata__tag">{{ tag }}</span>
+                }
+            </div>
+        }
         <div
             class="epg"
             [class.epg-collapsed]="

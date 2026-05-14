@@ -13,6 +13,8 @@ import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
 } from './app/events/embedded-mpv.events';
 import EpgEvents from './app/events/epg.events';
+import ImdbEvents from './app/events/imdb.events';
+import MediaEvents from './app/events/media.events';
 import PlayerEvents from './app/events/player.events';
 import PlaylistEvents from './app/events/playlist.events';
 import RemoteControlEvents from './app/events/remote-control.events';
@@ -92,6 +94,8 @@ export default class Main {
         PlaylistEvents.bootstrapPlaylistEvents();
         SharedEvents.bootstrapSharedEvents();
         PlayerEvents.bootstrapPlayerEvents();
+        MediaEvents.bootstrapMediaEvents();
+        ImdbEvents.bootstrapImdbEvents();
         SettingsEvents.bootstrapSettingsEvents();
         StalkerEvents.bootstrapStalkerEvents();
         XtreamEvents.bootstrapXtreamEvents();

@@ -37,12 +37,13 @@ describe('VodDetailsRouteComponent', () => {
     const checkFavoriteStatus = jest.fn();
     const setSelectedItem = jest.fn();
     const toggleFavorite = jest.fn();
-    const constructVodStreamUrl = jest.fn().mockReturnValue(
-        'http://example.com/movie/650020.mp4'
-    );
+    const constructVodStreamUrl = jest
+        .fn()
+        .mockReturnValue('http://example.com/movie/650020.mp4');
     const addRecentItem = jest.fn();
     const downloads = signal([]);
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
+    const startDownload = jest.fn().mockResolvedValue(undefined);
 
     beforeEach(async () => {
         selectedItem.set(null);
@@ -59,6 +60,7 @@ describe('VodDetailsRouteComponent', () => {
         constructVodStreamUrl.mockClear();
         addRecentItem.mockClear();
         getPlaybackPosition.mockClear();
+        startDownload.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [VodDetailsRouteComponent],
@@ -118,7 +120,7 @@ describe('VodDetailsRouteComponent', () => {
                         downloads,
                         isDownloaded: jest.fn().mockReturnValue(false),
                         isDownloading: jest.fn().mockReturnValue(false),
-                        startDownload: jest.fn(),
+                        startDownload,
                         getDownloadedFilePath: jest.fn(),
                         playDownload: jest.fn(),
                     },
@@ -134,7 +136,9 @@ describe('VodDetailsRouteComponent', () => {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
                         getPlaybackPosition,
-                        savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
+                        savePlaybackPosition: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                     },
                 },
                 {
@@ -190,7 +194,8 @@ describe('VodDetailsRouteComponent', () => {
         const host = fixture.nativeElement as HTMLElement;
         expect(host.textContent).toContain('Die Kühe sind Los! (2004) DE');
         expect(
-            host.querySelector('[data-testid="xtream-vod-fallback"]')?.textContent
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+                ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.NOTE');
         expect(
             host.querySelector('[data-testid="xtream-vod-fallback-status"]')
@@ -248,7 +253,102 @@ describe('VodDetailsRouteComponent', () => {
 
         const host = fixture.nativeElement as HTMLElement;
         expect(host.textContent).toContain('City of McFarland (2015)');
-        expect(host.querySelector('[data-testid="xtream-vod-fallback"]')).toBeNull();
+        expect(
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+        ).toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+    });
+
+    it('shows duplicate VOD variants and downloads the highest quality variant by default', async () => {
+        currentPlaylist.set({
+            id: 'playlist-1',
+        });
+        selectedItem.set({
+            info: {
+                kinopoisk_url: '',
+                tmdb_id: 123,
+                name: 'Example Movie',
+                o_name: 'Example Movie',
+                cover_big: '',
+                movie_image: 'https://example.com/poster.jpg',
+                releasedate: '2024-01-01',
+                episode_run_time: 120,
+                youtube_trailer: '',
+                director: 'Example Director',
+                actors: 'Example Actor',
+                cast: 'Example Actor',
+                description: 'A populated description',
+                plot: 'A populated plot',
+                age: '',
+                mpaa_rating: '',
+                rating_count_kinopoisk: 0,
+                country: 'US',
+                genre: 'Action',
+                backdrop_path: [],
+                duration_secs: 7200,
+                duration: '02:00:00',
+                video: [],
+                audio: [],
+                bitrate: 0,
+                rating: 7,
+                rating_imdb: '7.0',
+                rating_kinopoisk: '7.0',
+            },
+            movie_data: {
+                stream_id: 650020,
+                name: 'Example Movie 1080p',
+                added: '1750671180',
+                category_id: '235',
+                container_extension: 'mp4',
+                custom_sid: null,
+                direct_source: '',
+            },
+        });
+        vodStreams.set([
+            {
+                name: 'Example Movie 1080p WEB-DL H264',
+                stream_id: 650020,
+                xtream_id: 650020,
+                stream_icon: 'https://example.com/poster.jpg',
+                added: '10',
+                category_id: '235',
+                container_extension: 'mp4',
+                imdb_id: 'tt1234567',
+            },
+            {
+                name: 'Example Movie 2160p UHD WEB-DL HEVC',
+                stream_id: 650021,
+                xtream_id: 650021,
+                stream_icon: 'https://example.com/poster.jpg',
+                added: '9',
+                category_id: '235',
+                container_extension: 'mkv',
+                imdb_id: 'tt1234567',
+            },
+        ]);
+
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        expect(host.textContent).toContain('XTREAM.VARIANTS_TITLE');
+        expect(host.textContent).toContain('2160p');
+
+        await fixture.componentInstance.downloadVod(selectedItem()!);
+
+        expect(startDownload).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentType: 'vod',
+                playlistId: 'playlist-1',
+                xtreamId: 650021,
+            })
+        );
+        expect(constructVodStreamUrl).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                movie_data: expect.objectContaining({
+                    container_extension: 'mkv',
+                    stream_id: 650021,
+                }),
+            })
+        );
     });
 });

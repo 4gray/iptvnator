@@ -78,6 +78,15 @@ export const XtreamStore = signalStore(
 
                 return Number(candidateId) === Number(vodId);
             });
+        const findSeriesCatalogItem = (seriesId: string | number) =>
+            store.serialStreams().find((item) => {
+                const candidateId =
+                    item.series_id ??
+                    item.xtream_id ??
+                    (item as { id?: string | number }).id;
+
+                return Number(candidateId) === Number(seriesId);
+            });
 
         return {
             /**
@@ -201,8 +210,13 @@ export const XtreamStore = signalStore(
                         params.serialId
                     )
                     .then((serialDetails: XtreamSerieDetails) => {
+                        const catalogItem = findSeriesCatalogItem(
+                            params.serialId
+                        );
+
                         store.setSelectedCategory(params.categoryId);
                         store.setSelectedItem({
+                            ...catalogItem,
                             ...serialDetails,
                             series_id: params.serialId,
                         });

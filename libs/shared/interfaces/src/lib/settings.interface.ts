@@ -54,6 +54,10 @@ export interface Settings {
     remoteControlPort: number;
     /** Custom download folder path (uses system Downloads folder if not set) */
     downloadFolder?: string;
+    /** Use the desktop accelerated Range downloader when the server supports it */
+    acceleratedDownloads?: boolean;
+    /** Prefer provider-supplied direct_source URLs over generated Xtream URLs */
+    redirectIndirectStreamsToDirectSource?: boolean;
     /** Custom live recording folder path (uses system Downloads folder if not set) */
     recordingFolder?: string;
     /** Cover/poster sizing preset applied across grids and rails */

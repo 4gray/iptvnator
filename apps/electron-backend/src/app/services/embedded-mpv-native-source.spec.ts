@@ -31,7 +31,7 @@ describe('Embedded MPV native source recording invariants', () => {
     }
 
     it('tracks LoadPlayback recording auto-stop replies through the reconciler', () => {
-        const body = functionBody('LoadPlayback');
+        const body = functionBody('LoadPlayback').replace(/\r\n/g, '\n');
 
         expect(body).toContain(
             'const uint64_t stopRecordingRequestId = nextAsyncRequestId();'

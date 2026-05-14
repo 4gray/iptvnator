@@ -41,14 +41,16 @@ export default defineConfig({
     },
     webServer: [
         {
-            command: 'pnpm nx run stalker-mock-server:serve',
-            url: `http://localhost:${process.env['MOCK_PORT'] ?? '3210'}/health`,
+            command:
+                'node ./node_modules/nx/dist/bin/nx.js run stalker-mock-server:serve',
+            url: `http://127.0.0.1:${process.env['MOCK_PORT'] ?? '3210'}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },
         {
-            command: 'pnpm nx run xtream-mock-server:serve',
-            url: `http://localhost:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
+            command:
+                'node ./node_modules/nx/dist/bin/nx.js run xtream-mock-server:serve',
+            url: `http://127.0.0.1:${process.env['XTREAM_MOCK_PORT'] ?? '3211'}/health`,
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },

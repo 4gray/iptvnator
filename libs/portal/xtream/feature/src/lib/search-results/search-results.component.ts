@@ -12,7 +12,7 @@ import {
     viewChild,
 } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { MatIconButton } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import {
     MAT_DIALOG_DATA,
@@ -24,14 +24,27 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { DatabaseService } from 'services';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
+import { GridListItem } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';
 import {
+    resolveGridMediaTags,
+    resolveGridRating,
+    resolveGridRatingTooltip,
+} from '@iptvnator/portal/shared/ui';
+import {
     buildXtreamNavigationTarget,
+    EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
+    isPortalCatalogLanguageFilterActive,
     isWorkspaceLayoutRoute,
+    PortalCatalogLanguageFilterSection,
     queryParamSignal,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { XtreamContentItem } from '@iptvnator/portal/xtream/data-access';
+import {
+    matchesXtreamLanguageFilter,
+    XtreamContentItem,
+    XtreamLanguageFilterCandidate,
+} from '@iptvnator/portal/xtream/data-access';
 import { SearchFilters } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ContentType } from '@iptvnator/portal/xtream/data-access';
@@ -41,20 +54,29 @@ interface SearchResultsData {
     initialQuery?: string;
 }
 
+interface SearchResultsSection {
+    readonly key: 'visible' | 'hidden' | 'filter-excluded';
+    readonly titleKey: string;
+    readonly items: XtreamContentItem[];
+    readonly groupedItems: Record<string, XtreamContentItem[]>;
+}
+
+interface LanguageFilterSectionView {
+    key: PortalCatalogLanguageFilterSection;
+    titleKey: string;
+}
+
 function groupResultsByPlaylistName(
     items: XtreamContentItem[]
 ): Record<string, XtreamContentItem[]> {
-    return items.reduce<Record<string, XtreamContentItem[]>>(
-        (groups, item) => {
-            const key = String(item.playlist_name);
-            if (!groups[key]) {
-                groups[key] = [];
-            }
-            groups[key].push(item);
-            return groups;
-        },
-        {}
-    );
+    return items.reduce<Record<string, XtreamContentItem[]>>((groups, item) => {
+        const key = String(item.playlist_name);
+        if (!groups[key]) {
+            groups[key] = [];
+        }
+        groups[key].push(item);
+        return groups;
+    }, {});
 }
 
 @Component({
@@ -63,6 +85,7 @@ function groupResultsByPlaylistName(
     imports: [
         ContentCardComponent,
         FormsModule,
+        MatButtonModule,
         KeyValuePipe,
         MatCheckboxModule,
         MatDialogModule,
@@ -94,6 +117,24 @@ export class SearchResultsComponent implements AfterViewInit {
 
     /** Search filters from store */
     readonly filters = this.xtreamStore.searchFilters;
+    readonly languageFilter = computed(
+        () =>
+            this.xtreamStore.languageFilter?.() ??
+            EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER
+    );
+    readonly languageFilterOptions = computed(
+        () => this.xtreamStore.languageFilterOptions?.() ?? []
+    );
+    readonly languageFilterActive = computed(
+        () =>
+            this.xtreamStore.languageFilterActive?.() ??
+            isPortalCatalogLanguageFilterActive(this.languageFilter())
+    );
+    readonly filteredResults = computed(
+        () =>
+            this.xtreamStore.filteredSearchResults?.() ??
+            this.xtreamStore.searchResults()
+    );
     private globalSearchRequestVersion = 0;
 
     private static readonly GROUP_BY_STORAGE_KEY =
@@ -135,13 +176,81 @@ export class SearchResultsComponent implements AfterViewInit {
             translationKey: 'PORTALS.SIDEBAR.SERIES',
         },
     ];
+    readonly languageFilterSections: LanguageFilterSectionView[] = [
+        {
+            key: 'audioInclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_INCLUDE',
+        },
+        {
+            key: 'audioExclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_EXCLUDE',
+        },
+        {
+            key: 'subtitleInclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_INCLUDE',
+        },
+        {
+            key: 'subtitleExclude',
+            titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_EXCLUDE',
+        },
+    ];
 
     /** Grouped results computed once per result change (avoids recalculating on every CD cycle) */
     readonly groupedResults = computed(() => {
-        const results = this.xtreamStore.searchResults();
+        const results = this.filteredResults();
         if (!this.isGlobalSearch) return { default: results };
         return groupResultsByPlaylistName(results);
     });
+
+    readonly resultSections = computed<SearchResultsSection[]>(() => {
+        const filteredResults = this.filteredResults();
+        const rawResults = this.xtreamStore.searchResults();
+        const filteredKeys = new Set(
+            filteredResults.map((item) => this.getSearchResultKey(item))
+        );
+        const filterExcludedItems = this.languageFilterActive()
+            ? rawResults.filter(
+                  (item) =>
+                      !filteredKeys.has(this.getSearchResultKey(item)) &&
+                      matchesXtreamLanguageFilter(
+                          item as unknown as XtreamLanguageFilterCandidate,
+                          this.languageFilter()
+                      ) === false
+              )
+            : [];
+        const visibleItems = filteredResults.filter(
+            (item) => !this.isHiddenCategory(item)
+        );
+        const hiddenItems = filteredResults.filter((item) =>
+            this.isHiddenCategory(item)
+        );
+        const sections: SearchResultsSection[] = [];
+
+        if (
+            visibleItems.length ||
+            (!hiddenItems.length && !filterExcludedItems.length)
+        ) {
+            sections.push(this.createResultSection('visible', visibleItems));
+        }
+
+        if (!this.excludeHidden() && hiddenItems.length) {
+            sections.push(this.createResultSection('hidden', hiddenItems));
+        }
+
+        if (filterExcludedItems.length) {
+            sections.push(
+                this.createResultSection('filter-excluded', filterExcludedItems)
+            );
+        }
+
+        return sections;
+    });
+    readonly resolveRating = (item: XtreamContentItem) =>
+        resolveGridRating(item as unknown as GridListItem);
+    readonly resolveRatingTooltip = (item: XtreamContentItem) =>
+        resolveGridRatingTooltip(item as unknown as GridListItem);
+    readonly resolveMediaTags = (item: XtreamContentItem) =>
+        resolveGridMediaTags(item as unknown as GridListItem);
 
     constructor(
         @Optional() @Inject(MAT_DIALOG_DATA) data: SearchResultsData,
@@ -248,6 +357,43 @@ export class SearchResultsComponent implements AfterViewInit {
         }
     }
 
+    isLanguageFilterOptionChecked(
+        section: PortalCatalogLanguageFilterSection,
+        code: string
+    ): boolean {
+        return this.languageFilter()[section].includes(code);
+    }
+
+    toggleLanguageFilterOption(
+        section: PortalCatalogLanguageFilterSection,
+        code: string,
+        enabled: boolean
+    ): void {
+        this.xtreamStore.toggleLanguageFilterOption?.(section, code, enabled);
+    }
+
+    selectAllLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.xtreamStore.selectAllLanguageFilterOptions?.(section);
+    }
+
+    clearLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.xtreamStore.clearLanguageFilterOptions?.(section);
+    }
+
+    invertLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.xtreamStore.invertLanguageFilterOptions?.(section);
+    }
+
+    resetLanguageFilter(): void {
+        this.xtreamStore.resetLanguageFilter?.();
+    }
+
     /**
      * Clear only the results, not the search term/filters
      */
@@ -344,6 +490,50 @@ export class SearchResultsComponent implements AfterViewInit {
 
     getGroupedResults() {
         return this.groupedResults();
+    }
+
+    private createResultSection(
+        key: 'visible' | 'hidden' | 'filter-excluded',
+        items: XtreamContentItem[]
+    ): SearchResultsSection {
+        return {
+            key,
+            titleKey: this.getSectionTitleKey(key),
+            items,
+            groupedItems: this.isGlobalSearch
+                ? groupResultsByPlaylistName(items)
+                : { default: items },
+        };
+    }
+
+    private getSectionTitleKey(key: SearchResultsSection['key']): string {
+        switch (key) {
+            case 'hidden':
+                return 'PORTALS.SEARCH_VIEW.HIDDEN_CATEGORIES_SECTION';
+            case 'filter-excluded':
+                return 'PORTALS.SEARCH_VIEW.FILTER_EXCLUDED_SECTION';
+            default:
+                return 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_SECTION';
+        }
+    }
+
+    private getSearchResultKey(item: XtreamContentItem): string {
+        const storePlaylistId = (
+            this.xtreamStore as {
+                playlistId?: () => string | null | undefined;
+            }
+        ).playlistId?.();
+
+        return [
+            item.playlist_id ?? storePlaylistId ?? '',
+            item.type,
+            item.xtream_id ?? item.series_id ?? item.stream_id ?? item.id,
+        ].join(':');
+    }
+
+    private isHiddenCategory(item: XtreamContentItem): boolean {
+        const value = item.category_hidden;
+        return value === true || value === 1;
     }
 
     get showInlineSearchInput(): boolean {

@@ -13,13 +13,25 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
     PortalCatalogItemProgress,
+    PortalCatalogLanguageFilterSection,
+    PortalCatalogLanguageFilterState,
     PortalCatalogPlaylistMeta,
     PortalCatalogSortMode,
+    PortalCatalogVideoQualityFilterValue,
     PORTAL_CATALOG_FACADE,
     PORTAL_PLAYBACK_POSITIONS,
     StalkerPortalCatalogFacade,
+    isPortalCatalogLanguageFilterActive,
+    isPortalCatalogVideoQualityFilterActive,
 } from '@iptvnator/portal/shared/util';
+import {
+    getXtreamLanguageOptions,
+    getXtreamVideoQualityOptions,
+    matchesXtreamLanguageFilter,
+    matchesXtreamVideoQualityFilter,
+} from '@iptvnator/portal/xtream/data-access';
 import { PlaybackPositionData } from 'shared-interfaces';
 
 function calculateProgress(position: PlaybackPositionData | undefined): number {
@@ -27,8 +39,7 @@ function calculateProgress(position: PlaybackPositionData | undefined): number {
         return 0;
     }
 
-    const percent =
-        (position.positionSeconds / position.durationSeconds) * 100;
+    const percent = (position.positionSeconds / position.durationSeconds) * 100;
 
     if (position.positionSeconds > 10 && percent < 1) {
         return 1;
@@ -38,23 +49,26 @@ function calculateProgress(position: PlaybackPositionData | undefined): number {
 }
 
 @Injectable()
-export class StalkerCatalogFacadeService
-    implements
-        StalkerPortalCatalogFacade<
-            Record<string, unknown>,
-            StalkerVodSource,
-            StalkerVodSource
-        >
-{
+export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
+    Record<string, unknown>,
+    StalkerVodSource,
+    StalkerVodSource
+> {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly stalkerPositions = signal<Map<string, PlaybackPositionData>>(
-        new Map()
-    );
+    private readonly stalkerPositions = signal<
+        Map<string, PlaybackPositionData>
+    >(new Map());
     private readonly stalkerSeriesPositions = signal<
         Map<number, PlaybackPositionData[]>
     >(new Map());
+    private readonly languageFilterState =
+        signal<PortalCatalogLanguageFilterState>({
+            ...EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
+        });
+    private readonly videoQualityFilterState =
+        signal<PortalCatalogVideoQualityFilterValue>('all');
     private loadedPositionsForPlaylistId: string | null = null;
 
     readonly provider = 'stalker' as const;
@@ -63,11 +77,16 @@ export class StalkerCatalogFacadeService
     readonly limit = this.stalkerStore.limit;
     readonly pageIndex = this.stalkerStore.page;
     readonly selectedCategory = this.stalkerStore.getSelectedCategory;
-    readonly paginatedContent = computed(
+    private readonly rawPaginatedContent = computed(
         () => this.stalkerStore.getPaginatedContent() ?? []
     );
+    readonly paginatedContent = computed(() =>
+        this.filterVisibleContent(this.rawPaginatedContent())
+    );
     readonly selectedItem = this.stalkerStore.selectedItem;
-    readonly totalPages = this.stalkerStore.getTotalPages;
+    readonly totalPages = computed(() =>
+        this.areClientFiltersActive() ? 1 : this.stalkerStore.getTotalPages()
+    );
     readonly isPaginatedContentLoading =
         this.stalkerStore.isPaginatedContentLoading;
     readonly selectedCategoryTitle = computed(() => {
@@ -82,9 +101,33 @@ export class StalkerCatalogFacadeService
 
         return this.stalkerStore.getSelectedCategoryName() ?? '';
     });
-    readonly categoryItemCount = computed(() => this.stalkerStore.totalCount());
+    readonly categoryItemCount = computed(() =>
+        this.areClientFiltersActive()
+            ? this.paginatedContent().length
+            : this.stalkerStore.totalCount()
+    );
     readonly contentSortMode = computed<PortalCatalogSortMode | null>(
         () => null
+    );
+    readonly languageFilter = this.languageFilterState.asReadonly();
+    readonly languageFilterOptions = computed(() =>
+        getXtreamLanguageOptions(
+            this.rawPaginatedContent() as Record<string, unknown>[],
+            this.languageFilterState()
+        )
+    );
+    readonly languageFilterActive = computed(() =>
+        isPortalCatalogLanguageFilterActive(this.languageFilterState())
+    );
+    readonly videoQualityFilter = this.videoQualityFilterState.asReadonly();
+    readonly videoQualityFilterOptions = computed(() =>
+        getXtreamVideoQualityOptions(
+            this.rawPaginatedContent() as Record<string, unknown>[],
+            this.videoQualityFilterState()
+        )
+    );
+    readonly videoQualityFilterActive = computed(() =>
+        isPortalCatalogVideoQualityFilterActive(this.videoQualityFilterState())
     );
     readonly playlist = computed<PortalCatalogPlaylistMeta | null>(() => {
         const playlist = this.stalkerStore.currentPlaylist();
@@ -138,10 +181,7 @@ export class StalkerCatalogFacadeService
                         this.updateVodPlaybackPosition(data);
                     }
 
-                    if (
-                        data.contentType === 'episode' &&
-                        data.seriesXtreamId
-                    ) {
+                    if (data.contentType === 'episode' && data.seriesXtreamId) {
                         this.updateSeriesPlaybackPosition(data);
                     }
                 }
@@ -182,6 +222,64 @@ export class StalkerCatalogFacadeService
     setContentSortMode(mode: PortalCatalogSortMode): void {
         void mode;
         // Stalker catalog content is server-paginated and does not support local sort modes.
+    }
+
+    toggleLanguageFilterOption(
+        section: PortalCatalogLanguageFilterSection,
+        code: string,
+        enabled: boolean
+    ): void {
+        this.updateLanguageFilter(section, (current) => {
+            const codes = new Set(current);
+            if (enabled) {
+                codes.add(code);
+            } else {
+                codes.delete(code);
+            }
+            return [...codes];
+        });
+    }
+
+    selectAllLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.updateLanguageFilter(section, () =>
+            this.languageFilterOptions().map((option) => option.code)
+        );
+    }
+
+    clearLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.updateLanguageFilter(section, () => []);
+    }
+
+    invertLanguageFilterOptions(
+        section: PortalCatalogLanguageFilterSection
+    ): void {
+        this.updateLanguageFilter(section, (current) => {
+            const selected = new Set(current);
+            return this.languageFilterOptions()
+                .map((option) => option.code)
+                .filter((code) => !selected.has(code));
+        });
+    }
+
+    resetLanguageFilter(): void {
+        this.languageFilterState.set({
+            ...EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
+        });
+        this.setPage(0);
+    }
+
+    setVideoQualityFilter(filter: PortalCatalogVideoQualityFilterValue): void {
+        this.videoQualityFilterState.set(filter);
+        this.setPage(0);
+    }
+
+    resetVideoQualityFilter(): void {
+        this.videoQualityFilterState.set('all');
+        this.setPage(0);
     }
 
     selectItem(item: StalkerVodSource): string[] | null {
@@ -314,6 +412,37 @@ export class StalkerCatalogFacadeService
         ];
         updated.set(position.seriesXtreamId, positionsForSeries);
         this.stalkerSeriesPositions.set(updated);
+    }
+
+    private filterVisibleContent(
+        items: readonly StalkerVodSource[]
+    ): StalkerVodSource[] {
+        const languageFilter = this.languageFilterState();
+        const videoQualityFilter = this.videoQualityFilterState();
+
+        return items.filter((item) => {
+            const candidate = item as Record<string, unknown>;
+            return (
+                matchesXtreamLanguageFilter(candidate, languageFilter) &&
+                matchesXtreamVideoQualityFilter(candidate, videoQualityFilter)
+            );
+        });
+    }
+
+    private updateLanguageFilter(
+        section: PortalCatalogLanguageFilterSection,
+        update: (current: readonly string[]) => string[]
+    ): void {
+        const current = this.languageFilterState();
+        this.languageFilterState.set({
+            ...current,
+            [section]: update(current[section]),
+        });
+        this.setPage(0);
+    }
+
+    private areClientFiltersActive(): boolean {
+        return this.languageFilterActive() || this.videoQualityFilterActive();
     }
 }
 

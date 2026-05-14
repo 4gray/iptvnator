@@ -13,6 +13,20 @@ import {
 import type { ExternalPlayerName } from 'shared-interfaces';
 import { SettingsStore } from './settings-store.service';
 
+type AcceleratedPlaybackApi = {
+    resolveAcceleratedPlaybackUrl?: (
+        url: string,
+        headers?: Record<string, string>
+    ) => Promise<{
+        url: string;
+        accelerated: boolean;
+        rangeSupported: boolean;
+        status: number;
+        reason: string;
+        totalBytes?: number;
+    }>;
+};
+
 @Injectable({
     providedIn: 'root',
 })
@@ -67,17 +81,18 @@ export class PlayerService {
         hideExternalInfoDialog = true
     ): Promise<ExternalPlayerSession | void> {
         const player = this.settingsStore.player() ?? VideoPlayer.VideoJs;
+        const resolvedPlayback = await this.resolveAcceleratedPlayback(playback);
 
         if (player === VideoPlayer.MPV) {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
-            return await this.openExternalPlayback(playback, 'mpv');
+            return await this.openExternalPlayback(resolvedPlayback, 'mpv');
         } else if (player === VideoPlayer.VLC) {
             if (!hideExternalInfoDialog) {
                 this.dialog.open(ExternalPlayerInfoDialogComponent);
             }
-            return await this.openExternalPlayback(playback, 'vlc');
+            return await this.openExternalPlayback(resolvedPlayback, 'vlc');
         }
 
         return;
@@ -104,5 +119,49 @@ export class PlayerService {
                 startTime: playback.startTime,
             }
         );
+    }
+
+    private async resolveAcceleratedPlayback(
+        playback: ResolvedPortalPlayback
+    ): Promise<ResolvedPortalPlayback> {
+        const electron = window.electron as Window['electron'] &
+            AcceleratedPlaybackApi;
+
+        if (
+            this.settingsStore.acceleratedDownloads?.() === false ||
+            !electron?.resolveAcceleratedPlaybackUrl
+        ) {
+            return playback;
+        }
+
+        const resolved = await electron.resolveAcceleratedPlaybackUrl(
+            playback.streamUrl,
+            this.buildPlaybackHeaders(playback)
+        );
+
+        if (!resolved?.url || resolved.url === playback.streamUrl) {
+            return playback;
+        }
+
+        return {
+            ...playback,
+            streamUrl: resolved.url,
+        };
+    }
+
+    private buildPlaybackHeaders(
+        playback: ResolvedPortalPlayback
+    ): Record<string, string> {
+        const headers: Record<string, string> = { ...(playback.headers ?? {}) };
+        if (playback.userAgent && !headers['User-Agent']) {
+            headers['User-Agent'] = playback.userAgent;
+        }
+        if (playback.referer && !headers.Referer) {
+            headers.Referer = playback.referer;
+        }
+        if (playback.origin && !headers.Origin) {
+            headers.Origin = playback.origin;
+        }
+        return headers;
     }
 }

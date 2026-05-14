@@ -46,6 +46,8 @@ export class SettingsPlaybackSectionComponent {
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
     readonly selectRecordingFolder = output<void>();
+    readonly clearMediaMetadataCache = output<void>();
+    readonly clearImdbOverrides = output<void>();
 
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;

@@ -12,7 +12,8 @@
     background:
         var(--app-accent-gradient),
         var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
-    border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    border-bottom: 1px solid
+        var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
 }
 
 .account-dialog__hero-copy {
@@ -37,7 +38,12 @@
     height: 8px;
     border-radius: 999px;
     background: var(--app-provider-xtream, var(--mat-sys-primary));
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 14%, transparent);
+    box-shadow: 0 0 0 4px
+        color-mix(
+            in srgb,
+            var(--app-provider-xtream, var(--mat-sys-primary)) 14%,
+            transparent
+        );
 }
 
 .account-dialog__eyebrow-divider {
@@ -150,7 +156,11 @@
     align-items: center;
     justify-content: center;
     border-radius: 10px;
-    background: color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 12%, transparent);
+    background: color-mix(
+        in srgb,
+        var(--app-provider-xtream, var(--mat-sys-primary)) 12%,
+        transparent
+    );
     color: var(--app-provider-xtream, var(--mat-sys-primary));
 
     mat-icon {
@@ -203,6 +213,11 @@
     gap: 14px;
 }
 
+.account-dialog__ready {
+    display: grid;
+    gap: 14px;
+}
+
 // ─── Detail panels ──────────────────────────────────────────────────────────
 .account-panel {
     display: grid;
@@ -219,6 +234,12 @@
 .account-panel__header {
     display: grid;
     gap: 4px;
+}
+
+.account-panel__header--spread {
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 16px;
 }
 
 .account-panel__header h3 {
@@ -320,8 +341,17 @@
     min-height: 28px;
     padding: 0 10px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 16%, transparent);
-    background: color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 8%, transparent);
+    border: 1px solid
+        color-mix(
+            in srgb,
+            var(--app-provider-xtream, var(--mat-sys-primary)) 16%,
+            transparent
+        );
+    background: color-mix(
+        in srgb,
+        var(--app-provider-xtream, var(--mat-sys-primary)) 8%,
+        transparent
+    );
     color: var(--app-body-color, var(--mat-sys-on-surface));
     font-size: 0.8rem;
     font-weight: 600;
@@ -337,6 +367,198 @@
     border-color: var(--app-separator);
     background: var(--mat-sys-surface-container);
     color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+}
+
+// ─── VOD source overview ───────────────────────────────────────────────────
+.account-panel--vod-overview {
+    gap: 16px;
+}
+
+.account-vod-count {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    min-width: 112px;
+    justify-content: flex-end;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-weight: 600;
+}
+
+.account-vod-count strong {
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    font-size: 1.55rem;
+    line-height: 1;
+    letter-spacing: -0.03em;
+}
+
+.account-vod-header-actions {
+    display: grid;
+    gap: 8px;
+    justify-items: end;
+}
+
+.account-vod-export-actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.account-vod-export-actions button {
+    min-height: 34px;
+}
+
+.account-vod-export-actions mat-icon {
+    width: 17px;
+    height: 17px;
+    font-size: 17px;
+}
+
+.account-vod-audit {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.account-vod-audit span {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    min-height: 28px;
+    padding: 0 10px;
+    border-radius: 8px;
+    border: 1px solid var(--app-separator);
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.8rem;
+    font-weight: 600;
+}
+
+.account-vod-audit strong {
+    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    font-variant-numeric: tabular-nums;
+}
+
+.account-vod-filters {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(150px, 1fr)) auto;
+    gap: 10px;
+    align-items: end;
+}
+
+.account-filter-field {
+    display: grid;
+    gap: 6px;
+    min-width: 0;
+}
+
+.account-filter-field span {
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.account-filter-field select {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 34px 0 12px;
+    border-radius: 8px;
+    border: 1px solid var(--app-separator);
+    background: var(--mat-sys-surface-container);
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+    font: inherit;
+    font-size: 0.86rem;
+}
+
+.account-filter-field select:focus {
+    outline: 2px solid
+        color-mix(
+            in srgb,
+            var(--app-provider-xtream, var(--mat-sys-primary)) 34%,
+            transparent
+        );
+    outline-offset: 2px;
+}
+
+.account-vod-filters__reset {
+    min-height: 38px;
+    white-space: nowrap;
+}
+
+.account-vod-note {
+    margin: -4px 0 0;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.78rem;
+    line-height: 1.4;
+}
+
+.account-vod-breakdowns {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.account-breakdown {
+    display: grid;
+    gap: 8px;
+    min-width: 0;
+}
+
+.account-breakdown h4 {
+    margin: 0;
+    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+}
+
+.account-breakdown__chips {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.account-breakdown-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    min-height: 30px;
+    max-width: 100%;
+    padding: 0 10px;
+    border: 1px solid var(--app-separator);
+    border-radius: 999px;
+    background: var(--mat-sys-surface-container);
+    color: var(--app-body-color, var(--mat-sys-on-surface));
+    font: inherit;
+    font-size: 0.78rem;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.account-breakdown-chip span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.account-breakdown-chip strong {
+    color: var(--app-provider-xtream, var(--mat-sys-primary));
+    font-weight: 700;
+}
+
+.account-breakdown-chip--active {
+    border-color: color-mix(
+        in srgb,
+        var(--app-provider-xtream, var(--mat-sys-primary)) 42%,
+        transparent
+    );
+    background: color-mix(
+        in srgb,
+        var(--app-provider-xtream, var(--mat-sys-primary)) 12%,
+        transparent
+    );
 }
 
 // ─── Error state ────────────────────────────────────────────────────────────
@@ -394,7 +616,11 @@
     background: linear-gradient(
         90deg,
         transparent,
-        color-mix(in srgb, var(--app-heading-color, var(--mat-sys-on-surface)) 10%, transparent),
+        color-mix(
+            in srgb,
+            var(--app-heading-color, var(--mat-sys-on-surface)) 10%,
+            transparent
+        ),
         transparent
     );
     animation: account-dialog-shimmer 1.4s infinite;
@@ -425,7 +651,8 @@
     display: flex;
     justify-content: flex-end;
     gap: 10px;
-    border-top: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    border-top: 1px solid
+        var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
     background: var(--app-widget-bg, var(--mat-sys-surface));
 }
 
@@ -445,6 +672,14 @@
     .account-dialog__hero-stats,
     .account-dialog__grid {
         grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .account-vod-filters {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .account-vod-filters__reset {
+        justify-self: start;
     }
 }
 
@@ -466,8 +701,18 @@
     }
 
     .account-dialog__hero-stats,
-    .account-dialog__grid {
+    .account-dialog__grid,
+    .account-vod-breakdowns,
+    .account-vod-filters {
         grid-template-columns: 1fr;
+    }
+
+    .account-panel__header--spread {
+        grid-template-columns: 1fr;
+    }
+
+    .account-vod-count {
+        justify-content: flex-start;
     }
 
     .account-detail-row {

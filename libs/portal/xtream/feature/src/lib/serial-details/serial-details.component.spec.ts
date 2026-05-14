@@ -7,10 +7,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import {
-    ContentHeroComponent,
-    SeasonContainerComponent,
-} from 'components';
+import { ContentHeroComponent, SeasonContainerComponent } from 'components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -52,6 +49,7 @@ class StubSeasonContainerComponent {
     readonly activeEpisodeId = input<number | null>(null);
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
+    readonly seriesMediaMetadataChanged = output<unknown>();
 }
 
 @Component({
@@ -292,9 +290,7 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain(
             'XTREAM.PLAY_FIRST_EPISODE'
         );
-        expect(quickStartButton?.textContent).toContain(
-            'S01E01 · Episode 1'
-        );
+        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
 
@@ -302,7 +298,7 @@ describe('SerialDetailsComponent', () => {
             expect.objectContaining({ id: '1001' })
         );
         expect(addRecentItem).toHaveBeenCalledWith({
-            xtreamId: '103',
+            xtreamId: 103,
             contentType: 'series',
             playlist: currentPlaylist,
             backdropUrl: undefined,
@@ -349,9 +345,7 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain(
             'XTREAM.RESUME_EPISODE'
         );
-        expect(quickStartButton?.textContent).toContain(
-            'S01E01 · Episode 1'
-        );
+        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
 

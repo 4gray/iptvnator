@@ -24,6 +24,8 @@ import {
     getPortalChannelSortModeLabel,
     getAdjacentChannelItem,
     getChannelItemByNumber,
+    getMediaMetadataTags,
+    getMediaMetadataUnavailableTag,
     isTypingInInput,
     isWorkspaceLayoutRoute,
     LiveEpgPanelState,
@@ -55,9 +57,10 @@ import {
     WebPlayerViewComponent,
 } from 'shared-portals';
 import { EpgItem, EpgProgram, ResolvedPortalPlayback } from 'shared-interfaces';
+import { MediaStreamMetadata } from 'shared-interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
-import { SettingsStore } from 'services';
+import { MediaMetadataService, SettingsStore } from 'services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -99,6 +102,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly xtreamUrlService = inject(XtreamUrlService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly mediaMetadataService = inject(MediaMetadataService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
@@ -211,10 +215,32 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         this.portalPlayer.isEmbeddedPlayer()
     );
     readonly activePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly liveMediaMetadata = signal<MediaStreamMetadata | null>(null);
+    readonly liveMediaProbePending = signal(false);
+    readonly liveMediaMetadataTags = computed(() => {
+        const tags = getMediaMetadataTags(this.liveMediaMetadata());
+        if (tags.length > 0) {
+            return tags;
+        }
+
+        if (this.liveMediaProbePending()) {
+            return ['Analisi qualita...'];
+        }
+
+        const unavailableTag = getMediaMetadataUnavailableTag(
+            this.liveMediaMetadata()
+        );
+        if (unavailableTag) {
+            return [unavailableTag];
+        }
+
+        return tags;
+    });
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
     favorites = new Map<number, boolean>();
+    private liveMediaProbeKey: string | null = null;
 
     constructor() {
         effect((onCleanup) => {
@@ -292,6 +318,46 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 epgEnd: currentProgram?.stop ?? currentProgram?.end,
                 supportsVolume: false,
             });
+        });
+
+        effect(() => {
+            const playback = this.activePlayback();
+            const streamUrl = playback?.streamUrl ?? '';
+            if (!streamUrl) {
+                this.liveMediaProbeKey = null;
+                this.liveMediaProbePending.set(false);
+                this.liveMediaMetadata.set(null);
+                return;
+            }
+
+            if (this.liveMediaProbeKey === streamUrl) {
+                return;
+            }
+
+            this.liveMediaProbeKey = streamUrl;
+            this.liveMediaProbePending.set(true);
+            this.liveMediaMetadata.set(null);
+            void this.mediaMetadataService
+                .probe({
+                    url: streamUrl,
+                    headers: this.buildPlaylistHeaders(),
+                })
+                .then((metadata) => {
+                    if (this.liveMediaProbeKey === streamUrl) {
+                        this.liveMediaProbePending.set(false);
+                        this.liveMediaMetadata.set(metadata);
+                        const xtreamId =
+                            this.xtreamStore.selectedItem()?.xtream_id ??
+                            this.xtreamStore.selectedItem()?.stream_id;
+                        if (xtreamId !== undefined && xtreamId !== null) {
+                            this.xtreamStore.setContentMediaMetadata({
+                                contentType: 'live',
+                                xtreamId,
+                                metadata,
+                            });
+                        }
+                    }
+                });
         });
     }
 
@@ -589,6 +655,23 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         return channelTitle
             ? `${channelTitle} - ${program.title}`
             : program.title;
+    }
+
+    private buildPlaylistHeaders(): Record<string, string> {
+        const playlist = this.xtreamStore.currentPlaylist();
+        const headers: Record<string, string> = {};
+
+        if (playlist?.userAgent) {
+            headers['User-Agent'] = playlist.userAgent;
+        }
+        if (playlist?.referrer) {
+            headers.Referer = playlist.referrer;
+        }
+        if (playlist?.origin) {
+            headers.Origin = playlist.origin;
+        }
+
+        return headers;
     }
 
     private clearAutoOpenHistoryState(): void {

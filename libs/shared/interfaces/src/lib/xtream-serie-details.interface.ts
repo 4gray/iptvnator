@@ -42,6 +42,8 @@ export interface XtreamSerieEpisodeInfo {
     movie_image?: string;
     video?: Record<string, string>; // TODO
     audio?: Record<string, string>; // TODO
+    subtitles?: Record<string, string> | string[];
+    subtitle?: Record<string, string> | string[];
     bitrate?: number;
     rating?: number;
     season?: string;

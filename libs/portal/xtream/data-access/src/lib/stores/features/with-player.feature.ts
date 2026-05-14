@@ -29,6 +29,8 @@ const initialPlayerState: PlayerState = {
 
 interface XtreamPlayableItem {
     readonly xtream_id: number;
+    readonly direct_source?: string | null;
+    readonly directSource?: string | null;
 }
 
 type XtreamPlaylistHeadersLike = XtreamCredentials & {
@@ -80,10 +82,11 @@ export function withPlayer() {
             /**
              * Helper to get playlist with headers from parent store
              */
-            const getPlaylistFromStore = (): XtreamPlaylistHeadersLike | null => {
-                const storeAny = store as ParentPlayerStoreLike;
-                return storeAny.currentPlaylist?.();
-            };
+            const getPlaylistFromStore =
+                (): XtreamPlaylistHeadersLike | null => {
+                    const storeAny = store as ParentPlayerStoreLike;
+                    return storeAny.currentPlaylist?.();
+                };
 
             return {
                 /**
@@ -97,7 +100,9 @@ export function withPlayer() {
 
                     const streamUrl = urlService.constructLiveUrl(
                         credentials,
-                        item.xtream_id
+                        item.xtream_id,
+                        undefined,
+                        item
                     );
 
                     // Set selected item in parent store and load EPG

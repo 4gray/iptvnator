@@ -1,8 +1,5 @@
 import { signal, Signal, WritableSignal } from '@angular/core';
-import {
-    DownloadItem,
-    DownloadsService,
-} from './downloads.service';
+import { DownloadItem, DownloadsService } from './downloads.service';
 
 type TestDownloadsService = {
     downloads: WritableSignal<DownloadItem[]>;
@@ -10,8 +7,17 @@ type TestDownloadsService = {
     isLoadingDownloads: Signal<boolean>;
     hasLoadedDownloads: Signal<boolean>;
     loadDownloads: DownloadsService['loadDownloads'];
+    getThroughputBytesPerSecond: DownloadsService['getThroughputBytesPerSecond'];
+    updateThroughputSamples: (items: DownloadItem[]) => void;
     _isLoadingDownloads: WritableSignal<boolean>;
     _hasLoadedDownloads: WritableSignal<boolean>;
+    downloadThroughput: WritableSignal<
+        Record<number, { bytesPerSecond: number; sampledAt: number }>
+    >;
+    previousDownloadSamples: Map<
+        number,
+        { bytesDownloaded: number; sampledAt: number }
+    >;
     loadDownloadsRequestId: number;
 };
 
@@ -28,9 +34,13 @@ describe('DownloadsService', () => {
     afterEach(() => {
         testWindow.electron = originalElectron;
         jest.restoreAllMocks();
+        jest.useRealTimers();
     });
 
-    function createDownload(id: number, playlistId = 'playlist-1'): DownloadItem {
+    function createDownload(
+        id: number,
+        playlistId = 'playlist-1'
+    ): DownloadItem {
         return {
             id,
             playlistId,
@@ -57,6 +67,9 @@ describe('DownloadsService', () => {
         const downloads = signal(initialDownloads);
         const isLoadingDownloads = signal(false);
         const hasLoadedDownloads = signal(false);
+        const downloadThroughput = signal<
+            Record<number, { bytesPerSecond: number; sampledAt: number }>
+        >({});
         const service = Object.create(
             DownloadsService.prototype
         ) as TestDownloadsService;
@@ -68,6 +81,8 @@ describe('DownloadsService', () => {
             isLoadingDownloads: isLoadingDownloads.asReadonly(),
             _hasLoadedDownloads: hasLoadedDownloads,
             hasLoadedDownloads: hasLoadedDownloads.asReadonly(),
+            downloadThroughput,
+            previousDownloadSamples: new Map(),
             loadDownloadsRequestId: 0,
         });
 
@@ -158,5 +173,36 @@ describe('DownloadsService', () => {
             2,
             'playlist-new'
         );
+    });
+
+    it('calculates live throughput from consecutive download updates', async () => {
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-14T12:00:00.000Z'));
+        const first = {
+            ...createDownload(1),
+            status: 'downloading' as const,
+            bytesDownloaded: 1_000,
+            totalBytes: 10_000,
+        };
+        const second = {
+            ...first,
+            bytesDownloaded: 5_000,
+        };
+        const electron = {
+            downloadsGetList: jest
+                .fn()
+                .mockResolvedValueOnce([first])
+                .mockResolvedValueOnce([second]),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await service.loadDownloads();
+        expect(service.getThroughputBytesPerSecond(first)).toBe(0);
+
+        jest.setSystemTime(new Date('2026-05-14T12:00:02.000Z'));
+        await service.loadDownloads();
+
+        expect(service.getThroughputBytesPerSecond(second)).toBe(2_000);
     });
 });

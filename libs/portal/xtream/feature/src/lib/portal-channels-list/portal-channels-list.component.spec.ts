@@ -287,13 +287,10 @@ describe('PortalChannelsListComponent', () => {
 
         fixture.detectChanges();
 
-        fixture.componentInstance.toggleFavorite(
-            new MouseEvent('click'),
-            {
-                title: 'Cartoon Network',
-                xtream_id: 253,
-            }
-        );
+        fixture.componentInstance.toggleFavorite(new MouseEvent('click'), {
+            title: 'Cartoon Network',
+            xtream_id: 253,
+        });
         await Promise.resolve();
 
         expect(storeSignals.toggleFavorite).toHaveBeenCalledWith(
@@ -302,5 +299,24 @@ describe('PortalChannelsListComponent', () => {
             'live'
         );
         expect(fixture.componentInstance.favorites.get('live:253')).toBe(true);
+    });
+
+    it('derives media tags for live channel previews from metadata and title hints', () => {
+        const tags = fixture.componentInstance.getMediaTags({
+            title: 'IT - Sport UHD HEVC SUB ENG',
+            xtream_id: 600,
+            mediaMetadata: {
+                available: true,
+                qualityLabel: '2160p HEVC',
+                height: 2160,
+                videoCodec: 'HEVC',
+                audioLanguages: ['ITA'],
+                audioCodecs: [],
+                subtitleLanguages: ['ENG'],
+                subtitleCodecs: [],
+            },
+        });
+
+        expect(tags).toEqual(['2160p HEVC', 'Audio ITA', 'Sub ENG']);
     });
 });

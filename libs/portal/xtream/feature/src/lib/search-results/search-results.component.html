@@ -1,6 +1,6 @@
 <app-search-layout
     [searchTerm]="searchTerm()"
-    [resultsCount]="xtreamStore.searchResults().length"
+    [resultsCount]="filteredResults().length"
     [isLoading]="xtreamStore.isSearching()"
     [showCloseButton]="false"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
@@ -42,13 +42,17 @@
                 <div class="global-search-subheader-left">
                     <div class="global-search-note">
                         <mat-icon>info_outline</mat-icon>
-                        <span>{{ 'PORTALS.SEARCH_VIEW.XTREAM_ONLY_NOTE' | translate }}</span>
+                        <span>{{
+                            'PORTALS.SEARCH_VIEW.XTREAM_ONLY_NOTE' | translate
+                        }}</span>
                     </div>
                     <div class="global-search-filters">
                         @for (filter of filterConfig; track filter.key) {
                             <mat-checkbox
                                 [ngModel]="filters()[filter.key]"
-                                (ngModelChange)="updateFilter(filter.key, $event)"
+                                (ngModelChange)="
+                                    updateFilter(filter.key, $event)
+                                "
                             >
                                 {{ filter.translationKey | translate }}
                             </mat-checkbox>
@@ -63,70 +67,183 @@
                 </mat-checkbox>
             </div>
         }
+        <div class="search-language-filter">
+            <div class="search-language-filter__header">
+                <div>
+                    <h3>{{ 'PORTALS.LANGUAGE_FILTER.TITLE' | translate }}</h3>
+                    <p>
+                        {{
+                            languageFilterActive()
+                                ? ('PORTALS.LANGUAGE_FILTER.ACTIVE_HINT'
+                                  | translate)
+                                : ('PORTALS.LANGUAGE_FILTER.DESCRIPTION'
+                                  | translate)
+                        }}
+                    </p>
+                </div>
+                <button
+                    type="button"
+                    mat-button
+                    (click)="resetLanguageFilter()"
+                >
+                    {{ 'PORTALS.LANGUAGE_FILTER.RESET' | translate }}
+                </button>
+            </div>
+            <div class="search-language-filter__grid">
+                @for (section of languageFilterSections; track section.key) {
+                    <section class="search-language-filter__group">
+                        <div class="search-language-filter__group-header">
+                            <h4>{{ section.titleKey | translate }}</h4>
+                            <div class="search-language-filter__actions">
+                                <button
+                                    type="button"
+                                    mat-button
+                                    (click)="
+                                        selectAllLanguageFilterOptions(
+                                            section.key
+                                        )
+                                    "
+                                >
+                                    {{
+                                        'PORTALS.LANGUAGE_FILTER.SELECT_ALL'
+                                            | translate
+                                    }}
+                                </button>
+                                <button
+                                    type="button"
+                                    mat-button
+                                    (click)="
+                                        clearLanguageFilterOptions(section.key)
+                                    "
+                                >
+                                    {{
+                                        'PORTALS.LANGUAGE_FILTER.DESELECT_ALL'
+                                            | translate
+                                    }}
+                                </button>
+                                <button
+                                    type="button"
+                                    mat-button
+                                    (click)="
+                                        invertLanguageFilterOptions(section.key)
+                                    "
+                                >
+                                    {{
+                                        'PORTALS.LANGUAGE_FILTER.INVERT'
+                                            | translate
+                                    }}
+                                </button>
+                            </div>
+                        </div>
+                        <div class="search-language-filter__options">
+                            @for (
+                                option of languageFilterOptions();
+                                track option.code
+                            ) {
+                                <mat-checkbox
+                                    [ngModel]="
+                                        isLanguageFilterOptionChecked(
+                                            section.key,
+                                            option.code
+                                        )
+                                    "
+                                    (ngModelChange)="
+                                        toggleLanguageFilterOption(
+                                            section.key,
+                                            option.code,
+                                            $event
+                                        )
+                                    "
+                                >
+                                    {{ option.label }}
+                                </mat-checkbox>
+                            }
+                        </div>
+                    </section>
+                }
+            </div>
+        </div>
     </ng-container>
 
     <!-- Results -->
     <ng-container results>
-        @if (isGlobalSearch) {
-            <!-- Global Search Results -->
-            @if (groupByPlaylist()) {
-                <!-- Grouped by playlist -->
-                <div class="playlist-section">
-                    <h2 class="section-title">
-                        Found {{ xtreamStore.searchResults().length }} items across
-                        {{ (groupedResults() | keyvalue).length }} playlists
-                    </h2>
-                    @for (
-                        group of groupedResults() | keyvalue;
-                        track group.key
-                    ) {
-                        <div class="playlist-group">
-                            <h3 class="playlist-title">
-                                <mat-icon>playlist_play</mat-icon>
-                                {{ group.key }}
-                                <span class="item-count"
-                                    >({{ $any(group).value.length }} items)</span
-                                >
-                            </h3>
-                            <div class="results-grid">
-                                @for (item of $any(group).value; track item.id) {
-                                    <app-content-card
-                                        [posterUrl]="item.poster_url"
-                                        [title]="item.title"
-                                        [type]="item.type"
-                                        [showPlaceholder]="true"
-                                        (cardClick)="selectItem(item)"
-                                    />
-                                }
-                            </div>
-                        </div>
+        @for (section of resultSections(); track section.key) {
+            <div class="search-visibility-section">
+                <h2 class="section-title">
+                    {{ section.titleKey | translate }}
+                    <span class="item-count"
+                        >({{ section.items.length }} items)</span
+                    >
+                    @if (isGlobalSearch && groupByPlaylist()) {
+                        <span class="playlist-count">
+                            {{ ($any(section).groupedItems | keyvalue).length }}
+                            playlist
+                        </span>
                     }
-                </div>
-            } @else {
-                <!-- Flat list -->
-                <div class="results-grid">
-                    @for (item of xtreamStore.searchResults(); track item.id) {
-                        <app-content-card
-                            [posterUrl]="item.poster_url"
-                            [title]="item.title"
-                            [type]="item.type"
-                            [showPlaceholder]="true"
-                            (cardClick)="selectItem(item)"
-                        />
-                    }
-                </div>
-            }
-        } @else {
-            <!-- Playlist-level Search Results -->
-            <div class="results-grid">
-                @for (item of xtreamStore.searchResults(); track item.id) {
-                    <app-content-card
-                        [posterUrl]="item.poster_url"
-                        [title]="item.title"
-                        [type]="item.type"
-                        [showPlaceholder]="true"
-                        (cardClick)="selectItem(item)"
-                    />
+                </h2>
+
+                @if (isGlobalSearch && groupByPlaylist()) {
+                    <div class="playlist-section">
+                        @for (
+                            group of $any(section).groupedItems | keyvalue;
+                            track group.key
+                        ) {
+                            @if ($any(group).value.length > 0) {
+                                <div class="playlist-group">
+                                    <h3 class="playlist-title">
+                                        <mat-icon>playlist_play</mat-icon>
+                                        {{ group.key }}
+                                        <span class="item-count"
+                                            >({{
+                                                $any(group).value.length
+                                            }}
+                                            items)</span
+                                        >
+                                    </h3>
+                                    <div class="results-grid">
+                                        @for (
+                                            item of $any(group).value;
+                                            track item.id
+                                        ) {
+                                            <app-content-card
+                                                [posterUrl]="item.poster_url"
+                                                [title]="item.title"
+                                                [type]="item.type"
+                                                [rating]="resolveRating(item)"
+                                                [ratingTooltip]="
+                                                    resolveRatingTooltip(item)
+                                                "
+                                                [mediaTags]="
+                                                    resolveMediaTags(item)
+                                                "
+                                                [duplicateCount]="
+                                                    item.duplicateCount
+                                                "
+                                                [showPlaceholder]="true"
+                                                (cardClick)="selectItem(item)"
+                                            />
+                                        }
+                                    </div>
+                                </div>
+                            }
+                        }
+                    </div>
+                } @else {
+                    <div class="results-grid">
+                        @for (item of section.items; track item.id) {
+                            <app-content-card
+                                [posterUrl]="item.poster_url"
+                                [title]="item.title"
+                                [type]="item.type"
+                                [rating]="resolveRating(item)"
+                                [ratingTooltip]="resolveRatingTooltip(item)"
+                                [mediaTags]="resolveMediaTags(item)"
+                                [duplicateCount]="item.duplicateCount"
+                                [showPlaceholder]="true"
+                                (cardClick)="selectItem(item)"
+                            />
+                        }
+                    </div>
                 }
             </div>
         }

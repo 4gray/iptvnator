@@ -20,13 +20,32 @@ describe('StalkerCatalogFacadeService', () => {
         | ((data: PlaybackPositionData) => void)
         | undefined;
     let playbackPositions: {
-        savePlaybackPosition: jest.Mock<Promise<void>, [string, PlaybackPositionData]>;
-        getPlaybackPosition: jest.Mock<Promise<PlaybackPositionData | null>, [string, number, 'vod' | 'episode']>;
-        getSeriesPlaybackPositions: jest.Mock<Promise<PlaybackPositionData[]>, [string, number]>;
+        savePlaybackPosition: jest.Mock<
+            Promise<void>,
+            [string, PlaybackPositionData]
+        >;
+        getPlaybackPosition: jest.Mock<
+            Promise<PlaybackPositionData | null>,
+            [string, number, 'vod' | 'episode']
+        >;
+        getSeriesPlaybackPositions: jest.Mock<
+            Promise<PlaybackPositionData[]>,
+            [string, number]
+        >;
         getRecentPlaybackPositions?: jest.Mock;
-        getAllPlaybackPositions: jest.Mock<Promise<PlaybackPositionData[]>, [string]>;
-        clearPlaybackPosition: jest.Mock<Promise<void>, [string, number, 'vod' | 'episode']>;
+        getAllPlaybackPositions: jest.Mock<
+            Promise<PlaybackPositionData[]>,
+            [string]
+        >;
+        clearPlaybackPosition: jest.Mock<
+            Promise<void>,
+            [string, number, 'vod' | 'episode']
+        >;
     };
+    let paginatedContent: ReturnType<typeof signal>;
+    let totalCount: ReturnType<typeof signal<number>>;
+    let getTotalPages: ReturnType<typeof signal<number>>;
+    let setPage: jest.Mock;
 
     beforeEach(() => {
         playbackUpdateHandler = undefined;
@@ -38,6 +57,10 @@ describe('StalkerCatalogFacadeService', () => {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
         };
+        paginatedContent = signal([]);
+        totalCount = signal(0);
+        getTotalPages = signal(0);
+        setPage = jest.fn();
 
         (window as Window & { electron?: typeof window.electron }).electron = {
             ...(window.electron ?? {}),
@@ -55,20 +78,23 @@ describe('StalkerCatalogFacadeService', () => {
                 {
                     provide: StalkerStore,
                     useValue: {
-                        selectedContentType: signal<'vod' | 'series' | 'itv'>('vod'),
+                        selectedContentType: signal<'vod' | 'series' | 'itv'>(
+                            'vod'
+                        ),
                         limit: signal(14),
                         page: signal(0),
                         getSelectedCategory: signal(null),
-                        getPaginatedContent: signal([]),
+                        getPaginatedContent: paginatedContent,
                         selectedItem: signal(null),
-                        getTotalPages: signal(0),
+                        getTotalPages,
                         isPaginatedContentLoading: signal(false),
                         currentPlaylist: signal(playlist),
+                        totalCount,
                         getSelectedCategoryName: jest.fn(() => null),
                         setSelectedCategory: jest.fn(),
                         clearSelectedItem: jest.fn(),
                         setSearchPhrase: jest.fn(),
-                        setPage: jest.fn(),
+                        setPage,
                         setLimit: jest.fn(),
                         setSelectedItem: jest.fn(),
                         createLinkToPlayVod: jest.fn(),
@@ -139,5 +165,56 @@ describe('StalkerCatalogFacadeService', () => {
         await Promise.resolve();
 
         expect(playbackPositions.savePlaybackPosition).not.toHaveBeenCalled();
+    });
+
+    it('filters Stalker catalog items by detected audio language', () => {
+        paginatedContent.set([
+            {
+                id: '1',
+                name: 'Movie ITA 2160p',
+            },
+            {
+                id: '2',
+                name: 'Movie ENG 720p',
+            },
+        ]);
+        totalCount.set(2);
+        getTotalPages.set(1);
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+
+        service.toggleLanguageFilterOption('audioInclude', 'it', true);
+
+        expect(service.paginatedContent()).toEqual([
+            expect.objectContaining({ id: '1' }),
+        ]);
+        expect(service.categoryItemCount()).toBe(1);
+        expect(service.totalPages()).toBe(1);
+        expect(setPage).toHaveBeenCalledWith(0);
+    });
+
+    it('filters Stalker catalog items by detected video quality', () => {
+        paginatedContent.set([
+            {
+                id: '1',
+                name: 'Movie UHD 2160p ITA',
+            },
+            {
+                id: '2',
+                name: 'Movie HD 720p ITA',
+            },
+        ]);
+        const service = TestBed.inject(StalkerCatalogFacadeService);
+
+        service.setVideoQualityFilter('2160p');
+
+        expect(service.videoQualityFilterOptions()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ value: '2160p', count: 1 }),
+                expect.objectContaining({ value: '720p', count: 1 }),
+            ])
+        );
+        expect(service.paginatedContent()).toEqual([
+            expect.objectContaining({ id: '1' }),
+        ]);
     });
 });

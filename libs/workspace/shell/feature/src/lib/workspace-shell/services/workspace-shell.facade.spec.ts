@@ -509,6 +509,17 @@ describe('WorkspaceShellFacade', () => {
         ]);
     });
 
+    it('opens account info with Xtream counts and VOD streams', () => {
+        facade.openAccountInfo();
+
+        expect(workspaceActions.openAccountInfo).toHaveBeenCalledWith({
+            vodStreamsCount: 1,
+            liveStreamsCount: 1,
+            seriesCount: 1,
+            vodStreams: [{ id: 1 }],
+        });
+    });
+
     it('clears stalker recent items and refreshes the route', async () => {
         facade.currentUrl.set('/workspace/stalker/pl-1/recent');
         router.navigateByUrl.mockClear();
