@@ -29,6 +29,17 @@ import { SettingsPlayerOption } from './settings.models';
     styles: [':host { display: contents; }'],
 })
 export class SettingsPlaybackSectionComponent {
+    readonly mpvPlayerArgumentsPlaceholder = [
+        '--ontop',
+        '--autofit=640x360',
+        '--geometry=+80+80',
+    ].join('\n');
+    readonly vlcPlayerArgumentsPlaceholder = [
+        '--video-on-top',
+        '--width=640',
+        '--height=360',
+    ].join('\n');
+
     readonly form = input.required<FormGroup>();
     readonly activeSection = input.required<string>();
     readonly players = input.required<SettingsPlayerOption[]>();

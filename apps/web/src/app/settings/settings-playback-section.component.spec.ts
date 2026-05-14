@@ -11,6 +11,9 @@ const MPV_COMPATIBLE_PLAYER_TIP =
     'IINA can be launched as an MPV-compatible player on macOS, but use its executable path, such as /Applications/IINA.app/Contents/MacOS/iina-cli or /Applications/IINA.app/Contents/MacOS/IINA. IPTVnator controls, position polling, and reuse-instance behavior are guaranteed only for MPV IPC.';
 const VLC_PATH_DESCRIPTION =
     'Set the path to VLC. On macOS you can use the VLC app bundle, such as /Applications/VLC.app, or the executable path.';
+const MPV_ARGUMENTS_PLACEHOLDER =
+    '--ontop\n--autofit=640x360\n--geometry=+80+80';
+const VLC_ARGUMENTS_PLACEHOLDER = '--video-on-top\n--width=640\n--height=360';
 
 describe('SettingsPlaybackSectionComponent', () => {
     let fixture: ComponentFixture<SettingsPlaybackSectionComponent>;
@@ -245,6 +248,11 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
         );
+        expect(
+            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
+                '#mpvPlayerArguments'
+            )?.placeholder
+        ).toBe(MPV_ARGUMENTS_PLACEHOLDER);
     });
 
     it('shows VLC command-line arguments only when VLC is selected', () => {
@@ -265,6 +273,11 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
         );
+        expect(
+            fixture.nativeElement.querySelector<HTMLTextAreaElement>(
+                '#vlcPlayerArguments'
+            )?.placeholder
+        ).toBe(VLC_ARGUMENTS_PLACEHOLDER);
     });
 });
 
