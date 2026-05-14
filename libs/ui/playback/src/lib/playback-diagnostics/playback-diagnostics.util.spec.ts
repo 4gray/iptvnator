@@ -293,7 +293,7 @@ describe('playback diagnostics', () => {
     it('keeps trusted media path extensions ahead of generic query metadata', () => {
         expect(
             getPlaybackMediaExtensionFromUrl(
-                'http://cdn.example/archive/movie.mp4?type=hls'
+                'http://cdn.example/archive/movie.mp4?container=m3u8'
             )
         ).toBe('mp4');
         expect(
@@ -301,6 +301,19 @@ describe('playback diagnostics', () => {
                 'http://cdn.example/live/channel.m3u8?format=mp4'
             )
         ).toBe('m3u8');
+    });
+
+    it('keeps explicit extension query metadata ahead of trusted media path extensions', () => {
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://cdn.example/live/channel.ts?extension=m3u8'
+            )
+        ).toBe('m3u8');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://cdn.example/live/channel.m3u8?ext=ts'
+            )
+        ).toBe('ts');
     });
 
     it('does not infer media extensions from generic type/output query metadata', () => {
@@ -317,6 +330,11 @@ describe('playback diagnostics', () => {
         expect(
             getPlaybackMediaExtensionFromUrl(
                 'http://portal.example/play/live.php?format=mpv&stream=123'
+            )
+        ).toBe('');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.mpv?stream=123'
             )
         ).toBe('');
     });

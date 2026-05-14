@@ -124,12 +124,9 @@ const UNSUPPORTED_CONTAINER_NAMES = new Set([
     'x-msvideo',
 ]);
 
-const DECLARED_MEDIA_EXTENSION_QUERY_KEYS = [
-    'extension',
-    'ext',
-    'format',
-    'container',
-];
+const EXPLICIT_MEDIA_EXTENSION_QUERY_KEYS = ['extension', 'ext'];
+
+const DECLARED_MEDIA_FORMAT_QUERY_KEYS = ['format', 'container'];
 
 const DECLARED_MEDIA_EXTENSION_ALIASES = new Map([
     ['hls', 'm3u8'],
@@ -158,6 +155,7 @@ const NON_MEDIA_URL_EXTENSIONS = new Set([
     'aspx',
     'cgi',
     'jsp',
+    'mpv',
     'php',
     'pl',
 ]);
@@ -195,14 +193,25 @@ export function createPlaybackSourceMetadata(
 }
 
 export function getPlaybackMediaExtensionFromUrl(url: string): string {
+    const explicitQueryExtension = getMediaExtensionFromQuery(
+        url,
+        EXPLICIT_MEDIA_EXTENSION_QUERY_KEYS
+    );
+    if (explicitQueryExtension) {
+        return explicitQueryExtension;
+    }
+
     const pathExtension = normalizeExtensionToken(getExtensionFromUrl(url));
     if (DECLARED_MEDIA_EXTENSIONS.has(pathExtension)) {
         return pathExtension;
     }
 
-    const queryExtension = getMediaExtensionFromQuery(url);
-    if (queryExtension) {
-        return queryExtension;
+    const formatQueryExtension = getMediaExtensionFromQuery(
+        url,
+        DECLARED_MEDIA_FORMAT_QUERY_KEYS
+    );
+    if (formatQueryExtension) {
+        return formatQueryExtension;
     }
 
     if (NON_MEDIA_URL_EXTENSIONS.has(pathExtension)) {
@@ -493,10 +502,13 @@ function normalizeExtensionToken(value: string | undefined): string {
     return normalizeToken(value).replace(/^\.+/, '');
 }
 
-function getMediaExtensionFromQuery(url: string): string {
+function getMediaExtensionFromQuery(
+    url: string,
+    queryKeys: readonly string[]
+): string {
     try {
         const parsedUrl = new URL(url, 'http://iptvnator.local');
-        for (const key of DECLARED_MEDIA_EXTENSION_QUERY_KEYS) {
+        for (const key of queryKeys) {
             const declaredExtension = normalizeDeclaredMediaExtension(
                 parsedUrl.searchParams.get(key) ?? undefined
             );
