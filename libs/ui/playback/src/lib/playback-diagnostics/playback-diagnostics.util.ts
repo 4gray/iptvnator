@@ -1,11 +1,15 @@
 import { getExtensionFromUrl } from 'm3u-utils';
-import type { ExternalPlayerName, ResolvedPortalPlayback } from 'shared-interfaces';
+import type {
+    ExternalPlayerName,
+    ResolvedPortalPlayback,
+} from 'shared-interfaces';
 
 export const PlaybackDiagnosticCode = {
     UnsupportedContainer: 'unsupported-container',
     UnsupportedCodec: 'unsupported-codec',
     MediaDecodeError: 'media-decode-error',
     NetworkError: 'network-error',
+    BrowserAccessError: 'browser-access-error',
     DrmOrEncryption: 'drm-or-encryption',
     UnknownPlaybackError: 'unknown-playback-error',
 } as const;
@@ -147,10 +151,13 @@ export function classifyNativePlaybackIssue(
 ): PlaybackDiagnostic {
     const nativeErrorCode = error?.code;
     const nativeErrorMessage = error?.message || undefined;
+    const lowerNativeErrorMessage = nativeErrorMessage?.toLowerCase() ?? '';
 
     if (nativeErrorCode === NETWORK_ERROR_CODE) {
         return createDiagnostic({
-            code: PlaybackDiagnosticCode.NetworkError,
+            code: isBrowserAccessFailure(lowerNativeErrorMessage)
+                ? PlaybackDiagnosticCode.BrowserAccessError
+                : PlaybackDiagnosticCode.NetworkError,
             source: PlaybackDiagnosticSource.Native,
             metadata,
             nativeErrorCode,
@@ -203,7 +210,9 @@ export function classifyHlsPlaybackIssue(
 
     if (isNetworkFailure(lowerType, lowerDetails)) {
         return createDiagnostic({
-            code: PlaybackDiagnosticCode.NetworkError,
+            code: isBrowserAccessFailure(lowerDetails)
+                ? PlaybackDiagnosticCode.BrowserAccessError
+                : PlaybackDiagnosticCode.NetworkError,
             source: PlaybackDiagnosticSource.Hls,
             metadata: mergedMetadata,
             details,
@@ -255,7 +264,9 @@ export function classifyMpegTsPlaybackIssue(
 
     if (isNetworkFailure(lowerType, lowerDetails)) {
         return createDiagnostic({
-            code: PlaybackDiagnosticCode.NetworkError,
+            code: isBrowserAccessFailure(lowerDetails)
+                ? PlaybackDiagnosticCode.BrowserAccessError
+                : PlaybackDiagnosticCode.NetworkError,
             source: PlaybackDiagnosticSource.MpegTs,
             metadata,
             details,
@@ -357,6 +368,7 @@ function isExternalFallbackRecommended(code: PlaybackDiagnosticCode): boolean {
         code === PlaybackDiagnosticCode.UnsupportedContainer ||
         code === PlaybackDiagnosticCode.UnsupportedCodec ||
         code === PlaybackDiagnosticCode.MediaDecodeError ||
+        code === PlaybackDiagnosticCode.BrowserAccessError ||
         code === PlaybackDiagnosticCode.DrmOrEncryption
     );
 }
@@ -478,6 +490,22 @@ function isNetworkFailure(type: string, details: string): boolean {
         details.includes('loaderror') ||
         details.includes('timeout') ||
         details.includes('status')
+    );
+}
+
+function isBrowserAccessFailure(details: string): boolean {
+    return (
+        details.includes('cors') ||
+        details.includes('cross-origin') ||
+        details.includes('cross origin') ||
+        details.includes('access-control') ||
+        details.includes('access control') ||
+        details.includes('mixed content') ||
+        details.includes('blocked by') ||
+        details.includes('has been blocked') ||
+        details.includes('not allowed to load local resource') ||
+        details.includes('err_blocked') ||
+        details.includes('err_cleartext')
     );
 }
 

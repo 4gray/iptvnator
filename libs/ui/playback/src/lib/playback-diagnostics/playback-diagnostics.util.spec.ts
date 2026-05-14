@@ -89,6 +89,59 @@ describe('playback diagnostics', () => {
         expect(issue.externalFallbackRecommended).toBe(false);
     });
 
+    it('classifies HLS browser access blocks separately from provider network failures', () => {
+        const issue = classifyHlsPlaybackIssue(
+            {
+                type: 'networkError',
+                details:
+                    'manifestLoadError Mixed Content: The page at https://app.example was loaded over HTTPS, but requested an insecure stream http://provider.example/live.m3u8. This request has been blocked.',
+                fatal: true,
+            },
+            createPlaybackSourceMetadata({
+                url: 'http://provider.example/live.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe('browser-access-error');
+        expect(issue.externalFallbackRecommended).toBe(true);
+    });
+
+    it('classifies native CORS failures as browser access errors', () => {
+        const issue = classifyNativePlaybackIssue(
+            {
+                code: 2,
+                message:
+                    'Access to media at https://provider.example/live.m3u8 from origin app://iptvnator has been blocked by CORS policy: No Access-Control-Allow-Origin header is present.',
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live.m3u8',
+                player: 'html5',
+            })
+        );
+
+        expect(issue.code).toBe('browser-access-error');
+        expect(issue.externalFallbackRecommended).toBe(true);
+    });
+
+    it('classifies mpegts browser fetch restrictions separately from generic network errors', () => {
+        const issue = classifyMpegTsPlaybackIssue(
+            {
+                type: 'NetworkError',
+                details:
+                    'Fetch blocked by access-control policy while loading segment',
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live/channel.ts',
+                mimeType: 'video/mp2t',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe('browser-access-error');
+        expect(issue.externalFallbackRecommended).toBe(true);
+    });
+
     it('classifies mpegts codec errors as unsupported codec fallbacks', () => {
         const issue = classifyMpegTsPlaybackIssue(
             {

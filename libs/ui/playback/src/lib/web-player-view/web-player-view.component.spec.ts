@@ -187,6 +187,17 @@ describe('WebPlayerViewComponent', () => {
             },
         ]);
     });
+
+    it('uses browser access diagnostic translation keys', () => {
+        const issue = createBrowserAccessDiagnostic();
+
+        expect(component.getDiagnosticTitleKey(issue)).toBe(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.TITLE'
+        );
+        expect(component.getDiagnosticDescriptionKey(issue)).toBe(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
+        );
+    });
 });
 
 function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {
@@ -199,6 +210,21 @@ function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {
         player: 'videojs',
         audioCodecs: [],
         videoCodecs: [],
+        externalFallbackRecommended: true,
+    };
+}
+
+function createBrowserAccessDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.BrowserAccessError,
+        source: PlaybackDiagnosticSource.Hls,
+        sourceUrl: 'https://provider.example/live.m3u8',
+        container: 'm3u8',
+        mimeType: 'application/x-mpegURL',
+        player: 'videojs',
+        audioCodecs: [],
+        videoCodecs: [],
+        details: 'blocked by CORS policy',
         externalFallbackRecommended: true,
     };
 }

@@ -181,6 +181,8 @@ export class WebPlayerViewComponent {
                 return 'PLAYBACK_DIAGNOSTICS.MEDIA_DECODE_ERROR';
             case PlaybackDiagnosticCode.NetworkError:
                 return 'PLAYBACK_DIAGNOSTICS.NETWORK_ERROR';
+            case PlaybackDiagnosticCode.BrowserAccessError:
+                return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR';
             case PlaybackDiagnosticCode.DrmOrEncryption:
                 return 'PLAYBACK_DIAGNOSTICS.DRM_OR_ENCRYPTION';
             case PlaybackDiagnosticCode.UnknownPlaybackError:
