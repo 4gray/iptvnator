@@ -275,12 +275,12 @@ describe('playback diagnostics', () => {
         ).toBe('m3u8');
         expect(
             getPlaybackMediaExtensionFromUrl(
-                'http://portal.example/play/live.php?type=m3u8&stream=123'
+                'http://portal.example/play/live.php?container=m3u8&stream=123'
             )
         ).toBe('m3u8');
         expect(
             getPlaybackMediaExtensionFromUrl(
-                'http://portal.example/play/live.php?output=ts&stream=123'
+                'http://portal.example/play/live.php?ext=ts&stream=123'
             )
         ).toBe('ts');
         expect(
@@ -301,6 +301,24 @@ describe('playback diagnostics', () => {
                 'http://cdn.example/live/channel.m3u8?format=mp4'
             )
         ).toBe('m3u8');
+    });
+
+    it('does not infer media extensions from generic type/output query metadata', () => {
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?type=m3u8&stream=123'
+            )
+        ).toBe('');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?output=ts&stream=123'
+            )
+        ).toBe('');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?format=mpv&stream=123'
+            )
+        ).toBe('');
     });
 
     it('detects codecs with limited Chromium browser-player support', () => {

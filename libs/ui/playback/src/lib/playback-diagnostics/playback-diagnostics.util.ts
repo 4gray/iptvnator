@@ -129,8 +129,6 @@ const DECLARED_MEDIA_EXTENSION_QUERY_KEYS = [
     'ext',
     'format',
     'container',
-    'type',
-    'output',
 ];
 
 const DECLARED_MEDIA_EXTENSION_ALIASES = new Map([
@@ -149,7 +147,6 @@ const DECLARED_MEDIA_EXTENSIONS = new Set([
     'mp3',
     'mp4',
     'mpd',
-    'mpv',
     'oga',
     'ogg',
     'ogv',
