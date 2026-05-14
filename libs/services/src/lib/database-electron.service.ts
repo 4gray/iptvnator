@@ -506,6 +506,10 @@ export class DatabaseService {
     }
 
     async getAppState(key: string): Promise<string | null> {
+        if (!window.electron?.dbGetAppState) {
+            return null;
+        }
+
         try {
             return await window.electron.dbGetAppState(key);
         } catch (error) {
@@ -515,6 +519,10 @@ export class DatabaseService {
     }
 
     async setAppState(key: string, value: string): Promise<boolean> {
+        if (!window.electron?.dbSetAppState) {
+            return false;
+        }
+
         try {
             await window.electron.dbSetAppState(key, value);
             return true;
@@ -861,6 +869,10 @@ export class DatabaseService {
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContent | null> {
+        if (!window.electron?.dbGetContentByXtreamId) {
+            return null;
+        }
+
         try {
             return await window.electron.dbGetContentByXtreamId(
                 xtreamId,

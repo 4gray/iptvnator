@@ -39,13 +39,37 @@
                 {{ type() }}
             </span>
         }
+
+        @if (rating()) {
+            <span class="rating-badge" [matTooltip]="ratingTooltip() || 'IMDb'">
+                <mat-icon>star</mat-icon>
+                {{ rating() }}
+            </span>
+        }
+
+        @if (duplicateCount() && duplicateCount() > 1) {
+            <span class="duplicate-badge" matTooltip="Grouped variants">
+                <mat-icon>filter_none</mat-icon>
+                {{ duplicateCount() }}
+            </span>
+        }
+
+        @if (mediaTags().length > 0) {
+            <div class="media-tags">
+                @for (tag of mediaTags(); track tag) {
+                    <span>{{ tag }}</span>
+                }
+            </div>
+        }
     </div>
 
     <div class="card-info">
         <h3>{{ title() }}</h3>
         @if (date()) {
             <p class="date-info">
-                {{ date() | date: 'd MMM, HH:mm' : undefined : currentLocale() }}
+                {{
+                    date() | date: 'd MMM, HH:mm' : undefined : currentLocale()
+                }}
             </p>
         }
     </div>

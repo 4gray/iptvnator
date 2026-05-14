@@ -10,6 +10,11 @@ import { existsSync, unlinkSync } from 'fs';
 import { basename, extname, join } from 'path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
+import {
+    AcceleratedDownloadUnavailableError,
+    downloadWithAcceleratedHttp,
+} from '../../services/accelerated-http-download.service';
+import { ACCELERATED_DOWNLOADS, store } from '../../services/store.service';
 
 type DownloadStatus = 'queued' | 'downloading' | 'completed' | 'failed' | 'canceled';
 
@@ -20,6 +25,7 @@ interface DownloadTask {
     directory: string;
     headers?: Record<string, string>;
     downloadItem?: ElectronDlFile;
+    abortController?: AbortController;
 }
 
 // Download queue management
@@ -116,6 +122,13 @@ async function startDownload(task: DownloadTask) {
     const PROGRESS_THROTTLE_MS = 500;
 
     try {
+        if (isAcceleratedDownloadsEnabled()) {
+            const accelerated = await startAcceleratedDownload(task, db);
+            if (accelerated) {
+                return;
+            }
+        }
+
         const downloadOptions: Parameters<typeof download>[2] = {
             directory: task.directory,
             filename: task.fileName,
@@ -218,6 +231,106 @@ async function startDownload(task: DownloadTask) {
         broadcastUpdate();
         processQueue();
     }
+}
+
+async function startAcceleratedDownload(
+    task: DownloadTask,
+    db: Awaited<ReturnType<typeof getDatabase>>
+): Promise<boolean> {
+    const filePath = join(task.directory, task.fileName);
+    const abortController = new AbortController();
+    task.abortController = abortController;
+
+    let lastProgressUpdate = 0;
+    const PROGRESS_THROTTLE_MS = 500;
+
+    try {
+        console.log(`[Downloads] Accelerated download probe: ${task.fileName}`);
+        const result = await downloadWithAcceleratedHttp({
+            url: task.url,
+            filePath,
+            headers: task.headers,
+            signal: abortController.signal,
+            chunkBytes: 4 * 1024 * 1024,
+            parallelism: 10,
+            retries: 2,
+            onProgress: async (progress) => {
+                const now = Date.now();
+                if (
+                    progress.bytesDownloaded < progress.totalBytes &&
+                    now - lastProgressUpdate < PROGRESS_THROTTLE_MS
+                ) {
+                    return;
+                }
+                lastProgressUpdate = now;
+
+                await db
+                    .update(schema.downloads)
+                    .set({
+                        bytesDownloaded: progress.bytesDownloaded,
+                        totalBytes: progress.totalBytes,
+                        updatedAt: sql`CURRENT_TIMESTAMP`,
+                    })
+                    .where(eq(schema.downloads.id, task.id));
+
+                broadcastUpdate();
+            },
+        });
+
+        console.log(
+            `[Downloads] Accelerated completed: ${task.fileName} (${result.chunks} chunks, ${result.retries} retries)`
+        );
+        await db
+            .update(schema.downloads)
+            .set({
+                status: 'completed',
+                filePath: result.filePath,
+                fileName: task.fileName,
+                bytesDownloaded: result.bytesDownloaded,
+                totalBytes: result.totalBytes,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+            })
+            .where(eq(schema.downloads.id, task.id));
+
+        activeDownload = null;
+        broadcastUpdate();
+        processQueue();
+        return true;
+    } catch (error) {
+        task.abortController = undefined;
+        if (abortController.signal.aborted) {
+            console.log(`[Downloads] Accelerated canceled: ${task.fileName}`);
+            await db
+                .update(schema.downloads)
+                .set({
+                    status: 'canceled',
+                    updatedAt: sql`CURRENT_TIMESTAMP`,
+                })
+                .where(eq(schema.downloads.id, task.id));
+
+            activeDownload = null;
+            broadcastUpdate();
+            processQueue();
+            return true;
+        }
+
+        if (error instanceof AcceleratedDownloadUnavailableError) {
+            console.log(
+                `[Downloads] Accelerated unavailable for ${task.fileName}: ${error.message}`
+            );
+            return false;
+        }
+
+        console.warn(
+            `[Downloads] Accelerated failed for ${task.fileName}; falling back to electron-dl:`,
+            error
+        );
+        return false;
+    }
+}
+
+function isAcceleratedDownloadsEnabled(): boolean {
+    return store.get(ACCELERATED_DOWNLOADS, true);
 }
 
 /**
@@ -385,6 +498,9 @@ ipcMain.handle('DOWNLOADS_CANCEL', async (_event, downloadId: number) => {
 
         // Check if it's the active download
         if (activeDownload && activeDownload.id === downloadId) {
+            if (activeDownload.abortController) {
+                activeDownload.abortController.abort();
+            }
             if (activeDownload.downloadItem) {
                 (activeDownload.downloadItem as any).cancel?.();
             }
@@ -481,6 +597,9 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
 
         // Cancel if active
         if (activeDownload && activeDownload.id === downloadId) {
+            if (activeDownload.abortController) {
+                activeDownload.abortController.abort();
+            }
             if (activeDownload.downloadItem) {
                 (activeDownload.downloadItem as any).cancel?.();
             }

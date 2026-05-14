@@ -8,65 +8,75 @@ import {
 
 describe('worker-runtime-paths', () => {
     it('resolves the development worker path when the worker file exists', () => {
+        const expectedWorkerPath = path.join(
+            '/workspace/dist/apps/electron-backend/workers',
+            'database.worker.js'
+        );
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: false,
             workerFilename: 'database.worker.js',
-            developmentWorkerDir: '/workspace/dist/apps/electron-backend/workers',
-            fileExists: (filePath) =>
-                filePath ===
-                '/workspace/dist/apps/electron-backend/workers/database.worker.js',
+            developmentWorkerDir:
+                '/workspace/dist/apps/electron-backend/workers',
+            fileExists: (filePath) => filePath === expectedWorkerPath,
         });
 
         expect(bootstrap).toEqual({
-            workerPath:
-                '/workspace/dist/apps/electron-backend/workers/database.worker.js',
-            workerPathCandidates: [
-                '/workspace/dist/apps/electron-backend/workers/database.worker.js',
-            ],
+            workerPath: expectedWorkerPath,
+            workerPathCandidates: [expectedWorkerPath],
         });
     });
 
     it('prefers process.resourcesPath for packaged worker resolution', () => {
+        const resourcesPath = '/Applications/IPTVnator.app/Contents/Resources';
+        const expectedWorkerPath = path.join(
+            resourcesPath,
+            'dist/apps/electron-backend/workers/epg-parser.worker.js'
+        );
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: true,
             workerFilename: 'epg-parser.worker.js',
             developmentWorkerDir: '/unused',
-            resourcesPath: '/Applications/IPTVnator.app/Contents/Resources',
-            appPath:
-                '/Applications/IPTVnator.app/Contents/Resources/app.asar',
-            fileExists: (filePath) =>
-                filePath ===
-                '/Applications/IPTVnator.app/Contents/Resources/dist/apps/electron-backend/workers/epg-parser.worker.js',
+            resourcesPath,
+            appPath: '/Applications/IPTVnator.app/Contents/Resources/app.asar',
+            fileExists: (filePath) => filePath === expectedWorkerPath,
         });
 
-        expect(bootstrap.workerPath).toBe(
-            '/Applications/IPTVnator.app/Contents/Resources/dist/apps/electron-backend/workers/epg-parser.worker.js'
-        );
+        expect(bootstrap.workerPath).toBe(expectedWorkerPath);
         expect(bootstrap.nativeModuleSearchPaths).toEqual([
-            '/Applications/IPTVnator.app/Contents/Resources/app.asar.unpacked/node_modules',
-            '/Applications/IPTVnator.app/Contents/Resources/app.asar.unpacked/electron-backend/node_modules',
-            '/Applications/IPTVnator.app/Contents/Resources/app.asar.unpacked/dist/apps/electron-backend/node_modules',
+            path.join(resourcesPath, 'app.asar.unpacked/node_modules'),
+            path.join(
+                resourcesPath,
+                'app.asar.unpacked/electron-backend/node_modules'
+            ),
+            path.join(
+                resourcesPath,
+                'app.asar.unpacked/dist/apps/electron-backend/node_modules'
+            ),
         ]);
     });
 
     it('falls back to appPath dirname when the resourcesPath candidate is missing', () => {
+        const expectedResourcesPath = path.join(
+            '/tmp/runtime-resources',
+            'dist/apps/electron-backend/workers/database.worker.js'
+        );
+        const expectedAppPath = path.join(
+            '/opt/IPTVnator/resources',
+            'dist/apps/electron-backend/workers/database.worker.js'
+        );
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: true,
             workerFilename: 'database.worker.js',
             developmentWorkerDir: '/unused',
             resourcesPath: '/tmp/runtime-resources',
             appPath: '/opt/IPTVnator/resources/app.asar',
-            fileExists: (filePath) =>
-                filePath ===
-                '/opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js',
+            fileExists: (filePath) => filePath === expectedAppPath,
         });
 
-        expect(bootstrap.workerPath).toBe(
-            '/opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js'
-        );
+        expect(bootstrap.workerPath).toBe(expectedAppPath);
         expect(bootstrap.workerPathCandidates).toEqual([
-            '/tmp/runtime-resources/dist/apps/electron-backend/workers/database.worker.js',
-            '/opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js',
+            expectedResourcesPath,
+            expectedAppPath,
         ]);
     });
 
@@ -84,8 +94,8 @@ describe('worker-runtime-paths', () => {
             [
                 'Unable to resolve worker "database.worker.js".',
                 'Tried:',
-                '- /resources/dist/apps/electron-backend/workers/database.worker.js',
-                '- /opt/IPTVnator/resources/dist/apps/electron-backend/workers/database.worker.js',
+                `- ${path.join('/resources', 'dist/apps/electron-backend/workers/database.worker.js')}`,
+                `- ${path.join('/opt/IPTVnator/resources', 'dist/apps/electron-backend/workers/database.worker.js')}`,
             ].join('\n')
         );
     });
@@ -97,9 +107,15 @@ describe('worker-runtime-paths', () => {
                 appPath: '/resources/app.asar',
             })
         ).toEqual([
-            '/resources/app.asar.unpacked/node_modules',
-            '/resources/app.asar.unpacked/electron-backend/node_modules',
-            '/resources/app.asar.unpacked/dist/apps/electron-backend/node_modules',
+            path.join('/resources', 'app.asar.unpacked/node_modules'),
+            path.join(
+                '/resources',
+                'app.asar.unpacked/electron-backend/node_modules'
+            ),
+            path.join(
+                '/resources',
+                'app.asar.unpacked/dist/apps/electron-backend/node_modules'
+            ),
         ]);
     });
 

@@ -8,6 +8,9 @@ export const VLC_PLAYER_PATH = 'VLC_PLAYER_PATH';
 export const VLC_PLAYER_ARGUMENTS = 'VLC_PLAYER_ARGUMENTS';
 export const MPV_REUSE_INSTANCE = 'MPV_REUSE_INSTANCE';
 export const VLC_REUSE_INSTANCE = 'VLC_REUSE_INSTANCE';
+export const ACCELERATED_DOWNLOADS = 'ACCELERATED_DOWNLOADS';
+export const REDIRECT_INDIRECT_STREAMS_TO_DIRECT_SOURCE =
+    'REDIRECT_INDIRECT_STREAMS_TO_DIRECT_SOURCE';
 
 export type StoreType = {
     [WINDOW_BOUNDS]: Electron.Rectangle;
@@ -17,6 +20,8 @@ export type StoreType = {
     [VLC_PLAYER_ARGUMENTS]: string;
     [MPV_REUSE_INSTANCE]: boolean;
     [VLC_REUSE_INSTANCE]: boolean;
+    [ACCELERATED_DOWNLOADS]: boolean;
+    [REDIRECT_INDIRECT_STREAMS_TO_DIRECT_SOURCE]: boolean;
 };
 
 // Export singleton store instance

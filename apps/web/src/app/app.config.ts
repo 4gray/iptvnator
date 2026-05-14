@@ -99,6 +99,16 @@ export function DataFactory() {
     return new PwaService();
 }
 
+export function isServiceWorkerEnabled(): boolean {
+    return (
+        AppConfig.production &&
+        !!window.electron &&
+        typeof navigator !== 'undefined' &&
+        'serviceWorker' in navigator &&
+        ['http:', 'https:'].includes(window.location.protocol)
+    );
+}
+
 export const appConfig: ApplicationConfig = {
     providers: [
         provideZoneChangeDetection({ eventCoalescing: true }),
@@ -113,7 +123,7 @@ export const appConfig: ApplicationConfig = {
         provideRouterStore(),
         ...(AppConfig.production ? [] : [provideStoreDevtools({ maxAge: 25 })]),
         provideServiceWorker('ngsw-worker.js', {
-            enabled: AppConfig.production && !!window.electron,
+            enabled: isServiceWorkerEnabled(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
         importProvidersFrom(

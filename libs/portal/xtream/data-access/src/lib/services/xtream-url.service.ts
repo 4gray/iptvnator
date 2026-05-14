@@ -1,8 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import {
-    XtreamSerieEpisode,
-    XtreamVodDetails,
-} from 'shared-interfaces';
+import { XtreamSerieEpisode, XtreamVodDetails } from 'shared-interfaces';
 import { DatabaseService, SettingsStore } from 'services';
 import { XtreamCredentials } from './xtream-api.service';
 
@@ -23,11 +20,14 @@ export interface XtreamPlaylistWithHeaders extends XtreamCredentials {
  */
 export interface LiveStreamItem {
     xtream_id: number;
-    [key: string]: unknown;
+    direct_source?: string | null;
+    directSource?: string | null;
 }
 
 type XtreamVodStreamLike = XtreamVodDetails & {
     readonly stream_id?: number;
+    readonly direct_source?: string | null;
+    readonly directSource?: string | null;
 };
 
 type XtreamCatchupScheme = 'rest' | 'legacy';
@@ -49,7 +49,10 @@ const XTREAM_CATCHUP_SCHEME_KEY_PREFIX = 'xtream-catchup-scheme:';
 export class XtreamUrlService {
     private readonly databaseService = inject(DatabaseService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly catchupSchemeCache = new Map<string, XtreamCatchupScheme>();
+    private readonly catchupSchemeCache = new Map<
+        string,
+        XtreamCatchupScheme
+    >();
     private readonly catchupSchemeRequests = new Map<
         string,
         Promise<XtreamCatchupScheme>
@@ -62,8 +65,14 @@ export class XtreamUrlService {
     constructLiveUrl(
         credentials: XtreamCredentials,
         xtreamId: number,
-        format?: string
+        format?: string,
+        item?: LiveStreamItem | null
     ): string {
+        const directSource = this.getDirectSourceUrl(item);
+        if (directSource) {
+            return directSource;
+        }
+
         const streamFormat =
             format ?? this.settingsStore.streamFormat() ?? 'ts';
         return `${credentials.serverUrl}/live/${credentials.username}/${credentials.password}/${xtreamId}.${streamFormat}`;
@@ -78,6 +87,11 @@ export class XtreamUrlService {
         vodItem: XtreamVodDetails
     ): string {
         const vod = vodItem as XtreamVodStreamLike;
+        const directSource = this.getDirectSourceUrl(vodItem.movie_data, vod);
+        if (directSource) {
+            return directSource;
+        }
+
         const streamId = vod.movie_data?.stream_id ?? vod.stream_id;
         const extension = vodItem.movie_data?.container_extension;
         if (!streamId || !extension) {
@@ -94,6 +108,11 @@ export class XtreamUrlService {
         credentials: XtreamCredentials,
         episode: XtreamSerieEpisode
     ): string {
+        const directSource = this.getDirectSourceUrl(episode);
+        if (directSource) {
+            return directSource;
+        }
+
         return `${credentials.serverUrl}/series/${credentials.username}/${credentials.password}/${episode.id}.${episode.container_extension}`;
     }
 
@@ -262,6 +281,55 @@ export class XtreamUrlService {
             status === 403 ||
             status === 405
         );
+    }
+
+    private getDirectSourceUrl(
+        ...candidates: Array<
+            | {
+                  readonly direct_source?: unknown;
+                  readonly directSource?: unknown;
+              }
+            | null
+            | undefined
+        >
+    ): string | null {
+        if (
+            this.settingsStore.redirectIndirectStreamsToDirectSource?.() !==
+            true
+        ) {
+            return null;
+        }
+
+        for (const candidate of candidates) {
+            const url = this.normalizeDirectSourceUrl(
+                candidate?.direct_source ?? candidate?.directSource
+            );
+            if (url) {
+                return url;
+            }
+        }
+
+        return null;
+    }
+
+    private normalizeDirectSourceUrl(value: unknown): string | null {
+        if (typeof value !== 'string') {
+            return null;
+        }
+
+        const trimmed = value.trim();
+        if (!trimmed) {
+            return null;
+        }
+
+        try {
+            const parsed = new URL(trimmed);
+            return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+                ? trimmed
+                : null;
+        } catch {
+            return null;
+        }
     }
 
     private formatCatchupStartTime(

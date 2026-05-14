@@ -16,7 +16,7 @@ import { APIRequestContext, test, expect, Page } from '@playwright/test';
  */
 
 const XTREAM_MOCK_PORT = process.env['XTREAM_MOCK_PORT'] ?? '3211';
-const MOCK_SERVER = `http://localhost:${XTREAM_MOCK_PORT}`;
+const MOCK_SERVER = `http://127.0.0.1:${XTREAM_MOCK_PORT}`;
 
 /** Default scenario credentials */
 const DEFAULT_USERNAME = 'user1';
@@ -289,21 +289,19 @@ test('@xtream epg fixture — short epg starts at the current program, respects 
     expect(decodeXtreamText(nextListing.title)).toBe('Market Wrap');
 
     const now = Math.floor(Date.now() / 1000);
-    expect(Number.parseInt(currentListing.start_timestamp, 10)).toBeLessThanOrEqual(
-        now
-    );
-    expect(Number.parseInt(currentListing.stop_timestamp, 10)).toBeGreaterThanOrEqual(
-        now
-    );
+    expect(
+        Number.parseInt(currentListing.start_timestamp, 10)
+    ).toBeLessThanOrEqual(now);
+    expect(
+        Number.parseInt(currentListing.stop_timestamp, 10)
+    ).toBeGreaterThanOrEqual(now);
     expect(currentListing.start).not.toBe(
         formatXtreamDateTime(
             Number.parseInt(currentListing.start_timestamp, 10)
         )
     );
     expect(currentListing.end).not.toBe(
-        formatXtreamDateTime(
-            Number.parseInt(currentListing.stop_timestamp, 10)
-        )
+        formatXtreamDateTime(Number.parseInt(currentListing.stop_timestamp, 10))
     );
 });
 
@@ -344,7 +342,9 @@ test('@xtream epg fixture — full epg and legacy alias return the same ordered 
             decodeXtreamText(listing.title) === 'Late Edition'
     );
     if (!boundaryListing) {
-        throw new Error('Expected the full EPG fixture to include Late Edition.');
+        throw new Error(
+            'Expected the full EPG fixture to include Late Edition.'
+        );
     }
 
     const boundaryStart = new Date(

@@ -1,12 +1,15 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import {
+    EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
     PortalCatalogSortMode,
 } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
+    XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { MediaMetadataService } from 'services';
 import { XtreamCatalogFacadeService } from './xtream-catalog-facade.service';
 
 const PLAYLIST_ONE: XtreamPlaylistData = {
@@ -47,7 +50,18 @@ describe('XtreamCatalogFacadeService', () => {
     const totalPages = signal(1);
     const isPaginatedContentLoading = signal(false);
     const contentSortMode = signal<PortalCatalogSortMode>('date-desc');
+    const languageFilter = signal(EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER);
+    const languageFilterOptions = signal([{ code: 'it', label: 'Italiano' }]);
+    const languageFilterActive = signal(false);
+    const videoQualityFilter = signal<'all' | '2160p'>('all');
+    const videoQualityFilterOptions = signal([
+        { value: '2160p' as const, label: '2160p+', count: 2 },
+    ]);
+    const videoQualityFilterActive = signal(false);
     const currentPlaylist = signal<XtreamPlaylistData | null>(PLAYLIST_ONE);
+    const mediaMetadataProbe = jest.fn();
+    const constructLiveUrl = jest.fn();
+    const constructVodUrl = jest.fn();
 
     const xtreamStore = {
         selectedContentType: contentType,
@@ -61,6 +75,12 @@ describe('XtreamCatalogFacadeService', () => {
         getTotalPages: totalPages,
         isPaginatedContentLoading,
         contentSortMode,
+        languageFilter,
+        languageFilterOptions,
+        languageFilterActive,
+        videoQualityFilter,
+        videoQualityFilterOptions,
+        videoQualityFilterActive,
         currentPlaylist,
         loadAllPositions: jest.fn(),
         setCategorySearchTerm: jest.fn(),
@@ -79,6 +99,14 @@ describe('XtreamCatalogFacadeService', () => {
         setContentSortMode: jest.fn((mode: PortalCatalogSortMode) => {
             contentSortMode.set(mode);
         }),
+        toggleLanguageFilterOption: jest.fn(),
+        selectAllLanguageFilterOptions: jest.fn(),
+        clearLanguageFilterOptions: jest.fn(),
+        invertLanguageFilterOptions: jest.fn(),
+        resetLanguageFilter: jest.fn(),
+        setVideoQualityFilter: jest.fn(),
+        resetVideoQualityFilter: jest.fn(),
+        setContentMediaMetadata: jest.fn(),
         hasSeriesProgress: jest.fn().mockReturnValue(false),
         getProgressPercent: jest.fn().mockReturnValue(40),
         isWatched: jest.fn().mockReturnValue(false),
@@ -100,6 +128,14 @@ describe('XtreamCatalogFacadeService', () => {
         totalPages.set(1);
         isPaginatedContentLoading.set(false);
         contentSortMode.set('date-desc');
+        languageFilter.set(EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER);
+        languageFilterOptions.set([{ code: 'it', label: 'Italiano' }]);
+        languageFilterActive.set(false);
+        videoQualityFilter.set('all');
+        videoQualityFilterOptions.set([
+            { value: '2160p', label: '2160p+', count: 2 },
+        ]);
+        videoQualityFilterActive.set(false);
         currentPlaylist.set(PLAYLIST_ONE);
 
         xtreamStore.loadAllPositions.mockClear();
@@ -109,9 +145,31 @@ describe('XtreamCatalogFacadeService', () => {
         xtreamStore.setPage.mockClear();
         xtreamStore.setLimit.mockClear();
         xtreamStore.setContentSortMode.mockClear();
+        xtreamStore.toggleLanguageFilterOption.mockClear();
+        xtreamStore.selectAllLanguageFilterOptions.mockClear();
+        xtreamStore.clearLanguageFilterOptions.mockClear();
+        xtreamStore.invertLanguageFilterOptions.mockClear();
+        xtreamStore.resetLanguageFilter.mockClear();
+        xtreamStore.setVideoQualityFilter.mockClear();
+        xtreamStore.resetVideoQualityFilter.mockClear();
+        xtreamStore.setContentMediaMetadata.mockClear();
         xtreamStore.hasSeriesProgress.mockClear();
         xtreamStore.getProgressPercent.mockClear();
         xtreamStore.isWatched.mockClear();
+        mediaMetadataProbe.mockReset();
+        mediaMetadataProbe.mockResolvedValue({
+            available: true,
+            qualityLabel: '2160p HEVC',
+            height: 2160,
+            audioLanguages: ['ITA'],
+            audioCodecs: [],
+            subtitleLanguages: ['ENG'],
+            subtitleCodecs: [],
+        });
+        constructLiveUrl.mockReset();
+        constructLiveUrl.mockReturnValue('http://localhost/live/1.ts');
+        constructVodUrl.mockReset();
+        constructVodUrl.mockReturnValue('http://localhost/movie/1.mkv');
 
         TestBed.configureTestingModule({
             providers: [
@@ -119,6 +177,19 @@ describe('XtreamCatalogFacadeService', () => {
                 {
                     provide: XtreamStore,
                     useValue: xtreamStore,
+                },
+                {
+                    provide: MediaMetadataService,
+                    useValue: {
+                        probe: mediaMetadataProbe,
+                    },
+                },
+                {
+                    provide: XtreamUrlService,
+                    useValue: {
+                        constructLiveUrl,
+                        constructVodUrl,
+                    },
                 },
             ],
         });
@@ -161,12 +232,14 @@ describe('XtreamCatalogFacadeService', () => {
     });
 
     it('restores saved sort mode, sets the selected category, and loads positions once per playlist', () => {
-        localStorage.setItem('xtream-category-sort-mode', 'name-asc');
+        localStorage.setItem('xtream-category-sort-mode', 'rating-desc');
 
         service.initialize('42');
         service.initialize('77');
 
-        expect(xtreamStore.setContentSortMode).toHaveBeenCalledWith('name-asc');
+        expect(xtreamStore.setContentSortMode).toHaveBeenCalledWith(
+            'rating-desc'
+        );
         expect(xtreamStore.setSelectedCategory).toHaveBeenLastCalledWith(77);
         expect(xtreamStore.loadAllPositions).toHaveBeenCalledTimes(1);
         expect(xtreamStore.loadAllPositions).toHaveBeenCalledWith('playlist-1');
@@ -189,5 +262,46 @@ describe('XtreamCatalogFacadeService', () => {
         expect(localStorage.getItem('xtream-category-sort-mode')).toBe(
             'name-desc'
         );
+    });
+
+    it('exposes and delegates the video quality filter', () => {
+        expect(service.videoQualityFilter()).toBe('all');
+        expect(service.videoQualityFilterOptions()).toEqual([
+            { value: '2160p', label: '2160p+', count: 2 },
+        ]);
+        expect(service.videoQualityFilterActive()).toBe(false);
+
+        service.setVideoQualityFilter('2160p');
+        service.resetVideoQualityFilter();
+
+        expect(xtreamStore.setVideoQualityFilter).toHaveBeenCalledWith('2160p');
+        expect(xtreamStore.resetVideoQualityFilter).toHaveBeenCalled();
+    });
+
+    it('warms media metadata for visible VOD items and stores the probe result', async () => {
+        service.warmVisibleMediaMetadata([
+            {
+                xtream_id: 44,
+                title: 'Movie without metadata',
+                container_extension: 'mkv',
+            },
+        ]);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(constructVodUrl).toHaveBeenCalled();
+        expect(mediaMetadataProbe).toHaveBeenCalledWith({
+            url: 'http://localhost/movie/1.mkv',
+            headers: {},
+        });
+        expect(xtreamStore.setContentMediaMetadata).toHaveBeenCalledWith({
+            contentType: 'vod',
+            xtreamId: 44,
+            metadata: expect.objectContaining({
+                qualityLabel: '2160p HEVC',
+                audioLanguages: ['ITA'],
+                subtitleLanguages: ['ENG'],
+            }),
+        });
     });
 });

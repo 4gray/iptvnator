@@ -38,6 +38,8 @@ const DEFAULT_SETTINGS: Settings = {
     remoteControlPort: 8765,
     epgUrl: [],
     downloadFolder: '',
+    acceleratedDownloads: true,
+    redirectIndirectStreamsToDirectSource: false,
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
@@ -147,6 +149,9 @@ export const SettingsStore = signalStore(
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),
                 downloadFolder: store.downloadFolder!(),
+                acceleratedDownloads: store.acceleratedDownloads!(),
+                redirectIndirectStreamsToDirectSource:
+                    store.redirectIndirectStreamsToDirectSource!(),
                 recordingFolder: store.recordingFolder!(),
                 coverSize: store.coverSize!(),
                 preferUploadedEpgOverXtream:

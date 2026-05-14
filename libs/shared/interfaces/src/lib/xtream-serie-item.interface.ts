@@ -1,7 +1,12 @@
+import { MediaStreamMetadata } from './media-stream-metadata.interface';
+
 export interface XtreamSerieItem {
     num: number;
     name: string;
     series_id: number;
+    title?: string;
+    o_name?: string;
+    original_name?: string;
     cover: string;
     plot: string;
     cast: string;
@@ -15,4 +20,28 @@ export interface XtreamSerieItem {
     youtube_trailer: string;
     episode_run_time: string;
     category_id: number;
+    xtream_id?: number;
+    id?: string | number;
+    poster_url?: string;
+    imdb_id?: string;
+    imdbId?: string;
+    imdbRating?: number;
+    imdbVotes?: number;
+    imdbMatchedTitle?: string;
+    imdbMatchedYear?: number;
+    imdbMatchConfidence?: number;
+    imdbMatchReason?: string;
+    tmdb_id?: string | number;
+    tmdbId?: string | number;
+    tvdb_id?: string | number;
+    tvdbId?: string | number;
+    duplicateCount?: number;
+    duplicateDefaultVariantId?: string;
+    duplicateGroupKey?: string;
+    duplicateQualityLabel?: string;
+    duplicateQualityScore?: number;
+    duplicateVariants?: XtreamSerieItem[];
+    mediaMetadata?: MediaStreamMetadata;
+    audioLanguages?: string[];
+    subtitleLanguages?: string[];
 }

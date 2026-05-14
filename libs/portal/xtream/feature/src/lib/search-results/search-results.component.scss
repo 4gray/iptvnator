@@ -14,6 +14,10 @@
     padding-bottom: 1rem;
 }
 
+.search-visibility-section {
+    margin-bottom: 2rem;
+}
+
 // Global search overlay styles
 :host-context(.global-search-overlay) {
     .results-grid {
@@ -95,6 +99,82 @@
     }
 }
 
+.search-language-filter {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    width: 100%;
+    padding: 12px 0 4px;
+}
+
+.search-language-filter__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+
+    h3 {
+        margin: 0 0 4px;
+        font-size: 0.95rem;
+        font-weight: 650;
+        letter-spacing: 0;
+    }
+
+    p {
+        margin: 0;
+        font-size: 0.8rem;
+        color: var(--mat-sys-on-surface-variant);
+    }
+}
+
+.search-language-filter__grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.search-language-filter__group {
+    min-width: 0;
+    padding: 10px;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    border-radius: 8px;
+}
+
+.search-language-filter__group-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 8px;
+
+    h4 {
+        margin: 0;
+        font-size: 0.85rem;
+        font-weight: 650;
+        letter-spacing: 0;
+    }
+}
+
+.search-language-filter__actions {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 2px;
+
+    button {
+        min-width: 0;
+        padding: 0 8px;
+        font-size: 0.74rem;
+        line-height: 28px;
+    }
+}
+
+.search-language-filter__options {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
+    gap: 2px 8px;
+}
+
 // Playlist grouping styles for global search
 .playlist-group {
     margin-bottom: 2rem;
@@ -127,6 +207,22 @@
     }
 }
 
+@media (max-width: 768px) {
+    .search-language-filter__header,
+    .search-language-filter__group-header {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
+    .search-language-filter__grid {
+        grid-template-columns: 1fr;
+    }
+
+    .search-language-filter__actions {
+        justify-content: flex-start;
+    }
+}
+
 :host-context(.global-search-overlay) {
     .playlist-group {
         .playlist-title {
@@ -156,5 +252,23 @@
         letter-spacing: -0.01em;
         color: var(--mat-sys-on-surface);
         padding: 0 8px;
+    }
+}
+
+.section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 1rem;
+    padding: 0 8px;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--mat-sys-on-surface);
+
+    .item-count,
+    .playlist-count {
+        font-size: 0.85rem;
+        font-weight: 500;
+        opacity: 0.65;
     }
 }

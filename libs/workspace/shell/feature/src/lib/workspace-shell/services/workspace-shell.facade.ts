@@ -763,6 +763,7 @@ export class WorkspaceShellFacade {
             vodStreamsCount: this.xtreamStore.vodStreams().length,
             liveStreamsCount: this.xtreamStore.liveStreams().length,
             seriesCount: this.xtreamStore.serialStreams().length,
+            vodStreams: this.xtreamStore.vodStreams(),
         };
         this.workspaceActions.openAccountInfo(data);
     }

@@ -349,12 +349,13 @@ async function expectVisibleSidebarCategoryNames(
             return;
         }
 
-        throw new Error(
+        const assertionError = new Error(
             `Expected visible sidebar categories ${JSON.stringify(
                 expectedNames
-            )}, received ${JSON.stringify(actualNames)}`,
-            { cause: error }
+            )}, received ${JSON.stringify(actualNames)}`
         );
+        (assertionError as Error & { cause?: unknown }).cause = error;
+        throw assertionError;
     }
 }
 
@@ -400,61 +401,67 @@ async function pickSidebarCategory(
     } | null = null;
 
     await expect
-        .poll(async () => {
-            const categories = page.locator(
-                'app-workspace-context-panel .category-item:visible'
-            );
-            const count = await categories.count();
-            const candidates: Array<{
-                id: string;
-                itemCount: number;
-                name: string;
-            }> = [];
-
-            for (let index = 0; index < count; index += 1) {
-                const category = categories.nth(index);
-                const id =
-                    (await category.getAttribute('data-category-id'))?.trim() ??
-                    '';
-                const name =
-                    (
-                        await category.locator('.nav-item-label').textContent()
-                    )?.trim() ?? '';
-                const countText =
-                    (
-                        await category.locator('.item-count').textContent()
-                    )?.trim() ?? '';
-                const itemCount = Number.parseInt(countText, 10) || 0;
-
-                if (id && name && itemCount > 0) {
-                    candidates.push({ id, itemCount, name });
-                }
-            }
-
-            if (candidates.length === 0) {
-                preferredCandidate = null;
-                return false;
-            }
-
-            const nameCounts = new Map<string, number>();
-            for (const candidate of candidates) {
-                nameCounts.set(
-                    candidate.name,
-                    (nameCounts.get(candidate.name) ?? 0) + 1
+        .poll(
+            async () => {
+                const categories = page.locator(
+                    'app-workspace-context-panel .category-item:visible'
                 );
+                const count = await categories.count();
+                const candidates: Array<{
+                    id: string;
+                    itemCount: number;
+                    name: string;
+                }> = [];
+
+                for (let index = 0; index < count; index += 1) {
+                    const category = categories.nth(index);
+                    const id =
+                        (
+                            await category.getAttribute('data-category-id')
+                        )?.trim() ?? '';
+                    const name =
+                        (
+                            await category
+                                .locator('.nav-item-label')
+                                .textContent()
+                        )?.trim() ?? '';
+                    const countText =
+                        (
+                            await category.locator('.item-count').textContent()
+                        )?.trim() ?? '';
+                    const itemCount = Number.parseInt(countText, 10) || 0;
+
+                    if (id && name && itemCount > 0) {
+                        candidates.push({ id, itemCount, name });
+                    }
+                }
+
+                if (candidates.length === 0) {
+                    preferredCandidate = null;
+                    return false;
+                }
+
+                const nameCounts = new Map<string, number>();
+                for (const candidate of candidates) {
+                    nameCounts.set(
+                        candidate.name,
+                        (nameCounts.get(candidate.name) ?? 0) + 1
+                    );
+                }
+
+                preferredCandidate =
+                    candidates.find(
+                        (candidate) => nameCounts.get(candidate.name) === 1
+                    ) ?? candidates[0];
+
+                return preferredCandidate !== null;
+            },
+            {
+                message: 'No visible Xtream category with content was found.',
+                timeout: 15000,
             }
-
-            preferredCandidate =
-                candidates.find(
-                    (candidate) => nameCounts.get(candidate.name) === 1
-                ) ?? candidates[0];
-
-            return preferredCandidate !== null;
-        })
-        .toBe(true, {
-            message: 'No visible Xtream category with content was found.',
-            timeout: 15000,
-        });
+        )
+        .toBe(true);
 
     return preferredCandidate!;
 }

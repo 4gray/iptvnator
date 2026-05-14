@@ -21,10 +21,13 @@
                     >{{ item.info.episode_run_time }} min/ep</span
                 >
             }
-            @if (item.info?.rating) {
+            @if (selectedImdbRating(); as imdbRating) {
                 <span class="details__tag details__tag--rating">
-                    ⭐ {{ item.info.rating }}
+                    ⭐ {{ imdbRating }}
                 </span>
+            }
+            @for (tag of mediaMetadataTags(); track tag) {
+                <span class="details__tag details__tag--media">{{ tag }}</span>
             }
         </ng-container>
 
@@ -41,6 +44,118 @@
                         'XTREAM.DIRECTOR' | translate
                     }}</span>
                     <span class="value">{{ item.info.director }}</span>
+                </div>
+            }
+            @if (hasDuplicateVariants()) {
+                <div class="details__variant-panel">
+                    <div class="details__variant-heading">
+                        <span>{{ 'XTREAM.VARIANTS_TITLE' | translate }}</span>
+                        <span>{{ 'XTREAM.VARIANTS_HINT' | translate }}</span>
+                    </div>
+                    <div class="details__variant-list" role="listbox">
+                        @for (
+                            variant of duplicateVariants();
+                            track variantKey(variant);
+                            let first = $first
+                        ) {
+                            <button
+                                type="button"
+                                role="option"
+                                class="details__variant-option"
+                                [attr.aria-selected]="
+                                    isSelectedVariant(variant)
+                                "
+                                [class.details__variant-option--selected]="
+                                    isSelectedVariant(variant)
+                                "
+                                (click)="selectSeriesVariant(variant)"
+                            >
+                                <span class="details__variant-quality">
+                                    {{ variantQualityLabel(variant) }}
+                                </span>
+                                <span class="details__variant-title">
+                                    {{ variantTitle(variant) }}
+                                </span>
+                                <span class="details__variant-id">
+                                    #{{ variantKey(variant) }}
+                                </span>
+                                @if (first) {
+                                    <span class="details__variant-default">
+                                        {{
+                                            'XTREAM.VARIANTS_DEFAULT'
+                                                | translate
+                                        }}
+                                    </span>
+                                }
+                            </button>
+                        }
+                    </div>
+                </div>
+            }
+            @if (imdbOverrideKey()) {
+                <div
+                    class="details__imdb-override-panel"
+                    data-testid="imdb-override-panel"
+                >
+                    <div class="details__variant-heading">
+                        <span>{{
+                            'XTREAM.IMDB_OVERRIDE_TITLE' | translate
+                        }}</span>
+                        <span>{{
+                            'XTREAM.IMDB_OVERRIDE_HINT' | translate
+                        }}</span>
+                    </div>
+                    <div class="details__imdb-override-grid">
+                        <label>
+                            <span>{{ 'XTREAM.IMDB_ID' | translate }}</span>
+                            <input
+                                type="text"
+                                [value]="imdbOverrideIdInput()"
+                                (input)="setImdbOverrideInput('imdbId', $event)"
+                            />
+                        </label>
+                        <label>
+                            <span>{{
+                                'XTREAM.IMDB_RATING_OVERRIDE' | translate
+                            }}</span>
+                            <input
+                                type="number"
+                                min="0"
+                                max="10"
+                                step="0.1"
+                                [value]="imdbOverrideRatingInput()"
+                                (input)="setImdbOverrideInput('rating', $event)"
+                            />
+                        </label>
+                        <label>
+                            <span>{{
+                                'XTREAM.IMDB_MATCH_TITLE' | translate
+                            }}</span>
+                            <input
+                                type="text"
+                                [value]="imdbOverrideTitleInput()"
+                                (input)="setImdbOverrideInput('title', $event)"
+                            />
+                        </label>
+                        <label>
+                            <span>{{ 'XTREAM.YEAR' | translate }}</span>
+                            <input
+                                type="number"
+                                min="1800"
+                                step="1"
+                                [value]="imdbOverrideYearInput()"
+                                (input)="setImdbOverrideInput('year', $event)"
+                            />
+                        </label>
+                    </div>
+                    <div class="details__imdb-override-actions">
+                        <button type="button" (click)="saveImdbOverride()">
+                            {{ 'XTREAM.SAVE_IMDB_OVERRIDE' | translate }}
+                        </button>
+                        <button type="button" (click)="clearImdbOverride()">
+                            {{ 'XTREAM.CLEAR_IMDB_OVERRIDE' | translate }}
+                        </button>
+                    </div>
                 </div>
             }
         </ng-container>
@@ -107,6 +222,7 @@
             [activeEpisodeId]="activeEpisodeId()"
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
+            (seriesMediaMetadataChanged)="setSeriesEpisodeMediaMetadata($event)"
         />
     </app-content-hero>
 } @else if (detailsError()) {

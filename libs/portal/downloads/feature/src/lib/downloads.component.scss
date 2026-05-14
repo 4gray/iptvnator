@@ -136,6 +136,77 @@
         white-space: nowrap;
     }
 
+    &__speed-toggle {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        min-height: 38px;
+        padding: 4px 8px 4px 10px;
+        border: 1px solid var(--mat-sys-outline-variant);
+        border-radius: 8px;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-surface-container-high) 84%,
+            transparent
+        );
+        color: var(--mat-sys-on-surface);
+        font-size: 0.86rem;
+        font-weight: 600;
+        white-space: nowrap;
+
+        mat-icon {
+            width: 17px;
+            height: 17px;
+            font-size: 17px;
+            color: var(--mat-sys-primary);
+        }
+
+        mat-checkbox {
+            margin-left: -2px;
+        }
+    }
+
+    &__benchmark-summary {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px;
+        margin: 0 16px 12px;
+        padding: 10px 12px;
+        border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+        border-radius: 8px;
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-primary) 8%,
+            var(--mat-sys-surface) 92%
+        );
+        color: var(--mat-sys-on-surface);
+        font-size: 0.82rem;
+        font-weight: 600;
+
+        span {
+            display: inline-flex;
+            min-height: 24px;
+            align-items: center;
+            padding: 0 8px;
+            border-radius: 999px;
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-surface-container-high) 78%,
+                transparent
+            );
+        }
+    }
+
+    &__benchmark-summary-error {
+        color: var(--mat-sys-error);
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-error) 12%,
+            transparent
+        ) !important;
+    }
+
     &__empty {
         display: flex;
         flex-direction: column;
@@ -300,10 +371,7 @@
         gap: 1rem;
         padding: 1rem;
         min-width: 0;
-        background: var(
-            --app-widget-bg,
-            var(--mat-sys-surface-container-high)
-        );
+        background: var(--app-widget-bg, var(--mat-sys-surface-container-high));
         border-radius: 14px;
         border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
         box-shadow: var(--app-widget-shadow, none);
@@ -348,7 +416,8 @@
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+            border: 1px solid
+                var(--app-separator, var(--mat-sys-outline-variant));
 
             img {
                 width: 100%;
@@ -453,6 +522,29 @@
             border-radius: 12px;
         }
 
+        &-speed {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-family:
+                'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
+                monospace;
+            color: var(--mat-sys-primary);
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-primary) 12%,
+                transparent
+            );
+            padding: 2px 8px;
+            border-radius: 12px;
+
+            mat-icon {
+                width: 1rem;
+                height: 1rem;
+                font-size: 1rem;
+            }
+        }
+
         &-error {
             color: var(--mat-sys-error);
             font-size: 0.8rem;
@@ -505,6 +597,55 @@
                 height: 18px;
                 font-size: 18px;
             }
+        }
+
+        .downloads__benchmark {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 8px;
+            margin-top: 0.15rem;
+            padding: 8px 10px;
+            border: 1px solid
+                var(--app-separator, var(--mat-sys-outline-variant));
+            border-radius: 8px;
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-primary) 8%,
+                transparent
+            );
+            color: var(--mat-sys-on-surface);
+            font-size: 0.78rem;
+            font-weight: 600;
+
+            mat-icon {
+                width: 17px;
+                height: 17px;
+                font-size: 17px;
+                color: var(--mat-sys-primary);
+            }
+
+            span {
+                display: inline-flex;
+                align-items: center;
+                min-height: 22px;
+                padding: 0 7px;
+                border-radius: 999px;
+                background: color-mix(
+                    in srgb,
+                    var(--mat-sys-surface-container-high) 78%,
+                    transparent
+                );
+            }
+        }
+
+        .downloads__benchmark-error {
+            color: var(--mat-sys-error);
+            background: color-mix(
+                in srgb,
+                var(--mat-sys-error) 12%,
+                transparent
+            );
         }
 
         mat-progress-bar {

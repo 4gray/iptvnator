@@ -109,6 +109,43 @@ declare global {
                 limit?: number
             ) => Promise<any[]>;
             updateSettings: (settings: any) => Promise<void>;
+            resolveAcceleratedPlaybackUrl?: (
+                url: string,
+                headers?: Record<string, string>
+            ) => Promise<{
+                url: string;
+                accelerated: boolean;
+                rangeSupported: boolean;
+                status: number;
+                reason: string;
+                totalBytes?: number;
+            }>;
+            benchmarkHttpDownload?: (
+                url: string,
+                headers?: Record<string, string>,
+                maxBytes?: number,
+                timeoutMs?: number
+            ) => Promise<{
+                url: string;
+                finalUrl: string;
+                ok: boolean;
+                status: number;
+                rangeRequested: boolean;
+                rangeSupported: boolean;
+                ttfbMs: number;
+                durationMs: number;
+                bytesRead: number;
+                totalBytes?: number;
+                contentLength?: number;
+                contentType?: string;
+                throughputBytesPerSecond: number;
+                samples: Array<{
+                    second: number;
+                    bytes: number;
+                    bytesPerSecond: number;
+                }>;
+                error?: string;
+            }>;
             getAiSettings: () => Promise<{
                 aiProvider: string;
                 aiModelName: string;

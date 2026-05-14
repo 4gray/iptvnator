@@ -53,6 +53,51 @@ describe('AccountInfoComponent', () => {
                             username: 'dialog-user',
                             password: 'dialog-secret',
                         },
+                        vodStreams: [
+                            {
+                                stream_id: 1,
+                                name: 'The Matrix 2160p ITA SUB ENG',
+                                imdb_id: 'tt0133093',
+                                direct_source:
+                                    'https://cdn.example.test/matrix',
+                                mediaMetadata: {
+                                    available: true,
+                                    height: 2160,
+                                    audioLanguages: ['it'],
+                                    audioCodecs: [],
+                                    subtitleLanguages: ['en'],
+                                    subtitleCodecs: [],
+                                },
+                            },
+                            {
+                                stream_id: 2,
+                                name: 'Matrix 1080p ENG',
+                                imdb_id: 'tt0133093',
+                                direct_source: '',
+                                mediaMetadata: {
+                                    available: true,
+                                    height: 1080,
+                                    audioLanguages: ['en'],
+                                    audioCodecs: [],
+                                    subtitleLanguages: [],
+                                    subtitleCodecs: [],
+                                },
+                            },
+                            {
+                                stream_id: 3,
+                                name: 'Amelie 720p FRA SUB ITA',
+                                imdb_id: 'tt0211915',
+                                direct_source: '',
+                                mediaMetadata: {
+                                    available: true,
+                                    height: 720,
+                                    audioLanguages: ['fr'],
+                                    audioCodecs: [],
+                                    subtitleLanguages: ['it'],
+                                    subtitleCodecs: [],
+                                },
+                            },
+                        ],
                     },
                 },
                 {
@@ -91,5 +136,42 @@ describe('AccountInfoComponent', () => {
             '-',
             '-',
         ]);
+    });
+
+    it('counts unique movies and exposes source overview filters', () => {
+        const overview = component.vodOverview();
+
+        expect(overview.totalUnique).toBe(2);
+        expect(overview.filteredUnique).toBe(2);
+        expect(
+            overview.sourceOptions.find((option) => option.value === 'direct')
+                ?.count
+        ).toBe(1);
+        expect(
+            overview.sourceOptions.find((option) => option.value === 'indirect')
+                ?.count
+        ).toBe(2);
+        expect(
+            overview.qualityOptions.find((option) => option.value === '2160p')
+                ?.count
+        ).toBe(1);
+        expect(
+            overview.audioOptions.find((option) => option.code === 'it')?.count
+        ).toBe(1);
+        expect(
+            overview.subtitleOptions.find((option) => option.code === 'it')
+                ?.count
+        ).toBe(1);
+
+        component.setSourceMode('direct');
+        expect(component.vodOverview().filteredUnique).toBe(1);
+
+        component.resetVodOverviewFilters();
+        component.setQualityFilter('720p');
+        expect(component.vodOverview().filteredUnique).toBe(1);
+
+        component.resetVodOverviewFilters();
+        component.setSubtitleLanguage('it');
+        expect(component.vodOverview().filteredUnique).toBe(1);
     });
 });

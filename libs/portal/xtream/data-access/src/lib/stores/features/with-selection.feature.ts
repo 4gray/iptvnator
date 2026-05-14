@@ -7,6 +7,28 @@ import {
     withState,
 } from '@ngrx/signals';
 import { ContentType, XtreamContentLoadState } from '../../xtream-state';
+import {
+    groupXtreamSeriesDuplicates,
+    groupXtreamVodDuplicates,
+    matchesXtreamSeriesSearchTerm,
+    matchesXtreamVodSearchTerm,
+} from '../../utils/vod-duplicates.util';
+import {
+    EMPTY_XTREAM_LANGUAGE_FILTER,
+    getXtreamLanguageOptions,
+    isXtreamLanguageFilterActive,
+    matchesXtreamLanguageFilter,
+    XtreamLanguageFilterCandidate,
+    XtreamLanguageFilterSection,
+    XtreamLanguageFilterState,
+} from '../../utils/language-filter.util';
+import {
+    getXtreamVideoQualityOptions,
+    isXtreamVideoQualityFilterActive,
+    matchesXtreamVideoQualityFilter,
+    XtreamVideoQualityFilterCandidate,
+    XtreamVideoQualityFilterValue,
+} from '../../utils/video-quality-filter.util';
 
 /**
  * Module-level collator — allocating Intl.Collator is expensive;
@@ -21,7 +43,8 @@ export type XtreamCategorySortMode =
     | 'date-desc'
     | 'date-asc'
     | 'name-asc'
-    | 'name-desc';
+    | 'name-desc'
+    | 'rating-desc';
 
 /**
  * Selection state for managing UI selection and pagination
@@ -34,6 +57,8 @@ export interface SelectionState {
     limit: number;
     contentSortMode: XtreamCategorySortMode;
     categorySearchTerm: string;
+    languageFilter: XtreamLanguageFilterState;
+    videoQualityFilter: XtreamVideoQualityFilterValue;
     isLoadingDetails: boolean;
     detailsError: string | null;
 }
@@ -49,6 +74,8 @@ const initialSelectionState: SelectionState = {
     limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
     contentSortMode: 'date-desc',
     categorySearchTerm: '',
+    languageFilter: EMPTY_XTREAM_LANGUAGE_FILTER,
+    videoQualityFilter: 'all',
     isLoadingDetails: false,
     detailsError: null,
 };
@@ -66,8 +93,13 @@ interface XtreamSelectionItem {
     readonly [key: string]: unknown;
     readonly added?: string;
     readonly category_id?: string | number;
+    readonly duplicateGroupKey?: string;
     readonly episodes?: unknown;
     readonly id?: string | number;
+    readonly imdbRating?: number | string;
+    readonly imdb_id?: string;
+    readonly imdbMatchedTitle?: string;
+    readonly imdbMatchedYear?: string | number;
     readonly info?:
         | {
               readonly actors?: string;
@@ -88,19 +120,33 @@ interface XtreamSelectionItem {
               readonly rating_kinopoisk?: string;
               readonly releaseDate?: string;
               readonly releasedate?: string;
+              readonly tmdb_id?: string | number;
+              readonly tvdb_id?: string | number;
               readonly youtube_trailer?: string;
           }
         | []
         | null;
     readonly last_modified?: string;
     readonly movie_data?: {
+        readonly container_extension?: string;
         readonly name?: string;
+        readonly stream_id?: string | number;
+        readonly title?: string;
+        readonly tmdb_id?: string | number;
+        readonly tvdb_id?: string | number;
     };
     readonly name?: string;
+    readonly rating?: number | string;
+    readonly rating_5based?: number | string;
+    readonly rating_imdb?: string;
+    readonly rating_kinopoisk?: string;
     readonly series_id?: string | number;
     readonly stream_id?: string | number;
     readonly title?: string;
-    readonly xtream_id?: number;
+    readonly tmdb_id?: string | number;
+    readonly tvdb_id?: string | number;
+    readonly xtream_id?: string | number;
+    readonly year?: string | number;
 }
 
 type ParentSelectionStoreLike = {
@@ -138,12 +184,51 @@ export function withSelection() {
                 return parseInt(value ?? '', 10) || 0;
             };
 
+            const parseRating = (value: unknown): number | null => {
+                if (typeof value === 'number') {
+                    return Number.isFinite(value) ? value : null;
+                }
+
+                if (typeof value !== 'string') {
+                    return null;
+                }
+
+                const normalized = value.trim().replace(',', '.');
+                if (!normalized) {
+                    return null;
+                }
+
+                const match = normalized.match(/\d+(?:\.\d+)?/);
+                if (!match) {
+                    return null;
+                }
+
+                const rating = Number.parseFloat(match[0]);
+                return Number.isFinite(rating) ? rating : null;
+            };
+
+            const getItemRating = (
+                item: XtreamSelectionItem
+            ): number | null => {
+                const info =
+                    item.info && !Array.isArray(item.info) ? item.info : null;
+
+                return (
+                    parseRating(item.imdbRating) ??
+                    parseRating(item.rating_imdb) ??
+                    parseRating(info?.rating_imdb)
+                );
+            };
+
             const sortByMode = (
                 items: XtreamSelectionItem[],
                 sortMode: XtreamCategorySortMode,
                 categoryType: ContentType
             ): XtreamSelectionItem[] => {
                 return [...items].sort((a, b) => {
+                    const titleA = a.title ?? a.name ?? '';
+                    const titleB = b.title ?? b.name ?? '';
+
                     if (sortMode === 'date-desc') {
                         return (
                             getItemDate(b, categoryType) -
@@ -156,9 +241,26 @@ export function withSelection() {
                             getItemDate(b, categoryType)
                         );
                     }
+                    if (sortMode === 'rating-desc') {
+                        const ratingA = getItemRating(a);
+                        const ratingB = getItemRating(b);
 
-                    const titleA = a.title ?? a.name ?? '';
-                    const titleB = b.title ?? b.name ?? '';
+                        if (ratingA === null && ratingB === null) {
+                            return COLLATOR.compare(titleA, titleB);
+                        }
+                        if (ratingA === null) {
+                            return 1;
+                        }
+                        if (ratingB === null) {
+                            return -1;
+                        }
+
+                        const byRating = ratingB - ratingA;
+                        return byRating === 0
+                            ? COLLATOR.compare(titleA, titleB)
+                            : byRating;
+                    }
+
                     const byName = COLLATOR.compare(titleA, titleB);
                     return sortMode === 'name-asc' ? byName : -byName;
                 });
@@ -179,24 +281,97 @@ export function withSelection() {
                 });
             };
 
-            // Memoized sorted content - only recalculates when content/type changes
-            const sortedContent = computed(() => {
-                const categoryType = store.selectedContentType();
-                const sortMode = store.contentSortMode();
-                const storeAny = store as ParentSelectionStoreLike;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
-                if (categoryType === 'vod' || categoryType === 'series') {
-                    return sortByMode(content, sortMode, categoryType);
+            const filterVodGroupsBySearchTerm = (
+                items: XtreamSelectionItem[],
+                searchTerm: string
+            ): XtreamSelectionItem[] => {
+                if (!searchTerm.trim()) {
+                    return items;
                 }
 
-                return sortByMode(content, 'date-desc', categoryType);
-            });
+                return items.filter((item) =>
+                    matchesXtreamVodSearchTerm(item, searchTerm)
+                );
+            };
+
+            const filterSeriesGroupsBySearchTerm = (
+                items: XtreamSelectionItem[],
+                searchTerm: string
+            ): XtreamSelectionItem[] => {
+                if (!searchTerm.trim()) {
+                    return items;
+                }
+
+                return items.filter((item) =>
+                    matchesXtreamSeriesSearchTerm(item, searchTerm)
+                );
+            };
+
+            const filterByLanguage = (
+                items: XtreamSelectionItem[]
+            ): XtreamSelectionItem[] => {
+                const filter = store.languageFilter();
+                if (!isXtreamLanguageFilterActive(filter)) {
+                    return items;
+                }
+
+                return items.filter((item) =>
+                    matchesXtreamLanguageFilter(
+                        item as XtreamLanguageFilterCandidate,
+                        filter
+                    )
+                );
+            };
+
+            const supportsVideoQualityFilter = (
+                categoryType: ContentType
+            ): boolean => categoryType === 'vod' || categoryType === 'series';
+
+            const filterByVideoQuality = (
+                items: XtreamSelectionItem[],
+                categoryType: ContentType
+            ): XtreamSelectionItem[] => {
+                const filter = store.videoQualityFilter();
+                if (
+                    !supportsVideoQualityFilter(categoryType) ||
+                    !isXtreamVideoQualityFilterActive(filter)
+                ) {
+                    return items;
+                }
+
+                return items.filter((item) =>
+                    matchesXtreamVideoQualityFilter(
+                        item as XtreamVideoQualityFilterCandidate,
+                        filter
+                    )
+                );
+            };
+
+            const applyCatalogFilters = (
+                items: XtreamSelectionItem[],
+                categoryType: ContentType
+            ): XtreamSelectionItem[] =>
+                filterByVideoQuality(filterByLanguage(items), categoryType);
+
+            const hasActiveCatalogFilters = (
+                categoryType: ContentType
+            ): boolean =>
+                isXtreamLanguageFilterActive(store.languageFilter()) ||
+                (supportsVideoQualityFilter(categoryType) &&
+                    isXtreamVideoQualityFilterActive(
+                        store.videoQualityFilter()
+                    ));
+
+            const getStreamsByType = (
+                categoryType: ContentType
+            ): XtreamSelectionItem[] => {
+                const storeAny = store as ParentSelectionStoreLike;
+                return categoryType === 'live'
+                    ? storeAny.liveStreams?.() || []
+                    : categoryType === 'vod'
+                      ? storeAny.vodStreams?.() || []
+                      : storeAny.serialStreams?.() || [];
+            };
 
             // ---------------------------------------------------------------------------
             // Per-type category item-count maps.
@@ -207,12 +382,69 @@ export function withSelection() {
                 streams: XtreamSelectionItem[]
             ): Map<number, number> => {
                 const countMap = new Map<number, number>();
-                for (const item of streams) {
+                for (const item of filterByLanguage(streams)) {
                     const catId = Number(item.category_id);
                     if (!isNaN(catId)) {
                         countMap.set(catId, (countMap.get(catId) || 0) + 1);
                     }
                 }
+                return countMap;
+            };
+
+            const buildVodCountMap = (
+                streams: XtreamSelectionItem[]
+            ): Map<number, number> => {
+                return buildDuplicateCountMap(
+                    streams,
+                    groupXtreamVodDuplicates,
+                    'vod'
+                );
+            };
+
+            const buildSeriesCountMap = (
+                streams: XtreamSelectionItem[]
+            ): Map<number, number> => {
+                return buildDuplicateCountMap(
+                    streams,
+                    groupXtreamSeriesDuplicates,
+                    'series'
+                );
+            };
+
+            const buildDuplicateCountMap = (
+                streams: XtreamSelectionItem[],
+                groupItems: (
+                    items: readonly XtreamSelectionItem[]
+                ) => XtreamSelectionItem[],
+                categoryType: ContentType
+            ): Map<number, number> => {
+                const streamsByCategory = new Map<
+                    number,
+                    XtreamSelectionItem[]
+                >();
+
+                for (const item of streams) {
+                    const catId = Number(item.category_id);
+                    if (isNaN(catId)) {
+                        continue;
+                    }
+
+                    const categoryStreams = streamsByCategory.get(catId) ?? [];
+                    categoryStreams.push(item);
+                    streamsByCategory.set(catId, categoryStreams);
+                }
+
+                const countMap = new Map<number, number>();
+                for (const [catId, categoryStreams] of streamsByCategory) {
+                    countMap.set(
+                        catId,
+                        applyCatalogFilters(
+                            groupItems(categoryStreams),
+                            categoryType
+                        ).length
+                    );
+                }
+
                 return countMap;
             };
 
@@ -222,12 +454,12 @@ export function withSelection() {
                 )
             );
             const vodItemCounts = computed(() =>
-                buildCountMap(
+                buildVodCountMap(
                     (store as ParentSelectionStoreLike).vodStreams?.() || []
                 )
             );
             const seriesItemCounts = computed(() =>
-                buildCountMap(
+                buildSeriesCountMap(
                     (store as ParentSelectionStoreLike).serialStreams?.() || []
                 )
             );
@@ -254,44 +486,144 @@ export function withSelection() {
             // Depends on category / search / sort — but NOT on page or limit.
             // This prevents re-sorting the full array on every page-navigation.
             // ---------------------------------------------------------------------------
-            const filteredAndSortedContent = computed(() => {
+            const searchMatchedContent = computed(() => {
                 const categoryId = store.selectedCategoryId();
                 const categoryType = store.selectedContentType();
-                const sortMode = store.contentSortMode();
                 const searchTerm = store.categorySearchTerm();
+                const content = getStreamsByType(categoryType);
+                const scopedContent = categoryId
+                    ? content.filter(
+                          (item) => Number(item.category_id) === categoryId
+                      )
+                    : content;
 
-                const storeAny = store as ParentSelectionStoreLike;
-                const content =
-                    categoryType === 'live'
-                        ? storeAny.liveStreams?.() || []
-                        : categoryType === 'vod'
-                          ? storeAny.vodStreams?.() || []
-                          : storeAny.serialStreams?.() || [];
-
-                if (categoryType === 'vod' || categoryType === 'series') {
-                    let filtered = categoryId
-                        ? content.filter(
-                              (item) => Number(item.category_id) === categoryId
-                          )
-                        : sortedContent();
-
-                    filtered = filterBySearchTerm(filtered, searchTerm);
-                    return categoryId || searchTerm
-                        ? sortByMode(filtered, sortMode, categoryType)
-                        : filtered;
+                if (categoryType === 'vod') {
+                    return filterVodGroupsBySearchTerm(
+                        groupXtreamVodDuplicates(scopedContent),
+                        searchTerm
+                    );
                 }
 
-                if (!categoryId) {
-                    return filterBySearchTerm(sortedContent(), searchTerm);
+                if (categoryType === 'series') {
+                    return filterSeriesGroupsBySearchTerm(
+                        groupXtreamSeriesDuplicates(scopedContent),
+                        searchTerm
+                    );
                 }
 
-                const filtered = content.filter(
-                    (item) => Number(item.category_id) === categoryId
-                );
-                return filterBySearchTerm(filtered, searchTerm);
+                return filterBySearchTerm(scopedContent, searchTerm);
             });
 
+            const filteredAndSortedContent = computed(() => {
+                const categoryType = store.selectedContentType();
+                const sortMode = store.contentSortMode();
+
+                return sortByMode(
+                    applyCatalogFilters(searchMatchedContent(), categoryType),
+                    sortMode,
+                    categoryType
+                );
+            });
+
+            const getSelectionItemKey = (
+                item: XtreamSelectionItem,
+                categoryType: ContentType
+            ): string => {
+                const id =
+                    item.duplicateGroupKey ??
+                    (categoryType === 'series'
+                        ? (item.series_id ?? item.xtream_id ?? item.id)
+                        : (item.xtream_id ??
+                          item.stream_id ??
+                          item.series_id ??
+                          item.id));
+
+                return `${categoryType}:${String(
+                    id ?? item.title ?? item.name ?? ''
+                )}`;
+            };
+
+            const filterExcludedContent = computed(() => {
+                const categoryType = store.selectedContentType();
+                if (!hasActiveCatalogFilters(categoryType)) {
+                    return [];
+                }
+
+                const includedKeys = new Set(
+                    filteredAndSortedContent().map((item) =>
+                        getSelectionItemKey(item, categoryType)
+                    )
+                );
+                const excluded = searchMatchedContent().filter(
+                    (item) =>
+                        !includedKeys.has(
+                            getSelectionItemKey(item, categoryType)
+                        )
+                );
+
+                return sortByMode(
+                    excluded,
+                    store.contentSortMode(),
+                    categoryType
+                );
+            });
+
+            const getVideoQualityOptionItems = (): XtreamSelectionItem[] => {
+                const categoryId = store.selectedCategoryId();
+                const categoryType = store.selectedContentType();
+                const searchTerm = store.categorySearchTerm();
+
+                if (!supportsVideoQualityFilter(categoryType)) {
+                    return [];
+                }
+
+                const content = getStreamsByType(categoryType);
+                let filtered = categoryId
+                    ? content.filter(
+                          (item) => Number(item.category_id) === categoryId
+                      )
+                    : content;
+
+                filtered =
+                    categoryType === 'vod'
+                        ? groupXtreamVodDuplicates(filtered)
+                        : groupXtreamSeriesDuplicates(filtered);
+                filtered =
+                    categoryType === 'vod'
+                        ? filterVodGroupsBySearchTerm(filtered, searchTerm)
+                        : filterSeriesGroupsBySearchTerm(filtered, searchTerm);
+
+                return filterByLanguage(filtered);
+            };
+
             return {
+                languageFilterOptions: computed(() => {
+                    const storeAny = store as ParentSelectionStoreLike;
+                    return getXtreamLanguageOptions(
+                        [
+                            ...(storeAny.liveStreams?.() ?? []),
+                            ...(storeAny.vodStreams?.() ?? []),
+                            ...(storeAny.serialStreams?.() ?? []),
+                        ] as XtreamLanguageFilterCandidate[],
+                        store.languageFilter()
+                    );
+                }),
+
+                languageFilterActive: computed(() =>
+                    isXtreamLanguageFilterActive(store.languageFilter())
+                ),
+
+                videoQualityFilterOptions: computed(() =>
+                    getXtreamVideoQualityOptions(
+                        getVideoQualityOptionItems() as XtreamVideoQualityFilterCandidate[],
+                        store.videoQualityFilter()
+                    )
+                ),
+
+                videoQualityFilterActive: computed(() =>
+                    isXtreamVideoQualityFilterActive(store.videoQualityFilter())
+                ),
+
                 /**
                  * Get the selected category from the parent store's categories
                  */
@@ -366,6 +698,10 @@ export function withSelection() {
                  */
                 selectItemsFromSelectedCategory: computed(() =>
                     filteredAndSortedContent()
+                ),
+
+                selectFilterExcludedItemsFromSelectedCategory: computed(() =>
+                    filterExcludedContent()
                 ),
 
                 /**
@@ -517,6 +853,105 @@ export function withSelection() {
 
                 patchState(store, {
                     categorySearchTerm: term,
+                    page: 0,
+                });
+            },
+
+            toggleLanguageFilterOption(
+                section: XtreamLanguageFilterSection,
+                code: string,
+                enabled: boolean
+            ): void {
+                const normalizedCode = code.trim().toLowerCase();
+                if (!normalizedCode) {
+                    return;
+                }
+
+                const current = store.languageFilter();
+                const selected = new Set(current[section]);
+                if (enabled) {
+                    selected.add(normalizedCode);
+                } else {
+                    selected.delete(normalizedCode);
+                }
+
+                patchState(store, {
+                    languageFilter: {
+                        ...current,
+                        [section]: [...selected].sort(),
+                    },
+                    page: 0,
+                });
+            },
+
+            selectAllLanguageFilterOptions(
+                section: XtreamLanguageFilterSection
+            ): void {
+                patchState(store, {
+                    languageFilter: {
+                        ...store.languageFilter(),
+                        [section]: store
+                            .languageFilterOptions()
+                            .map((option) => option.code)
+                            .sort(),
+                    },
+                    page: 0,
+                });
+            },
+
+            clearLanguageFilterOptions(
+                section: XtreamLanguageFilterSection
+            ): void {
+                patchState(store, {
+                    languageFilter: {
+                        ...store.languageFilter(),
+                        [section]: [],
+                    },
+                    page: 0,
+                });
+            },
+
+            invertLanguageFilterOptions(
+                section: XtreamLanguageFilterSection
+            ): void {
+                const current = store.languageFilter();
+                const selected = new Set(current[section]);
+                const inverted = store
+                    .languageFilterOptions()
+                    .map((option) => option.code)
+                    .filter((code) => !selected.has(code))
+                    .sort();
+
+                patchState(store, {
+                    languageFilter: {
+                        ...current,
+                        [section]: inverted,
+                    },
+                    page: 0,
+                });
+            },
+
+            resetLanguageFilter(): void {
+                patchState(store, {
+                    languageFilter: EMPTY_XTREAM_LANGUAGE_FILTER,
+                    page: 0,
+                });
+            },
+
+            setVideoQualityFilter(filter: XtreamVideoQualityFilterValue): void {
+                if (store.videoQualityFilter() === filter) {
+                    return;
+                }
+
+                patchState(store, {
+                    videoQualityFilter: filter,
+                    page: 0,
+                });
+            },
+
+            resetVideoQualityFilter(): void {
+                patchState(store, {
+                    videoQualityFilter: 'all',
                     page: 0,
                 });
             },

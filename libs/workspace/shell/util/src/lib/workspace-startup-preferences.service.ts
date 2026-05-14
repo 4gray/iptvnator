@@ -1,9 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
 import { PlaylistsService, SettingsStore } from 'services';
-import {
-    StartupBehavior,
-} from 'shared-interfaces';
+import { PlaylistMeta, StartupBehavior } from 'shared-interfaces';
 import { parseWorkspaceShellRoute } from './navigation/workspace-shell-route.utils';
 
 const LAST_RESTORABLE_ROUTE_STORAGE_KEY = 'workspace-last-restorable-route-v1';
@@ -16,8 +14,14 @@ export class WorkspaceStartupPreferencesService {
     async resolveInitialWorkspacePath(): Promise<string> {
         await this.settingsStore.loadSettings();
 
+        const singleSourcePath = await this.getSingleSourceWorkspacePath();
+        if (singleSourcePath) {
+            return singleSourcePath;
+        }
+
         const showDashboard = this.showDashboard();
-        const firstViewPath = this.getFirstAvailableWorkspacePath(showDashboard);
+        const firstViewPath =
+            this.getFirstAvailableWorkspacePath(showDashboard);
 
         if (this.startupBehavior() !== StartupBehavior.RestoreLastView) {
             return firstViewPath;
@@ -37,7 +41,9 @@ export class WorkspaceStartupPreferencesService {
             : '/workspace/sources';
     }
 
-    getFirstAvailableWorkspacePath(showDashboard = this.showDashboard()): string {
+    getFirstAvailableWorkspacePath(
+        showDashboard = this.showDashboard()
+    ): string {
         return showDashboard ? '/workspace/dashboard' : '/workspace/sources';
     }
 
@@ -47,8 +53,7 @@ export class WorkspaceStartupPreferencesService {
 
     startupBehavior(): StartupBehavior {
         return (
-            this.settingsStore.startupBehavior?.() ??
-            StartupBehavior.FirstView
+            this.settingsStore.startupBehavior?.() ?? StartupBehavior.FirstView
         );
     }
 
@@ -138,6 +143,38 @@ export class WorkspaceStartupPreferencesService {
         } catch {
             return this.getFirstAvailableWorkspacePath(showDashboard);
         }
+    }
+
+    private async getSingleSourceWorkspacePath(): Promise<string | null> {
+        try {
+            const playlists = await firstValueFrom(
+                this.playlistsService.getAllPlaylists()
+            );
+
+            if (playlists.length !== 1) {
+                return null;
+            }
+
+            return this.getPlaylistWorkspacePath(playlists[0]);
+        } catch {
+            return null;
+        }
+    }
+
+    private getPlaylistWorkspacePath(playlist: PlaylistMeta): string | null {
+        if (!playlist._id) {
+            return null;
+        }
+
+        if (playlist.serverUrl) {
+            return `/workspace/xtreams/${playlist._id}/vod`;
+        }
+
+        if (playlist.macAddress) {
+            return `/workspace/stalker/${playlist._id}/vod`;
+        }
+
+        return `/workspace/playlists/${playlist._id}/all`;
     }
 
     private readLastRestorablePath(): string | null {

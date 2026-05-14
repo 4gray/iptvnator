@@ -22,7 +22,7 @@ import {
  */
 
 const MOCK_PORT = process.env['MOCK_PORT'] ?? '3210';
-const MOCK_SERVER = `http://localhost:${MOCK_PORT}`;
+const MOCK_SERVER = `http://127.0.0.1:${MOCK_PORT}`;
 const PORTAL_URL = `${MOCK_SERVER}/portal.php`;
 const BACKEND_PROXY = `${MOCK_SERVER}/stalker`;
 

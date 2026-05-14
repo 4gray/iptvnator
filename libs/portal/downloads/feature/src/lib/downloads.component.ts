@@ -8,6 +8,7 @@ import {
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -21,6 +22,7 @@ import {
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
+    SettingsStore,
 } from 'services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { queryParamSignal } from '@iptvnator/portal/shared/util';
@@ -41,6 +43,36 @@ const DOWNLOAD_COLLECTION_LABELS = {
     series: 'Series',
 };
 
+interface DownloadBenchmarkResult {
+    ok: boolean;
+    status: number;
+    rangeSupported: boolean;
+    ttfbMs: number;
+    durationMs: number;
+    bytesRead: number;
+    totalBytes?: number;
+    throughputBytesPerSecond: number;
+    samples: Array<{
+        second: number;
+        bytes: number;
+        bytesPerSecond: number;
+    }>;
+    error?: string;
+}
+
+interface DownloadBenchmarkState {
+    loading: boolean;
+    result?: DownloadBenchmarkResult;
+}
+
+interface DownloadBenchmarkReport {
+    completedCount: number;
+    failedCount: number;
+    totalCount: number;
+    totalBytesRead: number;
+    averageThroughputBytesPerSecond: number;
+}
+
 @Component({
     selector: 'app-downloads',
     templateUrl: './downloads.component.html',
@@ -52,6 +84,7 @@ const DOWNLOAD_COLLECTION_LABELS = {
     imports: [
         EmptyStateComponent,
         MatButtonModule,
+        MatCheckboxModule,
         MatIcon,
         MatProgressBarModule,
         MatTooltip,
@@ -68,11 +101,13 @@ export class DownloadsComponent {
     private readonly translate = inject(TranslateService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly shellActions = inject(PORTAL_SHELL_ACTIONS);
+    private readonly settingsStore = inject(SettingsStore);
     readonly downloadsService = inject(DownloadsService);
 
     readonly downloads = this.downloadsService.downloads;
     readonly downloadFolder = this.downloadsService.downloadFolder;
     readonly isAvailable = this.downloadsService.isAvailable;
+    readonly acceleratedDownloads = this.settingsStore.acceleratedDownloads;
     readonly isLoadingDownloads = this.downloadsService.isLoadingDownloads;
     readonly hasLoadedDownloads = this.downloadsService.hasLoadedDownloads;
     readonly activeCount = this.downloadsService.activeCount;
@@ -92,7 +127,10 @@ export class DownloadsComponent {
         () => this.playlistsLoaded() && this.playlistItems().length === 0
     );
     readonly skeletonItems = Array.from({ length: 6 }, (_, index) => index);
-    readonly skeletonActionSlots = Array.from({ length: 4 }, (_, index) => index);
+    readonly skeletonActionSlots = Array.from(
+        { length: 4 },
+        (_, index) => index
+    );
 
     addPlaylist(): void {
         this.shellActions.openAddPlaylistDialog();
@@ -146,6 +184,10 @@ export class DownloadsComponent {
     });
     readonly selectedCategoryId = this.collectionContext.selectedCategoryId;
     readonly failedPosterKeys = signal<Record<string, true>>({});
+    readonly benchmarkStates = signal<Record<number, DownloadBenchmarkState>>(
+        {}
+    );
+    readonly isBenchmarkingAll = signal(false);
 
     /** Filter downloads for current playlist and sort by newest first */
     readonly filteredDownloads = computed(() => {
@@ -182,6 +224,37 @@ export class DownloadsComponent {
     readonly availablePlaylistIds = computed(
         () => new Set(this.playlistItems().map((playlist) => playlist._id))
     );
+    readonly hasBenchmarkResults = computed(() =>
+        Object.values(this.benchmarkStates()).some((state) => !!state.result)
+    );
+    readonly benchmarkReport = computed<DownloadBenchmarkReport | null>(() => {
+        const states = this.benchmarkStates();
+        const entries = this.filteredDownloads()
+            .map((item) => states[item.id]?.result)
+            .filter((result): result is DownloadBenchmarkResult => !!result);
+
+        if (entries.length === 0) {
+            return null;
+        }
+
+        const successful = entries.filter((result) => result.ok);
+        const totalThroughput = successful.reduce(
+            (sum, result) => sum + result.throughputBytesPerSecond,
+            0
+        );
+
+        return {
+            completedCount: entries.length,
+            failedCount: entries.length - successful.length,
+            totalCount: this.filteredDownloads().length,
+            totalBytesRead: entries.reduce(
+                (sum, result) => sum + result.bytesRead,
+                0
+            ),
+            averageThroughputBytesPerSecond:
+                successful.length > 0 ? totalThroughput / successful.length : 0,
+        };
+    });
 
     constructor() {
         effect(() => {
@@ -198,6 +271,182 @@ export class DownloadsComponent {
     formatBytes(bytes: number | undefined): string {
         if (!bytes) return '0 B';
         return this.downloadsService.formatBytes(bytes);
+    }
+
+    formatThroughput(item: DownloadItem): string {
+        const bytesPerSecond =
+            this.downloadsService.getThroughputBytesPerSecond(item);
+        if (!bytesPerSecond) {
+            return '';
+        }
+
+        return `${this.downloadsService.formatBytes(bytesPerSecond)}/s`;
+    }
+
+    getBenchmarkState(item: DownloadItem): DownloadBenchmarkState | undefined {
+        return this.benchmarkStates()[item.id];
+    }
+
+    isBenchmarking(item: DownloadItem): boolean {
+        return this.getBenchmarkState(item)?.loading === true;
+    }
+
+    async benchmarkDownload(item: DownloadItem): Promise<void> {
+        await this.runBenchmarkDownload(item, true);
+    }
+
+    async benchmarkVisibleDownloads(): Promise<void> {
+        if (!window.electron?.benchmarkHttpDownload) {
+            this.showBenchmarkUnavailable();
+            return;
+        }
+
+        const items = this.filteredDownloads();
+        if (items.length === 0) {
+            return;
+        }
+
+        this.isBenchmarkingAll.set(true);
+        try {
+            for (const item of items) {
+                await this.runBenchmarkDownload(item, false);
+            }
+        } finally {
+            this.isBenchmarkingAll.set(false);
+        }
+    }
+
+    exportBenchmarkReport(): void {
+        const states = this.benchmarkStates();
+        const report = this.benchmarkReport();
+        if (!report) {
+            return;
+        }
+
+        const rows = this.filteredDownloads()
+            .map((item) => ({
+                id: item.id,
+                title: item.title,
+                contentType: item.contentType,
+                status: item.status,
+                url: item.url,
+                benchmark: states[item.id]?.result ?? null,
+            }))
+            .filter((row) => row.benchmark !== null);
+
+        this.downloadTextFile(
+            `iptvnator-download-benchmark-${new Date()
+                .toISOString()
+                .replace(/[:.]/g, '-')}.json`,
+            JSON.stringify(
+                { exportedAt: new Date().toISOString(), report, rows },
+                null,
+                2
+            )
+        );
+    }
+
+    private async runBenchmarkDownload(
+        item: DownloadItem,
+        notifyUnavailable: boolean
+    ): Promise<void> {
+        if (!window.electron?.benchmarkHttpDownload) {
+            if (notifyUnavailable) {
+                this.showBenchmarkUnavailable();
+            }
+            return;
+        }
+
+        this.benchmarkStates.update((state) => ({
+            ...state,
+            [item.id]: { loading: true },
+        }));
+
+        try {
+            const result = await window.electron.benchmarkHttpDownload(
+                item.url,
+                undefined,
+                8 * 1024 * 1024,
+                30000
+            );
+            this.benchmarkStates.update((state) => ({
+                ...state,
+                [item.id]: { loading: false, result },
+            }));
+        } catch (error) {
+            this.benchmarkStates.update((state) => ({
+                ...state,
+                [item.id]: {
+                    loading: false,
+                    result: {
+                        ok: false,
+                        status: 0,
+                        rangeSupported: false,
+                        ttfbMs: 0,
+                        durationMs: 0,
+                        bytesRead: 0,
+                        throughputBytesPerSecond: 0,
+                        samples: [],
+                        error:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    },
+                },
+            }));
+        }
+    }
+
+    private showBenchmarkUnavailable(): void {
+        this.snackBar.open(
+            this.translate.instant('DOWNLOADS.BENCHMARK_UNAVAILABLE'),
+            undefined,
+            { duration: 3000, horizontalPosition: 'start' }
+        );
+    }
+
+    formatBenchmarkThroughput(result: DownloadBenchmarkResult): string {
+        if (!result.throughputBytesPerSecond) {
+            return '0 B/s';
+        }
+
+        return `${this.downloadsService.formatBytes(
+            result.throughputBytesPerSecond
+        )}/s`;
+    }
+
+    formatBenchmarkDropPoint(result: DownloadBenchmarkResult): string {
+        if (result.samples.length < 2) {
+            return this.translate.instant('DOWNLOADS.BENCHMARK_DROP_NONE');
+        }
+
+        const first = result.samples[0].bytesPerSecond;
+        const drop = result.samples.find(
+            (sample) => first > 0 && sample.bytesPerSecond < first * 0.65
+        );
+
+        if (!drop) {
+            return this.translate.instant('DOWNLOADS.BENCHMARK_DROP_NONE');
+        }
+
+        return this.translate.instant('DOWNLOADS.BENCHMARK_DROP_AT', {
+            second: drop.second,
+            speed: `${this.downloadsService.formatBytes(
+                drop.bytesPerSecond
+            )}/s`,
+        });
+    }
+
+    formatBenchmarkReportThroughput(
+        report: DownloadBenchmarkReport | null
+    ): string {
+        if (!report?.averageThroughputBytesPerSecond) {
+            return '0 B/s';
+        }
+
+        return `${this.downloadsService.formatBytes(
+            report.averageThroughputBytesPerSecond
+        )}/s`;
     }
 
     getStatusIcon(status: string): string {
@@ -275,7 +524,9 @@ export class DownloadsComponent {
 
     async reveal(item: DownloadItem) {
         if (item.filePath) {
-            const result = await this.downloadsService.revealFile(item.filePath);
+            const result = await this.downloadsService.revealFile(
+                item.filePath
+            );
             if (!result.success) {
                 this.handleFileActionError(result.error);
             }
@@ -284,6 +535,13 @@ export class DownloadsComponent {
 
     async changeFolder() {
         await this.downloadsService.selectFolder();
+    }
+
+    async setAcceleratedDownloads(enabled: boolean): Promise<void> {
+        await this.settingsStore.updateSettings({
+            acceleratedDownloads: enabled,
+        });
+        window.electron?.updateSettings({ acceleratedDownloads: enabled });
     }
 
     async clearCompleted() {
@@ -309,7 +567,10 @@ export class DownloadsComponent {
     }
 
     hasPoster(item: DownloadItem): boolean {
-        return !!item.posterUrl && !this.failedPosterKeys()[this.getPosterKey(item)];
+        return (
+            !!item.posterUrl &&
+            !this.failedPosterKeys()[this.getPosterKey(item)]
+        );
     }
 
     markPosterFailed(item: DownloadItem): void {
@@ -570,5 +831,17 @@ export class DownloadsComponent {
             duration: 3000,
             horizontalPosition: 'start',
         });
+    }
+
+    private downloadTextFile(filename: string, contents: string): void {
+        const blob = new Blob([contents], {
+            type: 'application/json;charset=utf-8',
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = filename;
+        link.click();
+        URL.revokeObjectURL(url);
     }
 }

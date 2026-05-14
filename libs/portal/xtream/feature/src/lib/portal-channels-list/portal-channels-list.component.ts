@@ -23,6 +23,7 @@ import { debounceTime } from 'rxjs/operators';
 import {
     EpgItem,
     EpgProgram,
+    MediaStreamMetadata,
     XtreamCategory,
     XtreamItem,
 } from 'shared-interfaces';
@@ -31,6 +32,9 @@ import {
     ChannelListSkeletonComponent,
 } from 'components';
 import {
+    buildMediaStreamMetadata,
+    getMediaMetadataTags,
+    mergeMediaStreamMetadata,
     PortalChannelSortMode,
     sortPortalChannelItems,
 } from '@iptvnator/portal/shared/util';
@@ -40,13 +44,21 @@ import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 export interface XtreamChannelListItem {
+    readonly audio?: unknown;
+    readonly audioLanguages?: string[];
     readonly category_id?: string | number;
+    readonly container_extension?: string;
     readonly id?: string | number;
+    readonly mediaMetadata?: MediaStreamMetadata | null;
     readonly name?: string;
     readonly poster_url?: string;
     readonly stream_icon?: string;
+    readonly subtitle?: unknown;
+    readonly subtitleLanguages?: string[];
+    readonly subtitles?: unknown;
     readonly title?: string;
     readonly type?: 'live' | 'movie' | 'series' | 'vod';
+    readonly video?: unknown;
     readonly xtream_id: number;
     readonly epg_channel_id?: string | null;
 }
@@ -136,12 +148,29 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
 
-            this.applyProgram(selectedItem.xtream_id, previewProgram);
+            this.applyProgram(Number(selectedItem.xtream_id), previewProgram);
         });
     }
 
     trackBy(_index: number, item: XtreamChannelListItem | XtreamItem) {
         return item.xtream_id;
+    }
+
+    getMediaTags(item: XtreamChannelListItem): string[] {
+        const staticMetadata = buildMediaStreamMetadata({
+            video: item.video,
+            audio: item.audio ?? item.audioLanguages,
+            subtitles:
+                item.subtitles ?? item.subtitle ?? item.subtitleLanguages,
+            title: item.title ?? item.name,
+            containerExtension: item.container_extension,
+        });
+        const metadata = mergeMediaStreamMetadata(
+            item.mediaMetadata,
+            staticMetadata
+        );
+
+        return getMediaMetadataTags(metadata);
     }
 
     ngOnInit(): void {
@@ -202,7 +231,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         };
 
         const visibleIds = new Set<number>(channels.map((ch) => ch.xtream_id));
-        const uncachedEntries: { streamId: number; epgChannelId?: string | null }[] = [];
+        const uncachedEntries: {
+            streamId: number;
+            epgChannelId?: string | null;
+        }[] = [];
 
         // Apply cached results immediately
         for (const channel of channels) {

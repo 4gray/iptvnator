@@ -23,6 +23,10 @@ import {
     XtreamContentItem,
     XtreamPlaylistData,
 } from './xtream-data-source.interface';
+import {
+    matchesXtreamSeriesSearchTerm,
+    matchesXtreamVodSearchTerm,
+} from '../utils/vod-duplicates.util';
 
 /**
  * LocalStorage keys for PWA persistence
@@ -37,12 +41,12 @@ const STORAGE_KEYS = {
 interface XtreamCachedContentItem {
     readonly added?: string;
     readonly category_id?: string | number;
-    readonly id?: number;
+    readonly id?: string | number;
     readonly name?: string;
     readonly poster_url?: string;
-    readonly series_id?: number;
+    readonly series_id?: string | number;
     readonly stream_display_name?: string;
-    readonly stream_id?: number;
+    readonly stream_id?: string | number;
     readonly stream_icon?: string;
     readonly title?: string;
     readonly type?: string;
@@ -300,6 +304,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const content = this.contentCache.get(cacheKey) || [];
 
             const filtered = content.filter((item) => {
+                if (type === 'movie') {
+                    return matchesXtreamVodSearchTerm(item, searchTerm);
+                }
+                if (type === 'series') {
+                    return matchesXtreamSeriesSearchTerm(item, searchTerm);
+                }
+
                 const title =
                     item.name || item.title || item.stream_display_name || '';
                 return title.toLowerCase().includes(searchLower);
@@ -327,7 +338,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
             for (const item of content) {
                 const itemId = item.stream_id || item.series_id || item.id;
-                if (playlistFavorites.includes(itemId)) {
+                if (playlistFavorites.includes(Number(itemId))) {
                     results.push(item);
                 }
             }
@@ -534,7 +545,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
             for (const item of content) {
                 const itemId = item.stream_id || item.series_id || item.id;
-                const recentEntry = playlistRecent.find((r) => r.id === itemId);
+                const recentEntry = playlistRecent.find(
+                    (r) => r.id === Number(itemId)
+                );
                 if (recentEntry) {
                     results.push({
                         ...item,
@@ -642,7 +655,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const found = content.find((item) => {
                 const itemXtreamId =
                     item.stream_id || item.series_id || item.id;
-                return itemXtreamId === xtreamId;
+                return Number(itemXtreamId) === xtreamId;
             });
 
             if (found) {
@@ -669,7 +682,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             const found = content.find((item) => {
                 const itemXtreamId =
                     item.stream_id || item.series_id || item.id;
-                return itemXtreamId === xtreamId;
+                return Number(itemXtreamId) === xtreamId;
             });
 
             if (found) {

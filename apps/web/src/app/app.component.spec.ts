@@ -52,7 +52,11 @@ const DEFAULT_SETTINGS: Settings = {
     remoteControl: false,
     remoteControlPort: 8765,
     downloadFolder: '',
+    acceleratedDownloads: true,
+    redirectIndirectStreamsToDirectSource: false,
     recordingFolder: '',
+    coverSize: 'medium',
+    preferUploadedEpgOverXtream: false,
 };
 
 describe('AppComponent', () => {

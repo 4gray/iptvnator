@@ -89,6 +89,19 @@ describe('ChannelListItemComponent', () => {
         expect(fixture.nativeElement.querySelector('.channel-logo')).toBeNull();
     });
 
+    it('renders compact media tags for channel previews', () => {
+        fixture.componentRef.setInput('name', 'Rai 4K');
+        fixture.componentRef.setInput('mediaTags', ['2160p HEVC', 'Audio ITA']);
+        fixture.detectChanges();
+
+        const tags = Array.from(
+            fixture.nativeElement.querySelectorAll('.channel-media-tag'),
+            (element: Element) => element.textContent?.trim() ?? ''
+        );
+
+        expect(tags).toEqual(['2160p HEVC', 'Audio ITA']);
+    });
+
     it('emits clicked on a single click by default', () => {
         const clicked = jest.fn();
         fixture.componentInstance.clicked.subscribe(clicked);

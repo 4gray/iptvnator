@@ -53,7 +53,8 @@
         "lint": "nx lint electron-backend",
         "build": "nx build electron-backend",
         "wiki:export": "node tools/wiki/export-wiki-context.mjs",
-        "test:wiki-export": "node --test tools/wiki/export-wiki-context.test.mjs"
+        "test:wiki-export": "node --test tools/wiki/export-wiki-context.test.mjs",
+        "check:push-safe": "node tools/diagnostics/push-safety-check.js"
     },
     "private": true,
     "packageManager": "pnpm@10.33.0+sha512.10568bb4a6afb58c9eb3630da90cc9516417abebd3fabbe6739f0ae795728da1491e9db5a544c76ad8eb7570f5c4bb3d6c637b2cb41bfdcdb47fa823c8649319",

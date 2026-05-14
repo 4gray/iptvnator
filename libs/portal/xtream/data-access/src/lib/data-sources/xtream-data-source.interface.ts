@@ -4,6 +4,7 @@ import {
     XtreamPendingRestoreState,
     XtreamCategory,
     XtreamLiveStream,
+    MediaStreamMetadata,
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
@@ -43,6 +44,8 @@ export interface XtreamContentItem {
     // Core DB fields
     id: number;
     category_id: number | string; // Can be number (DB) or string (API)
+    category_hidden?: boolean | number;
+    category_name?: string;
     title: string;
     rating: string;
     added: string;
@@ -65,6 +68,27 @@ export interface XtreamContentItem {
     stream_icon?: string;
     custom_sid?: string;
     rating_imdb?: string;
+    imdb_id?: string;
+    imdbRating?: number;
+    imdbVotes?: number;
+    imdbMatchedTitle?: string;
+    imdbMatchedYear?: number;
+    imdbMatchConfidence?: number;
+    imdbMatchReason?: string;
+    duplicateCount?: number;
+    duplicateDefaultVariantId?: string;
+    duplicateGroupKey?: string;
+    duplicateQualityLabel?: string;
+    duplicateQualityScore?: number;
+    duplicateVariants?: XtreamContentItem[];
+    mediaMetadata?: MediaStreamMetadata;
+    audioLanguages?: string[];
+    subtitleLanguages?: string[];
+    tmdb_id?: string | number;
+    tmdbId?: string | number;
+    tvdb_id?: string | number;
+    tvdbId?: string | number;
+    series_id?: number;
 
     // Global search result fields
     description?: string;

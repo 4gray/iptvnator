@@ -54,6 +54,18 @@ export class ContentCardComponent {
     /** Whether to render the type badge (live/movie/series) on the poster */
     readonly showTypeBadge = input<boolean>(true);
 
+    /** Optional IMDb/provider rating shown on the poster */
+    readonly rating = input<string | undefined>();
+
+    /** Tooltip with rating matching details */
+    readonly ratingTooltip = input<string>('');
+
+    /** Optional media labels such as quality, audio, and subtitles */
+    readonly mediaTags = input<readonly string[]>([]);
+
+    /** Number of grouped duplicate variants */
+    readonly duplicateCount = input<number | undefined>();
+
     /** Emitted when the card is clicked */
     readonly cardClick = output<void>();
 

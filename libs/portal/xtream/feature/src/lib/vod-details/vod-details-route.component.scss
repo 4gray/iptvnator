@@ -42,4 +42,133 @@
             letter-spacing: 0.03em;
         }
     }
+
+    ::ng-deep .details__variant-panel {
+        flex: 1 0 100%;
+        width: min(680px, 100%);
+        max-width: 100%;
+        margin-top: 4px;
+    }
+
+    ::ng-deep .details__variant-heading {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 12px;
+        margin-bottom: 8px;
+        color: var(--text-primary);
+        font-size: 0.8125rem;
+        font-weight: 700;
+
+        span:last-child {
+            color: var(--text-secondary);
+            font-size: 0.75rem;
+            font-weight: 500;
+            text-align: right;
+        }
+    }
+
+    ::ng-deep .details__variant-list {
+        display: flex;
+        max-height: 212px;
+        flex-direction: column;
+        gap: 8px;
+        overflow-y: auto;
+        padding-right: 4px;
+    }
+
+    ::ng-deep .details__variant-option {
+        display: grid;
+        width: 100%;
+        min-height: 46px;
+        grid-template-columns: minmax(92px, 132px) minmax(0, 1fr) auto;
+        align-items: center;
+        gap: 10px;
+        padding: 9px 10px;
+        border: 1px solid color-mix(in srgb, var(--tag-border) 82%, transparent);
+        border-radius: 8px;
+        background: color-mix(in srgb, var(--surface-bg) 82%, transparent);
+        color: var(--text-primary);
+        cursor: pointer;
+        font: inherit;
+        text-align: left;
+        backdrop-filter: blur(12px);
+        transition:
+            border-color 120ms ease,
+            background 120ms ease;
+
+        &:hover {
+            border-color: color-mix(
+                in srgb,
+                var(--accent-color) 48%,
+                var(--tag-border)
+            );
+            background: color-mix(in srgb, var(--tag-bg) 88%, transparent);
+        }
+    }
+
+    ::ng-deep .details__variant-option--selected {
+        border-color: color-mix(in srgb, var(--accent-color) 72%, transparent);
+        background: color-mix(
+            in srgb,
+            var(--accent-color) 14%,
+            var(--surface-bg)
+        );
+    }
+
+    ::ng-deep .details__variant-quality {
+        overflow: hidden;
+        color: var(--accent-color);
+        font-size: 0.8125rem;
+        font-weight: 800;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ::ng-deep .details__variant-title {
+        overflow: hidden;
+        min-width: 0;
+        color: var(--text-primary);
+        font-size: 0.8125rem;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    ::ng-deep .details__variant-id {
+        color: var(--text-secondary);
+        font-size: 0.75rem;
+        font-variant-numeric: tabular-nums;
+    }
+
+    ::ng-deep .details__variant-default {
+        grid-column: 1 / -1;
+        width: max-content;
+        max-width: 100%;
+        padding: 3px 7px;
+        border-radius: 999px;
+        background: color-mix(in srgb, var(--accent-color) 20%, transparent);
+        color: var(--text-primary);
+        font-size: 0.6875rem;
+        font-weight: 700;
+    }
+
+    @media (max-width: 640px) {
+        ::ng-deep .details__variant-heading {
+            align-items: flex-start;
+            flex-direction: column;
+            gap: 3px;
+
+            span:last-child {
+                text-align: left;
+            }
+        }
+
+        ::ng-deep .details__variant-option {
+            grid-template-columns: minmax(82px, 112px) minmax(0, 1fr);
+        }
+
+        ::ng-deep .details__variant-id {
+            grid-column: 1 / -1;
+        }
+    }
 }

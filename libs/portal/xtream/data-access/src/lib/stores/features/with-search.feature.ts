@@ -1,7 +1,8 @@
-import { inject } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
+    withComputed,
     withMethods,
     withState,
 } from '@ngrx/signals';
@@ -10,7 +11,18 @@ import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '../../data-sources/xtream-data-source.interface';
+import {
+    groupXtreamSeriesDuplicates,
+    groupXtreamVodDuplicates,
+    matchesXtreamSeriesSearchTerm,
+    matchesXtreamVodSearchTerm,
+} from '../../utils/vod-duplicates.util';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import {
+    matchesXtreamLanguageFilter,
+    XtreamLanguageFilterCandidate,
+    XtreamLanguageFilterState,
+} from '../../utils/language-filter.util';
 
 /**
  * Search filters configuration
@@ -67,15 +79,61 @@ const initialSearchState: SearchState = {
 export function withSearch() {
     const logger = createLogger('withSearch');
     type ParentSearchStoreLike = {
+        languageFilter?: () => XtreamLanguageFilterState;
         playlistId?: () => string | null;
     };
 
     return signalStoreFeature(
         withState<SearchState>(initialSearchState),
 
+        withComputed((store) => ({
+            filteredSearchResults: computed(() => {
+                const storeAny = store as ParentSearchStoreLike;
+                const languageFilter = storeAny.languageFilter?.();
+                if (!languageFilter) {
+                    return store.searchResults();
+                }
+
+                return store
+                    .searchResults()
+                    .filter((item) =>
+                        matchesXtreamLanguageFilter(
+                            item as unknown as XtreamLanguageFilterCandidate,
+                            languageFilter
+                        )
+                    );
+            }),
+        })),
+
         withMethods((store) => {
             const dataSource = inject(XTREAM_DATA_SOURCE);
             let searchRequestVersion = 0;
+            const prepareSearchResults = (
+                results: XtreamContentItem[],
+                searchTerm: string
+            ): XtreamContentItem[] => {
+                const movieResults = results.filter(
+                    (item) => item.type === 'movie'
+                );
+                const seriesResults = results.filter(
+                    (item) => item.type === 'series'
+                );
+                const otherResults = results.filter(
+                    (item) => item.type !== 'movie' && item.type !== 'series'
+                );
+                const groupedMovies = groupXtreamVodDuplicates(
+                    movieResults
+                ).filter((item) =>
+                    matchesXtreamVodSearchTerm(item, searchTerm)
+                );
+                const groupedSeries = groupXtreamSeriesDuplicates(
+                    seriesResults
+                ).filter((item) =>
+                    matchesXtreamSeriesSearchTerm(item, searchTerm)
+                );
+
+                return [...otherResults, ...groupedMovies, ...groupedSeries];
+            };
 
             return {
                 /**
@@ -121,17 +179,21 @@ export function withSearch() {
                             types,
                             excludeHidden
                         );
+                        const preparedResults = prepareSearchResults(
+                            results,
+                            searchTerm
+                        );
 
                         if (requestVersion !== searchRequestVersion) {
-                            return results;
+                            return preparedResults;
                         }
 
                         patchState(store, {
-                            searchResults: results,
+                            searchResults: preparedResults,
                             isSearching: false,
                         });
 
-                        return results;
+                        return preparedResults;
                     } catch (error) {
                         logger.error('Error searching content', error);
 
@@ -151,8 +213,13 @@ export function withSearch() {
                  * Set global search results (from external search)
                  */
                 setGlobalSearchResults(results: GlobalSearchResult[]): void {
+                    const preparedResults = prepareSearchResults(
+                        results as XtreamContentItem[],
+                        store.searchTerm()
+                    );
+
                     patchState(store, {
-                        searchResults: results,
+                        searchResults: preparedResults,
                         globalSearchResults: results,
                         isSearching: false,
                     });

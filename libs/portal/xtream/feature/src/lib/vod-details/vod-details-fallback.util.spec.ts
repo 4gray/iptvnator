@@ -61,6 +61,7 @@ describe('vod-details-fallback.util', () => {
             container_extension: 'mp4',
             rating: 6.1,
             rating_imdb: '6.1',
+            imdbRating: 6.1,
         } satisfies Partial<XtreamVodStream>;
 
         const fallback = buildXtreamVodFallbackViewModel({

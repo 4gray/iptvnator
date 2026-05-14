@@ -28,14 +28,64 @@
                             }}
                         </span>
                     </div>
+                    <div
+                        class="downloads__speed-toggle"
+                        [matTooltip]="
+                            'DOWNLOADS.ACCELERATED_DOWNLOADS_HINT' | translate
+                        "
+                    >
+                        <mat-icon>speed</mat-icon>
+                        <span>{{
+                            'DOWNLOADS.ACCELERATED_DOWNLOADS' | translate
+                        }}</span>
+                        <mat-checkbox
+                            [checked]="acceleratedDownloads()"
+                            [attr.aria-label]="
+                                'DOWNLOADS.ACCELERATED_DOWNLOADS' | translate
+                            "
+                            (click)="$event.stopPropagation()"
+                            (change)="setAcceleratedDownloads($event.checked)"
+                        ></mat-checkbox>
+                    </div>
                     <button mat-stroked-button (click)="changeFolder()">
                         {{ 'DOWNLOADS.CHANGE_FOLDER' | translate }}
                     </button>
+                    @if (hasScopedDownloads()) {
+                        <button
+                            mat-stroked-button
+                            data-test-id="benchmark-visible-downloads"
+                            [disabled]="isBenchmarkingAll()"
+                            (click)="benchmarkVisibleDownloads()"
+                            [matTooltip]="
+                                'DOWNLOADS.BENCHMARK_ALL_HINT' | translate
+                            "
+                        >
+                            <mat-icon>network_check</mat-icon>
+                            {{
+                                (isBenchmarkingAll()
+                                    ? 'DOWNLOADS.BENCHMARK_RUNNING'
+                                    : 'DOWNLOADS.BENCHMARK_ALL'
+                                ) | translate
+                            }}
+                        </button>
+                    }
+                    @if (hasBenchmarkResults()) {
+                        <button
+                            mat-stroked-button
+                            data-test-id="export-download-benchmark"
+                            (click)="exportBenchmarkReport()"
+                        >
+                            <mat-icon>download</mat-icon>
+                            {{ 'DOWNLOADS.EXPORT_BENCHMARK' | translate }}
+                        </button>
+                    }
                     @if (hasClearableDownloads()) {
                         <button
                             mat-stroked-button
                             (click)="clearCompleted()"
-                            [matTooltip]="'DOWNLOADS.CLEAR_COMPLETED' | translate"
+                            [matTooltip]="
+                                'DOWNLOADS.CLEAR_COMPLETED' | translate
+                            "
                             [attr.aria-label]="
                                 'DOWNLOADS.CLEAR_COMPLETED' | translate
                             "
@@ -47,6 +97,52 @@
                 }
             </div>
         </header>
+
+        @if (benchmarkReport(); as report) {
+            <section
+                class="downloads__benchmark-summary"
+                data-test-id="download-benchmark-summary"
+            >
+                <span>
+                    {{
+                        'DOWNLOADS.BENCHMARK_REPORT_ITEMS'
+                            | translate
+                                : {
+                                      count: report.completedCount,
+                                      total: report.totalCount,
+                                  }
+                    }}
+                </span>
+                <span>
+                    {{
+                        'DOWNLOADS.BENCHMARK_REPORT_AVERAGE'
+                            | translate
+                                : {
+                                      speed: formatBenchmarkReportThroughput(
+                                          report
+                                      ),
+                                  }
+                    }}
+                </span>
+                <span>
+                    {{
+                        'DOWNLOADS.BENCHMARK_REPORT_BYTES'
+                            | translate
+                                : {
+                                      bytes: formatBytes(report.totalBytesRead),
+                                  }
+                    }}
+                </span>
+                @if (report.failedCount > 0) {
+                    <span class="downloads__benchmark-summary-error">
+                        {{
+                            'DOWNLOADS.BENCHMARK_REPORT_FAILED'
+                                | translate: { count: report.failedCount }
+                        }}
+                    </span>
+                }
+            </section>
+        }
 
         @if (!isAvailable()) {
             <div class="downloads__empty">
@@ -245,6 +341,16 @@
                                         </span>
                                     }
 
+                                    @if (
+                                        item.status === 'downloading' &&
+                                        formatThroughput(item)
+                                    ) {
+                                        <span class="downloads__item-speed">
+                                            <mat-icon>speed</mat-icon>
+                                            {{ formatThroughput(item) }}
+                                        </span>
+                                    }
+
                                     @if (item.errorMessage) {
                                         <span class="downloads__item-error">
                                             {{ item.errorMessage }}
@@ -272,6 +378,19 @@
                                     >
                                         <mat-icon>content_copy</mat-icon>
                                     </button>
+                                    <button
+                                        mat-icon-button
+                                        [disabled]="isBenchmarking(item)"
+                                        (click)="
+                                            $event.stopPropagation();
+                                            benchmarkDownload(item)
+                                        "
+                                        [matTooltip]="
+                                            'DOWNLOADS.BENCHMARK' | translate
+                                        "
+                                    >
+                                        <mat-icon>network_check</mat-icon>
+                                    </button>
                                     @switch (item.status) {
                                         @case ('queued') {
                                             <button
@@ -281,7 +400,8 @@
                                                     cancel(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.CANCEL' | translate
+                                                    'DOWNLOADS.CANCEL'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>close</mat-icon>
@@ -295,7 +415,8 @@
                                                     cancel(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.CANCEL' | translate
+                                                    'DOWNLOADS.CANCEL'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>close</mat-icon>
@@ -322,7 +443,8 @@
                                                     reveal(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.REVEAL' | translate
+                                                    'DOWNLOADS.REVEAL'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>folder_open</mat-icon>
@@ -335,7 +457,8 @@
                                                     remove(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.REMOVE' | translate
+                                                    'DOWNLOADS.REMOVE'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>delete</mat-icon>
@@ -350,7 +473,8 @@
                                                     retry(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.RETRY' | translate
+                                                    'DOWNLOADS.RETRY'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>refresh</mat-icon>
@@ -363,7 +487,8 @@
                                                     remove(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.REMOVE' | translate
+                                                    'DOWNLOADS.REMOVE'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>delete</mat-icon>
@@ -378,7 +503,8 @@
                                                     retry(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.RETRY' | translate
+                                                    'DOWNLOADS.RETRY'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>refresh</mat-icon>
@@ -391,7 +517,8 @@
                                                     remove(item)
                                                 "
                                                 [matTooltip]="
-                                                    'DOWNLOADS.REMOVE' | translate
+                                                    'DOWNLOADS.REMOVE'
+                                                        | translate
                                                 "
                                             >
                                                 <mat-icon>delete</mat-icon>
@@ -399,6 +526,73 @@
                                         }
                                     }
                                 </div>
+
+                                @if (getBenchmarkState(item); as benchmark) {
+                                    @if (benchmark.loading) {
+                                        <div class="downloads__benchmark">
+                                            <mat-icon>network_check</mat-icon>
+                                            <span>{{
+                                                'DOWNLOADS.BENCHMARK_RUNNING'
+                                                    | translate
+                                            }}</span>
+                                        </div>
+                                    } @else if (benchmark.result; as result) {
+                                        <div class="downloads__benchmark">
+                                            <mat-icon>analytics</mat-icon>
+                                            <span>
+                                                {{
+                                                    'DOWNLOADS.BENCHMARK_STATUS'
+                                                        | translate
+                                                }}
+                                                {{ result.status }}
+                                            </span>
+                                            <span>
+                                                TTFB {{ result.ttfbMs }}ms
+                                            </span>
+                                            <span>
+                                                {{
+                                                    formatBytes(
+                                                        result.bytesRead
+                                                    )
+                                                }}
+                                                /
+                                                {{
+                                                    result.totalBytes
+                                                        ? formatBytes(
+                                                              result.totalBytes
+                                                          )
+                                                        : '-'
+                                                }}
+                                            </span>
+                                            <span>
+                                                {{
+                                                    formatBenchmarkThroughput(
+                                                        result
+                                                    )
+                                                }}
+                                            </span>
+                                            <span>
+                                                {{
+                                                    result.rangeSupported
+                                                        ? ('DOWNLOADS.BENCHMARK_RANGE_SUPPORTED'
+                                                          | translate)
+                                                        : ('DOWNLOADS.BENCHMARK_RANGE_UNSUPPORTED'
+                                                          | translate)
+                                                }}
+                                            </span>
+                                            <span>{{
+                                                formatBenchmarkDropPoint(result)
+                                            }}</span>
+                                            @if (result.error) {
+                                                <span
+                                                    class="downloads__benchmark-error"
+                                                >
+                                                    {{ result.error }}
+                                                </span>
+                                            }
+                                        </div>
+                                    }
+                                }
                             </div>
                         </div>
                     }

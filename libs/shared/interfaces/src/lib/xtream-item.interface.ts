@@ -1,3 +1,5 @@
+import { MediaStreamMetadata } from './media-stream-metadata.interface';
+
 export interface XtreamItem {
     num: number;
     name: string;
@@ -15,4 +17,7 @@ export interface XtreamItem {
     xtream_id?: number;
     type?: 'movie' | 'series' | 'live';
     added_at?: number;
+    mediaMetadata?: MediaStreamMetadata;
+    audioLanguages?: string[];
+    subtitleLanguages?: string[];
 }

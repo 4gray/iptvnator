@@ -1,8 +1,10 @@
 import { Component, input, output, signal } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
+import { FormsModule } from '@angular/forms';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatIconButton } from '@angular/material/button';
+import { MatButtonModule, MatIconButton } from '@angular/material/button';
+import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule } from '@angular/material/paginator';
@@ -61,6 +63,13 @@ describe('CategoryContentViewComponent', () => {
     const isPaginatedContentLoading = signal(true);
     const categoryItemCount = signal(0);
     const contentSortMode = signal<PortalCatalogSortMode | null>(null);
+    const allContent = signal<unknown[]>([]);
+    const filterExcludedContent = signal<unknown[]>([]);
+    const videoQualityFilter = signal<'all' | '2160p'>('all');
+    const videoQualityFilterOptions = signal([
+        { value: '2160p' as const, label: '2160p+', count: 2 },
+    ]);
+    const videoQualityFilterActive = signal(false);
     const catalog = {
         provider: 'xtream' as const,
         pageSizeOptions: [10, 25, 50],
@@ -69,11 +78,16 @@ describe('CategoryContentViewComponent', () => {
         pageIndex: signal(0),
         selectedCategory: signal({ id: 1 }),
         paginatedContent: signal<unknown[]>([]),
+        allContent,
+        filterExcludedContent,
         selectedCategoryTitle: signal('Movies'),
         categoryItemCount,
         selectedItem: signal(null),
         totalPages: signal(0),
         contentSortMode,
+        videoQualityFilter,
+        videoQualityFilterOptions,
+        videoQualityFilterActive,
         playlist: signal(null),
         isPaginatedContentLoading,
         initialize: jest.fn(),
@@ -82,6 +96,14 @@ describe('CategoryContentViewComponent', () => {
         setPage: jest.fn(),
         setLimit: jest.fn(),
         setContentSortMode: jest.fn(),
+        setVideoQualityFilter: jest.fn((filter: 'all' | '2160p') => {
+            videoQualityFilter.set(filter);
+            videoQualityFilterActive.set(filter !== 'all');
+        }),
+        resetVideoQualityFilter: jest.fn(() => {
+            videoQualityFilter.set('all');
+            videoQualityFilterActive.set(false);
+        }),
         selectItem: jest.fn().mockReturnValue(null),
         getItemProgress: jest.fn().mockReturnValue({}),
     };
@@ -90,10 +112,20 @@ describe('CategoryContentViewComponent', () => {
         isPaginatedContentLoading.set(true);
         categoryItemCount.set(0);
         contentSortMode.set(null);
+        catalog.selectedCategory.set({ id: 1 });
+        allContent.set([]);
+        filterExcludedContent.set([]);
+        videoQualityFilter.set('all');
+        videoQualityFilterOptions.set([
+            { value: '2160p', label: '2160p+', count: 2 },
+        ]);
+        videoQualityFilterActive.set(false);
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
         catalog.setPage.mockClear();
         catalog.setLimit.mockClear();
+        catalog.setVideoQualityFilter.mockClear();
+        catalog.resetVideoQualityFilter.mockClear();
         catalog.selectItem.mockClear();
         catalog.selectItem.mockReturnValue(null);
         router = {
@@ -159,8 +191,11 @@ describe('CategoryContentViewComponent', () => {
                 set: {
                     imports: [
                         NgComponentOutlet,
+                        FormsModule,
                         MockGridListComponent,
                         MockPlaylistErrorViewComponent,
+                        MatButtonModule,
+                        MatCheckboxModule,
                         MatIcon,
                         MatIconButton,
                         MatMenuModule,
@@ -362,5 +397,51 @@ describe('CategoryContentViewComponent', () => {
             relativeTo: expect.any(Object),
             queryParamsHandling: 'preserve',
         });
+    });
+
+    it('splits search results into visible, hidden category, and filter-excluded sections', () => {
+        catalog.selectedCategory.set({ id: 0 });
+        allContent.set([
+            { title: 'Visible movie', category_hidden: false },
+            { title: 'Hidden category movie', category_hidden: true },
+        ]);
+        filterExcludedContent.set([{ title: 'Filtered out movie' }]);
+        queryParamMap$.next(convertToParamMap({ q: 'movie' }));
+
+        fixture.detectChanges();
+
+        const sections =
+            fixture.componentInstance.contentSectionsWithProgress();
+        expect(sections.map((section) => section.key)).toEqual([
+            'visible',
+            'hidden',
+            'filter-excluded',
+        ]);
+        expect(sections.map((section) => section.items[0]?.title)).toEqual([
+            'Visible movie',
+            'Hidden category movie',
+            'Filtered out movie',
+        ]);
+    });
+
+    it('delegates video quality filter changes to the catalog facade', () => {
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.canFilterVideoQuality()).toBe(true);
+
+        fixture.componentInstance.setVideoQualityFilter('2160p');
+        expect(catalog.setVideoQualityFilter).toHaveBeenCalledWith('2160p');
+        expect(fixture.componentInstance.videoQualityFilterActive()).toBe(true);
+
+        fixture.componentInstance.resetVideoQualityFilter();
+        expect(catalog.resetVideoQualityFilter).toHaveBeenCalled();
+        expect(fixture.componentInstance.videoQualityFilter()).toBe('all');
+    });
+
+    it('hides the video quality filter for live content', () => {
+        catalog.contentType.set('live');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.canFilterVideoQuality()).toBe(false);
     });
 });

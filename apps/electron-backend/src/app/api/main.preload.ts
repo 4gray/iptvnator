@@ -455,6 +455,33 @@ const electronApi = {
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: any) =>
         ipcRenderer.invoke('SETTINGS_UPDATE', settings),
+    resolveAcceleratedPlaybackUrl: (
+        url: string,
+        headers?: Record<string, string>
+    ) =>
+        ipcRenderer.invoke('ACCELERATED_PLAYBACK_RESOLVE_URL', {
+            url,
+            headers,
+        }),
+    benchmarkHttpDownload: (
+        url: string,
+        headers?: Record<string, string>,
+        maxBytes?: number,
+        timeoutMs?: number
+    ) =>
+        ipcRenderer.invoke('HTTP_DOWNLOAD_BENCHMARK', {
+            url,
+            headers,
+            maxBytes,
+            timeoutMs,
+        }),
+    probeMediaStreamMetadata: (url: string, headers?: Record<string, string>) =>
+        ipcRenderer.invoke('MEDIA_PROBE_STREAM_METADATA', {
+            url,
+            headers,
+        }),
+    resolveImdbMovieRatings: (items: unknown[]) =>
+        ipcRenderer.invoke('IMDB_RESOLVE_MOVIE_RATINGS', items),
     getAiSettings: () => ipcRenderer.invoke('GET_AI_SETTINGS'),
     stalkerRequest: (payload: {
         url: string;

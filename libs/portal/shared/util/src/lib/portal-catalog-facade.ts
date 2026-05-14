@@ -7,7 +7,67 @@ export type PortalCatalogSortMode =
     | 'date-desc'
     | 'date-asc'
     | 'name-asc'
-    | 'name-desc';
+    | 'name-desc'
+    | 'rating-desc';
+
+export type PortalCatalogLanguageFilterSection =
+    | 'audioInclude'
+    | 'audioExclude'
+    | 'subtitleInclude'
+    | 'subtitleExclude';
+
+export interface PortalCatalogLanguageOption {
+    code: string;
+    label: string;
+}
+
+export interface PortalCatalogLanguageFilterState {
+    audioInclude: string[];
+    audioExclude: string[];
+    subtitleInclude: string[];
+    subtitleExclude: string[];
+}
+
+export const EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER: PortalCatalogLanguageFilterState =
+    {
+        audioInclude: [],
+        audioExclude: [],
+        subtitleInclude: [],
+        subtitleExclude: [],
+    };
+
+export function isPortalCatalogLanguageFilterActive(
+    filter: PortalCatalogLanguageFilterState | null | undefined
+): boolean {
+    return Boolean(
+        filter &&
+        (filter.audioInclude.length > 0 ||
+            filter.audioExclude.length > 0 ||
+            filter.subtitleInclude.length > 0 ||
+            filter.subtitleExclude.length > 0)
+    );
+}
+
+export type PortalCatalogVideoQualityFilterValue =
+    | 'all'
+    | '2160p'
+    | '1440p'
+    | '1080p'
+    | '720p'
+    | 'sd'
+    | 'unknown';
+
+export interface PortalCatalogVideoQualityOption {
+    value: Exclude<PortalCatalogVideoQualityFilterValue, 'all'>;
+    label: string;
+    count: number;
+}
+
+export function isPortalCatalogVideoQualityFilterActive(
+    filter: PortalCatalogVideoQualityFilterValue | null | undefined
+): boolean {
+    return Boolean(filter && filter !== 'all');
+}
 
 export interface PortalCatalogPlaylistMeta {
     id: string;
@@ -37,6 +97,8 @@ export interface PortalCatalogFacade<
     readonly pageIndex: Signal<number>;
     readonly selectedCategory: Signal<TCategory | null | undefined>;
     readonly paginatedContent: Signal<readonly TItem[] | undefined>;
+    readonly allContent?: Signal<readonly TItem[] | undefined>;
+    readonly filterExcludedContent?: Signal<readonly TItem[] | undefined>;
     readonly selectedItem: Signal<TSelectedItem | null | undefined>;
     readonly totalPages: Signal<number>;
     readonly isPaginatedContentLoading: Signal<boolean>;
@@ -44,9 +106,37 @@ export interface PortalCatalogFacade<
     readonly categoryItemCount: Signal<number>;
     readonly contentSortMode: Signal<PortalCatalogSortMode | null>;
     readonly playlist: Signal<PortalCatalogPlaylistMeta | null>;
+    readonly languageFilter?: Signal<PortalCatalogLanguageFilterState>;
+    readonly languageFilterOptions?: Signal<
+        readonly PortalCatalogLanguageOption[]
+    >;
+    readonly languageFilterActive?: Signal<boolean>;
+    readonly videoQualityFilter?: Signal<PortalCatalogVideoQualityFilterValue>;
+    readonly videoQualityFilterOptions?: Signal<
+        readonly PortalCatalogVideoQualityOption[]
+    >;
+    readonly videoQualityFilterActive?: Signal<boolean>;
 
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;
+    toggleLanguageFilterOption?(
+        section: PortalCatalogLanguageFilterSection,
+        code: string,
+        enabled: boolean
+    ): void;
+    selectAllLanguageFilterOptions?(
+        section: PortalCatalogLanguageFilterSection
+    ): void;
+    clearLanguageFilterOptions?(
+        section: PortalCatalogLanguageFilterSection
+    ): void;
+    invertLanguageFilterOptions?(
+        section: PortalCatalogLanguageFilterSection
+    ): void;
+    resetLanguageFilter?(): void;
+    setVideoQualityFilter?(filter: PortalCatalogVideoQualityFilterValue): void;
+    resetVideoQualityFilter?(): void;
+    warmVisibleMediaMetadata?(items: readonly TItem[]): void;
     clearSelectedItem(): void;
     setPage(page: number): void;
     setLimit(limit: number): void;

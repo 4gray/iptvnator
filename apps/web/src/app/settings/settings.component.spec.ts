@@ -84,6 +84,8 @@ const DEFAULT_SETTINGS = {
     remoteControl: false,
     remoteControlPort: 8765,
     epgUrl: [],
+    acceleratedDownloads: true,
+    redirectIndirectStreamsToDirectSource: false,
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,

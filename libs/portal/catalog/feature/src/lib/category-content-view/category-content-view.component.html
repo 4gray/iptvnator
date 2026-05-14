@@ -68,9 +68,91 @@
                                 <mat-icon>check</mat-icon>
                             }
                         </button>
+                        <button
+                            mat-menu-item
+                            (click)="setContentSortMode('rating-desc')"
+                        >
+                            <span>{{
+                                'CHANNELS.SORT_BY_RATING' | translate
+                            }}</span>
+                            @if (contentSortMode() === 'rating-desc') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
                     </mat-menu>
                 }
-                @if (categoryItemCount() > 0) {
+                @if (canFilterLanguages()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="language-filter-action"
+                        [class.language-filter-action--active]="
+                            languageFilterActive()
+                        "
+                        matTooltip="{{
+                            'PORTALS.LANGUAGE_FILTER.TOGGLE' | translate
+                        }}"
+                        aria-label="Language filter"
+                        (click)="toggleLanguageFilterPanel()"
+                    >
+                        <mat-icon>language</mat-icon>
+                    </button>
+                }
+                @if (canFilterVideoQuality()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="video-quality-filter-action"
+                        [class.video-quality-filter-action--active]="
+                            videoQualityFilterActive()
+                        "
+                        [matMenuTriggerFor]="videoQualityFilterMenu"
+                        matTooltip="{{
+                            'PORTALS.VIDEO_QUALITY_FILTER.TOGGLE' | translate
+                        }}"
+                        aria-label="Video quality filter"
+                    >
+                        <mat-icon>high_quality</mat-icon>
+                    </button>
+                    <mat-menu #videoQualityFilterMenu="matMenu">
+                        <button
+                            mat-menu-item
+                            (click)="resetVideoQualityFilter()"
+                        >
+                            <span>
+                                {{
+                                    'PORTALS.VIDEO_QUALITY_FILTER.ALL'
+                                        | translate
+                                }}
+                            </span>
+                            @if (videoQualityFilter() === 'all') {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        @for (
+                            option of videoQualityFilterOptions();
+                            track option.value
+                        ) {
+                            <button
+                                mat-menu-item
+                                (click)="setVideoQualityFilter(option.value)"
+                            >
+                                <span>
+                                    {{ option.label }}
+                                    <span class="quality-menu-count">
+                                        ({{ option.count }})
+                                    </span>
+                                </span>
+                                @if (videoQualityFilter() === option.value) {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                        }
+                    </mat-menu>
+                }
+                @if (
+                    categoryItemCount() > 0 && !showSearchVisibilitySections()
+                ) {
                     <mat-paginator
                         [pageIndex]="pageIndex()"
                         [length]="categoryItemCount()"
@@ -81,18 +163,159 @@
                     />
                 }
             </div>
-            <app-grid-list
-                [isLoading]="isPaginatedContentLoading()"
-                [items]="contentWithProgress()"
-                (itemClicked)="onItemClick($event)"
-                [pageIndex]="pageIndex()"
-                [totalPages]="totalPages()"
-                [limit]="limit()"
-                [pageSizeOptions]="pageSizeOptions"
-                [showPaginator]="false"
-                [searchTerm]="searchTerm()"
-                (pageChange)="onPageChange($event)"
-            />
+            @if (canFilterLanguages() && showLanguageFilterPanel()) {
+                <section class="language-filter-panel">
+                    <div class="language-filter-panel__header">
+                        <div>
+                            <h3>
+                                {{
+                                    'PORTALS.LANGUAGE_FILTER.TITLE' | translate
+                                }}
+                            </h3>
+                            <p>
+                                {{
+                                    'PORTALS.LANGUAGE_FILTER.DESCRIPTION'
+                                        | translate
+                                }}
+                            </p>
+                        </div>
+                        <button
+                            type="button"
+                            mat-button
+                            (click)="resetLanguageFilter()"
+                        >
+                            {{ 'PORTALS.LANGUAGE_FILTER.RESET' | translate }}
+                        </button>
+                    </div>
+                    <div class="language-filter-grid">
+                        @for (
+                            section of languageFilterSections;
+                            track section.key
+                        ) {
+                            <div class="language-filter-group">
+                                <div class="language-filter-group__header">
+                                    <h4>{{ section.titleKey | translate }}</h4>
+                                    <div class="language-filter-group__actions">
+                                        <button
+                                            type="button"
+                                            mat-button
+                                            (click)="
+                                                selectAllLanguageFilterOptions(
+                                                    section.key
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                'PORTALS.LANGUAGE_FILTER.SELECT_ALL'
+                                                    | translate
+                                            }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            mat-button
+                                            (click)="
+                                                clearLanguageFilterOptions(
+                                                    section.key
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                'PORTALS.LANGUAGE_FILTER.DESELECT_ALL'
+                                                    | translate
+                                            }}
+                                        </button>
+                                        <button
+                                            type="button"
+                                            mat-button
+                                            (click)="
+                                                invertLanguageFilterOptions(
+                                                    section.key
+                                                )
+                                            "
+                                        >
+                                            {{
+                                                'PORTALS.LANGUAGE_FILTER.INVERT'
+                                                    | translate
+                                            }}
+                                        </button>
+                                    </div>
+                                </div>
+                                <div class="language-filter-options">
+                                    @for (
+                                        option of languageFilterOptions();
+                                        track option.code
+                                    ) {
+                                        <mat-checkbox
+                                            [ngModel]="
+                                                isLanguageFilterOptionChecked(
+                                                    section.key,
+                                                    option.code
+                                                )
+                                            "
+                                            (ngModelChange)="
+                                                toggleLanguageFilterOption(
+                                                    section.key,
+                                                    option.code,
+                                                    $event
+                                                )
+                                            "
+                                        >
+                                            {{ option.label }}
+                                        </mat-checkbox>
+                                    }
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </section>
+            }
+            @if (showSearchVisibilitySections()) {
+                <div class="category-search-sections">
+                    @for (
+                        section of contentSectionsWithProgress();
+                        track section.key
+                    ) {
+                        <section class="category-search-section">
+                            @if (section.titleKey) {
+                                <h3 class="category-search-section-title">
+                                    {{ section.titleKey | translate }}
+                                    <span
+                                        >({{
+                                            section.items.length
+                                        }}
+                                        items)</span
+                                    >
+                                </h3>
+                            }
+                            <app-grid-list
+                                [isLoading]="isPaginatedContentLoading()"
+                                [items]="section.items"
+                                (itemClicked)="onItemClick($event)"
+                                [pageIndex]="pageIndex()"
+                                [totalPages]="totalPages()"
+                                [limit]="limit()"
+                                [pageSizeOptions]="pageSizeOptions"
+                                [showPaginator]="false"
+                                [searchTerm]="searchTerm()"
+                                (pageChange)="onPageChange($event)"
+                            />
+                        </section>
+                    }
+                </div>
+            } @else {
+                <app-grid-list
+                    [isLoading]="isPaginatedContentLoading()"
+                    [items]="contentWithProgress()"
+                    (itemClicked)="onItemClick($event)"
+                    [pageIndex]="pageIndex()"
+                    [totalPages]="totalPages()"
+                    [limit]="limit()"
+                    [pageSizeOptions]="pageSizeOptions"
+                    [showPaginator]="false"
+                    [searchTerm]="searchTerm()"
+                    (pageChange)="onPageChange($event)"
+                />
+            }
         </div>
     }
 } @else {

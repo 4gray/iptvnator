@@ -57,6 +57,23 @@ testem.log
 /typings 
 .angular/* 
 
+# local/private runtime artifacts
+.secrets/
+.local/
+.tmp/
+.tools/
+.env
+.env.*
+!.env.example
+*.local.json
+*.secret.*
+*.credential.*
+*.bak
+*.log
+*.db
+*.sqlite
+*.sqlite3
+
 # e2e
 /e2e/*.js 
 !/e2e/protractor.conf.js 

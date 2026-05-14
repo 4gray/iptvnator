@@ -23,22 +23,47 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
     getSeriesQuickStartAction,
+    getMediaMetadataTags,
 } from '@iptvnator/portal/shared/util';
-import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import {
+    findXtreamSeriesDuplicateVariants,
+    getXtreamSeriesVariantKey,
+    getXtreamVodQualityInfo,
+    XtreamStore,
+    type XtreamVodDuplicateDecorated,
+} from '@iptvnator/portal/xtream/data-access';
 import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
+import { ImdbRatingOverridesService } from 'services';
 import {
+    MediaStreamMetadata,
     PlaybackPositionData,
     PlayerContentInfo,
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
     XtreamSerieDetails,
+    XtreamSerieItem,
 } from 'shared-interfaces';
 
 type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;
+};
+
+type XtreamSeriesCatalogItem = XtreamSerieItem & {
+    readonly id?: string | number;
+    readonly title?: string;
+    readonly xtream_id?: string | number;
+};
+
+type XtreamSeriesVariant = XtreamVodDuplicateDecorated<XtreamSerieItem> & {
+    readonly id?: string | number;
+    readonly imdbId?: string;
+    readonly imdb_id?: string;
+    readonly o_name?: string;
+    readonly title?: string;
+    readonly xtream_id?: string | number;
 };
 
 @Component({
@@ -46,6 +71,7 @@ type XtreamSerieDetailsView = XtreamSerieDetails & {
     templateUrl: './serial-details.component.html',
     styleUrls: [
         '../../../../../../ui/components/src/lib/styles/detail-view.scss',
+        './serial-details.component.scss',
     ],
     styles: [
         `
@@ -75,6 +101,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly imdbOverrides = inject(ImdbRatingOverridesService);
 
     readonly selectedItem = signal<XtreamSerieDetailsView | null>(null);
     readonly selectedContentType = this.xtreamStore.selectedContentType;
@@ -82,6 +109,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
+    readonly seriesEpisodeMediaMetadata = signal<MediaStreamMetadata | null>(
+        null
+    );
+    readonly imdbOverrideIdInput = signal('');
+    readonly imdbOverrideRatingInput = signal('');
+    readonly imdbOverrideTitleInput = signal('');
+    readonly imdbOverrideYearInput = signal('');
     readonly episodePlaybackPositions = signal<
         Map<number, PlaybackPositionData>
     >(new Map());
@@ -90,6 +124,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         signal<SeasonContainerXtreamDownloadContext | null>(null);
     private readonly detailsInitDone = signal(false);
     private readonly backdropBackfillKey = signal<string | null>(null);
+    private readonly selectedVariantKey = signal<string | null>(null);
     private lastSaveTime = 0;
     private unsubscribePositionUpdates: (() => void) | null = null;
     readonly openingEpisodeId = signal<number | null>(null);
@@ -105,6 +140,82 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             playbackPositions: this.episodePlaybackPositions(),
         });
     });
+    readonly mediaMetadataTags = computed(() => {
+        return getMediaMetadataTags(this.seriesEpisodeMediaMetadata());
+    });
+    readonly selectedSeriesId = computed(() =>
+        Number(this.route.snapshot.params.serialId)
+    );
+    readonly selectedCatalogItem = computed<XtreamSeriesCatalogItem | null>(
+        () => {
+            const seriesId = this.selectedSeriesId();
+            if (!Number.isFinite(seriesId) || seriesId <= 0) {
+                return null;
+            }
+
+            return (
+                (this.getSerialStreams().find((item) => {
+                    const candidateId =
+                        item.series_id ??
+                        item.xtream_id ??
+                        (item as { id?: string | number }).id;
+
+                    return Number(candidateId) === seriesId;
+                }) as XtreamSeriesCatalogItem | undefined) ?? null
+            );
+        }
+    );
+    readonly duplicateVariants = computed(
+        () =>
+            findXtreamSeriesDuplicateVariants(
+                this.getSerialStreams(),
+                this.selectedCatalogItem()
+            ) as XtreamSeriesVariant[]
+    );
+    readonly hasDuplicateVariants = computed(
+        () => this.duplicateVariants().length > 1
+    );
+    readonly selectedVariant = computed<XtreamSeriesVariant | null>(() => {
+        const variants = this.duplicateVariants();
+        const selectedKey = this.selectedVariantKey();
+
+        return (
+            variants.find(
+                (variant) => getXtreamSeriesVariantKey(variant) === selectedKey
+            ) ??
+            variants[0] ??
+            this.selectedCatalogItem()
+        );
+    });
+    readonly selectedVariantNumericId = computed(
+        () =>
+            this.resolveSeriesNumericId(this.selectedVariant()) ??
+            this.selectedSeriesId()
+    );
+    readonly imdbOverrideKey = computed(() => {
+        const variant = this.selectedVariant();
+        const stableKey =
+            variant?.duplicateGroupKey ??
+            variant?.imdb_id ??
+            variant?.imdbId ??
+            this.selectedVariantNumericId();
+        const key = String(stableKey ?? '').trim();
+
+        return key ? `series:${key}` : null;
+    });
+    readonly imdbOverride = computed(() => {
+        this.imdbOverrides.revision();
+        return this.imdbOverrides.getOverride(this.imdbOverrideKey());
+    });
+    readonly selectedImdbRating = computed(() => {
+        const overrideRating = this.imdbOverride()?.rating;
+        if (overrideRating !== undefined) {
+            return this.formatImdbRating(overrideRating);
+        }
+
+        return this.formatImdbRating(this.selectedItem()?.info?.rating);
+    });
+    private imdbOverrideInputSignature = '';
 
     constructor() {
         effect(() => {
@@ -121,6 +232,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
                       }
                     : null
             );
+            this.seriesEpisodeMediaMetadata.set(null);
         });
 
         effect(() => {
@@ -132,6 +244,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
                           serverUrl: playlist.serverUrl,
                           username: playlist.username,
                           password: playlist.password,
+                          userAgent: playlist.userAgent,
+                          origin: playlist.origin,
+                          referrer: playlist.referrer,
                       }
                     : null
             );
@@ -149,12 +264,67 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         });
 
         effect(() => {
+            const variants = this.duplicateVariants();
+            const selectedKey = this.selectedVariantKey();
+
+            if (variants.length === 0) {
+                if (selectedKey !== null) {
+                    this.selectedVariantKey.set(null);
+                }
+                return;
+            }
+
+            if (
+                !selectedKey ||
+                !variants.some(
+                    (variant) =>
+                        getXtreamSeriesVariantKey(variant) === selectedKey
+                )
+            ) {
+                this.selectedVariantKey.set(
+                    getXtreamSeriesVariantKey(variants[0])
+                );
+            }
+        });
+
+        effect(() => {
+            const key = this.imdbOverrideKey();
+            const override = this.imdbOverride();
+            const signature = [
+                key ?? '',
+                override?.imdbId ?? '',
+                override?.rating ?? '',
+                override?.title ?? '',
+                override?.year ?? '',
+            ].join('|');
+
+            if (signature === this.imdbOverrideInputSignature) {
+                return;
+            }
+
+            this.imdbOverrideInputSignature = signature;
+            this.imdbOverrideIdInput.set(override?.imdbId ?? '');
+            this.imdbOverrideRatingInput.set(
+                override?.rating !== undefined ? String(override.rating) : ''
+            );
+            this.imdbOverrideTitleInput.set(override?.title ?? '');
+            this.imdbOverrideYearInput.set(
+                override?.year !== undefined ? String(override.year) : ''
+            );
+        });
+
+        effect(() => {
             const playlistId = this.currentPlaylistId();
             const selectedItem = this.selectedItem();
             const xtreamId = Number(selectedItem?.series_id ?? 0);
             const backdropUrl = selectedItem?.info?.backdrop_path?.[0]?.trim();
 
-            if (!playlistId || !Number.isFinite(xtreamId) || xtreamId <= 0 || !backdropUrl) {
+            if (
+                !playlistId ||
+                !Number.isFinite(xtreamId) ||
+                xtreamId <= 0 ||
+                !backdropUrl
+            ) {
                 return;
             }
 
@@ -246,14 +416,14 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     playEpisode(episode: XtreamSerieEpisode): void {
-        this.addToRecentlyViewed(this.route.snapshot.params.serialId);
+        this.addToRecentlyViewed(this.selectedVariantNumericId());
 
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
         const contentInfo: PlayerContentInfo = {
             playlistId: this.xtreamStore.currentPlaylist().id,
             contentXtreamId: Number(episode.id),
             contentType: 'episode',
-            seriesXtreamId: Number(this.selectedItem().series_id),
+            seriesXtreamId: this.selectedVariantNumericId(),
             seasonNumber: Number(episode.season),
             episodeNumber: Number(episode.episode_num),
         };
@@ -284,10 +454,115 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
 
     toggleFavorite(): void {
         this.xtreamStore.toggleFavorite(
-            this.route.snapshot.params.serialId,
+            this.selectedVariantNumericId(),
             this.xtreamStore.currentPlaylist().id,
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]
+        );
+    }
+
+    selectSeriesVariant(variant: XtreamSeriesVariant): void {
+        this.selectedVariantKey.set(getXtreamSeriesVariantKey(variant));
+        this.closeInlinePlayer();
+
+        const playlistId =
+            this.currentPlaylistId() ?? this.xtreamStore.currentPlaylist()?.id;
+        const seriesId = this.resolveSeriesNumericId(variant);
+        const categoryId = Number(
+            variant.category_id ?? this.route.snapshot.params.categoryId
+        );
+        if (!playlistId || !Number.isFinite(seriesId) || seriesId <= 0) {
+            return;
+        }
+
+        this.initializeSerialDetails(playlistId, categoryId, seriesId);
+    }
+
+    isSelectedVariant(variant: XtreamSeriesVariant): boolean {
+        return getXtreamSeriesVariantKey(variant) === this.selectedVariantKey();
+    }
+
+    variantKey(variant: XtreamSeriesVariant): string {
+        return getXtreamSeriesVariantKey(variant);
+    }
+
+    variantTitle(variant: XtreamSeriesVariant): string {
+        return (
+            variant.title ??
+            variant.name ??
+            variant.o_name ??
+            `Serie ${getXtreamSeriesVariantKey(variant)}`
+        );
+    }
+
+    variantQualityLabel(variant: XtreamSeriesVariant): string {
+        return (
+            variant.duplicateQualityLabel ??
+            getXtreamVodQualityInfo(variant).label
+        );
+    }
+
+    setImdbOverrideInput(
+        field: 'imdbId' | 'rating' | 'title' | 'year',
+        event: Event
+    ): void {
+        const value = (event.target as HTMLInputElement | null)?.value ?? '';
+
+        switch (field) {
+            case 'imdbId':
+                this.imdbOverrideIdInput.set(value);
+                break;
+            case 'rating':
+                this.imdbOverrideRatingInput.set(value);
+                break;
+            case 'title':
+                this.imdbOverrideTitleInput.set(value);
+                break;
+            case 'year':
+                this.imdbOverrideYearInput.set(value);
+                break;
+        }
+    }
+
+    saveImdbOverride(): void {
+        const key = this.imdbOverrideKey();
+        if (!key) {
+            return;
+        }
+
+        const rating = this.parseOptionalRating(this.imdbOverrideRatingInput());
+        if (rating === null) {
+            this.snackBar.open(
+                this.translateService.instant('XTREAM.IMDB_OVERRIDE_INVALID'),
+                null,
+                { duration: 3000 }
+            );
+            return;
+        }
+
+        this.imdbOverrides.setOverride(key, {
+            imdbId: this.imdbOverrideIdInput(),
+            rating,
+            title: this.imdbOverrideTitleInput(),
+            year: this.parseOptionalYear(this.imdbOverrideYearInput()),
+        });
+        this.snackBar.open(
+            this.translateService.instant('XTREAM.IMDB_OVERRIDE_SAVED'),
+            null,
+            { duration: 2200 }
+        );
+    }
+
+    clearImdbOverride(): void {
+        this.imdbOverrides.clearOverride(this.imdbOverrideKey());
+        this.imdbOverrideIdInput.set('');
+        this.imdbOverrideRatingInput.set('');
+        this.imdbOverrideTitleInput.set('');
+        this.imdbOverrideYearInput.set('');
+        this.snackBar.open(
+            this.translateService.instant('XTREAM.IMDB_OVERRIDE_CLEARED'),
+            null,
+            { duration: 2200 }
         );
     }
 
@@ -339,6 +614,15 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             request.playback,
             request.player
         );
+    }
+
+    setSeriesEpisodeMediaMetadata(metadata: MediaStreamMetadata | null): void {
+        this.seriesEpisodeMediaMetadata.set(metadata);
+        this.xtreamStore.setContentMediaMetadata({
+            contentType: 'series',
+            xtreamId: this.selectedSeriesId(),
+            metadata,
+        });
     }
 
     private addToRecentlyViewed(xtreamId: number): void {
@@ -419,10 +703,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private initializeSerialDetails(
         playlistId: string,
         categoryId: string | number,
-        serialId: string
+        serialId: string | number
     ): void {
         this.xtreamStore.fetchSerialDetailsWithMetadata({
-            serialId,
+            serialId: String(serialId),
             categoryId: Number(categoryId),
         });
         const serialXtreamId = Number(serialId);
@@ -432,5 +716,64 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             'series'
         );
         void this.loadSeriesPlaybackPositions(playlistId, serialXtreamId);
+    }
+
+    private resolveSeriesNumericId(
+        item: XtreamSeriesVariant | XtreamSeriesCatalogItem | null | undefined
+    ): number | null {
+        const candidateId =
+            item?.series_id ?? item?.xtream_id ?? item?.id ?? null;
+        const numericId = Number(candidateId);
+        return Number.isFinite(numericId) && numericId > 0 ? numericId : null;
+    }
+
+    private getSerialStreams(): XtreamSerieItem[] {
+        return (
+            (
+                this.xtreamStore as unknown as {
+                    serialStreams?: () => XtreamSerieItem[];
+                }
+            ).serialStreams?.() ?? []
+        );
+    }
+
+    private formatImdbRating(value: unknown): string | undefined {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return value.toFixed(1);
+        }
+
+        if (typeof value !== 'string') {
+            return undefined;
+        }
+
+        const match = value
+            .trim()
+            .replace(',', '.')
+            .match(/\d+(\.\d+)?/);
+        if (!match) {
+            return undefined;
+        }
+
+        const rating = Number.parseFloat(match[0]);
+        return Number.isFinite(rating) ? rating.toFixed(1) : undefined;
+    }
+
+    private parseOptionalRating(value: string): number | undefined | null {
+        const normalized = value.trim().replace(',', '.');
+        if (!normalized) {
+            return undefined;
+        }
+
+        const rating = Number.parseFloat(normalized);
+        if (!Number.isFinite(rating) || rating < 0 || rating > 10) {
+            return null;
+        }
+
+        return rating;
+    }
+
+    private parseOptionalYear(value: string): number | undefined {
+        const year = Number.parseInt(value.trim(), 10);
+        return Number.isFinite(year) && year > 1800 ? year : undefined;
     }
 }

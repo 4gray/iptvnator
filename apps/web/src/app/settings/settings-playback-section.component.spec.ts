@@ -73,6 +73,59 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
     });
 
+    it('shows accelerated downloads even when desktop detection is unavailable', () => {
+        fixture.componentRef.setInput('isDesktop', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="accelerated-downloads-setting"]'
+            )
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.ACCELERATED_DOWNLOADS'
+        );
+    });
+
+    it('shows the direct-source redirect setting in the playback section', () => {
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="redirect-indirect-streams-setting"]'
+            )
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.REDIRECT_INDIRECT_STREAMS'
+        );
+    });
+
+    it('emits cache cleanup actions from the playback section', () => {
+        const clearMediaMetadataCache = jest.fn();
+        const clearImdbOverrides = jest.fn();
+        fixture.componentInstance.clearMediaMetadataCache.subscribe(
+            clearMediaMetadataCache
+        );
+        fixture.componentInstance.clearImdbOverrides.subscribe(
+            clearImdbOverrides
+        );
+        fixture.detectChanges();
+
+        (
+            fixture.nativeElement.querySelector(
+                '[data-test-id="clear-media-metadata-cache"]'
+            ) as HTMLButtonElement
+        ).click();
+        (
+            fixture.nativeElement.querySelector(
+                '[data-test-id="clear-imdb-overrides"]'
+            ) as HTMLButtonElement
+        ).click();
+
+        expect(clearMediaMetadataCache).toHaveBeenCalledTimes(1);
+        expect(clearImdbOverrides).toHaveBeenCalledTimes(1);
+    });
+
     it('hides the external-player double-click option for embedded players', () => {
         fixture.componentRef.setInput('isDesktop', true);
         fixture.detectChanges();
@@ -285,6 +338,8 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
     return new FormGroup({
         player: new FormControl(player),
         streamFormat: new FormControl(StreamFormat.M3u8StreamFormat),
+        acceleratedDownloads: new FormControl(true),
+        redirectIndirectStreamsToDirectSource: new FormControl(false),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
         mpvPlayerPath: new FormControl(''),

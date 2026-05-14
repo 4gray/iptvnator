@@ -18,9 +18,11 @@ describe('WorkspaceStartupPreferencesService', () => {
         localStorage.clear();
 
         playlistsService = {
-            getAllPlaylists: jest.fn().mockReturnValue(
-                of([{ _id: 'playlist-1' }])
-            ),
+            getAllPlaylists: jest
+                .fn()
+                .mockReturnValue(
+                    of([{ _id: 'playlist-1' }, { _id: 'playlist-2' }])
+                ),
         };
         settingsStore = {
             loadSettings: jest.fn().mockResolvedValue(undefined),
@@ -56,6 +58,68 @@ describe('WorkspaceStartupPreferencesService', () => {
 
         await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
             '/workspace/sources'
+        );
+    });
+
+    it('auto-selects the only Xtream source at startup', async () => {
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    serverUrl: 'http://example.test',
+                },
+            ])
+        );
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/xtreams/xtream-1/vod'
+        );
+    });
+
+    it('auto-selects the only Stalker source at startup', async () => {
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'stalker-1',
+                    macAddress: '00:1A:79:00:00:01',
+                },
+            ])
+        );
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/stalker/stalker-1/vod'
+        );
+    });
+
+    it('auto-selects the only M3U source at startup', async () => {
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    url: 'http://example.test/list.m3u',
+                },
+            ])
+        );
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/playlists/m3u-1/all'
+        );
+    });
+
+    it('prioritizes the only source over restore-last-view startup routes', async () => {
+        settingsStore.startupBehavior.set(StartupBehavior.RestoreLastView);
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    serverUrl: 'http://example.test',
+                },
+            ])
+        );
+        service.persistLastRestorablePath('/workspace/global-recent');
+
+        await expect(service.resolveInitialWorkspacePath()).resolves.toBe(
+            '/workspace/xtreams/xtream-1/vod'
         );
     });
 

@@ -107,106 +107,504 @@
         <div class="account-dialog__grid">
             @for (panel of skeletonPanels; track panel) {
                 <section class="account-panel account-panel--loading">
-                    <div class="account-skeleton account-skeleton--heading"></div>
+                    <div
+                        class="account-skeleton account-skeleton--heading"
+                    ></div>
                     <div class="account-skeleton account-skeleton--row"></div>
                     <div class="account-skeleton account-skeleton--row"></div>
                     <div class="account-skeleton account-skeleton--row"></div>
-                    <div class="account-skeleton account-skeleton--row short"></div>
+                    <div
+                        class="account-skeleton account-skeleton--row short"
+                    ></div>
                 </section>
             }
         </div>
     } @else if (accountInfo(); as info) {
-        <div class="account-dialog__grid">
-            <section class="account-panel">
-                <div class="account-panel__header">
-                    <p class="account-panel__eyebrow">
-                        {{ 'XTREAM.ACCOUNT_INFO.USER_INFO' | translate }}
-                    </p>
-                    <h3>{{ info.user_info?.username || '-' }}</h3>
-                </div>
+        <div class="account-dialog__ready">
+            <div class="account-dialog__grid">
+                <section class="account-panel">
+                    <div class="account-panel__header">
+                        <p class="account-panel__eyebrow">
+                            {{ 'XTREAM.ACCOUNT_INFO.USER_INFO' | translate }}
+                        </p>
+                        <h3>{{ info.user_info?.username || '-' }}</h3>
+                    </div>
 
-                <dl class="account-detail-list">
-                    @for (row of userDetails(); track row.labelKey) {
-                        <div class="account-detail-row">
-                            <dt>{{ row.labelKey | translate }}</dt>
-                            <dd
-                                [class.account-detail-row__value--mono]="
-                                    row.mono
-                                "
-                                [class.account-detail-row__value--accent]="
-                                    row.tone === 'accent'
-                                "
-                                [class.account-detail-row__value--positive]="
-                                    row.tone === 'positive'
-                                "
-                                [class.account-detail-row__value--warning]="
-                                    row.tone === 'warning'
-                                "
-                            >
-                                @if (row.translateValue) {
-                                    {{ row.value | translate }}
-                                } @else {
+                    <dl class="account-detail-list">
+                        @for (row of userDetails(); track row.labelKey) {
+                            <div class="account-detail-row">
+                                <dt>{{ row.labelKey | translate }}</dt>
+                                <dd
+                                    [class.account-detail-row__value--mono]="
+                                        row.mono
+                                    "
+                                    [class.account-detail-row__value--accent]="
+                                        row.tone === 'accent'
+                                    "
+                                    [class.account-detail-row__value--positive]="
+                                        row.tone === 'positive'
+                                    "
+                                    [class.account-detail-row__value--warning]="
+                                        row.tone === 'warning'
+                                    "
+                                >
+                                    @if (row.translateValue) {
+                                        {{ row.value | translate }}
+                                    } @else {
+                                        {{ row.value }}
+                                    }
+                                </dd>
+                            </div>
+                        }
+                    </dl>
+
+                    <div class="account-chip-section">
+                        <p class="account-chip-section__label">
+                            {{
+                                'XTREAM.ACCOUNT_INFO.ALLOWED_FORMATS'
+                                    | translate
+                            }}
+                        </p>
+                        <div class="account-chip-group">
+                            @for (format of allowedFormats(); track format) {
+                                <span class="account-chip">
+                                    {{ format }}
+                                </span>
+                            } @empty {
+                                <span class="account-chip account-chip--muted">
+                                    -
+                                </span>
+                            }
+                        </div>
+                    </div>
+                </section>
+
+                <section class="account-panel">
+                    <div class="account-panel__header">
+                        <p class="account-panel__eyebrow">
+                            {{ 'XTREAM.ACCOUNT_INFO.SERVER_INFO' | translate }}
+                        </p>
+                        <h3>{{ serverHost() }}</h3>
+                    </div>
+
+                    <dl class="account-detail-list">
+                        @for (row of serverDetails(); track row.labelKey) {
+                            <div class="account-detail-row">
+                                <dt>{{ row.labelKey | translate }}</dt>
+                                <dd
+                                    [class.account-detail-row__value--mono]="
+                                        row.mono
+                                    "
+                                >
                                     {{ row.value }}
-                                }
-                            </dd>
-                        </div>
-                    }
-                </dl>
-
-                <div class="account-chip-section">
-                    <p class="account-chip-section__label">
-                        {{ 'XTREAM.ACCOUNT_INFO.ALLOWED_FORMATS' | translate }}
-                    </p>
-                    <div class="account-chip-group">
-                        @for (format of allowedFormats(); track format) {
-                            <span class="account-chip">
-                                {{ format }}
-                            </span>
-                        } @empty {
-                            <span class="account-chip account-chip--muted">
-                                -
-                            </span>
+                                </dd>
+                            </div>
                         }
-                    </div>
-                </div>
-            </section>
+                    </dl>
 
-            <section class="account-panel">
-                <div class="account-panel__header">
-                    <p class="account-panel__eyebrow">
-                        {{ 'XTREAM.ACCOUNT_INFO.SERVER_INFO' | translate }}
-                    </p>
-                    <h3>{{ serverHost() }}</h3>
-                </div>
-
-                <dl class="account-detail-list">
-                    @for (row of serverDetails(); track row.labelKey) {
-                        <div class="account-detail-row">
-                            <dt>{{ row.labelKey | translate }}</dt>
-                            <dd
-                                [class.account-detail-row__value--mono]="
-                                    row.mono
-                                "
-                            >
-                                {{ row.value }}
-                            </dd>
+                    <div class="account-chip-section">
+                        <p class="account-chip-section__label">
+                            {{ 'XTREAM.ACCOUNT_INFO.PORTS' | translate }}
+                        </p>
+                        <div class="account-chip-group">
+                            @for (port of ports(); track port.labelKey) {
+                                <span class="account-chip account-chip--mono">
+                                    {{ port.labelKey | translate }}
+                                    {{ port.value }}
+                                </span>
+                            }
                         </div>
-                    }
-                </dl>
-
-                <div class="account-chip-section">
-                    <p class="account-chip-section__label">
-                        {{ 'XTREAM.ACCOUNT_INFO.PORTS' | translate }}
-                    </p>
-                    <div class="account-chip-group">
-                        @for (port of ports(); track port.labelKey) {
-                            <span class="account-chip account-chip--mono">
-                                {{ port.labelKey | translate }} {{ port.value }}
-                            </span>
-                        }
                     </div>
-                </div>
-            </section>
+                </section>
+            </div>
+
+            @if (vodOverview(); as overview) {
+                @if (overview.hasData) {
+                    <section class="account-panel account-panel--vod-overview">
+                        <div
+                            class="account-panel__header account-panel__header--spread"
+                        >
+                            <div>
+                                <p class="account-panel__eyebrow">
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.MOVIE_OVERVIEW'
+                                            | translate
+                                    }}
+                                </p>
+                                <h3>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.UNIQUE_MOVIES'
+                                            | translate
+                                    }}
+                                </h3>
+                            </div>
+
+                            <div class="account-vod-header-actions">
+                                <div class="account-vod-count">
+                                    <strong>{{
+                                        overview.filteredUnique
+                                    }}</strong>
+                                    <span>/ {{ overview.totalUnique }}</span>
+                                </div>
+                                <div class="account-vod-export-actions">
+                                    <button
+                                        type="button"
+                                        mat-stroked-button
+                                        (click)="exportVodOverview('json')"
+                                    >
+                                        <mat-icon>data_object</mat-icon>
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.EXPORT_JSON'
+                                                | translate
+                                        }}
+                                    </button>
+                                    <button
+                                        type="button"
+                                        mat-stroked-button
+                                        (click)="exportVodOverview('csv')"
+                                    >
+                                        <mat-icon>table_view</mat-icon>
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.EXPORT_CSV'
+                                                | translate
+                                        }}
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="account-vod-audit">
+                            <span>
+                                {{
+                                    'XTREAM.ACCOUNT_INFO.METADATA_KNOWN'
+                                        | translate
+                                }}
+                                <strong>{{
+                                    overview.metadataKnownUnique
+                                }}</strong>
+                            </span>
+                            <span>
+                                {{
+                                    'XTREAM.ACCOUNT_INFO.METADATA_UNKNOWN'
+                                        | translate
+                                }}
+                                <strong>{{
+                                    overview.metadataUnknownUnique
+                                }}</strong>
+                            </span>
+                            <span>
+                                {{
+                                    'XTREAM.ACCOUNT_INFO.DIRECT_SOURCE'
+                                        | translate
+                                }}
+                                <strong>{{ overview.directUnique }}</strong>
+                            </span>
+                            <span>
+                                {{
+                                    'XTREAM.ACCOUNT_INFO.INDIRECT_SOURCE'
+                                        | translate
+                                }}
+                                <strong>{{ overview.indirectUnique }}</strong>
+                            </span>
+                        </div>
+
+                        <div
+                            class="account-vod-filters"
+                            role="group"
+                            [attr.aria-label]="
+                                'XTREAM.ACCOUNT_INFO.MOVIE_FILTERS' | translate
+                            "
+                        >
+                            <label class="account-filter-field">
+                                <span>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.AUDIO_LANGUAGE'
+                                            | translate
+                                    }}
+                                </span>
+                                <select
+                                    [value]="selectedAudioLanguage()"
+                                    (change)="setAudioLanguageFromEvent($event)"
+                                >
+                                    <option value="all">
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.ALL_AUDIO_LANGUAGES'
+                                                | translate
+                                        }}
+                                        ({{ overview.totalUnique }})
+                                    </option>
+                                    @for (
+                                        option of overview.audioOptions;
+                                        track option.code
+                                    ) {
+                                        <option [value]="option.code">
+                                            {{ option.label }}
+                                            ({{ option.count }})
+                                        </option>
+                                    }
+                                </select>
+                            </label>
+
+                            <label class="account-filter-field">
+                                <span>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.SUBTITLE_LANGUAGE'
+                                            | translate
+                                    }}
+                                </span>
+                                <select
+                                    [value]="selectedSubtitleLanguage()"
+                                    (change)="
+                                        setSubtitleLanguageFromEvent($event)
+                                    "
+                                >
+                                    <option value="all">
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.ALL_SUBTITLE_LANGUAGES'
+                                                | translate
+                                        }}
+                                        ({{ overview.totalUnique }})
+                                    </option>
+                                    @for (
+                                        option of overview.subtitleOptions;
+                                        track option.code
+                                    ) {
+                                        <option [value]="option.code">
+                                            {{ option.label }}
+                                            ({{ option.count }})
+                                        </option>
+                                    }
+                                </select>
+                            </label>
+
+                            <label class="account-filter-field">
+                                <span>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.SOURCE_MODE'
+                                            | translate
+                                    }}
+                                </span>
+                                <select
+                                    [value]="selectedSourceMode()"
+                                    (change)="setSourceModeFromEvent($event)"
+                                >
+                                    <option value="all">
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.ALL_SOURCE_MODES'
+                                                | translate
+                                        }}
+                                        ({{ overview.totalUnique }})
+                                    </option>
+                                    @for (
+                                        option of overview.sourceOptions;
+                                        track option.value
+                                    ) {
+                                        <option [value]="option.value">
+                                            {{ option.labelKey | translate }}
+                                            ({{ option.count }})
+                                        </option>
+                                    }
+                                </select>
+                            </label>
+
+                            <label class="account-filter-field">
+                                <span>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.VIDEO_QUALITY'
+                                            | translate
+                                    }}
+                                </span>
+                                <select
+                                    [value]="selectedQuality()"
+                                    (change)="setQualityFilterFromEvent($event)"
+                                >
+                                    <option value="all">
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.ALL_VIDEO_QUALITIES'
+                                                | translate
+                                        }}
+                                        ({{ overview.totalUnique }})
+                                    </option>
+                                    @for (
+                                        option of overview.qualityOptions;
+                                        track option.value
+                                    ) {
+                                        <option [value]="option.value">
+                                            {{ option.label }}
+                                            ({{ option.count }})
+                                        </option>
+                                    }
+                                </select>
+                            </label>
+
+                            @if (hasActiveVodOverviewFilters()) {
+                                <button
+                                    type="button"
+                                    mat-stroked-button
+                                    class="account-vod-filters__reset"
+                                    (click)="resetVodOverviewFilters()"
+                                >
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.RESET_FILTERS'
+                                            | translate
+                                    }}
+                                </button>
+                            }
+                        </div>
+
+                        <p class="account-vod-note">
+                            {{
+                                'XTREAM.ACCOUNT_INFO.MOVIE_FILTER_NOTE'
+                                    | translate
+                            }}
+                        </p>
+
+                        <div class="account-vod-breakdowns">
+                            <section class="account-breakdown">
+                                <h4>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.SOURCE_MODE'
+                                            | translate
+                                    }}
+                                </h4>
+                                <div class="account-breakdown__chips">
+                                    @for (
+                                        option of overview.sourceOptions;
+                                        track option.value
+                                    ) {
+                                        <button
+                                            type="button"
+                                            class="account-breakdown-chip"
+                                            [class.account-breakdown-chip--active]="
+                                                selectedSourceMode() ===
+                                                option.value
+                                            "
+                                            (click)="
+                                                setSourceMode(option.value)
+                                            "
+                                        >
+                                            <span>
+                                                {{
+                                                    option.labelKey | translate
+                                                }}
+                                            </span>
+                                            <strong>{{ option.count }}</strong>
+                                        </button>
+                                    }
+                                </div>
+                            </section>
+
+                            <section class="account-breakdown">
+                                <h4>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.VIDEO_QUALITY'
+                                            | translate
+                                    }}
+                                </h4>
+                                <div class="account-breakdown__chips">
+                                    @for (
+                                        option of overview.qualityOptions;
+                                        track option.value
+                                    ) {
+                                        <button
+                                            type="button"
+                                            class="account-breakdown-chip"
+                                            [class.account-breakdown-chip--active]="
+                                                selectedQuality() ===
+                                                option.value
+                                            "
+                                            (click)="
+                                                setQualityFilter(option.value)
+                                            "
+                                        >
+                                            <span>{{ option.label }}</span>
+                                            <strong>{{ option.count }}</strong>
+                                        </button>
+                                    } @empty {
+                                        <span
+                                            class="account-chip account-chip--muted"
+                                        >
+                                            -
+                                        </span>
+                                    }
+                                </div>
+                            </section>
+
+                            <section class="account-breakdown">
+                                <h4>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.AUDIO_LANGUAGE'
+                                            | translate
+                                    }}
+                                </h4>
+                                <div class="account-breakdown__chips">
+                                    @for (
+                                        option of overview.audioOptions;
+                                        track option.code
+                                    ) {
+                                        <button
+                                            type="button"
+                                            class="account-breakdown-chip"
+                                            [class.account-breakdown-chip--active]="
+                                                selectedAudioLanguage() ===
+                                                option.code
+                                            "
+                                            (click)="
+                                                setAudioLanguage(option.code)
+                                            "
+                                        >
+                                            <span>{{ option.label }}</span>
+                                            <strong>{{ option.count }}</strong>
+                                        </button>
+                                    } @empty {
+                                        <span
+                                            class="account-chip account-chip--muted"
+                                        >
+                                            -
+                                        </span>
+                                    }
+                                </div>
+                            </section>
+
+                            <section class="account-breakdown">
+                                <h4>
+                                    {{
+                                        'XTREAM.ACCOUNT_INFO.SUBTITLE_LANGUAGE'
+                                            | translate
+                                    }}
+                                </h4>
+                                <div class="account-breakdown__chips">
+                                    @for (
+                                        option of overview.subtitleOptions;
+                                        track option.code
+                                    ) {
+                                        <button
+                                            type="button"
+                                            class="account-breakdown-chip"
+                                            [class.account-breakdown-chip--active]="
+                                                selectedSubtitleLanguage() ===
+                                                option.code
+                                            "
+                                            (click)="
+                                                setSubtitleLanguage(option.code)
+                                            "
+                                        >
+                                            <span>{{ option.label }}</span>
+                                            <strong>{{ option.count }}</strong>
+                                        </button>
+                                    } @empty {
+                                        <span
+                                            class="account-chip account-chip--muted"
+                                        >
+                                            -
+                                        </span>
+                                    }
+                                </div>
+                            </section>
+                        </div>
+                    </section>
+                }
+            }
         </div>
     }
 </mat-dialog-content>

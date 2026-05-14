@@ -29,6 +29,13 @@
         </div>
         <div class="channel-details">
             <div class="channel-name">{{ name() }}</div>
+            @if (mediaTags().length > 0) {
+                <div class="channel-media-tags">
+                    @for (tag of mediaTags(); track tag) {
+                        <span class="channel-media-tag">{{ tag }}</span>
+                    }
+                </div>
+            }
             @if (showEpg()) {
                 @if (epgProgram(); as program) {
                     <div class="epg-title">
@@ -70,7 +77,10 @@
         showAuxActionButton()
     ) {
         <div class="action-buttons">
-            @if (showProgramInfoButton() && showEpg() && epgProgram(); as program) {
+            @if (
+                showProgramInfoButton() && showEpg() && epgProgram();
+                as program
+            ) {
                 <button
                     mat-icon-button
                     class="program-info-button"

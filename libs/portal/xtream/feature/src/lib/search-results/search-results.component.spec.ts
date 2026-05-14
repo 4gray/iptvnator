@@ -8,7 +8,9 @@ import {
     SearchFilters,
     XtreamContentItem,
     XtreamStore,
+    matchesXtreamLanguageFilter,
 } from '@iptvnator/portal/xtream/data-access';
+import { EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER } from '@iptvnator/portal/shared/util';
 
 jest.mock('@iptvnator/portal/shared/ui', () => ({
     ContentCardComponent: class {},
@@ -52,6 +54,17 @@ class MockXtreamStore {
     readonly searchTerm = signal('');
     readonly searchFilters = signal(DEFAULT_SEARCH_FILTERS);
     readonly searchResults = signal<XtreamContentItem[]>([]);
+    readonly languageFilter = signal(EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER);
+    readonly languageFilterOptions = signal([
+        { code: 'it', label: 'Italiano' },
+    ]);
+    readonly languageFilterActive = signal(false);
+    readonly filteredSearchResults = () =>
+        this.languageFilterActive()
+            ? this.searchResults().filter((item) =>
+                  matchesXtreamLanguageFilter(item, this.languageFilter())
+              )
+            : this.searchResults();
     readonly isSearching = signal(false);
 
     setSearchTerm = jest.fn((term: string) => {
@@ -70,6 +83,7 @@ class MockXtreamStore {
     resetSearchResults = jest.fn();
     searchContent = jest.fn();
     setSelectedContentType = jest.fn();
+    playlistId = jest.fn(() => 'playlist-1');
 }
 
 describe('SearchResultsComponent initialQuery contract', () => {
@@ -181,9 +195,12 @@ describe('SearchResultsComponent initialQuery contract', () => {
 
         const component = TestBed.runInInjectionContext(
             () =>
-                new SearchResultsComponent({
-                    isGlobalSearch: true,
-                }, undefined)
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: true,
+                    },
+                    undefined
+                )
         );
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
 
@@ -199,5 +216,48 @@ describe('SearchResultsComponent initialQuery contract', () => {
         await stalePromise;
 
         expect(store.searchResults()).toEqual(freshResults);
+    });
+
+    it('keeps language-filtered-out results in a separate search section', () => {
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: false,
+                    },
+                    undefined
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const italianMovie = createSearchItem({
+            id: 1,
+            xtream_id: 101,
+            title: 'Italian movie',
+            audioLanguages: ['it'],
+        });
+        const englishMovie = createSearchItem({
+            id: 2,
+            xtream_id: 102,
+            title: 'English movie',
+            audioLanguages: ['en'],
+        });
+
+        store.searchResults.set([italianMovie, englishMovie]);
+        store.languageFilter.set({
+            audioInclude: ['it'],
+            audioExclude: [],
+            subtitleInclude: [],
+            subtitleExclude: [],
+        });
+        store.languageFilterActive.set(true);
+
+        const sections = component.resultSections();
+
+        expect(sections.map((section) => section.key)).toEqual([
+            'visible',
+            'filter-excluded',
+        ]);
+        expect(sections[0].items).toEqual([italianMovie]);
+        expect(sections[1].items).toEqual([englishMovie]);
     });
 });
