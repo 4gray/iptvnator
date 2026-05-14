@@ -88,6 +88,20 @@ describe('playback diagnostics', () => {
         expect(issue.container).toBe('x-msvideo');
     });
 
+    it('does not classify MPEG-TS MIME-only failures as unsupported containers', () => {
+        const issue = classifyNativePlaybackIssue(
+            { code: 4, message: 'source not supported' },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/live/stream',
+                mimeType: 'video/mp2t',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedCodec);
+        expect(issue.container).toBe('mp2t');
+    });
+
     it('classifies HLS network errors without claiming codec incompatibility', () => {
         const issue = classifyHlsPlaybackIssue(
             {

@@ -118,7 +118,6 @@ const UNSUPPORTED_CONTAINER_EXTENSIONS = new Set([
 const UNSUPPORTED_CONTAINER_NAMES = new Set([
     ...UNSUPPORTED_CONTAINER_EXTENSIONS,
     'matroska',
-    'mp2t',
     'quicktime',
     'x-matroska',
     'x-msvideo',
