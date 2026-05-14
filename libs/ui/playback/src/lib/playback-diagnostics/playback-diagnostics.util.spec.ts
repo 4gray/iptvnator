@@ -222,6 +222,19 @@ describe('playback diagnostics', () => {
         ).toBe('');
     });
 
+    it('keeps trusted media path extensions ahead of generic query metadata', () => {
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://cdn.example/archive/movie.mp4?type=hls'
+            )
+        ).toBe('mp4');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://cdn.example/live/channel.m3u8?format=mp4'
+            )
+        ).toBe('m3u8');
+    });
+
     it('detects codecs with limited Chromium browser-player support', () => {
         expect(
             getLikelyBrowserUnsupportedCodecLabels({

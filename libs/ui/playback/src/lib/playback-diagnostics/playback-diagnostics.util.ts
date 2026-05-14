@@ -189,12 +189,16 @@ export function createPlaybackSourceMetadata(
 }
 
 export function getPlaybackMediaExtensionFromUrl(url: string): string {
+    const pathExtension = normalizeExtensionToken(getExtensionFromUrl(url));
+    if (DECLARED_MEDIA_EXTENSIONS.has(pathExtension)) {
+        return pathExtension;
+    }
+
     const queryExtension = getMediaExtensionFromQuery(url);
     if (queryExtension) {
         return queryExtension;
     }
 
-    const pathExtension = normalizeExtensionToken(getExtensionFromUrl(url));
     if (NON_MEDIA_URL_EXTENSIONS.has(pathExtension)) {
         return '';
     }
