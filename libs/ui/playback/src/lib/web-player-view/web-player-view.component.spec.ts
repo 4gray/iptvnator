@@ -188,6 +188,19 @@ describe('WebPlayerViewComponent', () => {
         ]);
     });
 
+    it('treats web script playback URLs without declared media extension as MPEG-TS', () => {
+        const streamUrl = 'https://example.com/live.php?stream=123&token=x';
+
+        component.setVjsOptions(streamUrl);
+
+        expect(component.vjsOptions.sources).toEqual([
+            {
+                src: streamUrl,
+                type: 'video/mp2t',
+            },
+        ]);
+    });
+
     it('uses browser access diagnostic translation keys', () => {
         const issue = createBrowserAccessDiagnostic();
 
@@ -196,6 +209,49 @@ describe('WebPlayerViewComponent', () => {
         );
         expect(component.getDiagnosticDescriptionKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
+        );
+    });
+
+    it('renders technical details and codec-specific hints in the diagnostic banner', () => {
+        fixture.detectChanges();
+        const issue = createUnsupportedCodecDiagnostic();
+
+        component.handlePlaybackIssue(issue);
+        fixture.detectChanges();
+
+        const details = fixture.debugElement.query(
+            By.css('[data-test-id="playback-diagnostic-details"]')
+        );
+        const codecHint = fixture.debugElement.query(
+            By.css('[data-test-id="playback-codec-hint"]')
+        );
+
+        expect(details.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY'
+        );
+        expect(component.getDiagnosticCodecHint(issue)).toBe('HEVC, AC-3');
+        expect(component.getDiagnosticDetails(issue)).toEqual(
+            expect.arrayContaining([
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
+                    value: 'unsupported-codec',
+                },
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_PLAYER',
+                    value: 'Video.js',
+                },
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_VIDEO_CODECS',
+                    value: 'hvc1.1.6.L93.B0',
+                },
+                {
+                    labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_AUDIO_CODECS',
+                    value: 'ac-3',
+                },
+            ])
+        );
+        expect(codecHint.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
         );
     });
 });
@@ -225,6 +281,21 @@ function createBrowserAccessDiagnostic(): PlaybackDiagnostic {
         audioCodecs: [],
         videoCodecs: [],
         details: 'blocked by CORS policy',
+        externalFallbackRecommended: true,
+    };
+}
+
+function createUnsupportedCodecDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.UnsupportedCodec,
+        source: PlaybackDiagnosticSource.Hls,
+        sourceUrl: 'https://example.com/live/index.m3u8',
+        container: 'm3u8',
+        mimeType: 'application/x-mpegURL',
+        player: 'videojs',
+        audioCodecs: ['ac-3'],
+        videoCodecs: ['hvc1.1.6.L93.B0'],
+        details: 'manifestIncompatibleCodecsError',
         externalFallbackRecommended: true,
     };
 }

@@ -13,7 +13,6 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { getStreamExtensionFromUrl } from 'm3u-utils';
 import { DataService } from 'services';
 import { Channel } from 'shared-interfaces';
 import {
@@ -24,6 +23,7 @@ import {
     classifyNativePlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
     createPlaybackSourceMetadata,
+    getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
 
 /**
@@ -82,11 +82,14 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.onVolumeChange();
         });
 
-        this.videoPlayer.nativeElement.addEventListener('loadedmetadata', () => {
-            if (this.startTime > 0) {
-                this.videoPlayer.nativeElement.currentTime = this.startTime;
+        this.videoPlayer.nativeElement.addEventListener(
+            'loadedmetadata',
+            () => {
+                if (this.startTime > 0) {
+                    this.videoPlayer.nativeElement.currentTime = this.startTime;
+                }
             }
-        });
+        );
 
         this.videoPlayer.nativeElement.addEventListener('timeupdate', () => {
             this.timeUpdate.emit({
@@ -143,7 +146,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (channel.url) {
             this.playbackIssue.emit(null);
             const url = channel.url + (channel.epgParams ?? '');
-            const extension = getStreamExtensionFromUrl(channel.url);
+            const extension = getPlaybackMediaExtensionFromUrl(channel.url);
 
             // Set user agent if specified on channel
             if (channel.http?.['user-agent']) {
@@ -154,7 +157,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             }
 
             if ((extension === 'ts' || !extension) && mpegts.isSupported()) {
-                console.log('Using mpegts.js for TS stream:', channel.name, url);
+                console.log(
+                    'Using mpegts.js for TS stream:',
+                    channel.name,
+                    url
+                );
                 this.mpegtsPlayer = mpegts.createPlayer({
                     type: 'mpegts',
                     isLive: true,
@@ -165,11 +172,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
                 this.mpegtsPlayer.on(
                     mpegts.Events.ERROR,
-                    (
-                        type: string,
-                        details: string,
-                        info: unknown
-                    ): void => {
+                    (type: string, details: string, info: unknown): void => {
                         this.playbackIssue.emit(
                             classifyMpegTsPlaybackIssue(
                                 {

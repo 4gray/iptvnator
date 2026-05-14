@@ -391,7 +391,19 @@
         },
         "ACTION_OPEN_MPV": "Open in MPV",
         "ACTION_OPEN_VLC": "Open in VLC",
-        "ACTION_COPY_URL": "Copy URL"
+        "ACTION_COPY_URL": "Copy URL",
+        "DETAILS_SUMMARY": "Technical details",
+        "CODEC_HINT": "Detected {{codecs}}. Chromium/Electron browser players often have limited support for these codecs.",
+        "DETAIL_CODE": "Diagnostic code",
+        "DETAIL_PLAYER": "Player",
+        "DETAIL_SOURCE": "Source",
+        "DETAIL_CONTAINER": "Container",
+        "DETAIL_MIME_TYPE": "MIME type",
+        "DETAIL_VIDEO_CODECS": "Video codecs",
+        "DETAIL_AUDIO_CODECS": "Audio codecs",
+        "DETAIL_NATIVE_ERROR_CODE": "Native error code",
+        "DETAIL_NATIVE_ERROR_MESSAGE": "Native error message",
+        "DETAIL_ERROR_DETAILS": "Error details"
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Senderliste ausblenden",

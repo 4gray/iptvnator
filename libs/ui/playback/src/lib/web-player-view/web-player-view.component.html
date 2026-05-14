@@ -61,6 +61,37 @@
                     {{ meta }}
                 </div>
             }
+            @if (getDiagnosticCodecHint(issue); as codecHint) {
+                <div
+                    class="web-player-diagnostic__codec-hint"
+                    data-test-id="playback-codec-hint"
+                >
+                    {{
+                        'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
+                            | translate: { codecs: codecHint }
+                    }}
+                </div>
+            }
+            <details
+                class="web-player-diagnostic__details"
+                data-test-id="playback-diagnostic-details"
+            >
+                <summary>
+                    <mat-icon aria-hidden="true">info</mat-icon>
+                    {{ 'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY' | translate }}
+                </summary>
+                <dl>
+                    @for (
+                        detail of getDiagnosticDetails(issue);
+                        track detail.labelKey
+                    ) {
+                        <div class="web-player-diagnostic__detail-row">
+                            <dt>{{ detail.labelKey | translate }}</dt>
+                            <dd>{{ detail.value }}</dd>
+                        </div>
+                    }
+                </dl>
+            </details>
         </div>
         <div class="web-player-diagnostic__actions">
             @if (canShowExternalFallbackActions()) {

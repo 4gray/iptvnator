@@ -163,6 +163,9 @@ describe('VjsPlayerComponent', () => {
         expect(
             isMpegTsSource('https://example.com/live.php?extension=ts')
         ).toBe(true);
+        expect(isMpegTsSource('https://example.com/live.php?stream=123')).toBe(
+            true
+        );
     });
 
     it('emits a playback issue when VideoJS reports an unsupported source', () => {

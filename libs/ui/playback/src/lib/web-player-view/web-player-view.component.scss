@@ -59,7 +59,8 @@ app-html-video-player {
 }
 
 .web-player-diagnostic__description,
-.web-player-diagnostic__meta {
+.web-player-diagnostic__meta,
+.web-player-diagnostic__codec-hint {
     margin-top: 3px;
     font-size: 0.82rem;
     line-height: 1.3;
@@ -67,6 +68,80 @@ app-html-video-player {
 
 .web-player-diagnostic__meta {
     opacity: 0.78;
+    overflow-wrap: anywhere;
+}
+
+.web-player-diagnostic__codec-hint {
+    display: inline-block;
+    max-width: 100%;
+    margin-top: 8px;
+    padding: 4px 8px;
+    border: 1px solid
+        color-mix(in srgb, var(--mat-sys-on-error-container) 18%, transparent);
+    border-radius: 6px;
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-on-error-container) 7%,
+        transparent
+    );
+    font-weight: 550;
+    overflow-wrap: anywhere;
+}
+
+.web-player-diagnostic__details {
+    margin-top: 10px;
+    border-top: 1px solid
+        color-mix(in srgb, var(--mat-sys-on-error-container) 16%, transparent);
+    padding-top: 8px;
+}
+
+.web-player-diagnostic__details summary {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    cursor: pointer;
+    font-size: 0.78rem;
+    font-weight: 650;
+    opacity: 0.84;
+    list-style: none;
+}
+
+.web-player-diagnostic__details summary::-webkit-details-marker {
+    display: none;
+}
+
+.web-player-diagnostic__details summary mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.web-player-diagnostic__details dl {
+    display: grid;
+    grid-template-columns: max-content minmax(0, 1fr);
+    gap: 5px 12px;
+    margin: 8px 0 0;
+    font-size: 0.76rem;
+    line-height: 1.25;
+}
+
+.web-player-diagnostic__detail-row {
+    display: contents;
+}
+
+.web-player-diagnostic__detail-row dt {
+    color: color-mix(
+        in srgb,
+        var(--mat-sys-on-error-container) 76%,
+        transparent
+    );
+    font-weight: 650;
+    white-space: nowrap;
+}
+
+.web-player-diagnostic__detail-row dd {
+    min-width: 0;
+    margin: 0;
     overflow-wrap: anywhere;
 }
 
@@ -94,5 +169,18 @@ app-html-video-player {
 
     .web-player-diagnostic__actions {
         justify-content: flex-start;
+    }
+
+    .web-player-diagnostic__details dl {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .web-player-diagnostic__detail-row {
+        display: grid;
+        gap: 2px;
+    }
+
+    .web-player-diagnostic__detail-row dt {
+        white-space: normal;
     }
 }

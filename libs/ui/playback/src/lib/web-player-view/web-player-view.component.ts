@@ -17,7 +17,6 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
-import { getStreamExtensionFromUrl } from 'm3u-utils';
 import {
     ResolvedPortalPlayback,
     Settings,
@@ -32,8 +31,15 @@ import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
     type PlaybackFallbackRequest,
+    getLikelyBrowserUnsupportedCodecLabels,
+    getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+
+type PlaybackDiagnosticDetail = {
+    readonly labelKey: string;
+    readonly value: string;
+};
 
 @Component({
     selector: 'app-web-player-view',
@@ -118,7 +124,7 @@ export class WebPlayerViewComponent {
     }
 
     setVjsOptions(streamUrl: string) {
-        const extension = getStreamExtensionFromUrl(streamUrl);
+        const extension = getPlaybackMediaExtensionFromUrl(streamUrl);
         const mimeType =
             extension === 'm3u' || extension === 'm3u8'
                 ? 'application/x-mpegURL'
@@ -168,7 +174,58 @@ export class WebPlayerViewComponent {
             return codecs;
         }
 
-        return issue.container || issue.mimeType || issue.details || '';
+        return issue.container || issue.mimeType || '';
+    }
+
+    getDiagnosticCodecHint(issue: PlaybackDiagnostic): string {
+        return getLikelyBrowserUnsupportedCodecLabels(issue).join(', ');
+    }
+
+    getDiagnosticDetails(
+        issue: PlaybackDiagnostic
+    ): readonly PlaybackDiagnosticDetail[] {
+        return [
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CODE',
+                value: issue.code,
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_PLAYER',
+                value: this.formatPlayer(issue.player),
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
+                value: this.formatDiagnosticSource(issue.source),
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CONTAINER',
+                value: issue.container,
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_MIME_TYPE',
+                value: issue.mimeType ?? '',
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_VIDEO_CODECS',
+                value: issue.videoCodecs.join(', '),
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_AUDIO_CODECS',
+                value: issue.audioCodecs.join(', '),
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_CODE',
+                value: issue.nativeErrorCode?.toString() ?? '',
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_NATIVE_ERROR_MESSAGE',
+                value: issue.nativeErrorMessage ?? '',
+            },
+            {
+                labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_ERROR_DETAILS',
+                value: issue.details ?? '',
+            },
+        ].filter(({ value }) => value.trim().length > 0);
     }
 
     private getDiagnosticTranslationBase(issue: PlaybackDiagnostic): string {
@@ -193,5 +250,35 @@ export class WebPlayerViewComponent {
 
     private detectDesktop(): boolean {
         return typeof window !== 'undefined' && !!window.electron;
+    }
+
+    private formatPlayer(player: PlaybackDiagnostic['player']): string {
+        switch (player) {
+            case 'videojs':
+                return 'Video.js';
+            case 'html5':
+                return 'HTML5';
+            case 'artplayer':
+                return 'ArtPlayer';
+            default:
+                return '';
+        }
+    }
+
+    private formatDiagnosticSource(
+        source: PlaybackDiagnostic['source']
+    ): string {
+        switch (source) {
+            case 'hls':
+                return 'HLS.js';
+            case 'mpegts':
+                return 'mpegts.js';
+            case 'native':
+                return 'Native media element';
+            case 'source':
+                return 'Stream metadata';
+            default:
+                return source;
+        }
     }
 }

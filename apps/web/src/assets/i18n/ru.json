@@ -395,7 +395,19 @@
         },
         "ACTION_OPEN_MPV": "Открыть в MPV",
         "ACTION_OPEN_VLC": "Открыть в VLC",
-        "ACTION_COPY_URL": "Скопировать URL"
+        "ACTION_COPY_URL": "Скопировать URL",
+        "DETAILS_SUMMARY": "Технические сведения",
+        "CODEC_HINT": "Обнаружены {{codecs}}. Браузерные плееры Chromium/Electron часто имеют ограниченную поддержку этих кодеков.",
+        "DETAIL_CODE": "Код диагностики",
+        "DETAIL_PLAYER": "Плеер",
+        "DETAIL_SOURCE": "Источник",
+        "DETAIL_CONTAINER": "Контейнер",
+        "DETAIL_MIME_TYPE": "MIME-тип",
+        "DETAIL_VIDEO_CODECS": "Видео кодеки",
+        "DETAIL_AUDIO_CODECS": "Аудио кодеки",
+        "DETAIL_NATIVE_ERROR_CODE": "Код ошибки браузера",
+        "DETAIL_NATIVE_ERROR_MESSAGE": "Сообщение браузера",
+        "DETAIL_ERROR_DETAILS": "Детали ошибки"
     },
     "LAYOUT": {
         "HIDE_CHANNELS_LIST": "Скрыть список каналов",

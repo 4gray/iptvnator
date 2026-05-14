@@ -115,6 +115,38 @@ const UNSUPPORTED_CONTAINER_EXTENSIONS = new Set([
     'wmv',
 ]);
 
+const DECLARED_MEDIA_EXTENSION_QUERY_KEYS = [
+    'extension',
+    'ext',
+    'format',
+    'container',
+    'type',
+    'output',
+];
+
+const DECLARED_MEDIA_EXTENSION_ALIASES = new Map([
+    ['hls', 'm3u8'],
+    ['mpegts', 'ts'],
+    ['mpeg-ts', 'ts'],
+]);
+
+const DECLARED_MEDIA_EXTENSIONS = new Set([
+    ...UNSUPPORTED_CONTAINER_EXTENSIONS,
+    'aac',
+    'flac',
+    'm3u',
+    'm3u8',
+    'm4s',
+    'mp3',
+    'mp4',
+    'mpd',
+    'mpv',
+    'oga',
+    'ogg',
+    'ogv',
+    'webm',
+]);
+
 const NON_MEDIA_URL_EXTENSIONS = new Set([
     'asp',
     'aspx',
@@ -128,10 +160,21 @@ const SOURCE_NOT_SUPPORTED_CODE = 4;
 const DECODE_ERROR_CODE = 3;
 const NETWORK_ERROR_CODE = 2;
 
+const BROWSER_LIMITED_CODEC_PATTERNS: ReadonlyArray<{
+    readonly label: string;
+    readonly pattern: RegExp;
+}> = [
+    { label: 'HEVC', pattern: /^(hev1|hvc1|hevc|h265)/ },
+    { label: 'AC-3', pattern: /^(ac-?3|dac3)$/ },
+    { label: 'E-AC-3', pattern: /^(ec-?3|eac-?3|dec3)$/ },
+    { label: 'DTS', pattern: /^(dts|dtsc|dtse|dtsh|dtsl)/ },
+    { label: 'MPEG-2 Video', pattern: /^(mp2v|mpeg2video)/ },
+];
+
 export function createPlaybackSourceMetadata(
     input: PlaybackSourceMetadataInput
 ): PlaybackSourceMetadata {
-    const extension = getMediaExtensionFromUrl(input.url);
+    const extension = getPlaybackMediaExtensionFromUrl(input.url);
     const mimeType = input.mimeType?.trim() || undefined;
 
     return {
@@ -143,6 +186,32 @@ export function createPlaybackSourceMetadata(
         audioCodecs: normalizeCodecs(input.audioCodecs),
         videoCodecs: normalizeCodecs(input.videoCodecs),
     };
+}
+
+export function getPlaybackMediaExtensionFromUrl(url: string): string {
+    const queryExtension = getMediaExtensionFromQuery(url);
+    if (queryExtension) {
+        return queryExtension;
+    }
+
+    const pathExtension = normalizeExtensionToken(getExtensionFromUrl(url));
+    if (NON_MEDIA_URL_EXTENSIONS.has(pathExtension)) {
+        return '';
+    }
+
+    return pathExtension;
+}
+
+export function getLikelyBrowserUnsupportedCodecLabels(
+    metadata: Pick<PlaybackSourceMetadata, 'audioCodecs' | 'videoCodecs'>
+): string[] {
+    const codecs = [...metadata.videoCodecs, ...metadata.audioCodecs].map(
+        normalizeToken
+    );
+
+    return BROWSER_LIMITED_CODEC_PATTERNS.filter(({ pattern }) =>
+        codecs.some((codec) => pattern.test(codec))
+    ).map(({ label }) => label);
 }
 
 export function classifyNativePlaybackIssue(
@@ -411,37 +480,34 @@ function normalizeExtensionToken(value: string | undefined): string {
     return normalizeToken(value).replace(/^\.+/, '');
 }
 
-function getMediaExtensionFromUrl(url: string): string {
-    const queryExtension = getMediaExtensionFromQuery(url);
-    if (queryExtension) {
-        return queryExtension;
-    }
-
-    const pathExtension = normalizeExtensionToken(getExtensionFromUrl(url));
-    if (NON_MEDIA_URL_EXTENSIONS.has(pathExtension)) {
-        return '';
-    }
-
-    return pathExtension;
-}
-
 function getMediaExtensionFromQuery(url: string): string {
     try {
         const parsedUrl = new URL(url, 'http://iptvnator.local');
-        const declaredExtension = normalizeExtensionToken(
-            parsedUrl.searchParams.get('extension') ?? undefined
-        );
-
-        if (!declaredExtension) {
-            return '';
+        for (const key of DECLARED_MEDIA_EXTENSION_QUERY_KEYS) {
+            const declaredExtension = normalizeDeclaredMediaExtension(
+                parsedUrl.searchParams.get(key) ?? undefined
+            );
+            if (declaredExtension) {
+                return declaredExtension;
+            }
         }
 
-        return NON_MEDIA_URL_EXTENSIONS.has(declaredExtension)
-            ? ''
-            : declaredExtension;
+        return '';
     } catch {
         return '';
     }
+}
+
+function normalizeDeclaredMediaExtension(value: string | undefined): string {
+    const extension = normalizeExtensionToken(value);
+    const normalized =
+        DECLARED_MEDIA_EXTENSION_ALIASES.get(extension) ?? extension;
+
+    if (!normalized || NON_MEDIA_URL_EXTENSIONS.has(normalized)) {
+        return '';
+    }
+
+    return DECLARED_MEDIA_EXTENSIONS.has(normalized) ? normalized : '';
 }
 
 function inferContainerFromMimeType(mimeType: string | undefined): string {
@@ -500,7 +566,9 @@ function isBrowserAccessFailure(details: string): boolean {
         details.includes('cross origin') ||
         details.includes('access-control') ||
         details.includes('access control') ||
+        details.includes('content security policy') ||
         details.includes('mixed content') ||
+        details.includes('private network access') ||
         details.includes('blocked by') ||
         details.includes('has been blocked') ||
         details.includes('not allowed to load local resource') ||

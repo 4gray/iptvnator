@@ -4,6 +4,8 @@ import {
     classifyMpegTsPlaybackIssue,
     classifyNativePlaybackIssue,
     createPlaybackSourceMetadata,
+    getLikelyBrowserUnsupportedCodecLabels,
+    getPlaybackMediaExtensionFromUrl,
 } from './playback-diagnostics.util';
 
 describe('playback diagnostics', () => {
@@ -107,6 +109,24 @@ describe('playback diagnostics', () => {
         expect(issue.externalFallbackRecommended).toBe(true);
     });
 
+    it('classifies browser security policy blocks as browser access errors', () => {
+        const issue = classifyHlsPlaybackIssue(
+            {
+                type: 'networkError',
+                details:
+                    'manifestLoadError Refused to connect because it violates the following Content Security Policy directive: "connect-src"',
+                fatal: true,
+            },
+            createPlaybackSourceMetadata({
+                url: 'http://provider.example/live.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.BrowserAccessError);
+        expect(issue.externalFallbackRecommended).toBe(true);
+    });
+
     it('classifies native CORS failures as browser access errors', () => {
         const issue = classifyNativePlaybackIssue(
             {
@@ -177,5 +197,37 @@ describe('playback diagnostics', () => {
 
         expect(metadata.extension).toBe('');
         expect(metadata.container).toBe('');
+    });
+
+    it('uses declared media query metadata without exposing web script extensions', () => {
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?format=m3u8&stream=123'
+            )
+        ).toBe('m3u8');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?type=m3u8&stream=123'
+            )
+        ).toBe('m3u8');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?output=ts&stream=123'
+            )
+        ).toBe('ts');
+        expect(
+            getPlaybackMediaExtensionFromUrl(
+                'http://portal.example/play/live.php?stream=123'
+            )
+        ).toBe('');
+    });
+
+    it('detects codecs with limited Chromium browser-player support', () => {
+        expect(
+            getLikelyBrowserUnsupportedCodecLabels({
+                audioCodecs: ['mp4a.40.2', 'ac-3', 'ec-3'],
+                videoCodecs: ['avc1.64001f', 'hvc1.1.6.L93.B0'],
+            })
+        ).toEqual(['HEVC', 'AC-3', 'E-AC-3']);
     });
 });

@@ -12,7 +12,6 @@ import {
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
-import { getStreamExtensionFromUrl } from 'm3u-utils';
 import mpegts from 'mpegts.js';
 import { Channel } from 'shared-interfaces';
 import {
@@ -23,6 +22,7 @@ import {
     classifyNativePlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
     createPlaybackSourceMetadata,
+    getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
 
 type AudioTrackSelector = {
@@ -131,7 +131,9 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const el = this.elementRef.nativeElement.querySelector(
             '.artplayer-container'
         );
-        const extension = getStreamExtensionFromUrl(this.channel?.url ?? '');
+        const extension = getPlaybackMediaExtensionFromUrl(
+            this.channel?.url ?? ''
+        );
         const isLive = extension === 'm3u8' || extension === 'ts' || !extension;
 
         this.player = new Artplayer({
@@ -225,7 +227,10 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             'error',
             this.handleNativePlaybackError
         );
-        this.player.video.addEventListener('loadeddata', this.clearPlaybackIssue);
+        this.player.video.addEventListener(
+            'loadeddata',
+            this.clearPlaybackIssue
+        );
         this.player.video.addEventListener('playing', this.clearPlaybackIssue);
 
         if (this.startTime > 0) {
@@ -308,7 +313,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                     const selectedLabel =
                         typeof item.html === 'string'
                             ? item.html
-                            : item.html.textContent ?? '';
+                            : (item.html.textContent ?? '');
                     const selectedIndex = tracks.findIndex(
                         (t, i) =>
                             (t.name || t.lang || `Track ${i + 1}`) ===
@@ -325,7 +330,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     private getVideoType(url: string): string {
-        const extension = getStreamExtensionFromUrl(url);
+        const extension = getPlaybackMediaExtensionFromUrl(url);
         switch (extension) {
             case 'mkv':
                 return 'video/matroska';

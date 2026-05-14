@@ -153,8 +153,15 @@ Supported diagnostic codes are:
 - `unsupported-codec`
 - `media-decode-error`
 - `network-error`
+- `browser-access-error`
 - `drm-or-encryption`
 - `unknown-playback-error`
+
+`network-error` is reserved for provider/network loading failures. Browser security failures such as CORS, mixed content, Content Security Policy, and private-network-access blocks are classified as `browser-access-error` so the UI can explain that the browser player was blocked before playback reached decoding.
+
+The banner keeps the primary message compact, then exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, and raw HLS/mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
+
+URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
 When a diagnostic is actionable in Electron, the inline banner may offer `Open in MPV`, `Open in VLC`, and `Copy URL`. Web builds only expose copy/help text. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact.
 
