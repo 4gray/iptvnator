@@ -183,6 +183,31 @@ describe('withStalkerContent failure states', () => {
         });
     });
 
+    it('preserves server category order while keeping the all category first', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            js: [
+                { id: 'z', title: 'Zulu' },
+                { id: 'a', title: 'Alpha' },
+                { id: 'm', title: 'Movies' },
+            ],
+        });
+
+        store.setSelectedContentType('vod');
+        store.setCurrentPlaylist(PLAYLIST);
+        void store.isCategoryResourceLoading();
+
+        await waitForCondition(
+            () => dataService.sendIpcEvent.mock.calls.length > 0
+        );
+        await flushResources();
+
+        expect(
+            store
+                .getCategoryResource()
+                .map((category) => category.category_name)
+        ).toEqual(['PORTALS.ALL_CATEGORIES', 'Zulu', 'Alpha', 'Movies']);
+    });
+
     it('normalizes content failures into empty collections instead of undefined state', async () => {
         dataService.sendIpcEvent.mockRejectedValue(
             new Error('get_ordered_list failed')

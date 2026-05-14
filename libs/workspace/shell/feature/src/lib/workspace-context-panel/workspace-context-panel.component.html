@@ -18,6 +18,40 @@
                         <mat-icon>search</mat-icon>
                     </button>
                 }
+                @if (canSearchCategories()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="context-header__action"
+                        [class.context-header__action--active]="
+                            categorySortMode() !== 'server'
+                        "
+                        [matMenuTriggerFor]="categorySortMenu"
+                        [matTooltip]="'Sort: ' + categorySortLabel()"
+                        aria-label="Sort categories"
+                    >
+                        <mat-icon>sort_by_alpha</mat-icon>
+                    </button>
+                    <mat-menu #categorySortMenu="matMenu">
+                        @for (
+                            option of categorySortOptions;
+                            track option.mode
+                        ) {
+                            <button
+                                mat-menu-item
+                                (click)="setCategorySortMode(option.mode)"
+                            >
+                                <mat-icon>{{ option.icon }}</mat-icon>
+                                <span>{{ option.label }}</span>
+                                @if (categorySortMode() === option.mode) {
+                                    <mat-icon class="context-sort-check"
+                                        >check</mat-icon
+                                    >
+                                }
+                            </button>
+                        }
+                    </mat-menu>
+                }
                 @if (isXtreamCategories()) {
                     <button
                         type="button"

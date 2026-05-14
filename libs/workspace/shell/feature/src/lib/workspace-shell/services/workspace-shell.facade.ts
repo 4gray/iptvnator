@@ -593,7 +593,10 @@ export class WorkspaceShellFacade {
             if (
                 context?.provider !== 'stalker' ||
                 !section ||
-                (section !== 'vod' && section !== 'series' && section !== 'itv')
+                (section !== 'vod' &&
+                    section !== 'series' &&
+                    section !== 'itv' &&
+                    section !== 'radio')
             ) {
                 return;
             }

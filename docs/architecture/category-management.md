@@ -36,11 +36,11 @@ ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0
 
 **File**: `apps/electron-backend/src/app/events/database/category.events.ts`
 
-| IPC Handler                     | Purpose                                            |
-| ------------------------------- | -------------------------------------------------- |
-| `DB_GET_CATEGORIES`             | Returns visible categories only (`hidden = false`) |
-| `DB_GET_ALL_CATEGORIES`         | Returns all categories (for management dialog)     |
-| `DB_UPDATE_CATEGORY_VISIBILITY` | Batch updates `hidden` status for category IDs     |
+| IPC Handler                     | Purpose                                                                                                                     |
+| ------------------------------- | --------------------------------------------------------------------------------------------------------------------------- |
+| `DB_GET_CATEGORIES`             | Returns visible categories only (`hidden = false`) in SQLite insertion order, preserving the Xtream server order by default |
+| `DB_GET_ALL_CATEGORIES`         | Returns all categories (for management dialog)                                                                              |
+| `DB_UPDATE_CATEGORY_VISIBILITY` | Batch updates `hidden` status for category IDs                                                                              |
 
 ### Frontend Services
 
@@ -85,6 +85,8 @@ Added `reloadCategories()` method to refresh categories from database after visi
 - **Persistence**: Visibility settings survive playlist refresh (see below)
 - **Per-playlist, per-type**: Categories are managed per playlist and per content type (live/movies/series)
 - **No content deletion**: Hiding a category only affects sidebar visibility; the category and its content remain in the database
+- **Display order**: The sidebar defaults to server order. Users can switch the
+  category panel to `A-Z` or `Z-A` from the sort menu next to category search.
 - **All-hidden recovery**: Once the selected Xtream type is loaded, the manage
   categories button remains available even if every visible category has been
   hidden. The sidebar category list is filtered, but the dialog reads all

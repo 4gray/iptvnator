@@ -1,5 +1,6 @@
 import type { AppDatabase } from '../database.types';
-import { saveCategories } from './category.operations';
+import * as schema from 'database-schema';
+import { getCategories, saveCategories } from './category.operations';
 
 function createDbMock(existingCount = 0) {
     const where = jest.fn().mockResolvedValue([{ count: existingCount }]);
@@ -24,6 +25,20 @@ function createDbMock(existingCount = 0) {
 }
 
 describe('category.operations', () => {
+    it('reads visible categories in insertion order to preserve server sorting', async () => {
+        const orderBy = jest.fn().mockResolvedValue([]);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await getCategories(db, 'playlist-1', 'live');
+
+        expect(orderBy).toHaveBeenCalledWith(schema.categories.id);
+    });
+
     it('restores hidden categories when Xtream API category IDs are strings', async () => {
         const { db, values, insert } = createDbMock();
 

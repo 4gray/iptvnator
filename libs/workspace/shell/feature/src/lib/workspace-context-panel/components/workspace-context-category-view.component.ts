@@ -27,7 +27,7 @@ interface WorkspaceCategoryViewItem {
     styleUrl: './workspace-context-category-view.component.scss',
 })
 export class WorkspaceContextCategoryViewComponent {
-    readonly items = input<WorkspaceCategoryViewItem[]>([]);
+    readonly items = input<ReadonlyArray<WorkspaceCategoryViewItem>>([]);
     readonly selectedCategoryId = input<string | number | null | undefined>();
     readonly itemCounts = input<Map<number, number>>(new Map());
     readonly showCounts = input(false);

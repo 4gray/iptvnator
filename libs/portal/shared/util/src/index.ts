@@ -1,4 +1,5 @@
 export * from './lib/logger';
+export * from './lib/category-sort';
 export * from './lib/channel-sort';
 export * from './lib/favorites-channel-sort';
 export * from './lib/portal-catalog-detail';

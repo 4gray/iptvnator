@@ -101,6 +101,12 @@ The context panel is part of the shell contract. New workspace-level routes
 should explicitly decide whether they need one rather than adding local
 sidebars inside feature pages.
 
+Xtream and Stalker category panels preserve provider/server category order by
+default. The panel header exposes a sort menu next to category search with
+`Server sorting`, `A-Z`, and `Z-A`; when alphabetical sorting is active,
+synthetic "all categories" entries stay pinned before sorted provider
+categories.
+
 ## Search And Navigation Rules
 
 Search is shell-owned and route-aware:

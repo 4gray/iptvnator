@@ -6,6 +6,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { MatDialog } from '@angular/material/dialog';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
+import { WORKSPACE_CATEGORY_SORT_STORAGE_KEY } from '@iptvnator/portal/shared/util';
 import {
     XtreamContentLoadState,
     XtreamStore,
@@ -35,11 +36,18 @@ function createRouteSnapshot(
     return {
         routeConfig: path ? { path } : null,
         paramMap: {
-            has: (param: string) =>
-                hasCategoryId && param === 'categoryId',
+            has: (param: string) => hasCategoryId && param === 'categoryId',
         },
         children,
     };
+}
+
+function getCategoryLabels(
+    fixture: ComponentFixture<WorkspaceContextPanelComponent>
+): string[] {
+    return Array.from(
+        fixture.nativeElement.querySelectorAll('.category-item .nav-item-label')
+    ).map((element: Element) => element.textContent?.trim() ?? '');
 }
 
 describe('WorkspaceContextPanelComponent', () => {
@@ -98,6 +106,7 @@ describe('WorkspaceContextPanelComponent', () => {
     };
 
     beforeEach(async () => {
+        localStorage.removeItem(WORKSPACE_CATEGORY_SORT_STORAGE_KEY);
         xtreamCategories.set([
             { id: 1, name: 'News' },
             { id: 2, name: 'Sports' },
@@ -252,6 +261,86 @@ describe('WorkspaceContextPanelComponent', () => {
             'playlist-1',
             'vod',
             2,
+        ]);
+    });
+
+    it('keeps xtream categories in server order by default and sorts them from the menu modes', () => {
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamSelectedTypeContentState.set('ready');
+        xtreamCategories.set([
+            { id: 1, name: 'Sports' },
+            { id: 2, name: 'Movies' },
+            { id: 3, name: 'News' },
+        ]);
+        fixture.detectChanges();
+
+        expect(getCategoryLabels(fixture)).toEqual([
+            'Sports',
+            'Movies',
+            'News',
+        ]);
+
+        fixture.componentInstance.setCategorySortMode('name-asc');
+        fixture.detectChanges();
+
+        expect(getCategoryLabels(fixture)).toEqual([
+            'Movies',
+            'News',
+            'Sports',
+        ]);
+
+        fixture.componentInstance.setCategorySortMode('name-desc');
+        fixture.detectChanges();
+
+        expect(getCategoryLabels(fixture)).toEqual([
+            'Sports',
+            'News',
+            'Movies',
+        ]);
+        expect(localStorage.getItem(WORKSPACE_CATEGORY_SORT_STORAGE_KEY)).toBe(
+            'name-desc'
+        );
+    });
+
+    it('applies the category sort menu modes to stalker categories', () => {
+        fixture.componentRef.setInput('context', {
+            provider: 'stalker',
+            playlistId: 'stalker-1',
+        });
+        fixture.componentRef.setInput('section', 'series');
+        stalkerStore.getCategoryResource.set([
+            { category_id: '*', category_name: 'All Categories' },
+            { category_id: 'z', category_name: 'Zulu' },
+            { category_id: 'a', category_name: 'Alpha' },
+            { category_id: 'm', category_name: 'Movies' },
+        ]);
+        fixture.detectChanges();
+
+        expect(getCategoryLabels(fixture)).toEqual([
+            'All Categories',
+            'Zulu',
+            'Alpha',
+            'Movies',
+        ]);
+
+        fixture.componentInstance.setCategorySortMode('name-asc');
+        fixture.detectChanges();
+
+        expect(getCategoryLabels(fixture)).toEqual([
+            'All Categories',
+            'Alpha',
+            'Movies',
+            'Zulu',
+        ]);
+
+        fixture.componentInstance.setCategorySortMode('name-desc');
+        fixture.detectChanges();
+
+        expect(getCategoryLabels(fixture)).toEqual([
+            'All Categories',
+            'Zulu',
+            'Movies',
+            'Alpha',
         ]);
     });
 
