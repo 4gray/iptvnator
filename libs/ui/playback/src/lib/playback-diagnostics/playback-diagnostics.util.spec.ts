@@ -74,6 +74,20 @@ describe('playback diagnostics', () => {
         expect(unsupportedSourceIssue.externalFallbackRecommended).toBe(true);
     });
 
+    it('classifies MIME-only unsupported containers as container diagnostics', () => {
+        const issue = classifyNativePlaybackIssue(
+            { code: 4, message: 'source not supported' },
+            createPlaybackSourceMetadata({
+                url: 'https://example.com/archive/stream',
+                mimeType: 'video/x-msvideo',
+                player: 'html5',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.UnsupportedContainer);
+        expect(issue.container).toBe('x-msvideo');
+    });
+
     it('classifies HLS network errors without claiming codec incompatibility', () => {
         const issue = classifyHlsPlaybackIssue(
             {
@@ -89,6 +103,44 @@ describe('playback diagnostics', () => {
 
         expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
         expect(issue.externalFallbackRecommended).toBe(false);
+    });
+
+    it('does not treat provider-side blocked messages as browser access errors', () => {
+        const issue = classifyHlsPlaybackIssue(
+            {
+                type: 'networkError',
+                details: 'manifestLoadError Request blocked by rate limiter',
+                fatal: true,
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live/index.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue.externalFallbackRecommended).toBe(false);
+    });
+
+    it('keeps raw HLS error object context in diagnostic details', () => {
+        const issue = classifyHlsPlaybackIssue(
+            {
+                type: 'networkError',
+                details: 'manifestLoadError',
+                fatal: true,
+                error: {
+                    context: 'xhr setup failed',
+                    status: 0,
+                },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live/index.m3u8',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.details).toContain('xhr setup failed');
+        expect(issue.details).toContain('"status":0');
     });
 
     it('classifies HLS browser access blocks separately from provider network failures', () => {

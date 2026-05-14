@@ -115,6 +115,15 @@ const UNSUPPORTED_CONTAINER_EXTENSIONS = new Set([
     'wmv',
 ]);
 
+const UNSUPPORTED_CONTAINER_NAMES = new Set([
+    ...UNSUPPORTED_CONTAINER_EXTENSIONS,
+    'matroska',
+    'mp2t',
+    'quicktime',
+    'x-matroska',
+    'x-msvideo',
+]);
+
 const DECLARED_MEDIA_EXTENSION_QUERY_KEYS = [
     'extension',
     'ext',
@@ -525,7 +534,8 @@ function inferContainerFromMimeType(mimeType: string | undefined): string {
 
 function isLikelyContainerIssue(metadata: PlaybackSourceMetadata): boolean {
     return (
-        UNSUPPORTED_CONTAINER_EXTENSIONS.has(metadata.extension) ||
+        UNSUPPORTED_CONTAINER_NAMES.has(metadata.extension) ||
+        UNSUPPORTED_CONTAINER_NAMES.has(metadata.container) ||
         metadata.mimeType === 'video/matroska'
     );
 }
@@ -535,22 +545,39 @@ function normalizeErrorDetails(
 ): string {
     const hlsError = 'error' in error ? error.error : undefined;
     const mpegTsInfo = 'info' in error ? error.info : undefined;
-    const errorMessage =
-        hlsError instanceof Error
-            ? hlsError.message
-            : typeof hlsError === 'string'
-              ? hlsError
-              : '';
-    const info =
-        typeof mpegTsInfo === 'string'
-            ? mpegTsInfo
-            : mpegTsInfo
-              ? JSON.stringify(mpegTsInfo)
-              : '';
+    const errorMessage = normalizeErrorPayload(hlsError);
+    const info = normalizeErrorPayload(mpegTsInfo);
 
     return [error.details, error.message, errorMessage, info]
         .filter((part): part is string => Boolean(part))
         .join(' ');
+}
+
+function normalizeErrorPayload(payload: unknown): string {
+    if (!payload) {
+        return '';
+    }
+
+    if (typeof payload === 'string') {
+        return payload;
+    }
+
+    if (payload instanceof Error) {
+        const extraDetails = stringifyUnknown(payload);
+        return [payload.message, extraDetails === '{}' ? '' : extraDetails]
+            .filter(Boolean)
+            .join(' ');
+    }
+
+    return stringifyUnknown(payload);
+}
+
+function stringifyUnknown(value: unknown): string {
+    try {
+        return JSON.stringify(value) || '';
+    } catch {
+        return String(value);
+    }
 }
 
 function isNetworkFailure(type: string, details: string): boolean {
@@ -573,8 +600,9 @@ function isBrowserAccessFailure(details: string): boolean {
         details.includes('content security policy') ||
         details.includes('mixed content') ||
         details.includes('private network access') ||
-        details.includes('blocked by') ||
-        details.includes('has been blocked') ||
+        details.includes('blocked by content security') ||
+        details.includes('blocked by cors') ||
+        details.includes('blocked by mixed content') ||
         details.includes('not allowed to load local resource') ||
         details.includes('err_blocked') ||
         details.includes('err_cleartext')

@@ -288,6 +288,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     details: data.details,
                     fatal: data.fatal,
                     message: data.error?.message,
+                    error: data.error,
                 },
                 this.createSourceMetadata(url, 'application/x-mpegURL')
             )

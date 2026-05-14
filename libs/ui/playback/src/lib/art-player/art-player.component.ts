@@ -279,6 +279,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                     details: data.details,
                     fatal: data.fatal,
                     message: data.error?.message,
+                    error: data.error,
                 },
                 this.createSourceMetadata(url, 'application/x-mpegURL')
             )

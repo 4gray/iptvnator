@@ -109,4 +109,36 @@ describe('HtmlVideoPlayerComponent', () => {
 
         expect(issues).toEqual([]);
     });
+
+    it('keeps raw HLS error object context in emitted playback issue details', () => {
+        const issues: Array<{ details?: string }> = [];
+        component.playbackIssue.subscribe((issue) => {
+            if (issue) issues.push(issue);
+        });
+
+        (
+            component as unknown as {
+                handleHlsError: (
+                    url: string,
+                    data: {
+                        type: string;
+                        details: string;
+                        fatal: boolean;
+                        error?: unknown;
+                    }
+                ) => void;
+            }
+        ).handleHlsError('https://example.com/live/playlist.m3u8', {
+            type: 'networkError',
+            details: 'manifestLoadError',
+            fatal: true,
+            error: {
+                context: 'xhr setup failed',
+                status: 0,
+            },
+        });
+
+        expect(issues[0].details).toContain('xhr setup failed');
+        expect(issues[0].details).toContain('"status":0');
+    });
 });
