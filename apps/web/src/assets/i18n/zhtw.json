@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "名稱 A-Z",
         "SORT_NAME_DESC": "名稱 Z-A",
         "SORT_LABEL": "排序：",
+        "SORT_SERVER": "伺服器排序",
+        "CATEGORY_SORT_ARIA": "排序分類",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "繼續觀看",
             "UNTITLED_SOURCE": "未命名的來源",

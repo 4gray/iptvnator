@@ -27,10 +27,15 @@
                             categorySortMode() !== 'server'
                         "
                         [matMenuTriggerFor]="categorySortMenu"
-                        [matTooltip]="'Sort: ' + categorySortLabel()"
-                        aria-label="Sort categories"
+                        [matTooltip]="
+                            ('WORKSPACE.SORT_LABEL' | translate) +
+                            (categorySortLabelKey() | translate)
+                        "
+                        [attr.aria-label]="
+                            'WORKSPACE.CATEGORY_SORT_ARIA' | translate
+                        "
                     >
-                        <mat-icon>sort_by_alpha</mat-icon>
+                        <mat-icon>{{ categorySortIcon() }}</mat-icon>
                     </button>
                     <mat-menu #categorySortMenu="matMenu">
                         @for (
@@ -42,7 +47,9 @@
                                 (click)="setCategorySortMode(option.mode)"
                             >
                                 <mat-icon>{{ option.icon }}</mat-icon>
-                                <span>{{ option.label }}</span>
+                                <span>{{
+                                    option.translationKey | translate
+                                }}</span>
                                 @if (categorySortMode() === option.mode) {
                                     <mat-icon class="context-sort-check"
                                         >check</mat-icon

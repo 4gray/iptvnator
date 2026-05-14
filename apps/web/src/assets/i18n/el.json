@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "Όνομα A-Z",
         "SORT_NAME_DESC": "Όνομα Z-A",
         "SORT_LABEL": "Ταξινόμηση: ",
+        "SORT_SERVER": "Σειρά διακομιστή",
+        "CATEGORY_SORT_ARIA": "Ταξινόμηση κατηγοριών",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
             "UNTITLED_SOURCE": "Πηγή χωρίς τίτλο",

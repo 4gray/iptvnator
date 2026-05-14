@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "Naam A-Z",
         "SORT_NAME_DESC": "Naam Z-A",
         "SORT_LABEL": "Sorteren: ",
+        "SORT_SERVER": "Servervolgorde",
+        "CATEGORY_SORT_ARIA": "Categorieën sorteren",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Verder kijken",
             "UNTITLED_SOURCE": "Naamloze bron",

@@ -1,7 +1,6 @@
 import {
     DEFAULT_PORTAL_CATEGORY_SORT_MODE,
     WORKSPACE_CATEGORY_SORT_STORAGE_KEY,
-    getPortalCategorySortModeLabel,
     isPortalCategorySortMode,
     persistPortalCategorySortMode,
     restorePortalCategorySortMode,
@@ -31,15 +30,11 @@ describe('portal category sort', () => {
         expect(restorePortalCategorySortMode()).toBe('name-desc');
     });
 
-    it('recognizes valid modes and labels them for the category menu', () => {
+    it('recognizes valid category sort modes', () => {
         expect(isPortalCategorySortMode('server')).toBe(true);
         expect(isPortalCategorySortMode('name-asc')).toBe(true);
         expect(isPortalCategorySortMode('name-desc')).toBe(true);
         expect(isPortalCategorySortMode('date-desc')).toBe(false);
-
-        expect(getPortalCategorySortModeLabel('server')).toBe('Server sorting');
-        expect(getPortalCategorySortModeLabel('name-asc')).toBe('A-Z');
-        expect(getPortalCategorySortModeLabel('name-desc')).toBe('Z-A');
     });
 
     it('preserves input order for server sorting and supports A-Z/Z-A sorting', () => {

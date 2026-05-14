@@ -796,6 +796,8 @@
         "SORT_NAME_ASC": "Имя (А-Я)",
         "SORT_NAME_DESC": "Имя (Я-А)",
         "SORT_LABEL": "Сортировка: ",
+        "SORT_SERVER": "Порядок сервера",
+        "CATEGORY_SORT_ARIA": "Сортировать категории",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Продолжить просмотр",
             "UNTITLED_SOURCE": "Источник без названия",

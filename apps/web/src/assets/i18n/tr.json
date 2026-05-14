@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "İsim A-Z",
         "SORT_NAME_DESC": "İsim Z-A",
         "SORT_LABEL": "Sırala: ",
+        "SORT_SERVER": "Sunucu sıralaması",
+        "CATEGORY_SORT_ARIA": "Kategorileri sırala",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "İzlemeye Devam Et",
             "UNTITLED_SOURCE": "Adsız kaynak",

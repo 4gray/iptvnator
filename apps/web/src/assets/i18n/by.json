@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "Назва А-Я",
         "SORT_NAME_DESC": "Назва Я-А",
         "SORT_LABEL": "Сартаваць: ",
+        "SORT_SERVER": "Парадак сервера",
+        "CATEGORY_SORT_ARIA": "Сартаваць катэгорыі",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Працягнуць прагляд",
             "UNTITLED_SOURCE": "Крыніца без назвы",

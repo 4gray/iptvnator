@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "Nombre A-Z",
         "SORT_NAME_DESC": "Nombre Z-A",
         "SORT_LABEL": "Ordenar: ",
+        "SORT_SERVER": "Orden del servidor",
+        "CATEGORY_SORT_ARIA": "Ordenar categorías",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Continuar viendo",
             "UNTITLED_SOURCE": "Fuente sin título",

@@ -18,6 +18,11 @@ const translations: Record<string, string> = {
     'WORKSPACE.CONTEXT.RADIO_CATEGORIES': 'Radio Categories',
     'WORKSPACE.CONTEXT.XTREAM_SYNCING_LIVE': 'Syncing live categories...',
     'WORKSPACE.CONTEXT.XTREAM_SYNCING_MOVIES': 'Syncing movie categories...',
+    'WORKSPACE.CATEGORY_SORT_ARIA': 'Sort categories',
+    'WORKSPACE.SORT_LABEL': 'Sort: ',
+    'WORKSPACE.SORT_NAME_ASC': 'Name A-Z',
+    'WORKSPACE.SORT_NAME_DESC': 'Name Z-A',
+    'WORKSPACE.SORT_SERVER': 'Server sorting',
     'WORKSPACE.SHELL.XTREAM_IMPORT_LOADING':
         'Fetching playlist data from source...',
 };
@@ -299,6 +304,55 @@ describe('WorkspaceContextPanelComponent', () => {
         ]);
         expect(localStorage.getItem(WORKSPACE_CATEGORY_SORT_STORAGE_KEY)).toBe(
             'name-desc'
+        );
+    });
+
+    it('uses translated category sort labels and distinct mode icons', () => {
+        fixture.componentRef.setInput('section', 'vod');
+        xtreamSelectedTypeContentState.set('ready');
+        fixture.detectChanges();
+
+        const sortButton = Array.from(
+            fixture.nativeElement.querySelectorAll('.context-header__action')
+        ).at(1) as HTMLButtonElement | undefined;
+
+        expect(sortButton?.getAttribute('aria-label')).toBe('Sort categories');
+        expect(fixture.componentInstance.categorySortLabelKey()).toBe(
+            'WORKSPACE.SORT_SERVER'
+        );
+        expect(fixture.componentInstance.categorySortIcon()).toBe('dns');
+        expect(
+            fixture.componentInstance.categorySortOptions.map((option) => ({
+                mode: option.mode,
+                translationKey: option.translationKey,
+                icon: option.icon,
+            }))
+        ).toEqual([
+            {
+                mode: 'server',
+                translationKey: 'WORKSPACE.SORT_SERVER',
+                icon: 'dns',
+            },
+            {
+                mode: 'name-asc',
+                translationKey: 'WORKSPACE.SORT_NAME_ASC',
+                icon: 'sort_by_alpha',
+            },
+            {
+                mode: 'name-desc',
+                translationKey: 'WORKSPACE.SORT_NAME_DESC',
+                icon: 'arrow_downward',
+            },
+        ]);
+
+        fixture.componentInstance.setCategorySortMode('name-desc');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.categorySortLabelKey()).toBe(
+            'WORKSPACE.SORT_NAME_DESC'
+        );
+        expect(fixture.componentInstance.categorySortIcon()).toBe(
+            'arrow_downward'
         );
     });
 

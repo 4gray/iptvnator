@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "名前 A-Z",
         "SORT_NAME_DESC": "名前 Z-A",
         "SORT_LABEL": "並び替え：",
+        "SORT_SERVER": "サーバー順",
+        "CATEGORY_SORT_ARIA": "カテゴリを並び替え",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "視聴を再開",
             "UNTITLED_SOURCE": "無題のソース",

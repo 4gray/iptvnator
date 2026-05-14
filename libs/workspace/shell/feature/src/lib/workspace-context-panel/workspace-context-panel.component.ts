@@ -20,7 +20,6 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     PortalCategorySortMode,
-    getPortalCategorySortModeLabel,
     persistPortalCategorySortMode,
     restorePortalCategorySortMode,
     sortPortalCategoryItems,
@@ -157,30 +156,36 @@ export class WorkspaceContextPanelComponent {
     readonly categorySortMode = signal<PortalCategorySortMode>(
         restorePortalCategorySortMode()
     );
-    readonly categorySortLabel = computed(() =>
-        getPortalCategorySortModeLabel(this.categorySortMode())
+    readonly categorySortLabelKey = computed(() =>
+        this.getCategorySortLabelKey(this.categorySortMode())
     );
     readonly categorySortOptions: ReadonlyArray<{
         mode: PortalCategorySortMode;
-        label: string;
+        translationKey: string;
         icon: string;
     }> = [
         {
             mode: 'server',
-            label: 'Server sorting',
+            translationKey: 'WORKSPACE.SORT_SERVER',
             icon: 'dns',
         },
         {
             mode: 'name-asc',
-            label: 'A-Z',
+            translationKey: 'WORKSPACE.SORT_NAME_ASC',
             icon: 'sort_by_alpha',
         },
         {
             mode: 'name-desc',
-            label: 'Z-A',
-            icon: 'sort_by_alpha',
+            translationKey: 'WORKSPACE.SORT_NAME_DESC',
+            icon: 'arrow_downward',
         },
     ];
+    readonly categorySortIcon = computed(
+        () =>
+            this.categorySortOptions.find(
+                (option) => option.mode === this.categorySortMode()
+            )?.icon ?? 'dns'
+    );
 
     readonly canSearchCategories = computed(
         () =>
@@ -447,6 +452,18 @@ export class WorkspaceContextPanelComponent {
                 return 'WORKSPACE.SHELL.XTREAM_IMPORT_RESTORING_RECENT';
             default:
                 return '';
+        }
+    }
+
+    private getCategorySortLabelKey(mode: PortalCategorySortMode): string {
+        switch (mode) {
+            case 'name-asc':
+                return 'WORKSPACE.SORT_NAME_ASC';
+            case 'name-desc':
+                return 'WORKSPACE.SORT_NAME_DESC';
+            case 'server':
+            default:
+                return 'WORKSPACE.SORT_SERVER';
         }
     }
 

@@ -798,6 +798,8 @@
         "SORT_NAME_ASC": "Name A-Z",
         "SORT_NAME_DESC": "Name Z-A",
         "SORT_LABEL": "Sort: ",
+        "SORT_SERVER": "Server sorting",
+        "CATEGORY_SORT_ARIA": "Sort categories",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Continue Watching",
             "UNTITLED_SOURCE": "Untitled source",

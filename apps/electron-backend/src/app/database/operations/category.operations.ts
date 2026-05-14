@@ -38,6 +38,10 @@ export async function getCategories(
     playlistId: string,
     type: 'live' | 'movies' | 'series'
 ) {
+    // Xtream categories are inserted once in provider order and existing
+    // xtream IDs are preserved, so row id order represents server order.
+    // If partial category re-inserts are added later, persist a provider
+    // sort index instead of relying on the insertion id.
     return db
         .select()
         .from(schema.categories)

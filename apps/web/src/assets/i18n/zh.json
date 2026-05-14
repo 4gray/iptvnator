@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "名称 A-Z",
         "SORT_NAME_DESC": "名称 Z-A",
         "SORT_LABEL": "排序：",
+        "SORT_SERVER": "服务器排序",
+        "CATEGORY_SORT_ARIA": "排序分类",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "继续观看",
             "UNTITLED_SOURCE": "未命名源",

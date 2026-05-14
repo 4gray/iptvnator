@@ -32,20 +32,6 @@ export function persistPortalCategorySortMode(
     localStorage.setItem(storageKey, mode);
 }
 
-export function getPortalCategorySortModeLabel(
-    mode: PortalCategorySortMode
-): string {
-    if (mode === 'name-asc') {
-        return 'A-Z';
-    }
-
-    if (mode === 'name-desc') {
-        return 'Z-A';
-    }
-
-    return 'Server sorting';
-}
-
 export function sortPortalCategoryItems<T>(
     items: readonly T[],
     mode: PortalCategorySortMode,

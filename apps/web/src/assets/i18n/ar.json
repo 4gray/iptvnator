@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "الاسم (أ-ي)",
         "SORT_NAME_DESC": "الاسم (ي-أ)",
         "SORT_LABEL": "ترتيب: ",
+        "SORT_SERVER": "ترتيب الخادم",
+        "CATEGORY_SORT_ARIA": "ترتيب الفئات",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "متابعة المشاهدة",
             "UNTITLED_SOURCE": "مصدر بدون عنوان",

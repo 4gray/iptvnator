@@ -792,6 +792,8 @@
         "SORT_NAME_ASC": "이름 A-Z",
         "SORT_NAME_DESC": "이름 Z-A",
         "SORT_LABEL": "정렬: ",
+        "SORT_SERVER": "서버 순서",
+        "CATEGORY_SORT_ARIA": "카테고리 정렬",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "이어서 시청",
             "UNTITLED_SOURCE": "제목 없는 소스",
