@@ -20,6 +20,7 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { WorkspaceContextCategoryViewComponent } from './components/workspace-context-category-view.component';
 import { WorkspaceContextErrorViewComponent } from './components/workspace-context-error-view.component';
+import { hasActiveLiveCategoryRoute } from './workspace-context-panel-route.utils';
 
 type WorkspaceProvider = 'xtreams' | 'stalker' | 'playlists';
 
@@ -297,13 +298,31 @@ export class WorkspaceContextPanelComponent {
         }
         const categoryId = numericCategoryId;
 
-        this.xtreamStore.setSelectedItem(null);
-        this.xtreamStore.setSelectedCategory(categoryId);
-
         if (section === 'live') {
+            this.xtreamStore.setSelectedCategory(categoryId);
+            const liveRouteHasCategory = hasActiveLiveCategoryRoute(
+                this.router.routerState.snapshot.root
+            );
+            if (liveRouteHasCategory) {
+                void this.router.navigate(
+                    [
+                        '/workspace',
+                        'xtreams',
+                        context.playlistId,
+                        'live',
+                        categoryId,
+                    ],
+                    {
+                        queryParamsHandling: 'preserve',
+                        replaceUrl: true,
+                    }
+                );
+            }
             return;
         }
 
+        this.xtreamStore.setSelectedItem(null);
+        this.xtreamStore.setSelectedCategory(categoryId);
         this.router.navigate([
             '/workspace',
             'xtreams',

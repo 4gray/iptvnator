@@ -21,6 +21,27 @@ const translations: Record<string, string> = {
         'Fetching playlist data from source...',
 };
 
+interface RouteSnapshotStub {
+    routeConfig: { path: string } | null;
+    paramMap: { has: (param: string) => boolean };
+    children: RouteSnapshotStub[];
+}
+
+function createRouteSnapshot(
+    path: string | null,
+    hasCategoryId = false,
+    children: RouteSnapshotStub[] = []
+): RouteSnapshotStub {
+    return {
+        routeConfig: path ? { path } : null,
+        paramMap: {
+            has: (param: string) =>
+                hasCategoryId && param === 'categoryId',
+        },
+        children,
+    };
+}
+
 describe('WorkspaceContextPanelComponent', () => {
     let fixture: ComponentFixture<WorkspaceContextPanelComponent>;
     const xtreamCategories = signal([
@@ -65,6 +86,11 @@ describe('WorkspaceContextPanelComponent', () => {
         clearSelectedItem: jest.fn(),
     };
     const router = {
+        routerState: {
+            snapshot: {
+                root: createRouteSnapshot(null),
+            },
+        },
         navigate: jest.fn(),
     };
     const dialog = {
@@ -90,6 +116,9 @@ describe('WorkspaceContextPanelComponent', () => {
         stalkerStore.setSelectedCategory.mockClear();
         stalkerStore.setPage.mockClear();
         stalkerStore.clearSelectedItem.mockClear();
+        router.routerState.snapshot.root = createRouteSnapshot(null, false, [
+            createRouteSnapshot('live'),
+        ]);
         router.navigate.mockClear();
         dialog.open.mockClear();
 
@@ -224,6 +253,47 @@ describe('WorkspaceContextPanelComponent', () => {
             'vod',
             2,
         ]);
+    });
+
+    it('preserves the active xtream live item when switching live categories', () => {
+        fixture.componentRef.setInput('section', 'live');
+        xtreamSelectedTypeContentState.set('ready');
+        fixture.detectChanges();
+
+        const categoryButtons = Array.from(
+            fixture.nativeElement.querySelectorAll('.category-item')
+        ) as HTMLButtonElement[];
+
+        categoryButtons[1]?.click();
+
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(2);
+        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
+        expect(router.navigate).not.toHaveBeenCalled();
+    });
+
+    it('updates the live category URL without clearing playback when already deep linked', () => {
+        fixture.componentRef.setInput('section', 'live');
+        router.routerState.snapshot.root = createRouteSnapshot(null, false, [
+            createRouteSnapshot('live/:categoryId', true),
+        ]);
+        xtreamSelectedTypeContentState.set('ready');
+        fixture.detectChanges();
+
+        const categoryButtons = Array.from(
+            fixture.nativeElement.querySelectorAll('.category-item')
+        ) as HTMLButtonElement[];
+
+        categoryButtons[1]?.click();
+
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(2);
+        expect(xtreamStore.setSelectedItem).not.toHaveBeenCalled();
+        expect(router.navigate).toHaveBeenCalledWith(
+            ['/workspace', 'xtreams', 'playlist-1', 'live', 2],
+            {
+                queryParamsHandling: 'preserve',
+                replaceUrl: true,
+            }
+        );
     });
 
     it('labels Stalker radio categories and keeps category selection in the radio layout', () => {

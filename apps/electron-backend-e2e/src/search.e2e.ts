@@ -525,6 +525,14 @@ test.describe('Electron Workspace Search', () => {
                 app.mainWindow,
                 `Live TV / ${sample.categoryName}`
             );
+            await expect(
+                app.mainWindow.locator(
+                    'app-live-stream-layout .content-container .video-player'
+                )
+            ).toBeVisible({ timeout: 20000 });
+            await expect(
+                channelItemByTitle(app.mainWindow, sample.targetTitle).first()
+            ).toHaveClass(/(^|\s)active(\s|$)/);
             await fillWorkspaceSearch(app.mainWindow, sample.targetTitle);
 
             await expectPathname(
