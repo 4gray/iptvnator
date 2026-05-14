@@ -196,6 +196,22 @@ describe('playback diagnostics', () => {
         expect(issue.externalFallbackRecommended).toBe(true);
     });
 
+    it('keeps opaque native network failures generic when the browser hides access details', () => {
+        const issue = classifyNativePlaybackIssue(
+            {
+                code: 2,
+                message: '',
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/live.m3u8',
+                player: 'html5',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.NetworkError);
+        expect(issue.externalFallbackRecommended).toBe(false);
+    });
+
     it('classifies mpegts browser fetch restrictions separately from generic network errors', () => {
         const issue = classifyMpegTsPlaybackIssue(
             {

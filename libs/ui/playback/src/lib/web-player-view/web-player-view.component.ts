@@ -1,13 +1,12 @@
 import {
     Component,
-    EventEmitter,
-    Output,
     Signal,
     ViewEncapsulation,
     computed,
     effect,
     inject,
     input,
+    output,
     signal,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -71,12 +70,11 @@ export class WebPlayerViewComponent {
     volume = input<number>(1);
     showCaptions = input<boolean>(false);
     playerOverride = input<VideoPlayer | null>(null);
-    @Output() timeUpdate = new EventEmitter<{
+    readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
-    @Output() externalFallbackRequested =
-        new EventEmitter<PlaybackFallbackRequest>();
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 
     settings = toSignal(
         this.storage.get(STORE_KEY.Settings)

@@ -236,6 +236,9 @@ export function classifyNativePlaybackIssue(
     const lowerNativeErrorMessage = nativeErrorMessage?.toLowerCase() ?? '';
 
     if (nativeErrorCode === NETWORK_ERROR_CODE) {
+        // Native MediaError details are often opaque for browser security
+        // failures. Only classify browser access when the runtime exposes a
+        // concrete CORS/mixed-content/CSP-style message.
         return createDiagnostic({
             code: isBrowserAccessFailure(lowerNativeErrorMessage)
                 ? PlaybackDiagnosticCode.BrowserAccessError
