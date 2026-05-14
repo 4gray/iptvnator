@@ -244,6 +244,25 @@ describe('playback diagnostics', () => {
         expect(issue.externalFallbackRecommended).toBe(true);
     });
 
+    it('classifies mpegts early EOF failures as fallback-actionable media errors', () => {
+        const issue = classifyMpegTsPlaybackIssue(
+            {
+                type: 'NetworkError',
+                details: 'UnrecoverableEarlyEof',
+                info: { msg: 'Fetch stream meet Early-EOF' },
+            },
+            createPlaybackSourceMetadata({
+                url: 'https://provider.example/movie/123.ts',
+                mimeType: 'video/mp2t',
+                player: 'videojs',
+            })
+        );
+
+        expect(issue.code).toBe(PlaybackDiagnosticCode.MediaDecodeError);
+        expect(issue.externalFallbackRecommended).toBe(true);
+        expect(issue.details).toContain('Early-EOF');
+    });
+
     it('classifies mpegts codec errors as unsupported codec fallbacks', () => {
         const issue = classifyMpegTsPlaybackIssue(
             {

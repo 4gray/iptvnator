@@ -45,6 +45,11 @@ export function isBrowserAccessFailure(details: string): boolean {
     );
 }
 
+export function isEarlyEofFailure(details: string): boolean {
+    const compactDetails = details.replace(/[^a-z0-9]/g, '');
+    return compactDetails.includes('earlyeof');
+}
+
 export function isCodecFailure(details: string): boolean {
     return (
         details.includes('codec') ||

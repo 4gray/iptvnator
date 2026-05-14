@@ -13,6 +13,7 @@ import {
     isBrowserAccessFailure,
     isCodecFailure,
     isDrmOrEncryptionFailure,
+    isEarlyEofFailure,
     isNetworkFailure,
     normalizeErrorDetails,
 } from './playback-error-patterns.util';
@@ -151,6 +152,15 @@ export function classifyMpegTsPlaybackIssue(
     const details = normalizeErrorDetails(error);
     const lowerDetails = details.toLowerCase();
     const lowerType = (error.type ?? '').toLowerCase();
+
+    if (isEarlyEofFailure(lowerDetails)) {
+        return createDiagnostic({
+            code: DiagnosticCode.MediaDecodeError,
+            source: DiagnosticSource.MpegTs,
+            metadata,
+            details,
+        });
+    }
 
     if (isNetworkFailure(lowerType, lowerDetails)) {
         return createDiagnostic({
