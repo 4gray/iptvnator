@@ -62,7 +62,7 @@ export function withStalkerPortal() {
                                 toStalkerSessionPlaylist(playlist)
                             );
                             token = result.token ?? undefined;
-                            serialNumber = playlist.stalkerSerialNumber;
+                            serialNumber = result.serialNumber;
                         } catch (error) {
                             logger.error('Failed to get stalker token', error);
                         }

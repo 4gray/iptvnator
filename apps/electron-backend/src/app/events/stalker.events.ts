@@ -4,40 +4,11 @@
  */
 
 import axios, { AxiosRequestConfig } from 'axios';
-import { createHash } from 'crypto';
 import { ipcMain } from 'electron';
 import { PortalDebugEvent, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
-
-const LEGACY_DEFAULT_SERIAL = 'BEDACD4569BAF';
-
-function deriveStalkerIdentity(
-    macAddress: string,
-    providedSerial?: string
-): { serialNumber: string; cfduid: string } {
-    const normalizedMac = String(macAddress ?? '').trim().toUpperCase();
-    const md5 = createHash('md5').update(normalizedMac).digest('hex');
-    const derivedSerial = md5.slice(0, 13).toUpperCase();
-
-    const normalizedProvided = String(providedSerial ?? '')
-        .trim()
-        .toUpperCase();
-    const useProvidedSerial =
-        normalizedProvided.length > 0 &&
-        normalizedProvided !== LEGACY_DEFAULT_SERIAL;
-
-    const serialNumber = useProvidedSerial ? normalizedProvided : derivedSerial;
-
-    // Keep serial and __cfduid coherent: serial as prefix + stable MAC hash tail.
-    const serialPrefix = serialNumber.toLowerCase().replace(/[^a-f0-9]/g, '');
-    const cfduid = `${serialPrefix}${md5.slice(serialPrefix.length)}`.slice(
-        0,
-        32
-    );
-
-    return { serialNumber, cfduid };
-}
+import { buildStalkerIdentityRequestContext } from './stalker-identity';
 
 export default class StalkerEvents {
     static bootstrapStalkerEvents(): Electron.IpcMain {
@@ -55,7 +26,7 @@ ipcMain.handle(
         payload: {
             url: string;
             macAddress: string;
-            params: Record<string, string>;
+            params: Record<string, string | number>;
             token?: string;
             serialNumber?: string;
             requestId?: string;
@@ -66,29 +37,13 @@ ipcMain.handle(
         try {
             const { url, macAddress, params, token, serialNumber, requestId } =
                 payload;
-            const identity = deriveStalkerIdentity(macAddress, serialNumber);
-            const effectiveSerialNumber = identity.serialNumber;
-            const requestParams = { ...params };
-
-            // Some providers validate sn/metrics strongly in get_profile.
-            if (
-                requestParams.type === 'stb' &&
-                requestParams.action === 'get_profile'
-            ) {
-                requestParams.sn = effectiveSerialNumber;
-
-                if (typeof requestParams.metrics === 'string') {
-                    try {
-                        const parsedMetrics = JSON.parse(requestParams.metrics);
-                        requestParams.metrics = JSON.stringify({
-                            ...(parsedMetrics ?? {}),
-                            sn: effectiveSerialNumber,
-                        });
-                    } catch {
-                        // Keep original metrics payload when malformed.
-                    }
-                }
-            }
+            const { requestParams, headers, effectiveSerialNumber } =
+                buildStalkerIdentityRequestContext({
+                    macAddress,
+                    params,
+                    token,
+                    serialNumber,
+                });
 
             // Build URL with query parameters
             // Note: For 'cmd' parameter, we need to use encodeURI (not encodeURIComponent)
@@ -116,34 +71,6 @@ ipcMain.handle(
 
             // Build final URL with manually constructed query string
             const fullUrl = `${urlObject.origin}${urlObject.pathname}?${queryParts.join('&')}`;
-
-            // Build cookie string matching the working curl example format
-            // Format: mac=XX:XX:XX:XX:XX:XX; stb_lang=de_DE; timezone=Europe/Berlin; __cfduid=...
-            // The __cfduid cookie uses the serial number lowercase + random suffix
-            const cookieString = `mac=${macAddress}; stb_lang=en_US@rg=dezzzz; timezone=Europe/Berlin; __cfduid=${identity.cfduid}`;
-
-            // Build headers - using MAG250 User-Agent that stalker-to-m3u uses
-            const headers: Record<string, string> = {
-                Cookie: cookieString,
-                // Use MAG250 User-Agent matching stalker-to-m3u implementation
-                'User-Agent':
-                    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250',
-                'X-User-Agent':
-                    'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250',
-                Accept: '*/*',
-                Connection: 'keep-alive',
-                'Accept-Language': 'en-US,en;q=0.9',
-            };
-
-            // Add SN (serial number) header if provided - required by some portals
-            if (effectiveSerialNumber) {
-                headers['SN'] = effectiveSerialNumber;
-            }
-
-            // Add Authorization header if token is provided
-            if (token) {
-                headers['Authorization'] = `Bearer ${token}`;
-            }
 
             // Determine timeout based on action type
             // create_link requests can take longer as server generates stream URL
@@ -200,7 +127,7 @@ ipcMain.handle(
                 const debugEvent: PortalDebugEvent = {
                     requestId,
                     provider: 'stalker',
-                    operation: params.action ?? 'unknown',
+                    operation: String(params.action ?? 'unknown'),
                     transport: 'electron-main',
                     startedAt: new Date(startedAt).toISOString(),
                     durationMs: Date.now() - startedAt,
@@ -217,7 +144,7 @@ ipcMain.handle(
                 const debugEvent: PortalDebugEvent = {
                     requestId: payload.requestId,
                     provider: 'stalker',
-                    operation: payload.params?.action ?? 'unknown',
+                    operation: String(payload.params?.action ?? 'unknown'),
                     transport: 'electron-main',
                     startedAt: new Date(startedAt).toISOString(),
                     durationMs: Date.now() - startedAt,

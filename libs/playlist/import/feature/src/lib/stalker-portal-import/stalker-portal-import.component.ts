@@ -13,8 +13,9 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
-    STALKER_SERIAL_NUMBER,
+    StalkerPortalIdentity,
     StalkerSessionService,
+    normalizeStalkerPortalIdentity,
 } from '@iptvnator/portal/stalker/data-access';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { v4 as uuid } from 'uuid';
@@ -105,44 +106,30 @@ export class StalkerPortalImportComponent {
         this.isLoading.set(true);
 
         try {
-            const originalUrl = this.form.value.portalUrl;
+            const formValue = this.form.getRawValue();
+            const originalUrl = formValue.portalUrl ?? '';
             const transformedUrl = this.transformPortalUrl(originalUrl);
             const isFullStalkerPortal =
                 this.isFullStalkerPortalUrl(originalUrl);
+            const stalkerIdentity = normalizeStalkerPortalIdentity({
+                serialNumber: formValue.serialNumber,
+                deviceId1: formValue.deviceId1,
+                deviceId2: formValue.deviceId2,
+                signature1: formValue.signature1,
+                signature2: formValue.signature2,
+            });
 
             let stalkerToken: string | undefined;
             let stalkerAccountInfo: Playlist['stalkerAccountInfo'] | undefined;
-            let stalkerSerialNumber: string | undefined;
-            let stalkerDeviceId1: string | undefined;
-            let stalkerDeviceId2: string | undefined;
-            let stalkerSignature1: string | undefined;
-            let stalkerSignature2: string | undefined;
 
             // For full stalker portal URLs, perform handshake and get profile
             if (isFullStalkerPortal) {
-                // Use provided serial number or generate a new one
-                stalkerSerialNumber =
-                    this.form.value.serialNumber?.trim() ||
-                    STALKER_SERIAL_NUMBER;
-
-                // Use provided device IDs if available (64 hex chars each)
-                stalkerDeviceId1 =
-                    this.form.value.deviceId1?.trim() || undefined;
-                stalkerDeviceId2 =
-                    this.form.value.deviceId2?.trim() || undefined;
-                stalkerSignature1 =
-                    this.form.value.signature1?.trim() || undefined;
-                stalkerSignature2 =
-                    this.form.value.signature2?.trim() || undefined;
-
                 try {
                     const authResult =
                         await this.stalkerSessionService.authenticate(
                             transformedUrl,
-                            this.form.value.macAddress,
-                            stalkerSerialNumber,
-                            stalkerDeviceId1,
-                            stalkerDeviceId2
+                            formValue.macAddress ?? '',
+                            stalkerIdentity
                         );
 
                     stalkerToken = authResult.token;
@@ -183,17 +170,22 @@ export class StalkerPortalImportComponent {
                 }
             }
 
+            const {
+                serialNumber: _serialNumber,
+                deviceId1: _deviceId1,
+                deviceId2: _deviceId2,
+                signature1: _signature1,
+                signature2: _signature2,
+                ...playlistFormValue
+            } = formValue;
+
             const playlist: Playlist = {
-                ...this.form.value,
+                ...playlistFormValue,
                 portalUrl: transformedUrl,
                 isFullStalkerPortal,
                 stalkerToken,
                 stalkerAccountInfo,
-                stalkerSerialNumber,
-                stalkerDeviceId1,
-                stalkerDeviceId2,
-                stalkerSignature1,
-                stalkerSignature2,
+                ...this.toPlaylistIdentityFields(stalkerIdentity),
             } as Playlist;
 
             this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
@@ -209,6 +201,32 @@ export class StalkerPortalImportComponent {
      */
     isFullStalkerPortalUrl(url: string): boolean {
         return url.includes('/stalker_portal');
+    }
+
+    private toPlaylistIdentityFields(identity: StalkerPortalIdentity): {
+        stalkerSerialNumber?: string;
+        stalkerDeviceId1?: string;
+        stalkerDeviceId2?: string;
+        stalkerSignature1?: string;
+        stalkerSignature2?: string;
+    } {
+        return {
+            ...(identity.serialNumber
+                ? { stalkerSerialNumber: identity.serialNumber }
+                : {}),
+            ...(identity.deviceId1
+                ? { stalkerDeviceId1: identity.deviceId1 }
+                : {}),
+            ...(identity.deviceId2
+                ? { stalkerDeviceId2: identity.deviceId2 }
+                : {}),
+            ...(identity.signature1
+                ? { stalkerSignature1: identity.signature1 }
+                : {}),
+            ...(identity.signature2
+                ? { stalkerSignature2: identity.signature2 }
+                : {}),
+        };
     }
 
     /**

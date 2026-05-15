@@ -1,6 +1,18 @@
 import { Injectable, inject } from '@angular/core';
 import { Playlist, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { DataService } from '@iptvnator/services';
+import {
+    getStalkerPortalIdentityFromPlaylist,
+    LEGACY_DEFAULT_STALKER_SERIAL,
+    normalizeStalkerPortalIdentity,
+    type StalkerPortalIdentity,
+} from './stalker-identity.utils';
+
+export {
+    getStalkerPortalIdentityFromPlaylist,
+    normalizeStalkerPortalIdentity,
+};
+export type { StalkerPortalIdentity };
 
 /**
  * SHA1 hash using native Web Crypto API
@@ -36,11 +48,7 @@ function generateRandom(): string {
     return result;
 }
 
-/**
- * Deterministic serial number - 13 hex characters
- * Constant value for consistency across all sessions
- */
-export const STALKER_SERIAL_NUMBER = 'BEDACD4569BAF';
+export const STALKER_SERIAL_NUMBER = LEGACY_DEFAULT_STALKER_SERIAL;
 const STALKER_WATCHDOG_INTERVAL_MS = 25_000;
 
 export interface StalkerHandshakeResponse {
@@ -96,25 +104,6 @@ export class StalkerSessionService {
     private watchdogPlaylists = new Map<string, Playlist>();
     private watchdogInFlight = new Set<string>();
     private activeWatchdogPlaylistId: string | null = null;
-
-    /**
-     * Generates a consistent 64-character device ID from MAC address
-     */
-    private generateDeviceId(macAddress: string): string {
-        // Generate consistent device ID from MAC
-        const str = macAddress.toUpperCase().replace(/:/g, '');
-        const chars = '0123456789ABCDEF';
-        let result = '';
-        let seed = 0;
-        for (let i = 0; i < str.length; i++) {
-            seed = (seed * 31 + str.charCodeAt(i)) >>> 0;
-        }
-        for (let i = 0; i < 64; i++) {
-            seed = (seed * 1103515245 + 12345) >>> 0;
-            result += chars[seed % 16];
-        }
-        return result;
-    }
 
     /**
      * Checks if a URL is a full stalker portal URL (requires handshake)
@@ -252,8 +241,10 @@ export class StalkerSessionService {
      */
     async performHandshake(
         portalUrl: string,
-        macAddress: string
+        macAddress: string,
+        identity: StalkerPortalIdentity = {}
     ): Promise<{ token: string; random: string }> {
+        const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
         const prehash = await generatePrehash(macAddress);
 
         const params: Record<string, string> = {
@@ -269,9 +260,12 @@ export class StalkerSessionService {
                 await this.dataService.sendIpcEvent<StalkerHandshakeResponse>(
                     STALKER_REQUEST,
                     {
-                    url: portalUrl,
-                    macAddress,
-                    params,
+                        url: portalUrl,
+                        macAddress,
+                        params,
+                        ...(normalizedIdentity.serialNumber
+                            ? { serialNumber: normalizedIdentity.serialNumber }
+                            : {}),
                     }
                 );
 
@@ -298,29 +292,20 @@ export class StalkerSessionService {
         portalUrl: string,
         macAddress: string,
         token: string,
-        serialNumber: string,
-        handshakeRandom: string,
-        providedDeviceId1?: string,
-        providedDeviceId2?: string,
-        providedSignature1?: string,
-        providedSignature2?: string
+        identity: StalkerPortalIdentity,
+        handshakeRandom: string
     ): Promise<StalkerProfileResponse> {
-        // Use provided device IDs or generate from MAC (64 hex chars each)
-        const deviceId1 =
-            providedDeviceId1?.trim() || this.generateDeviceId(macAddress);
-        const deviceId2 = providedDeviceId2?.trim() || deviceId1;
-
-        // Use provided signatures or empty string (some portals don't require them)
-        const signature1 = providedSignature1?.trim() || '';
-        const signature2 = providedSignature2?.trim() || '';
+        const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
 
         // Build metrics JSON matching working app
-        const metrics = {
+        const metrics: Record<string, string> = {
             mac: macAddress,
             model: 'MAG250',
             type: 'STB',
             random: handshakeRandom,
-            sn: serialNumber,
+            ...(normalizedIdentity.serialNumber
+                ? { sn: normalizedIdentity.serialNumber }
+                : {}),
         };
 
         // Generate prehash for get_profile (same as handshake)
@@ -337,11 +322,21 @@ export class StalkerSessionService {
             auth_second_step: '1',
             num_banks: '2',
             metrics: JSON.stringify(metrics),
-            sn: serialNumber,
-            device_id: deviceId1,
-            device_id2: deviceId2,
-            signature: signature1,
-            ...(signature2 ? { signature2: signature2 } : {}),
+            ...(normalizedIdentity.serialNumber
+                ? { sn: normalizedIdentity.serialNumber }
+                : {}),
+            ...(normalizedIdentity.deviceId1
+                ? { device_id: normalizedIdentity.deviceId1 }
+                : {}),
+            ...(normalizedIdentity.deviceId2
+                ? { device_id2: normalizedIdentity.deviceId2 }
+                : {}),
+            ...(normalizedIdentity.signature1
+                ? { signature: normalizedIdentity.signature1 }
+                : {}),
+            ...(normalizedIdentity.signature2
+                ? { signature2: normalizedIdentity.signature2 }
+                : {}),
             prehash: prehash,
             stb_type: '',
             JsHttpRequest: '1-xml',
@@ -352,11 +347,13 @@ export class StalkerSessionService {
                 await this.dataService.sendIpcEvent<StalkerProfileResponse>(
                     STALKER_REQUEST,
                     {
-                    url: portalUrl,
-                    macAddress,
-                    params,
-                    token,
-                    serialNumber,
+                        url: portalUrl,
+                        macAddress,
+                        params,
+                        token,
+                        ...(normalizedIdentity.serialNumber
+                            ? { serialNumber: normalizedIdentity.serialNumber }
+                            : {}),
                     }
                 );
 
@@ -380,8 +377,6 @@ export class StalkerSessionService {
             action: 'do_auth',
             login: '',
             password: '',
-            device_id: '',
-            device_id2: '',
             JsHttpRequest: '1-xml',
         };
 
@@ -390,10 +385,10 @@ export class StalkerSessionService {
                 await this.dataService.sendIpcEvent<StalkerAuthConfirmationResponse>(
                     STALKER_REQUEST,
                     {
-                    url: portalUrl,
-                    macAddress,
-                    params,
-                    token,
+                        url: portalUrl,
+                        macAddress,
+                        params,
+                        token,
                     }
                 );
 
@@ -416,19 +411,18 @@ export class StalkerSessionService {
     async authenticate(
         portalUrl: string,
         macAddress: string,
-        serialNumber: string,
-        deviceId1?: string,
-        deviceId2?: string,
-        signature1?: string,
-        signature2?: string
+        identity: StalkerPortalIdentity = {}
     ): Promise<{
         token: string;
         accountInfo?: StalkerProfileResponse['js']['account_info'];
     }> {
+        const normalizedIdentity = normalizeStalkerPortalIdentity(identity);
+
         // Step 1: Handshake to get token and random
         const { token, random } = await this.performHandshake(
             portalUrl,
-            macAddress
+            macAddress,
+            normalizedIdentity
         );
 
         // Step 2: Get profile to activate token and get account info
@@ -438,12 +432,8 @@ export class StalkerSessionService {
                 portalUrl,
                 macAddress,
                 token,
-                serialNumber,
-                random,
-                deviceId1,
-                deviceId2,
-                signature1,
-                signature2
+                normalizedIdentity,
+                random
             );
 
             // Check for profile-level errors
@@ -480,10 +470,12 @@ export class StalkerSessionService {
             return { token: null };
         }
 
+        const identity = getStalkerPortalIdentityFromPlaylist(playlist);
+
         // Check in-memory cache first (valid for current session only)
         const cachedToken = this.getCachedToken(playlist._id);
         if (cachedToken) {
-            return { token: cachedToken };
+            return { token: cachedToken, serialNumber: identity.serialNumber };
         }
 
         // Check if there's already a pending authentication for this playlist
@@ -503,12 +495,6 @@ export class StalkerSessionService {
             throw new Error('Portal URL and MAC address are required');
         }
 
-        // Get or generate serial number - must be consistent for the MAC
-        let serialNumber = playlist.stalkerSerialNumber;
-        if (!serialNumber) {
-            serialNumber = STALKER_SERIAL_NUMBER;
-        }
-
         // Create the authentication promise and store it to prevent concurrent auth attempts
         // Use async/await wrapper to properly clean up on both success and failure
         const authPromise = (async () => {
@@ -516,10 +502,10 @@ export class StalkerSessionService {
                 const { token } = await this.authenticate(
                     playlist.portalUrl,
                     playlist.macAddress,
-                    serialNumber
+                    identity
                 );
                 this.setCachedToken(playlist._id, token);
-                return { token, serialNumber };
+                return { token, serialNumber: identity.serialNumber };
             } finally {
                 // Clean up pending promise regardless of success/failure
                 this.pendingAuth.delete(playlist._id);
@@ -531,8 +517,6 @@ export class StalkerSessionService {
 
         return authPromise;
     }
-
-
 
     /**
      * Checks if a response or error indicates an authorization failure
@@ -578,8 +562,7 @@ export class StalkerSessionService {
         retryOnAuthFailure = true
     ): Promise<T> {
         // Get token (will wait if auth is in progress)
-        const { token } = await this.ensureToken(playlist);
-        const serialNumber = playlist.stalkerSerialNumber;
+        const { token, serialNumber } = await this.ensureToken(playlist);
 
         try {
             const response = await this.dataService.sendIpcEvent<T>(
@@ -589,7 +572,7 @@ export class StalkerSessionService {
                     macAddress: playlist.macAddress,
                     params,
                     token,
-                    serialNumber,
+                    ...(serialNumber ? { serialNumber } : {}),
                 }
             );
 

@@ -1,3 +1,8 @@
+import {
+    buildStalkerSerialCfduid,
+    normalizeStalkerSerialNumber,
+} from '@iptvnator/shared/interfaces';
+
 const STALKER_MAG_USER_AGENT =
     'Mozilla/5.0 (QtEmbedded; U; Linux; C) AppleWebKit/533.3 (KHTML, like Gecko) MAG250';
 const STALKER_STREAM_USER_AGENT = 'KSPlayer';
@@ -66,16 +71,15 @@ export function rememberStalkerPlaybackContext(input: {
     const streamKey = normalizeStreamUrl(input.streamUrl);
     if (!streamKey || !input.macAddress) return;
 
+    const serialNumber = normalizeStalkerSerialNumber(input.serialNumber);
     const cookieParts = [
         `mac=${input.macAddress}`,
         'stb_lang=en_US@rg=dezzzz',
         'timezone=Europe/Berlin',
     ];
 
-    if (input.serialNumber) {
-        cookieParts.push(
-            `__cfduid=${input.serialNumber.toLowerCase()}e030245495acd6ebfc1`
-        );
+    if (serialNumber) {
+        cookieParts.push(`__cfduid=${buildStalkerSerialCfduid(serialNumber)}`);
     }
 
     const streamOrigin = getOrigin(input.streamUrl) || undefined;
@@ -112,8 +116,8 @@ export function rememberStalkerPlaybackContext(input: {
         headers['Referer'] = portalOrigin;
     }
 
-    if (!crossOriginStream && input.serialNumber) {
-        headers['SN'] = input.serialNumber;
+    if (!crossOriginStream && serialNumber) {
+        headers['SN'] = serialNumber;
     }
 
     if (!crossOriginStream && input.token) {

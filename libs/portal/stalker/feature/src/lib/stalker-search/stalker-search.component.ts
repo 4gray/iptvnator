@@ -176,7 +176,7 @@ export class StalkerSearchComponent {
                         playlist as Playlist
                     );
                     token = result.token ?? undefined;
-                    serialNumber = (playlist as Playlist).stalkerSerialNumber;
+                    serialNumber = result.serialNumber;
                 } catch (error) {
                     this.logger.error('Failed to get stalker token', error);
                 }
