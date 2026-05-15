@@ -1,12 +1,23 @@
 import { inject, Provider } from '@angular/core';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
-import { IXtreamDataSource, XTREAM_DATA_SOURCE } from './xtream-data-source.interface';
+import {
+    IXtreamDataSource,
+    XTREAM_DATA_SOURCE,
+} from './xtream-data-source.interface';
 
 // Re-export all types and interfaces
 export * from './xtream-data-source.interface';
 export { ElectronXtreamDataSource } from './electron-xtream-data-source';
 export { PwaXtreamDataSource } from './pwa-xtream-data-source';
+
+function hasElectronDatabasePreload(): boolean {
+    return (
+        typeof window !== 'undefined' &&
+        typeof window.electron?.dbGetPlaylist === 'function' &&
+        typeof window.electron?.dbGetContent === 'function'
+    );
+}
 
 /**
  * Factory function that returns the appropriate data source based on environment.
@@ -15,7 +26,7 @@ export { PwaXtreamDataSource } from './pwa-xtream-data-source';
  */
 export function xtreamDataSourceFactory(): IXtreamDataSource {
     // Check if we're in Electron environment
-    if (typeof window !== 'undefined' && window.electron) {
+    if (hasElectronDatabasePreload()) {
         return inject(ElectronXtreamDataSource);
     }
 

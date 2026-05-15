@@ -1,7 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { patchState, signalStore } from '@ngrx/signals';
-import { DatabaseService } from '@iptvnator/services';
-import { FavoritesService } from './services/favorites.service';
+import { patchState, signalStore, withState } from '@ngrx/signals';
+import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 import { withFavorites } from './with-favorites.feature';
 
 jest.mock('@iptvnator/portal/shared/util', () => ({
@@ -14,38 +13,42 @@ jest.mock('@iptvnator/portal/shared/util', () => ({
 }));
 
 const TestFavoritesStore = signalStore(withFavorites());
+const TestLoadedContentFavoritesStore = signalStore(
+    withState({
+        vodStreams: [
+            {
+                stream_id: 20203,
+                title: 'Movie',
+                type: 'movie',
+            },
+        ],
+    }),
+    withFavorites()
+);
 
 describe('withFavorites', () => {
     let store: InstanceType<typeof TestFavoritesStore>;
-    let databaseService: {
+    let dataSource: {
+        addFavorite: jest.Mock;
         getContentByXtreamId: jest.Mock;
-    };
-    let favoritesService: {
-        addToFavorites: jest.Mock;
         isFavorite: jest.Mock;
-        removeFromFavorites: jest.Mock;
+        removeFavorite: jest.Mock;
     };
 
     beforeEach(() => {
-        databaseService = {
+        dataSource = {
+            addFavorite: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn(),
-        };
-        favoritesService = {
-            addToFavorites: jest.fn().mockResolvedValue(undefined),
             isFavorite: jest.fn().mockResolvedValue(false),
-            removeFromFavorites: jest.fn().mockResolvedValue(undefined),
+            removeFavorite: jest.fn().mockResolvedValue(undefined),
         };
 
         TestBed.configureTestingModule({
             providers: [
                 TestFavoritesStore,
                 {
-                    provide: DatabaseService,
-                    useValue: databaseService,
-                },
-                {
-                    provide: FavoritesService,
-                    useValue: favoritesService,
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: dataSource,
                 },
             ],
         });
@@ -54,7 +57,7 @@ describe('withFavorites', () => {
     });
 
     it('looks favorites up with the requested content type before adding one', async () => {
-        databaseService.getContentByXtreamId.mockResolvedValue({
+        dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3941697,
             title: 'Krypton',
             type: 'series',
@@ -63,21 +66,122 @@ describe('withFavorites', () => {
 
         const result = await store.toggleFavorite(290, 'playlist-1', 'series');
 
-        expect(databaseService.getContentByXtreamId).toHaveBeenCalledWith(
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
             290,
             'playlist-1',
             'series'
         );
-        expect(favoritesService.addToFavorites).toHaveBeenCalledWith({
-            content_id: 3941697,
-            playlist_id: 'playlist-1',
-        });
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            3941697,
+            'playlist-1',
+            undefined
+        );
         expect(result).toBe(true);
         expect(store.isFavorite()).toBe(true);
     });
 
+    it('uses stream_id as the PWA favorite id when no database id exists', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue({
+            stream_id: 20203,
+            title: 'Movie',
+            type: 'movie',
+        });
+
+        const result = await store.toggleFavorite(20203, 'playlist-1', 'movie');
+
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            20203,
+            'playlist-1',
+            undefined
+        );
+        expect(result).toBe(true);
+    });
+
+    it('normalizes route string ids before looking up PWA content', async () => {
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (xtreamId: number) =>
+                xtreamId === 20203
+                    ? {
+                          stream_id: 20203,
+                          title: 'Movie',
+                          type: 'movie',
+                      }
+                    : null
+        );
+
+        const result = await store.toggleFavorite(
+            '20203',
+            'playlist-1',
+            'movie'
+        );
+
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            20203,
+            'playlist-1',
+            'movie'
+        );
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            20203,
+            'playlist-1',
+            undefined
+        );
+        expect(result).toBe(true);
+    });
+
+    it('normalizes route string ids before checking PWA favorite status', async () => {
+        dataSource.getContentByXtreamId.mockImplementation(
+            async (xtreamId: number) =>
+                xtreamId === 20203
+                    ? {
+                          stream_id: 20203,
+                          title: 'Movie',
+                          type: 'movie',
+                      }
+                    : null
+        );
+        dataSource.isFavorite.mockResolvedValue(true);
+
+        await store.checkFavoriteStatus('20203', 'playlist-1', 'movie');
+
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            20203,
+            'playlist-1',
+            'movie'
+        );
+        expect(dataSource.isFavorite).toHaveBeenCalledWith(20203, 'playlist-1');
+        expect(store.isFavorite()).toBe(true);
+    });
+
+    it('falls back to loaded store content when the PWA source cache misses', async () => {
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                TestLoadedContentFavoritesStore,
+                {
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: dataSource,
+                },
+            ],
+        });
+        const loadedStore = TestBed.inject(TestLoadedContentFavoritesStore);
+
+        const result = await loadedStore.toggleFavorite(
+            20203,
+            'playlist-1',
+            'movie'
+        );
+
+        expect(dataSource.addFavorite).toHaveBeenCalledWith(
+            20203,
+            'playlist-1',
+            undefined
+        );
+        expect(result).toBe(true);
+    });
+
     it('looks favorites up with the requested content type before removing one', async () => {
-        databaseService.getContentByXtreamId.mockResolvedValue({
+        dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3867578,
             title: 'SE: V Film Premiere FHD',
             type: 'live',
@@ -87,12 +191,12 @@ describe('withFavorites', () => {
 
         const result = await store.toggleFavorite(290, 'playlist-1', 'live');
 
-        expect(databaseService.getContentByXtreamId).toHaveBeenCalledWith(
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
             290,
             'playlist-1',
             'live'
         );
-        expect(favoritesService.removeFromFavorites).toHaveBeenCalledWith(
+        expect(dataSource.removeFavorite).toHaveBeenCalledWith(
             3867578,
             'playlist-1'
         );
@@ -101,22 +205,22 @@ describe('withFavorites', () => {
     });
 
     it('checks favorite state against the matching content type', async () => {
-        databaseService.getContentByXtreamId.mockResolvedValue({
+        dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3829429,
             title: 'Dragon Ball Heroes',
             type: 'series',
             xtream_id: 31,
         });
-        favoritesService.isFavorite.mockResolvedValue(true);
+        dataSource.isFavorite.mockResolvedValue(true);
 
         await store.checkFavoriteStatus(31, 'playlist-1', 'series');
 
-        expect(databaseService.getContentByXtreamId).toHaveBeenCalledWith(
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
             31,
             'playlist-1',
             'series'
         );
-        expect(favoritesService.isFavorite).toHaveBeenCalledWith(
+        expect(dataSource.isFavorite).toHaveBeenCalledWith(
             3829429,
             'playlist-1'
         );
