@@ -6,8 +6,8 @@ import { ActivatedRoute } from '@angular/router';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { isWorkspaceLayoutRoute } from '@iptvnator/portal/shared/util';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ResizableDirective } from 'components';
-import { StalkerPortalItem, XtreamCategory } from 'shared-interfaces';
+import { ResizableDirective } from '@iptvnator/ui/components';
+import { StalkerPortalItem, XtreamCategory } from '@iptvnator/shared/interfaces';
 import { CategoryViewComponent } from '../category-view/category-view.component';
 import { ContentCardComponent } from '../content-card/content-card.component';
 

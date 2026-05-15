@@ -3,7 +3,7 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
     type DbOperationEvent,
@@ -11,9 +11,9 @@ import {
     PlaybackPositionService,
     PlaylistRefreshService,
     XtreamPendingRestoreService,
-} from 'services';
-import { ChannelActions, PlaylistActions } from 'm3u-state';
-import { PlaylistMeta } from 'shared-interfaces';
+} from '@iptvnator/services';
+import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from './playlist-context.facade';
 
 export interface XtreamRefreshPreparationState {

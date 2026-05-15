@@ -1,8 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
-import { DataService } from 'services';
-import { PlaylistMeta, StalkerPortalActions } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerContent } from './with-stalker-content.feature';
 

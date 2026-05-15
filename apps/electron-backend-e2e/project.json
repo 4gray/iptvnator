@@ -12,5 +12,6 @@
         "e2e": {
             "dependsOn": ["electron-backend:build-e2e"]
         }
-    }
+    },
+    "tags": ["scope:e2e", "domain:electron-main", "type:e2e"]
 }

@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { ActivatedRoute, Router, convertToParamMap } from '@angular/router';
 import { of } from 'rxjs';
-import { DatabaseService } from 'services';
+import { DatabaseService } from '@iptvnator/services';
 import { SearchResultsComponent } from './search-results.component';
 import {
     SearchFilters,

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { ContentHeroComponent, SeasonContainerComponent } from 'components';
+import { ContentHeroComponent, SeasonContainerComponent } from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -14,9 +14,9 @@ import {
     StalkerStore,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
-import { PlaybackPositionData } from 'shared-interfaces';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { DownloadsService } from 'services';
+import { DownloadsService } from '@iptvnator/services';
 import { of } from 'rxjs';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';

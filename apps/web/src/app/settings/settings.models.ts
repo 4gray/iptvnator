@@ -3,7 +3,7 @@ import {
     StartupBehavior,
     Theme,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export interface SettingsSection {
     id: string;

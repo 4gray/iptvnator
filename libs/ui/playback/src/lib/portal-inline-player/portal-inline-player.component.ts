@@ -12,7 +12,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 

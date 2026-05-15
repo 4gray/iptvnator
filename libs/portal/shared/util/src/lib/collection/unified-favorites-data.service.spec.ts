@@ -2,13 +2,13 @@ import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
     Playlist,
     PlaylistMeta,
     StalkerPortalItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from './unified-collection-item.interface';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 

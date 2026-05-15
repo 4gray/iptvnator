@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore } from '@ngrx/signals';
-import { DatabaseService } from 'services';
+import { DatabaseService } from '@iptvnator/services';
 import { FavoritesService } from './services/favorites.service';
 import { withFavorites } from './with-favorites.feature';
 

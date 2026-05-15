@@ -24,11 +24,11 @@ import {
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
     WebPlayerViewComponent,
-} from 'shared-portals';
-import { EpgItem, EpgProgram } from 'shared-interfaces';
+} from '@iptvnator/ui/shared-portals';
+import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
-import { SettingsStore } from 'services';
+import { SettingsStore } from '@iptvnator/services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 

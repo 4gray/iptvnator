@@ -6,7 +6,7 @@ import {
     TranslateService,
 } from '@ngx-translate/core';
 import { Observable, of } from 'rxjs';
-import { ExternalPlayerSession } from 'shared-interfaces';
+import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackDockComponent } from './external-playback-dock.component';
 
 class FakeTranslateLoader implements TranslateLoader {

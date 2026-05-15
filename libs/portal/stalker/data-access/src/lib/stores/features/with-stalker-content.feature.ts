@@ -9,7 +9,7 @@ import {
 } from '@ngrx/signals';
 import { TranslateService } from '@ngx-translate/core';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import {
     StalkerCategoryItem,
     StalkerContentItem,

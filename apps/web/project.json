@@ -9,7 +9,7 @@
             "enabled": false
         }
     },
-    "tags": ["scope:app", "type:app"],
+    "tags": ["scope:app", "domain:web", "type:app"],
     "targets": {
         "build": {
             "executor": "@angular/build:application",

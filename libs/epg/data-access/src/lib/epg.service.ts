@@ -3,7 +3,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, map, tap, timeout } from 'rxjs/operators';
-import { EpgChannelMetadata, EpgProgram } from 'shared-interfaces';
+import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 interface CachedProgram {

@@ -354,7 +354,7 @@ class EpgService {
 - The shared EPG UI only shows the archive replay badge when the host confirms
   that the selected M3U channel has a playable replay scheme. Archive days
   alone are not enough.
-- M3U catch-up support is resolved in `m3u-utils` from channel metadata and
+- M3U catch-up support is resolved in `@iptvnator/shared/m3u-utils` from channel metadata and
   the archived program start time.
 - Supported replay precedence:
     1. `catchup.source` if it is an HTTP(S) URL. IPTVNator rewrites or appends

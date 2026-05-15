@@ -17,12 +17,12 @@ import {
     ContentHeroComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
-} from 'components';
+} from '@iptvnator/ui/components';
 import {
     PlaybackPositionData,
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -49,7 +49,7 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService } from 'services';
+import { DownloadsService } from '@iptvnator/services';
 import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,

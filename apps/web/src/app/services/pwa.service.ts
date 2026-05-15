@@ -4,9 +4,9 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import { catchError, firstValueFrom, throwError } from 'rxjs';
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import {
     ERROR,
     Playlist,
@@ -16,7 +16,7 @@ import {
     XtreamCodeActions,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../../environments/environment';
 import {
     createPortalDebugErrorEvent,

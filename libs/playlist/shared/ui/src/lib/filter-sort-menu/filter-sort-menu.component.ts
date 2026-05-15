@@ -12,8 +12,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenu, MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { FilterActions, selectActiveTypeFilters } from 'm3u-state';
-import { SortBy, SortOrder, SortService } from 'services';
+import { FilterActions, selectActiveTypeFilters } from '@iptvnator/m3u-state';
+import { SortBy, SortOrder, SortService } from '@iptvnator/services';
 
 @Component({
     selector: 'app-filter-sort-menu',

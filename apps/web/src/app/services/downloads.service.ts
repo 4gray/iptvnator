@@ -2,4 +2,4 @@ export {
     DownloadsService,
     type DownloadItem,
     type DownloadStatus,
-} from 'services';
+} from '@iptvnator/services';

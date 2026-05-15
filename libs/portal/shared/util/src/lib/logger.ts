@@ -2,7 +2,7 @@ import {
     PortalDebugEvent,
     PortalDebugProvider,
     PortalDebugTransport,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export interface Logger {
     debug: (...args: unknown[]) => void;

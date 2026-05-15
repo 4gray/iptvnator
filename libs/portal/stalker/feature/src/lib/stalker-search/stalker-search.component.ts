@@ -13,7 +13,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
-import { DataService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     Playlist,
@@ -21,7 +21,7 @@ import {
     STALKER_REQUEST,
     StalkerPortalActions,
     VodDetailsItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import { ContentCardComponent } from '@iptvnator/portal/shared/ui';
 import { SearchLayoutComponent } from '@iptvnator/portal/shared/ui';

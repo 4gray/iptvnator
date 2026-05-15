@@ -6,7 +6,7 @@ import type {
     PortalPlaybackPositions,
     PortalPlayer,
 } from '@iptvnator/portal/shared/util';
-import type { PlaybackPositionData } from 'shared-interfaces';
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';
 
 interface Deferred<T> {

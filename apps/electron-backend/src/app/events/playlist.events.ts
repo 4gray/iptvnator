@@ -6,7 +6,7 @@
 import axios from 'axios';
 import { app, dialog, ipcMain, WebContents } from 'electron';
 import { parse } from 'iptv-playlist-parser';
-import { createPlaylistObject, getFilenameFromUrl } from 'm3u-utils';
+import { createPlaylistObject, getFilenameFromUrl } from '@iptvnator/shared/m3u-utils';
 import { readFile, writeFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { pathToFileURL } from 'url';
@@ -19,7 +19,7 @@ import {
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 import type {
     PlaylistRefreshWorkerMessage,

@@ -7,9 +7,9 @@ import {
     selectActivePlaylistId,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { Subject } from 'rxjs';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     PlaylistContextFacade,
     PlaylistRouteContext,

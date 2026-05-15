@@ -1,5 +1,5 @@
 import { Component, OnInit, inject } from '@angular/core';
-import { RemoteControlComponent } from 'remote-control';
+import { RemoteControlComponent } from '@iptvnator/ui/remote-control';
 import { TranslateService } from '@ngx-translate/core';
 
 @Component({

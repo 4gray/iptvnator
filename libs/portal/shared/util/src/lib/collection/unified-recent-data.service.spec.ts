@@ -1,13 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
     M3uRecentlyViewedItem,
     Playlist,
     PlaylistMeta,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from './unified-collection-item.interface';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
 

@@ -11,7 +11,7 @@ import {
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     DatabaseService,
@@ -19,7 +19,7 @@ import {
     isDbAbortError,
     XtreamPendingRestoreService,
     XtreamImportStatus,
-} from 'services';
+} from '@iptvnator/services';
 import {
     DbCategoryType,
     XTREAM_DATA_SOURCE,

@@ -1,5 +1,5 @@
 export default {
-    displayName: 'shared-interfaces',
+    displayName: '@iptvnator/shared/interfaces',
     preset: '../../../jest.preset.js',
     testEnvironment: 'node',
     transform: {

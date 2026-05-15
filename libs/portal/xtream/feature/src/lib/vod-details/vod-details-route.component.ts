@@ -13,7 +13,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent } from 'components';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -27,7 +27,7 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService, SettingsStore } from 'services';
+import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -36,7 +36,7 @@ import {
     XtreamVodDetails,
     XtreamVodStream,
     getXtreamVodInfo,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     buildXtreamVodFallbackViewModel,
     hasUsableXtreamVodMetadata,

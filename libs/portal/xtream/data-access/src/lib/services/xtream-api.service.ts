@@ -1,5 +1,5 @@
 import { inject, Injectable } from '@angular/core';
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import {
     EpgItem,
     XtreamCategory,
@@ -10,7 +10,7 @@ import {
     XtreamVodDetails,
     XtreamVodStream,
     XTREAM_REQUEST,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { XtreamAccountInfo } from '../account-info/account-info.interface';
 
 /**

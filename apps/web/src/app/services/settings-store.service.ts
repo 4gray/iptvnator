@@ -1,1 +1,1 @@
-export { SettingsStore } from 'services';
+export { SettingsStore } from '@iptvnator/services';

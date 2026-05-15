@@ -6,7 +6,7 @@ import {
     ExternalPlayerSession,
     parseExternalPlayerArguments,
     type ExternalPlayerArgumentsInput,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import App from '../app';
 import {
     MPV_PLAYER_ARGUMENTS,

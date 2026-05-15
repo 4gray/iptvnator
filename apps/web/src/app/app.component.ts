@@ -7,9 +7,9 @@ import { TranslateService } from '@ngx-translate/core';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
-import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
+import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
-import { DataService, SettingsStore } from 'services';
+import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     Language,
@@ -17,7 +17,7 @@ import {
     Settings,
     STORE_KEY,
     Theme,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
 
 @Component({

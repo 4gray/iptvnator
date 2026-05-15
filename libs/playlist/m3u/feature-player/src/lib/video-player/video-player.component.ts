@@ -20,8 +20,8 @@ import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ResizableDirective } from 'components';
-import { isM3uCatchupPlaybackSupported } from 'm3u-utils';
+import { ResizableDirective } from '@iptvnator/ui/components';
+import { isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     COMPONENT_OVERLAY_REF,
@@ -40,7 +40,7 @@ import {
     selectChannels,
     selectChannelsLoading,
     selectCurrentEpgProgram,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import {
     firstValueFrom,
     Observable,
@@ -72,9 +72,9 @@ import {
     SidebarComponent,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
-import { LiveEpgPanelComponent, LiveEpgPanelSummary } from 'shared-portals';
-import { ChannelListLoadingStateComponent } from 'components';
-import { DataService, PlaylistsService, SettingsStore } from 'services';
+import { LiveEpgPanelComponent, LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
+import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
+import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
 import {
     Channel,
     EpgProgram,
@@ -88,7 +88,7 @@ import {
     STORE_KEY,
     Settings,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
 const M3U_MULTI_EPG_HEADER_ACTION_ID = 'm3u-multi-epg';

@@ -17,10 +17,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
-import { Playlist, PlaylistMeta } from 'shared-interfaces';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-playlist-info',

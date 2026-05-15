@@ -11,7 +11,7 @@ import { By } from '@angular/platform-browser';
 import { ActivatedRoute, convertToParamMap, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateModule } from '@ngx-translate/core';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import {
     COLLECTION_VIEW_STATE_KEY,
     CollectionScope,
@@ -23,9 +23,9 @@ import {
     UnifiedRecentDataService,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from 'm3u-state';
+import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { BehaviorSubject } from 'rxjs';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionPageComponent } from './unified-collection-page.component';
 import { UnifiedCollectionDetailDirective } from './unified-collection-detail.directive';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';

@@ -5,7 +5,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { EpgProgram } from 'shared-interfaces';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgItemDescriptionComponent } from '../epg-item-description/epg-item-description.component';
 import { EpgListItemComponent } from './epg-list-item.component';
 

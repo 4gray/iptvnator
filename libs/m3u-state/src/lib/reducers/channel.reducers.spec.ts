@@ -1,5 +1,5 @@
 import { createReducer } from '@ngrx/store';
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 import { ChannelActions } from '../actions';
 import { initialState } from '../state';
 import { channelReducers } from './channel.reducers';

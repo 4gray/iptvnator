@@ -1,5 +1,5 @@
 export default {
-    displayName: 'workspace-dashboard-feature',
+    displayName: '@iptvnator/workspace/dashboard/feature',
     preset: '../../../../jest.preset.js',
     setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
     coverageDirectory: '../../../../coverage/libs/workspace/dashboard/feature',

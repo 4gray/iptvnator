@@ -1,10 +1,10 @@
 import { and, eq, inArray } from 'drizzle-orm';
-import * as schema from 'database-schema';
+import * as schema from '@iptvnator/shared/database/schema';
 import type {
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,

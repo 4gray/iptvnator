@@ -22,7 +22,7 @@ import {
     XtreamBackupContentType,
     XtreamPlaylistBackupEntry,
     XtreamPendingRestoreState,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export interface PlaylistBackupExportPayload {
     defaultFileName: string;

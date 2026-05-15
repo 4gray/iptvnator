@@ -7,9 +7,9 @@ import { ActivatedRoute } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { RecentPlaylistsComponent } from '@iptvnator/playlist/shared/ui';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { selectActiveTypeFilters, selectAllPlaylistsMeta } from 'm3u-state';
+import { selectActiveTypeFilters, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { map, startWith } from 'rxjs';
-import { SortBy, SortOrder, SortService } from 'services';
+import { SortBy, SortOrder, SortService } from '@iptvnator/services';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspacePlaylistType,

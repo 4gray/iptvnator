@@ -3,7 +3,7 @@ import {
     XtreamVodInfo,
     XtreamVodStream,
     getXtreamVodInfo,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 type XtreamCategoryContext = {
     readonly id?: string | number;

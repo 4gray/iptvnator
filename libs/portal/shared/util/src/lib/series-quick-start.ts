@@ -1,4 +1,4 @@
-import { PlaybackPositionData, XtreamSerieEpisode } from 'shared-interfaces';
+import { PlaybackPositionData, XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 import {
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,

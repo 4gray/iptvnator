@@ -11,5 +11,6 @@
     "// targets": "to see all targets run: nx show project web-e2e --web",
     "targets": {
         "e2e": {}
-    }
+    },
+    "tags": ["scope:e2e", "domain:web", "type:e2e"]
 }

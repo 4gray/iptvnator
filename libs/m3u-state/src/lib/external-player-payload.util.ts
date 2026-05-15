@@ -1,4 +1,4 @@
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 
 export function buildExternalPlayerPayload(
     activeChannel: Channel | undefined | null,

@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 import type { ArtPlayerComponent as ArtPlayerComponentInstance } from './art-player.component';
 
 const artPlayerInstances: MockArtplayer[] = [];

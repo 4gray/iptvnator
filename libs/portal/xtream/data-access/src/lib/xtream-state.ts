@@ -1,11 +1,11 @@
-import { GlobalSearchResult } from 'services';
+import { GlobalSearchResult } from '@iptvnator/services';
 import {
     EpgItem,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     XtreamContentItem,
     XtreamPlaylistData,

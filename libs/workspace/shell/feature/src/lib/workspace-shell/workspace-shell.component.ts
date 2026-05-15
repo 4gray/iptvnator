@@ -1,6 +1,6 @@
 import { Component, inject } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { ExternalPlaybackDockComponent } from 'components';
+import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 import {
     PlaylistDropOverlayComponent,
     PlaylistDropZoneDirective,

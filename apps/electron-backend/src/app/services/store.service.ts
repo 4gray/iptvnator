@@ -1,5 +1,5 @@
 import { Conf } from 'electron-conf/main';
-import { getElectronConfigDirectory } from 'database';
+import { getElectronConfigDirectory } from '@iptvnator/shared/database';
 
 export const WINDOW_BOUNDS = 'WINDOW_BOUNDS';
 export const MPV_PLAYER_PATH = 'MPV_PLAYER_PATH';

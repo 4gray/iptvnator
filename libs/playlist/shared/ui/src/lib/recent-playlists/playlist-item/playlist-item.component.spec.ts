@@ -4,7 +4,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { PortalStatusService } from 'services';
+import { PortalStatusService } from '@iptvnator/services';
 import { PlaylistItemComponent } from './playlist-item.component';
 
 describe('PlaylistItemComponent', () => {

@@ -1,7 +1,7 @@
 import {
     StalkerVodDetails,
     StalkerVodInfo,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export type StalkerSeriesFlag = true | 1 | '1';
 

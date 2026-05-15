@@ -18,8 +18,8 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import { PortalStatus, PortalStatusService } from 'services';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PortalStatus, PortalStatusService } from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-playlist-item',

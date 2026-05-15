@@ -5,8 +5,8 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
-import { DataService, PlaylistsService } from 'services';
-import { Playlist } from 'shared-interfaces';
+import { DataService, PlaylistsService } from '@iptvnator/services';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from './unified-collection-item.interface';
 import {
     ResolvedLiveCollectionDetail,

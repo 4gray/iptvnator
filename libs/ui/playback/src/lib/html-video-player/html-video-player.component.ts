@@ -13,8 +13,8 @@ import {
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { DataService } from 'services';
-import { Channel } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { Channel } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,

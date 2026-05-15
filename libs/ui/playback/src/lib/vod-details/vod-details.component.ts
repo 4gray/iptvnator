@@ -9,15 +9,15 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { ContentHeroComponent } from 'components';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
 import {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
     VodDetailsItem,
     getVodNumericId,
     normalizeVodDetails,
-} from 'shared-interfaces';
-import { DownloadsService } from 'services';
+} from '@iptvnator/shared/interfaces';
+import { DownloadsService } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
 

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { PlaybackPositionData } from 'shared-interfaces';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 @Injectable({
     providedIn: 'root',

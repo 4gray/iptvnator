@@ -3,7 +3,7 @@ import {
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export interface PlaylistRefreshOptions {
     onEvent?: (event: PlaylistRefreshEvent) => void;

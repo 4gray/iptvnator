@@ -6,7 +6,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
 import { TranslateModule } from '@ngx-translate/core';
 import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
-import { EpgItem } from 'shared-interfaces';
+import { EpgItem } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-epg-view',

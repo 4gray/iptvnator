@@ -1,4 +1,4 @@
-import { Channel, Playlist } from 'shared-interfaces';
+import { Channel, Playlist } from '@iptvnator/shared/interfaces';
 import {
     aggregateFavoriteChannels,
     getExtensionFromUrl,

@@ -17,8 +17,8 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistsService, SettingsStore } from 'services';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     WorkspaceStartupPreferencesService,
     WORKSPACE_SHELL_ACTIONS,

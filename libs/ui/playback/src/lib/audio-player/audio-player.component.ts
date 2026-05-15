@@ -17,7 +17,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSliderModule } from '@angular/material/slider';
 import { Store } from '@ngrx/store';
-import { ChannelActions } from 'm3u-state';
+import { ChannelActions } from '@iptvnator/m3u-state';
 
 @Component({
     selector: 'app-audio-player',

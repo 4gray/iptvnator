@@ -18,7 +18,7 @@ import { provideStore } from '@ngrx/store';
 import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
-import { PlaylistEffects, playlistReducer } from 'm3u-state';
+import { PlaylistEffects, playlistReducer } from '@iptvnator/m3u-state';
 import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
@@ -27,8 +27,8 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
 import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
-import { DataService } from 'services';
-import { dbConfig } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { dbConfig } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../environments/environment';
 import { routes } from './app.routes';
 import { ElectronService } from './services/electron.service';

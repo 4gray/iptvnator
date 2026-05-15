@@ -73,7 +73,9 @@ Thumbs.db
 .cursor
 .agent
 .claude
-.codex
+.codex/*
+!.codex/skills/
+!.codex/skills/**
 .plans
 
 # Native Electron addons

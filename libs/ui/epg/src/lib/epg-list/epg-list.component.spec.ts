@@ -8,7 +8,7 @@ import { BehaviorSubject, of } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { Channel, EpgProgram } from 'shared-interfaces';
+import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 import { EpgListComponent } from './epg-list.component';
 

@@ -15,7 +15,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ResizableDirective } from 'components';
+import { ResizableDirective } from '@iptvnator/ui/components';
 import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     LiveLayoutSidebarStateService,
@@ -53,11 +53,11 @@ import {
     LiveEpgPanelSummary,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
-} from 'shared-portals';
-import { EpgItem, EpgProgram, ResolvedPortalPlayback } from 'shared-interfaces';
+} from '@iptvnator/ui/shared-portals';
+import { EpgItem, EpgProgram, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
-import { SettingsStore } from 'services';
+import { SettingsStore } from '@iptvnator/services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 

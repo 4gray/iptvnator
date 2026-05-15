@@ -2,7 +2,7 @@
  * Unified interface for displaying live TV favorites from any source
  * (M3U playlists, Xtream Codes portals, Stalker portals) in one list.
  */
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 
 export type FavoriteSourceType = 'm3u' | 'xtream' | 'stalker';
 

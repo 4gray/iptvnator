@@ -16,7 +16,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,

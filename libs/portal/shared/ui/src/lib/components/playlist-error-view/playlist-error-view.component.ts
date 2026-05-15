@@ -7,8 +7,8 @@ import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { DialogService } from 'components';
-import { PlaylistActions } from 'm3u-state';
+import { DialogService } from '@iptvnator/ui/components';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 
 @Component({
     selector: 'app-playlist-error-view',

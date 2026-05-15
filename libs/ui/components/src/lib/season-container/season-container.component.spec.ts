@@ -2,8 +2,8 @@ import { signal } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
-import { XtreamSerieEpisode } from 'shared-interfaces';
-import { DownloadsService } from 'services';
+import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { DownloadsService } from '@iptvnator/services';
 import { SeasonContainerComponent } from './season-container.component';
 
 const downloadsServiceStub = {

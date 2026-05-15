@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { DataService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -9,7 +9,7 @@ import {
     ResolvedPortalPlayback,
     STALKER_REQUEST,
     StalkerPortalActions,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     XtreamApiService,
     XtreamUrlService,

@@ -21,16 +21,16 @@ import {
     selectChannels,
     selectChannelsLoading,
     selectCurrentEpgProgram,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
-import { DataService, PlaylistsService, SettingsStore } from 'services';
-import { Channel, EpgProgram, Settings, VideoPlayer } from 'shared-interfaces';
-import { LiveEpgPanelSummary } from 'shared-portals';
+import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
+import { Channel, EpgProgram, Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
+import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { Overlay } from '@angular/cdk/overlay';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';

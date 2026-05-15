@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { EpgItem, EpgProgram } from 'shared-interfaces';
+import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 
 type ElectronEpgBridge = {

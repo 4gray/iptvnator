@@ -3,7 +3,7 @@ import { PlaylistActions } from '../actions';
 import { playlistsAdapter } from '../playlists.state';
 import { initialState } from '../state';
 import { playlistReducers } from './playlist.reducers';
-import { Channel, Playlist, PlaylistMeta } from 'shared-interfaces';
+import { Channel, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 const reducer = createReducer(initialState, ...playlistReducers);
 

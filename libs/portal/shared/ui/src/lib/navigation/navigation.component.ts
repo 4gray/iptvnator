@@ -11,8 +11,8 @@ import {
     PORTAL_NAVIGATION_ACTIONS,
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
-import { selectPlaylistById } from 'm3u-state';
-import { Playlist } from 'shared-interfaces';
+import { selectPlaylistById } from '@iptvnator/m3u-state';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { PortalRailLinksComponent } from './portal-rail-links.component';
 
 @Component({

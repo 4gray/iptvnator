@@ -16,8 +16,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { resolveChannelEpgLookupKey } from 'm3u-state';
-import { Channel, EpgProgram } from 'shared-interfaces';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     PlaylistChannelSortMode,
     getPlaylistChannelSortModeLabel,

@@ -45,6 +45,20 @@ IPTVnator is a cross-platform IPTV player application built with Angular and Ele
 
 ## Development Commands
 
+### Agent Bootstrap
+
+```bash
+pnpm install --frozen-lockfile
+pnpm nx show projects
+```
+
+- Run the install step in a fresh worktree before relying on Nx discovery, lint, test, or build commands. Without `node_modules`, local Nx modules are unavailable.
+- Use scoped path aliases from `tsconfig.base.json` such as `@iptvnator/services`, `@iptvnator/shared/interfaces`, and `@iptvnator/ui/components`.
+- Do not add new imports from legacy bare aliases such as `services`, `shared-interfaces`, `components`, `m3u-state`, or `database`.
+- Every Nx project should keep `scope:*`, `domain:*`, and `type:*` tags in `project.json`.
+- See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
+- Repository-specific skills are committed under `.codex/skills/`. If Claude Code does not load skills directly, treat those files as concise ownership docs.
+
 ### Building and Serving
 
 ```bash
@@ -689,7 +703,7 @@ No formal migration system yet. Schema changes are applied via raw SQL in `conne
 
 ## General Guidelines for working with Nx
 
-- For navigating/exploring the workspace, invoke the `nx-workspace` skill first - it has patterns for querying projects, targets, and dependencies
+- For navigating/exploring the workspace, invoke the `nx-workspace` skill first when it is available - it has patterns for querying projects, targets, and dependencies. If it is unavailable, use `pnpm nx show projects`, `pnpm nx graph`, and project `project.json` files directly.
 - When running tasks (for example build, lint, test, e2e, etc.), always prefer running the task through `nx` (i.e. `nx run`, `nx run-many`, `nx affected`) instead of using the underlying tooling directly
 - Prefix nx commands with the workspace's package manager (e.g., `pnpm nx build`, `npm exec nx test`) - avoids using globally installed CLI
 - You have access to the Nx MCP server and its tools, use them to help the user

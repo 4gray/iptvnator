@@ -28,12 +28,12 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import {
     PlaylistActions,
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { firstValueFrom, take } from 'rxjs';
 import {
     DatabaseService,
@@ -42,7 +42,7 @@ import {
     PlaylistBackupImportSummary,
     PlaylistBackupService,
     PlaylistsService,
-} from 'services';
+} from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     CoverSize,
@@ -52,7 +52,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';

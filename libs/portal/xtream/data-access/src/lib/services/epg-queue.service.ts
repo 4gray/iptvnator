@@ -1,7 +1,7 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
-import { EpgItem } from 'shared-interfaces';
-import { SettingsStore } from 'services';
+import { EpgItem } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 import { createLogger } from '@iptvnator/portal/shared/util';

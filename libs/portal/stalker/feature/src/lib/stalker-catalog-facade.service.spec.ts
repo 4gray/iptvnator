@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionData } from 'shared-interfaces';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { StalkerCatalogFacadeService } from './stalker-catalog-facade.service';
 
 describe('StalkerCatalogFacadeService', () => {

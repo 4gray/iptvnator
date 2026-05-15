@@ -1,5 +1,5 @@
 import { Injectable, signal } from '@angular/core';
-import { XtreamCategory } from 'shared-interfaces';
+import { XtreamCategory } from '@iptvnator/shared/interfaces';
 
 /**
  * Lightweight service that bridges collection-backed routed

@@ -13,7 +13,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
-import { isM3uCatchupPlaybackSupported } from 'm3u-utils';
+import { isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -43,15 +43,15 @@ import {
     HtmlVideoPlayerComponent,
     VjsPlayerComponent,
 } from '@iptvnator/ui/playback';
-import { ResizableDirective } from 'components';
-import { SettingsStore } from 'services';
-import { Channel, EpgItem, EpgProgram } from 'shared-interfaces';
+import { ResizableDirective } from '@iptvnator/ui/components';
+import { SettingsStore } from '@iptvnator/services';
+import { Channel, EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
     WebPlayerViewComponent,
-} from 'shared-portals';
+} from '@iptvnator/ui/shared-portals';
 
 @Component({
     selector: 'app-unified-live-tab',

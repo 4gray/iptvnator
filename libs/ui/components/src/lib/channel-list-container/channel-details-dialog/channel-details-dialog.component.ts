@@ -4,8 +4,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
-import { getM3uArchiveDays, isM3uCatchupPlaybackSupported } from 'm3u-utils';
-import { Channel } from 'shared-interfaces';
+import { getM3uArchiveDays, isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
+import { Channel } from '@iptvnator/shared/interfaces';
 
 interface ChannelDetailField {
     readonly empty?: boolean;

@@ -11,14 +11,14 @@ import {
     untracked,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { ContentHeroComponent } from 'components';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistsService } from 'services';
-import { Playlist } from 'shared-interfaces';
+import { PlaylistsService } from '@iptvnator/services';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { VodDetailsRouteComponent } from './vod-details/vod-details-route.component';

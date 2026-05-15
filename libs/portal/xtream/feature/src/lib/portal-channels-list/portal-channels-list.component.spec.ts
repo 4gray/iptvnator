@@ -10,7 +10,7 @@ import {
     FavoritesService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { SettingsStore } from 'services';
+import { SettingsStore } from '@iptvnator/services';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 
 function buildEpgItem(params: {

@@ -1,5 +1,5 @@
 import type { AppDatabase } from '../database.types';
-import * as schema from 'database-schema';
+import * as schema from '@iptvnator/shared/database/schema';
 import { getCategories, saveCategories } from './category.operations';
 
 function createDbMock(existingCount = 0) {

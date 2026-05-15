@@ -1,5 +1,20 @@
 import nx from '@nx/eslint-plugin';
 
+const legacyBareAliases = [
+    'components',
+    'm3u-state',
+    'm3u-utils',
+    'services',
+    'shared-interfaces',
+    'shared-portals',
+    'remote-control',
+    'database',
+    'database-schema',
+    'database-path-utils',
+    'workspace-dashboard-feature',
+    'workspace-dashboard-data-access',
+];
+
 export default [
     ...nx.configs['flat/base'],
     ...nx.configs['flat/typescript'],
@@ -24,6 +39,28 @@ export default [
                                 'type:data-access',
                                 'type:util',
                             ],
+                        },
+                        {
+                            sourceTag: 'type:e2e',
+                            onlyDependOnLibsWithTags: [
+                                'type:feature',
+                                'type:ui',
+                                'type:data-access',
+                                'type:util',
+                            ],
+                        },
+                        {
+                            sourceTag: 'type:dev-app',
+                            onlyDependOnLibsWithTags: [
+                                'type:feature',
+                                'type:ui',
+                                'type:data-access',
+                                'type:util',
+                            ],
+                        },
+                        {
+                            sourceTag: 'type:website',
+                            onlyDependOnLibsWithTags: ['type:ui', 'type:util'],
                         },
                         {
                             sourceTag: 'type:feature',
@@ -173,6 +210,21 @@ export default [
                             ],
                         },
                     ],
+                },
+            ],
+            'no-restricted-imports': [
+                'error',
+                {
+                    paths: legacyBareAliases.map((name) => ({
+                        name,
+                        message:
+                            'Use the scoped @iptvnator/* path alias instead of the legacy bare alias.',
+                    })),
+                    patterns: legacyBareAliases.map((name) => ({
+                        group: [`${name}/*`],
+                        message:
+                            'Use the scoped @iptvnator/* path alias instead of the legacy bare alias.',
+                    })),
                 },
             ],
         },

@@ -10,7 +10,7 @@ import { MockPipe } from 'ng-mocks';
 import {
     ContentHeroComponent,
     SeasonContainerComponent,
-} from 'components';
+} from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,

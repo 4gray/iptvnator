@@ -15,9 +15,9 @@ import {
     PlaylistContextFacade,
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/util';
-import { DialogService } from 'components';
-import { DatabaseService, PortalStatusService } from 'services';
-import { PlaylistMeta } from 'shared-interfaces';
+import { DialogService } from '@iptvnator/ui/components';
+import { DatabaseService, PortalStatusService } from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistSwitcherComponent } from './playlist-switcher.component';
 
 const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';

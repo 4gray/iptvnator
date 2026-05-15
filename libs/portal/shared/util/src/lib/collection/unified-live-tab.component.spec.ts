@@ -25,14 +25,14 @@ import {
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
-import { ResizableDirective } from 'components';
-import { SettingsStore } from 'services';
-import { Channel, EpgItem, EpgProgram } from 'shared-interfaces';
+import { ResizableDirective } from '@iptvnator/ui/components';
+import { SettingsStore } from '@iptvnator/services';
+import { Channel, EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-} from 'shared-portals';
+} from '@iptvnator/ui/shared-portals';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     PORTAL_PLAYER,

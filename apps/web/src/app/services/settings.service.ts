@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { catchError, map, Observable } from 'rxjs';
-import { STORE_KEY, Theme } from 'shared-interfaces';
+import { STORE_KEY, Theme } from '@iptvnator/shared/interfaces';
 
 const PRERELEASE_KEYWORDS = [
     'beta',

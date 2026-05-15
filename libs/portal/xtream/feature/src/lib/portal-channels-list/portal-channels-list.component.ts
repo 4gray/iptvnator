@@ -25,11 +25,11 @@ import {
     EpgProgram,
     XtreamCategory,
     XtreamItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
-} from 'components';
+} from '@iptvnator/ui/components';
 import {
     PortalChannelSortMode,
     sortPortalChannelItems,

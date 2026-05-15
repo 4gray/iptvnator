@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import { DataService } from 'services';
-import { EpgItem, Playlist } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { EpgItem, Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerEpg } from './with-stalker-epg.feature';
 

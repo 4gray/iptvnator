@@ -2,10 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from 'm3u-state';
+import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
-import { Playlist, PlaylistMeta } from 'shared-interfaces';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DashboardDataService } from './dashboard-data.service';
 
 describe('DashboardDataService', () => {

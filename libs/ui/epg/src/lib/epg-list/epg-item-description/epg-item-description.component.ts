@@ -7,7 +7,7 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { differenceInMinutes } from 'date-fns';
 import { startWith } from 'rxjs';
-import { EpgProgram } from 'shared-interfaces';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 
 type EpgItemDialogData = EpgProgram & {
     channelName?: string | null;

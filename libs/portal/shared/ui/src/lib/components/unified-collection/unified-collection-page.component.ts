@@ -21,7 +21,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ChannelListSkeletonComponent, DialogService } from 'components';
+import { ChannelListSkeletonComponent, DialogService } from '@iptvnator/ui/components';
 import {
     buildGlobalCollectionDetailNavigationTarget,
     buildCollectionViewState,
@@ -52,7 +52,7 @@ import {
     UnifiedRecentDataService,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from 'm3u-state';
+import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
 import { UnifiedGridTabComponent } from './unified-grid-tab.component';

@@ -3,7 +3,7 @@ import {
     ParsedPlaylist,
     ParsedPlaylistItem,
     Playlist,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { v4 as uuidv4 } from 'uuid';
 
 /**

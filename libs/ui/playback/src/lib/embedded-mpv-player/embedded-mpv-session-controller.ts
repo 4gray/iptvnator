@@ -12,7 +12,7 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { measureBounds } from './embedded-mpv-format.utils';
 
 export type EmbeddedMpvBoundsProvider = (

@@ -2,8 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import {
     XtreamSerieEpisode,
     XtreamVodDetails,
-} from 'shared-interfaces';
-import { DatabaseService, SettingsStore } from 'services';
+} from '@iptvnator/shared/interfaces';
+import { DatabaseService, SettingsStore } from '@iptvnator/services';
 import { XtreamCredentials } from './xtream-api.service';
 
 /**

@@ -6,7 +6,7 @@ import {
     PortalNavigationActions,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { Playlist } from 'shared-interfaces';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { SettingsComponent } from '../settings/settings.component';
 
 @Injectable({ providedIn: 'root' })

@@ -1,11 +1,12 @@
 {
-    "name": "shared-interfaces",
+    "name": "@iptvnator/shared/interfaces",
     "version": "0.0.1",
     "private": true,
     "type": "commonjs",
     "main": "./src/index.js",
     "types": "./src/index.d.ts",
     "dependencies": {
+        "ngx-indexed-db": "^21.0.0",
         "tslib": "^2.3.0"
     }
 }

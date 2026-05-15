@@ -1,8 +1,8 @@
 import { inject } from '@angular/core';
 import { signalStoreFeature, withMethods } from '@ngrx/signals';
 import { Store } from '@ngrx/store';
-import { PlaylistsService } from 'services';
-import { PlaylistMeta, StalkerPortalItem } from 'shared-interfaces';
+import { PlaylistsService } from '@iptvnator/services';
+import { PlaylistMeta, StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { StalkerContentType } from '../stalker-store.contracts';
 import {

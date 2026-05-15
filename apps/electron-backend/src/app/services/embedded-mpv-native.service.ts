@@ -22,7 +22,7 @@ import {
     EmbeddedMpvSupport,
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 interface NativeEmbeddedMpvSessionSnapshot {
     status: EmbeddedMpvSessionStatus;

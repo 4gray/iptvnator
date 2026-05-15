@@ -1,4 +1,4 @@
-import { XtreamSerieEpisode } from 'shared-interfaces';
+import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 import {
     StalkerSeason,
     StalkerVodSeriesEpisode,

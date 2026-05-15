@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withMethods, withState } from '@ngrx/signals';
-import { DatabaseService } from 'services';
+import { DatabaseService } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
     XtreamPlaylistData,

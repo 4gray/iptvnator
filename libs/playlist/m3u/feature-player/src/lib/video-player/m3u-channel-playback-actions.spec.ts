@@ -1,5 +1,5 @@
-import { ChannelActions } from 'm3u-state';
-import { Channel } from 'shared-interfaces';
+import { ChannelActions } from '@iptvnator/m3u-state';
+import { Channel } from '@iptvnator/shared/interfaces';
 import { createM3uChannelPlaybackRequest } from './m3u-channel-playback-actions';
 
 describe('createM3uChannelPlaybackRequest', () => {

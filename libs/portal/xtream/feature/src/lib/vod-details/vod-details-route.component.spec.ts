@@ -14,8 +14,8 @@ import {
     XtreamCategory,
     XtreamVodDetails,
     XtreamVodStream,
-} from 'shared-interfaces';
-import { DownloadsService, SettingsStore } from 'services';
+} from '@iptvnator/shared/interfaces';
+import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { VodDetailsRouteComponent } from './vod-details-route.component';
 

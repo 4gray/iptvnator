@@ -31,7 +31,7 @@ import {
     resolveChannelEpgLookupKey,
     selectActive,
     selectFavorites,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import {
     BehaviorSubject,
     combineLatest,
@@ -40,7 +40,7 @@ import {
     firstValueFrom,
     map,
 } from 'rxjs';
-import { PlaylistsService, SettingsStore } from 'services';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
 import {
     Channel,
     EpgProgram,
@@ -50,7 +50,7 @@ import {
     PlaylistRecentlyViewedItem,
     Settings,
     STORE_KEY,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';

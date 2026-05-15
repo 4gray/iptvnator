@@ -1,5 +1,5 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import * as schema from 'database-schema';
+import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 
 type XtreamCategoryInput = {

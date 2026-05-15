@@ -5,7 +5,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { GlobalSearchResult } from 'services';
+import { GlobalSearchResult } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,

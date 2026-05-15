@@ -1,5 +1,5 @@
 export default {
-    displayName: 'services',
+    displayName: '@iptvnator/services',
     preset: '../../jest.preset.js',
     setupFilesAfterEnv: ['<rootDir>/src/test-setup.ts'],
     coverageDirectory: '../../coverage/libs/services',

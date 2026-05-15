@@ -14,15 +14,15 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { selectAllPlaylistsMeta } from 'm3u-state';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
     Playlist,
     PlaylistMeta,
     StalkerPortalItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     buildFavoriteUid,
     UnifiedFavoriteChannel,

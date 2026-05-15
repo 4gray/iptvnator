@@ -2,7 +2,7 @@ import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent } from 'components';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -10,13 +10,13 @@ import {
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { PlaylistsService } from 'services';
+import { PlaylistsService } from '@iptvnator/services';
 import {
     Playlist,
     ResolvedPortalPlayback,
     VodDetailsItem,
     createStalkerVodItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { StalkerCollectionDetailComponent } from './stalker-collection-detail.component';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';

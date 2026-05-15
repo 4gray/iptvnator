@@ -1,4 +1,4 @@
-import { ExternalPlayerSession } from 'shared-interfaces';
+import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackService } from './external-playback.service';
 
 describe('ExternalPlaybackService', () => {

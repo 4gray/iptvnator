@@ -1,11 +1,13 @@
 {
-    "name": "m3u-utils",
+    "name": "@iptvnator/shared/m3u-utils",
     "version": "0.0.1",
     "private": true,
     "type": "commonjs",
     "main": "./src/index.js",
     "types": "./src/index.d.ts",
     "dependencies": {
-        "tslib": "^2.3.0"
+        "@iptvnator/shared/interfaces": "0.0.1",
+        "tslib": "^2.3.0",
+        "uuid": "^9.0.0"
     }
 }

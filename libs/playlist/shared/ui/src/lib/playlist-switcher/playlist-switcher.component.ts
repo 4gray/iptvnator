@@ -25,8 +25,8 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { DialogService } from 'components';
-import { PlaylistActions } from 'm3u-state';
+import { DialogService } from '@iptvnator/ui/components';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistContextFacade,
     PlaylistRefreshActionService,
@@ -35,8 +35,8 @@ import {
     DatabaseService,
     PortalStatus,
     PortalStatusService,
-} from 'services';
-import { PlaylistMeta } from 'shared-interfaces';
+} from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { startWith } from 'rxjs';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 

@@ -1,7 +1,7 @@
 import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
 import { app, BrowserWindow, ipcMain } from 'electron';
 import * as path from 'path';
-import { EpgChannelMetadata, EpgProgram } from 'shared-interfaces';
+import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
 import { getDatabase } from '../database/connection';

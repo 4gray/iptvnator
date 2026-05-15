@@ -36,4 +36,4 @@ export {
   type NewPlaybackPosition,
   type Download,
   type NewDownload,
-} from 'database';
+} from '@iptvnator/shared/database';

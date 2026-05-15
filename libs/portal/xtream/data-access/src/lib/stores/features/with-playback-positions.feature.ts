@@ -6,7 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { XtreamSerieEpisode } from 'shared-interfaces';
+import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 import {
     PlaybackPositionData,
     XTREAM_DATA_SOURCE,

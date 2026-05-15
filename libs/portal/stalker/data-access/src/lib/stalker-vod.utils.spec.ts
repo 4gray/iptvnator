@@ -1,4 +1,4 @@
-import { VodDetailsItem } from 'shared-interfaces';
+import { VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { StalkerFavoriteItem } from './models';
 import {
     buildStalkerFavoritePayload,

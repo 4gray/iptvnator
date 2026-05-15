@@ -1,6 +1,6 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import * as schema from 'database-schema';
-import { getIptvnatorDatabasePath } from 'database-path-utils';
+import * as schema from '@iptvnator/shared/database/schema';
+import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
 import { workerData } from 'worker_threads';
 import type { AppDatabase } from '../database/database.types';
 import {

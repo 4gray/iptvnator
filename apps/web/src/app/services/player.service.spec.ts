@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MatDialog } from '@angular/material/dialog';
-import { DataService } from 'services';
-import { ExternalPlayerSession, VideoPlayer } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { ExternalPlayerSession, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
 import { PlayerService } from './player.service';
 
