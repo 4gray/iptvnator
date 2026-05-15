@@ -129,6 +129,7 @@ export class PwaService extends DataService {
                     url: string;
                     macAddress: string;
                     params: Record<string, string>;
+                    token?: string;
                 }
             ) as T;
         }
@@ -456,6 +457,7 @@ export class PwaService extends DataService {
         url: string;
         params: Record<string, string>;
         macAddress: string;
+        token?: string;
     }) {
         let context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -470,10 +472,12 @@ export class PwaService extends DataService {
 
         try {
             const targetId = await this.getProviderTargetId(payload.url);
+            const token = payload.token ?? payload.params.token;
             const requestParams = {
                 targetId,
                 ...payload.params,
                 macAddress: payload.macAddress,
+                ...(token ? { token } : {}),
             };
             const params = new URLSearchParams(requestParams);
             const requestUrl = `${this.corsProxyUrl}/stalker?${params.toString()}`;

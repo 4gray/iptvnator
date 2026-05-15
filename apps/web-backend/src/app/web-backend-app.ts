@@ -467,9 +467,10 @@ function createPlaylistObject(options: {
     readonly url: string;
 }): Record<string, unknown> {
     const timestamp = options.now().toISOString();
+    const id = options.guid();
     return {
-        id: options.guid(),
-        _id: options.guid(),
+        id,
+        _id: id,
         filename: options.title,
         title: options.title,
         count: options.playlist.items.length,
@@ -499,8 +500,8 @@ function normalizeProviderError(error: unknown): {
 } {
     const providerError = error as ProviderError;
     return {
-        message: providerError.response?.statusText ?? 'Error: not found',
-        status: providerError.response?.status ?? 404,
+        message: providerError.response?.statusText ?? 'Bad Gateway',
+        status: providerError.response?.status ?? 502,
     };
 }
 

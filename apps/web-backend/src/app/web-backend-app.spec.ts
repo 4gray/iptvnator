@@ -19,6 +19,7 @@ class StubHttpClient implements WebBackendHttpClient {
         [];
     private readonly queuedResponses: Array<{
         readonly data: unknown;
+        readonly error?: Error;
         readonly status?: number;
         readonly statusText?: string;
     }> = [];
@@ -29,6 +30,10 @@ class StubHttpClient implements WebBackendHttpClient {
 
     queueFailure(status: number, statusText = 'Provider failure'): void {
         this.queuedResponses.push({ data: null, status, statusText });
+    }
+
+    queueNetworkFailure(message = 'connect ECONNREFUSED'): void {
+        this.queuedResponses.push({ data: null, error: new Error(message) });
     }
 
     async get<T>(
@@ -44,6 +49,10 @@ class StubHttpClient implements WebBackendHttpClient {
         const response = this.queuedResponses.shift();
         if (!response) {
             throw new Error(`No queued response for ${url}`);
+        }
+
+        if (response.error) {
+            throw response.error;
         }
 
         if (response.status) {
@@ -128,6 +137,7 @@ describe('web backend app', () => {
 
     it('parses remote M3U playlists into the PWA playlist shape', async () => {
         const httpClient = new StubHttpClient();
+        let idCounter = 0;
         httpClient.queueResponse(`#EXTM3U
 #EXTINF:-1 tvg-id="news" group-title="News",News Channel
 https://stream.example/news.m3u8`);
@@ -135,7 +145,7 @@ https://stream.example/news.m3u8`);
         await withServer(
             createWebBackendApp({
                 clientOrigins: ['http://localhost:4200'],
-                guid: () => 'fixed-id',
+                guid: () => `fixed-id-${++idCounter}`,
                 httpClient,
                 now: () => new Date('2026-05-15T08:00:00.000Z'),
                 resolveHostname: resolvePublicHost,
@@ -158,12 +168,12 @@ https://stream.example/news.m3u8`);
                     response.headers.get('access-control-allow-origin')
                 ).toBe('http://localhost:4200');
                 expect(body).toMatchObject({
-                    _id: 'fixed-id',
+                    _id: 'fixed-id-1',
                     autoRefresh: false,
                     count: 1,
                     favorites: [],
                     filename: 'list.m3u',
-                    id: 'fixed-id',
+                    id: 'fixed-id-1',
                     importDate: '2026-05-15T08:00:00.000Z',
                     lastUsage: '2026-05-15T08:00:00.000Z',
                     title: 'list.m3u',
@@ -171,7 +181,7 @@ https://stream.example/news.m3u8`);
                 });
                 expect(body.playlist.items).toHaveLength(1);
                 expect(body.playlist.items[0]).toMatchObject({
-                    id: 'fixed-id',
+                    id: 'fixed-id-2',
                     name: 'News Channel',
                     url: 'https://stream.example/news.m3u8',
                 });
@@ -308,6 +318,32 @@ https://stream.example/news.m3u8`);
                 await expect(response.json()).resolves.toEqual({
                     message: 'Forbidden',
                     status: 403,
+                });
+            }
+        );
+    });
+
+    it('normalizes non-HTTP upstream failures as bad gateway', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueNetworkFailure();
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
+                const response = await fetch(
+                    `${baseUrl}/xtream?targetId=${targetId}&action=get_account_info`
+                );
+
+                await expect(response.json()).resolves.toEqual({
+                    message: 'Bad Gateway',
+                    status: 502,
                 });
             }
         );
