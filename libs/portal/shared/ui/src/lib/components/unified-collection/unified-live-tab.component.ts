@@ -42,6 +42,7 @@ import {
     ArtPlayerComponent,
     HtmlVideoPlayerComponent,
     VjsPlayerComponent,
+    WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
@@ -50,7 +51,6 @@ import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 
 @Component({

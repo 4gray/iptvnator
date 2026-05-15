@@ -18,10 +18,10 @@ import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
 import { PlaylistsService, SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import {
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
 

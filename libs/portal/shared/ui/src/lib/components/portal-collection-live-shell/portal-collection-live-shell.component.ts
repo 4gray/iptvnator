@@ -9,7 +9,8 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { EpgItem } from '@iptvnator/shared/interfaces';
-import { EpgViewComponent, WebPlayerViewComponent } from '@iptvnator/ui/shared-portals';
+import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
+import { EpgViewComponent } from '@iptvnator/ui/shared-portals';
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 
 @Component({

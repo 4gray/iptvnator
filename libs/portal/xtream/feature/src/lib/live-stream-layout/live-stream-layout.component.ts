@@ -48,13 +48,19 @@ import {
 } from '@iptvnator/ui/epg';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import {
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
+} from '@iptvnator/ui/playback';
+import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    type PlaybackFallbackRequest,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
-import { EpgItem, EpgProgram, ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import {
+    EpgItem,
+    EpgProgram,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
 import { SettingsStore } from '@iptvnator/services';

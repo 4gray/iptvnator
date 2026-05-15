@@ -19,11 +19,11 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import { EpgListComponent, EpgProgramActivationEvent } from '@iptvnator/ui/epg';
+import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';

@@ -38,6 +38,8 @@ Use it when changing existing views or introducing new list-based UI in the work
   `apps/web/src/m3-theme.scss`
 - Settings surfaces:
   `apps/web/src/app/settings/settings.component.scss`
+- Detail view shell styles:
+  `libs/ui/styles/_detail-view.scss`
 
 ## Shared Tokens
 
@@ -83,6 +85,17 @@ Use this pattern for:
 - `.epg-item.current-program`
 
 Do not add extra badges, left rails, or second selection systems unless there is a strong reason.
+
+## Detail Views
+
+VOD and series detail screens share the `detail-view` Sass mixin from
+`libs/ui/styles/_detail-view.scss`. Feature-local `styles/detail-view.scss`
+files should only import that mixin and pass small typography overrides when a
+provider needs them.
+
+Do not copy the full detail-view stylesheet into feature libraries. Add shared
+layout changes to the mixin, and keep provider-specific differences explicit in
+the wrapper file that includes it.
 
 ## Channel List Item
 

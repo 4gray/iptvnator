@@ -38,12 +38,14 @@ import {
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
-import { AudioPlayerComponent } from '@iptvnator/ui/playback';
+import {
+    AudioPlayerComponent,
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
+} from '@iptvnator/ui/playback';
 import {
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    type PlaybackFallbackRequest,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 import {
     LiveLayoutSidebarStateService,
@@ -236,12 +238,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private unsubscribeRemoteCommand?: () => void;
     private epgLoadRequestId = 0;
     private playbackRequestId = 0;
-    private playbackResolution:
-        | {
-              channelId: string;
-              promise: Promise<ResolvedPortalPlayback>;
-          }
-        | null = null;
+    private playbackResolution: {
+        channelId: string;
+        promise: Promise<ResolvedPortalPlayback>;
+    } | null = null;
     private lastPlaylistId: string | null | undefined = undefined;
 
     constructor() {
@@ -497,9 +497,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     }
 
     handleRadioChannelSwitch(direction: 'next' | 'previous'): void {
-        this.handleAdjacentChannelChange(
-            direction === 'next' ? 'down' : 'up'
-        );
+        this.handleAdjacentChannelChange(direction === 'next' ? 'down' : 'up');
     }
 
     @HostListener('document:keydown', ['$event'])
