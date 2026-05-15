@@ -40,6 +40,7 @@ import {
 } from './services/portal-navigation-actions.service';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
 import { PwaService } from './services/pwa.service';
+import { shouldEnableServiceWorker } from './services/runtime-config';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 
 // AoT requires an exported function for factories
@@ -113,7 +114,7 @@ export const appConfig: ApplicationConfig = {
         provideRouterStore(),
         ...(AppConfig.production ? [] : [provideStoreDevtools({ maxAge: 25 })]),
         provideServiceWorker('ngsw-worker.js', {
-            enabled: AppConfig.production && !!window.electron,
+            enabled: shouldEnableServiceWorker(),
             registrationStrategy: 'registerWhenStable:30000',
         }),
         importProvidersFrom(

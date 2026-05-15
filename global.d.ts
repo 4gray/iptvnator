@@ -37,6 +37,9 @@ declare global {
     }
 
     interface Window {
+        __IPTVNATOR_CONFIG__?: {
+            BACKEND_URL?: string;
+        };
         electron: {
             onPlaylistRefreshEvent?: (
                 callback: (data: PlaylistRefreshEvent) => void

@@ -20,6 +20,7 @@
         <link rel="manifest" href="manifest.webmanifest" />
         <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
         <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico" />
+        <script src="assets/app-config.js"></script>
         <style>
             /* Inline splash — paints immediately while the JS bundle and the
                styles.css (~300KB) are still downloading and Angular is
@@ -68,11 +69,7 @@
         </style>
     </head>
     <body class="mat-app-background">
-        <div
-            id="initial-splash"
-            role="status"
-            aria-label="Loading IPTVnator"
-        >
+        <div id="initial-splash" role="status" aria-label="Loading IPTVnator">
             <span class="splash-mark">IPTVnator</span>
             <span class="splash-spinner" aria-hidden="true"></span>
         </div>

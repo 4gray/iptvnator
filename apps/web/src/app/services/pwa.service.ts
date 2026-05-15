@@ -25,6 +25,7 @@ import {
     logPortalDebugEvent,
     logPortalDebugRequest,
 } from '@iptvnator/portal/shared/util';
+import { getRuntimeBackendUrl } from './runtime-config';
 
 interface PwaXtreamResponse {
     readonly payload?: unknown;
@@ -69,7 +70,7 @@ export class PwaService extends DataService {
     ]);
 
     /** Proxy URL to avoid CORS issues */
-    corsProxyUrl = AppConfig.BACKEND_URL;
+    corsProxyUrl = getRuntimeBackendUrl();
 
     constructor() {
         super();
