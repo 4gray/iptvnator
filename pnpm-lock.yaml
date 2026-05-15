@@ -118,6 +118,9 @@ importers:
       electron-dl:
         specifier: 4.0.0
         version: 4.0.0
+      epg-parser:
+        specifier: ^0.1.6
+        version: 0.1.6
       fix-path:
         specifier: 5.0.0
         version: 5.0.0
@@ -6577,6 +6580,9 @@ packages:
     resolution: {integrity: sha512-xUtoPkMggbz0MPyPiIWr1Kp4aeWJjDZ6SMvURhimjdZgsRuDplF5/s9hcgGhyXMhs+6vpnuoiZ2kFiu3FMnS8Q==}
     engines: {node: '>=18'}
 
+  epg-parser@0.1.6:
+    resolution: {integrity: sha512-g6AxKOvs0E4bTGPdIUh8/FDKdrVjbf4DVK0jIFuChDt7wBRJmMVyqbLeS8NApf6M2wpCRLBpIenXOCS88w0Rqw==}
+
   err-code@2.0.3:
     resolution: {integrity: sha512-2bmlRpNKBxT/CRmPOlyISQpNj+qSeYvcym/uT0Jx2bMOlKLtSy1ZmLuVxSEKKyor/N5yhvp/ZiG1oE3DEYMSFA==}
 
@@ -12022,6 +12028,10 @@ packages:
   wsl-utils@0.1.0:
     resolution: {integrity: sha512-h3Fbisa2nKGPxCpm89Hk33lBLsnaGBvctQopaBSOW/uIs6FTe1ATyAnKFJrzVs9vpGdsTe73WF3V4lIsk4Gacw==}
     engines: {node: '>=18'}
+
+  xml-js@1.6.11:
+    resolution: {integrity: sha512-7rVi2KMfwfWFl+GpPg6m80IVMWXLRjO+PxTq7V2CDhoGak0wzYzFgUY2m4XJ47OGdXd8eLE8EmwfAmdjw7lC1g==}
+    hasBin: true
 
   xml-name-validator@5.0.0:
     resolution: {integrity: sha512-EvGK8EJ3DhaHfbRlETOWAS5pO9MZITeauHKJyb8wyajUfQUenkIg2MvLDTZ4T/TgIcm3HU0TFBgWWboAZ30UHg==}
@@ -19160,6 +19170,10 @@ snapshots:
 
   environment@1.1.0: {}
 
+  epg-parser@0.1.6:
+    dependencies:
+      xml-js: 1.6.11
+
   err-code@2.0.3: {}
 
   errno@0.1.8:
@@ -25949,6 +25963,10 @@ snapshots:
   wsl-utils@0.1.0:
     dependencies:
       is-wsl: 3.1.0
+
+  xml-js@1.6.11:
+    dependencies:
+      sax: 1.6.0
 
   xml-name-validator@5.0.0: {}
 

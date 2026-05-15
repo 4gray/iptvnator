@@ -1,0 +1,48 @@
+{
+    "name": "web-backend",
+    "$schema": "../../node_modules/nx/schemas/project-schema.json",
+    "projectType": "application",
+    "sourceRoot": "apps/web-backend/src",
+    "tags": ["scope:app", "domain:web", "type:app"],
+    "targets": {
+        "build": {
+            "executor": "@nx/esbuild:esbuild",
+            "outputs": ["{options.outputPath}"],
+            "options": {
+                "outputPath": "dist/apps/web-backend",
+                "main": "apps/web-backend/src/main.ts",
+                "tsConfig": "apps/web-backend/tsconfig.app.json",
+                "format": ["cjs"],
+                "platform": "node",
+                "target": "node22",
+                "bundle": true,
+                "thirdParty": true,
+                "generatePackageJson": true
+            }
+        },
+        "serve": {
+            "continuous": true,
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "pnpm tsx apps/web-backend/src/main.ts",
+                "cwd": "{workspaceRoot}",
+                "color": true,
+                "env": {
+                    "PORT": "3333",
+                    "CLIENT_URL": "http://localhost:4200",
+                    "BACKEND_URL": "/api"
+                }
+            }
+        },
+        "lint": {
+            "command": "eslint apps/web-backend/**/*.ts"
+        },
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "apps/web-backend/jest.config.ts"
+            }
+        }
+    }
+}
