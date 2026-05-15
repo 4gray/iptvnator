@@ -46,6 +46,12 @@ export default defineConfig({
             reuseExistingServer: !process.env['CI'],
             cwd: workspaceRoot,
         },
+        {
+            command: 'pnpm nx run web-backend:serve',
+            url: 'http://localhost:3333/health',
+            reuseExistingServer: !process.env['CI'],
+            cwd: workspaceRoot,
+        },
     ],
     projects: [
         {
