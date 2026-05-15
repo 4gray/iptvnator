@@ -5,6 +5,10 @@ import {
     type Page,
     test,
 } from '@playwright/test';
+import {
+    getRegisteredProviderUrl,
+    interceptProviderTargetRegistration,
+} from './provider-target-route';
 
 /**
  * Stalker Portal E2E Tests
@@ -42,11 +46,25 @@ const MINIMAL_MAC = '00:1A:79:00:00:03';
  * any app environment configuration.
  */
 async function interceptStalkerRequests(page: Page): Promise<void> {
+    const providerTargets = await interceptProviderTargetRegistration(page);
+
     await page.route('**/localhost:3000/stalker**', async (route) => {
         const originalUrl = new URL(route.request().url());
         const mockUrl = new URL(BACKEND_PROXY);
-        // Forward all query params unchanged
+        const providerUrl = getRegisteredProviderUrl(
+            originalUrl,
+            providerTargets
+        );
+
+        if (providerUrl) {
+            mockUrl.searchParams.set('url', providerUrl);
+        }
+
         originalUrl.searchParams.forEach((value, key) => {
+            if (key === 'targetId') {
+                return;
+            }
+
             mockUrl.searchParams.set(key, value);
         });
         await route.continue({ url: mockUrl.toString() });
@@ -183,9 +201,8 @@ test('@stalker VOD — content list loads after selecting a category', async ({
     const contentItems = page.locator(
         '.content-card, [data-test-id="channel-item"], mat-card'
     );
+    await expect(contentItems).not.toHaveCount(0, { timeout: 10_000 });
     await expect(contentItems.first()).toBeVisible({ timeout: 10_000 });
-    const itemCount = await contentItems.count();
-    expect(itemCount).toBeGreaterThan(0);
 });
 
 test('@stalker minimal scenario — correct item counts', async ({ page }) => {

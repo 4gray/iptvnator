@@ -1,4 +1,8 @@
 import { APIRequestContext, test, expect, Page } from '@playwright/test';
+import {
+    getRegisteredProviderUrl,
+    interceptProviderTargetRegistration,
+} from './provider-target-route';
 
 /**
  * Xtream Codes E2E Tests
@@ -33,10 +37,25 @@ const EPG_PASSWORD = 'epg';
  * to the mock server. This avoids any real backend requirement.
  */
 async function interceptXtreamRequests(page: Page): Promise<void> {
+    const providerTargets = await interceptProviderTargetRegistration(page);
+
     await page.route('**/localhost:3000/xtream**', async (route) => {
         const originalUrl = new URL(route.request().url());
         const mockUrl = new URL(`${MOCK_SERVER}/xtream`);
+        const providerUrl = getRegisteredProviderUrl(
+            originalUrl,
+            providerTargets
+        );
+
+        if (providerUrl) {
+            mockUrl.searchParams.set('url', providerUrl);
+        }
+
         originalUrl.searchParams.forEach((value, key) => {
+            if (key === 'targetId') {
+                return;
+            }
+
             mockUrl.searchParams.set(key, value);
         });
         await route.continue({ url: mockUrl.toString() });
@@ -289,21 +308,19 @@ test('@xtream epg fixture — short epg starts at the current program, respects 
     expect(decodeXtreamText(nextListing.title)).toBe('Market Wrap');
 
     const now = Math.floor(Date.now() / 1000);
-    expect(Number.parseInt(currentListing.start_timestamp, 10)).toBeLessThanOrEqual(
-        now
-    );
-    expect(Number.parseInt(currentListing.stop_timestamp, 10)).toBeGreaterThanOrEqual(
-        now
-    );
+    expect(
+        Number.parseInt(currentListing.start_timestamp, 10)
+    ).toBeLessThanOrEqual(now);
+    expect(
+        Number.parseInt(currentListing.stop_timestamp, 10)
+    ).toBeGreaterThanOrEqual(now);
     expect(currentListing.start).not.toBe(
         formatXtreamDateTime(
             Number.parseInt(currentListing.start_timestamp, 10)
         )
     );
     expect(currentListing.end).not.toBe(
-        formatXtreamDateTime(
-            Number.parseInt(currentListing.stop_timestamp, 10)
-        )
+        formatXtreamDateTime(Number.parseInt(currentListing.stop_timestamp, 10))
     );
 });
 
@@ -344,7 +361,9 @@ test('@xtream epg fixture — full epg and legacy alias return the same ordered 
             decodeXtreamText(listing.title) === 'Late Edition'
     );
     if (!boundaryListing) {
-        throw new Error('Expected the full EPG fixture to include Late Edition.');
+        throw new Error(
+            'Expected the full EPG fixture to include Late Edition.'
+        );
     }
 
     const boundaryStart = new Date(
