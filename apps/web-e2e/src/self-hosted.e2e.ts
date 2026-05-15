@@ -44,7 +44,7 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await dialog.locator('#password').fill('pass1');
 
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
-    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+    await expect(dialog).toBeHidden();
     await page.waitForURL(/xtreams.*vod/);
 }
 
@@ -61,7 +61,7 @@ async function addStalkerPortal(page: Page): Promise<void> {
     const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
-    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+    await expect(dialog).toBeHidden();
     await page.waitForURL(/stalker.*vod/);
 }
 
