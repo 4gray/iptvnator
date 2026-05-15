@@ -63,6 +63,21 @@ class StubHttpClient implements WebBackendHttpClient {
 
 const resolvePublicHost = async () => ['93.184.216.34'];
 
+async function registerProviderTarget(
+    baseUrl: string,
+    url: string
+): Promise<string> {
+    const response = await fetch(`${baseUrl}/provider-targets`, {
+        body: JSON.stringify({ url }),
+        headers: {
+            'content-type': 'application/json',
+        },
+        method: 'POST',
+    });
+    const body = (await response.json()) as { targetId: string };
+    return body.targetId;
+}
+
 async function withServer<T>(
     app: ReturnType<typeof createWebBackendApp>,
     callback: (baseUrl: string) => Promise<T>
@@ -126,8 +141,12 @@ https://stream.example/news.m3u8`);
                 resolveHostname: resolvePublicHost,
             }),
             async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'https://provider.example/list.m3u'
+                );
                 const response = await fetch(
-                    `${baseUrl}/parse?url=${encodeURIComponent('https://provider.example/list.m3u')}`,
+                    `${baseUrl}/parse?targetId=${targetId}`,
                     { headers: { Origin: 'http://localhost:4200' } }
                 );
                 const body = (await response.json()) as {
@@ -135,9 +154,9 @@ https://stream.example/news.m3u8`);
                 };
 
                 expect(response.status).toBe(200);
-                expect(response.headers.get('access-control-allow-origin')).toBe(
-                    'http://localhost:4200'
-                );
+                expect(
+                    response.headers.get('access-control-allow-origin')
+                ).toBe('http://localhost:4200');
                 expect(body).toMatchObject({
                     _id: 'fixed-id',
                     autoRefresh: false,
@@ -167,6 +186,29 @@ https://stream.example/news.m3u8`);
         );
     });
 
+    it('allows browser preflight checks for provider target registration', async () => {
+        await withServer(
+            createWebBackendApp({
+                clientOrigins: ['http://localhost:4200'],
+            }),
+            async (baseUrl) => {
+                const response = await fetch(`${baseUrl}/provider-targets`, {
+                    headers: {
+                        'Access-Control-Request-Headers': 'content-type',
+                        'Access-Control-Request-Method': 'POST',
+                        Origin: 'http://localhost:4200',
+                    },
+                    method: 'OPTIONS',
+                });
+
+                expect(response.status).toBe(200);
+                expect(
+                    response.headers.get('access-control-allow-origin')
+                ).toBe('http://localhost:4200');
+            }
+        );
+    });
+
     it('proxies Xtream requests through the provider player API endpoint', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueResponse({ user_info: { username: 'demo' } });
@@ -177,8 +219,12 @@ https://stream.example/news.m3u8`);
                 resolveHostname: resolvePublicHost,
             }),
             async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
                 const response = await fetch(
-                    `${baseUrl}/xtream?url=${encodeURIComponent('http://xtream.example')}&username=demo&password=secret&action=get_account_info`
+                    `${baseUrl}/xtream?targetId=${targetId}&username=demo&password=secret&action=get_account_info`
                 );
 
                 await expect(response.json()).resolves.toEqual({
@@ -210,8 +256,12 @@ https://stream.example/news.m3u8`);
                 resolveHostname: resolvePublicHost,
             }),
             async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://stalker.example/portal.php'
+                );
                 const response = await fetch(
-                    `${baseUrl}/stalker?url=${encodeURIComponent('http://stalker.example/portal.php')}&macAddress=00:1A:79:00:00:01&token=abc123&action=get_categories&type=vod`
+                    `${baseUrl}/stalker?targetId=${targetId}&macAddress=00:1A:79:00:00:01&token=abc123&action=get_categories&type=vod`
                 );
 
                 await expect(response.json()).resolves.toEqual({
@@ -247,8 +297,12 @@ https://stream.example/news.m3u8`);
                 resolveHostname: resolvePublicHost,
             }),
             async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
                 const response = await fetch(
-                    `${baseUrl}/xtream?url=${encodeURIComponent('http://xtream.example')}&action=get_account_info`
+                    `${baseUrl}/xtream?targetId=${targetId}&action=get_account_info`
                 );
 
                 await expect(response.json()).resolves.toEqual({
@@ -269,8 +323,12 @@ https://stream.example/news.m3u8`);
                 resolveHostname: resolvePublicHost,
             }),
             async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'https://provider.example/list.m3u'
+                );
                 const response = await fetch(
-                    `${baseUrl}/parse?url=${encodeURIComponent('https://provider.example/list.m3u')}`
+                    `${baseUrl}/parse?targetId=${targetId}`
                 );
 
                 expect(response.status).toBe(502);
@@ -291,9 +349,13 @@ https://stream.example/news.m3u8`);
         await withServer(
             createWebBackendApp({ httpClient }),
             async (baseUrl) => {
-                const response = await fetch(
-                    `${baseUrl}/parse?url=${encodeURIComponent('file:///etc/passwd')}`
-                );
+                const response = await fetch(`${baseUrl}/provider-targets`, {
+                    body: JSON.stringify({ url: 'file:///etc/passwd' }),
+                    headers: {
+                        'content-type': 'application/json',
+                    },
+                    method: 'POST',
+                });
 
                 expect(response.status).toBe(400);
                 await expect(response.json()).resolves.toEqual({
@@ -311,9 +373,15 @@ https://stream.example/news.m3u8`);
         await withServer(
             createWebBackendApp({ httpClient }),
             async (baseUrl) => {
-                const response = await fetch(
-                    `${baseUrl}/xtream?url=${encodeURIComponent('http://127.0.0.1:3211')}&action=get_account_info`
-                );
+                const response = await fetch(`${baseUrl}/provider-targets`, {
+                    body: JSON.stringify({
+                        url: 'http://127.0.0.1:3211',
+                    }),
+                    headers: {
+                        'content-type': 'application/json',
+                    },
+                    method: 'POST',
+                });
 
                 expect(response.status).toBe(400);
                 await expect(response.json()).resolves.toEqual({
@@ -336,8 +404,12 @@ https://stream.example/news.m3u8`);
                 httpClient,
             }),
             async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://127.0.0.1:3211'
+                );
                 const response = await fetch(
-                    `${baseUrl}/xtream?url=${encodeURIComponent('http://127.0.0.1:3211')}&username=demo&password=secret&action=get_account_info`
+                    `${baseUrl}/xtream?targetId=${targetId}&username=demo&password=secret&action=get_account_info`
                 );
 
                 await expect(response.json()).resolves.toEqual({
@@ -347,6 +419,38 @@ https://stream.example/news.m3u8`);
                 expect(httpClient.requests[0]?.url).toBe(
                     'http://127.0.0.1:3211/player_api.php'
                 );
+            }
+        );
+    });
+
+    it('requires portal proxy callers to use registered provider targets', async () => {
+        const httpClient = new StubHttpClient();
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const missingTargetResponse = await fetch(
+                    `${baseUrl}/xtream?action=get_account_info`
+                );
+                const unknownTargetResponse = await fetch(
+                    `${baseUrl}/xtream?targetId=missing&action=get_account_info`
+                );
+
+                expect(missingTargetResponse.status).toBe(400);
+                await expect(missingTargetResponse.json()).resolves.toEqual({
+                    message: 'Missing targetId',
+                    status: 400,
+                });
+
+                expect(unknownTargetResponse.status).toBe(404);
+                await expect(unknownTargetResponse.json()).resolves.toEqual({
+                    message: 'Provider target not found',
+                    status: 404,
+                });
+                expect(httpClient.requests).toEqual([]);
             }
         );
     });

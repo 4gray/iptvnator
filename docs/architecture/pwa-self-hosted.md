@@ -55,16 +55,19 @@ pnpm nx build web --configuration=pwa --skip-nx-cache
 
 - `GET /health`
 - `GET /config.js`
-- `GET /parse?url=<m3u-url>`
-- `GET /parse-xml?url=<xmltv-url>`
-- `GET /xtream?url=<server>&username=<u>&password=<p>&action=<action>`
-- `GET /stalker?url=<portal.php>&macAddress=<mac>&action=<action>`
+- `POST /provider-targets` with `{ "url": "<provider-url>" }`
+- `GET /parse?targetId=<id>`
+- `GET /parse-xml?targetId=<id>`
+- `GET /xtream?targetId=<id>&username=<u>&password=<p>&action=<action>`
+- `GET /stalker?targetId=<id>&macAddress=<mac>&action=<action>`
 
 The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
 bridge.
 
-Provider proxy routes validate the target URL before any outbound request:
+Provider URLs are registered before proxy calls so the proxy endpoints do not
+accept raw target URLs in query strings. Registration validates the target URL
+before any outbound request:
 
 - only `http:` and `https:` provider URLs are accepted
 - URL credentials are rejected
