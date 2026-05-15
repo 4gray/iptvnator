@@ -64,6 +64,18 @@ The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
 bridge.
 
+Provider proxy routes validate the target URL before any outbound request:
+
+- only `http:` and `https:` provider URLs are accepted
+- URL credentials are rejected
+- loopback, private, link-local, and reserved network targets are blocked by
+  default
+- `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` explicitly enables trusted
+  local/LAN targets for development, mock servers, or private deployments
+
+Do not disable TLS certificate validation in the backend proxy. For private
+certificate authorities, configure Node with `NODE_EXTRA_CA_CERTS`.
+
 ## PWA Portal User Data
 
 Xtream favorites and recently viewed items use the browser-side
@@ -97,9 +109,13 @@ Default runtime values:
 - `BACKEND_URL=/api`
 - `CLIENT_URL=http://localhost:4333`
 - `PORT=3000`
+- `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` unset
 
 When hosting behind another domain, set `CLIENT_URL` to the browser origin and
 keep `BACKEND_URL=/api` unless the reverse proxy exposes the backend elsewhere.
+Only set `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` when the self-hosted
+instance is restricted to trusted users and intentionally needs private
+network IPTV targets.
 
 ## Validation
 

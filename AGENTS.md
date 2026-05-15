@@ -21,6 +21,7 @@ This file provides guidance to coding agents working in this repository.
 ## PWA / Self-hosted Web
 
 - The browser self-hosted backend lives in `apps/web-backend`. Do not rely on the historical external `4gray/iptvnator-backend` container for the default Docker flow unless the task explicitly asks to re-sync missing behavior from that repository.
+- `apps/web-backend` proxy routes must validate provider URLs before outbound requests. Keep `http`/`https` only, block loopback/private/reserved targets by default, and use `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS=1` only for trusted local/LAN mock or self-hosted deployments.
 - The Angular PWA resolves its backend through `window.__IPTVNATOR_CONFIG__.BACKEND_URL`, read by `apps/web/src/app/services/runtime-config.ts`. The placeholder file is `apps/web/src/assets/app-config.js`; Docker rewrites the built copy at container startup.
 - Keep `assets/app-config.js` out of Angular service worker hashing in `ngsw-config.json`. Runtime rewrites after `web:pwa` must not invalidate `ngsw.json`.
 - For PWA output checks, run `pnpm nx build web --configuration=pwa --skip-nx-cache` and verify `dist/apps/web/ngsw-worker.js` plus `dist/apps/web/ngsw.json` exist. If Nx serves stale build metadata after project config changes, run `pnpm nx reset`.
