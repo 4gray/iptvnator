@@ -1,32 +1,36 @@
-# Stage 1 - build environment
 FROM node:22-alpine AS build
 
 RUN apk add --no-cache python3 make g++ git
 
-# Create app directory
 WORKDIR /usr/src/app
-
-# Swtich to node user
-#RUN chown node:node ./
-#USER node
 
 COPY .npmrc ./
 COPY package.json pnpm-lock.yaml ./
 
-# Install app dependencies
 RUN corepack enable && pnpm install --frozen-lockfile
 
-# Copy all required files
 COPY . .
 
-# Build the application
-RUN pnpm run build:web
+RUN pnpm nx build web --configuration=pwa
+RUN pnpm nx build web-backend
 
-# Stage 2 - the production environment
-FROM nginx:stable-alpine
+FROM node:22-alpine
 
-# Copy artifacts and nignx.conf
-COPY --from=build /usr/src/app/dist/browser /usr/share/nginx/html
-COPY --from=build /usr/src/app/docker/nginx.conf /etc/nginx/conf.d/default.conf
+RUN apk add --no-cache nginx
 
-CMD sed -i "s#http://localhost:3333#$BACKEND_URL#g" /usr/share/nginx/html/main.js && nginx -g 'daemon off;'
+WORKDIR /opt/iptvnator
+
+ENV PORT=3000
+ENV BACKEND_URL=/api
+ENV CLIENT_URL=http://localhost:4333
+
+COPY --from=build /usr/src/app/dist/apps/web /usr/share/nginx/html
+COPY --from=build /usr/src/app/dist/apps/web-backend ./web-backend
+COPY docker/nginx.conf /etc/nginx/http.d/default.conf
+COPY docker/docker-entrypoint.sh /usr/local/bin/iptvnator-entrypoint
+
+RUN chmod +x /usr/local/bin/iptvnator-entrypoint
+
+EXPOSE 80
+
+CMD ["iptvnator-entrypoint"]
