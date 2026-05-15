@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { AllChannelsViewComponent } from './all-channels-view.component';
 

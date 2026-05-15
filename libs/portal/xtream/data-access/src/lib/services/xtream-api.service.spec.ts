@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
-import { DataService } from 'services';
-import { XTREAM_REQUEST } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { XTREAM_REQUEST } from '@iptvnator/shared/interfaces';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 
 describe('XtreamApiService', () => {

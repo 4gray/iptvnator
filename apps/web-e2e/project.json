@@ -14,5 +14,6 @@
         "lint": {
             "executor": "@nx/eslint:lint"
         }
-    }
+    },
+    "tags": ["scope:e2e", "domain:web", "type:e2e"]
 }

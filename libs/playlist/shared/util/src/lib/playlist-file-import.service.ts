@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { PlaylistActions } from 'm3u-state';
-import { Playlist } from 'shared-interfaces';
+import { PlaylistActions } from '@iptvnator/m3u-state';
+import { Playlist } from '@iptvnator/shared/interfaces';
 
 const M3U_EXTENSIONS = ['.m3u', '.m3u8'];
 

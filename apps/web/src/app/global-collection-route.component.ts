@@ -14,7 +14,7 @@ import {
 } from '@angular/core';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { selectAllPlaylistsMeta } from 'm3u-state';
+import { selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {

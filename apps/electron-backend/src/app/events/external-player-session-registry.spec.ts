@@ -1,4 +1,4 @@
-import { ExternalPlayerSession } from 'shared-interfaces';
+import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { ExternalPlayerSessionRegistry } from './external-player-session-registry';
 
 describe('ExternalPlayerSessionRegistry', () => {

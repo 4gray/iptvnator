@@ -1,4 +1,4 @@
-import type { PlaylistRefreshEvent, PlaylistRefreshPayload } from 'shared-interfaces';
+import type { PlaylistRefreshEvent, PlaylistRefreshPayload } from '@iptvnator/shared/interfaces';
 
 export interface PlaylistRefreshWorkerRequestMessage {
     type: 'request';

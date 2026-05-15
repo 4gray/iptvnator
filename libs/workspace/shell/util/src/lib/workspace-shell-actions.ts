@@ -1,5 +1,5 @@
 import { InjectionToken } from '@angular/core';
-import type { XtreamAccountInfoDialogData } from 'shared-interfaces';
+import type { XtreamAccountInfoDialogData } from '@iptvnator/shared/interfaces';
 
 export type WorkspacePlaylistType =
     | 'xtream'

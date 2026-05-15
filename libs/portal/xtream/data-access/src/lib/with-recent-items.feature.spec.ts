@@ -2,7 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { signalStore } from '@ngrx/signals';
 import { of } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import { withRecentItems } from './with-recent-items';
 
 jest.mock('@iptvnator/portal/shared/util', () => ({

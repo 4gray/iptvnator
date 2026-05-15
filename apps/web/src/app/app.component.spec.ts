@@ -8,7 +8,7 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import {
     Language,
     Settings,
@@ -17,8 +17,8 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
-} from 'shared-interfaces';
-import { PlaylistActions } from 'm3u-state';
+} from '@iptvnator/shared/interfaces';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import { AppComponent } from './app.component';
 import { ElectronServiceStub } from './services/electron.service.stub';
 import { SettingsService } from './services/settings.service';

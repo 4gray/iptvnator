@@ -14,14 +14,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import { firstValueFrom, map } from 'rxjs';
 import {
     DatabaseService,
     type DownloadItem,
     DownloadsService,
     PlaylistsService,
-} from 'services';
+} from '@iptvnator/services';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { queryParamSignal } from '@iptvnator/portal/shared/util';
 import { createPortalCollectionContext } from '@iptvnator/portal/shared/util';
@@ -31,7 +31,7 @@ import {
     PORTAL_SHELL_ACTIONS,
 } from '@iptvnator/portal/shared/util';
 import { PortalCollectionContextService } from '@iptvnator/portal/shared/util';
-import { Playlist } from 'shared-interfaces';
+import { Playlist } from '@iptvnator/shared/interfaces';
 
 type PortalSource = 'xtream' | 'stalker';
 const DOWNLOAD_COLLECTION_LABELS = {

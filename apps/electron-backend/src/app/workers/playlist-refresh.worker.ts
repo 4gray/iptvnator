@@ -2,12 +2,12 @@ import axios from 'axios';
 import { parentPort } from 'worker_threads';
 import { parse } from 'iptv-playlist-parser';
 import { readFile } from 'node:fs/promises';
-import { createPlaylistObject, getFilenameFromUrl } from 'm3u-utils';
+import { createPlaylistObject, getFilenameFromUrl } from '@iptvnator/shared/m3u-utils';
 import type {
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import type {
     PlaylistRefreshWorkerIncomingMessage,
     PlaylistRefreshWorkerMessage,

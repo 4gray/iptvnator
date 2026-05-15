@@ -18,7 +18,7 @@ jest.mock('drizzle-orm', () => ({
     sql: jest.fn(),
 }));
 
-import * as schema from 'database-schema';
+import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { getContentByXtreamId, saveContent } from './content.operations';
 

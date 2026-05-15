@@ -5,7 +5,7 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
-import { PortalDebugEvent, XTREAM_CANCEL_SESSION } from 'shared-interfaces';
+import { PortalDebugEvent, XTREAM_CANCEL_SESSION } from '@iptvnator/shared/interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
 
 export default class XtreamEvents {

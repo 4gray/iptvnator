@@ -1,9 +1,9 @@
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import {
     PlaylistMeta,
     StalkerPortalActions,
     StalkerPortalItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerContentTypes } from '../../stalker-content-types';
 import { StalkerContentType } from '../stalker-store.contracts';

@@ -1,5 +1,5 @@
 import { ipcMain } from 'electron';
-import { normalizeExternalPlayerArguments } from 'shared-interfaces';
+import { normalizeExternalPlayerArguments } from '@iptvnator/shared/interfaces';
 import {
     MPV_PLAYER_ARGUMENTS,
     MPV_REUSE_INSTANCE,

@@ -1,5 +1,5 @@
 import { computed, Injectable, signal } from '@angular/core';
-import { ExternalPlayerSession, PlayerContentInfo } from 'shared-interfaces';
+import { ExternalPlayerSession, PlayerContentInfo } from '@iptvnator/shared/interfaces';
 
 @Injectable({
     providedIn: 'root',

@@ -6,7 +6,7 @@ import {
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     CategoryType,

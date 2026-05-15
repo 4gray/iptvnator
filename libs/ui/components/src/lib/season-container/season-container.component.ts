@@ -25,8 +25,8 @@ import {
     PlaybackPositionData,
     XtreamSerieEpisode,
     XtreamSerieEpisodeInfo,
-} from 'shared-interfaces';
-import { DownloadsService } from 'services';
+} from '@iptvnator/shared/interfaces';
+import { DownloadsService } from '@iptvnator/services';
 import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
 import { WatchedBadgeComponent } from '../watched-badge/watched-badge.component';
 

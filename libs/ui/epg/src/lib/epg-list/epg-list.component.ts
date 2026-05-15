@@ -19,10 +19,10 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { EpgActions, selectActive } from 'm3u-state';
+import { EpgActions, selectActive } from '@iptvnator/m3u-state';
 import { format, subDays } from 'date-fns';
 import { startWith } from 'rxjs';
-import { Channel, EpgChannel, EpgProgram } from 'shared-interfaces';
+import { Channel, EpgChannel, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EPG_DATE_KEY_FORMAT,
     EpgDateNavigationDirection,

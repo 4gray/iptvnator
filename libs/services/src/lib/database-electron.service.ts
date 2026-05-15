@@ -10,7 +10,7 @@ import {
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
     XtreamCategory,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export interface XCategoryFromDb {
     id: number;

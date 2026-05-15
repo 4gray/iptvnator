@@ -4,7 +4,7 @@ import {
     PlaybackPositionService,
     XtreamPendingRestoreService,
     XtreamImportStatus,
-} from 'services';
+} from '@iptvnator/services';
 import {
     PlaybackPositionData,
     PlaylistMeta,
@@ -13,7 +13,7 @@ import {
     XtreamLiveStream,
     XtreamSerieItem,
     XtreamVodStream,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     CategoryType,
     StreamType,

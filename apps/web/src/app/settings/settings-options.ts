@@ -3,7 +3,7 @@ import {
     StartupBehavior,
     Theme,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     CoverSizeOption,
     SettingsPlayerOption,
@@ -108,7 +108,7 @@ export function buildSettingsSectionNavItems(
             visible: isDesktop,
         },
         {
-            id: 'remote-control',
+            id: '@iptvnator/ui/remote-control',
             label: 'SETTINGS.NAV_REMOTE',
             icon: 'smartphone',
             visible: isDesktop,

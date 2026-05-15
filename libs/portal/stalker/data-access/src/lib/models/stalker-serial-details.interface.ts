@@ -1,5 +1,5 @@
 /**
- * @deprecated Import from 'shared-interfaces' instead.
+ * @deprecated Import from '@iptvnator/shared/interfaces' instead.
  * This re-export exists for backward compatibility.
  */
-export { StalkerSerialDetails } from 'shared-interfaces';
+export { StalkerSerialDetails } from '@iptvnator/shared/interfaces';

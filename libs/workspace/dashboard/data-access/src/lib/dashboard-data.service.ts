@@ -13,13 +13,13 @@ import {
     PlaylistActions,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { firstValueFrom, startWith } from 'rxjs';
 import {
     DatabaseService,
     GlobalRecentlyAddedKind,
     PlaylistsService,
-} from 'services';
+} from '@iptvnator/services';
 import {
     buildPlaylistRecentItems,
     Channel,
@@ -31,7 +31,7 @@ import {
     PortalFavoriteItem,
     PortalRecentItem,
     stalkerItemMatchesId,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     buildStalkerFavoriteItems,
     getActivityTypeLabelKey,
@@ -52,11 +52,11 @@ import {
 
 export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
 
-/** @deprecated Use {@link PortalRecentItem} from `shared-interfaces` instead. */
+/** @deprecated Use {@link PortalRecentItem} from `@iptvnator/shared/interfaces` instead. */
 export type GlobalRecentItem = PortalRecentItem;
-/** @deprecated Use {@link PortalFavoriteItem} from `shared-interfaces` instead. */
+/** @deprecated Use {@link PortalFavoriteItem} from `@iptvnator/shared/interfaces` instead. */
 export type DashboardFavoriteItem = PortalFavoriteItem;
-/** @deprecated Use {@link PortalAddedItem} from `shared-interfaces` instead. */
+/** @deprecated Use {@link PortalAddedItem} from `@iptvnator/shared/interfaces` instead. */
 export type DashboardRecentlyAddedItem = PortalAddedItem;
 export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 

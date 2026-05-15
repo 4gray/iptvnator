@@ -1,4 +1,4 @@
-import { StalkerPortalItem } from 'shared-interfaces';
+import { StalkerPortalItem } from '@iptvnator/shared/interfaces';
 import { CollectionContentType } from './unified-collection-item.interface';
 
 export interface XtreamFavoriteRow {

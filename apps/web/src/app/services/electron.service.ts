@@ -2,8 +2,8 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
-import { DataService } from 'services';
+import { PlaylistActions } from '@iptvnator/m3u-state';
+import { DataService } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     ERROR,
@@ -13,7 +13,7 @@ import {
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../../environments/environment';
 import {
     createPortalDebugRequestContext,

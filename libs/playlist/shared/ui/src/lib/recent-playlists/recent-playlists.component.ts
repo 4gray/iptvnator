@@ -26,9 +26,9 @@ import {
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { BehaviorSubject, combineLatest, map } from 'rxjs';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
     DataService,
@@ -39,12 +39,12 @@ import {
     SortBy,
     SortService,
     XtreamPendingRestoreService,
-} from 'services';
+} from '@iptvnator/services';
 import {
     PLAYLIST_UPDATE,
     PlaylistMeta,
     PlaylistRefreshEvent,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 import { EmptyStateComponent } from './empty-state/empty-state.component';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';

@@ -6,13 +6,13 @@ Shared database library for IPTVnator providing Drizzle ORM schema and connectio
 
 ```typescript
 // Full access (electron-backend)
-import { getDatabase, initDatabase } from 'database';
+import { getDatabase, initDatabase } from '@iptvnator/shared/database';
 
 // Read-only access (agent-backend)
-import { getReadOnlyDatabase } from 'database';
+import { getReadOnlyDatabase } from '@iptvnator/shared/database';
 
 // Schema and types
-import { content, categories, playlists, type Content } from 'database';
+import { content, categories, playlists, type Content } from '@iptvnator/shared/database';
 ```
 
 ## Exports

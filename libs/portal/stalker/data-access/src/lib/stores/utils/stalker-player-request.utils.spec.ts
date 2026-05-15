@@ -1,4 +1,4 @@
-import { PlaylistMeta, StalkerPortalActions } from 'shared-interfaces';
+import { PlaylistMeta, StalkerPortalActions } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import {
     fetchStalkerExpireDate,

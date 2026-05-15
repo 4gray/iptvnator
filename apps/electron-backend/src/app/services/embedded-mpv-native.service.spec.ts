@@ -2,7 +2,7 @@ import type {
     EmbeddedMpvBounds,
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';

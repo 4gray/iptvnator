@@ -1,4 +1,4 @@
-import { XtreamCategory } from 'shared-interfaces';
+import { XtreamCategory } from '@iptvnator/shared/interfaces';
 
 type StandardCollectionBucket = 'all' | 'movie' | 'live' | 'series';
 

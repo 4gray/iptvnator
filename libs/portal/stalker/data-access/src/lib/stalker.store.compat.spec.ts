@@ -4,7 +4,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { PORTAL_PLAYER } from '@iptvnator/portal/shared/util';
-import { DataService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import { StalkerSessionService } from './stalker-session.service';
 import { StalkerStore } from './stalker.store';
 

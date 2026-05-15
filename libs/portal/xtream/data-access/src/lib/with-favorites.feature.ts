@@ -5,7 +5,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { DatabaseService } from 'services';
+import { DatabaseService } from '@iptvnator/services';
 import { FavoritesService } from './services/favorites.service';
 import { createLogger } from '@iptvnator/portal/shared/util';
 

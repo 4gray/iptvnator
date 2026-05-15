@@ -15,7 +15,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
-import { EpgProgram } from 'shared-interfaces';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-channel-list-item',

@@ -5,7 +5,7 @@ import {
     inject,
     input,
 } from '@angular/core';
-import { ResizableDirective } from 'components';
+import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     LiveLayoutSidebarStateService,
     PortalRailSection,

@@ -6,7 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
-import { CoverSize, Language, Theme } from 'shared-interfaces';
+import { CoverSize, Language, Theme } from '@iptvnator/shared/interfaces';
 import {
     CoverSizeOption,
     StartupBehaviorOption,

@@ -1,4 +1,4 @@
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistState } from './state';
 import { selectActivePlaylist, selectChannelsLoading } from './selectors';
 

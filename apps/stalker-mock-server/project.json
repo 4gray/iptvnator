@@ -3,7 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "projectType": "application",
     "sourceRoot": "apps/stalker-mock-server/src",
-    "tags": ["scope:dev-tools"],
+    "tags": ["scope:dev-tools", "domain:stalker", "type:dev-app"],
     "targets": {
         "serve": {
             "continuous": true,

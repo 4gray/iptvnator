@@ -2,7 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
-import { resolveM3uCatchupUrl } from 'm3u-utils';
+import { resolveM3uCatchupUrl } from '@iptvnator/shared/m3u-utils';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -18,7 +18,7 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
-import { DataService, PlaylistsService } from 'services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
@@ -26,7 +26,7 @@ import {
     Playlist,
     STORE_KEY,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     ChannelActions,
     EpgActions,

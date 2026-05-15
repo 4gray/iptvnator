@@ -1,5 +1,5 @@
 import { InjectionToken, Signal } from '@angular/core';
-import { ResolvedPortalPlayback } from 'shared-interfaces';
+import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 
 export type PortalCatalogProvider = 'xtream' | 'stalker';
 

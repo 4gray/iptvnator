@@ -1,4 +1,4 @@
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 import { buildExternalPlayerPayload } from './external-player-payload.util';
 
 describe('buildExternalPlayerPayload', () => {

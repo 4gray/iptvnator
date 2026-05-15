@@ -349,8 +349,8 @@ renderer can actually paint the loading state instead of freezing.
 
 The worker build also aliases:
 
-1. `database-schema`
-2. `database-path-utils`
+1. `@iptvnator/shared/database/schema`
+2. `@iptvnator/shared/database/path-utils`
 
 These aliases avoid importing the shared database barrel from inside the worker,
 which would otherwise pull in runtime code that assumes the main Electron

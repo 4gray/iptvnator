@@ -7,8 +7,8 @@ import {
     withState,
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from 'services';
-import { EpgItem, EpgProgram, StalkerPortalActions } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { EpgItem, EpgProgram, StalkerPortalActions } from '@iptvnator/shared/interfaces';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerEpgFeatureStoreContract } from '../stalker-store.contracts';

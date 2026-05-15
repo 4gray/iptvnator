@@ -10,5 +10,5 @@ export {
   closeDatabase,
   type DatabaseInstance,
   type DatabaseOptions,
-} from 'database';
+} from '@iptvnator/shared/database';
 

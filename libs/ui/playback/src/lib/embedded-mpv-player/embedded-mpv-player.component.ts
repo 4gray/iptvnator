@@ -20,7 +20,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import {
     EmbeddedMpvAudioTrack,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';

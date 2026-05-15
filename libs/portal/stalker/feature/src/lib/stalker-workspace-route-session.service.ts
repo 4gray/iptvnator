@@ -15,7 +15,7 @@ import {
     StalkerContentType,
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
-import { PlaylistsService } from 'services';
+import { PlaylistsService } from '@iptvnator/services';
 
 @Injectable()
 export class StalkerWorkspaceRouteSession {

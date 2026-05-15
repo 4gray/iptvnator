@@ -180,5 +180,6 @@
                 "jestConfig": "apps/electron-backend/jest.config.ts"
             }
         }
-    }
+    },
+    "tags": ["scope:electron", "domain:electron-main", "type:app"]
 }

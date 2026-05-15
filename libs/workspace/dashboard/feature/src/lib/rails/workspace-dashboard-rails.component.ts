@@ -22,22 +22,22 @@ import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspacePlaylistType,
 } from '@iptvnator/workspace/shell/util';
-import { DialogService } from 'components';
-import { PlaylistActions } from 'm3u-state';
-import { DatabaseService } from 'services';
+import { DialogService } from '@iptvnator/ui/components';
+import { PlaylistActions } from '@iptvnator/m3u-state';
+import { DatabaseService } from '@iptvnator/services';
 import {
     DashboardDataService,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
     GlobalRecentItem,
-} from 'workspace-dashboard-data-access';
+} from '@iptvnator/workspace/dashboard/data-access';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailAction,
     DashboardRailCard,
     DashboardRailActionSelection,
 } from './dashboard-rail.component';
-import type { PlaylistMeta } from 'shared-interfaces';
+import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 // Cap dashboard rails at 20 items. Users get ~3× what's visible at once,
 // the DOM stays cheap, and the "Manage all" link is one click away for the

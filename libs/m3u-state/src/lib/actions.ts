@@ -1,5 +1,5 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
-import { Channel, EpgProgram, Playlist, PlaylistMeta } from 'shared-interfaces';
+import { Channel, EpgProgram, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 export const PlaylistActions = createActionGroup({
     source: 'Playlists',

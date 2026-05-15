@@ -6,8 +6,8 @@ import { RouterLink } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistSwitcherComponent } from '@iptvnator/playlist/shared/ui';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { Channel } from 'shared-interfaces';
-import { ChannelListContainerComponent } from 'components';
+import { Channel } from '@iptvnator/shared/interfaces';
+import { ChannelListContainerComponent } from '@iptvnator/ui/components';
 
 @Component({
     selector: 'app-sidebar',

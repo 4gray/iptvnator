@@ -11,8 +11,8 @@ import {
     FavoritesActions,
     selectFavorites,
     selectIsEpgAvailable,
-} from 'm3u-state';
-import { Channel } from 'shared-interfaces';
+} from '@iptvnator/m3u-state';
+import { Channel } from '@iptvnator/shared/interfaces';
 
 @Component({
     imports: [

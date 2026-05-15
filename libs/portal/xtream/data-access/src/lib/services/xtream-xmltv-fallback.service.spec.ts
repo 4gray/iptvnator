@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { EpgProgram } from 'shared-interfaces';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
 
 jest.mock('@iptvnator/portal/shared/util', () => ({

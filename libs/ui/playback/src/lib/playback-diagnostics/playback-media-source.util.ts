@@ -1,4 +1,4 @@
-import { getExtensionFromUrl } from 'm3u-utils';
+import { getExtensionFromUrl } from '@iptvnator/shared/m3u-utils';
 
 import type {
     PlaybackSourceMetadata,

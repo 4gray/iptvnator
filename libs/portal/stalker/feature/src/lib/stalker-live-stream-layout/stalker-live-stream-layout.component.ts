@@ -24,14 +24,14 @@ import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
     ResizableDirective,
-} from 'components';
-import { PlaylistsService, SettingsStore } from 'services';
+} from '@iptvnator/ui/components';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
     EpgListComponent,
@@ -44,7 +44,7 @@ import {
     LiveEpgPanelSummary,
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
-} from 'shared-portals';
+} from '@iptvnator/ui/shared-portals';
 import {
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,

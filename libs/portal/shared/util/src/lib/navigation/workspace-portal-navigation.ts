@@ -4,7 +4,7 @@ import {
     PortalFavoriteItem,
     PortalRecentItem,
     StalkerPortalItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     buildCollectionUid,
     buildXtreamCollectionUid,

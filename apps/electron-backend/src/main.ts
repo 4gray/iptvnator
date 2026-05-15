@@ -1,5 +1,5 @@
 import { app, BrowserWindow } from 'electron';
-import { getElectronUserDataPath } from 'database';
+import { getElectronUserDataPath } from '@iptvnator/shared/database';
 import fixPath from 'fix-path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';

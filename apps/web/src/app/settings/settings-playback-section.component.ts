@@ -8,7 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSelectModule } from '@angular/material/select';
 import { TranslateModule } from '@ngx-translate/core';
-import { StreamFormat, VideoPlayer } from 'shared-interfaces';
+import { StreamFormat, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsPlayerOption } from './settings.models';
 
 @Component({

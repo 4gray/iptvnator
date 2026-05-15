@@ -13,7 +13,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import {
     ProgressCapsuleComponent,
     WatchedBadgeComponent,
-} from 'components';
+} from '@iptvnator/ui/components';
 import { PlaylistErrorViewComponent } from '../playlist-error-view/playlist-error-view.component';
 
 interface GridListItem {

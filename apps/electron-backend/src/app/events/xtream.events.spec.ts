@@ -1,4 +1,4 @@
-import { XTREAM_CANCEL_SESSION } from 'shared-interfaces';
+import { XTREAM_CANCEL_SESSION } from '@iptvnator/shared/interfaces';
 
 const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
 const axiosMock = Object.assign(jest.fn(), {

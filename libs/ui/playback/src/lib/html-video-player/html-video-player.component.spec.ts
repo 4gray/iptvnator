@@ -1,7 +1,7 @@
 import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
 
 describe('HtmlVideoPlayerComponent', () => {

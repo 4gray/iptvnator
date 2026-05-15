@@ -7,8 +7,8 @@ import {
     WorkspaceCommandContribution,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { SettingsStore } from 'services';
-import { VideoPlayer } from 'shared-interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { WorkspacePlayerCommandsContributor } from './workspace-player-commands.contributor';
 
 interface ViewCommandsMock {

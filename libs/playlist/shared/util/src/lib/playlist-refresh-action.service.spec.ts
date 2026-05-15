@@ -4,14 +4,14 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
     PlaybackPositionService,
     PlaylistRefreshService,
-} from 'services';
-import { ChannelActions, PlaylistActions } from 'm3u-state';
-import { Playlist, PlaylistMeta } from 'shared-interfaces';
+} from '@iptvnator/services';
+import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
+import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from './playlist-context.facade';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
 

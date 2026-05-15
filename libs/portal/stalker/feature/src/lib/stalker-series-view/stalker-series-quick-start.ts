@@ -11,7 +11,7 @@ import {
 import type {
     PlaybackPositionData,
     XtreamSerieEpisode,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export interface StalkerQuickStartButton {
     labelKey: string;

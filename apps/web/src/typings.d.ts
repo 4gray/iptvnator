@@ -23,7 +23,7 @@ import {
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
     XtreamCategory,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     DbOperationEvent,
     GlobalFavoriteItem,
@@ -32,7 +32,7 @@ import {
     GlobalSearchResult,
     XCategoryFromDb,
     XtreamContent,
-} from 'services';
+} from '@iptvnator/services';
 
 type JsonObject = Record<string, unknown>;
 type JsonArray = unknown[];

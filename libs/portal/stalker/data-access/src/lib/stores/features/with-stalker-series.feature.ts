@@ -8,8 +8,8 @@ import {
     withState,
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from 'services';
-import { StalkerPortalActions } from 'shared-interfaces';
+import { DataService } from '@iptvnator/services';
+import { StalkerPortalActions } from '@iptvnator/shared/interfaces';
 import {
     StalkerSeason,
     StalkerVodSeriesEpisode,

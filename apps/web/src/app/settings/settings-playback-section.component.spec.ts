@@ -2,7 +2,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { StreamFormat, VideoPlayer } from 'shared-interfaces';
+import { StreamFormat, VideoPlayer } from '@iptvnator/shared/interfaces';
 import { SettingsPlaybackSectionComponent } from './settings-playback-section.component';
 
 const MPV_PATH_DESCRIPTION =

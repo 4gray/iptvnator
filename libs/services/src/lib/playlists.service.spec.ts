@@ -1,5 +1,5 @@
 import { firstValueFrom, of } from 'rxjs';
-import { DbStores, Playlist, PlaylistMeta } from 'shared-interfaces';
+import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';

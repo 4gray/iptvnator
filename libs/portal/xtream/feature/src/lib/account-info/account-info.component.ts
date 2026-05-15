@@ -15,7 +15,7 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import type { XtreamAccountInfoDialogData } from 'shared-interfaces';
+import type { XtreamAccountInfoDialogData } from '@iptvnator/shared/interfaces';
 
 type AccountLoadState = 'loading' | 'ready' | 'error';
 

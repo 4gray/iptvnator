@@ -3,7 +3,7 @@ import { Component, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
 import { BehaviorSubject, map, switchMap } from 'rxjs';
-import { PlaylistsService } from 'services';
+import { PlaylistsService } from '@iptvnator/services';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     matchesFavoriteById,

@@ -19,9 +19,9 @@ import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import {
     ChannelDetailsDialogComponent,
     ChannelListItemComponent,
-} from 'components';
-import { SettingsStore } from 'services';
-import { EpgProgram } from 'shared-interfaces';
+} from '@iptvnator/ui/components';
+import { SettingsStore } from '@iptvnator/services';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,

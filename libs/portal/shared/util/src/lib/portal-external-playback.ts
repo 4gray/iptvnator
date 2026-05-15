@@ -1,5 +1,5 @@
 import { InjectionToken, Signal } from '@angular/core';
-import { ExternalPlayerSession } from 'shared-interfaces';
+import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 
 export interface PortalExternalPlayback {
     readonly activeSession: Signal<ExternalPlayerSession | null>;

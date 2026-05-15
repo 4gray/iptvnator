@@ -10,7 +10,7 @@ import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import {
     PlaybackPositionData,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 interface StalkerVodPlaybackControllerConfig {
     inlinePlayback: WritableSignal<ResolvedPortalPlayback | null>;

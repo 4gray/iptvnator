@@ -3,9 +3,9 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
-import { DataService } from 'services';
-import { PLAYLIST_PARSE_BY_URL } from 'shared-interfaces';
+import { PlaylistActions } from '@iptvnator/m3u-state';
+import { DataService } from '@iptvnator/services';
+import { PLAYLIST_PARSE_BY_URL } from '@iptvnator/shared/interfaces';
 import { PlaylistType } from '@iptvnator/playlist/shared/ui';
 import { AddPlaylistDialogComponent } from './add-playlist-dialog.component';
 

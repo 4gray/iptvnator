@@ -11,9 +11,9 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { BehaviorSubject, firstValueFrom, of, Subject } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { ChannelActions, PlaylistActions } from 'm3u-state';
-import { PlaylistsService, SettingsStore } from 'services';
-import { Channel, PlaylistMeta } from 'shared-interfaces';
+import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import { Channel, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { ChannelListContainerComponent } from './channel-list-container.component';
 
 function createChannel(id: string, url: string): Channel {

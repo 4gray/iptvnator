@@ -1,5 +1,5 @@
 import { createFeatureSelector, createSelector } from '@ngrx/store';
-import { Playlist } from 'shared-interfaces';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import * as fromPlaylistMetaState from './playlists.state';
 import * as fromPlaylistState from './reducers';
 import { PlaylistState } from './state';

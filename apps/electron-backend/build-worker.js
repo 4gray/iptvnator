@@ -77,23 +77,23 @@ async function buildWorker() {
                 sourcemap: !isProduction,
                 minify: isProduction,
                 alias: {
-                    'shared-interfaces': path.join(
+                    '@iptvnator/shared/interfaces': path.join(
                         __dirname,
                         '../../libs/shared/interfaces/src/index.ts'
                     ),
-                    'm3u-utils': path.join(
+                    '@iptvnator/shared/m3u-utils': path.join(
                         __dirname,
                         '../../libs/shared/m3u-utils/src/index.ts'
                     ),
-                    'database': path.join(
+                    '@iptvnator/shared/database': path.join(
                         __dirname,
                         '../../libs/shared/database/src/index.ts'
                     ),
-                    'database-schema': path.join(
+                    '@iptvnator/shared/database/schema': path.join(
                         __dirname,
                         '../../libs/shared/database/src/lib/schema.ts'
                     ),
-                    'database-path-utils': path.join(
+                    '@iptvnator/shared/database/path-utils': path.join(
                         __dirname,
                         '../../libs/shared/database/src/lib/path-utils.ts'
                     ),

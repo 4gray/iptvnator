@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent } from 'components';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
 import {
     buildStalkerStateItem,
     createLogger,
@@ -36,14 +36,14 @@ import {
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
-import { PlaylistsService } from 'services';
+import { PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     Playlist,
     ResolvedPortalPlayback,
     StalkerPortalItem,
     VodDetailsItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { firstValueFrom } from 'rxjs';
 import { StalkerInlineDetailComponent } from './stalker-inline-detail/stalker-inline-detail.component';
 import { StalkerVodPlaybackController } from './stalker-vod-playback-controller';

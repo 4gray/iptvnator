@@ -11,9 +11,9 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
-import { PlaylistActions } from 'm3u-state';
-import { PortalStatus, PortalStatusService } from 'services';
-import { Playlist } from 'shared-interfaces';
+import { PlaylistActions } from '@iptvnator/m3u-state';
+import { PortalStatus, PortalStatusService } from '@iptvnator/services';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { v4 as uuid } from 'uuid';
 
 @Component({

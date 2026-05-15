@@ -1,5 +1,5 @@
 import { DestroyRef, Signal, effect, inject } from '@angular/core';
-import { XtreamCategory } from 'shared-interfaces';
+import { XtreamCategory } from '@iptvnator/shared/interfaces';
 import { PortalCollectionContextService } from './portal-collection-context.service';
 
 export interface PortalCollectionContextBridge {

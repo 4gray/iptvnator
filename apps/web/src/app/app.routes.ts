@@ -40,7 +40,7 @@ export const routes: Routes = [
                 path: 'dashboard',
                 canActivate: [dashboardAccessGuard],
                 loadComponent: () =>
-                    import('workspace-dashboard-feature').then(
+                    import('@iptvnator/workspace/dashboard/feature').then(
                         (c) => c.WorkspaceDashboardRailsComponent
                     ),
             },

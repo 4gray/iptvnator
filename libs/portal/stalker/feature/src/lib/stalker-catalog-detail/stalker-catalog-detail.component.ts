@@ -29,14 +29,14 @@ import {
     type PlaybackFallbackRequest,
     VodDetailsComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService, PlaylistsService } from 'services';
+import { DownloadsService, PlaylistsService } from '@iptvnator/services';
 import {
     createStalkerVodItem,
     PlaybackPositionData,
     ResolvedPortalPlayback,
     StalkerVodDetails,
     VodDetailsItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { StalkerCatalogFacadeService } from '../stalker-catalog-facade.service';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 

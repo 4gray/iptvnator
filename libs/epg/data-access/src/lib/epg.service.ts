@@ -7,7 +7,7 @@ import {
     createDevLogger,
     EpgChannelMetadata,
     EpgProgram,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 interface CachedProgram {

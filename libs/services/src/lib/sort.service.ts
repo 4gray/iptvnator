@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { BehaviorSubject, Observable } from 'rxjs';
-import { PlaylistMeta } from 'shared-interfaces';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 export enum SortBy {
     DATE_ADDED = 'date',

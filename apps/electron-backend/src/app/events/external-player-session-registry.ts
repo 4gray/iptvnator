@@ -2,7 +2,7 @@ import {
     ExternalPlayerName,
     ExternalPlayerSession,
     PlayerContentInfo,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 interface CreateExternalPlayerSessionOptions {
     player: ExternalPlayerName;

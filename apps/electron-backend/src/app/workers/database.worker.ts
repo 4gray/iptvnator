@@ -6,7 +6,7 @@ import { parentPort } from 'worker_threads';
 import type {
     XtreamBackupFavoriteItem,
     XtreamBackupRecentlyViewedItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import type {
     DbOperationEvent,
     DbWorkerIncomingMessage,

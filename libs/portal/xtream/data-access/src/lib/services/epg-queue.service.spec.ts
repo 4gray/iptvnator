@@ -1,9 +1,9 @@
 import { TestBed } from '@angular/core/testing';
-import { SettingsStore } from 'services';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgQueueService } from './epg-queue.service';
 import { XtreamApiService } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
-import type { EpgItem } from 'shared-interfaces';
+import type { EpgItem } from '@iptvnator/shared/interfaces';
 
 describe('EpgQueueService', () => {
     let service: EpgQueueService;

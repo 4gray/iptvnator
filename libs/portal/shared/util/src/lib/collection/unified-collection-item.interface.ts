@@ -5,7 +5,7 @@
  * Extends the previous live-only UnifiedFavoriteChannel to cover
  * all content types: live TV, movies, and series.
  */
-import { Channel } from 'shared-interfaces';
+import { Channel } from '@iptvnator/shared/interfaces';
 
 export type CollectionSourceType = 'm3u' | 'xtream' | 'stalker';
 export type CollectionContentType = 'live' | 'movie' | 'series';

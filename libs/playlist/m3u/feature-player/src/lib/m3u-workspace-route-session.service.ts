@@ -8,10 +8,10 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
-import { ChannelActions, FavoritesActions } from 'm3u-state';
+import { ChannelActions, FavoritesActions } from '@iptvnator/m3u-state';
 import { filter, firstValueFrom } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import { PlaylistsService } from 'services';
+import { PlaylistsService } from '@iptvnator/services';
 
 type M3uLoadedSection = 'all' | 'groups';
 

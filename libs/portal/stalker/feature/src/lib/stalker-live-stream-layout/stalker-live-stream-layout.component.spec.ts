@@ -13,16 +13,16 @@ import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { EpgListComponent } from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { ChannelListItemComponent } from 'components';
+import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
-import { PlaylistsService, SettingsStore } from 'services';
-import { EpgProgram } from 'shared-interfaces';
+import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
     WebPlayerViewComponent,
-} from 'shared-portals';
+} from '@iptvnator/ui/shared-portals';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
 
 @Component({

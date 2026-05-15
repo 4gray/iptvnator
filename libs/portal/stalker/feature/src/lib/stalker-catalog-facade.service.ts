@@ -20,7 +20,7 @@ import {
     PORTAL_PLAYBACK_POSITIONS,
     StalkerPortalCatalogFacade,
 } from '@iptvnator/portal/shared/util';
-import { PlaybackPositionData } from 'shared-interfaces';
+import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 function calculateProgress(position: PlaybackPositionData | undefined): number {
     if (!position || !position.durationSeconds) {

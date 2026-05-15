@@ -22,14 +22,14 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { Store } from '@ngrx/store';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import { MockModule, MockProvider } from 'ng-mocks';
 import {
     DatabaseService,
     DataService,
     PlaylistBackupService,
     PlaylistsService,
-} from 'services';
+} from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     Language,
@@ -38,7 +38,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { SettingsComponent } from './settings.component';
 
 import { signal } from '@angular/core';
@@ -47,7 +47,7 @@ import {
     PlaylistActions,
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { from, of } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';

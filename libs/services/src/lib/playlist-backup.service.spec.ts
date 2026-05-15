@@ -4,7 +4,7 @@ import {
     PlaylistBackupManifestV1,
     PLAYLIST_BACKUP_KIND,
     PLAYLIST_BACKUP_VERSION,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     PlaylistBackupError,
     PlaylistBackupService,

@@ -7,12 +7,12 @@ import {
 } from '@ngrx/signals';
 import { rxMethod } from '@ngrx/signals/rxjs-interop';
 import { firstValueFrom, pipe, switchMap, tap } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     buildPlaylistRecentItems,
     Playlist,
     PortalRecentItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
 
 export interface RecentlyViewedItem extends PortalRecentItem {

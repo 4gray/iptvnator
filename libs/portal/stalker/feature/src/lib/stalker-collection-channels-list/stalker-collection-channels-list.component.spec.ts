@@ -2,8 +2,8 @@ import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { MockPipe } from 'ng-mocks';
 import { TranslatePipe } from '@ngx-translate/core';
-import { ChannelListItemComponent } from 'components';
-import { EpgProgram } from 'shared-interfaces';
+import { ChannelListItemComponent } from '@iptvnator/ui/components';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { StalkerCollectionChannelsListComponent } from './stalker-collection-channels-list.component';
 

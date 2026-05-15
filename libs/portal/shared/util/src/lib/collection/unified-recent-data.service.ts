@@ -1,8 +1,8 @@
 import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
-import { PlaylistActions, selectAllPlaylistsMeta } from 'm3u-state';
+import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
-import { DatabaseService, PlaylistsService } from 'services';
+import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     Channel,
     extractStalkerItemId,
@@ -18,7 +18,7 @@ import {
     PlaylistRecentlyViewedItem,
     PlaylistUpdateState,
     StalkerPortalItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     buildCollectionUid,
     buildXtreamCollectionUid,

@@ -17,7 +17,7 @@ import {
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerXtreamDownloadContext,
-} from 'components';
+} from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -35,7 +35,7 @@ import {
     ResolvedPortalPlayback,
     XtreamSerieEpisode,
     XtreamSerieDetails,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 type XtreamSerieDetailsView = XtreamSerieDetails & {
     readonly series_id: number;

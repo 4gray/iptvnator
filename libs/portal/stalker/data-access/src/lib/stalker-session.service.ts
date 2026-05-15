@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
-import { Playlist, STALKER_REQUEST } from 'shared-interfaces';
-import { DataService } from 'services';
+import { Playlist, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import { DataService } from '@iptvnator/services';
 
 /**
  * SHA1 hash using native Web Crypto API

@@ -6,8 +6,8 @@ import {
     XtreamPlaylistData,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistsService } from 'services';
-import { Playlist } from 'shared-interfaces';
+import { PlaylistsService } from '@iptvnator/services';
+import { Playlist } from '@iptvnator/shared/interfaces';
 import { of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { XtreamCollectionDetailComponent } from './xtream-collection-detail.component';

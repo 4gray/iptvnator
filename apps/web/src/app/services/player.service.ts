@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { MatDialog } from '@angular/material/dialog';
 import { ExternalPlayerInfoDialogComponent } from '@iptvnator/ui/playback/external-player-info-dialog';
-import { DataService } from 'services';
+import { DataService } from '@iptvnator/services';
 import {
     ExternalPlayerSession,
     OPEN_MPV_PLAYER,
@@ -9,8 +9,8 @@ import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
     VideoPlayer,
-} from 'shared-interfaces';
-import type { ExternalPlayerName } from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
+import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from './settings-store.service';
 
 @Injectable({

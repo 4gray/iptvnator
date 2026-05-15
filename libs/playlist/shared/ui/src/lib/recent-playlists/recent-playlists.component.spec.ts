@@ -11,9 +11,9 @@ import {
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
-} from 'm3u-state';
+} from '@iptvnator/m3u-state';
 import { of } from 'rxjs';
-import { DialogService } from 'components';
+import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
     DataService,
@@ -21,8 +21,8 @@ import {
     SortBy,
     SortOrder,
     SortService,
-} from 'services';
-import { PLAYLIST_UPDATE, PlaylistMeta } from 'shared-interfaces';
+} from '@iptvnator/services';
+import { PLAYLIST_UPDATE, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { RecentPlaylistsComponent } from './recent-playlists.component';
 
 function createDeferred<T>() {

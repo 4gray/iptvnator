@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import * as schema from 'database-schema';
+import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 
 export async function persistContentBackdropIfMissing(

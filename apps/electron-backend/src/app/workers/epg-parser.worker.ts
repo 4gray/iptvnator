@@ -1,6 +1,6 @@
 import type BetterSqlite3 from 'better-sqlite3';
 import { existsSync, mkdirSync } from 'fs';
-import { getIptvnatorDatabasePath } from 'database-path-utils';
+import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
 import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
 import { createGunzip } from 'zlib';

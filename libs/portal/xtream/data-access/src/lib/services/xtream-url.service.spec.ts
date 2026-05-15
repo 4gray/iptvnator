@@ -1,6 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import { DatabaseService, SettingsStore } from 'services';
+import { DatabaseService, SettingsStore } from '@iptvnator/services';
 import { XtreamCredentials } from './xtream-api.service';
 import { XtreamUrlService } from './xtream-url.service';
 

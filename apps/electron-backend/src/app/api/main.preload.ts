@@ -9,7 +9,7 @@ import type {
     PlaylistRefreshPayload,
     ResolvedPortalPlayback,
     XtreamCategory,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import {
     DEBUG_TRACE_EVENT_CHANNEL,
     isRendererApiTraceEnabled,

@@ -1,5 +1,5 @@
 import { BrowserWindow } from 'electron';
-import { PORTAL_DEBUG_EVENT, PortalDebugEvent } from 'shared-interfaces';
+import { PORTAL_DEBUG_EVENT, PortalDebugEvent } from '@iptvnator/shared/interfaces';
 import { environment } from '../../environments/environment';
 
 const MAX_DEBUG_DEPTH = 6;

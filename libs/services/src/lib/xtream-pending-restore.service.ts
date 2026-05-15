@@ -2,7 +2,7 @@ import { Injectable } from '@angular/core';
 import {
     getXtreamPendingRestoreStorageKey,
     XtreamPendingRestoreState,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 const EMPTY_RESTORE_STATE: XtreamPendingRestoreState = {
     hiddenCategories: [],

@@ -6,8 +6,8 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { EpgItem } from 'shared-interfaces';
-import { DataService, SettingsStore } from 'services';
+import { EpgItem } from '@iptvnator/shared/interfaces';
+import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamCredentials,

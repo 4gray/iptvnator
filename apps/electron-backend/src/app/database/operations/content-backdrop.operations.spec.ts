@@ -20,7 +20,7 @@ jest.mock('drizzle-orm', () => ({
         sqlMock(strings, ...values),
 }));
 
-import * as schema from 'database-schema';
+import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
 import { setContentBackdropIfMissing } from './content-backdrop.operations';
 

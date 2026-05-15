@@ -13,7 +13,7 @@ import {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
     VodDetailsItem,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 import { StalkerSeriesViewComponent } from '../stalker-series-view/stalker-series-view.component';
 
 @Component({

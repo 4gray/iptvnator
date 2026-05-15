@@ -1,7 +1,7 @@
 import type {
     ExternalPlayerName,
     ResolvedPortalPlayback,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 export const PlaybackDiagnosticCode = {
     UnsupportedContainer: 'unsupported-container',

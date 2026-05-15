@@ -1,5 +1,5 @@
 import { ChangeDetectionStrategy, Component, input, output } from '@angular/core';
-import { XtreamCategory } from 'shared-interfaces';
+import { XtreamCategory } from '@iptvnator/shared/interfaces';
 import {
     FavoriteLayoutItem,
     FavoritesLayoutComponent,

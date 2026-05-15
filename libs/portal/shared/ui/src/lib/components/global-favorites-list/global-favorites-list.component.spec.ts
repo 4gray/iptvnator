@@ -3,10 +3,10 @@ import { signal } from '@angular/core';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
-import { ChannelDetailsDialogComponent } from 'components';
+import { ChannelDetailsDialogComponent } from '@iptvnator/ui/components';
 import { UnifiedFavoriteChannel } from '@iptvnator/portal/shared/util';
-import { Channel } from 'shared-interfaces';
-import { SettingsStore } from 'services';
+import { Channel } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
 import { GlobalFavoritesListComponent } from './global-favorites-list.component';
 
 describe('GlobalFavoritesListComponent', () => {

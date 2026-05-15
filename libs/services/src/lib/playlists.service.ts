@@ -6,7 +6,7 @@ import {
     aggregateFavoriteChannels,
     createFavoritesPlaylist,
     createPlaylistObject,
-} from 'm3u-utils';
+} from '@iptvnator/shared/m3u-utils';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import {
     combineLatest,
@@ -29,7 +29,7 @@ import {
     PlaylistUpdateState,
     StalkerPortalItem,
     normalizeStalkerDate,
-} from 'shared-interfaces';
+} from '@iptvnator/shared/interfaces';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =

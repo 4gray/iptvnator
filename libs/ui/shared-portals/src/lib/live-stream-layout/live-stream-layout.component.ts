@@ -22,8 +22,8 @@ import {
     restoreLiveEpgPanelState,
 } from '@iptvnator/portal/shared/util';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
-import { ResizableDirective } from 'components';
-import { EpgItem, VideoPlayer, XtreamItem } from 'shared-interfaces';
+import { ResizableDirective } from '@iptvnator/ui/components';
+import { EpgItem, VideoPlayer, XtreamItem } from '@iptvnator/shared/interfaces';
 import { EpgViewComponent } from '../epg-view/epg-view.component';
 import {
     LiveEpgPanelComponent,

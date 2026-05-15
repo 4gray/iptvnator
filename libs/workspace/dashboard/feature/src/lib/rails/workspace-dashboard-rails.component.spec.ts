@@ -1,4 +1,4 @@
-import type { PlaylistMeta } from 'shared-interfaces';
+import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     buildDashboardSourceActions,
     resolveDashboardHeroArtwork,

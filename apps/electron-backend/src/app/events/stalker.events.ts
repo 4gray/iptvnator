@@ -6,7 +6,7 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { createHash } from 'crypto';
 import { ipcMain } from 'electron';
-import { PortalDebugEvent, STALKER_REQUEST } from 'shared-interfaces';
+import { PortalDebugEvent, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
 

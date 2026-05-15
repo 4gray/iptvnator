@@ -12,7 +12,7 @@ import {
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import mpegts from 'mpegts.js';
-import { createDevLogger } from 'shared-interfaces';
+import { createDevLogger } from '@iptvnator/shared/interfaces';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
 import 'videojs-quality-selector-hls';
