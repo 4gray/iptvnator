@@ -19,6 +19,9 @@
                 "command": "node --test tools/packaging/electron-package-identity.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
+        },
+        "lint": {
+            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\""
         }
     },
     "tags": ["scope:tools", "type:tool"]

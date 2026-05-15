@@ -3,7 +3,11 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, map, tap, timeout } from 'rxjs/operators';
-import { EpgChannelMetadata, EpgProgram } from 'shared-interfaces';
+import {
+    createDevLogger,
+    EpgChannelMetadata,
+    EpgProgram,
+} from 'shared-interfaces';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 interface CachedProgram {
@@ -16,6 +20,8 @@ type EpgChannelMetadataApi = {
         channelIds: string[]
     ) => Promise<Record<string, EpgChannelMetadata | null>>;
 };
+
+const debugEpgService = createDevLogger('EpgService');
 
 @Injectable({
     providedIn: 'root',
@@ -71,7 +77,7 @@ export class EpgService {
      */
     getChannelPrograms(channelId: string): void {
         if (!this.isDesktop) return;
-        console.log('Fetching EPG for channel ID:', channelId);
+        debugEpgService('Fetching EPG for channel ID:', channelId);
 
         from(window.electron.getChannelPrograms(channelId))
             .pipe(

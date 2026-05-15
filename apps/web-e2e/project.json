@@ -10,6 +10,9 @@
     ],
     "// targets": "to see all targets run: nx show project web-e2e --web",
     "targets": {
-        "e2e": {}
+        "e2e": {},
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
     }
 }

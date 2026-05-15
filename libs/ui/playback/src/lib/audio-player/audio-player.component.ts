@@ -26,9 +26,7 @@ import { ChannelActions } from 'm3u-state';
             @if (displayIcon() && !logoError()) {
                 <div
                     class="backdrop"
-                    [style.backgroundImage]="
-                        'url(' + displayIcon() + ')'
-                    "
+                    [style.backgroundImage]="'url(' + displayIcon() + ')'"
                 ></div>
             }
             <div class="vignette"></div>
@@ -54,7 +52,10 @@ import { ChannelActions } from 'm3u-state';
                 <h2 class="station-name">
                     {{ channelName() || 'Radio' }}
                 </h2>
-                <span class="station-badge" [class.live]="playState() === 'play'">
+                <span
+                    class="station-badge"
+                    [class.live]="playState() === 'play'"
+                >
                     @if (playState() === 'play') {
                         <span class="pulse"></span> LIVE
                     } @else {
@@ -74,14 +75,10 @@ import { ChannelActions } from 'm3u-state';
                     <button
                         class="play-btn"
                         mat-fab
-                        (click)="
-                            playState() === 'play' ? stop() : play()
-                        "
+                        (click)="playState() === 'play' ? stop() : play()"
                     >
                         <mat-icon>{{
-                            playState() === 'play'
-                                ? 'pause'
-                                : 'play_arrow'
+                            playState() === 'play' ? 'pause' : 'play_arrow'
                         }}</mat-icon>
                     </button>
 
@@ -95,19 +92,10 @@ import { ChannelActions } from 'm3u-state';
                 </div>
 
                 <div class="volume-row">
-                    <button
-                        mat-icon-button
-                        class="vol-icon"
-                        (click)="mute()"
-                    >
+                    <button mat-icon-button class="vol-icon" (click)="mute()">
                         <mat-icon>{{ volumeIcon() }}</mat-icon>
                     </button>
-                    <mat-slider
-                        class="vol-slider"
-                        min="0"
-                        max="1"
-                        step="0.05"
-                    >
+                    <mat-slider class="vol-slider" min="0" max="1" step="0.05">
                         <input
                             matSliderThumb
                             [ngModel]="volume()"
@@ -209,7 +197,9 @@ export class AudioPlayerComponent {
     play() {
         const audio = this.audioRef()?.nativeElement;
         if (!audio) return;
-        audio.play().catch((err) => console.log(err));
+        audio.play().catch((err) => {
+            console.warn('[AudioPlayer] Audio playback failed:', err);
+        });
         this.playState.set('play');
     }
 
@@ -219,8 +209,7 @@ export class AudioPlayerComponent {
     }
 
     setVolume(value: number) {
-        const clamped =
-            Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
+        const clamped = Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
         this.volume.set(clamped);
         const audio = this.audioRef()?.nativeElement;
         if (audio) audio.volume = clamped;

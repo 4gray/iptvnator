@@ -22,6 +22,9 @@
                 "jestConfig": "libs/shared/interfaces/jest.config.ts",
                 "tsConfig": "libs/shared/interfaces/tsconfig.spec.json"
             }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
         }
     }
 }

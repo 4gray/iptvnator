@@ -3,6 +3,7 @@
     "$schema": "../../node_modules/nx/schemas/project-schema.json",
     "sourceRoot": "apps/electron-backend/src",
     "projectType": "application",
+    "tags": ["scope:electron", "domain:electron-main", "type:app"],
     "targets": {
         "build-worker": {
             "executor": "nx:run-commands",

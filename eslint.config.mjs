@@ -194,4 +194,15 @@ export default [
             '@angular-eslint/template/interactive-supports-focus': 'off',
         },
     },
+    {
+        files: [
+            'apps/web/src/app/app.component.ts',
+            'apps/electron-backend/src/app/events/player.events.ts',
+            'libs/epg/data-access/**/*.ts',
+            'libs/ui/playback/**/*.ts',
+        ],
+        rules: {
+            'no-console': ['warn', { allow: ['debug', 'warn', 'error'] }],
+        },
+    },
 ];

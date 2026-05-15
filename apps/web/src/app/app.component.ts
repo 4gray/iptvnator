@@ -17,8 +17,11 @@ import {
     Settings,
     STORE_KEY,
     Theme,
+    createDevLogger,
 } from 'shared-interfaces';
 import { SettingsService } from './services/settings.service';
+
+const debugAppComponent = createDevLogger('AppComponent');
 
 @Component({
     selector: 'app-root',
@@ -106,8 +109,7 @@ export class AppComponent implements OnInit {
                     // Settings are stored in IndexedDB and loaded by the settings store
                     // Only specific Electron settings (MPV/VLC paths) are sent when changed in settings component
 
-                    const resolvedLang =
-                        settings.language ?? this.DEFAULT_LANG;
+                    const resolvedLang = settings.language ?? this.DEFAULT_LANG;
                     this.translate.use(resolvedLang);
                     // Mirror the active language to localStorage so the next
                     // cold start can read it synchronously in app.config.ts's
@@ -166,7 +168,7 @@ export class AppComponent implements OnInit {
             const result = await window.electron.checkEpgFreshness(urls, 12);
 
             if (result.freshUrls.length > 0) {
-                console.log(
+                debugAppComponent(
                     `EPG: ${result.freshUrls.length} source(s) already fresh, skipping fetch`
                 );
                 // Show snackbar if all EPG sources are fresh (no stale URLs)
@@ -180,7 +182,7 @@ export class AppComponent implements OnInit {
             }
 
             if (result.staleUrls.length > 0) {
-                console.log(
+                debugAppComponent(
                     `EPG: Fetching ${result.staleUrls.length} stale source(s)`
                 );
                 this.epgService.fetchEpg(result.staleUrls);
@@ -218,7 +220,7 @@ export class AppComponent implements OnInit {
 
                         // Trigger auto-update if there are playlists to update
                         if (playlistsToUpdate.length > 0) {
-                            console.log(
+                            debugAppComponent(
                                 `Auto-updating ${playlistsToUpdate.length} playlist(s) on startup`
                             );
                             this.dataService.sendIpcEvent(

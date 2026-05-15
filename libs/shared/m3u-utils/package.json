@@ -6,6 +6,8 @@
     "main": "./src/index.js",
     "types": "./src/index.d.ts",
     "dependencies": {
+        "shared-interfaces": "0.0.1",
+        "uuid": "9.0.0",
         "tslib": "^2.3.0"
     }
 }

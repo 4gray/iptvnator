@@ -16,6 +16,14 @@
                 "format": ["cjs"]
             }
         },
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/shared/database/jest.config.ts",
+                "tsConfig": "libs/shared/database/tsconfig.spec.json"
+            }
+        },
         "lint": {
             "command": "eslint libs/shared/database/**/*.ts"
         }

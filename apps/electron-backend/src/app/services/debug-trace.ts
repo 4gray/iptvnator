@@ -27,10 +27,7 @@ function summarizeObject(
     const entries = Object.entries(value);
     const summary: Record<string, unknown> = {};
 
-    if (
-        value.constructor?.name &&
-        value.constructor.name !== 'Object'
-    ) {
+    if (value.constructor?.name && value.constructor.name !== 'Object') {
         summary.__type = value.constructor.name;
     }
 
@@ -73,6 +70,10 @@ export function isRendererConsoleTraceEnabled(): boolean {
     return readFlag('IPTVNATOR_TRACE_RENDERER_CONSOLE');
 }
 
+export function isExternalPlayerTraceEnabled(): boolean {
+    return isStartupTraceEnabled() || readFlag('IPTVNATOR_TRACE_PLAYER');
+}
+
 export function roundTraceDuration(durationMs: number): number {
     return Math.round(durationMs * 10) / 10;
 }
@@ -81,10 +82,7 @@ export function compactSqlForTrace(sql: string): string {
     return truncateString(sql.replace(/\s+/g, ' ').trim());
 }
 
-export function summarizeForTrace(
-    value: unknown,
-    depth = 0
-): unknown {
+export function summarizeForTrace(value: unknown, depth = 0): unknown {
     if (
         value == null ||
         typeof value === 'boolean' ||
@@ -160,11 +158,7 @@ export function safeStringifyForTrace(payload: unknown): string {
     }
 }
 
-export function trace(
-    scope: string,
-    message: string,
-    payload?: unknown
-): void {
+export function trace(scope: string, message: string, payload?: unknown): void {
     if (payload === undefined) {
         console.log(`${TRACE_PREFIX}[${scope}] ${message}`);
         return;

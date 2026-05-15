@@ -109,6 +109,7 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and DB progress events
 - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in both main and worker connections
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
+- `IPTVNATOR_TRACE_PLAYER=1` traces external-player launch/reuse/polling debug output
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
 
 For GPU/compositor debugging:

@@ -61,6 +61,7 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
     - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
     - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
+    - `IPTVNATOR_TRACE_PLAYER=1` traces external-player launch/reuse/polling debug output
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
 
 - GPU/compositor debugging:

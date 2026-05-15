@@ -246,6 +246,8 @@
         "NEW_VERSION_AVAILABLE": "Доступна новая версия приложения",
         "LATEST_VERSION": "Вы используете последнюю версию приложения",
         "STREAM_FORMAT": "Формат потока",
+        "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK": "Start MPV/VLC with double-click",
+        "OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK_DESCRIPTION": "Require a double-click on channel rows before MPV or VLC playback starts.",
         "LANGUAGE": "Язык",
         "SETTINGS_SAVED": "Новые настройки были успешно сохранены!",
         "THEME": "Тема оформления",

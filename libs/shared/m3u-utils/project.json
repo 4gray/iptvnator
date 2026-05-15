@@ -21,6 +21,9 @@
             "options": {
                 "jestConfig": "libs/shared/m3u-utils/jest.config.ts"
             }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
         }
     }
 }

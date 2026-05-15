@@ -22,6 +22,7 @@ import { ChildProcess, spawn } from 'child_process';
 import { existsSync } from 'fs';
 import { AddressInfo, createConnection, createServer } from 'net';
 import path from 'path';
+import { isExternalPlayerTraceEnabled, trace } from '../services/debug-trace';
 import { getStalkerPlaybackContextHeaders } from '../services/stalker-playback-context.service';
 import { ExternalPlayerSessionRegistry } from './external-player-session-registry';
 
@@ -39,6 +40,14 @@ let positionPollingInterval: NodeJS.Timeout | null = null;
 // Keep track of the running VLC process for reuse
 let vlcProcess: ChildProcess | null = null;
 let vlcRcPort: number | null = null;
+
+function traceExternalPlayer(message: string, payload?: unknown): void {
+    if (!isExternalPlayerTraceEnabled()) {
+        return;
+    }
+
+    trace('external-player', message, payload);
+}
 
 interface ExternalPlaybackSnapshot {
     positionSeconds: number;
@@ -291,7 +300,12 @@ function sendVlcRcCommand(port: number, command: string): Promise<void> {
             settled = true;
             clearTimeout(timeoutHandle);
             if (!client.destroyed) client.destroy();
-            err ? reject(err) : resolve();
+            if (err) {
+                reject(err);
+                return;
+            }
+
+            resolve();
         };
 
         const timeoutHandle = setTimeout(
@@ -408,7 +422,6 @@ async function getMpvProperty(
         let data = '';
 
         client.on('connect', () => {
-            // console.log('[PlayerEvents] MPV IPC connected, sending:', request.trim());
             client.write(request);
         });
 
@@ -535,13 +548,10 @@ function startPositionPolling(
 
     // Initial delay to let video load
     setTimeout(() => {
-        // console.log('[PlayerEvents] Starting position polling interval');
         positionPollingInterval = setInterval(async () => {
             try {
                 const position = await getMpvProperty(socketPath, 'time-pos');
                 const duration = await getMpvProperty(socketPath, 'duration');
-
-                // console.log(`[PlayerEvents] Polling MPV: pos=${position}, dur=${duration}`);
 
                 if (position !== null && App.mainWindow) {
                     sendPlaybackPositionUpdate(sessionId, contentInfo, {
@@ -550,12 +560,11 @@ function startPositionPolling(
                     });
                 }
             } catch (err) {
-                // console.error('[PlayerEvents] Error during polling:', err);
                 // MPV may have closed, stop polling
                 stopPositionPolling();
             }
-        }, 5000); // Changed to 5 seconds for debugging
-    }, 2000); // Reduced initial delay
+        }, 5000);
+    }, 2000);
 }
 
 // VLC Polling
@@ -643,12 +652,6 @@ function startVlcPositionPolling(
 
     // VLC needs time to start and bind port
     setTimeout(() => {
-        /*
-        console.log(
-            `[PlayerEvents] Starting VLC polling on port ${port}`,
-            contentInfo
-        );
-        */
         vlcPollingInterval = setInterval(async () => {
             try {
                 const snapshot = await getVlcPlaybackSnapshot(port);
@@ -669,7 +672,6 @@ function startVlcPositionPolling(
                     stopVlcPositionPolling();
                 }
             } catch (err) {
-                // console.error('[PlayerEvents] VLC polling error:', err);
                 stopVlcPositionPolling();
             }
         }, 2000);
@@ -692,7 +694,10 @@ function sendMpvCommand(
         const request = JSON.stringify({ command: [command, ...args] }) + '\n';
 
         client.on('connect', () => {
-            console.log('Connected to MPV socket, sending command:', request);
+            traceExternalPlayer('mpv ipc command', {
+                command,
+                argsCount: args.length,
+            });
             client.write(request);
             client.end();
             resolve();
@@ -768,7 +773,7 @@ ipcMain.handle(
                 mergedHeaders
             );
 
-            console.log('[MPV] Opening player', {
+            traceExternalPlayer('open mpv player', {
                 path: mpvLaunchContext.playerPath,
                 launchMode: mpvLaunchContext.mode,
                 requestedReuseInstance,
@@ -791,7 +796,7 @@ ipcMain.handle(
                 !mpvProcess.killed &&
                 mpvSocketPath
             ) {
-                console.log('Reusing existing MPV instance');
+                traceExternalPlayer('reuse existing mpv instance');
                 try {
                     if (effectiveUserAgent) {
                         await sendMpvCommand('set_property', [
@@ -828,8 +833,8 @@ ipcMain.handle(
                     }
 
                     await sendMpvCommand('loadfile', loadFileArgs);
-                    console.log(
-                        'Successfully loaded new URL in existing MPV instance'
+                    traceExternalPlayer(
+                        'loaded new url in existing mpv instance'
                     );
 
                     externalPlayerSessions.attachCloser(
@@ -881,7 +886,7 @@ ipcMain.handle(
             }
 
             // Create new MPV process
-            console.log('Creating new MPV instance');
+            traceExternalPlayer('create new mpv instance');
 
             let socketPath: string | null = null;
             const args: string[] = [];
@@ -954,7 +959,7 @@ ipcMain.handle(
                                 continue;
                             }
 
-                            console.log('[MPV stdout]:', output);
+                            traceExternalPlayer('mpv stdout', { output });
 
                             // MPV sometimes outputs errors to stdout instead of stderr
                             if (
@@ -1016,7 +1021,7 @@ ipcMain.handle(
                 });
 
                 proc.on('exit', (code) => {
-                    console.log(`MPV exited with code ${code}`);
+                    traceExternalPlayer('mpv exited', { code });
                     mpvProcess = null;
                     mpvSocketPath = null;
                     stopPositionPolling();
@@ -1044,10 +1049,9 @@ ipcMain.handle(
                 if (reuseInstance && socketPath) {
                     mpvProcess = proc;
                     mpvSocketPath = socketPath;
-                    console.log(
-                        'Stored MPV process for reuse with socket:',
-                        socketPath
-                    );
+                    traceExternalPlayer('stored mpv process for reuse', {
+                        socketPath,
+                    });
                 } else {
                     // Detach the process so it can continue running independently
                     proc.unref();
@@ -1092,18 +1096,20 @@ ipcMain.handle(
     'SET_MPV_PLAYER_PATH',
     (_event, mpvPlayerPath: string | null | undefined) => {
         const normalizedPlayerPath = normalizePlayerPathForStore(mpvPlayerPath);
-        console.log('... setting mpv player path', normalizedPlayerPath);
+        traceExternalPlayer('set mpv player path', {
+            playerPath: normalizedPlayerPath,
+        });
         store.set(MPV_PLAYER_PATH, normalizedPlayerPath);
     }
 );
 
 ipcMain.handle('SET_MPV_REUSE_INSTANCE', (_event, reuseInstance: boolean) => {
-    console.log('... setting mpv reuse instance', reuseInstance);
+    traceExternalPlayer('set mpv reuse instance', { reuseInstance });
     store.set(MPV_REUSE_INSTANCE, reuseInstance);
 
     // If disabling reuse, kill the existing process
     if (!reuseInstance && mpvProcess && !mpvProcess.killed) {
-        console.log('Disabling reuse, cleaning up existing MPV process');
+        traceExternalPlayer('clean up mpv process after disabling reuse');
         mpvProcess.kill();
         mpvProcess = null;
         mpvSocketPath = null;
@@ -1167,7 +1173,7 @@ ipcMain.handle(
                 mergedHeaders['User-Agent'] ??
                 mergedHeaders['user-agent'] ??
                 undefined;
-            console.log('[VLC] Opening player', {
+            traceExternalPlayer('open vlc player', {
                 path: vlcLaunchContext.playerPath,
                 launchMode: vlcLaunchContext.mode,
                 requestedReuseInstance,
@@ -1190,10 +1196,9 @@ ipcMain.handle(
                 !vlcProcess.killed &&
                 vlcRcPort
             ) {
-                console.log(
-                    'Reusing existing VLC instance on RC port',
-                    vlcRcPort
-                );
+                traceExternalPlayer('reuse existing vlc instance', {
+                    rcPort: vlcRcPort,
+                });
                 try {
                     const enqueueCommands = buildVlcEnqueueCommands({
                         url,
@@ -1205,8 +1210,8 @@ ipcMain.handle(
                         startTime,
                     });
                     await sendVlcRcCommands(vlcRcPort, enqueueCommands);
-                    console.log(
-                        'Successfully loaded new URL in existing VLC instance'
+                    traceExternalPlayer(
+                        'loaded new url in existing vlc instance'
                     );
 
                     const reusedRcPort = vlcRcPort;
@@ -1283,7 +1288,7 @@ ipcMain.handle(
             if (contentInfo || reuseInstance) {
                 try {
                     rcPort = await getFreePort();
-                    console.log('Using VLC RC port:', rcPort);
+                    traceExternalPlayer('using vlc rc port', { rcPort });
                 } catch (e) {
                     console.error('Failed to get free port for VLC:', e);
                 }
@@ -1333,7 +1338,10 @@ ipcMain.handle(
                 args.push(`:meta-title=${title}`);
             }
 
-            console.log('VLC Args:', args);
+            traceExternalPlayer('vlc args prepared', {
+                argCount: args.length,
+                hasRcPort: rcPort > 0,
+            });
             let lastVlcSnapshot: ExternalPlaybackSnapshot | null = null;
 
             // Wrap spawn in a promise to catch startup errors
@@ -1358,10 +1366,9 @@ ipcMain.handle(
                     if (trackProcess && rcPort > 0) {
                         vlcProcess = proc;
                         vlcRcPort = rcPort;
-                        console.log(
-                            'Tracking VLC process for reuse on RC port',
-                            rcPort
-                        );
+                        traceExternalPlayer('tracking vlc process for reuse', {
+                            rcPort,
+                        });
                     }
 
                     const markVlcSessionClosed = () => {
@@ -1433,7 +1440,7 @@ ipcMain.handle(
                         proc.stdout.on('data', (data) => {
                             const output = data.toString().trim();
                             if (output) {
-                                console.log('[VLC stdout]:', output);
+                                traceExternalPlayer('vlc stdout', { output });
                             }
                         });
                     }
@@ -1455,7 +1462,9 @@ ipcMain.handle(
                             vlcRcPort = null;
                         }
                         if (!isRetry && rcPort > 0) {
-                            console.log('Retrying VLC without RC interface...');
+                            traceExternalPlayer(
+                                'retry vlc without rc interface after start error'
+                            );
                             // Retry without RC args
                             const retryArgs = playerArgs.filter(
                                 (arg) =>
@@ -1480,7 +1489,7 @@ ipcMain.handle(
                     });
 
                     proc.on('exit', (code) => {
-                        console.log(`VLC exited with code ${code}`);
+                        traceExternalPlayer('vlc exited', { code });
                         if (vlcProcess === proc) {
                             vlcProcess = null;
                             vlcRcPort = null;
@@ -1501,8 +1510,8 @@ ipcMain.handle(
                         }
 
                         if (code === 1 && !isRetry && rcPort > 0) {
-                            console.log(
-                                'VLC exited with error, retrying without RC interface...'
+                            traceExternalPlayer(
+                                'retry vlc without rc interface after exit'
                             );
                             stopVlcPositionPolling();
                             const retryArgs = playerArgs.filter(
@@ -1559,18 +1568,20 @@ ipcMain.handle(
     'SET_VLC_PLAYER_PATH',
     (_event, vlcPlayerPath: string | null | undefined) => {
         const normalizedPlayerPath = normalizePlayerPathForStore(vlcPlayerPath);
-        console.log('... setting vlc player path', normalizedPlayerPath);
+        traceExternalPlayer('set vlc player path', {
+            playerPath: normalizedPlayerPath,
+        });
         store.set(VLC_PLAYER_PATH, normalizedPlayerPath);
     }
 );
 
 ipcMain.handle('SET_VLC_REUSE_INSTANCE', (_event, reuseInstance: boolean) => {
-    console.log('... setting vlc reuse instance', reuseInstance);
+    traceExternalPlayer('set vlc reuse instance', { reuseInstance });
     store.set(VLC_REUSE_INSTANCE, reuseInstance);
 
     // If disabling reuse, kill the existing tracked process
     if (!reuseInstance && vlcProcess && !vlcProcess.killed) {
-        console.log('Disabling reuse, cleaning up existing VLC process');
+        traceExternalPlayer('clean up vlc process after disabling reuse');
         vlcProcess.kill();
         vlcProcess = null;
         vlcRcPort = null;

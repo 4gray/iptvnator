@@ -6,6 +6,14 @@
     "projectType": "library",
     "tags": ["scope:shared", "domain:playback", "type:data-access"],
     "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/epg/data-access/jest.config.ts",
+                "tsConfig": "libs/epg/data-access/tsconfig.spec.json"
+            }
+        },
         "lint": {
             "executor": "@nx/eslint:lint"
         }

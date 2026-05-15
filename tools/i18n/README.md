@@ -43,6 +43,21 @@ for(const f of fs.readdirSync('apps/web/src/assets/i18n').filter(x=>x.endsWith('
 }"
 ```
 
+For a non-mutating CI/agent check, run:
+
+```bash
+pnpm run i18n:check
+```
+
+The check fails on missing or extra keys against `en.json`. It reports values
+that are still identical to English as warnings so untranslated fallback strings
+remain visible without blocking key-parity validation. For stricter translation
+audits, run:
+
+```bash
+node tools/i18n/check-drift.mjs --fail-on-identical
+```
+
 ## Translation rules
 
 - Preserve `{{interpolation}}` placeholders verbatim.

@@ -34,6 +34,9 @@ jobs:
             - name: Typecheck web and Electron entry points
               run: pnpm run typecheck:ci
 
+            - name: Check i18n drift
+              run: pnpm run i18n:check
+
             - name: Run curated Nx unit test suite
               run: pnpm run test:unit:ci
               env:

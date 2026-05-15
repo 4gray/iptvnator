@@ -11,6 +11,9 @@
     "targets": {
         "e2e": {
             "dependsOn": ["electron-backend:build-e2e"]
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
         }
     }
 }

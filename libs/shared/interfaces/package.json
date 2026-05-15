@@ -6,6 +6,7 @@
     "main": "./src/index.js",
     "types": "./src/index.d.ts",
     "dependencies": {
+        "ngx-indexed-db": "21.0.0",
         "tslib": "^2.3.0"
     }
 }

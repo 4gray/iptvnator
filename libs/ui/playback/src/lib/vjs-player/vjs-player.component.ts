@@ -12,6 +12,7 @@ import {
 } from '@angular/core';
 import '@yangkghjh/videojs-aspect-ratio-panel';
 import mpegts from 'mpegts.js';
+import { createDevLogger } from 'shared-interfaces';
 import videoJs from 'video.js';
 import 'videojs-contrib-quality-levels';
 import 'videojs-quality-selector-hls';
@@ -89,6 +90,8 @@ type VideoJsPlayer = Omit<
     error: () => { code?: number; message?: string } | null;
 };
 
+const debugVjsPlayer = createDevLogger('VjsPlayer');
+
 @Component({
     selector: 'app-vjs-player',
     templateUrl: './vjs-player.component.html',
@@ -145,7 +148,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             : { ...this.options(), autoplay: true };
 
         this.player = videoJs(this.target().nativeElement, vjsOptions, () => {
-            console.log(
+            debugVjsPlayer(
                 'Setting VideoJS player initial volume to:',
                 this.volume()
             );
@@ -168,7 +171,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const audioTracks = this.player.audioTracks();
             if (audioTracks) {
                 audioTracks.addEventListener('addtrack', () => {
-                    console.log(
+                    debugVjsPlayer(
                         '[AudioTrack] addtrack event fired, total tracks:',
                         this.player.audioTracks().length
                     );
@@ -176,7 +179,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     this.setupAudioTrackMenu();
                 });
                 audioTracks.addEventListener('removetrack', () => {
-                    console.log(
+                    debugVjsPlayer(
                         '[AudioTrack] removetrack event fired, total tracks:',
                         this.player.audioTracks().length
                     );
@@ -246,7 +249,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             }
         }
         if (changes['volume']?.currentValue !== undefined && this.player) {
-            console.log(
+            debugVjsPlayer(
                 'Setting VideoJS player volume to:',
                 changes['volume'].currentValue
             );
@@ -300,7 +303,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             ?.el();
         if (!videoEl) return;
 
-        console.log('Using mpegts.js for TS stream:', url);
+        debugVjsPlayer('Using mpegts.js for TS stream:', url);
         const isLive = this.options().isLive !== false;
         this.mpegtsPlayer = mpegts.createPlayer({
             type: 'mpegts',
@@ -455,13 +458,13 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      */
     private logAudioTracks(): void {
         const audioTracks = this.player.audioTracks();
-        console.log(
+        debugVjsPlayer(
             '[AudioTrack] Audio tracks count:',
             audioTracks?.length ?? 0
         );
         for (let i = 0; i < (audioTracks?.length ?? 0); i++) {
             const t = audioTracks[i];
-            console.log(
+            debugVjsPlayer(
                 `[AudioTrack] Track ${i}: label="${t.label}", language="${t.language}", enabled=${t.enabled}, kind="${t.kind}"`
             );
         }
@@ -476,12 +479,12 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             tech?.vhs?.playlists?.master?.mediaGroups?.AUDIO;
 
         if (audioMediaGroups) {
-            console.log(
+            debugVjsPlayer(
                 '[AudioTrack] HLS AUDIO media groups:',
                 JSON.stringify(Object.keys(audioMediaGroups))
             );
         } else {
-            console.log(
+            debugVjsPlayer(
                 '[AudioTrack] HLS AUDIO media groups: none found in playlist metadata'
             );
         }
@@ -494,16 +497,16 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
      */
     private setupAudioTrackMenu(): void {
         const audioTracks = this.player.audioTracks();
-        console.log(
+        debugVjsPlayer(
             '[AudioTrack] setupAudioTrackMenu called, tracks:',
             audioTracks?.length ?? 0
         );
         if (!audioTracks || audioTracks.length <= 1) {
-            console.log(
+            debugVjsPlayer(
                 '[AudioTrack] Skipping menu: need >1 tracks, have',
                 audioTracks?.length ?? 0
             );
-            console.log(
+            debugVjsPlayer(
                 '[AudioTrack] If VLC/MPV show more tracks, the HLS manifest likely does not expose alternate audio via EXT-X-MEDIA'
             );
             return;
