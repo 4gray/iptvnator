@@ -39,7 +39,7 @@ before it creates `PwaService`.
 | ---------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
 | `BACKEND_URL`                            | `/api`                  | Browser-facing backend URL used by the PWA. Keep `/api` for the bundled nginx proxy.                               |
 | `CLIENT_URL`                             | `http://localhost:4333` | Allowed browser origin for backend CORS. Use the public URL when hosting behind a reverse proxy.                   |
-| `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is patched to match it at container startup.                     |
+| `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is rendered from the template to match it at startup.            |
 | `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | unset                   | Set to `1` only for trusted local/LAN deployments that intentionally proxy private network IPTV or mock endpoints. |
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
@@ -53,8 +53,11 @@ instance restricted to trusted users.
 For providers that use private certificate authorities, keep TLS validation
 enabled and pass the CA bundle to Node with `NODE_EXTRA_CA_CERTS=/path/to/ca.pem`.
 
-The nginx config serves the PWA with SPA fallback, avoids caching
-`assets/app-config.js`, and proxies `/api/*` to the internal backend.
+The entrypoint renders the nginx config from `docker/nginx.conf`, starts the
+backend, waits for `/health`, and only then starts nginx. The nginx config
+serves the PWA with SPA fallback, avoids caching `assets/app-config.js`, and
+proxies `/api/*` to the internal backend. The Dockerfile and compose file both
+define a health check against `/api/health`.
 
 ## Local Validation
 
