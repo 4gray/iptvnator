@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from './unified-collection-item.interface';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
+import { XTREAM_COLLECTION_DATA_SOURCE } from './xtream-collection-data-source.token';
 
 describe('UnifiedRecentDataService', () => {
     let service: UnifiedRecentDataService;
@@ -32,6 +33,12 @@ describe('UnifiedRecentDataService', () => {
         clearGlobalRecentlyViewed: jest.Mock;
         addRecentItem: jest.Mock;
         getContentByXtreamId: jest.Mock;
+    };
+    let xtreamDataSource: {
+        addRecentItem: jest.Mock;
+        clearRecentItems: jest.Mock;
+        getRecentItems: jest.Mock;
+        removeRecentItem: jest.Mock;
     };
 
     const playlistMeta = {
@@ -87,6 +94,12 @@ describe('UnifiedRecentDataService', () => {
     ];
 
     beforeEach(() => {
+        Object.defineProperty(window, 'electron', {
+            value: {
+                dbGetRecentlyViewed: jest.fn(),
+            } as unknown as Window['electron'],
+            configurable: true,
+        });
         store = {
             select: jest.fn(() => of([playlistMeta])),
             dispatch: jest.fn(),
@@ -136,6 +149,12 @@ describe('UnifiedRecentDataService', () => {
             addRecentItem: jest.fn().mockResolvedValue(true),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
         };
+        xtreamDataSource = {
+            addRecentItem: jest.fn().mockResolvedValue(undefined),
+            clearRecentItems: jest.fn().mockResolvedValue(undefined),
+            getRecentItems: jest.fn().mockResolvedValue([]),
+            removeRecentItem: jest.fn().mockResolvedValue(undefined),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -143,6 +162,10 @@ describe('UnifiedRecentDataService', () => {
                 { provide: Store, useValue: store },
                 { provide: PlaylistsService, useValue: playlistsService },
                 { provide: DatabaseService, useValue: dbService },
+                {
+                    provide: XTREAM_COLLECTION_DATA_SOURCE,
+                    useValue: xtreamDataSource,
+                },
             ],
         });
 

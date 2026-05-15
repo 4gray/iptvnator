@@ -26,6 +26,10 @@ import {
 } from './unified-collection-item.interface';
 import { CollectionScope } from './scope-toggle.service';
 import { xtreamContentType } from './collection-helpers';
+import {
+    XTREAM_COLLECTION_DATA_SOURCE,
+    XtreamCollectionDataSourceItem,
+} from './xtream-collection-data-source.token';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -35,6 +39,7 @@ type PlaylistWithChannels = Playlist & {
 export class UnifiedRecentDataService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
+    private readonly xtreamDataSource = inject(XTREAM_COLLECTION_DATA_SOURCE);
     private readonly playlistsService = inject(PlaylistsService);
 
     async getRecentItems(
@@ -55,10 +60,17 @@ export class UnifiedRecentDataService {
                 return;
             }
 
-            await this.dbService.removeRecentItem(
-                item.contentId,
-                item.playlistId
-            );
+            if (this.hasElectronRecentApi()) {
+                await this.dbService.removeRecentItem(
+                    item.contentId,
+                    item.playlistId
+                );
+            } else {
+                await this.xtreamDataSource.removeRecentItem(
+                    item.contentId,
+                    item.playlistId
+                );
+            }
             return;
         }
 
@@ -126,7 +138,20 @@ export class UnifiedRecentDataService {
         const tasks: Promise<unknown>[] = [];
 
         if (xtreamBatch.length > 0) {
-            tasks.push(this.dbService.removeRecentItemsBatch(xtreamBatch));
+            if (this.hasElectronRecentApi()) {
+                tasks.push(this.dbService.removeRecentItemsBatch(xtreamBatch));
+            } else {
+                tasks.push(
+                    Promise.all(
+                        xtreamBatch.map((item) =>
+                            this.xtreamDataSource.removeRecentItem(
+                                item.contentId,
+                                item.playlistId
+                            )
+                        )
+                    )
+                );
+            }
         }
 
         for (const [playlistId, identities] of groupedByPlaylist) {
@@ -153,7 +178,11 @@ export class UnifiedRecentDataService {
         playlistId?: string
     ): Promise<void> {
         if (scope === 'playlist' && playlistId) {
-            await this.dbService.clearPlaylistRecentItems(playlistId);
+            if (this.hasElectronRecentApi()) {
+                await this.dbService.clearPlaylistRecentItems(playlistId);
+            } else {
+                await this.xtreamDataSource.clearRecentItems(playlistId);
+            }
             const updatedPlaylist = await firstValueFrom(
                 this.playlistsService.clearPlaylistRecentlyViewed(playlistId)
             );
@@ -161,7 +190,18 @@ export class UnifiedRecentDataService {
             return;
         }
 
-        await this.dbService.clearGlobalRecentlyViewed();
+        if (this.hasElectronRecentApi()) {
+            await this.dbService.clearGlobalRecentlyViewed();
+        } else {
+            const allMeta = await this.getAllMeta();
+            await Promise.all(
+                allMeta
+                    .filter((playlist) => Boolean(playlist.serverUrl))
+                    .map((playlist) =>
+                        this.xtreamDataSource.clearRecentItems(playlist._id)
+                    )
+            );
+        }
         const playlists = (await firstValueFrom(
             this.playlistsService.getAllPlaylists()
         )) as Playlist[];
@@ -223,17 +263,29 @@ export class UnifiedRecentDataService {
             const contentId =
                 item.contentId ??
                 (item.xtreamId != null
-                    ? (
-                          await this.dbService.getContentByXtreamId(
-                              item.xtreamId,
-                              item.playlistId,
-                              item.contentType
-                          )
-                      )?.id
+                    ? this.hasElectronRecentApi()
+                        ? (
+                              await this.dbService.getContentByXtreamId(
+                                  item.xtreamId,
+                                  item.playlistId,
+                                  item.contentType
+                              )
+                          )?.id
+                        : item.xtreamId
                     : null);
 
             if (contentId != null) {
-                await this.dbService.addRecentItem(contentId, item.playlistId);
+                if (this.hasElectronRecentApi()) {
+                    await this.dbService.addRecentItem(
+                        contentId,
+                        item.playlistId
+                    );
+                } else {
+                    await this.xtreamDataSource.addRecentItem(
+                        contentId,
+                        item.playlistId
+                    );
+                }
             }
 
             return {
@@ -309,6 +361,19 @@ export class UnifiedRecentDataService {
     }
 
     private async getXtreamGlobalRecent(): Promise<UnifiedCollectionItem[]> {
+        if (!this.hasElectronRecentApi()) {
+            const allMeta = await this.getAllMeta();
+            const results: UnifiedCollectionItem[] = [];
+
+            for (const meta of allMeta.filter((playlist) =>
+                Boolean(playlist.serverUrl)
+            )) {
+                results.push(...(await this.getPwaXtreamRecent(meta)));
+            }
+
+            return results;
+        }
+
         try {
             const rows = await this.dbService.getGlobalRecentlyViewed();
             return (rows || []).map((row) => ({
@@ -339,6 +404,11 @@ export class UnifiedRecentDataService {
     private async getXtreamPlaylistRecent(
         playlistId: string
     ): Promise<UnifiedCollectionItem[]> {
+        if (!this.hasElectronRecentApi()) {
+            const meta = await this.getPlaylistMeta(playlistId);
+            return meta ? this.getPwaXtreamRecent(meta) : [];
+        }
+
         try {
             const rows = await this.dbService.getRecentItems(playlistId);
             const meta = await this.getPlaylistMeta(playlistId);
@@ -366,6 +436,101 @@ export class UnifiedRecentDataService {
         } catch {
             return [];
         }
+    }
+
+    private async getPwaXtreamRecent(
+        meta: PlaylistMeta
+    ): Promise<UnifiedCollectionItem[]> {
+        try {
+            const rows = await this.xtreamDataSource.getRecentItems(meta._id);
+            return rows.map((row) => this.mapPwaXtreamRecentItem(row, meta));
+        } catch {
+            return [];
+        }
+    }
+
+    private mapPwaXtreamRecentItem(
+        row: XtreamCollectionDataSourceItem,
+        meta: PlaylistMeta
+    ): UnifiedCollectionItem {
+        const record = row as unknown as Record<string, unknown>;
+        const contentType = this.getPwaXtreamContentType(record);
+        const xtreamId = this.getXtreamNumericValue(record, [
+            'xtream_id',
+            'stream_id',
+            'series_id',
+            'id',
+        ]);
+        const contentId = this.getXtreamNumericValue(record, [
+            'id',
+            'stream_id',
+            'series_id',
+            'xtream_id',
+        ]);
+        const title =
+            this.getXtreamString(record['title']) ??
+            this.getXtreamString(record['name']) ??
+            this.getXtreamString(record['stream_display_name']) ??
+            'Unknown';
+        const image =
+            this.getXtreamString(record['poster_url']) ??
+            this.getXtreamString(record['stream_icon']) ??
+            this.getXtreamString(record['cover']) ??
+            null;
+
+        return {
+            uid: buildXtreamCollectionUid(meta._id, contentType, xtreamId),
+            name: title,
+            contentType,
+            sourceType: 'xtream',
+            playlistId: meta._id,
+            playlistName: meta.title || meta.filename || 'Xtream',
+            logo: contentType === 'live' ? image : null,
+            posterUrl: contentType !== 'live' ? image : null,
+            xtreamId,
+            categoryId: record['category_id'] as string | number,
+            tvgId: contentType === 'live' ? String(xtreamId) : undefined,
+            contentId,
+            viewedAt: normalizeStalkerDate(
+                this.getXtreamString(record['viewed_at']) ?? ''
+            ),
+        };
+    }
+
+    private hasElectronRecentApi(): boolean {
+        return typeof window.electron?.dbGetRecentlyViewed === 'function';
+    }
+
+    private getPwaXtreamContentType(
+        item: Record<string, unknown>
+    ): UnifiedCollectionItem['contentType'] {
+        if (item['series_id'] != null) {
+            return 'series';
+        }
+
+        return xtreamContentType(
+            String(item['type'] ?? item['stream_type'] ?? 'movie')
+        );
+    }
+
+    private getXtreamString(value: unknown): string | undefined {
+        return typeof value === 'string' && value.trim().length > 0
+            ? value
+            : undefined;
+    }
+
+    private getXtreamNumericValue(
+        item: Record<string, unknown>,
+        keys: string[]
+    ): number {
+        for (const key of keys) {
+            const value = Number(item[key]);
+            if (Number.isFinite(value) && value > 0) {
+                return value;
+            }
+        }
+
+        return 0;
     }
 
     private async getM3uGlobalRecent(): Promise<UnifiedCollectionItem[]> {
