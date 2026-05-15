@@ -1,6 +1,7 @@
 import cors from 'cors';
-import express, { Express, Request } from 'express';
-import https from 'node:https';
+import express, { Express, Request, Response } from 'express';
+import { lookup } from 'node:dns/promises';
+import { isIP } from 'node:net';
 import zlib from 'node:zlib';
 import axios from 'axios';
 import epgParser from 'epg-parser';
@@ -8,7 +9,6 @@ import parser from 'iptv-playlist-parser';
 
 export interface WebBackendHttpGetOptions {
     readonly headers?: Record<string, string>;
-    readonly httpsAgent?: unknown;
     readonly params?: Record<string, string>;
     readonly responseType?: 'arraybuffer';
 }
@@ -33,16 +33,24 @@ interface PlaylistParseError {
 }
 
 export interface WebBackendAppOptions {
+    readonly allowPrivateNetworkTargets?: boolean;
     readonly clientOrigins?: string[];
     readonly guid?: () => string;
     readonly httpClient?: WebBackendHttpClient;
     readonly now?: () => Date;
+    readonly resolveHostname?: (hostname: string) => Promise<readonly string[]>;
     readonly runtimeBackendUrl?: string;
 }
 
-const defaultHttpsAgent = new https.Agent({
-    rejectUnauthorized: false,
-});
+interface ProviderUrlPolicy {
+    readonly allowPrivateNetworkTargets: boolean;
+    readonly resolveHostname: (hostname: string) => Promise<readonly string[]>;
+}
+
+interface ProviderUrlError {
+    readonly message: string;
+    readonly status: number;
+}
 
 export function createWebBackendApp(
     options: WebBackendAppOptions = {}
@@ -54,6 +62,12 @@ export function createWebBackendApp(
     const clientOrigins = options.clientOrigins ?? getClientOrigins();
     const runtimeBackendUrl =
         options.runtimeBackendUrl ?? process.env['BACKEND_URL'] ?? '/api';
+    const providerUrlPolicy: ProviderUrlPolicy = {
+        allowPrivateNetworkTargets:
+            options.allowPrivateNetworkTargets ??
+            isPrivateNetworkProxyAllowed(),
+        resolveHostname: options.resolveHostname ?? resolveHostname,
+    };
 
     const corsMiddleware = cors({
         origin(origin, callback) {
@@ -83,9 +97,12 @@ export function createWebBackendApp(
     });
 
     app.get('/parse', corsMiddleware, async (req, res) => {
-        const url = getQueryString(req, 'url');
+        const url = await getValidatedProviderUrl(
+            req,
+            res,
+            providerUrlPolicy
+        );
         if (!url) {
-            res.status(400).send('Missing url');
             return;
         }
 
@@ -93,11 +110,11 @@ export function createWebBackendApp(
             guid,
             httpClient,
             now,
-            url,
+            url: url.href,
         });
 
         if (isPlaylistParseError(result)) {
-            res.status(result.status).send(result.message);
+            res.status(result.status).json(result);
             return;
         }
 
@@ -105,31 +122,45 @@ export function createWebBackendApp(
     });
 
     app.get('/parse-xml', corsMiddleware, async (req, res) => {
-        const url = getQueryString(req, 'url');
+        const url = await getValidatedProviderUrl(
+            req,
+            res,
+            providerUrlPolicy
+        );
         if (!url) {
-            res.status(400).send('Missing url');
             return;
         }
 
-        const result = await fetchEpgDataFromUrl(httpClient, url);
-        if (!result) {
-            res.status(500).send('Error, something went wrong');
-            return;
-        }
+        try {
+            const result = await fetchEpgDataFromUrl(httpClient, url);
+            if (!result) {
+                res.status(500).json({
+                    message: 'Error, something went wrong',
+                    status: 500,
+                });
+                return;
+            }
 
-        res.json(result);
+            res.json(result);
+        } catch (error) {
+            const providerError = normalizeProviderError(error);
+            res.status(providerError.status).json(providerError);
+        }
     });
 
     app.get('/xtream', corsMiddleware, async (req, res) => {
-        const url = getQueryString(req, 'url');
+        const url = await getValidatedProviderUrl(
+            req,
+            res,
+            providerUrlPolicy
+        );
         if (!url) {
-            res.status(400).json({ message: 'Missing url', status: 400 });
             return;
         }
 
         try {
             const response = await httpClient.get(
-                `${trimTrailingSlash(url)}/player_api.php`,
+                appendPathSegment(url, 'player_api.php'),
                 {
                     params: getProxyParams(req, ['url']),
                 }
@@ -145,16 +176,19 @@ export function createWebBackendApp(
     });
 
     app.get('/stalker', corsMiddleware, async (req, res) => {
-        const url = getQueryString(req, 'url');
+        const url = await getValidatedProviderUrl(
+            req,
+            res,
+            providerUrlPolicy
+        );
         const macAddress = getQueryString(req, 'macAddress');
         const token = getQueryString(req, 'token');
         if (!url) {
-            res.status(400).json({ message: 'Missing url', status: 400 });
             return;
         }
 
         try {
-            const response = await httpClient.get(url, {
+            const response = await httpClient.get(url.href, {
                 params: getProxyParams(req, ['url']),
                 headers: {
                     ...(macAddress ? { Cookie: `mac=${macAddress}` } : {}),
@@ -172,6 +206,102 @@ export function createWebBackendApp(
     });
 
     return app;
+}
+
+async function getValidatedProviderUrl(
+    req: Request,
+    res: Response,
+    policy: ProviderUrlPolicy
+): Promise<URL | null> {
+    const rawUrl = getQueryString(req, 'url');
+    if (!rawUrl) {
+        res.status(400).json({ message: 'Missing url', status: 400 });
+        return null;
+    }
+
+    const result = await validateProviderUrl(rawUrl, policy);
+    if ('message' in result) {
+        res.status(result.status).json(result);
+        return null;
+    }
+
+    return result;
+}
+
+async function validateProviderUrl(
+    rawUrl: string,
+    policy: ProviderUrlPolicy
+): Promise<URL | ProviderUrlError> {
+    let url: URL;
+    try {
+        url = new URL(rawUrl);
+    } catch {
+        return { message: 'Provider URL is not a valid URL', status: 400 };
+    }
+
+    if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        return {
+            message: 'Only http and https provider URLs are supported',
+            status: 400,
+        };
+    }
+
+    if (url.username || url.password) {
+        return {
+            message: 'Provider URL credentials are not supported',
+            status: 400,
+        };
+    }
+
+    if (policy.allowPrivateNetworkTargets) {
+        return url;
+    }
+
+    const hostname = normalizeHostname(url.hostname);
+    if (isLocalHostname(hostname) || isPrivateOrReservedIp(hostname)) {
+        return {
+            message:
+                'Provider URL points to a private or local network address',
+            status: 400,
+        };
+    }
+
+    if (isIP(hostname) === 0) {
+        let addresses: readonly string[];
+        try {
+            addresses = await policy.resolveHostname(hostname);
+        } catch {
+            return {
+                message: 'Provider URL host could not be resolved',
+                status: 400,
+            };
+        }
+
+        if (
+            addresses.length === 0 ||
+            addresses.some((address) =>
+                isPrivateOrReservedIp(normalizeHostname(address))
+            )
+        ) {
+            return {
+                message:
+                    'Provider URL points to a private or local network address',
+                status: 400,
+            };
+        }
+    }
+
+    return url;
+}
+
+async function resolveHostname(hostname: string): Promise<readonly string[]> {
+    const records = await lookup(hostname, { all: true, verbatim: true });
+    return records.map((record) => record.address);
+}
+
+function isPrivateNetworkProxyAllowed(): boolean {
+    const value = process.env['IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS'];
+    return value === '1' || value === 'true';
 }
 
 function getClientOrigins(): string[] {
@@ -226,8 +356,12 @@ function getProxyParams(
     return params;
 }
 
-function trimTrailingSlash(value: string): string {
-    return value.replace(/\/+$/, '');
+function appendPathSegment(url: URL, segment: string): string {
+    const nextUrl = new URL(url.href);
+    nextUrl.pathname = `${nextUrl.pathname.replace(/\/+$/, '')}/${segment}`;
+    nextUrl.search = '';
+    nextUrl.hash = '';
+    return nextUrl.href;
 }
 
 async function handlePlaylistParse(options: {
@@ -237,9 +371,7 @@ async function handlePlaylistParse(options: {
     readonly url: string;
 }): Promise<Record<string, unknown> | PlaylistParseError> {
     try {
-        const response = await options.httpClient.get<string>(options.url, {
-            httpsAgent: defaultHttpsAgent,
-        });
+        const response = await options.httpClient.get<string>(options.url);
         const parsedPlaylist = parsePlaylist(response.data);
         const title = getLastUrlSegment(options.url);
         return createPlaylistObject({
@@ -262,12 +394,13 @@ async function handlePlaylistParse(options: {
 
 async function fetchEpgDataFromUrl(
     httpClient: WebBackendHttpClient,
-    url: string
+    url: URL
 ): Promise<unknown> {
-    const response = await httpClient.get<ArrayBuffer | string>(url.trim(), {
-        ...(url.endsWith('.gz') ? { responseType: 'arraybuffer' } : {}),
+    const href = url.href;
+    const response = await httpClient.get<ArrayBuffer | string>(href, {
+        ...(url.pathname.endsWith('.gz') ? { responseType: 'arraybuffer' } : {}),
     });
-    const xml = url.endsWith('.gz')
+    const xml = url.pathname.endsWith('.gz')
         ? zlib.gunzipSync(Buffer.from(response.data as ArrayBuffer)).toString()
         : response.data.toString();
     return epgParser.parse(xml);
@@ -337,4 +470,68 @@ function normalizeProviderError(error: unknown): {
 
 function createGuid(): string {
     return Math.random().toString(36).slice(2);
+}
+
+function normalizeHostname(hostname: string): string {
+    return hostname.trim().replace(/^\[/, '').replace(/\]$/, '').toLowerCase();
+}
+
+function isLocalHostname(hostname: string): boolean {
+    return hostname === 'localhost' || hostname.endsWith('.localhost');
+}
+
+function isPrivateOrReservedIp(address: string): boolean {
+    const version = isIP(address);
+    if (version === 4) {
+        return isPrivateOrReservedIpv4(address);
+    }
+
+    if (version === 6) {
+        return isPrivateOrReservedIpv6(address);
+    }
+
+    return false;
+}
+
+function isPrivateOrReservedIpv4(address: string): boolean {
+    const parts = address.split('.').map((part) => Number(part));
+    if (
+        parts.length !== 4 ||
+        parts.some((part) => !Number.isInteger(part) || part < 0 || part > 255)
+    ) {
+        return true;
+    }
+
+    const [first, second, third] = parts;
+    return (
+        first === 0 ||
+        first === 10 ||
+        first === 127 ||
+        (first === 100 && second >= 64 && second <= 127) ||
+        (first === 169 && second === 254) ||
+        (first === 172 && second >= 16 && second <= 31) ||
+        (first === 192 && second === 168) ||
+        (first === 192 && second === 0) ||
+        (first === 192 && second === 0 && third === 2) ||
+        (first === 198 && (second === 18 || second === 19)) ||
+        (first === 198 && second === 51 && third === 100) ||
+        (first === 203 && second === 0 && third === 113) ||
+        first >= 224
+    );
+}
+
+function isPrivateOrReservedIpv6(address: string): boolean {
+    const normalized = address.toLowerCase();
+    if (
+        normalized === '::' ||
+        normalized === '::1' ||
+        normalized.startsWith('fc') ||
+        normalized.startsWith('fd') ||
+        normalized.startsWith('fe80:')
+    ) {
+        return true;
+    }
+
+    const mappedIpv4 = normalized.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
+    return mappedIpv4 ? isPrivateOrReservedIpv4(mappedIpv4) : false;
 }

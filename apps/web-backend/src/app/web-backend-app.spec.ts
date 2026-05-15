@@ -61,6 +61,8 @@ class StubHttpClient implements WebBackendHttpClient {
     }
 }
 
+const resolvePublicHost = async () => ['93.184.216.34'];
+
 async function withServer<T>(
     app: ReturnType<typeof createWebBackendApp>,
     callback: (baseUrl: string) => Promise<T>
@@ -121,6 +123,7 @@ https://stream.example/news.m3u8`);
                 guid: () => 'fixed-id',
                 httpClient,
                 now: () => new Date('2026-05-15T08:00:00.000Z'),
+                resolveHostname: resolvePublicHost,
             }),
             async (baseUrl) => {
                 const response = await fetch(
@@ -169,7 +172,10 @@ https://stream.example/news.m3u8`);
         httpClient.queueResponse({ user_info: { username: 'demo' } });
 
         await withServer(
-            createWebBackendApp({ httpClient }),
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
             async (baseUrl) => {
                 const response = await fetch(
                     `${baseUrl}/xtream?url=${encodeURIComponent('http://xtream.example')}&username=demo&password=secret&action=get_account_info`
@@ -199,7 +205,10 @@ https://stream.example/news.m3u8`);
         httpClient.queueResponse({ js: [{ id: '2001', title: 'Action' }] });
 
         await withServer(
-            createWebBackendApp({ httpClient }),
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
             async (baseUrl) => {
                 const response = await fetch(
                     `${baseUrl}/stalker?url=${encodeURIComponent('http://stalker.example/portal.php')}&macAddress=00:1A:79:00:00:01&token=abc123&action=get_categories&type=vod`
@@ -233,7 +242,10 @@ https://stream.example/news.m3u8`);
         httpClient.queueFailure(403, 'Forbidden');
 
         await withServer(
-            createWebBackendApp({ httpClient }),
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
             async (baseUrl) => {
                 const response = await fetch(
                     `${baseUrl}/xtream?url=${encodeURIComponent('http://xtream.example')}&action=get_account_info`
@@ -243,6 +255,98 @@ https://stream.example/news.m3u8`);
                     message: 'Forbidden',
                     status: 403,
                 });
+            }
+        );
+    });
+
+    it('returns provider parse errors as JSON instead of executable text', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueFailure(502, '<script>alert(1)</script>');
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const response = await fetch(
+                    `${baseUrl}/parse?url=${encodeURIComponent('https://provider.example/list.m3u')}`
+                );
+
+                expect(response.status).toBe(502);
+                expect(response.headers.get('content-type')).toContain(
+                    'application/json'
+                );
+                await expect(response.json()).resolves.toEqual({
+                    message: '<script>alert(1)</script>',
+                    status: 502,
+                });
+            }
+        );
+    });
+
+    it('rejects unsupported target URL schemes before proxying', async () => {
+        const httpClient = new StubHttpClient();
+
+        await withServer(
+            createWebBackendApp({ httpClient }),
+            async (baseUrl) => {
+                const response = await fetch(
+                    `${baseUrl}/parse?url=${encodeURIComponent('file:///etc/passwd')}`
+                );
+
+                expect(response.status).toBe(400);
+                await expect(response.json()).resolves.toEqual({
+                    message: 'Only http and https provider URLs are supported',
+                    status: 400,
+                });
+                expect(httpClient.requests).toEqual([]);
+            }
+        );
+    });
+
+    it('rejects loopback target URLs by default', async () => {
+        const httpClient = new StubHttpClient();
+
+        await withServer(
+            createWebBackendApp({ httpClient }),
+            async (baseUrl) => {
+                const response = await fetch(
+                    `${baseUrl}/xtream?url=${encodeURIComponent('http://127.0.0.1:3211')}&action=get_account_info`
+                );
+
+                expect(response.status).toBe(400);
+                await expect(response.json()).resolves.toEqual({
+                    message:
+                        'Provider URL points to a private or local network address',
+                    status: 400,
+                });
+                expect(httpClient.requests).toEqual([]);
+            }
+        );
+    });
+
+    it('allows private target URLs when explicitly enabled for local self-hosted testing', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ user_info: { username: 'demo' } });
+
+        await withServer(
+            createWebBackendApp({
+                allowPrivateNetworkTargets: true,
+                httpClient,
+            }),
+            async (baseUrl) => {
+                const response = await fetch(
+                    `${baseUrl}/xtream?url=${encodeURIComponent('http://127.0.0.1:3211')}&username=demo&password=secret&action=get_account_info`
+                );
+
+                await expect(response.json()).resolves.toEqual({
+                    action: 'get_account_info',
+                    payload: { user_info: { username: 'demo' } },
+                });
+                expect(httpClient.requests[0]?.url).toBe(
+                    'http://127.0.0.1:3211/player_api.php'
+                );
             }
         );
     });

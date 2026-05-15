@@ -30,7 +30,8 @@
                 "env": {
                     "PORT": "3333",
                     "CLIENT_URL": "http://localhost:4200",
-                    "BACKEND_URL": "/api"
+                    "BACKEND_URL": "/api",
+                    "IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS": "1"
                 }
             }
         },
