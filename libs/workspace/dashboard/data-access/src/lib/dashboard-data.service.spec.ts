@@ -392,6 +392,49 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('removes PWA Xtream favorites through the data source when Electron DB APIs are unavailable', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
+        xtreamDataSourceMock.getFavorites
+            .mockResolvedValueOnce([
+                {
+                    id: 20203,
+                    stream_id: 20203,
+                    category_id: 206,
+                    title: 'PWA Movie',
+                    type: 'movie',
+                    poster_url: 'https://example.com/pwa-movie.png',
+                    xtream_id: 20203,
+                    added: '1774298340',
+                },
+            ])
+            .mockResolvedValueOnce([]);
+
+        await service.reloadGlobalFavorites();
+        const xtreamFavorite = service
+            .globalFavoriteItems()
+            .find((item) => item.source === 'xtream');
+
+        if (!xtreamFavorite) {
+            throw new Error('Expected PWA Xtream favorite');
+        }
+
+        await service.removeGlobalFavorite(xtreamFavorite);
+
+        expect(dbServiceMock.removeFromFavorites).not.toHaveBeenCalled();
+        expect(xtreamDataSourceMock.removeFavorite).toHaveBeenCalledWith(
+            20203,
+            'xtream-1'
+        );
+        expect(
+            service
+                .globalFavoriteItems()
+                .some((item) => item.source === 'xtream')
+        ).toBe(false);
+    });
+
     it('builds the M3U favorites route', async () => {
         await service.reloadGlobalFavorites();
         const m3uItem = service
@@ -526,6 +569,47 @@ describe('DashboardDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('removes PWA Xtream recent items through the data source when Electron DB APIs are unavailable', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
+        xtreamDataSourceMock.getRecentItems
+            .mockResolvedValueOnce([
+                {
+                    id: 20203,
+                    stream_id: 20203,
+                    category_id: 206,
+                    title: 'PWA Recent Movie',
+                    type: 'movie',
+                    poster_url: 'https://example.com/pwa-recent.png',
+                    xtream_id: 20203,
+                    viewed_at: '2026-05-15T15:04:54.176Z',
+                },
+            ])
+            .mockResolvedValueOnce([]);
+
+        await service.reloadGlobalRecentItems();
+        const xtreamRecent = service
+            .globalRecentItems()
+            .find((item) => item.source === 'xtream');
+
+        if (!xtreamRecent) {
+            throw new Error('Expected PWA Xtream recent item');
+        }
+
+        await service.removeGlobalRecentItem(xtreamRecent);
+
+        expect(dbServiceMock.removeRecentItem).not.toHaveBeenCalled();
+        expect(xtreamDataSourceMock.removeRecentItem).toHaveBeenCalledWith(
+            20203,
+            'xtream-1'
+        );
+        expect(
+            service.globalRecentItems().some((item) => item.source === 'xtream')
+        ).toBe(false);
     });
 
     it('prioritizes recently used Xtream sources over newer imported M3U sources', async () => {

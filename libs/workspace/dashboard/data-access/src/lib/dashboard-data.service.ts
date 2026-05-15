@@ -612,6 +612,19 @@ export class DashboardDataService {
         return typeof window.electron?.dbGetAllGlobalFavorites === 'function';
     }
 
+    private getXtreamContentId(
+        item: Pick<PortalActivityItem, 'id' | 'xtream_id'>
+    ): number | null {
+        for (const candidate of [item.xtream_id, item.id]) {
+            const value = Number(candidate);
+            if (Number.isFinite(value) && value > 0) {
+                return value;
+            }
+        }
+
+        return null;
+    }
+
     private async reloadM3uGlobalFavorites(): Promise<void> {
         const m3uPlaylists = this.playlists().filter(
             (playlist) =>
@@ -770,10 +783,20 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            await this.dbService.removeRecentItem(
-                item.id as number,
-                item.playlist_id
-            );
+            if (this.hasElectronGlobalRecentApi()) {
+                await this.dbService.removeRecentItem(
+                    item.id as number,
+                    item.playlist_id
+                );
+            } else {
+                const contentId = this.getXtreamContentId(item);
+                if (contentId != null) {
+                    await this.xtreamDataSource.removeRecentItem(
+                        contentId,
+                        item.playlist_id
+                    );
+                }
+            }
             await this.reloadGlobalRecentItems();
             return;
         }
@@ -924,10 +947,20 @@ export class DashboardDataService {
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
         if (item.source === 'xtream') {
-            await this.dbService.removeFromFavorites(
-                item.id as number,
-                item.playlist_id
-            );
+            if (this.hasElectronGlobalFavoritesApi()) {
+                await this.dbService.removeFromFavorites(
+                    item.id as number,
+                    item.playlist_id
+                );
+            } else {
+                const contentId = this.getXtreamContentId(item);
+                if (contentId != null) {
+                    await this.xtreamDataSource.removeFavorite(
+                        contentId,
+                        item.playlist_id
+                    );
+                }
+            }
             await this.reloadGlobalFavorites();
             return;
         }
