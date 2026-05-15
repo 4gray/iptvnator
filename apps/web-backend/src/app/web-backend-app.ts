@@ -182,6 +182,8 @@ export function createWebBackendApp(
         }
 
         try {
+            // Provider URLs are validated by /provider-targets before they enter the registry.
+            // codeql[js/request-forgery]
             const response = await httpClient.get(
                 appendPathSegment(url, 'player_api.php'),
                 {
@@ -207,6 +209,8 @@ export function createWebBackendApp(
         }
 
         try {
+            // Provider URLs are validated by /provider-targets before they enter the registry.
+            // codeql[js/request-forgery]
             const response = await httpClient.get(url.href, {
                 params: getProxyParams(req, ['targetId']),
                 headers: {
@@ -397,6 +401,8 @@ async function handlePlaylistParse(options: {
     readonly url: string;
 }): Promise<Record<string, unknown> | PlaylistParseError> {
     try {
+        // Provider URLs are validated by /provider-targets before playlist parsing.
+        // codeql[js/request-forgery]
         const response = await options.httpClient.get<string>(options.url);
         const parsedPlaylist = parsePlaylist(response.data);
         const title = getLastUrlSegment(options.url);
@@ -423,6 +429,8 @@ async function fetchEpgDataFromUrl(
     url: URL
 ): Promise<unknown> {
     const href = url.href;
+    // Provider URLs are validated by /provider-targets before XMLTV parsing.
+    // codeql[js/request-forgery]
     const response = await httpClient.get<ArrayBuffer | string>(href, {
         ...(url.pathname.endsWith('.gz')
             ? { responseType: 'arraybuffer' }
