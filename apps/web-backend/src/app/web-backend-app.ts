@@ -1,5 +1,6 @@
 import cors from 'cors';
 import express, { Express, Request, Response } from 'express';
+import { createHash } from 'node:crypto';
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 import zlib from 'node:zlib';
@@ -52,6 +53,8 @@ interface ProviderUrlError {
     readonly status: number;
 }
 
+type ProviderTargetRegistry = Map<string, URL>;
+
 export function createWebBackendApp(
     options: WebBackendAppOptions = {}
 ): Express {
@@ -68,6 +71,7 @@ export function createWebBackendApp(
             isPrivateNetworkProxyAllowed(),
         resolveHostname: options.resolveHostname ?? resolveHostname,
     };
+    const providerTargets: ProviderTargetRegistry = new Map();
 
     const corsMiddleware = cors({
         origin(origin, callback) {
@@ -96,12 +100,39 @@ export function createWebBackendApp(
         );
     });
 
+    app.options('/provider-targets', corsMiddleware);
+    app.post(
+        '/provider-targets',
+        corsMiddleware,
+        express.json({ limit: '16kb' }),
+        async (req, res) => {
+            const rawUrl =
+                req.body &&
+                typeof req.body === 'object' &&
+                'url' in req.body &&
+                typeof req.body.url === 'string'
+                    ? req.body.url
+                    : undefined;
+
+            if (!rawUrl) {
+                res.status(400).json({ message: 'Missing url', status: 400 });
+                return;
+            }
+
+            const result = await validateProviderUrl(rawUrl, providerUrlPolicy);
+            if ('message' in result) {
+                res.status(result.status).json(result);
+                return;
+            }
+
+            const targetId = createProviderTargetId(result);
+            providerTargets.set(targetId, result);
+            res.json({ targetId });
+        }
+    );
+
     app.get('/parse', corsMiddleware, async (req, res) => {
-        const url = await getValidatedProviderUrl(
-            req,
-            res,
-            providerUrlPolicy
-        );
+        const url = getRegisteredProviderUrl(req, res, providerTargets);
         if (!url) {
             return;
         }
@@ -122,11 +153,7 @@ export function createWebBackendApp(
     });
 
     app.get('/parse-xml', corsMiddleware, async (req, res) => {
-        const url = await getValidatedProviderUrl(
-            req,
-            res,
-            providerUrlPolicy
-        );
+        const url = getRegisteredProviderUrl(req, res, providerTargets);
         if (!url) {
             return;
         }
@@ -149,11 +176,7 @@ export function createWebBackendApp(
     });
 
     app.get('/xtream', corsMiddleware, async (req, res) => {
-        const url = await getValidatedProviderUrl(
-            req,
-            res,
-            providerUrlPolicy
-        );
+        const url = getRegisteredProviderUrl(req, res, providerTargets);
         if (!url) {
             return;
         }
@@ -162,7 +185,7 @@ export function createWebBackendApp(
             const response = await httpClient.get(
                 appendPathSegment(url, 'player_api.php'),
                 {
-                    params: getProxyParams(req, ['url']),
+                    params: getProxyParams(req, ['targetId']),
                 }
             );
 
@@ -176,11 +199,7 @@ export function createWebBackendApp(
     });
 
     app.get('/stalker', corsMiddleware, async (req, res) => {
-        const url = await getValidatedProviderUrl(
-            req,
-            res,
-            providerUrlPolicy
-        );
+        const url = getRegisteredProviderUrl(req, res, providerTargets);
         const macAddress = getQueryString(req, 'macAddress');
         const token = getQueryString(req, 'token');
         if (!url) {
@@ -189,7 +208,7 @@ export function createWebBackendApp(
 
         try {
             const response = await httpClient.get(url.href, {
-                params: getProxyParams(req, ['url']),
+                params: getProxyParams(req, ['targetId']),
                 headers: {
                     ...(macAddress ? { Cookie: `mac=${macAddress}` } : {}),
                     ...(token ? { Authorization: `Bearer ${token}` } : {}),
@@ -208,24 +227,27 @@ export function createWebBackendApp(
     return app;
 }
 
-async function getValidatedProviderUrl(
+function getRegisteredProviderUrl(
     req: Request,
     res: Response,
-    policy: ProviderUrlPolicy
-): Promise<URL | null> {
-    const rawUrl = getQueryString(req, 'url');
-    if (!rawUrl) {
-        res.status(400).json({ message: 'Missing url', status: 400 });
+    providerTargets: ProviderTargetRegistry
+): URL | null {
+    const targetId = getQueryString(req, 'targetId');
+    if (!targetId) {
+        res.status(400).json({ message: 'Missing targetId', status: 400 });
         return null;
     }
 
-    const result = await validateProviderUrl(rawUrl, policy);
-    if ('message' in result) {
-        res.status(result.status).json(result);
+    const targetUrl = providerTargets.get(targetId);
+    if (!targetUrl) {
+        res.status(404).json({
+            message: 'Provider target not found',
+            status: 404,
+        });
         return null;
     }
 
-    return result;
+    return targetUrl;
 }
 
 async function validateProviderUrl(
@@ -297,6 +319,10 @@ async function validateProviderUrl(
 async function resolveHostname(hostname: string): Promise<readonly string[]> {
     const records = await lookup(hostname, { all: true, verbatim: true });
     return records.map((record) => record.address);
+}
+
+function createProviderTargetId(url: URL): string {
+    return createHash('sha256').update(url.href).digest('hex');
 }
 
 function isPrivateNetworkProxyAllowed(): boolean {
@@ -398,7 +424,9 @@ async function fetchEpgDataFromUrl(
 ): Promise<unknown> {
     const href = url.href;
     const response = await httpClient.get<ArrayBuffer | string>(href, {
-        ...(url.pathname.endsWith('.gz') ? { responseType: 'arraybuffer' } : {}),
+        ...(url.pathname.endsWith('.gz')
+            ? { responseType: 'arraybuffer' }
+            : {}),
     });
     const xml = url.pathname.endsWith('.gz')
         ? zlib.gunzipSync(Buffer.from(response.data as ArrayBuffer)).toString()
@@ -415,9 +443,9 @@ function isPlaylistParseError(
     );
 }
 
-function parsePlaylist(
-    playlist: string
-): { items: Array<Record<string, unknown>> } {
+function parsePlaylist(playlist: string): {
+    items: Array<Record<string, unknown>>;
+} {
     return parser.parse(playlist) as unknown as {
         items: Array<Record<string, unknown>>;
     };
