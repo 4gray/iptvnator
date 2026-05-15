@@ -18,6 +18,16 @@ This file provides guidance to coding agents working in this repository.
 - See `docs/architecture/nx-workspace-boundaries.md` for the current Nx tag and alias policy.
 - Repository-specific skills are committed under `.codex/skills/`. If an external agent does not support skills, treat those files as concise ownership docs.
 
+## PWA / Self-hosted Web
+
+- The browser self-hosted backend lives in `apps/web-backend`. Do not rely on the historical external `4gray/iptvnator-backend` container for the default Docker flow unless the task explicitly asks to re-sync missing behavior from that repository.
+- The Angular PWA resolves its backend through `window.__IPTVNATOR_CONFIG__.BACKEND_URL`, read by `apps/web/src/app/services/runtime-config.ts`. The placeholder file is `apps/web/src/assets/app-config.js`; Docker rewrites the built copy at container startup.
+- Keep `assets/app-config.js` out of Angular service worker hashing in `ngsw-config.json`. Runtime rewrites after `web:pwa` must not invalidate `ngsw.json`.
+- For PWA output checks, run `pnpm nx build web --configuration=pwa --skip-nx-cache` and verify `dist/apps/web/ngsw-worker.js` plus `dist/apps/web/ngsw.json` exist. If Nx serves stale build metadata after project config changes, run `pnpm nx reset`.
+- `web:serve-static` should serve `dist/apps/web` from `web:build:pwa`; do not point it back at the old `dist/apps/web/browser` layout.
+- The unified Docker image builds `web:pwa` and `web-backend`, serves static files through nginx, and proxies `/api/*` to the internal Express backend. Keep `BACKEND_URL=/api` for the bundled self-hosted setup.
+- Validate Xtream and Stalker self-hosted changes with the mock servers and `pnpm nx run web-e2e:e2e -- --project=chromium --grep @self-hosted`.
+
 ## Documentation After Changes
 
 - After implementing a meaningful change, agents must assess whether canonical repo docs need updates before considering the task complete.

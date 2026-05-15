@@ -1,16 +1,55 @@
-# Self-hosted version of IPTVnator
+# Self-hosted IPTVnator
 
-You can deploy and run the PWA version of IPTVnator on your own machine with `docker-compose` using the following command:
+The self-hosted image contains both pieces required for the browser PWA:
 
-    $ cd docker
-    $ docker-compose up -d
+- Angular PWA static files served by nginx
+- The monorepo `web-backend` Express app proxied under `/api`
 
-This command will launch the frontend and backend applications. By default, the application will be available at: http://localhost:4333/. The ports can be configured in the `docker-compose.yml` file.
+The historical standalone `4gray/iptvnator-backend` image is no longer needed
+for the default Docker deployment.
 
-## Build frontend 
+## Run With Docker Compose
 
-    $ docker build -t 4gray/iptvnator -f docker/Dockerfile .
+```bash
+docker compose -f docker/docker-compose.yml up --build -d
+```
 
-## Build backend
+By default the app is available at <http://localhost:4333>.
 
-You can find the backend app with all instructions in a separate GitHub repository - https://github.com/4gray/iptvnator-backend
+## Build The Image
+
+```bash
+docker build -t 4gray/iptvnator -f docker/Dockerfile .
+```
+
+The image build runs:
+
+```bash
+pnpm nx build web --configuration=pwa
+pnpm nx build web-backend
+```
+
+## Runtime Configuration
+
+The container writes `/usr/share/nginx/html/assets/app-config.js` on startup.
+That file sets `window.__IPTVNATOR_CONFIG__.BACKEND_URL`, which the PWA reads
+before it creates `PwaService`.
+
+| Variable      | Default                 | Purpose                                                                                          |
+| ------------- | ----------------------- | ------------------------------------------------------------------------------------------------ |
+| `BACKEND_URL` | `/api`                  | Browser-facing backend URL used by the PWA. Keep `/api` for the bundled nginx proxy.             |
+| `CLIENT_URL`  | `http://localhost:4333` | Allowed browser origin for backend CORS. Use the public URL when hosting behind a reverse proxy. |
+| `PORT`        | `3000`                  | Internal Express backend port. nginx proxy config is patched to match it at container startup.   |
+
+The nginx config serves the PWA with SPA fallback, avoids caching
+`assets/app-config.js`, and proxies `/api/*` to the internal backend.
+
+## Local Validation
+
+```bash
+pnpm nx test web-backend
+pnpm nx build web --configuration=pwa --skip-nx-cache
+pnpm nx build web-backend
+pnpm nx run web-e2e:e2e -- --project=chromium --grep @self-hosted
+docker compose -f docker/docker-compose.yml config
+```
