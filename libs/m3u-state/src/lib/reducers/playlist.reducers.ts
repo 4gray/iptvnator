@@ -33,6 +33,7 @@ export const playlistReducers = [
     on(PlaylistActions.updatePlaylist, (state, action): PlaylistState => {
         const isActivePlaylist =
             state.playlists.selectedId === action.playlistId;
+        const currentPlaylist = state.playlists.entities[action.playlistId];
         return {
             ...state,
             channels: isActivePlaylist
@@ -49,8 +50,10 @@ export const playlistReducers = [
                         count: action.playlist.playlist.items.length,
                         userAgent: action.playlist.userAgent,
                         favorites:
-                            state.playlists.entities[action.playlistId]
-                                ?.favorites ?? [],
+                            currentPlaylist?.favorites ?? [],
+                        autoRefresh:
+                            currentPlaylist?.autoRefresh ??
+                            action.playlist.autoRefresh,
                     },
                 },
                 state.playlists

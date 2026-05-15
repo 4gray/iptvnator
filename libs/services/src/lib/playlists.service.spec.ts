@@ -411,4 +411,47 @@ describe('PlaylistsService', () => {
             })
         );
     });
+
+    it('keeps autoRefresh enabled when refreshing a playlist payload with the parser default disabled', async () => {
+        const existingPlaylist: Playlist = {
+            _id: 'playlist-3',
+            title: 'Playlist Three',
+            count: 1,
+            importDate: new Date('2026-04-12T00:00:00.000Z').toISOString(),
+            lastUsage: new Date('2026-04-12T00:00:00.000Z').toISOString(),
+            autoRefresh: true,
+            playlist: {
+                items: [{ id: 'channel-1' }],
+            },
+        } as Playlist;
+        const dbService = {
+            getAll: jest.fn(() => of([])),
+            getByID: jest.fn(() => of(existingPlaylist)),
+            update: jest.fn((_storeName: string, playlist: Playlist) =>
+                of(playlist)
+            ),
+        };
+        testWindow.electron = undefined;
+
+        const service = createService(dbService);
+
+        await firstValueFrom(
+            service.updatePlaylist('playlist-3', {
+                _id: 'playlist-3',
+                autoRefresh: false,
+                playlist: {
+                    items: [],
+                },
+            } as Playlist)
+        );
+
+        expect(dbService.update).toHaveBeenCalledWith(
+            DbStores.Playlists,
+            expect.objectContaining({
+                _id: 'playlist-3',
+                autoRefresh: true,
+                count: 0,
+            })
+        );
+    });
 });

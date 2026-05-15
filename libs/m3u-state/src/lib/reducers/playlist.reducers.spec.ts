@@ -130,4 +130,38 @@ describe('playlistReducers', () => {
             nextState.playlists.entities['playlist-1']?.hiddenGroupTitles
         ).toEqual(['Radio-de']);
     });
+
+    it('keeps autoRefresh enabled on playlist refresh when the parser payload defaults it to false', () => {
+        const existingPlaylist: PlaylistMeta = {
+            _id: 'playlist-1',
+            autoRefresh: true,
+            count: 1,
+            importDate: '2026-03-28T00:00:00.000Z',
+            title: 'Playlist One',
+        } as PlaylistMeta;
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(existingPlaylist, {
+                ...initialState.playlists,
+                selectedId: 'playlist-1',
+            }),
+        };
+
+        const nextState = reducer(
+            state,
+            PlaylistActions.updatePlaylist({
+                playlist: {
+                    autoRefresh: false,
+                    playlist: {
+                        items: [],
+                    },
+                } as Playlist,
+                playlistId: 'playlist-1',
+            })
+        );
+
+        expect(
+            nextState.playlists.entities['playlist-1']?.autoRefresh
+        ).toBe(true);
+    });
 });

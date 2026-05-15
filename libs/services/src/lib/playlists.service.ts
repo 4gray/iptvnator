@@ -436,6 +436,9 @@ export class PlaylistsService {
                     updateDate: Date.now(),
                     updateState: PlaylistUpdateState.UPDATED,
                     favorites: currentPlaylist.favorites,
+                    autoRefresh:
+                        currentPlaylist.autoRefresh ??
+                        updatedPlaylist.autoRefresh,
                 };
 
                 if (this.isElectronStorageAvailable) {
