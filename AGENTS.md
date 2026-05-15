@@ -27,6 +27,7 @@ This file provides guidance to coding agents working in this repository.
 - `web:serve-static` should serve `dist/apps/web` from `web:build:pwa`; do not point it back at the old `dist/apps/web/browser` layout.
 - The unified Docker image builds `web:pwa` and `web-backend`, serves static files through nginx, and proxies `/api/*` to the internal Express backend. Keep `BACKEND_URL=/api` for the bundled self-hosted setup.
 - Validate Xtream and Stalker self-hosted changes with the mock servers and `pnpm nx run web-e2e:e2e -- --project=chromium --grep @self-hosted`.
+- Browser/PWA Xtream favorites and recently viewed are surfaced to shared global collection routes through `XTREAM_COLLECTION_DATA_SOURCE` from `@iptvnator/portal/shared/util`. Do not import `@iptvnator/portal/xtream/data-access` into `portal-shared-util`; bind the shared token to `XTREAM_DATA_SOURCE` at the app/provider boundary.
 
 ## Documentation After Changes
 

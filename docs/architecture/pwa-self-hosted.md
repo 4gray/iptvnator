@@ -64,6 +64,26 @@ The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
 bridge.
 
+## PWA Portal User Data
+
+Xtream favorites and recently viewed items use the browser-side
+`PwaXtreamDataSource` when Electron DB preload APIs are unavailable. The PWA
+stores this user activity in localStorage:
+
+- `xtream-favorites`
+- `xtream-recent-items`
+
+Entries should include a content snapshot when the item is added. Global
+collection routes and the dashboard can then restore titles, posters, content
+type, and category IDs after navigation or a page reload without relying on the
+Electron SQLite content table.
+
+Shared collection services must not import `@iptvnator/portal/xtream/data-access`
+directly. Use `XTREAM_COLLECTION_DATA_SOURCE` from
+`@iptvnator/portal/shared/util` and bind it to `XTREAM_DATA_SOURCE` at the app
+provider boundary (`apps/web/src/app/app.config.ts`). This keeps
+`portal-shared-util` provider-neutral and avoids adding new Nx boundary cycles.
+
 ## Docker Runtime
 
 The Docker image has two stages:
@@ -96,3 +116,8 @@ docker compose -f docker/docker-compose.yml config
 
 Run `docker build -t iptvnator:self-hosted-test -f docker/Dockerfile .` when a
 Docker daemon is available.
+
+For manual Docker smoke testing, run the Xtream and Stalker mock servers plus a
+small M3U fixture, then verify in the browser that M3U, Xtream, and Stalker
+can add sources, play an item, toggle favorites, populate global favorites,
+populate recently viewed, and appear on the dashboard rails.
