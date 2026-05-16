@@ -88,6 +88,10 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
+            vpnProvider: playlist.vpnProvider,
+            vpnLocation: playlist.vpnLocation,
+            vpnAutoConnectOnOpen: playlist.vpnAutoConnectOnOpen,
+            vpnAutoConnectWhenDefault: playlist.vpnAutoConnectWhenDefault,
         } as unknown as PlaylistMeta);
     }
 

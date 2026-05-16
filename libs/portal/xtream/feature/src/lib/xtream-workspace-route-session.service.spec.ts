@@ -2,7 +2,10 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, NavigationStart, Router } from '@angular/router';
 import { Subject } from 'rxjs';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
 import {
     PortalStatusType,
     XtreamContentInitBlockReason,
@@ -96,6 +99,11 @@ describe('XtreamWorkspaceRouteSession', () => {
         routePlaylistId,
         activePlaylist,
         syncFromUrl: jest.fn(),
+    };
+    const sourceVpnPreparation = {
+        getLocation: jest.fn().mockReturnValue('HR'),
+        prepareForPlaylist: jest.fn().mockResolvedValue(null),
+        shouldPrepareForPlaylist: jest.fn().mockReturnValue(false),
     };
 
     const xtreamStore = {
@@ -246,6 +254,12 @@ describe('XtreamWorkspaceRouteSession', () => {
         xtreamStore.setSelectedContentType.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.setContentInitBlockReason.mockClear();
+        sourceVpnPreparation.getLocation.mockClear();
+        sourceVpnPreparation.getLocation.mockReturnValue('HR');
+        sourceVpnPreparation.prepareForPlaylist.mockClear();
+        sourceVpnPreparation.prepareForPlaylist.mockResolvedValue(null);
+        sourceVpnPreparation.shouldPrepareForPlaylist.mockClear();
+        sourceVpnPreparation.shouldPrepareForPlaylist.mockReturnValue(false);
 
         await TestBed.configureTestingModule({
             providers: [
@@ -257,6 +271,10 @@ describe('XtreamWorkspaceRouteSession', () => {
                 {
                     provide: Router,
                     useValue: router,
+                },
+                {
+                    provide: SourceVpnPreparationService,
+                    useValue: sourceVpnPreparation,
                 },
                 {
                     provide: XtreamStore,
@@ -389,6 +407,38 @@ describe('XtreamWorkspaceRouteSession', () => {
         expect(xtreamStore.fetchXtreamPlaylist).not.toHaveBeenCalled();
         expect(xtreamStore.checkPortalStatus).not.toHaveBeenCalled();
         expect(xtreamStore.initializeContent).not.toHaveBeenCalled();
+    });
+
+    it('prepares the source VPN and rechecks a blocked current Xtream playlist', async () => {
+        router.url = `/workspace/xtreams/${PLAYLIST_ID}/vod`;
+        activePlaylist.set({
+            ...ACTIVE_PLAYLIST,
+            vpnAutoConnectOnOpen: true,
+            vpnLocation: 'HR',
+            vpnProvider: 'proton',
+        } as PlaylistMeta);
+        currentPlaylist.set(XTREAM_PLAYLIST);
+        playlistId.set(PLAYLIST_ID);
+        portalStatus.set('unavailable');
+        contentInitBlockReason.set('unavailable');
+        sourceVpnPreparation.shouldPrepareForPlaylist.mockReturnValue(true);
+        xtreamStore.checkPortalStatus.mockImplementation(async () => {
+            portalStatus.set('active');
+            return 'active';
+        });
+
+        TestBed.inject(XtreamWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(sourceVpnPreparation.prepareForPlaylist).toHaveBeenCalledWith(
+            activePlaylist(),
+            'source-open'
+        );
+        expect(xtreamStore.checkPortalStatus).toHaveBeenCalledTimes(1);
+        expect(xtreamStore.setContentInitBlockReason).toHaveBeenCalledWith(
+            null
+        );
+        expect(xtreamStore.initializeContent).toHaveBeenCalled();
     });
 
     it('does not treat blank and null Xtream connection metadata as a playlist change', async () => {

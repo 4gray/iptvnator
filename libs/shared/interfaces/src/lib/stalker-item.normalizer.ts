@@ -2,6 +2,7 @@ import {
     PortalActivityType,
     StalkerPortalItem,
 } from './stalker-portal-item.interface';
+import { repairMojibakeText } from './text-encoding.utils';
 
 const SQLITE_UTC_TIMESTAMP_PATTERN =
     /^(\d{4})-(\d{2})-(\d{2}) (\d{2}):(\d{2}):(\d{2})(?:\.(\d{1,3}))?$/;
@@ -33,7 +34,9 @@ export function extractStalkerItemTitle(
     item: StalkerPortalItem | Record<string, unknown>
 ): string {
     const raw = item as Record<string, unknown>;
-    return String(raw['title'] ?? raw['o_name'] ?? raw['name'] ?? 'Unknown');
+    return repairMojibakeText(
+        String(raw['title'] ?? raw['o_name'] ?? raw['name'] ?? 'Unknown')
+    );
 }
 
 /**

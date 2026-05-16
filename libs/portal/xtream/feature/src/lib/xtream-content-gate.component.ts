@@ -10,6 +10,10 @@ import {
     XtreamContentInitBlockReason,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
 import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-notice.component';
 
 @Component({
@@ -66,6 +70,8 @@ import { XtreamCachedOfflineNoticeComponent } from './xtream-cached-offline-noti
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class XtreamContentGateComponent {
+    private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly xtreamStore = inject(XtreamStore);
 
     readonly contentInitBlockReason = this.xtreamStore.contentInitBlockReason;
@@ -92,6 +98,17 @@ export class XtreamContentGateComponent {
     );
 
     retryContentInitialization(): void {
-        void this.xtreamStore.retryContentInitialization();
+        void (async () => {
+            const activePlaylist =
+                this.playlistContext.routeProvider() === 'xtreams'
+                    ? this.playlistContext.activePlaylist()
+                    : null;
+
+            await this.sourceVpnPreparation.prepareForPlaylist(
+                activePlaylist,
+                'source-open'
+            );
+            await this.xtreamStore.retryContentInitialization();
+        })();
     }
 }

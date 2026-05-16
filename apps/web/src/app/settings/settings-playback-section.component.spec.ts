@@ -100,6 +100,68 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
     });
 
+    it('shows the background metadata warmup settings in the playback section', () => {
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="background-metadata-warmup-setting"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="background-metadata-warmup-schedule-setting"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="background-metadata-warmup-concurrency-setting"]'
+            )
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.BACKGROUND_METADATA_WARMUP'
+        );
+    });
+
+    it('shows VPN integration settings only in desktop builds', () => {
+        fixture.componentRef.setInput('isDesktop', true);
+        const form = createForm();
+        form.patchValue({
+            vpnIntegrationEnabled: true,
+            vpnProvider: 'proton',
+        });
+        fixture.componentRef.setInput('form', form);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vpn-integration-setting"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vpn-provider-setting"]'
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vpn-location-setting"]'
+            )
+        ).not.toBeNull();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.VPN_INTEGRATION'
+        );
+
+        fixture.componentRef.setInput('isDesktop', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="vpn-integration-setting"]'
+            )
+        ).toBeNull();
+    });
+
     it('emits cache cleanup actions from the playback section', () => {
         const clearMediaMetadataCache = jest.fn();
         const clearImdbOverrides = jest.fn();
@@ -339,7 +401,15 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         player: new FormControl(player),
         streamFormat: new FormControl(StreamFormat.M3u8StreamFormat),
         acceleratedDownloads: new FormControl(true),
-        redirectIndirectStreamsToDirectSource: new FormControl(false),
+        redirectIndirectStreamsToDirectSource: new FormControl(true),
+        backgroundMetadataWarmup: new FormControl(true),
+        backgroundMetadataWarmupSchedule: new FormControl('monthly'),
+        backgroundMetadataWarmupAtLogin: new FormControl(true),
+        backgroundMetadataWarmupConcurrency: new FormControl(8),
+        vpnIntegrationEnabled: new FormControl(true),
+        vpnProvider: new FormControl('proton'),
+        vpnLocation: new FormControl('HR'),
+        vpnRestoreOnExit: new FormControl(true),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
         mpvPlayerPath: new FormControl(''),

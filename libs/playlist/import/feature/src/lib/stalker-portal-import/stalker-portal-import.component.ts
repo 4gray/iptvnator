@@ -1,4 +1,4 @@
-import { Component, inject, output, signal } from '@angular/core';
+import { Component, inject, input, output, signal } from '@angular/core';
 import {
     FormControl,
     FormGroup,
@@ -11,12 +11,13 @@ import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { SourceVpnPreparationService } from '@iptvnator/playlist/shared/util';
 import { PlaylistActions } from 'm3u-state';
 import {
     STALKER_SERIAL_NUMBER,
     StalkerSessionService,
 } from '@iptvnator/portal/stalker/data-access';
-import { Playlist } from 'shared-interfaces';
+import { Playlist, PlaylistSourceVpnConfig } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
 
 @Component({
@@ -52,6 +53,7 @@ import { v4 as uuid } from 'uuid';
 export class StalkerPortalImportComponent {
     readonly addClicked = output<void>();
     readonly URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+    readonly sourceVpn = input<PlaylistSourceVpnConfig | undefined>();
 
     readonly form = new FormGroup({
         _id: new FormControl(uuid()),
@@ -73,6 +75,7 @@ export class StalkerPortalImportComponent {
     });
 
     private readonly stalkerSessionService = inject(StalkerSessionService);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly store = inject(Store);
     private readonly snackBar = inject(MatSnackBar);
     readonly translate = inject(TranslateService);
@@ -105,6 +108,8 @@ export class StalkerPortalImportComponent {
         this.isLoading.set(true);
 
         try {
+            await this.prepareSourceVpnForImport();
+
             const originalUrl = this.form.value.portalUrl;
             const transformedUrl = this.transformPortalUrl(originalUrl);
             const isFullStalkerPortal =
@@ -186,6 +191,7 @@ export class StalkerPortalImportComponent {
             const playlist: Playlist = {
                 ...this.form.value,
                 portalUrl: transformedUrl,
+                ...(this.sourceVpn() ?? {}),
                 isFullStalkerPortal,
                 stalkerToken,
                 stalkerAccountInfo,
@@ -254,5 +260,25 @@ export class StalkerPortalImportComponent {
 
         // Otherwise keep the provided url
         return url;
+    }
+
+    private async prepareSourceVpnForImport(): Promise<void> {
+        const sourceVpn = this.sourceVpn();
+        if (!sourceVpn) {
+            return;
+        }
+
+        await this.sourceVpnPreparation.prepareForPlaylist(
+            {
+                _id: this.form.value._id || 'stalker-import',
+                title: this.form.value.title || 'Stalker',
+                count: 0,
+                autoRefresh: false,
+                importDate:
+                    this.form.value.importDate || new Date().toISOString(),
+                ...sourceVpn,
+            },
+            'source-open'
+        );
     }
 }

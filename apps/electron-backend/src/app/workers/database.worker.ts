@@ -35,6 +35,7 @@ import {
 } from '../database/operations/favorites.operations';
 import {
     clearXtreamImportCache,
+    clearContentMediaMetadata,
     getContent,
     getContentByXtreamId,
     getGlobalRecentlyAdded,
@@ -42,8 +43,14 @@ import {
     hasContent,
     saveContent,
     searchContent,
+    setContentMediaMetadata,
 } from '../database/operations/content.operations';
 import { setContentBackdropIfMissing } from '../database/operations/content-backdrop.operations';
+import {
+    clearEpisodeMediaMetadata,
+    getEpisodeMediaMetadataForSeries,
+    setEpisodeMediaMetadata,
+} from '../database/operations/episode-media-metadata.operations';
 import {
     clearAllPlaybackPositions,
     clearPlaybackPosition,
@@ -424,6 +431,49 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                 payload.playlistId,
                 payload.contentType
             );
+        }
+
+        case 'DB_SET_CONTENT_MEDIA_METADATA': {
+            const payload = message.payload as {
+                playlistId: string;
+                contentType: 'live' | 'movie' | 'series';
+                xtreamId: number;
+                metadata: Parameters<typeof setContentMediaMetadata>[4];
+            };
+            return setContentMediaMetadata(
+                db,
+                payload.playlistId,
+                payload.contentType,
+                payload.xtreamId,
+                payload.metadata
+            );
+        }
+
+        case 'DB_CLEAR_CONTENT_MEDIA_METADATA': {
+            return clearContentMediaMetadata(db);
+        }
+
+        case 'DB_SET_EPISODE_MEDIA_METADATA': {
+            const payload = message.payload as Parameters<
+                typeof setEpisodeMediaMetadata
+            >[1];
+            return setEpisodeMediaMetadata(db, payload);
+        }
+
+        case 'DB_GET_SERIES_EPISODE_MEDIA_METADATA': {
+            const payload = message.payload as {
+                playlistId: string;
+                seriesXtreamId: number;
+            };
+            return getEpisodeMediaMetadataForSeries(
+                db,
+                payload.playlistId,
+                payload.seriesXtreamId
+            );
+        }
+
+        case 'DB_CLEAR_EPISODE_MEDIA_METADATA': {
+            return clearEpisodeMediaMetadata(db);
         }
 
         case 'DB_SET_CONTENT_BACKDROP_IF_MISSING': {

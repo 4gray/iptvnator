@@ -8,6 +8,7 @@ import type {
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
     ResolvedPortalPlayback,
+    SourceVpnPreparationRequest,
     XtreamCategory,
 } from 'shared-interfaces';
 import {
@@ -16,6 +17,7 @@ import {
     roundTraceDuration,
     summarizeForTrace,
 } from '../services/debug-trace';
+import { APP_RENDERER_READY_CHANNEL } from './renderer-ready.channel';
 
 const PORTAL_DEBUG_EVENT = 'PORTAL_DEBUG_EVENT';
 const EXTERNAL_PLAYER_SESSION_UPDATE = 'EXTERNAL_PLAYER_SESSION_UPDATE';
@@ -286,6 +288,9 @@ const electronApi = {
         dbSaveContentProgressListeners.clear();
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
+    notifyRendererReady: () => {
+        ipcRenderer.send(APP_RENDERER_READY_CHANNEL);
+    },
     platform: process.platform,
     fetchPlaylistByUrl: (url: string, title?: string) =>
         ipcRenderer.invoke('fetch-playlist-by-url', url, title),
@@ -455,6 +460,11 @@ const electronApi = {
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
     updateSettings: (settings: any) =>
         ipcRenderer.invoke('SETTINGS_UPDATE', settings),
+    getVpnIntegrationStatus: () => ipcRenderer.invoke('VPN_INTEGRATION_STATUS'),
+    prepareSourceVpn: (payload: unknown) =>
+        ipcRenderer.invoke('SOURCE_VPN_PREPARE', payload),
+    setMetadataWarmupLoginItem: (enabled: boolean) =>
+        ipcRenderer.invoke('SET_METADATA_WARMUP_LOGIN_ITEM', enabled),
     resolveAcceleratedPlaybackUrl: (
         url: string,
         headers?: Record<string, string>
@@ -480,6 +490,19 @@ const electronApi = {
             url,
             headers,
         }),
+    startMediaMetadataBackgroundWarmup: (payload: unknown) =>
+        ipcRenderer.invoke('MEDIA_METADATA_BACKGROUND_START', payload),
+    getMediaMetadataBackgroundStatus: () =>
+        ipcRenderer.invoke('MEDIA_METADATA_BACKGROUND_STATUS'),
+    cancelMediaMetadataBackgroundWarmup: () =>
+        ipcRenderer.invoke('MEDIA_METADATA_BACKGROUND_CANCEL'),
+    onMediaMetadataBackgroundEvent: (callback: (event: unknown) => void) => {
+        const handler = (_event: unknown, payload: unknown) =>
+            callback(payload);
+        ipcRenderer.on('MEDIA_METADATA_BACKGROUND_EVENT', handler);
+        return () =>
+            ipcRenderer.off('MEDIA_METADATA_BACKGROUND_EVENT', handler);
+    },
     resolveImdbMovieRatings: (items: unknown[]) =>
         ipcRenderer.invoke('IMDB_RESOLVE_MOVIE_RATINGS', items),
     getAiSettings: () => ipcRenderer.invoke('GET_AI_SETTINGS'),
@@ -490,12 +513,14 @@ const electronApi = {
         token?: string;
         serialNumber?: string;
         requestId?: string;
+        sourceVpn?: SourceVpnPreparationRequest;
     }) => ipcRenderer.invoke('STALKER_REQUEST', payload),
     xtreamRequest: (payload: {
         url: string;
         params: Record<string, string>;
         requestId?: string;
         sessionId?: string;
+        sourceVpn?: SourceVpnPreparationRequest;
         suppressErrorLog?: boolean;
     }) => ipcRenderer.invoke('XTREAM_REQUEST', payload),
     xtreamCancelSession: (sessionId: string) =>
@@ -681,6 +706,49 @@ const electronApi = {
             playlistId,
             contentType
         ),
+    dbSetContentMediaMetadata: (
+        playlistId: string,
+        contentType: 'live' | 'movie' | 'series',
+        xtreamId: number,
+        metadata: unknown
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_CONTENT_MEDIA_METADATA',
+            playlistId,
+            contentType,
+            xtreamId,
+            metadata
+        ),
+    dbClearContentMediaMetadata: () =>
+        ipcRenderer.invoke('DB_CLEAR_CONTENT_MEDIA_METADATA'),
+    dbSetEpisodeMediaMetadata: (
+        playlistId: string,
+        seriesXtreamId: number,
+        episodeXtreamId: number,
+        metadata: unknown,
+        seasonNumber?: number | null,
+        episodeNumber?: number | null
+    ) =>
+        ipcRenderer.invoke(
+            'DB_SET_EPISODE_MEDIA_METADATA',
+            playlistId,
+            seriesXtreamId,
+            episodeXtreamId,
+            metadata,
+            seasonNumber,
+            episodeNumber
+        ),
+    dbGetSeriesEpisodeMediaMetadata: (
+        playlistId: string,
+        seriesXtreamId: number
+    ) =>
+        ipcRenderer.invoke(
+            'DB_GET_SERIES_EPISODE_MEDIA_METADATA',
+            playlistId,
+            seriesXtreamId
+        ),
+    dbClearEpisodeMediaMetadata: () =>
+        ipcRenderer.invoke('DB_CLEAR_EPISODE_MEDIA_METADATA'),
     dbSetContentBackdropIfMissing: (contentId: number, backdropUrl?: string) =>
         ipcRenderer.invoke(
             'DB_SET_CONTENT_BACKDROP_IF_MISSING',

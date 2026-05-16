@@ -1,6 +1,7 @@
 import {
     getXtreamItemVideoQualityBuckets,
     getXtreamVideoQualityOptions,
+    getXtreamVideoQualityOptionsFromCounts,
     matchesXtreamVideoQualityFilter,
 } from './video-quality-filter.util';
 
@@ -73,6 +74,27 @@ describe('Xtream video quality filter utilities', () => {
                 label: '2160p+',
                 count: 0,
             },
+        ]);
+    });
+
+    it('localizes the unknown quality label to the selected app language', () => {
+        const counts = new Map([['unknown', 2] as const]);
+        const english = getXtreamVideoQualityOptionsFromCounts(
+            counts,
+            'all',
+            'en'
+        );
+        const italian = getXtreamVideoQualityOptionsFromCounts(
+            counts,
+            'all',
+            'it'
+        );
+
+        expect(english).toEqual([
+            { value: 'unknown', label: 'Not detected', count: 2 },
+        ]);
+        expect(italian).toEqual([
+            { value: 'unknown', label: 'Non rilevata', count: 2 },
         ]);
     });
 });

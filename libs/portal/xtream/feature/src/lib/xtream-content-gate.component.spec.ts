@@ -6,6 +6,10 @@ import { provideRouter, RouterOutlet } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
+import {
     XtreamContentInitBlockReason,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
@@ -35,13 +39,27 @@ describe('XtreamContentGateComponent', () => {
     const portalStatus = signal<'active' | 'inactive' | 'expired' | 'unavailable'>(
         'active'
     );
+    const routeProvider = signal<'xtreams' | null>('xtreams');
+    const activePlaylist = signal({
+        _id: 'source-1',
+        title: 'Source 1',
+        count: 0,
+        importDate: '',
+        autoRefresh: false,
+        vpnAutoConnectOnOpen: true,
+        vpnLocation: 'HR',
+        vpnProvider: 'proton',
+    });
     const retryContentInitialization = jest.fn().mockResolvedValue(undefined);
+    const prepareForPlaylist = jest.fn().mockResolvedValue(null);
 
     beforeEach(async () => {
         contentInitBlockReason.set(null);
         isContentInitialized.set(false);
         portalStatus.set('active');
+        routeProvider.set('xtreams');
         retryContentInitialization.mockClear();
+        prepareForPlaylist.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [XtreamContentGateComponent],
@@ -52,10 +70,24 @@ describe('XtreamContentGateComponent', () => {
                     useValue: {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
+                        getParsedResult: (...args: unknown[]) =>
+                            args.find(
+                                (value): value is string =>
+                                    typeof value === 'string'
+                            ) ?? '',
                         stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        onLangChange: of({
+                            lang: 'en',
+                            translations: {},
+                        }),
+                        onTranslationChange: of({
+                            lang: 'en',
+                            translations: {},
+                        }),
+                        onDefaultLangChange: of({
+                            lang: 'en',
+                            translations: {},
+                        }),
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
@@ -67,6 +99,19 @@ describe('XtreamContentGateComponent', () => {
                         isContentInitialized,
                         portalStatus,
                         retryContentInitialization,
+                    },
+                },
+                {
+                    provide: PlaylistContextFacade,
+                    useValue: {
+                        activePlaylist,
+                        routeProvider,
+                    },
+                },
+                {
+                    provide: SourceVpnPreparationService,
+                    useValue: {
+                        prepareForPlaylist,
                     },
                 },
             ],
@@ -131,7 +176,7 @@ describe('XtreamContentGateComponent', () => {
         expect(fixture.nativeElement.querySelector('router-outlet')).not.toBeNull();
     });
 
-    it('retries content initialization from the blocked state', () => {
+    it('prepares the source VPN before retrying content initialization from the blocked state', async () => {
         contentInitBlockReason.set('cancelled');
         fixture.detectChanges();
 
@@ -139,7 +184,13 @@ describe('XtreamContentGateComponent', () => {
             'button'
         ) as HTMLButtonElement | null;
         retryButton?.click();
+        await fixture.whenStable();
+        await Promise.resolve();
 
+        expect(prepareForPlaylist).toHaveBeenCalledWith(
+            activePlaylist(),
+            'source-open'
+        );
         expect(retryContentInitialization).toHaveBeenCalledTimes(1);
     });
 });

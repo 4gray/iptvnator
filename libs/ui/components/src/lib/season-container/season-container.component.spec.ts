@@ -4,6 +4,7 @@ import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
 import { MediaStreamMetadata, XtreamSerieEpisode } from 'shared-interfaces';
 import {
+    DatabaseService,
     DownloadsService,
     MediaMetadataService,
     SettingsStore,
@@ -25,6 +26,12 @@ const downloadsServiceStub = {
 const mediaMetadataProbe = jest.fn();
 const mediaMetadataServiceStub = {
     probe: mediaMetadataProbe,
+};
+const getXtreamSeriesEpisodeMediaMetadata = jest.fn().mockResolvedValue([]);
+const setXtreamEpisodeMediaMetadata = jest.fn().mockResolvedValue(true);
+const databaseServiceStub = {
+    getXtreamSeriesEpisodeMediaMetadata,
+    setXtreamEpisodeMediaMetadata,
 };
 
 async function flushPromises(): Promise<void> {
@@ -69,6 +76,10 @@ describe('SeasonContainerComponent', () => {
     beforeEach(async () => {
         downloadsStart.mockClear();
         redirectIndirectStreamsToDirectSource.set(false);
+        getXtreamSeriesEpisodeMediaMetadata.mockClear();
+        getXtreamSeriesEpisodeMediaMetadata.mockResolvedValue([]);
+        setXtreamEpisodeMediaMetadata.mockClear();
+        setXtreamEpisodeMediaMetadata.mockResolvedValue(true);
         mediaMetadataProbe.mockReset();
         mediaMetadataProbe.mockResolvedValue({
             available: false,
@@ -93,6 +104,10 @@ describe('SeasonContainerComponent', () => {
                 {
                     provide: MediaMetadataService,
                     useValue: mediaMetadataServiceStub,
+                },
+                {
+                    provide: DatabaseService,
+                    useValue: databaseServiceStub,
                 },
                 {
                     provide: SettingsStore,
@@ -264,7 +279,7 @@ describe('SeasonContainerComponent', () => {
         );
     });
 
-    it('does not emit a shared series quality when episode qualities differ', async () => {
+    it('emits aggregate series metadata without a single quality when episode qualities differ', async () => {
         const emissions: Array<MediaStreamMetadata | null> = [];
         component.seriesMediaMetadataChanged.subscribe((metadata) =>
             emissions.push(metadata)
@@ -301,7 +316,105 @@ describe('SeasonContainerComponent', () => {
         fixture.detectChanges();
 
         expect(mediaMetadataProbe).toHaveBeenCalledTimes(2);
-        expect(emissions[emissions.length - 1]).toBeNull();
+        expect(emissions[emissions.length - 1]).toEqual(
+            expect.objectContaining({
+                available: true,
+                qualityLabel: undefined,
+                qualityLabels: ['2160p HEVC', '1080p H.264'],
+                audioLanguages: ['ITA'],
+                source: 'derived',
+            })
+        );
+    });
+
+    it('waits for persisted episode metadata and skips probes when it is complete', async () => {
+        getXtreamSeriesEpisodeMediaMetadata.mockResolvedValueOnce([
+            {
+                episodeXtreamId: 1001,
+                mediaMetadata: {
+                    available: true,
+                    qualityLabel: '2160p HEVC',
+                    qualityLabels: ['2160p HEVC'],
+                    height: 2160,
+                    heights: [2160],
+                    audioLanguages: ['ITA'],
+                    audioCodecs: [],
+                    subtitleLanguages: ['ITA'],
+                    subtitleCodecs: [],
+                    source: 'ffprobe',
+                },
+            },
+        ]);
+
+        setRequiredInputs({
+            '1': [createEpisode({ id: '1001' })],
+        });
+        fixture.componentRef.setInput('xtreamDownloadContext', {
+            serverUrl: 'http://xtream.example',
+            username: 'user',
+            password: 'pass',
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await flushPromises();
+        fixture.detectChanges();
+        await flushPromises();
+
+        expect(mediaMetadataProbe).not.toHaveBeenCalled();
+    });
+
+    it('retries probes when persisted episode metadata is incomplete', async () => {
+        getXtreamSeriesEpisodeMediaMetadata.mockResolvedValueOnce([
+            {
+                episodeXtreamId: 1001,
+                mediaMetadata: {
+                    available: false,
+                    audioLanguages: [],
+                    audioCodecs: [],
+                    subtitleLanguages: [],
+                    subtitleCodecs: [],
+                    reason: 'previous probe failed',
+                },
+            },
+        ]);
+        mediaMetadataProbe.mockResolvedValueOnce({
+            available: true,
+            qualityLabel: '1080p H.264',
+            audioLanguages: ['ITA'],
+            audioCodecs: [],
+            subtitleLanguages: ['ITA'],
+            subtitleCodecs: [],
+            source: 'ffprobe',
+        });
+
+        setRequiredInputs({
+            '1': [createEpisode({ id: '1001' })],
+        });
+        fixture.componentRef.setInput('xtreamDownloadContext', {
+            serverUrl: 'http://xtream.example',
+            username: 'user',
+            password: 'pass',
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        await flushPromises();
+        fixture.detectChanges();
+        await flushPromises();
+
+        expect(mediaMetadataProbe).toHaveBeenCalledTimes(1);
+        expect(setXtreamEpisodeMediaMetadata).toHaveBeenCalledWith(
+            'playlist-1',
+            1,
+            1001,
+            expect.objectContaining({
+                available: true,
+                qualityLabel: '1080p H.264',
+            }),
+            1,
+            1
+        );
     });
 
     it('uses direct_source for episode probes and downloads when the setting is enabled', async () => {

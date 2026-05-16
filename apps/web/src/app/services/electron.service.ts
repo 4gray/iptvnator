@@ -8,8 +8,11 @@ import {
     AUTO_UPDATE_PLAYLISTS,
     ERROR,
     Playlist,
+    PlaylistSourceVpnConfig,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
+    SourceVpnPreparationRequest,
+    normalizeTextValuesDeep,
     XTREAM_REQUEST,
     XTREAM_RESPONSE,
     XtreamCodeActions,
@@ -236,6 +239,7 @@ export class ElectronService extends DataService {
         requestId?: string;
         token?: string;
         serialNumber?: string;
+        sourceVpn?: SourceVpnPreparationRequest;
     }) {
         const context = createPortalDebugRequestContext({
             provider: 'stalker',
@@ -250,7 +254,7 @@ export class ElectronService extends DataService {
                 ...payload,
                 requestId: context.requestId,
             });
-            return response;
+            return normalizeTextValuesDeep(response);
         } catch (err: unknown) {
             const errorInfo = this.getErrorDetails(err);
             console.error('Stalker request error:', err);
@@ -274,7 +278,7 @@ export class ElectronService extends DataService {
                 this.store.dispatch(
                     PlaylistActions.handleAddingPlaylistByUrl({
                         isTemporary: !!payload?.isTemporary,
-                        playlist: result,
+                        playlist: this.withSourceVpn(result, payload),
                     })
                 );
             })
@@ -311,6 +315,31 @@ export class ElectronService extends DataService {
         const msg = String((error as { message?: string })?.message ?? error);
         const match = msg.match(/status code (\d{3})/);
         return match ? parseInt(match[1], 10) : null;
+    }
+
+    private withSourceVpn(
+        playlist: Playlist,
+        payload: Partial<Playlist>
+    ): Playlist {
+        const sourceVpn = this.extractSourceVpn(payload);
+        return sourceVpn ? { ...playlist, ...sourceVpn } : playlist;
+    }
+
+    private extractSourceVpn(
+        payload: Partial<Playlist>
+    ): PlaylistSourceVpnConfig | undefined {
+        if (payload.vpnProvider !== 'proton') {
+            return undefined;
+        }
+
+        return {
+            vpnProvider: 'proton',
+            vpnLocation: payload.vpnLocation || 'FASTEST',
+            vpnAutoConnectOnOpen: Boolean(payload.vpnAutoConnectOnOpen),
+            vpnAutoConnectWhenDefault: Boolean(
+                payload.vpnAutoConnectWhenDefault
+            ),
+        };
     }
 
     private async updateM3uPlaylistFromFile(data: {
@@ -439,6 +468,7 @@ export class ElectronService extends DataService {
         params: Record<string, string>;
         requestId?: string;
         sessionId?: string;
+        sourceVpn?: SourceVpnPreparationRequest;
         suppressErrorLog?: boolean;
     }) {
         const context = createPortalDebugRequestContext({
@@ -457,7 +487,7 @@ export class ElectronService extends DataService {
 
             const result = {
                 type: XTREAM_RESPONSE,
-                payload: response.payload,
+                payload: normalizeTextValuesDeep(response.payload),
                 action: response.action,
             };
             window.postMessage(result);

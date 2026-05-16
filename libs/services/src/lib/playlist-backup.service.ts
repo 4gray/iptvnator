@@ -16,6 +16,7 @@ import {
     PlaylistBackupSettings,
     PLAYLIST_BACKUP_KIND,
     PLAYLIST_BACKUP_VERSION,
+    SourceVpnBackupConfig,
     StalkerPlaylistBackupEntry,
     StalkerPortalItem,
     XtreamBackupCategoryType,
@@ -204,6 +205,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             position: playlist.position,
+            ...this.buildSourceVpnBackupFragment(playlist),
             source: {
                 kind: this.resolveM3uSourceKind(playlist),
                 rawM3u,
@@ -239,6 +241,7 @@ export class PlaylistBackupService {
                 title: playlist.title,
                 autoRefresh: Boolean(playlist.autoRefresh),
                 position: playlist.position,
+                ...this.buildSourceVpnBackupFragment(playlist),
                 connection: {
                     serverUrl: playlist.serverUrl ?? '',
                     username: playlist.username ?? '',
@@ -277,6 +280,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             position: playlist.position,
+            ...this.buildSourceVpnBackupFragment(playlist),
             connection: {
                 serverUrl: playlist.serverUrl ?? '',
                 username: playlist.username ?? '',
@@ -315,6 +319,7 @@ export class PlaylistBackupService {
             title: playlist.title,
             autoRefresh: Boolean(playlist.autoRefresh),
             position: playlist.position,
+            ...this.buildSourceVpnBackupFragment(playlist),
             connection: {
                 portalUrl: playlist.portalUrl ?? playlist.url ?? '',
                 macAddress: playlist.macAddress ?? '',
@@ -352,6 +357,69 @@ export class PlaylistBackupService {
                     playlist.recentlyViewed
                 ),
             },
+        };
+    }
+
+    private buildSourceVpnBackupFragment(
+        playlist: Playlist
+    ): { sourceVpn?: SourceVpnBackupConfig } {
+        if (playlist.vpnProvider !== 'proton') {
+            return {};
+        }
+
+        const location = this.normalizeVpnLocation(playlist.vpnLocation);
+        const autoConnectOnOpen = Boolean(playlist.vpnAutoConnectOnOpen);
+        const autoConnectWhenDefault = Boolean(
+            playlist.vpnAutoConnectWhenDefault
+        );
+
+        if (
+            !autoConnectOnOpen &&
+            !autoConnectWhenDefault &&
+            location === 'FASTEST'
+        ) {
+            return {};
+        }
+
+        return {
+            sourceVpn: {
+                provider: 'proton',
+                location,
+                ...(autoConnectOnOpen ? { autoConnectOnOpen } : {}),
+                ...(autoConnectWhenDefault
+                    ? { autoConnectWhenDefault }
+                    : {}),
+            },
+        };
+    }
+
+    private buildImportedSourceVpnFields(
+        sourceVpn: SourceVpnBackupConfig | undefined,
+        existing: Playlist | null
+    ): Pick<
+        Playlist,
+        | 'vpnProvider'
+        | 'vpnLocation'
+        | 'vpnAutoConnectOnOpen'
+        | 'vpnAutoConnectWhenDefault'
+    > {
+        if (!sourceVpn) {
+            return {
+                vpnProvider: existing?.vpnProvider,
+                vpnLocation: existing?.vpnLocation,
+                vpnAutoConnectOnOpen: existing?.vpnAutoConnectOnOpen,
+                vpnAutoConnectWhenDefault:
+                    existing?.vpnAutoConnectWhenDefault,
+            };
+        }
+
+        return {
+            vpnProvider: sourceVpn.provider === 'proton' ? 'proton' : 'none',
+            vpnLocation: this.normalizeVpnLocation(sourceVpn.location),
+            vpnAutoConnectOnOpen: Boolean(sourceVpn.autoConnectOnOpen),
+            vpnAutoConnectWhenDefault: Boolean(
+                sourceVpn.autoConnectWhenDefault
+            ),
         };
     }
 
@@ -634,6 +702,7 @@ export class PlaylistBackupService {
             hiddenGroupTitles: this.uniqueStrings(
                 entry.userState.hiddenGroupTitles
             ),
+            ...this.buildImportedSourceVpnFields(entry.sourceVpn, existing),
             ...(entry.source.url
                 ? { url: entry.source.url }
                 : { url: undefined }),
@@ -670,6 +739,7 @@ export class PlaylistBackupService {
             serverUrl: entry.connection.serverUrl,
             username: entry.connection.username,
             password: entry.connection.password,
+            ...this.buildImportedSourceVpnFields(entry.sourceVpn, existing),
             favorites: [],
             recentlyViewed: [],
         };
@@ -710,6 +780,7 @@ export class PlaylistBackupService {
             stalkerDeviceId2: entry.connection.stalkerDeviceId2,
             stalkerSignature1: entry.connection.stalkerSignature1,
             stalkerSignature2: entry.connection.stalkerSignature2,
+            ...this.buildImportedSourceVpnFields(entry.sourceVpn, existing),
             stalkerToken: undefined,
             stalkerAccountInfo: undefined,
         };
@@ -1001,6 +1072,18 @@ export class PlaylistBackupService {
     private normalizeIdentityValue(value: string, toLowerCase = false): string {
         const trimmed = value.trim();
         return toLowerCase ? trimmed.toLowerCase() : trimmed;
+    }
+
+    private normalizeVpnLocation(value: string | undefined): string {
+        const normalized = value?.trim().toUpperCase();
+
+        if (!normalized) {
+            return 'FASTEST';
+        }
+
+        return normalized === 'FASTEST' || /^[A-Z]{2}$/.test(normalized)
+            ? normalized
+            : 'FASTEST';
     }
 
     private canonicalizeM3u(rawM3u: string): string {

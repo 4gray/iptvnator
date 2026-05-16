@@ -19,10 +19,17 @@ import {
 } from '../../utils/vod-duplicates.util';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
+    isXtreamLanguageFilterActive,
     matchesXtreamLanguageFilter,
     XtreamLanguageFilterCandidate,
     XtreamLanguageFilterState,
 } from '../../utils/language-filter.util';
+import {
+    isXtreamVideoQualityFilterActive,
+    matchesXtreamVideoQualityFilter,
+    XtreamVideoQualityFilterCandidate,
+    XtreamVideoQualityFilterValue,
+} from '../../utils/video-quality-filter.util';
 
 /**
  * Search filters configuration
@@ -80,7 +87,11 @@ export function withSearch() {
     const logger = createLogger('withSearch');
     type ParentSearchStoreLike = {
         languageFilter?: () => XtreamLanguageFilterState;
+        languageFilterActive?: () => boolean;
+        metadataFiltersReady?: () => boolean;
         playlistId?: () => string | null;
+        videoQualityFilter?: () => XtreamVideoQualityFilterValue;
+        videoQualityFilterActive?: () => boolean;
     };
 
     return signalStoreFeature(
@@ -89,19 +100,49 @@ export function withSearch() {
         withComputed((store) => ({
             filteredSearchResults: computed(() => {
                 const storeAny = store as ParentSearchStoreLike;
+                const metadataFiltersReady =
+                    storeAny.metadataFiltersReady?.() ?? true;
                 const languageFilter = storeAny.languageFilter?.();
-                if (!languageFilter) {
+                const languageFilterActive =
+                    storeAny.languageFilterActive?.() ??
+                    isXtreamLanguageFilterActive(languageFilter);
+                const videoQualityFilter =
+                    storeAny.videoQualityFilter?.() ?? 'all';
+                const videoQualityFilterActive =
+                    storeAny.videoQualityFilterActive?.() ??
+                    isXtreamVideoQualityFilterActive(videoQualityFilter);
+
+                if (
+                    !metadataFiltersReady ||
+                    (!languageFilterActive && !videoQualityFilterActive)
+                ) {
                     return store.searchResults();
                 }
 
-                return store
-                    .searchResults()
-                    .filter((item) =>
-                        matchesXtreamLanguageFilter(
-                            item as unknown as XtreamLanguageFilterCandidate,
-                            languageFilter
+                return store.searchResults().filter((item) => {
+                    if (
+                        languageFilterActive &&
+                        (!languageFilter ||
+                            !matchesXtreamLanguageFilter(
+                                item as unknown as XtreamLanguageFilterCandidate,
+                                languageFilter
+                            ))
+                    ) {
+                        return false;
+                    }
+
+                    if (
+                        videoQualityFilterActive &&
+                        !matchesXtreamVideoQualityFilter(
+                            item as unknown as XtreamVideoQualityFilterCandidate,
+                            videoQualityFilter
                         )
-                    );
+                    ) {
+                        return false;
+                    }
+
+                    return true;
+                });
             }),
         })),
 

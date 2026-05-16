@@ -21,6 +21,7 @@ import {
 import { PlaylistActions } from 'm3u-state';
 import { AppComponent } from './app.component';
 import { ElectronServiceStub } from './services/electron.service.stub';
+import { PREFERRED_LANGUAGE_STORAGE_KEY } from './services/preferred-language-hint';
 import { SettingsService } from './services/settings.service';
 
 jest.spyOn(global.console, 'error').mockImplementation(() => {
@@ -53,7 +54,15 @@ const DEFAULT_SETTINGS: Settings = {
     remoteControlPort: 8765,
     downloadFolder: '',
     acceleratedDownloads: true,
-    redirectIndirectStreamsToDirectSource: false,
+    redirectIndirectStreamsToDirectSource: true,
+    backgroundMetadataWarmup: true,
+    backgroundMetadataWarmupSchedule: 'monthly',
+    backgroundMetadataWarmupAtLogin: true,
+    backgroundMetadataWarmupConcurrency: 8,
+    vpnIntegrationEnabled: true,
+    vpnProvider: 'proton',
+    vpnLocation: 'HR',
+    vpnRestoreOnExit: true,
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
@@ -126,6 +135,7 @@ describe('AppComponent', () => {
                 freshUrls: [],
                 staleUrls: [],
             }),
+            updateSettings: jest.fn().mockResolvedValue(undefined),
         } as unknown as typeof window.electron;
 
         fixture = TestBed.createComponent(AppComponent);
@@ -141,6 +151,7 @@ describe('AppComponent', () => {
     });
 
     afterEach(() => {
+        localStorage.removeItem(PREFERRED_LANGUAGE_STORAGE_KEY);
         window.electron = originalElectron;
     });
 
@@ -209,6 +220,12 @@ describe('AppComponent', () => {
         await fixture.whenStable();
 
         expect(translateService.use).toHaveBeenCalledWith(Language.SPANISH);
+        expect(window.electron.updateSettings).toHaveBeenCalledWith({
+            language: Language.SPANISH,
+        });
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.SPANISH
+        );
         expect(settingsService.changeTheme).toHaveBeenCalledWith(
             Theme.DarkTheme
         );

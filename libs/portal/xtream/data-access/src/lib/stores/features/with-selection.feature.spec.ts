@@ -1,5 +1,7 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { patchState, signalStore, withState } from '@ngrx/signals';
+import { SettingsStore } from 'services';
 import { withSelection } from './with-selection.feature';
 
 const TestSelectionStore = signalStore(
@@ -149,12 +151,159 @@ const TestSelectionStore = signalStore(
 
 describe('withSelection', () => {
     let store: InstanceType<typeof TestSelectionStore>;
+    const filterIndexCacheStorageKey = 'xtream-filter-index-cache-v1';
+    const appLanguage = signal('en');
+
+    const createStreamListSignature = (
+        items: readonly Record<string, unknown>[]
+    ): string => {
+        const appendSignatureHash = (hash: number, value: unknown): number => {
+            const text = String(value ?? '');
+            let nextHash = hash;
+            for (let index = 0; index < text.length; index++) {
+                nextHash = (nextHash * 31 + text.charCodeAt(index)) >>> 0;
+            }
+            return nextHash;
+        };
+        const sample = [
+            ...items.slice(0, 3),
+            ...items.slice(Math.max(0, items.length - 3)),
+        ]
+            .map((item) =>
+                String(
+                    item['xtream_id'] ??
+                        item['stream_id'] ??
+                        item['series_id'] ??
+                        item['id'] ??
+                        item['title'] ??
+                        ''
+                )
+            )
+            .join(',');
+        const metadataCount = items.reduce(
+            (count, item) => count + (item['mediaMetadata'] ? 1 : 0),
+            0
+        );
+        const appendSignatureValues = (
+            hash: number,
+            values: readonly unknown[]
+        ): number => {
+            let nextHash = hash;
+            for (const value of values) {
+                nextHash = appendSignatureHash(nextHash, value);
+            }
+            return nextHash;
+        };
+        const metadataHash = items.reduce((hash, item) => {
+            const metadata =
+                item['mediaMetadata'] &&
+                typeof item['mediaMetadata'] === 'object' &&
+                !Array.isArray(item['mediaMetadata'])
+                    ? (item['mediaMetadata'] as Record<string, unknown>)
+                    : null;
+            if (!metadata) {
+                return appendSignatureHash(hash, '');
+            }
+
+            return appendSignatureValues(hash, [
+                metadata['available'],
+                metadata['qualityLabel'],
+                metadata['qualityLabels'],
+                metadata['height'],
+                metadata['heights'],
+                metadata['width'],
+                metadata['widths'],
+                metadata['videoCodec'],
+                metadata['videoCodecs'],
+                metadata['audioLanguages'],
+                metadata['audioCodecs'],
+                metadata['subtitleLanguages'],
+                metadata['subtitleCodecs'],
+                metadata['source'],
+                metadata['reason'],
+            ]);
+        }, 0);
+        const itemHash = items.reduce(
+            (hash, item) =>
+                appendSignatureHash(
+                    hash,
+                    item['xtream_id'] ??
+                        item['stream_id'] ??
+                        item['series_id'] ??
+                        item['id'] ??
+                        item['title'] ??
+                        ''
+                ),
+            0
+        );
+
+        return `${items.length}:${metadataCount}:${metadataHash}:${itemHash}:${sample}`;
+    };
+
+    const createFilterIndexSignature = (): string =>
+        [
+            createStreamListSignature(store.liveStreams()),
+            createStreamListSignature(store.vodStreams()),
+            createStreamListSignature(store.serialStreams()),
+        ].join('|');
+
+    const markFilterIndexReady = (
+        options: Partial<ReturnType<typeof store.filterIndex>> = {}
+    ): void => {
+        const totalItems =
+            store.liveStreams().length +
+            store.vodStreams().length +
+            store.serialStreams().length;
+
+        patchState(store, {
+            filterIndex: {
+                contentSignature: createFilterIndexSignature(),
+                status: 'ready',
+                processedItems: totalItems,
+                totalItems,
+                updatedAt: Date.now(),
+                languageCodes: [],
+                videoQualityOptions: {
+                    vod: [],
+                    series: [],
+                },
+                videoQualityOptionsByCategory: {
+                    vod: {},
+                    series: {},
+                },
+                ...options,
+            },
+        });
+    };
+
+    const createEmptyFilterIndexForTest = (): ReturnType<
+        typeof store.filterIndex
+    > => ({
+        contentSignature: '',
+        status: 'idle',
+        processedItems: 0,
+        totalItems: 0,
+        updatedAt: 0,
+        languageCodes: [],
+        videoQualityOptions: {
+            vod: [],
+            series: [],
+        },
+        videoQualityOptionsByCategory: {
+            vod: {},
+            series: {},
+        },
+    });
 
     beforeEach(() => {
         localStorage.clear();
+        appLanguage.set('en');
 
         TestBed.configureTestingModule({
-            providers: [TestSelectionStore],
+            providers: [
+                TestSelectionStore,
+                { provide: SettingsStore, useValue: { language: appLanguage } },
+            ],
         });
 
         store = TestBed.inject(TestSelectionStore);
@@ -499,12 +648,56 @@ describe('withSelection', () => {
         });
         store.setSelectedContentType('vod');
         store.setSelectedCategory(10);
+        markFilterIndexReady({
+            languageCodes: ['en', 'it'],
+        });
 
         store.toggleLanguageFilterOption('audioInclude', 'en', true);
 
         const results = store.selectItemsFromSelectedCategory();
         expect(results).toHaveLength(1);
         expect(results[0].duplicateCount).toBe(2);
+    });
+
+    it('does not apply metadata filters until the background filter index is ready', () => {
+        patchState(store, {
+            vodStreams: [
+                {
+                    xtream_id: 11,
+                    stream_id: 11,
+                    category_id: '10',
+                    title: 'Italian Film',
+                    audioLanguages: ['ITA'],
+                },
+                {
+                    xtream_id: 12,
+                    stream_id: 12,
+                    category_id: '10',
+                    title: 'Movie ENG',
+                    audioLanguages: ['ENG'],
+                },
+            ],
+        });
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+
+        store.toggleLanguageFilterOption('audioInclude', 'en', true);
+
+        expect(store.metadataFiltersReady()).toBe(false);
+        expect(store.languageFilterActive()).toBe(false);
+        expect(
+            store.selectItemsFromSelectedCategory().map((item) => item.title)
+        ).toEqual(['Italian Film', 'Movie ENG']);
+
+        markFilterIndexReady({
+            languageCodes: ['en', 'it'],
+        });
+
+        expect(store.metadataFiltersReady()).toBe(true);
+        expect(store.languageFilterActive()).toBe(true);
+        expect(
+            store.selectItemsFromSelectedCategory().map((item) => item.title)
+        ).toEqual(['Movie ENG']);
     });
 
     it('exposes search matches excluded by active language filters', () => {
@@ -530,6 +723,9 @@ describe('withSelection', () => {
         store.setSelectedContentType('vod');
         store.setSelectedCategory(null);
         store.setCategorySearchTerm('movie');
+        markFilterIndexReady({
+            languageCodes: ['en', 'it'],
+        });
 
         store.toggleLanguageFilterOption('audioInclude', 'en', true);
 
@@ -548,7 +744,296 @@ describe('withSelection', () => {
         );
     });
 
-    it('applies audio exclusion to live channels and category counts', () => {
+    it('uses the background filter index instead of synchronously scanning a large stale language index', () => {
+        const largeCatalog = Array.from({ length: 501 }, (_, index) => ({
+            xtream_id: 9000 + index,
+            stream_id: 9000 + index,
+            category_id: '10',
+            title: `Movie ${index}`,
+        }));
+        Object.defineProperty(largeCatalog[0], 'info', {
+            get: () => {
+                throw new Error('synchronous language metadata scan');
+            },
+        });
+
+        patchState(store, {
+            vodStreams: largeCatalog,
+            filterIndex: {
+                contentSignature: 'previous-index',
+                status: 'running',
+                processedItems: 300,
+                totalItems: largeCatalog.length,
+                updatedAt: Date.now(),
+                languageCodes: ['it'],
+                videoQualityOptions: {
+                    vod: [],
+                    series: [],
+                },
+                videoQualityOptionsByCategory: {
+                    vod: {},
+                    series: {},
+                },
+            },
+        });
+
+        expect(() => store.languageFilterOptions()).not.toThrow();
+        expect(
+            store.languageFilterOptions().some((option) => option.code === 'it')
+        ).toBe(true);
+    });
+
+    it('relabels language filter options when the app language changes', () => {
+        markFilterIndexReady({ languageCodes: ['en', 'it'] });
+
+        const englishLabels = new Map(
+            store
+                .languageFilterOptions()
+                .map((option) => [option.code, option.label])
+        );
+        expect(englishLabels.get('en')?.toLowerCase()).toBe('english');
+        expect(englishLabels.get('it')?.toLowerCase()).toBe('italian');
+
+        appLanguage.set('it');
+
+        const italianLabels = new Map(
+            store
+                .languageFilterOptions()
+                .map((option) => [option.code, option.label])
+        );
+        expect(italianLabels.get('en')?.toLowerCase()).toBe('inglese');
+        expect(italianLabels.get('it')?.toLowerCase()).toBe('italiano');
+    });
+
+    it('relabels general filter options when the app language changes', () => {
+        store.setSelectedContentType('vod');
+        markFilterIndexReady({
+            videoQualityOptions: {
+                vod: [{ value: 'unknown', label: 'Non rilevata', count: 2 }],
+                series: [],
+            },
+        });
+
+        expect(store.videoQualityFilterOptions()).toEqual([
+            { value: 'unknown', label: 'Not detected', count: 2 },
+        ]);
+
+        appLanguage.set('it');
+
+        expect(store.videoQualityFilterOptions()).toEqual([
+            { value: 'unknown', label: 'Non rilevata', count: 2 },
+        ]);
+    });
+
+    it('uses the background filter index instead of synchronously scanning a large stale quality index', () => {
+        const largeCatalog = Array.from({ length: 501 }, (_, index) => ({
+            xtream_id: 9500 + index,
+            stream_id: 9500 + index,
+            category_id: '10',
+            title: `Movie ${index}`,
+        }));
+        Object.defineProperty(largeCatalog[0], 'info', {
+            get: () => {
+                throw new Error('synchronous quality metadata scan');
+            },
+        });
+
+        patchState(store, {
+            vodStreams: largeCatalog,
+            filterIndex: {
+                contentSignature: 'previous-index',
+                status: 'running',
+                processedItems: 300,
+                totalItems: largeCatalog.length,
+                updatedAt: Date.now(),
+                languageCodes: [],
+                videoQualityOptions: {
+                    vod: [{ value: '1080p', label: '1080p', count: 12 }],
+                    series: [],
+                },
+                videoQualityOptionsByCategory: {
+                    vod: {},
+                    series: {},
+                },
+            },
+        });
+        store.setSelectedContentType('vod');
+
+        expect(() => store.videoQualityFilterOptions()).not.toThrow();
+        expect(store.videoQualityFilterOptions()).toEqual([
+            { value: '1080p', label: '1080p', count: 12 },
+        ]);
+    });
+
+    it('reuses a cached ready filter index for an unchanged content signature', () => {
+        const signature = createFilterIndexSignature();
+        const totalItems =
+            store.liveStreams().length +
+            store.vodStreams().length +
+            store.serialStreams().length;
+        const cachedIndex = {
+            contentSignature: signature,
+            status: 'ready',
+            processedItems: totalItems,
+            totalItems,
+            updatedAt: Date.now(),
+            languageCodes: ['en', 'it'],
+            videoQualityOptions: {
+                vod: [{ value: '2160p', label: '2160p+', count: 2 }],
+                series: [],
+            },
+            videoQualityOptionsByCategory: {
+                vod: {
+                    '10': [{ value: '2160p', label: '2160p+', count: 1 }],
+                },
+                series: {},
+            },
+        };
+        localStorage.setItem(
+            filterIndexCacheStorageKey,
+            JSON.stringify({ [signature]: cachedIndex })
+        );
+        patchState(store, {
+            filterIndex: {
+                ...cachedIndex,
+                contentSignature: 'stale',
+                status: 'idle',
+                processedItems: 0,
+                totalItems: 0,
+                languageCodes: [],
+                videoQualityOptions: {
+                    vod: [],
+                    series: [],
+                },
+                videoQualityOptionsByCategory: {
+                    vod: {},
+                    series: {},
+                },
+            },
+        });
+
+        store.refreshFilterIndexInBackground();
+
+        expect(store.filterIndex()).toEqual(cachedIndex);
+        expect(store.metadataFiltersReady()).toBe(true);
+    });
+
+    it('keeps the cached filter index when only metadata timestamps change', () => {
+        const metadata = {
+            available: true,
+            qualityLabel: '2160p HEVC',
+            audioLanguages: ['ITA'],
+            audioCodecs: [],
+            subtitleLanguages: ['ENG'],
+            subtitleCodecs: [],
+        };
+        patchState(store, {
+            liveStreams: [],
+            serialStreams: [],
+            vodStreams: [
+                {
+                    stream_id: 101,
+                    category_id: '10',
+                    title: 'Stable Movie',
+                    mediaMetadata: metadata,
+                    mediaMetadataUpdatedAt: 100,
+                },
+            ],
+        });
+        const signature = createFilterIndexSignature();
+        const cachedIndex = {
+            contentSignature: signature,
+            status: 'ready' as const,
+            processedItems: 1,
+            totalItems: 1,
+            updatedAt: Date.now(),
+            languageCodes: ['ENG', 'ITA'],
+            videoQualityOptions: {
+                vod: [{ value: '2160p' as const, label: '2160p+', count: 1 }],
+                series: [],
+            },
+            videoQualityOptionsByCategory: {
+                vod: {
+                    '10': [
+                        {
+                            value: '2160p' as const,
+                            label: '2160p+',
+                            count: 1,
+                        },
+                    ],
+                },
+                series: {},
+            },
+        };
+        localStorage.setItem(
+            filterIndexCacheStorageKey,
+            JSON.stringify({ [signature]: cachedIndex })
+        );
+        patchState(store, {
+            filterIndex: createEmptyFilterIndexForTest(),
+            vodStreams: [
+                {
+                    stream_id: 101,
+                    category_id: '10',
+                    title: 'Stable Movie',
+                    mediaMetadata: metadata,
+                    mediaMetadataUpdatedAt: 999999,
+                },
+            ],
+        });
+
+        store.refreshFilterIndexInBackground();
+
+        expect(store.filterIndex()).toEqual(cachedIndex);
+        expect(store.metadataFiltersReady()).toBe(true);
+    });
+
+    it('resumes a cached partial filter index instead of restarting from zero', () => {
+        const largeCatalog = Array.from({ length: 501 }, (_, index) => ({
+            xtream_id: 12000 + index,
+            stream_id: 12000 + index,
+            category_id: '10',
+            title: `Movie ${index}`,
+        }));
+        patchState(store, {
+            liveStreams: [],
+            serialStreams: [],
+            vodStreams: largeCatalog,
+        });
+        const signature = createFilterIndexSignature();
+        const partialIndex = {
+            contentSignature: signature,
+            status: 'running' as const,
+            processedItems: 300,
+            totalItems: largeCatalog.length,
+            updatedAt: Date.now(),
+            languageCodes: ['it'],
+            videoQualityOptions: {
+                vod: [{ value: '1080p' as const, label: '1080p', count: 12 }],
+                series: [],
+            },
+            videoQualityOptionsByCategory: {
+                vod: {},
+                series: {},
+            },
+        };
+        localStorage.setItem(
+            filterIndexCacheStorageKey,
+            JSON.stringify({ [signature]: partialIndex })
+        );
+        patchState(store, {
+            filterIndex: createEmptyFilterIndexForTest(),
+        });
+
+        store.refreshFilterIndexInBackground();
+
+        expect(store.filterIndex()).toEqual(partialIndex);
+        expect(store.filterIndexProgress().processedItems).toBe(300);
+
+        store.cancelFilterIndexRefresh();
+    });
+
+    it('ignores legacy language exclusions for live channels and category counts', () => {
         patchState(store, {
             liveStreams: [
                 {
@@ -572,8 +1057,8 @@ describe('withSelection', () => {
 
         expect(
             store.selectItemsFromSelectedCategory().map((item) => item.title)
-        ).toEqual(['World Sports ENG']);
-        expect(store.getCategoryItemCounts().get(50)).toBeUndefined();
+        ).toEqual(['World News ITA', 'World Sports ENG']);
+        expect(store.getCategoryItemCounts().get(50)).toBe(1);
         expect(store.getCategoryItemCounts().get(60)).toBe(1);
     });
 
@@ -601,6 +1086,12 @@ describe('withSelection', () => {
                     title: 'Other Movie 720p',
                 },
                 {
+                    xtream_id: 14,
+                    stream_id: 14,
+                    category_id: '10',
+                    title: 'Mystery Movie',
+                },
+                {
                     xtream_id: 21,
                     stream_id: 21,
                     category_id: '20',
@@ -610,6 +1101,33 @@ describe('withSelection', () => {
         });
         store.setSelectedContentType('vod');
         store.setSelectedCategory(10);
+        markFilterIndexReady({
+            videoQualityOptions: {
+                vod: [
+                    { value: '2160p', label: '2160p+', count: 2 },
+                    { value: '1080p', label: '1080p', count: 1 },
+                    { value: '720p', label: '720p', count: 1 },
+                    { value: 'unknown', label: 'Non rilevata', count: 1 },
+                ],
+                series: [],
+            },
+            videoQualityOptionsByCategory: {
+                vod: {
+                    '10': [
+                        { value: '2160p', label: '2160p+', count: 1 },
+                        { value: '1080p', label: '1080p', count: 1 },
+                        { value: '720p', label: '720p', count: 1 },
+                        {
+                            value: 'unknown',
+                            label: 'Non rilevata',
+                            count: 1,
+                        },
+                    ],
+                    '20': [{ value: '2160p', label: '2160p+', count: 1 }],
+                },
+                series: {},
+            },
+        });
 
         store.setVideoQualityFilter('2160p');
 
@@ -622,6 +1140,7 @@ describe('withSelection', () => {
             { value: '2160p', label: '2160p+', count: 1 },
             { value: '1080p', label: '1080p', count: 1 },
             { value: '720p', label: '720p', count: 1 },
+            { value: 'unknown', label: 'Not detected', count: 1 },
         ]);
     });
 
@@ -652,6 +1171,26 @@ describe('withSelection', () => {
         });
         store.setSelectedContentType('series');
         store.setSelectedCategory(30);
+        markFilterIndexReady({
+            videoQualityOptions: {
+                vod: [],
+                series: [
+                    { value: '2160p', label: '2160p+', count: 1 },
+                    { value: '1080p', label: '1080p', count: 1 },
+                    { value: '720p', label: '720p', count: 1 },
+                ],
+            },
+            videoQualityOptionsByCategory: {
+                vod: {},
+                series: {
+                    '30': [
+                        { value: '2160p', label: '2160p+', count: 1 },
+                        { value: '1080p', label: '1080p', count: 1 },
+                        { value: '720p', label: '720p', count: 1 },
+                    ],
+                },
+            },
+        });
 
         store.setVideoQualityFilter('2160p');
 

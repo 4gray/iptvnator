@@ -48,6 +48,7 @@
             @switch (playlistType()) {
                 @case ('file') {
                     <app-file-upload
+                        [sourceVpn]="getSourceVpnConfig()"
                         (fileRejected)="rejectFile($event)"
                         (imported)="onFileImported()"
                         (closeDialog)="closeDialog()"
@@ -60,13 +61,79 @@
                     <app-text-import (textAdded)="uploadAsText($event)" />
                 }
                 @case ('stalker') {
-                    <app-stalker-portal-import (addClicked)="closeDialog()" />
+                    <app-stalker-portal-import
+                        [sourceVpn]="getSourceVpnConfig()"
+                        (addClicked)="closeDialog()"
+                    />
                 }
                 @case ('xtream') {
-                    <app-xtream-code-import (addClicked)="closeDialog()" />
+                    <app-xtream-code-import
+                        [sourceVpn]="getSourceVpnConfig()"
+                        (addClicked)="closeDialog()"
+                    />
                 }
             }
         </div>
+
+        @if (isDesktop) {
+            <section class="apd-source-vpn" [formGroup]="sourceVpnForm">
+                <div>
+                    <h3>
+                        {{
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN'
+                                | translate
+                        }}
+                    </h3>
+                    <p>
+                        {{
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+
+                <div class="apd-source-vpn__grid">
+                    <mat-form-field>
+                        <mat-label>{{
+                            'SETTINGS.VPN_PROVIDER' | translate
+                        }}</mat-label>
+                        <mat-select formControlName="vpnProvider">
+                            @for (option of vpnProviderOptions; track option.value) {
+                                <mat-option [value]="option.value">
+                                    {{ option.labelKey | translate }}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+
+                    <mat-form-field>
+                        <mat-label>{{
+                            'SETTINGS.VPN_LOCATION' | translate
+                        }}</mat-label>
+                        <mat-select formControlName="vpnLocation">
+                            @for (option of vpnLocationOptions; track option.code) {
+                                <mat-option [value]="option.code">
+                                    {{ option.label }}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+
+                <mat-checkbox formControlName="vpnAutoConnectOnOpen">
+                    {{
+                        'HOME.PLAYLISTS.INFO_DIALOG.VPN_AUTO_CONNECT_ON_OPEN'
+                            | translate
+                    }}
+                </mat-checkbox>
+                <mat-checkbox formControlName="vpnAutoConnectWhenDefault">
+                    {{
+                        'HOME.PLAYLISTS.INFO_DIALOG.VPN_AUTO_CONNECT_ON_DEFAULT'
+                            | translate
+                    }}
+                </mat-checkbox>
+            </section>
+        }
     </mat-dialog-content>
 
     <mat-dialog-actions class="apd-actions">

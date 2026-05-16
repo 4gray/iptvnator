@@ -30,6 +30,7 @@ import { PlaylistActions } from 'm3u-state';
 import {
     PlaylistContextFacade,
     PlaylistRefreshActionService,
+    SourceVpnPreparationService,
 } from '@iptvnator/playlist/shared/util';
 import {
     DatabaseService,
@@ -75,6 +76,7 @@ export class PlaylistSwitcherComponent {
     private readonly portalStatusService = inject(PortalStatusService);
     private readonly translate = inject(TranslateService);
     private readonly refreshAction = inject(PlaylistRefreshActionService);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
@@ -256,7 +258,21 @@ export class PlaylistSwitcherComponent {
     }
 
     selectPlaylist(playlist: PlaylistMeta): void {
+        if (this.isVpnPreparing(playlist._id)) {
+            return;
+        }
+
         this.menuTrigger().closeMenu();
+        if (
+            this.sourceVpnPreparation.shouldPrepareForPlaylist(
+                playlist,
+                'source-open'
+            )
+        ) {
+            void this.prepareVpnAndSelectPlaylist(playlist);
+            return;
+        }
+
         this.playlistContext.selectPlaylist(playlist);
         this.playlistSelected.emit(playlist._id);
     }
@@ -393,6 +409,45 @@ export class PlaylistSwitcherComponent {
         return this.activePlaylistId() === playlist._id;
     }
 
+    isVpnPreparing(playlistId: string): boolean {
+        return this.sourceVpnPreparation.preparingSourceId() === playlistId;
+    }
+
+    hasSourceVpn(playlist: PlaylistMeta): boolean {
+        return this.sourceVpnPreparation.hasAutomaticVpn(playlist);
+    }
+
+    private async prepareVpnAndSelectPlaylist(
+        playlist: PlaylistMeta
+    ): Promise<void> {
+        const preparingSnackBar = this.snackBar.open(
+            this.translateWithFallback(
+                'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_PREPARING',
+                'Preparing VPN...'
+            )
+        );
+
+        const status = await this.sourceVpnPreparation.prepareForPlaylist(
+            playlist,
+            'source-open'
+        );
+        preparingSnackBar.dismiss();
+
+        if (status?.status === 'failed' || status?.status === 'timeout') {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_FAILED',
+                    'VPN could not be prepared. Opening the source anyway.'
+                ),
+                undefined,
+                { duration: 4000 }
+            );
+        }
+
+        this.playlistContext.selectPlaylist(playlist);
+        this.playlistSelected.emit(playlist._id);
+    }
+
     private getPlaylistFilterType(playlist: PlaylistMeta): PlaylistFilterType {
         if (playlist.macAddress) {
             return 'stalker';
@@ -424,10 +479,12 @@ export class PlaylistSwitcherComponent {
         const next = new Map(this.portalStatuses());
         const toFetch: PlaylistMeta[] = [];
         for (const playlist of xtreamPlaylists) {
+            const sourceVpn = this.getPlaylistSourceVpnContext(playlist);
             const cached = this.portalStatusService.getCachedStatus(
                 playlist.serverUrl,
                 playlist.username,
-                playlist.password
+                playlist.password,
+                sourceVpn
             );
             if (cached !== null) {
                 next.set(playlist._id, cached);
@@ -449,11 +506,20 @@ export class PlaylistSwitcherComponent {
             toFetch.map(async (playlist) => {
                 let status: PortalStatus;
                 try {
-                    status = await this.portalStatusService.checkPortalStatus(
-                        playlist.serverUrl,
-                        playlist.username,
-                        playlist.password
-                    );
+                    const sourceVpn =
+                        this.getPlaylistSourceVpnContext(playlist);
+                    status = sourceVpn
+                        ? await this.portalStatusService.checkPortalStatus(
+                              playlist.serverUrl,
+                              playlist.username,
+                              playlist.password,
+                              { sourceVpn }
+                          )
+                        : await this.portalStatusService.checkPortalStatus(
+                              playlist.serverUrl,
+                              playlist.username,
+                              playlist.password
+                          );
                 } catch {
                     status = 'unavailable';
                 }
@@ -469,6 +535,17 @@ export class PlaylistSwitcherComponent {
                 });
             })
         );
+    }
+
+    private getPlaylistSourceVpnContext(playlist: PlaylistMeta) {
+        return playlist.vpnProvider
+            ? {
+                  provider: playlist.vpnProvider,
+                  location: playlist.vpnLocation,
+                  sourceId: playlist._id,
+                  sourceTitle: playlist.title,
+              }
+            : undefined;
     }
 
     private cancelPortalStatusChecks(): void {
@@ -568,5 +645,10 @@ export class PlaylistSwitcherComponent {
         } catch {
             // Ignore storage write failures.
         }
+    }
+
+    private translateWithFallback(key: string, fallback: string): string {
+        const translated = this.translate.instant(key);
+        return translated === key ? fallback : translated;
     }
 }

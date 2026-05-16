@@ -135,6 +135,59 @@
                     'HOME.PLAYLISTS.INFO_DIALOG.CUSTOM_USER_AGENT' | translate
                 }}</mat-hint>
             </mat-form-field>
+
+            <section class="source-vpn-settings">
+                <h3>
+                    {{ 'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN' | translate }}
+                </h3>
+                <p>
+                    {{
+                        'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+
+                <mat-form-field class="w-full">
+                    <mat-label>{{ 'SETTINGS.VPN_PROVIDER' | translate }}</mat-label>
+                    <mat-select formControlName="vpnProvider">
+                        @for (option of vpnProviderOptions; track option.value) {
+                            <mat-option [value]="option.value">
+                                {{ option.labelKey | translate }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-form-field class="w-full">
+                    <mat-label>{{ 'SETTINGS.VPN_LOCATION' | translate }}</mat-label>
+                    <mat-select formControlName="vpnLocation">
+                        @for (option of vpnLocationOptions; track option.code) {
+                            <mat-option [value]="option.code">
+                                {{ option.label }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+
+                <mat-checkbox
+                    class="w-full"
+                    formControlName="vpnAutoConnectOnOpen"
+                >
+                    {{
+                        'HOME.PLAYLISTS.INFO_DIALOG.VPN_AUTO_CONNECT_ON_OPEN'
+                            | translate
+                    }}
+                </mat-checkbox>
+                <mat-checkbox
+                    class="w-full"
+                    formControlName="vpnAutoConnectWhenDefault"
+                >
+                    {{
+                        'HOME.PLAYLISTS.INFO_DIALOG.VPN_AUTO_CONNECT_ON_DEFAULT'
+                            | translate
+                    }}
+                </mat-checkbox>
+            </section>
         }
         @if (playlist.filePath) {
             <mat-form-field class="w-full">

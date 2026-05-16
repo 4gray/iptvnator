@@ -1,13 +1,28 @@
-import { app, BrowserWindow, Menu, screen, shell } from 'electron';
+import { app, BrowserWindow, ipcMain, Menu, screen, shell } from 'electron';
 import { existsSync } from 'fs';
 import { join } from 'path';
+import { APP_RENDERER_READY_CHANNEL } from './api/renderer-ready.channel';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
     isRendererConsoleTraceEnabled,
     isWindowTraceEnabled,
     trace,
 } from './services/debug-trace';
-import { store, WINDOW_BOUNDS } from './services/store.service';
+import { launcherVpnSession } from './services/launcher-vpn-session.service';
+import { mediaMetadataBackgroundWarmup } from './services/media-metadata-background-warmup.service';
+import { protonVpnIntegration } from './services/proton-vpn-integration.service';
+import {
+    createStartupSplashUpdate,
+    normalizeStartupSplashLanguage,
+    StartupSplashUpdate,
+    StartupSplashWindow,
+} from './services/startup-splash-window.service';
+import {
+    APP_LANGUAGE,
+    store,
+    VPN_RESTORE_ON_EXIT,
+    WINDOW_BOUNDS,
+} from './services/store.service';
 
 function attachWindowTrace(mainWindow: Electron.BrowserWindow): void {
     if (!isWindowTraceEnabled()) {
@@ -97,6 +112,13 @@ export default class App {
     static mainWindow: Electron.BrowserWindow;
     static application: Electron.App;
     static BrowserWindow;
+    private static startupSplashWindow: StartupSplashWindow | null = null;
+    private static mainWindowReadyToShow = false;
+    private static rendererReady = false;
+    private static rendererReadyHandler:
+        | ((event: Electron.IpcMainEvent) => void)
+        | null = null;
+    private static rendererReadyTimeout: NodeJS.Timeout | null = null;
 
     private static shouldOpenDevTools() {
         return process.env.ELECTRON_OPEN_DEVTOOLS === '1';
@@ -123,8 +145,16 @@ export default class App {
         return !app.isPackaged;
     }
 
+    public static isMetadataWarmupMode(): boolean {
+        return process.argv.includes('--metadata-warmup');
+    }
+
     private static onWindowAllClosed() {
         if (process.platform !== 'darwin') {
+            if (mediaMetadataBackgroundWarmup.shouldKeepAppAlive()) {
+                return;
+            }
+
             App.application.quit();
         }
     }
@@ -144,12 +174,88 @@ export default class App {
         }
     }
 
-    private static onReady() {
+    static updateStartupSplash(update: StartupSplashUpdate): void {
+        App.startupSplashWindow?.update(update);
+    }
+
+    private static getStartupSplashLanguage() {
+        const savedLanguage = store.get(APP_LANGUAGE, '');
+        if (savedLanguage) {
+            return normalizeStartupSplashLanguage(savedLanguage);
+        }
+
+        return normalizeStartupSplashLanguage(
+            App.application?.getLocale?.().slice(0, 2)
+        );
+    }
+
+    public static startupSplashUpdate(
+        phase: StartupSplashUpdate['phase'],
+        progress?: number,
+        override: Partial<Pick<StartupSplashUpdate, 'status' | 'detail'>> = {}
+    ): StartupSplashUpdate {
+        return createStartupSplashUpdate(
+            App.getStartupSplashLanguage(),
+            phase,
+            progress,
+            override
+        );
+    }
+
+    private static async showStartupSplash(
+        update: StartupSplashUpdate
+    ): Promise<void> {
+        if (!App.startupSplashWindow) {
+            App.startupSplashWindow = new StartupSplashWindow(
+                App.BrowserWindow,
+                App.getStartupSplashLanguage()
+            );
+        }
+
+        await App.startupSplashWindow.show(update);
+    }
+
+    private static closeStartupSplash(): void {
+        App.startupSplashWindow?.close();
+        App.startupSplashWindow = null;
+    }
+
+    private static async onReady() {
         // This method will be called when Electron has finished
         // initialization and is ready to create browser windows.
         // Some APIs can only be used after this event occurs.
+        if (App.isMetadataWarmupMode()) {
+            return;
+        }
+
         if (rendererAppName) {
+            await App.showStartupSplash(App.startupSplashUpdate('settings', 8));
+
+            try {
+                App.updateStartupSplash(App.startupSplashUpdate('vpn', 28));
+                await protonVpnIntegration.prepareForAppLaunch();
+            } catch (error) {
+                console.warn(
+                    'Failed to prepare Proton VPN integration.',
+                    error
+                );
+                App.updateStartupSplash(
+                    App.startupSplashUpdate('error', 36, {
+                        status:
+                            App.getStartupSplashLanguage() === 'it'
+                                ? 'VPN non pronta'
+                                : 'VPN not ready',
+                        detail:
+                            App.getStartupSplashLanguage() === 'it'
+                                ? "La preparazione VPN non ha risposto correttamente. Continuo ad aprire l'app e potrai controllare lo stato dalle impostazioni."
+                                : 'VPN preparation did not respond correctly. The app will continue opening and you can check the status from settings.',
+                    })
+                );
+            }
+
+            App.updateStartupSplash(App.startupSplashUpdate('window', 56));
             App.initMainWindow();
+            App.updateStartupSplash(App.startupSplashUpdate('metadata', 74));
             App.loadMainWindow();
         }
     }
@@ -158,7 +264,7 @@ export default class App {
         // On macOS it's common to re-create a window in the app when the
         // dock icon is clicked and there are no other windows open.
         if (App.mainWindow === null) {
-            App.onReady();
+            void App.onReady();
         }
     }
 
@@ -197,9 +303,62 @@ export default class App {
             App.mainWindow.center();
         }
 
-        // if main window is ready to show, close the splash window and show the main window
+        App.installRendererReadyListener();
+
+        // ready-to-show only means Chromium can paint; Angular may still be
+        // resolving the initial route. Keep the splash until the renderer
+        // explicitly reports its first meaningful frame.
         App.mainWindow.once('ready-to-show', () => {
-            App.mainWindow.show();
+            App.updateStartupSplash(
+                App.startupSplashUpdate('window', 92, {
+                    status:
+                        App.getStartupSplashLanguage() === 'it'
+                            ? 'Interfaccia caricata'
+                            : 'Interface loaded',
+                    detail:
+                        App.getStartupSplashLanguage() === 'it'
+                            ? 'Attendo il primo rendering completo prima di mostrare la finestra principale.'
+                            : 'Waiting for the first complete render before showing the main window.',
+                })
+            );
+            App.mainWindowReadyToShow = true;
+            App.tryShowMainWindow();
+        });
+
+        App.mainWindow.webContents.once(
+            'did-fail-load',
+            (_event, _errorCode, errorDescription) => {
+                App.clearRendererReadyListener();
+                App.updateStartupSplash(
+                    App.startupSplashUpdate('error', 100, {
+                        status:
+                            App.getStartupSplashLanguage() === 'it'
+                                ? 'Problema nel caricamento'
+                                : 'Loading problem',
+                        detail:
+                            errorDescription ||
+                            (App.getStartupSplashLanguage() === 'it'
+                                ? "Non riesco a caricare subito l'interfaccia principale."
+                                : 'The main interface could not be loaded immediately.'),
+                    })
+                );
+            }
+        );
+
+        App.mainWindow.webContents.once('render-process-gone', () => {
+            App.clearRendererReadyListener();
+            App.updateStartupSplash(
+                App.startupSplashUpdate('error', 100, {
+                    status:
+                        App.getStartupSplashLanguage() === 'it'
+                            ? 'Interfaccia non disponibile'
+                            : 'Interface unavailable',
+                    detail:
+                        App.getStartupSplashLanguage() === 'it'
+                            ? "Il processo dell'interfaccia si è chiuso prima del primo rendering. Riavvia l'app o apri DevTools per leggere l'errore."
+                            : 'The interface process exited before the first render. Restart the app or open DevTools to read the error.',
+                })
+            );
         });
 
         // Route target="_blank" / window.open() to the OS default browser
@@ -215,6 +374,8 @@ export default class App {
             // Dereference the window object, usually you would store windows
             // in an array if your app supports multi windows, this is the time
             // when you should delete the corresponding element.
+            App.clearRendererReadyListener();
+            App.closeStartupSplash();
             App.mainWindow = null;
         });
 
@@ -262,6 +423,79 @@ export default class App {
         });
     }
 
+    private static installRendererReadyListener(): void {
+        App.clearRendererReadyListener();
+        App.mainWindowReadyToShow = false;
+        App.rendererReady = false;
+
+        const targetWindow = App.mainWindow;
+
+        App.rendererReadyHandler = (event) => {
+            if (
+                !targetWindow ||
+                targetWindow.isDestroyed() ||
+                event.sender !== targetWindow.webContents
+            ) {
+                return;
+            }
+
+            App.rendererReady = true;
+            App.tryShowMainWindow();
+        };
+
+        ipcMain.on(APP_RENDERER_READY_CHANNEL, App.rendererReadyHandler);
+        App.rendererReadyTimeout = setTimeout(() => {
+            if (
+                App.rendererReady ||
+                !App.mainWindow ||
+                App.mainWindow.isDestroyed()
+            ) {
+                return;
+            }
+
+            App.updateStartupSplash(
+                App.startupSplashUpdate('error', 100, {
+                    status:
+                        App.getStartupSplashLanguage() === 'it'
+                            ? 'Interfaccia ancora in caricamento'
+                            : 'Interface still loading',
+                    detail:
+                        App.getStartupSplashLanguage() === 'it'
+                            ? "L'app non ha ancora completato il primo rendering. Tengo visibile questa schermata invece di mostrare una finestra bianca."
+                            : 'The app has not completed its first render yet. This screen stays visible instead of showing a blank window.',
+                })
+            );
+        }, 30000);
+    }
+
+    private static tryShowMainWindow(): void {
+        if (
+            !App.mainWindow ||
+            App.mainWindow.isDestroyed() ||
+            !App.mainWindowReadyToShow ||
+            !App.rendererReady
+        ) {
+            return;
+        }
+
+        App.updateStartupSplash(App.startupSplashUpdate('ready', 100));
+        App.closeStartupSplash();
+        App.mainWindow.show();
+        App.clearRendererReadyListener();
+    }
+
+    private static clearRendererReadyListener(): void {
+        if (App.rendererReadyHandler) {
+            ipcMain.off(APP_RENDERER_READY_CHANNEL, App.rendererReadyHandler);
+            App.rendererReadyHandler = null;
+        }
+
+        if (App.rendererReadyTimeout) {
+            clearTimeout(App.rendererReadyTimeout);
+            App.rendererReadyTimeout = null;
+        }
+    }
+
     private static loadMainWindow() {
         // load the index.html of the app.
         if (App.isDevelopmentMode()) {
@@ -286,11 +520,15 @@ export default class App {
         App.application = app;
 
         App.application.on('window-all-closed', App.onWindowAllClosed); // Quit when all windows are closed.
-        App.application.on('ready', App.onReady); // App is ready to load data
+        App.application.on('ready', () => void App.onReady()); // App is ready to load data
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
             if (App.mainWindow)
                 store.set(WINDOW_BOUNDS, App.mainWindow.getNormalBounds());
+            if (store.get(VPN_RESTORE_ON_EXIT, true)) {
+                launcherVpnSession.restoreAfterAppExit();
+                protonVpnIntegration.restoreAfterAppExit();
+            }
         });
     }
 }

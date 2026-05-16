@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
+import { SourceVpnPreparationService } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService, SettingsStore } from 'services';
 import { PlaylistMeta, StartupBehavior } from 'shared-interfaces';
 import { parseWorkspaceShellRoute } from './navigation/workspace-shell-route.utils';
@@ -10,6 +11,7 @@ const LAST_RESTORABLE_ROUTE_STORAGE_KEY = 'workspace-last-restorable-route-v1';
 export class WorkspaceStartupPreferencesService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
 
     async resolveInitialWorkspacePath(): Promise<string> {
         await this.settingsStore.loadSettings();
@@ -154,6 +156,11 @@ export class WorkspaceStartupPreferencesService {
             if (playlists.length !== 1) {
                 return null;
             }
+
+            await this.sourceVpnPreparation.prepareForPlaylist(
+                playlists[0],
+                'default-source-startup'
+            );
 
             return this.getPlaylistWorkspacePath(playlists[0]);
         } catch {

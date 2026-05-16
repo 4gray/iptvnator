@@ -70,6 +70,9 @@ const setCancelledPlaylistInitializationLock = (playlistId: string): void => {
     }
 };
 
+const IMDB_HYDRATION_BATCH_SIZE = 250;
+const IMDB_HYDRATION_BATCH_DELAY_MS = 40;
+
 const clearCancelledPlaylistInitializationLock = (playlistId: string): void => {
     try {
         localStorage.removeItem(
@@ -79,6 +82,83 @@ const clearCancelledPlaylistInitializationLock = (playlistId: string): void => {
         // Ignore storage write failures; retry still clears the in-memory block.
     }
 };
+
+function getXtreamContentNumericId(item: {
+    id?: string | number;
+    series_id?: string | number;
+    stream_id?: string | number;
+    xtream_id?: string | number;
+}): number | null {
+    const candidate =
+        item.xtream_id ?? item.stream_id ?? item.series_id ?? item.id;
+    const numeric = Number(candidate);
+    return Number.isFinite(numeric) && numeric > 0 ? numeric : null;
+}
+
+function areMediaStreamMetadataEqual(
+    current: MediaStreamMetadata | undefined,
+    next: MediaStreamMetadata
+): boolean {
+    if (current === next) {
+        return true;
+    }
+
+    if (!current) {
+        return false;
+    }
+
+    try {
+        return JSON.stringify(current) === JSON.stringify(next);
+    } catch {
+        return false;
+    }
+}
+
+function patchMetadataInItems<
+    T extends {
+        audioLanguages?: string[];
+        id?: string | number;
+        mediaMetadata?: MediaStreamMetadata;
+        mediaMetadataUpdatedAt?: number | null;
+        series_id?: string | number;
+        stream_id?: string | number;
+        subtitleLanguages?: string[];
+        xtream_id?: string | number;
+    },
+>(
+    items: readonly T[],
+    targetId: number,
+    metadata: MediaStreamMetadata,
+    metadataUpdatedAt?: number
+): T[] | null {
+    const index = items.findIndex(
+        (item) => getXtreamContentNumericId(item) === targetId
+    );
+    if (index < 0) {
+        return null;
+    }
+
+    const currentItem = items[index];
+    if (
+        areMediaStreamMetadataEqual(currentItem.mediaMetadata, metadata) &&
+        (metadataUpdatedAt === undefined ||
+            currentItem.mediaMetadataUpdatedAt === metadataUpdatedAt)
+    ) {
+        return null;
+    }
+
+    const nextItems = items.slice();
+    nextItems[index] = {
+        ...currentItem,
+        mediaMetadata: metadata,
+        ...(metadataUpdatedAt === undefined
+            ? {}
+            : { mediaMetadataUpdatedAt: metadataUpdatedAt }),
+        audioLanguages: metadata.audioLanguages,
+        subtitleLanguages: metadata.subtitleLanguages,
+    };
+    return nextItems;
+}
 
 /**
  * Content state for managing categories and streams
@@ -152,9 +232,15 @@ export function withContent() {
     type ParentPortalStoreLike = {
         currentPlaylist?: () => {
             id?: string;
+            name?: string;
             password: string;
             serverUrl: string;
+            title?: string;
             username: string;
+            vpnAutoConnectOnOpen?: boolean;
+            vpnAutoConnectWhenDefault?: boolean;
+            vpnLocation?: string;
+            vpnProvider?: 'none' | 'proton';
         } | null;
         playlistId?: () => string | null;
         portalStatus?: () => PortalStatusType;
@@ -381,6 +467,13 @@ export function withContent() {
                     return stream;
                 }
 
+                if (
+                    parseImdbRating(stream.imdbRating) === providerRating &&
+                    stream.imdbMatchReason === 'provider-rating_imdb'
+                ) {
+                    return stream;
+                }
+
                 return {
                     ...stream,
                     imdbRating: providerRating,
@@ -427,16 +520,14 @@ export function withContent() {
                 streams: ImdbHydratableStream[],
                 kind: ImdbHydrationKind
             ): ImdbMovieRatingRequestItem[] => {
-                return streams
+                const requestItems = streams
                     .map<ImdbMovieRatingRequestItem | null>((stream) => {
                         const imdbId = asString(
                             stream.imdb_id ?? stream.imdbId
                         );
                         const hasResolvedImdbRating =
-                            Boolean(imdbId) &&
-                            (getProviderImdbRating(stream) !== undefined ||
-                                parseImdbRating(stream.imdbRating) !==
-                                    undefined);
+                            getProviderImdbRating(stream) !== undefined ||
+                            parseImdbRating(stream.imdbRating) !== undefined;
 
                         if (hasResolvedImdbRating) {
                             return null;
@@ -516,6 +607,16 @@ export function withContent() {
                         (item): item is ImdbMovieRatingRequestItem =>
                             item !== null
                     );
+
+                const seenKeys = new Set<string>();
+                return requestItems.filter((item) => {
+                    const key = `${item.kind ?? kind}:${item.id}`;
+                    if (seenKeys.has(key)) {
+                        return false;
+                    }
+                    seenKeys.add(key);
+                    return true;
+                });
             };
 
             const applyImdbMatchToStream = <T extends ImdbHydratableStream>(
@@ -571,17 +672,19 @@ export function withContent() {
                     kind === 'movie' ? 'vod' : 'series';
                 const providerRatedStreams = new Map(
                     streams
-                        .map(
-                            (stream) =>
-                                [
-                                    getContentStreamKey(stream),
-                                    applyProviderImdbRatingToStream(stream),
-                                ] as const
-                        )
+                        .map((stream) => {
+                            const hydrated =
+                                applyProviderImdbRatingToStream(stream);
+                            return [
+                                getContentStreamKey(stream),
+                                stream,
+                                hydrated,
+                            ] as const;
+                        })
                         .filter(
-                            ([, stream]) =>
-                                parseImdbRating(stream.imdbRating) !== undefined
+                            ([, stream, hydrated]) => hydrated !== stream
                         )
+                        .map(([key, , hydrated]) => [key, hydrated] as const)
                 );
 
                 if (providerRatedStreams.size > 0) {
@@ -606,45 +709,79 @@ export function withContent() {
                 ];
 
                 try {
-                    const response =
-                        await imdbRatingsService.resolveMovieRatings(
-                            requestItems
-                        );
-
-                    if (
-                        generation !==
-                            imdbRatingHydrationGeneration[generationKey] ||
-                        getPortalStore().playlistId?.() !== playlistId
+                    for (
+                        let offset = 0;
+                        offset < requestItems.length;
+                        offset += IMDB_HYDRATION_BATCH_SIZE
                     ) {
-                        return;
-                    }
-
-                    if (response.status !== 'ready') {
-                        logger.warn(
-                            'IMDb rating resolution failed',
-                            response.error
-                        );
-                        return;
-                    }
-
-                    patchImdbHydratedStreams<T>(kind, (stream) => {
-                        const providerRating = getProviderImdbRating(stream);
-                        const match =
-                            response.matches[getContentStreamKey(stream)];
-                        if (match) {
-                            return applyImdbMatchToStream(stream, match);
+                        if (offset > 0) {
+                            await waitForImdbHydrationYield();
                         }
 
-                        if (providerRating !== undefined) {
-                            return applyProviderImdbRatingToStream(stream);
+                        if (
+                            generation !==
+                                imdbRatingHydrationGeneration[
+                                    generationKey
+                                ] ||
+                            getPortalStore().playlistId?.() !== playlistId
+                        ) {
+                            return;
                         }
 
-                        return stream;
-                    });
+                        const response =
+                            await imdbRatingsService.resolveMovieRatings(
+                                requestItems.slice(
+                                    offset,
+                                    offset + IMDB_HYDRATION_BATCH_SIZE
+                                )
+                            );
+
+                        if (
+                            generation !==
+                                imdbRatingHydrationGeneration[
+                                    generationKey
+                                ] ||
+                            getPortalStore().playlistId?.() !== playlistId
+                        ) {
+                            return;
+                        }
+
+                        if (response.status !== 'ready') {
+                            logger.warn(
+                                'IMDb rating resolution failed',
+                                response.error
+                            );
+                            return;
+                        }
+
+                        patchImdbHydratedStreams<T>(kind, (stream) => {
+                            const providerRating =
+                                getProviderImdbRating(stream);
+                            const match =
+                                response.matches[getContentStreamKey(stream)];
+                            if (match) {
+                                return applyImdbMatchToStream(stream, match);
+                            }
+
+                            if (providerRating !== undefined) {
+                                return applyProviderImdbRatingToStream(stream);
+                            }
+
+                            return stream;
+                        });
+                    }
                 } catch (error) {
                     logger.warn('Error resolving IMDb ratings', error);
                 }
             };
+
+            const waitForImdbHydrationYield = (): Promise<void> =>
+                new Promise((resolve) =>
+                    setTimeout(
+                        resolve,
+                        Math.max(0, IMDB_HYDRATION_BATCH_DELAY_MS)
+                    )
+                );
 
             const hydrateImdbRatingsForVodStreams = async (
                 playlistId: string,
@@ -776,6 +913,12 @@ export function withContent() {
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
+                        sourceVpn: {
+                            provider: playlist.vpnProvider,
+                            location: playlist.vpnLocation,
+                            sourceId: playlist.id,
+                            sourceTitle: playlist.name ?? playlist.title,
+                        },
                     },
                 };
             };
@@ -1114,10 +1257,16 @@ export function withContent() {
             const finalizePendingImportTypes = async (
                 playlistId: string,
                 completedTypes: Set<ContentType>,
-                status: XtreamImportStatus
+                status: XtreamImportStatus,
+                cachedTypesBeforeImport: Set<ContentType>
             ): Promise<void> => {
                 for (const type of importTypes) {
                     if (completedTypes.has(type)) {
+                        continue;
+                    }
+
+                    if (cachedTypesBeforeImport.has(type)) {
+                        await setImportStatus(playlistId, type, 'completed');
                         continue;
                     }
 
@@ -1201,6 +1350,24 @@ export function withContent() {
                 });
 
                 const completedTypes = new Set<ContentType>();
+                const cachedTypesBeforeImportPromise = Promise.all(
+                    importTypes.map(async (type) => ({
+                        type,
+                        hasContent: await dataSource.hasContent(
+                            ctx.playlistId,
+                            toStreamType(type)
+                        ),
+                    }))
+                )
+                    .then(
+                        (entries) =>
+                            new Set(
+                                entries
+                                    .filter((entry) => entry.hasContent)
+                                    .map((entry) => entry.type)
+                            )
+                    )
+                    .catch(() => new Set<ContentType>());
 
                 try {
                     // Electron content persistence maps remote category IDs
@@ -1262,7 +1429,8 @@ export function withContent() {
                         await finalizePendingImportTypes(
                             ctx.playlistId,
                             completedTypes,
-                            isDbAbortError(error) ? 'cancelled' : 'failed'
+                            isDbAbortError(error) ? 'cancelled' : 'failed',
+                            await cachedTypesBeforeImportPromise
                         );
                     }
 
@@ -1727,6 +1895,7 @@ export function withContent() {
                     contentType: ContentType | 'movie';
                     xtreamId: string | number;
                     metadata: MediaStreamMetadata | null;
+                    metadataUpdatedAt?: number;
                 }): void {
                     const metadata = params.metadata;
                     const contentType =
@@ -1742,55 +1911,34 @@ export function withContent() {
                         return;
                     }
 
-                    const patchItem = <
-                        T extends {
-                            audioLanguages?: string[];
-                            id?: string | number;
-                            mediaMetadata?: MediaStreamMetadata;
-                            series_id?: string | number;
-                            stream_id?: string | number;
-                            subtitleLanguages?: string[];
-                            xtream_id?: string | number;
-                        },
-                    >(
-                        item: T
-                    ): T => {
-                        const candidateId = Number(
-                            item.xtream_id ??
-                                item.stream_id ??
-                                item.series_id ??
-                                item.id
-                        );
-                        if (candidateId !== targetId) {
-                            return item;
-                        }
-
-                        return {
-                            ...item,
-                            mediaMetadata: metadata,
-                            audioLanguages: metadata.audioLanguages,
-                            subtitleLanguages: metadata.subtitleLanguages,
-                        };
-                    };
-
                     patchState(store, (state) => {
                         if (contentType === 'live') {
-                            return {
-                                liveStreams:
-                                    state.liveStreams.map(patchItem),
-                            };
+                            const liveStreams = patchMetadataInItems(
+                                state.liveStreams,
+                                targetId,
+                                metadata,
+                                params.metadataUpdatedAt
+                            );
+                            return liveStreams ? { liveStreams } : {};
                         }
 
                         if (contentType === 'vod') {
-                            return {
-                                vodStreams: state.vodStreams.map(patchItem),
-                            };
+                            const vodStreams = patchMetadataInItems(
+                                state.vodStreams,
+                                targetId,
+                                metadata,
+                                params.metadataUpdatedAt
+                            );
+                            return vodStreams ? { vodStreams } : {};
                         }
 
-                        return {
-                            serialStreams:
-                                state.serialStreams.map(patchItem),
-                        };
+                        const serialStreams = patchMetadataInItems(
+                            state.serialStreams,
+                            targetId,
+                            metadata,
+                            params.metadataUpdatedAt
+                        );
+                        return serialStreams ? { serialStreams } : {};
                     });
                 },
 

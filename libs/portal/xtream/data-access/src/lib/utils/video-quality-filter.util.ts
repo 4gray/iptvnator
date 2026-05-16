@@ -53,12 +53,34 @@ const VIDEO_QUALITY_OPTIONS: readonly Omit<
     },
     {
         value: 'unknown',
-        label: 'Non rilevata',
+        label: 'Not detected',
     },
 ];
 
+const UNKNOWN_QUALITY_LABELS: Record<string, string> = {
+    ar: 'غير مكتشفة',
+    ary: 'غير مكتشفة',
+    by: 'Не вызначана',
+    de: 'Nicht erkannt',
+    el: 'Δεν εντοπίστηκε',
+    en: 'Not detected',
+    es: 'No detectada',
+    fr: 'Non détectée',
+    it: 'Non rilevata',
+    ja: '未検出',
+    ko: '감지되지 않음',
+    nl: 'Niet gedetecteerd',
+    pl: 'Niewykryta',
+    pt: 'Não detectada',
+    ru: 'Не обнаружено',
+    tr: 'Algılanmadı',
+    zh: '未检测到',
+    zhtw: '未偵測到',
+};
+
 const QUALITY_TEXT_KEYS = [
     'duplicateQualityLabel',
+    'qualityLabels',
     'quality',
     'qualityLabel',
     'resolution',
@@ -73,7 +95,8 @@ const QUALITY_TEXT_KEYS = [
 
 export function getXtreamVideoQualityOptions(
     items: readonly XtreamVideoQualityFilterCandidate[],
-    selectedFilter: XtreamVideoQualityFilterValue = 'all'
+    selectedFilter: XtreamVideoQualityFilterValue = 'all',
+    locale?: string
 ): XtreamVideoQualityOption[] {
     const counts = new Map<XtreamVideoQualityBucket, number>();
 
@@ -83,10 +106,42 @@ export function getXtreamVideoQualityOptions(
         }
     }
 
+    return getXtreamVideoQualityOptionsFromCounts(
+        counts,
+        selectedFilter,
+        locale
+    );
+}
+
+export function getXtreamVideoQualityOptionsFromCounts(
+    counts: ReadonlyMap<XtreamVideoQualityBucket, number>,
+    selectedFilter: XtreamVideoQualityFilterValue = 'all',
+    locale?: string
+): XtreamVideoQualityOption[] {
     return VIDEO_QUALITY_OPTIONS.map((option) => ({
         ...option,
+        label: getXtreamVideoQualityLabel(option.value, locale),
         count: counts.get(option.value) ?? 0,
     })).filter((option) => option.count > 0 || option.value === selectedFilter);
+}
+
+export function getXtreamVideoQualityLabel(
+    value: XtreamVideoQualityBucket,
+    locale?: string
+): string {
+    if (value === 'unknown') {
+        const normalizedLocale = normalizeVideoQualityLocale(locale);
+        return (
+            UNKNOWN_QUALITY_LABELS[normalizedLocale] ??
+            UNKNOWN_QUALITY_LABELS[normalizedLocale.split('-')[0]] ??
+            UNKNOWN_QUALITY_LABELS.en
+        );
+    }
+
+    return (
+        VIDEO_QUALITY_OPTIONS.find((option) => option.value === value)?.label ??
+        value
+    );
 }
 
 export function matchesXtreamVideoQualityFilter(
@@ -104,6 +159,23 @@ export function isXtreamVideoQualityFilterActive(
     filter: XtreamVideoQualityFilterValue | null | undefined
 ): boolean {
     return Boolean(filter && filter !== 'all');
+}
+
+function normalizeVideoQualityLocale(locale?: string): string {
+    const normalized = String(locale ?? 'en')
+        .trim()
+        .toLowerCase()
+        .replace('_', '-');
+
+    if (!normalized) {
+        return 'en';
+    }
+
+    if (normalized === 'zh-hant' || normalized === 'zh-tw') {
+        return 'zhtw';
+    }
+
+    return normalized;
 }
 
 export function getXtreamItemVideoQualityBuckets(
@@ -200,6 +272,7 @@ function collectKnownHeights(
     const mediaMetadata = getRecord(item['mediaMetadata']);
 
     pushHeight(heights, mediaMetadata?.['height']);
+    pushHeights(heights, mediaMetadata?.['heights']);
     pushHeight(heights, item['height']);
     pushHeight(heights, item['videoHeight']);
     pushHeight(heights, item['resolutionHeight']);
@@ -350,6 +423,14 @@ function pushHeight(target: number[], value: unknown): void {
     if (Number.isFinite(parsed) && parsed >= 240) {
         target.push(parsed);
     }
+}
+
+function pushHeights(target: number[], values: unknown): void {
+    if (!Array.isArray(values)) {
+        return;
+    }
+
+    values.forEach((value) => pushHeight(target, value));
 }
 
 function parseQualityHeight(value: string): number | null {

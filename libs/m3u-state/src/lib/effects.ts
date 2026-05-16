@@ -293,12 +293,16 @@ export class PlaylistEffects {
                         action.title,
                         action.path
                     )
+                ).pipe(
+                    map((playlist) =>
+                        PlaylistActions.addPlaylist({
+                            playlist: {
+                                ...playlist,
+                                ...(action.sourceVpn ?? {}),
+                            },
+                        })
+                    )
                 )
-            ),
-            map((playlist) =>
-                PlaylistActions.addPlaylist({
-                    playlist,
-                })
             )
         );
     });

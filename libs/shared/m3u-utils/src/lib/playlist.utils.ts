@@ -3,6 +3,7 @@ import {
     ParsedPlaylist,
     ParsedPlaylistItem,
     Playlist,
+    normalizeTextValuesDeep,
 } from 'shared-interfaces';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -78,14 +79,17 @@ export const createPlaylistObject = (
     urlOrPath?: string,
     uploadType?: 'URL' | 'FILE' | 'TEXT'
 ): Playlist => {
+    const normalizedName = normalizeTextValuesDeep(name);
+    const normalizedPlaylist = normalizeTextValuesDeep(playlist);
+
     return {
         _id: uuidv4(),
-        filename: name,
-        title: name,
-        count: playlist.items.length,
+        filename: normalizedName,
+        title: normalizedName,
+        count: normalizedPlaylist.items.length,
         playlist: {
-            ...playlist,
-            items: playlist.items.map((item: ParsedPlaylistItem) => ({
+            ...normalizedPlaylist,
+            items: normalizedPlaylist.items.map((item: ParsedPlaylistItem) => ({
                 ...item,
                 id: uuidv4(),
             })),

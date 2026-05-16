@@ -24,7 +24,14 @@ import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { databaseWorkerClient } from './app/services/database-worker-client';
+import { mediaMetadataBackgroundWarmup } from './app/services/media-metadata-background-warmup.service';
 import XtreamEvents from './app/events/xtream.events';
+import {
+    BACKGROUND_METADATA_WARMUP,
+    BACKGROUND_METADATA_WARMUP_CONCURRENCY,
+    BACKGROUND_METADATA_WARMUP_SCHEDULE,
+    store,
+} from './app/services/store.service';
 
 app.setName('iptvnator');
 
@@ -35,6 +42,7 @@ if (electronUserDataPath) {
 }
 
 let fixPathScheduled = false;
+const RESUME_METADATA_WARMUP_DELAY_MS = 5000;
 
 /**
  * Update process.env.PATH from the user's interactive login shell so that
@@ -83,6 +91,7 @@ export default class Main {
         }
 
         // Initialize database before other events
+        App.updateStartupSplash(App.startupSplashUpdate('settings', 18));
         await initDatabase();
 
         if (isStartupTraceEnabled()) {
@@ -108,6 +117,78 @@ export default class Main {
             setDownloadsMainWindow(App.mainWindow);
         }
         await resetStaleDownloads();
+        App.updateStartupSplash(App.startupSplashUpdate('metadata', 82));
+        if (App.isMetadataWarmupMode()) {
+            let status = await mediaMetadataBackgroundWarmup
+                .resumePendingJobs()
+                .catch((error) => {
+                    console.warn(
+                        'Failed to resume background media metadata warmup:',
+                        error
+                    );
+                    return mediaMetadataBackgroundWarmup.getStatus();
+                });
+
+            if (
+                !status.running &&
+                store.get(BACKGROUND_METADATA_WARMUP, true)
+            ) {
+                status = await mediaMetadataBackgroundWarmup
+                    .startDueScheduledWarmupFromDatabase({
+                        schedule: store.get(
+                            BACKGROUND_METADATA_WARMUP_SCHEDULE,
+                            'monthly'
+                        ),
+                        concurrency: store.get(
+                            BACKGROUND_METADATA_WARMUP_CONCURRENCY,
+                            8
+                        ),
+                    })
+                    .catch((error) => {
+                        console.warn(
+                            'Failed to start scheduled background media metadata warmup:',
+                            error
+                        );
+                        return mediaMetadataBackgroundWarmup.getStatus();
+                    });
+            }
+
+            if (!status.running) {
+                app.quit();
+            }
+        } else {
+            setTimeout(() => {
+                void mediaMetadataBackgroundWarmup
+                    .resumePendingJobs()
+                    .then((status) => {
+                        if (
+                            status.running ||
+                            !store.get(BACKGROUND_METADATA_WARMUP, true)
+                        ) {
+                            return status;
+                        }
+
+                        return mediaMetadataBackgroundWarmup.startDueScheduledWarmupFromDatabase(
+                            {
+                                schedule: store.get(
+                                    BACKGROUND_METADATA_WARMUP_SCHEDULE,
+                                    'monthly'
+                                ),
+                                concurrency: store.get(
+                                    BACKGROUND_METADATA_WARMUP_CONCURRENCY,
+                                    8
+                                ),
+                            }
+                        );
+                    })
+                    .catch((error) => {
+                        console.warn(
+                            'Failed to check background media metadata warmup:',
+                            error
+                        );
+                    });
+            }, RESUME_METADATA_WARMUP_DELAY_MS);
+        }
 
         if (isStartupTraceEnabled()) {
             trace('startup', 'reset-stale-downloads:done');
@@ -129,7 +210,9 @@ export default class Main {
         // takes to complete; the spawn would still find MPV/VLC at any of
         // the well-known paths checked by getDefault*Path before falling
         // back to bare-name PATH lookup.
-        scheduleDeferredFixPath();
+        if (!App.isMetadataWarmupMode()) {
+            scheduleDeferredFixPath();
+        }
     }
 }
 

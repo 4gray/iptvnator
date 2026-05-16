@@ -93,6 +93,7 @@
                             'PORTALS.LANGUAGE_FILTER.TOGGLE' | translate
                         }}"
                         aria-label="Language filter"
+                        [disabled]="!metadataFiltersReady()"
                         (click)="toggleLanguageFilterPanel()"
                     >
                         <mat-icon>language</mat-icon>
@@ -111,6 +112,7 @@
                             'PORTALS.VIDEO_QUALITY_FILTER.TOGGLE' | translate
                         }}"
                         aria-label="Video quality filter"
+                        [disabled]="!metadataFiltersReady()"
                     >
                         <mat-icon>high_quality</mat-icon>
                     </button>
@@ -174,8 +176,10 @@
                             </h3>
                             <p>
                                 {{
-                                    'PORTALS.LANGUAGE_FILTER.DESCRIPTION'
-                                        | translate
+                                    (metadataFiltersReady()
+                                        ? 'PORTALS.LANGUAGE_FILTER.DESCRIPTION'
+                                        : 'PORTALS.LANGUAGE_FILTER.DISABLED_HINT'
+                                    ) | translate
                                 }}
                             </p>
                         </div>
@@ -183,6 +187,7 @@
                             type="button"
                             mat-button
                             (click)="resetLanguageFilter()"
+                            [disabled]="!hasSelectedLanguageFilter()"
                         >
                             {{ 'PORTALS.LANGUAGE_FILTER.RESET' | translate }}
                         </button>
@@ -204,6 +209,7 @@
                                                     section.key
                                                 )
                                             "
+                                            [disabled]="!metadataFiltersReady()"
                                         >
                                             {{
                                                 'PORTALS.LANGUAGE_FILTER.SELECT_ALL'
@@ -218,6 +224,7 @@
                                                     section.key
                                                 )
                                             "
+                                            [disabled]="!metadataFiltersReady()"
                                         >
                                             {{
                                                 'PORTALS.LANGUAGE_FILTER.DESELECT_ALL'
@@ -232,6 +239,7 @@
                                                     section.key
                                                 )
                                             "
+                                            [disabled]="!metadataFiltersReady()"
                                         >
                                             {{
                                                 'PORTALS.LANGUAGE_FILTER.INVERT'
@@ -259,6 +267,7 @@
                                                     $event
                                                 )
                                             "
+                                            [disabled]="!metadataFiltersReady()"
                                         >
                                             {{ option.label }}
                                         </mat-checkbox>
@@ -268,6 +277,24 @@
                         }
                     </div>
                 </section>
+            }
+            @if (filterIndexProgress(); as progress) {
+                @if (showFilterIndexProgress()) {
+                    <div
+                        class="filter-index-progress"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <div class="filter-index-progress__track">
+                            <span [style.width.%]="progress.percent"></span>
+                        </div>
+                        <div class="filter-index-progress__label">
+                            {{ 'PORTALS.FILTER_INDEX.UPDATING' | translate }}
+                            {{ progress.processedItems }} /
+                            {{ progress.totalItems }}
+                        </div>
+                    </div>
+                }
             }
             @if (showSearchVisibilitySections()) {
                 <div class="category-search-sections">

@@ -5,11 +5,13 @@ import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
-import { catchError, firstValueFrom, throwError } from 'rxjs';
+import { catchError, firstValueFrom, map, throwError } from 'rxjs';
 import { DataService } from 'services';
 import {
     ERROR,
+    normalizeTextValuesDeep,
     Playlist,
+    PlaylistSourceVpnConfig,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
     STALKER_REQUEST,
@@ -213,7 +215,7 @@ export class PwaService extends DataService {
                 this.store.dispatch(
                     PlaylistActions.handleAddingPlaylistByUrl({
                         isTemporary: !!payload?.isTemporary,
-                        playlist,
+                        playlist: this.withSourceVpn(playlist, payload),
                     })
                 );
             });
@@ -237,6 +239,31 @@ export class PwaService extends DataService {
                 break;
         }
         return this.translateService.instant(messageKey);
+    }
+
+    private withSourceVpn(
+        playlist: Playlist,
+        payload: Partial<Playlist>
+    ): Playlist {
+        const sourceVpn = this.extractSourceVpn(payload);
+        return sourceVpn ? { ...playlist, ...sourceVpn } : playlist;
+    }
+
+    private extractSourceVpn(
+        payload: Partial<Playlist>
+    ): PlaylistSourceVpnConfig | undefined {
+        if (payload.vpnProvider !== 'proton') {
+            return undefined;
+        }
+
+        return {
+            vpnProvider: 'proton',
+            vpnLocation: payload.vpnLocation || 'FASTEST',
+            vpnAutoConnectOnOpen: Boolean(payload.vpnAutoConnectOnOpen),
+            vpnAutoConnectWhenDefault: Boolean(
+                payload.vpnAutoConnectWhenDefault
+            ),
+        };
     }
 
     private extractHttpStatusCode(error: unknown): number | null {
@@ -339,7 +366,7 @@ export class PwaService extends DataService {
             } else {
                 result = {
                     type: XTREAM_RESPONSE,
-                    payload: response.payload,
+                    payload: normalizeTextValuesDeep(response.payload),
                     action: payload.params.action,
                 };
                 logPortalDebugEvent(
@@ -474,7 +501,7 @@ export class PwaService extends DataService {
             }
 
             // Parse and return the JSON response
-            const responseBody = await response.json();
+            const responseBody = normalizeTextValuesDeep(await response.json());
             logPortalDebugEvent(
                 createPortalDebugSuccessEvent(context, responseBody)
             );
@@ -496,9 +523,9 @@ export class PwaService extends DataService {
     }
 
     getPlaylistFromUrl(url: string) {
-        return this.http.get(`${this.corsProxyUrl}/parse`, {
+        return this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
             params: { url },
-        });
+        }).pipe(map((playlist) => normalizeTextValuesDeep(playlist)));
     }
 
     removeAllListeners(type: string): void {

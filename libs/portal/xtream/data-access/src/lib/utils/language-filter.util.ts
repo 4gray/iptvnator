@@ -32,26 +32,11 @@ export interface XtreamItemLanguageMetadata {
     subtitleLanguages: string[];
 }
 
-const LANGUAGE_LABELS: Record<string, string> = {
-    ar: 'Arabo',
-    de: 'Tedesco',
-    en: 'Inglese',
-    es: 'Spagnolo',
-    fr: 'Francese',
-    hi: 'Hindi',
-    it: 'Italiano',
-    ja: 'Giapponese',
-    ko: 'Coreano',
-    multi: 'Multi',
-    nl: 'Olandese',
-    pl: 'Polacco',
-    pt: 'Portoghese',
-    ru: 'Russo',
-    tr: 'Turco',
-    zh: 'Cinese',
+type LanguageDisplayNames = {
+    of(code: string): string | undefined;
 };
 
-const DEFAULT_LANGUAGE_OPTIONS: XtreamLanguageOption[] = [
+const DEFAULT_LANGUAGE_CODES = [
     'it',
     'en',
     'es',
@@ -68,10 +53,30 @@ const DEFAULT_LANGUAGE_OPTIONS: XtreamLanguageOption[] = [
     'nl',
     'ar',
     'hi',
-].map((code) => ({
-    code,
-    label: LANGUAGE_LABELS[code] ?? code.toUpperCase(),
-}));
+] as const;
+
+const MULTI_LANGUAGE_LABELS: Record<string, string> = {
+    ar: 'متعدد',
+    'ar-MA': 'متعدد',
+    be: 'Некалькі',
+    de: 'Mehrsprachig',
+    el: 'Πολλαπλές',
+    en: 'Multiple',
+    es: 'Múltiple',
+    fr: 'Multiple',
+    it: 'Multipla',
+    ja: '複数',
+    ko: '다중',
+    nl: 'Meerdere',
+    pl: 'Wiele języków',
+    pt: 'Múltiplo',
+    ru: 'Несколько',
+    tr: 'Çoklu',
+    zh: '多语言',
+    'zh-Hant': '多語言',
+};
+
+const displayNamesByLocale = new Map<string, LanguageDisplayNames>();
 
 const LANGUAGE_ALIASES: Record<string, string> = {
     ar: 'ar',
@@ -144,6 +149,36 @@ const LANGUAGE_ALIASES: Record<string, string> = {
     zho: 'zh',
 };
 
+interface LanguageAliasPattern {
+    alias: string;
+    code: string;
+    safeTwoLetterPattern?: RegExp;
+    plainPattern: RegExp;
+    subtitlePattern: RegExp;
+    vostPattern: RegExp;
+}
+
+const LANGUAGE_ALIAS_PATTERNS: LanguageAliasPattern[] = Object.entries(
+    LANGUAGE_ALIASES
+).map(([alias, code]) => {
+    const languagePattern = escapeRegExp(alias).replace(/\\ /g, '\\s+');
+    return {
+        alias,
+        code,
+        safeTwoLetterPattern:
+            alias.length <= 2
+                ? new RegExp(
+                      `(^|[\\s\\[\\]()._|:-])${languagePattern}($|[\\s\\[\\]()._|:-])`
+                  )
+                : undefined,
+        plainPattern: new RegExp(`\\b${languagePattern}\\b`),
+        subtitlePattern: new RegExp(
+            `\\b(?:sub|subs|subtitle|subtitles|sottotitoli|vost|vose)\\s*[-_.: ]*${languagePattern}\\b`
+        ),
+        vostPattern: new RegExp(`\\bvost${languagePattern}\\b`),
+    };
+});
+
 const AUDIO_VALUE_KEYS = [
     'audio',
     'audios',
@@ -181,9 +216,15 @@ const TITLE_KEYS = [
     'category_name',
 ];
 
+const ITEM_LANGUAGE_METADATA_CACHE = new WeakMap<
+    XtreamLanguageFilterCandidate,
+    XtreamItemLanguageMetadata
+>();
+
 export function getXtreamLanguageOptions(
     items: readonly XtreamLanguageFilterCandidate[],
-    filter?: XtreamLanguageFilterState
+    filter?: XtreamLanguageFilterState,
+    locale?: string
 ): XtreamLanguageOption[] {
     const detectedCodes = new Set<string>();
 
@@ -197,29 +238,78 @@ export function getXtreamLanguageOptions(
         });
     }
 
+    return getXtreamLanguageOptionsFromCodes(detectedCodes, filter, locale);
+}
+
+export function getXtreamLanguageOptionsFromCodes(
+    codes: Iterable<string>,
+    filter?: XtreamLanguageFilterState,
+    locale?: string
+): XtreamLanguageOption[] {
+    const normalizedLocale = normalizeLanguageLabelLocale(locale);
+    const detectedCodes = new Set<string>();
+    for (const code of codes) {
+        const normalizedCode = code.trim().toLowerCase();
+        if (normalizedCode) {
+            detectedCodes.add(normalizedCode);
+        }
+    }
+
     for (const code of [
         ...(filter?.audioInclude ?? []),
-        ...(filter?.audioExclude ?? []),
         ...(filter?.subtitleInclude ?? []),
-        ...(filter?.subtitleExclude ?? []),
     ]) {
-        detectedCodes.add(code);
+        const normalizedCode = code.trim().toLowerCase();
+        if (normalizedCode) {
+            detectedCodes.add(normalizedCode);
+        }
     }
 
     const optionsByCode = new Map<string, XtreamLanguageOption>();
-    for (const option of DEFAULT_LANGUAGE_OPTIONS) {
-        optionsByCode.set(option.code, option);
+    for (const code of DEFAULT_LANGUAGE_CODES) {
+        optionsByCode.set(code, {
+            code,
+            label: getXtreamLanguageLabel(code, normalizedLocale),
+        });
     }
     for (const code of detectedCodes) {
         optionsByCode.set(code, {
             code,
-            label: LANGUAGE_LABELS[code] ?? code.toUpperCase(),
+            label: getXtreamLanguageLabel(code, normalizedLocale),
         });
     }
 
     return [...optionsByCode.values()].sort((a, b) =>
-        a.label.localeCompare(b.label, undefined, { sensitivity: 'base' })
+        a.label.localeCompare(b.label, normalizedLocale, {
+            sensitivity: 'base',
+        })
     );
+}
+
+export function getXtreamLanguageLabel(code: string, locale?: string): string {
+    const normalizedCode = normalizeLanguageCode(code);
+    if (!normalizedCode) {
+        return code.toUpperCase();
+    }
+
+    const normalizedLocale = normalizeLanguageLabelLocale(locale);
+    if (normalizedCode === 'multi') {
+        return (
+            MULTI_LANGUAGE_LABELS[normalizedLocale] ??
+            MULTI_LANGUAGE_LABELS[normalizedLocale.split('-')[0]] ??
+            MULTI_LANGUAGE_LABELS.en
+        );
+    }
+
+    try {
+        return (
+            getDisplayNames(normalizedLocale).of(
+                normalizeDisplayLanguageCode(normalizedCode)
+            ) ?? normalizedCode.toUpperCase()
+        );
+    } catch {
+        return normalizedCode.toUpperCase();
+    }
 }
 
 export function matchesXtreamLanguageFilter(
@@ -238,6 +328,11 @@ export function matchesXtreamLanguageFilter(
 export function getXtreamItemLanguageMetadata(
     item: XtreamLanguageFilterCandidate
 ): XtreamItemLanguageMetadata {
+    const cached = ITEM_LANGUAGE_METADATA_CACHE.get(item);
+    if (cached) {
+        return cached;
+    }
+
     const info = getRecord(item['info']);
     const mediaMetadata = getRecord(item['mediaMetadata']);
     const movieData = getRecord(item['movie_data']);
@@ -272,7 +367,7 @@ export function getXtreamItemLanguageMetadata(
         ),
     ];
 
-    return {
+    const metadata = {
         audioLanguages: unique([
             ...extractLanguageCodes(audioValues),
             ...extractAudioLanguageTags(titleTexts),
@@ -282,6 +377,8 @@ export function getXtreamItemLanguageMetadata(
             ...extractSubtitleLanguageTags(titleTexts),
         ]),
     };
+    ITEM_LANGUAGE_METADATA_CACHE.set(item, metadata);
+    return metadata;
 }
 
 export function isXtreamLanguageFilterActive(
@@ -289,11 +386,72 @@ export function isXtreamLanguageFilterActive(
 ): boolean {
     return Boolean(
         filter &&
-            (filter.audioInclude.length > 0 ||
-                filter.audioExclude.length > 0 ||
-                filter.subtitleInclude.length > 0 ||
-                filter.subtitleExclude.length > 0)
+        (filter.audioInclude.length > 0 || filter.subtitleInclude.length > 0)
     );
+}
+
+function normalizeLanguageCode(code: string): string {
+    return String(code ?? '')
+        .trim()
+        .toLowerCase();
+}
+
+function normalizeLanguageLabelLocale(locale?: string): string {
+    const normalized = normalizeLanguageCode(locale ?? 'en').replace('_', '-');
+    if (!normalized) {
+        return 'en';
+    }
+
+    if (normalized === 'zhtw' || normalized === 'zh-tw') {
+        return 'zh-Hant';
+    }
+
+    if (normalized === 'ary') {
+        return 'ar-MA';
+    }
+
+    if (normalized === 'by') {
+        return 'be';
+    }
+
+    return normalized;
+}
+
+function normalizeDisplayLanguageCode(code: string): string {
+    if (code === 'zhtw' || code === 'zh-tw') {
+        return 'zh-Hant';
+    }
+
+    if (code === 'ary') {
+        return 'ar-MA';
+    }
+
+    if (code === 'by') {
+        return 'be';
+    }
+
+    return code;
+}
+
+function getDisplayNames(locale: string): LanguageDisplayNames {
+    const existing = displayNamesByLocale.get(locale);
+    if (existing) {
+        return existing;
+    }
+
+    const displayNamesConstructor = (
+        Intl as typeof Intl & {
+            DisplayNames?: new (
+                locales: string[],
+                options: { type: 'language' }
+            ) => LanguageDisplayNames;
+        }
+    ).DisplayNames;
+    const created = displayNamesConstructor
+        ? new displayNamesConstructor([locale], { type: 'language' })
+        : { of: (code: string) => code.toUpperCase() };
+    displayNamesByLocale.set(locale, created);
+    return created;
 }
 
 function matchesSingleCandidate(
@@ -302,30 +460,21 @@ function matchesSingleCandidate(
 ): boolean {
     const metadata = getXtreamItemLanguageMetadata(item);
     return (
-        matchesLanguageAxis(
-            metadata.audioLanguages,
-            filter.audioInclude,
-            filter.audioExclude
-        ) &&
-        matchesLanguageAxis(
-            metadata.subtitleLanguages,
-            filter.subtitleInclude,
-            filter.subtitleExclude
-        )
+        matchesLanguageAxis(metadata.audioLanguages, filter.audioInclude) &&
+        matchesLanguageAxis(metadata.subtitleLanguages, filter.subtitleInclude)
     );
 }
 
 function matchesLanguageAxis(
     available: readonly string[],
-    include: readonly string[],
-    exclude: readonly string[]
+    include: readonly string[]
 ): boolean {
     const availableSet = new Set(available);
     if (include.length > 0 && !include.some((code) => availableSet.has(code))) {
         return false;
     }
 
-    return !exclude.some((code) => availableSet.has(code));
+    return true;
 }
 
 function collectItemAndVariants(
@@ -345,7 +494,9 @@ function readKnownValues(
         return [];
     }
 
-    return keys.map((key) => record[key]).filter((value) => value !== undefined);
+    return keys
+        .map((key) => record[key])
+        .filter((value) => value !== undefined);
 }
 
 function getEpisodeRecords(value: unknown): Record<string, unknown>[] {
@@ -355,19 +506,23 @@ function getEpisodeRecords(value: unknown): Record<string, unknown>[] {
 
     if (Array.isArray(value)) {
         return flatMapArray(value, (entry) =>
-            getRecord(entry) ? [getRecord(entry) as Record<string, unknown>] : []
+            getRecord(entry)
+                ? [getRecord(entry) as Record<string, unknown>]
+                : []
         );
     }
 
-    return flatMapArray(Object.values(value as Record<string, unknown>), (entry) =>
-        Array.isArray(entry)
-            ? entry
-                  .map(getRecord)
-                  .filter(
-                      (record): record is Record<string, unknown> =>
-                          record !== null
-                  )
-            : []
+    return flatMapArray(
+        Object.values(value as Record<string, unknown>),
+        (entry) =>
+            Array.isArray(entry)
+                ? entry
+                      .map(getRecord)
+                      .filter(
+                          (record): record is Record<string, unknown> =>
+                              record !== null
+                      )
+                : []
     );
 }
 
@@ -402,7 +557,9 @@ function extractSubtitleLanguageTags(values: readonly unknown[]): string[] {
 function extractCodesFromText(text: string): string[] {
     const normalized = normalizeText(text);
     const tokens = normalized.match(/[a-z]{2,}/g) ?? [];
-    return unique(tokens.map((token) => LANGUAGE_ALIASES[token]).filter(Boolean));
+    return unique(
+        tokens.map((token) => LANGUAGE_ALIASES[token]).filter(Boolean)
+    );
 }
 
 function extractLanguageTagsFromTitle(
@@ -416,40 +573,33 @@ function extractLanguageTagsFromTitle(
         codes.add('multi');
     }
 
-    for (const [alias, code] of Object.entries(LANGUAGE_ALIASES)) {
-        if (alias.length <= 2 && !isSafeTwoLetterTitleTag(normalized, alias)) {
+    for (const pattern of LANGUAGE_ALIAS_PATTERNS) {
+        if (
+            pattern.safeTwoLetterPattern &&
+            !pattern.safeTwoLetterPattern.test(normalized)
+        ) {
             continue;
         }
 
-        const languagePattern = escapeRegExp(alias).replace(/\\ /g, '\\s+');
-        const subtitlePattern = new RegExp(
-            `\\b(?:sub|subs|subtitle|subtitles|sottotitoli|vost|vose)\\s*[-_.: ]*${languagePattern}\\b`
-        );
-
         if (kind === 'subtitle') {
             if (
-                subtitlePattern.test(normalized) ||
-                new RegExp(`\\bvost${languagePattern}\\b`).test(normalized)
+                pattern.subtitlePattern.test(normalized) ||
+                pattern.vostPattern.test(normalized)
             ) {
-                codes.add(code);
+                codes.add(pattern.code);
             }
             continue;
         }
 
-        const plainPattern = new RegExp(`\\b${languagePattern}\\b`);
-        if (!subtitlePattern.test(normalized) && plainPattern.test(normalized)) {
-            codes.add(code);
+        if (
+            !pattern.subtitlePattern.test(normalized) &&
+            pattern.plainPattern.test(normalized)
+        ) {
+            codes.add(pattern.code);
         }
     }
 
     return [...codes];
-}
-
-function isSafeTwoLetterTitleTag(text: string, alias: string): boolean {
-    const escaped = escapeRegExp(alias);
-    return new RegExp(
-        `(^|[\\s\\[\\]()._|:-])${escaped}($|[\\s\\[\\]()._|:-])`
-    ).test(text);
 }
 
 function collectLeafStrings(value: unknown): string[] {
@@ -496,7 +646,9 @@ function escapeRegExp(value: string): string {
 }
 
 function unique(values: readonly (string | undefined)[]): string[] {
-    return [...new Set(values.filter((value): value is string => Boolean(value)))];
+    return [
+        ...new Set(values.filter((value): value is string => Boolean(value))),
+    ];
 }
 
 function flatMapArray<T, U>(

@@ -124,8 +124,7 @@ export async function deleteXtreamContent(
         )) {
             await checkpointOperation(control);
             await db.transaction((tx) => {
-                tx
-                    .delete(schema.content)
+                tx.delete(schema.content)
                     .where(inArray(schema.content.id, chunk))
                     .run();
             });
@@ -145,8 +144,7 @@ export async function deleteXtreamContent(
     for (const chunk of chunkValues(categoryIds, DEFAULT_BATCH_SIZE)) {
         await checkpointOperation(control);
         await db.transaction((tx) => {
-            tx
-                .delete(schema.categories)
+            tx.delete(schema.categories)
                 .where(inArray(schema.categories.id, chunk))
                 .run();
         });
@@ -158,6 +156,21 @@ export async function deleteXtreamContent(
             increment: chunk.length,
         });
     }
+
+    await db
+        .delete(schema.episodeMediaMetadata)
+        .where(eq(schema.episodeMediaMetadata.playlistId, playlistId))
+        .run();
+    await db
+        .delete(schema.mediaMetadataJobs)
+        .where(eq(schema.mediaMetadataJobs.playlistId, playlistId))
+        .run();
+    await db
+        .delete(schema.mediaMetadataSeriesDiscoveryJobs)
+        .where(
+            eq(schema.mediaMetadataSeriesDiscoveryJobs.playlistId, playlistId)
+        )
+        .run();
 
     return {
         success: true,

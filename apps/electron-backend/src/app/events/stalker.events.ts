@@ -6,7 +6,17 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { createHash } from 'crypto';
 import { ipcMain } from 'electron';
-import { PortalDebugEvent, STALKER_REQUEST } from 'shared-interfaces';
+import {
+    decodeTextBytes,
+    normalizeTextValuesDeep,
+    PortalDebugEvent,
+    SourceVpnRequestContext,
+    STALKER_REQUEST,
+} from 'shared-interfaces';
+import {
+    ensureSourceNetworkReady,
+    getSourceAxiosAgents,
+} from '../services/source-network-options';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
 
@@ -45,6 +55,56 @@ export default class StalkerEvents {
     }
 }
 
+function getHeaderValue(
+    headers: unknown,
+    name: string
+): string | undefined {
+    if (!headers || typeof headers !== 'object') {
+        return undefined;
+    }
+
+    const lowerName = name.toLowerCase();
+    const record = headers as Record<string, unknown>;
+    const key = Object.keys(record).find(
+        (entry) => entry.toLowerCase() === lowerName
+    );
+    const value = key ? record[key] : undefined;
+
+    return typeof value === 'string' ? value : undefined;
+}
+
+function normalizeStalkerResponseData(
+    data: unknown,
+    contentType?: string
+): unknown {
+    if (
+        data instanceof ArrayBuffer ||
+        ArrayBuffer.isView(data as ArrayBufferView)
+    ) {
+        const text = decodeTextBytes(
+            data as ArrayBuffer | ArrayBufferView,
+            contentType
+        ).trim();
+
+        try {
+            return normalizeTextValuesDeep(JSON.parse(text));
+        } catch {
+            return normalizeTextValuesDeep(text);
+        }
+    }
+
+    if (typeof data === 'string') {
+        const text = data.trim();
+        try {
+            return normalizeTextValuesDeep(JSON.parse(text));
+        } catch {
+            return normalizeTextValuesDeep(text);
+        }
+    }
+
+    return normalizeTextValuesDeep(data);
+}
+
 /**
  * Handle Stalker API requests with MAC address cookie and optional Bearer token
  */
@@ -59,6 +119,7 @@ ipcMain.handle(
             token?: string;
             serialNumber?: string;
             requestId?: string;
+            sourceVpn?: SourceVpnRequestContext;
         }
     ) => {
         const startedAt = Date.now();
@@ -66,6 +127,7 @@ ipcMain.handle(
         try {
             const { url, macAddress, params, token, serialNumber, requestId } =
                 payload;
+            await ensureSourceNetworkReady(payload.sourceVpn);
             const identity = deriveStalkerIdentity(macAddress, serialNumber);
             const effectiveSerialNumber = identity.serialNumber;
             const requestParams = { ...params };
@@ -157,6 +219,8 @@ ipcMain.handle(
                 headers,
                 timeout: requestTimeout,
                 validateStatus: (status) => status < 500, // Don't throw on 4xx errors
+                responseType: 'arraybuffer',
+                ...getSourceAxiosAgents(),
             };
             debugRequest = {
                 method: config.method ?? 'GET',
@@ -181,14 +245,23 @@ ipcMain.handle(
                 };
             }
 
+            const responseData = normalizeStalkerResponseData(
+                response.data,
+                getHeaderValue(response.headers, 'content-type')
+            );
+
             // Return the response data
             if (
                 params.action === 'create_link' &&
-                response.data?.js?.cmd &&
-                typeof response.data.js.cmd === 'string'
+                typeof responseData === 'object' &&
+                responseData &&
+                'js' in responseData &&
+                typeof (responseData as { js?: { cmd?: unknown } }).js?.cmd ===
+                    'string'
             ) {
                 rememberStalkerPlaybackContext({
-                    streamUrl: response.data.js.cmd,
+                    streamUrl: (responseData as { js: { cmd: string } }).js
+                        .cmd,
                     portalUrl: url,
                     macAddress,
                     serialNumber: effectiveSerialNumber,
@@ -206,12 +279,12 @@ ipcMain.handle(
                     durationMs: Date.now() - startedAt,
                     status: 'success',
                     request: debugRequest,
-                    response: response.data,
+                    response: responseData,
                 };
                 emitPortalDebugEvent(debugEvent);
             }
 
-            return response.data;
+            return responseData;
         } catch (error) {
             if (payload.requestId) {
                 const debugEvent: PortalDebugEvent = {

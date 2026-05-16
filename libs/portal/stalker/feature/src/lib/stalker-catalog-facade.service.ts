@@ -32,6 +32,7 @@ import {
     matchesXtreamLanguageFilter,
     matchesXtreamVideoQualityFilter,
 } from '@iptvnator/portal/xtream/data-access';
+import { SettingsStore } from 'services';
 import { PlaybackPositionData } from 'shared-interfaces';
 
 function calculateProgress(position: PlaybackPositionData | undefined): number {
@@ -56,6 +57,7 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 > {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly settingsStore = inject(SettingsStore, { optional: true });
     private readonly destroyRef = inject(DestroyRef);
     private readonly stalkerPositions = signal<
         Map<string, PlaybackPositionData>
@@ -113,7 +115,8 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     readonly languageFilterOptions = computed(() =>
         getXtreamLanguageOptions(
             this.rawPaginatedContent() as Record<string, unknown>[],
-            this.languageFilterState()
+            this.languageFilterState(),
+            this.appLanguage()
         )
     );
     readonly languageFilterActive = computed(() =>
@@ -123,7 +126,8 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
     readonly videoQualityFilterOptions = computed(() =>
         getXtreamVideoQualityOptions(
             this.rawPaginatedContent() as Record<string, unknown>[],
-            this.videoQualityFilterState()
+            this.videoQualityFilterState(),
+            this.appLanguage()
         )
     );
     readonly videoQualityFilterActive = computed(() =>
@@ -390,6 +394,10 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 
         this.stalkerPositions.set(positionsMap);
         this.stalkerSeriesPositions.set(seriesMap);
+    }
+
+    private appLanguage(): string {
+        return String(this.settingsStore?.language?.() ?? 'en');
     }
 
     private updateVodPlaybackPosition(position: PlaybackPositionData): void {

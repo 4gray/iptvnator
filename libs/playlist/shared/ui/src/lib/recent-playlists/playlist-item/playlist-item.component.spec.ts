@@ -94,6 +94,46 @@ describe('PlaylistItemComponent', () => {
         expect(nativeElement.querySelector('.refresh-btn')).not.toBeNull();
     });
 
+    it('passes source VPN overrides to Xtream status checks', async () => {
+        const portalStatusService = TestBed.inject(
+            PortalStatusService
+        ) as unknown as {
+            checkPortalStatus: jest.Mock;
+        };
+        portalStatusService.checkPortalStatus.mockClear();
+
+        fixture.destroy();
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'No VPN Xtream',
+            _id: 'xtream-none',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            password: 'pass',
+            serverUrl: 'http://127.0.0.1:3211',
+            username: 'user',
+            vpnProvider: 'none',
+        };
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
+            'http://127.0.0.1:3211',
+            'user',
+            'pass',
+            {
+                sourceVpn: {
+                    location: undefined,
+                    provider: 'none',
+                    sourceId: 'xtream-none',
+                    sourceTitle: 'No VPN Xtream',
+                },
+            }
+        );
+    });
+
     it('renders cancel and progress UI for long-running playlist actions', () => {
         fixture.componentRef.setInput('isDeleting', true);
         fixture.componentRef.setInput('busyMessage', 'Removing cached content...');

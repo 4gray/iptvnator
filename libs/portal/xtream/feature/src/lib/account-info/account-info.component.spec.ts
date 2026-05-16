@@ -97,6 +97,12 @@ describe('AccountInfoComponent', () => {
                                     subtitleCodecs: [],
                                 },
                             },
+                            {
+                                stream_id: 4,
+                                name: 'Unknown Documentary',
+                                imdb_id: 'tt9999999',
+                                direct_source: '',
+                            },
                         ],
                     },
                 },
@@ -141,8 +147,31 @@ describe('AccountInfoComponent', () => {
     it('counts unique movies and exposes source overview filters', () => {
         const overview = component.vodOverview();
 
-        expect(overview.totalUnique).toBe(2);
-        expect(overview.filteredUnique).toBe(2);
+        expect(overview.totalUnique).toBe(3);
+        expect(overview.filteredUnique).toBe(3);
+        expect(overview.totalItems).toBe(4);
+        expect(overview.filteredItems).toBe(4);
+        expect(overview.audioUnknownUnique).toBe(1);
+        expect(overview.subtitleUnknownUnique).toBe(1);
+        expect(overview.qualityUnknownUnique).toBe(1);
+        expect(overview.metadataAbsentUnique).toBe(1);
+        expect(overview.metadataUnavailableUnique).toBe(0);
+        expect(overview.diagnosticIssueUnique).toBe(1);
+        expect(overview.diagnosticCards).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    labelKey: 'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_AUDIO_MISSING',
+                    value: 1,
+                    total: 3,
+                }),
+                expect.objectContaining({
+                    labelKey:
+                        'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_QUALITY_MISSING',
+                    value: 1,
+                    total: 3,
+                }),
+            ])
+        );
         expect(
             overview.sourceOptions.find((option) => option.value === 'direct')
                 ?.count
@@ -150,9 +179,21 @@ describe('AccountInfoComponent', () => {
         expect(
             overview.sourceOptions.find((option) => option.value === 'indirect')
                 ?.count
-        ).toBe(2);
+        ).toBe(3);
         expect(
             overview.qualityOptions.find((option) => option.value === '2160p')
+                ?.count
+        ).toBe(1);
+        expect(
+            overview.qualityOptions.find((option) => option.value === '1080p')
+                ?.count
+        ).toBe(1);
+        expect(
+            overview.qualityOptions.find((option) => option.value === '720p')
+                ?.count
+        ).toBe(1);
+        expect(
+            overview.qualityOptions.find((option) => option.value === 'unknown')
                 ?.count
         ).toBe(1);
         expect(
@@ -169,6 +210,7 @@ describe('AccountInfoComponent', () => {
         component.resetVodOverviewFilters();
         component.setQualityFilter('720p');
         expect(component.vodOverview().filteredUnique).toBe(1);
+        expect(component.vodOverview().filteredItems).toBe(1);
 
         component.resetVodOverviewFilters();
         component.setSubtitleLanguage('it');

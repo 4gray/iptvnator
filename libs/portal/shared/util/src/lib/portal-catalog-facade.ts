@@ -41,10 +41,7 @@ export function isPortalCatalogLanguageFilterActive(
 ): boolean {
     return Boolean(
         filter &&
-        (filter.audioInclude.length > 0 ||
-            filter.audioExclude.length > 0 ||
-            filter.subtitleInclude.length > 0 ||
-            filter.subtitleExclude.length > 0)
+        (filter.audioInclude.length > 0 || filter.subtitleInclude.length > 0)
     );
 }
 
@@ -61,6 +58,14 @@ export interface PortalCatalogVideoQualityOption {
     value: Exclude<PortalCatalogVideoQualityFilterValue, 'all'>;
     label: string;
     count: number;
+}
+
+export interface PortalCatalogFilterIndexProgress {
+    status: 'idle' | 'running' | 'ready';
+    processedItems: number;
+    totalItems: number;
+    percent: number;
+    updatedAt: number;
 }
 
 export function isPortalCatalogVideoQualityFilterActive(
@@ -116,6 +121,8 @@ export interface PortalCatalogFacade<
         readonly PortalCatalogVideoQualityOption[]
     >;
     readonly videoQualityFilterActive?: Signal<boolean>;
+    readonly metadataFiltersReady?: Signal<boolean>;
+    readonly filterIndexProgress?: Signal<PortalCatalogFilterIndexProgress>;
 
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;

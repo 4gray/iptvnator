@@ -62,6 +62,65 @@ describe('PortalStatusService', () => {
         );
     });
 
+    it('passes source VPN context to silent portal probes', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    status: 'Active',
+                },
+            },
+        });
+
+        await service.checkPortalStatus('http://example.com', 'user', 'pass', {
+            sourceVpn: {
+                provider: 'proton',
+                location: 'DE',
+                sourceId: 'source-1',
+            },
+        });
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            'XTREAM_REQUEST',
+            expect.objectContaining({
+                sourceVpn: {
+                    provider: 'proton',
+                    location: 'DE',
+                    sourceId: 'source-1',
+                },
+            })
+        );
+    });
+
+    it('treats authenticated Xtream accounts without a status field as active', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    auth: 1,
+                    exp_date: '0',
+                },
+            },
+        });
+
+        await expect(
+            service.checkPortalStatus('http://example.com', 'user', 'pass')
+        ).resolves.toBe('active');
+    });
+
+    it('handles lowercase status values and non-expiring accounts', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    status: 'active',
+                    exp_date: '0',
+                },
+            },
+        });
+
+        await expect(
+            service.checkPortalStatus('http://example.com', 'user', 'pass')
+        ).resolves.toBe('active');
+    });
+
     it('returns unavailable without console noise when the portal is offline', async () => {
         const consoleErrorSpy = jest
             .spyOn(console, 'error')

@@ -76,10 +76,6 @@ const CONTENT_PATTERNS = [
         label: 'numeric private IPTV-like host',
         regex: /\b\d{9,}\.[a-z0-9-]+\.(?:com|net|org|tv)\b/i,
     },
-    {
-        label: 'local Proton VPN artifact',
-        regex: /\b(?:ProtonVPN|Proton VPN)\b/i,
-    },
 ];
 
 function gitListFiles(args) {

@@ -69,11 +69,9 @@ export function buildMediaStreamMetadata(
     const videoEntries = flattenMediaEntries(input.video);
     const audioEntries = flattenMediaEntries(input.audio);
     const subtitleEntries = flattenMediaEntries(input.subtitles);
-    const text = `${stringifyLoose(input.video)} ${stringifyLoose(input.audio)} ${
-        stringifyLoose(input.subtitles)
-    } ${
-        input.title ?? ''
-    } ${input.containerExtension ?? ''}`;
+    const text = `${stringifyLoose(input.video)} ${stringifyLoose(input.audio)} ${stringifyLoose(
+        input.subtitles
+    )} ${input.title ?? ''} ${input.containerExtension ?? ''}`;
 
     const dimensions =
         extractBestDimensions(videoEntries) ?? inferDimensionsFromText(text);
@@ -123,9 +121,13 @@ export function buildMediaStreamMetadata(
     return {
         available: true,
         qualityLabel,
+        qualityLabels: qualityLabel ? [qualityLabel] : [],
         width: dimensions?.width,
+        widths: dimensions?.width ? [dimensions.width] : [],
         height: dimensions?.height,
+        heights: dimensions?.height ? [dimensions.height] : [],
         videoCodec,
+        videoCodecs: videoCodec ? [videoCodec] : [],
         audioLanguages,
         audioCodecs,
         subtitleLanguages,
@@ -154,9 +156,33 @@ export function mergeMediaStreamMetadata(
         ...fallback,
         ...primary,
         qualityLabel: primary.qualityLabel ?? fallback.qualityLabel,
+        qualityLabels: unique([
+            ...(primary.qualityLabels ?? []),
+            ...(primary.qualityLabel ? [primary.qualityLabel] : []),
+            ...(fallback.qualityLabels ?? []),
+            ...(fallback.qualityLabel ? [fallback.qualityLabel] : []),
+        ]),
         width: primary.width ?? fallback.width,
+        widths: uniqueNumbers([
+            ...(primary.widths ?? []),
+            ...(primary.width ? [primary.width] : []),
+            ...(fallback.widths ?? []),
+            ...(fallback.width ? [fallback.width] : []),
+        ]),
         height: primary.height ?? fallback.height,
+        heights: uniqueNumbers([
+            ...(primary.heights ?? []),
+            ...(primary.height ? [primary.height] : []),
+            ...(fallback.heights ?? []),
+            ...(fallback.height ? [fallback.height] : []),
+        ]),
         videoCodec: primary.videoCodec ?? fallback.videoCodec,
+        videoCodecs: unique([
+            ...(primary.videoCodecs ?? []),
+            ...(primary.videoCodec ? [primary.videoCodec] : []),
+            ...(fallback.videoCodecs ?? []),
+            ...(fallback.videoCodec ? [fallback.videoCodec] : []),
+        ]),
         audioLanguages: unique([
             ...(primary.audioLanguages ?? []),
             ...(fallback.audioLanguages ?? []),
@@ -183,7 +209,8 @@ export function mediaMetadataNeedsProbe(
     metadata: MediaStreamMetadata | null | undefined
 ): boolean {
     return (
-        !metadata?.qualityLabel ||
+        (!metadata?.qualityLabel &&
+            (metadata?.qualityLabels ?? []).length === 0) ||
         (metadata.audioLanguages ?? []).length === 0 ||
         (metadata.subtitleLanguages ?? []).length === 0
     );
@@ -199,6 +226,8 @@ export function getMediaMetadataTags(
     const tags: string[] = [];
     if (metadata.qualityLabel) {
         tags.push(metadata.qualityLabel);
+    } else if ((metadata.qualityLabels ?? []).length > 0) {
+        tags.push(metadata.qualityLabels?.join(', ') ?? '');
     }
 
     if ((metadata.audioLanguages ?? []).length > 0) {
@@ -489,4 +518,10 @@ function isPlainObject(value: unknown): value is Record<string, unknown> {
 
 function unique(values: string[]): string[] {
     return Array.from(new Set(values.filter(Boolean)));
+}
+
+function uniqueNumbers(values: number[]): number[] {
+    return Array.from(
+        new Set(values.filter((value) => Number.isFinite(value) && value > 0))
+    );
 }

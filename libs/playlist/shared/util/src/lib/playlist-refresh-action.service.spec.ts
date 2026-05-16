@@ -14,6 +14,7 @@ import { ChannelActions, PlaylistActions } from 'm3u-state';
 import { Playlist, PlaylistMeta } from 'shared-interfaces';
 import { PlaylistContextFacade } from './playlist-context.facade';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
+import { SourceVpnPreparationService } from './source-vpn-preparation.service';
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -54,6 +55,7 @@ describe('PlaylistRefreshActionService', () => {
     let databaseService: {
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
+        setXtreamImportStatus: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
     };
     let dialogService: {
@@ -73,6 +75,10 @@ describe('PlaylistRefreshActionService', () => {
     };
     let playbackPositionService: {
         getAllPlaybackPositions: jest.Mock;
+    };
+    let sourceVpnPreparation: {
+        prepareForPlaylist: jest.Mock;
+        shouldPrepareForPlaylist: jest.Mock;
     };
     let routeProvider: ReturnType<
         typeof signal<'playlists' | 'xtreams' | null>
@@ -105,6 +111,7 @@ describe('PlaylistRefreshActionService', () => {
                 ],
                 hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
             }),
+            setXtreamImportStatus: jest.fn().mockResolvedValue(true),
             updateXtreamPlaylistDetails: jest.fn().mockResolvedValue(true),
         };
         dialogService = {
@@ -124,6 +131,10 @@ describe('PlaylistRefreshActionService', () => {
         };
         playbackPositionService = {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
+        };
+        sourceVpnPreparation = {
+            prepareForPlaylist: jest.fn().mockResolvedValue(null),
+            shouldPrepareForPlaylist: jest.fn().mockReturnValue(false),
         };
         routeProvider = signal<'playlists' | 'xtreams' | null>('xtreams');
         resolvedPlaylistId = signal<string | null>(null);
@@ -172,6 +183,10 @@ describe('PlaylistRefreshActionService', () => {
                         resolvedPlaylistId,
                     },
                 },
+                {
+                    provide: SourceVpnPreparationService,
+                    useValue: sourceVpnPreparation,
+                },
             ],
         });
 
@@ -213,7 +228,7 @@ describe('PlaylistRefreshActionService', () => {
         ).toBe(false);
     });
 
-    it('stores Xtream restore data before updating playlist meta and navigating', async () => {
+    it('invalidates Xtream import statuses before updating playlist meta and navigating', async () => {
         const item = createPlaylistMeta();
         const executionOrder: string[] = [];
         let confirmPromise: Promise<void> | undefined;
@@ -250,30 +265,26 @@ describe('PlaylistRefreshActionService', () => {
                 width: '400px',
             })
         );
-        expect(setItemSpy).toHaveBeenCalledWith(
-            `xtream-restore-${item._id}`,
-            JSON.stringify({
-                hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-                favorites: [
-                    {
-                        xtreamId: 101,
-                        contentType: 'live',
-                    },
-                    {
-                        xtreamId: 202,
-                        contentType: 'movie',
-                    },
-                ],
-                recentlyViewed: [
-                    {
-                        xtreamId: 303,
-                        contentType: 'series',
-                        viewedAt: '2026-04-04T08:00:00.000Z',
-                    },
-                ],
-                playbackPositions: [],
-            })
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).not.toHaveBeenCalled();
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledTimes(3);
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            item._id,
+            'live',
+            'idle'
         );
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            item._id,
+            'movie',
+            'idle'
+        );
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            item._id,
+            'series',
+            'idle'
+        );
+        expect(setItemSpy).not.toHaveBeenCalled();
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
                 playlist: { ...item, updateDate: 1712217600000 },
@@ -284,7 +295,7 @@ describe('PlaylistRefreshActionService', () => {
             'xtreams',
             item._id,
         ]);
-        expect(executionOrder).toEqual(['setItem', 'dispatch', 'navigate']);
+        expect(executionOrder).toEqual(['dispatch', 'navigate']);
 
         setItemSpy.mockRestore();
         dateNowSpy.mockRestore();
@@ -292,15 +303,10 @@ describe('PlaylistRefreshActionService', () => {
 
     it('sets refresh-preparation state immediately after Xtream refresh confirmation', async () => {
         const item = createPlaylistMeta();
-        const refresh = createDeferred<{
-            success: boolean;
-            favorites: [];
-            recentlyViewed: [];
-            hiddenCategories: [];
-        }>();
+        const refresh = createDeferred<boolean>();
         let confirmPromise: Promise<void> | undefined;
 
-        databaseService.deleteXtreamPlaylistContent.mockReturnValue(
+        databaseService.setXtreamImportStatus.mockReturnValue(
             refresh.promise
         );
         dialogService.openConfirmDialog.mockImplementation(
@@ -314,49 +320,31 @@ describe('PlaylistRefreshActionService', () => {
         expect(service.refreshPreparation()).toEqual({
             playlistId: item._id,
             operationId: 'xtream-refresh-op',
-            phase: 'collecting-user-data',
+            phase: 'invalidating-import-cache',
+            current: 0,
+            total: 3,
         });
 
-        refresh.resolve({
-            success: true,
-            favorites: [],
-            recentlyViewed: [],
-            hiddenCategories: [],
-        });
+        refresh.resolve(true);
         await confirmPromise;
 
         expect(service.refreshPreparation()).toBeNull();
     });
 
-    it('updates refresh-preparation phase and progress from worker events', async () => {
+    it('updates refresh-preparation progress while invalidating Xtream cache statuses', async () => {
         const item = createPlaylistMeta();
-        const refresh = createDeferred<{
-            success: boolean;
-            favorites: [];
-            recentlyViewed: [];
-            hiddenCategories: [];
-        }>();
+        const refreshes = [
+            createDeferred<boolean>(),
+            createDeferred<boolean>(),
+            createDeferred<boolean>(),
+        ];
         let confirmPromise: Promise<void> | undefined;
 
-        databaseService.deleteXtreamPlaylistContent.mockImplementation(
-            (
-                _playlistId: string,
-                options?: {
-                    operationId?: string;
-                    onEvent?: (event: any) => void;
-                }
-            ) => {
-                options?.onEvent?.({
-                    operation: 'delete-xtream-content',
-                    operationId: 'xtream-refresh-op',
-                    status: 'progress',
-                    phase: 'deleting-content',
-                    current: 50,
-                    total: 100,
-                });
-
-                return refresh.promise;
-            }
+        databaseService.setXtreamImportStatus.mockImplementation(
+            () =>
+                refreshes[
+                    databaseService.setXtreamImportStatus.mock.calls.length - 1
+                ].promise
         );
         dialogService.openConfirmDialog.mockImplementation(
             ({ onConfirm }: { onConfirm?: () => Promise<void> }) => {
@@ -370,17 +358,24 @@ describe('PlaylistRefreshActionService', () => {
         expect(service.refreshPreparation()).toEqual({
             playlistId: item._id,
             operationId: 'xtream-refresh-op',
-            phase: 'deleting-content',
-            current: 50,
-            total: 100,
+            phase: 'invalidating-import-cache',
+            current: 0,
+            total: 3,
         });
 
-        refresh.resolve({
-            success: true,
-            favorites: [],
-            recentlyViewed: [],
-            hiddenCategories: [],
+        refreshes[0].resolve(true);
+        await Promise.resolve();
+
+        expect(service.refreshPreparation()).toEqual({
+            playlistId: item._id,
+            operationId: 'xtream-refresh-op',
+            phase: 'invalidating-import-cache',
+            current: 1,
+            total: 3,
         });
+
+        refreshes[1].resolve(true);
+        refreshes[2].resolve(true);
         await confirmPromise;
     });
 
@@ -394,15 +389,10 @@ describe('PlaylistRefreshActionService', () => {
             const consoleErrorSpy = jest
                 .spyOn(console, 'error')
                 .mockImplementation();
-            const refresh = createDeferred<{
-                success: boolean;
-                favorites: [];
-                recentlyViewed: [];
-                hiddenCategories: [];
-            }>();
+            const refresh = createDeferred<boolean>();
             let confirmPromise: Promise<void> | undefined;
 
-            databaseService.deleteXtreamPlaylistContent.mockReturnValue(
+            databaseService.setXtreamImportStatus.mockReturnValue(
                 refresh.promise
             );
             dialogService.openConfirmDialog.mockImplementation(
@@ -457,6 +447,54 @@ describe('PlaylistRefreshActionService', () => {
             PlaylistActions.updatePlaylist({
                 playlist: refreshedPlaylist,
                 playlistId: item._id,
+            })
+        );
+    });
+
+    it('prepares a source VPN before refreshing an M3U URL source', async () => {
+        const item = createPlaylistMeta({
+            _id: 'playlist-1',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://example.com/playlist.m3u',
+            vpnProvider: 'proton',
+            vpnLocation: 'HR',
+            vpnAutoConnectOnOpen: true,
+        });
+        const vpnPreparation = createDeferred<null>();
+        const refreshedPlaylist = {
+            _id: item._id,
+            playlist: {
+                items: [],
+            },
+        } as Playlist;
+
+        sourceVpnPreparation.shouldPrepareForPlaylist.mockReturnValue(true);
+        sourceVpnPreparation.prepareForPlaylist.mockReturnValue(
+            vpnPreparation.promise
+        );
+        playlistRefreshService.refreshPlaylist.mockResolvedValue(
+            refreshedPlaylist
+        );
+
+        service.refresh(item);
+        await Promise.resolve();
+
+        expect(sourceVpnPreparation.prepareForPlaylist).toHaveBeenCalledWith(
+            item,
+            'source-open'
+        );
+        expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+
+        vpnPreparation.resolve(null);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(playlistRefreshService.refreshPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: item._id,
+                url: item.url,
             })
         );
     });

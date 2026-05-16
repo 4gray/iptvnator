@@ -1,5 +1,9 @@
 import { and, asc, desc, eq, inArray, or, sql } from 'drizzle-orm';
 import * as schema from 'database-schema';
+import {
+    repairMojibakeText,
+    type MediaStreamMetadata,
+} from 'shared-interfaces';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,
@@ -107,9 +111,144 @@ function selectContentFields() {
         tv_archive: schema.content.tvArchive,
         tv_archive_duration: schema.content.tvArchiveDuration,
         direct_source: schema.content.directSource,
+        mediaMetadataRaw: schema.content.mediaMetadata,
+        mediaMetadataUpdatedAt: schema.content.mediaMetadataUpdatedAt,
         xtream_id: schema.content.xtreamId,
         type: schema.content.type,
     };
+}
+
+type ContentRowWithRawMediaMetadata = {
+    mediaMetadataRaw?: string | null;
+    [key: string]: unknown;
+};
+
+type ContentRowWithParsedMediaMetadata<
+    T extends ContentRowWithRawMediaMetadata,
+> = Omit<T, 'mediaMetadataRaw'> & {
+    audioLanguages?: string[];
+    mediaMetadata?: MediaStreamMetadata;
+    subtitleLanguages?: string[];
+};
+
+function parseMediaMetadata(
+    value: string | null | undefined
+): MediaStreamMetadata | undefined {
+    if (!value) {
+        return undefined;
+    }
+
+    try {
+        const metadata = JSON.parse(value) as Partial<MediaStreamMetadata>;
+        if (
+            !metadata ||
+            typeof metadata !== 'object' ||
+            !Array.isArray(metadata.audioLanguages) ||
+            !Array.isArray(metadata.audioCodecs) ||
+            !Array.isArray(metadata.subtitleLanguages) ||
+            !Array.isArray(metadata.subtitleCodecs)
+        ) {
+            return undefined;
+        }
+
+        return {
+            available: Boolean(metadata.available),
+            qualityLabel:
+                typeof metadata.qualityLabel === 'string'
+                    ? metadata.qualityLabel
+                    : undefined,
+            qualityLabels: Array.isArray(metadata.qualityLabels)
+                ? metadata.qualityLabels.filter(
+                      (item): item is string => typeof item === 'string'
+                  )
+                : undefined,
+            width:
+                typeof metadata.width === 'number' ? metadata.width : undefined,
+            widths: Array.isArray(metadata.widths)
+                ? metadata.widths.filter(
+                      (item): item is number => typeof item === 'number'
+                  )
+                : undefined,
+            height:
+                typeof metadata.height === 'number'
+                    ? metadata.height
+                    : undefined,
+            heights: Array.isArray(metadata.heights)
+                ? metadata.heights.filter(
+                      (item): item is number => typeof item === 'number'
+                  )
+                : undefined,
+            videoCodec:
+                typeof metadata.videoCodec === 'string'
+                    ? metadata.videoCodec
+                    : undefined,
+            videoCodecs: Array.isArray(metadata.videoCodecs)
+                ? metadata.videoCodecs.filter(
+                      (item): item is string => typeof item === 'string'
+                  )
+                : undefined,
+            audioLanguages: metadata.audioLanguages.filter(
+                (item): item is string => typeof item === 'string'
+            ),
+            audioCodecs: metadata.audioCodecs.filter(
+                (item): item is string => typeof item === 'string'
+            ),
+            subtitleLanguages: metadata.subtitleLanguages.filter(
+                (item): item is string => typeof item === 'string'
+            ),
+            subtitleCodecs: metadata.subtitleCodecs.filter(
+                (item): item is string => typeof item === 'string'
+            ),
+            source:
+                metadata.source === 'xtream' ||
+                metadata.source === 'ffprobe' ||
+                metadata.source === 'derived'
+                    ? metadata.source
+                    : undefined,
+            reason:
+                typeof metadata.reason === 'string'
+                    ? metadata.reason
+                    : undefined,
+        };
+    } catch {
+        return undefined;
+    }
+}
+
+function attachParsedMediaMetadata<T extends ContentRowWithRawMediaMetadata>(
+    row: T
+): ContentRowWithParsedMediaMetadata<T> {
+    const { mediaMetadataRaw, ...rest } = normalizeContentTextFields(row);
+    const mediaMetadata = parseMediaMetadata(mediaMetadataRaw);
+    if (!mediaMetadata) {
+        return rest as ContentRowWithParsedMediaMetadata<T>;
+    }
+
+    return {
+        ...rest,
+        mediaMetadata,
+        audioLanguages: mediaMetadata.audioLanguages,
+        subtitleLanguages: mediaMetadata.subtitleLanguages,
+    } as ContentRowWithParsedMediaMetadata<T>;
+}
+
+function normalizeContentTextFields<T extends ContentRowWithRawMediaMetadata>(
+    row: T
+): T {
+    const normalized = { ...row } as Record<string, unknown>;
+    for (const key of ['title', 'category_name', 'playlist_name']) {
+        if (typeof normalized[key] === 'string') {
+            normalized[key] = repairMojibakeText(normalized[key]);
+        }
+    }
+
+    return normalized as T;
+}
+
+function attachParsedMediaMetadataToRows<
+    T extends ContentRowWithRawMediaMetadata,
+>(rows: T[]): Array<ContentRowWithParsedMediaMetadata<T>> {
+    return rows.map((row) => attachParsedMediaMetadata(row));
 }
 
 export async function hasContent(
@@ -153,9 +292,11 @@ export async function getContent(
             )
         );
 
-    return type === 'live'
+    const rows = await (type === 'live'
         ? baseQuery.orderBy(asc(schema.content.id))
-        : baseQuery.orderBy(desc(schema.content.added));
+        : baseQuery.orderBy(desc(schema.content.added)));
+
+    return attachParsedMediaMetadataToRows(rows);
 }
 
 export type RecentlyAddedPlaylistType =
@@ -192,7 +333,7 @@ export async function getGlobalRecentlyAdded(
     // INTEGER) — as we used to — blocks SQLite from using
     // idx_content_type_added and forces a full table scan + sort on the
     // entire content table (often 100k+ rows) on every dashboard load.
-    return db
+    const rows = await db
         .select({
             ...selectContentFields(),
             added_at: schema.content.added,
@@ -211,6 +352,8 @@ export async function getGlobalRecentlyAdded(
         .where(and(...whereConditions))
         .orderBy(desc(schema.content.added))
         .limit(normalizedLimit);
+
+    return attachParsedMediaMetadataToRows(rows);
 }
 
 type XtreamContentValue = {
@@ -225,6 +368,10 @@ type XtreamContentValue = {
     directSource?: string | null;
     xtreamId: number;
     type: 'live' | 'movie' | 'series';
+};
+
+type ExistingXtreamContentRow = XtreamContentValue & {
+    id: number;
 };
 
 type XtreamContentSource = Record<string, unknown> & {
@@ -273,7 +420,7 @@ function toXtreamContentValue(
 
     return {
         categoryId,
-        title,
+        title: repairMojibakeText(String(title)),
         rating: String(source.rating || source.rating_imdb || ''),
         added:
             type === 'series'
@@ -309,6 +456,51 @@ function toXtreamContentValue(
     };
 }
 
+function buildContentIdentityKey(categoryId: number, xtreamId: number): string {
+    return `${categoryId}:${xtreamId}`;
+}
+
+function nullableString(value: string | null | undefined): string | null {
+    return value ?? null;
+}
+
+function nullableNumber(value: number | null | undefined): number | null {
+    return value ?? null;
+}
+
+function hasCatalogFieldChanges(
+    existing: ExistingXtreamContentRow,
+    next: XtreamContentValue
+): boolean {
+    return (
+        existing.title !== next.title ||
+        nullableString(existing.rating) !== nullableString(next.rating) ||
+        nullableString(existing.added) !== nullableString(next.added) ||
+        nullableString(existing.posterUrl) !==
+            nullableString(next.posterUrl) ||
+        nullableString(existing.epgChannelId) !==
+            nullableString(next.epgChannelId) ||
+        nullableNumber(existing.tvArchive) !== nullableNumber(next.tvArchive) ||
+        nullableNumber(existing.tvArchiveDuration) !==
+            nullableNumber(next.tvArchiveDuration) ||
+        nullableString(existing.directSource) !==
+            nullableString(next.directSource)
+    );
+}
+
+function getContentCatalogUpdate(value: XtreamContentValue) {
+    return {
+        title: value.title,
+        rating: value.rating,
+        added: value.added,
+        posterUrl: value.posterUrl,
+        epgChannelId: value.epgChannelId ?? null,
+        tvArchive: value.tvArchive ?? null,
+        tvArchiveDuration: value.tvArchiveDuration ?? null,
+        directSource: value.directSource ?? null,
+    };
+}
+
 export async function saveContent(
     db: AppDatabase,
     playlistId: string,
@@ -318,25 +510,6 @@ export async function saveContent(
 ): Promise<{ success: boolean; count: number }> {
     const dbType =
         type === 'series' ? 'series' : type === 'movie' ? 'movies' : 'live';
-
-    const existingContent = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.content)
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .where(
-            and(
-                eq(schema.categories.playlistId, playlistId),
-                eq(schema.categories.type, dbType),
-                eq(schema.content.type, type)
-            )
-        );
-
-    if ((existingContent[0]?.count ?? 0) > 0) {
-        return { success: true, count: existingContent[0].count };
-    }
 
     const categories = await db
         .select({
@@ -359,35 +532,185 @@ export async function saveContent(
         .map((stream) => toXtreamContentValue(stream, type, categoryMap))
         .filter((value): value is XtreamContentValue => value !== null);
 
+    const existingContent = (await db
+        .select({
+            id: schema.content.id,
+            categoryId: schema.content.categoryId,
+            title: schema.content.title,
+            rating: schema.content.rating,
+            added: schema.content.added,
+            posterUrl: schema.content.posterUrl,
+            epgChannelId: schema.content.epgChannelId,
+            tvArchive: schema.content.tvArchive,
+            tvArchiveDuration: schema.content.tvArchiveDuration,
+            directSource: schema.content.directSource,
+            xtreamId: schema.content.xtreamId,
+            type: schema.content.type,
+        })
+        .from(schema.content)
+        .innerJoin(
+            schema.categories,
+            eq(schema.content.categoryId, schema.categories.id)
+        )
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.categories.type, dbType),
+                eq(schema.content.type, type)
+            )
+        )) as ExistingXtreamContentRow[];
+
+    if (values.length === 0) {
+        return { success: true, count: existingContent.length };
+    }
+
+    const existingByKey = new Map(
+        existingContent.map((row) => [
+            buildContentIdentityKey(row.categoryId, row.xtreamId),
+            row,
+        ])
+    );
+    const incomingKeys = new Set(
+        values.map((value) =>
+            buildContentIdentityKey(value.categoryId, value.xtreamId)
+        )
+    );
+    const staleContentRows = existingContent.filter(
+        (row) =>
+            !incomingKeys.has(
+                buildContentIdentityKey(row.categoryId, row.xtreamId)
+            )
+    );
+    const staleContentIds = staleContentRows.map((row) => row.id);
+    const staleXtreamIds = staleContentRows.map((row) => row.xtreamId);
+
     const total = values.length;
     const chunkSize = 100;
-    let totalInserted = 0;
+    let totalProcessed = 0;
 
     for (let index = 0; index < values.length; index += chunkSize) {
         await checkpointOperation(control);
         const chunk = values.slice(index, index + chunkSize);
+        const rowsToInsert: XtreamContentValue[] = [];
+        const rowsToUpdate: Array<XtreamContentValue & { id: number }> = [];
+
+        for (const row of chunk) {
+            const existing = existingByKey.get(
+                buildContentIdentityKey(row.categoryId, row.xtreamId)
+            );
+            if (!existing) {
+                rowsToInsert.push(row);
+                continue;
+            }
+
+            if (hasCatalogFieldChanges(existing, row)) {
+                rowsToUpdate.push({ ...row, id: existing.id });
+            }
+        }
+
         await db.transaction((tx) => {
-            tx.insert(schema.content)
-                .values(chunk)
-                .onConflictDoNothing({
-                    target: [
-                        schema.content.categoryId,
-                        schema.content.type,
-                        schema.content.xtreamId,
-                    ],
-                })
-                .run();
+            if (rowsToInsert.length > 0) {
+                tx.insert(schema.content)
+                    .values(rowsToInsert)
+                    .onConflictDoNothing({
+                        target: [
+                            schema.content.categoryId,
+                            schema.content.type,
+                            schema.content.xtreamId,
+                        ],
+                    })
+                    .run();
+            }
+
+            for (const row of rowsToUpdate) {
+                tx.update(schema.content)
+                    .set(getContentCatalogUpdate(row))
+                    .where(eq(schema.content.id, row.id))
+                    .run();
+            }
         });
-        totalInserted += chunk.length;
+        totalProcessed += chunk.length;
         await reportOperationProgress(control, {
             phase: 'saving-content',
-            current: totalInserted,
+            current: totalProcessed,
             total,
             increment: chunk.length,
         });
     }
 
-    return { success: true, count: totalInserted };
+    for (const chunk of chunkValues(staleContentIds, 100)) {
+        await checkpointOperation(control);
+        await db.transaction((tx) => {
+            tx.delete(schema.content)
+                .where(inArray(schema.content.id, chunk))
+                .run();
+        });
+    }
+
+    for (const chunk of chunkValues(staleXtreamIds, 100)) {
+        await checkpointOperation(control);
+        await db.transaction((tx) => {
+            if (type === 'series') {
+                tx.delete(schema.episodeMediaMetadata)
+                    .where(
+                        and(
+                            eq(
+                                schema.episodeMediaMetadata.playlistId,
+                                playlistId
+                            ),
+                            inArray(
+                                schema.episodeMediaMetadata.seriesXtreamId,
+                                chunk
+                            )
+                        )
+                    )
+                    .run();
+                tx.delete(schema.mediaMetadataSeriesDiscoveryJobs)
+                    .where(
+                        and(
+                            eq(
+                                schema.mediaMetadataSeriesDiscoveryJobs.playlistId,
+                                playlistId
+                            ),
+                            inArray(
+                                schema.mediaMetadataSeriesDiscoveryJobs
+                                    .seriesXtreamId,
+                                chunk
+                            )
+                        )
+                    )
+                    .run();
+                tx.delete(schema.mediaMetadataJobs)
+                    .where(
+                        and(
+                            eq(
+                                schema.mediaMetadataJobs.playlistId,
+                                playlistId
+                            ),
+                            eq(schema.mediaMetadataJobs.contentType, 'episode'),
+                            inArray(
+                                schema.mediaMetadataJobs.seriesXtreamId,
+                                chunk
+                            )
+                        )
+                    )
+                    .run();
+                return;
+            }
+
+            tx.delete(schema.mediaMetadataJobs)
+                .where(
+                    and(
+                        eq(schema.mediaMetadataJobs.playlistId, playlistId),
+                        eq(schema.mediaMetadataJobs.contentType, type),
+                        inArray(schema.mediaMetadataJobs.xtreamId, chunk)
+                    )
+                )
+                .run();
+        });
+    }
+
+    return { success: true, count: values.length };
 }
 
 export async function clearXtreamImportCache(
@@ -437,6 +760,44 @@ export async function clearXtreamImportCache(
         });
     }
 
+    if (type === 'series') {
+        await db
+            .delete(schema.episodeMediaMetadata)
+            .where(eq(schema.episodeMediaMetadata.playlistId, playlistId))
+            .run();
+        await db
+            .delete(schema.mediaMetadataJobs)
+            .where(
+                and(
+                    eq(schema.mediaMetadataJobs.playlistId, playlistId),
+                    eq(schema.mediaMetadataJobs.contentType, 'episode')
+                )
+            )
+            .run();
+        await db
+            .delete(schema.mediaMetadataSeriesDiscoveryJobs)
+            .where(
+                eq(
+                    schema.mediaMetadataSeriesDiscoveryJobs.playlistId,
+                    playlistId
+                )
+            )
+            .run();
+    } else {
+        await db
+            .delete(schema.mediaMetadataJobs)
+            .where(
+                and(
+                    eq(schema.mediaMetadataJobs.playlistId, playlistId),
+                    eq(
+                        schema.mediaMetadataJobs.contentType,
+                        type === 'movie' ? 'movie' : 'live'
+                    )
+                )
+            )
+            .run();
+    }
+
     return { success: true };
 }
 
@@ -465,7 +826,64 @@ export async function getContentByXtreamId(
         .where(and(...conditions))
         .limit(1);
 
-    return result[0] || null;
+    return result[0] ? attachParsedMediaMetadata(result[0]) : null;
+}
+
+export async function setContentMediaMetadata(
+    db: AppDatabase,
+    playlistId: string,
+    contentType: 'live' | 'movie' | 'series',
+    xtreamId: number,
+    metadata: MediaStreamMetadata
+): Promise<{ success: boolean; count: number }> {
+    if (!Number.isFinite(xtreamId) || xtreamId <= 0) {
+        return { success: false, count: 0 };
+    }
+
+    const rows = await db
+        .select({ id: schema.content.id })
+        .from(schema.content)
+        .innerJoin(
+            schema.categories,
+            eq(schema.content.categoryId, schema.categories.id)
+        )
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.content.type, contentType),
+                eq(schema.content.xtreamId, xtreamId)
+            )
+        );
+
+    const ids = rows.map((row) => row.id);
+    if (!ids.length) {
+        return { success: false, count: 0 };
+    }
+
+    await db
+        .update(schema.content)
+        .set({
+            mediaMetadata: JSON.stringify(metadata),
+            mediaMetadataUpdatedAt: Date.now(),
+        })
+        .where(inArray(schema.content.id, ids))
+        .run();
+
+    return { success: true, count: ids.length };
+}
+
+export async function clearContentMediaMetadata(
+    db: AppDatabase
+): Promise<{ success: boolean }> {
+    await db
+        .update(schema.content)
+        .set({
+            mediaMetadata: null,
+            mediaMetadataUpdatedAt: null,
+        })
+        .run();
+
+    return { success: true };
 }
 
 export async function searchContent(
@@ -516,7 +934,7 @@ export async function searchContent(
         .where(and(...conditions))
         .limit(200);
 
-    return candidates
+    return attachParsedMediaMetadataToRows(candidates)
         .filter((item) => titleMatchesSearchTokens(item.title, searchTokens))
         .slice(0, 50);
 }
@@ -576,7 +994,7 @@ export async function globalSearch(
         .orderBy(schema.content.title)
         .limit(200);
 
-    return candidates
+    return attachParsedMediaMetadataToRows(candidates)
         .filter((item) => titleMatchesSearchTokens(item.title, searchTokens))
         .slice(0, 50);
 }

@@ -1,5 +1,6 @@
 import { PlaybackPositionData } from './playback-position.interface';
 import { M3uRecentlyViewedItem } from './playlist-recently-viewed.interface';
+import { VpnProvider } from './settings.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
 
 export const PLAYLIST_BACKUP_KIND = 'iptvnator-playlist-backup';
@@ -20,6 +21,14 @@ export interface PlaylistBackupBaseEntry {
     title: string;
     autoRefresh: boolean;
     position?: number;
+    sourceVpn?: SourceVpnBackupConfig;
+}
+
+export interface SourceVpnBackupConfig {
+    provider: VpnProvider;
+    location?: string;
+    autoConnectOnOpen?: boolean;
+    autoConnectWhenDefault?: boolean;
 }
 
 export interface M3uPlaylistBackupEntry extends PlaylistBackupBaseEntry {

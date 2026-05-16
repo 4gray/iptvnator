@@ -1,6 +1,8 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import * as schema from 'database-schema';
+import { repairMojibakeText } from 'shared-interfaces';
 import type { AppDatabase } from '../database.types';
+import { chunkValues } from './operation-control';
 
 type XtreamCategoryInput = {
     category_name: string;
@@ -11,6 +13,13 @@ function normalizeXtreamCategoryId(rawCategoryId: string | number): number | nul
     const xtreamId = Number.parseInt(String(rawCategoryId), 10);
 
     return Number.isNaN(xtreamId) ? null : xtreamId;
+}
+
+function normalizeCategoryRow<T extends { name: string }>(row: T): T {
+    return {
+        ...row,
+        name: repairMojibakeText(row.name),
+    };
 }
 
 export async function hasCategories(
@@ -36,7 +45,7 @@ export async function getCategories(
     playlistId: string,
     type: 'live' | 'movies' | 'series'
 ) {
-    return db
+    const rows = await db
         .select()
         .from(schema.categories)
         .where(
@@ -47,6 +56,8 @@ export async function getCategories(
             )
         )
         .orderBy(sql`name COLLATE NOCASE`);
+
+    return rows.map((row) => normalizeCategoryRow(row));
 }
 
 export async function saveCategories(
@@ -57,20 +68,6 @@ export async function saveCategories(
     hiddenCategoryXtreamIds?: number[]
 ): Promise<{ success: boolean }> {
     if (!categories || categories.length === 0) {
-        return { success: true };
-    }
-
-    const existingCategories = await db
-        .select({ count: sql<number>`count(*)` })
-        .from(schema.categories)
-        .where(
-            and(
-                eq(schema.categories.playlistId, playlistId),
-                eq(schema.categories.type, type)
-            )
-        );
-
-    if ((existingCategories[0]?.count ?? 0) > 0) {
         return { success: true };
     }
 
@@ -85,7 +82,7 @@ export async function saveCategories(
         return [
             {
                 playlistId,
-                name: category.category_name,
+                name: repairMojibakeText(category.category_name),
                 type,
                 xtreamId,
                 hidden: hiddenSet.has(xtreamId),
@@ -97,16 +94,54 @@ export async function saveCategories(
         return { success: true };
     }
 
-    await db
-        .insert(schema.categories)
-        .values(values)
-        .onConflictDoNothing({
-            target: [
-                schema.categories.playlistId,
-                schema.categories.type,
-                schema.categories.xtreamId,
-            ],
+    const existingCategories = await db
+        .select({
+            id: schema.categories.id,
+            xtreamId: schema.categories.xtreamId,
+        })
+        .from(schema.categories)
+        .where(
+            and(
+                eq(schema.categories.playlistId, playlistId),
+                eq(schema.categories.type, type)
+            )
+        );
+    const incomingXtreamIds = new Set(values.map((value) => value.xtreamId));
+    const staleCategoryIds = existingCategories
+        .filter((category) => !incomingXtreamIds.has(category.xtreamId))
+        .map((category) => category.id);
+
+    await db.transaction((tx) => {
+        for (const row of values) {
+            tx.insert(schema.categories)
+                .values(row)
+                .onConflictDoUpdate({
+                    target: [
+                        schema.categories.playlistId,
+                        schema.categories.type,
+                        schema.categories.xtreamId,
+                    ],
+                    set:
+                        hiddenCategoryXtreamIds === undefined
+                            ? {
+                                  name: row.name,
+                              }
+                            : {
+                                  name: row.name,
+                                  hidden: row.hidden,
+                              },
+                })
+                .run();
+        }
+    });
+
+    for (const chunk of chunkValues(staleCategoryIds, 100)) {
+        await db.transaction((tx) => {
+            tx.delete(schema.categories)
+                .where(inArray(schema.categories.id, chunk))
+                .run();
         });
+    }
 
     return { success: true };
 }
@@ -116,7 +151,7 @@ export async function getAllCategories(
     playlistId: string,
     type: 'live' | 'movies' | 'series'
 ) {
-    return db
+    const rows = await db
         .select()
         .from(schema.categories)
         .where(
@@ -126,6 +161,8 @@ export async function getAllCategories(
             )
         )
         .orderBy(sql`name COLLATE NOCASE`);
+
+    return rows.map((row) => normalizeCategoryRow(row));
 }
 
 export async function updateCategoryVisibility(

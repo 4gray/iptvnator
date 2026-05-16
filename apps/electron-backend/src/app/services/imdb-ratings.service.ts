@@ -1,6 +1,6 @@
 import { app } from 'electron';
 import { existsSync, statSync, createReadStream, createWriteStream } from 'fs';
-import { mkdir, readFile, rename, writeFile } from 'fs/promises';
+import { mkdir, readFile, readdir, rename, writeFile } from 'fs/promises';
 import { IncomingMessage } from 'http';
 import * as https from 'https';
 import * as path from 'path';
@@ -26,6 +26,14 @@ const SUPPORTED_TITLE_TYPES = new Set([
     ...MOVIE_TITLE_TYPES,
     ...SERIES_TITLE_TYPES,
 ]);
+const ENABLE_FULL_ALIAS_SCAN =
+    process.env['IPTVNATOR_IMDB_ENABLE_FULL_ALIAS_SCAN'] === '1';
+const MAX_SUGGESTION_LOOKUPS_PER_REQUEST = 25;
+const MAX_SUGGESTION_QUERIES_PER_LOOKUP = 2;
+// Positive IMDb rating matches intentionally have no TTL. Only negative
+// "not found" entries expire so a later IMDb dataset/search update can retry.
+const ALIAS_NEGATIVE_MISS_TTL_MS = 14 * 24 * 60 * 60 * 1000;
+const LEGACY_ALIAS_CACHE_PATTERN = /^movie-rating-aliases-v\d+\.json$/;
 type ImdbLookupKind = 'movie' | 'series';
 
 interface ImdbRatingRecord {
@@ -85,6 +93,14 @@ interface ImdbSuggestionResponse {
     d?: ImdbSuggestionItem[];
 }
 
+interface ImdbAliasCacheMiss {
+    miss: true;
+    cachedAt: number;
+}
+
+type ImdbAliasCacheEntry = ImdbMovieRatingMatch | ImdbAliasCacheMiss;
+type ImdbAliasCache = Record<string, ImdbAliasCacheEntry>;
+
 class ImdbRatingsService {
     private indexPromise: Promise<ImdbTitleIndex> | null = null;
 
@@ -103,18 +119,46 @@ class ImdbRatingsService {
                 };
             }
 
-            const index = await this.loadTitleIndex();
             const aliasCache = await this.readAliasCache();
             const matches: Record<string, ImdbMovieRatingMatch> = {};
+            const indexLookups: MovieLookup[] = [];
             const unresolved: MovieLookup[] = [];
+            let cacheDirty = false;
 
             for (const lookup of lookups) {
                 const cached = this.findCachedAliasMatch(lookup, aliasCache);
-                const directMatch =
-                    cached ?? this.findBestIndexedMatch(index, lookup);
+                if (cached) {
+                    matches[String(lookup.id)] = cached;
+                    continue;
+                }
+
+                if (this.hasFreshAliasMiss(lookup, aliasCache)) {
+                    continue;
+                }
+
+                indexLookups.push(lookup);
+            }
+
+            if (indexLookups.length === 0) {
+                return {
+                    status: 'ready',
+                    matches,
+                };
+            }
+
+            const index = await this.loadTitleIndex();
+
+            for (const lookup of indexLookups) {
+                const directMatch = this.findBestIndexedMatch(index, lookup);
 
                 if (directMatch) {
                     matches[String(lookup.id)] = directMatch;
+                    this.writeLookupCacheEntries(
+                        aliasCache,
+                        lookup,
+                        directMatch
+                    );
+                    cacheDirty = true;
                 } else {
                     unresolved.push(lookup);
                 }
@@ -131,36 +175,54 @@ class ImdbRatingsService {
                     const match = aliasMatches.get(String(lookup.id));
                     if (match) {
                         matches[String(lookup.id)] = match;
-                        for (const cacheKey of lookup.cacheKeys) {
-                            aliasCache[cacheKey] = match;
-                        }
+                        this.writeLookupCacheEntries(
+                            aliasCache,
+                            lookup,
+                            match
+                        );
+                        cacheDirty = true;
                     } else {
                         stillUnresolved.push(lookup);
                     }
                 }
 
                 if (stillUnresolved.length > 0) {
+                    const searchCandidateLookups = stillUnresolved.slice(
+                        0,
+                        MAX_SUGGESTION_LOOKUPS_PER_REQUEST
+                    );
                     const searchMatches =
                         await this.findSuggestionSearchMatches(
                             index,
-                            stillUnresolved
+                            searchCandidateLookups
                         );
 
-                    for (const lookup of stillUnresolved) {
+                    for (const lookup of searchCandidateLookups) {
                         const match = searchMatches.get(String(lookup.id));
                         if (!match) {
                             continue;
                         }
                         matches[String(lookup.id)] = match;
-                        for (const cacheKey of lookup.cacheKeys) {
-                            aliasCache[cacheKey] = match;
+                        this.writeLookupCacheEntries(
+                            aliasCache,
+                            lookup,
+                            match
+                        );
+                        cacheDirty = true;
+                    }
+
+                    for (const lookup of searchCandidateLookups) {
+                        if (!searchMatches.has(String(lookup.id))) {
+                            this.writeLookupMissEntries(aliasCache, lookup);
+                            cacheDirty = true;
                         }
                     }
                 }
 
-                if (aliasMatches.size > 0 || stillUnresolved.length > 0) {
-                    await this.writeAliasCache(aliasCache);
-                }
+            }
+
+            if (cacheDirty) {
+                await this.writeAliasCache(aliasCache);
             }
 
             return {
@@ -320,6 +382,10 @@ class ImdbRatingsService {
         index: ImdbTitleIndex,
         lookups: MovieLookup[]
     ): Promise<Map<string, ImdbMovieRatingMatch>> {
+        if (!ENABLE_FULL_ALIAS_SCAN) {
+            return new Map();
+        }
+
         await this.ensureDatasetFile('akas');
 
         const byWantedTitle = new Map<string, MovieLookup[]>();
@@ -382,9 +448,18 @@ class ImdbRatingsService {
         lookups: MovieLookup[]
     ): Promise<Map<string, ImdbMovieRatingMatch>> {
         const bestByLookupId = new Map<string, ScoredMatch>();
+        let searchedLookups = 0;
 
         for (const lookup of lookups) {
-            for (const query of lookup.searchQueries.slice(0, 5)) {
+            if (searchedLookups >= MAX_SUGGESTION_LOOKUPS_PER_REQUEST) {
+                break;
+            }
+            searchedLookups += 1;
+
+            for (const query of lookup.searchQueries.slice(
+                0,
+                MAX_SUGGESTION_QUERIES_PER_LOOKUP
+            )) {
                 const suggestions = await this.fetchImdbSuggestions(query);
                 for (const suggestion of suggestions) {
                     if (!suggestion.id?.startsWith('tt')) {
@@ -623,19 +698,85 @@ class ImdbRatingsService {
 
     private findCachedAliasMatch(
         lookup: MovieLookup,
-        aliasCache: Record<string, ImdbMovieRatingMatch>
+        aliasCache: ImdbAliasCache
     ): ImdbMovieRatingMatch | null {
         for (const cacheKey of lookup.cacheKeys) {
-            const match = aliasCache[cacheKey];
-            if (match) {
+            const entry = aliasCache[cacheKey];
+            if (this.isAliasCacheMatch(entry)) {
                 return {
-                    ...match,
+                    ...entry,
                     id: lookup.id,
                 };
             }
         }
 
         return null;
+    }
+
+    private hasFreshAliasMiss(
+        lookup: MovieLookup,
+        aliasCache: ImdbAliasCache
+    ): boolean {
+        if (lookup.cacheKeys.length === 0) {
+            return false;
+        }
+
+        const now = Date.now();
+        return lookup.cacheKeys.every((cacheKey) => {
+            const entry = aliasCache[cacheKey];
+            return (
+                this.isAliasCacheMiss(entry) &&
+                now - entry.cachedAt < ALIAS_NEGATIVE_MISS_TTL_MS
+            );
+        });
+    }
+
+    private writeLookupCacheEntries(
+        aliasCache: ImdbAliasCache,
+        lookup: MovieLookup,
+        match: ImdbMovieRatingMatch
+    ): void {
+        for (const cacheKey of lookup.cacheKeys) {
+            aliasCache[cacheKey] = {
+                ...match,
+                id: lookup.id,
+            };
+        }
+    }
+
+    private writeLookupMissEntries(
+        aliasCache: ImdbAliasCache,
+        lookup: MovieLookup
+    ): void {
+        const cachedAt = Date.now();
+        for (const cacheKey of lookup.cacheKeys) {
+            aliasCache[cacheKey] = {
+                miss: true,
+                cachedAt,
+            };
+        }
+    }
+
+    private isAliasCacheMatch(
+        value: ImdbAliasCacheEntry | undefined
+    ): value is ImdbMovieRatingMatch {
+        return Boolean(
+            value &&
+                !('miss' in value) &&
+                typeof value.imdbId === 'string' &&
+                typeof value.rating === 'number'
+        );
+    }
+
+    private isAliasCacheMiss(
+        value: ImdbAliasCacheEntry | undefined
+    ): value is ImdbAliasCacheMiss {
+        return Boolean(
+            value &&
+                'miss' in value &&
+                value.miss === true &&
+                typeof value.cachedAt === 'number'
+        );
     }
 
     private createLookup(item: ImdbMovieRatingRequestItem): MovieLookup | null {
@@ -986,27 +1127,56 @@ class ImdbRatingsService {
         await rename(tmpPath, destination);
     }
 
-    private async readAliasCache(): Promise<
-        Record<string, ImdbMovieRatingMatch>
-    > {
-        const cachePath = this.getAliasCachePath();
+    private async readAliasCache(): Promise<ImdbAliasCache> {
+        const cachePaths = await this.getAliasCacheReadPaths();
+        let mergedCache: ImdbAliasCache = {};
+
+        for (const cachePath of cachePaths) {
+            mergedCache = {
+                ...mergedCache,
+                ...(await this.readAliasCacheFile(cachePath)),
+            };
+        }
+
+        return mergedCache;
+    }
+
+    private async getAliasCacheReadPaths(): Promise<string[]> {
+        const cacheDir = this.getCacheDir();
+        const primaryPath = this.getAliasCachePath();
+        const paths = new Set<string>();
+
+        try {
+            const entries = await readdir(cacheDir);
+            for (const entry of entries) {
+                if (LEGACY_ALIAS_CACHE_PATTERN.test(entry)) {
+                    paths.add(path.join(cacheDir, entry));
+                }
+            }
+        } catch {
+            // Cache directory may not exist yet.
+        }
+
+        paths.delete(primaryPath);
+        return [...paths].sort().concat(primaryPath);
+    }
+
+    private async readAliasCacheFile(cachePath: string): Promise<ImdbAliasCache> {
         if (!existsSync(cachePath)) {
             return {};
         }
 
         try {
-            return JSON.parse(await readFile(cachePath, 'utf8')) as Record<
-                string,
-                ImdbMovieRatingMatch
-            >;
+            const parsed = JSON.parse(
+                await readFile(cachePath, 'utf8')
+            ) as ImdbAliasCache;
+            return parsed && typeof parsed === 'object' ? parsed : {};
         } catch {
             return {};
         }
     }
 
-    private async writeAliasCache(
-        cache: Record<string, ImdbMovieRatingMatch>
-    ): Promise<void> {
+    private async writeAliasCache(cache: ImdbAliasCache): Promise<void> {
         await this.writeJsonFile(this.getAliasCachePath(), cache);
     }
 
@@ -1034,10 +1204,7 @@ class ImdbRatingsService {
     }
 
     private getAliasCachePath(): string {
-        return path.join(
-            this.getCacheDir(),
-            `movie-rating-aliases-v${INDEX_VERSION}.json`
-        );
+        return path.join(this.getCacheDir(), 'movie-rating-aliases.json');
     }
 }
 

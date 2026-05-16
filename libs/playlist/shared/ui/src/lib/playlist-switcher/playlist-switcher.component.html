@@ -134,6 +134,7 @@
             <div
                 class="playlist-item"
                 [class.selected]="isSelected(playlist)"
+                [class.is-preparing-vpn]="isVpnPreparing(playlist._id)"
                 (click)="selectPlaylist(playlist)"
             >
                 <!-- @if (isSelected(playlist)) {
@@ -159,6 +160,20 @@
                     ) {
                         <mat-icon class="auto-refresh-indicator"
                             >autorenew</mat-icon
+                        >
+                    }
+                    @if (isVpnPreparing(playlist._id)) {
+                        <mat-icon class="source-vpn-preparing-indicator"
+                            >sync</mat-icon
+                        >
+                    } @else if (hasSourceVpn(playlist)) {
+                        <mat-icon
+                            class="source-vpn-indicator"
+                            [matTooltip]="
+                                'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_ENABLED'
+                                    | translate
+                            "
+                            >vpn_key</mat-icon
                         >
                     }
                 </div>

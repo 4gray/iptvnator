@@ -89,6 +89,9 @@ describe('PlaylistBackupService', () => {
                         filePath: '/tmp/playlist.m3u',
                         favorites: ['https://example.com/stream-1'],
                         recentlyViewed: [],
+                        vpnProvider: 'proton',
+                        vpnLocation: 'hr',
+                        vpnAutoConnectOnOpen: true,
                     },
                     {
                         _id: 'stalker-1',
@@ -141,6 +144,11 @@ describe('PlaylistBackupService', () => {
             expect.arrayContaining([
                 expect.objectContaining({
                     portalType: 'm3u',
+                    sourceVpn: {
+                        provider: 'proton',
+                        location: 'HR',
+                        autoConnectOnOpen: true,
+                    },
                     source: expect.objectContaining({
                         kind: 'file',
                         rawM3u: '#EXTM3U\n#EXTINF:-1,One\nhttps://example.com/stream-1',
@@ -232,6 +240,12 @@ describe('PlaylistBackupService', () => {
                     title: 'Imported Title',
                     autoRefresh: true,
                     position: 3,
+                    sourceVpn: {
+                        provider: 'proton',
+                        location: 'DE',
+                        autoConnectOnOpen: true,
+                        autoConnectWhenDefault: true,
+                    },
                     source: {
                         kind: 'url',
                         rawM3u: '#EXTM3U\n#EXTINF:-1,Backup\nhttps://example.com/stream-1',
@@ -270,6 +284,10 @@ describe('PlaylistBackupService', () => {
                 position: 3,
                 url: 'https://example.com/playlist.m3u/',
                 userAgent: 'BackupAgent/1.0',
+                vpnProvider: 'proton',
+                vpnLocation: 'DE',
+                vpnAutoConnectOnOpen: true,
+                vpnAutoConnectWhenDefault: true,
                 filePath: undefined,
                 favorites: ['https://example.com/stream-1'],
                 hiddenGroupTitles: ['Sports'],

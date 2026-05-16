@@ -47,6 +47,36 @@
     font-size: 0.82em;
 }
 
+.filter-index-progress {
+    flex-shrink: 0;
+    display: grid;
+    gap: 6px;
+    padding: 8px 20px 10px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    background: color-mix(in srgb, var(--mat-sys-surface) 94%, black);
+}
+
+.filter-index-progress__track {
+    overflow: hidden;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--app-separator, var(--mat-sys-outline-variant));
+
+    span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--mat-sys-primary);
+        transition: width 0.18s ease;
+    }
+}
+
+.filter-index-progress__label {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.74rem;
+    font-weight: 600;
+}
+
 .language-filter-panel {
     flex-shrink: 0;
     padding: 14px 20px 16px;

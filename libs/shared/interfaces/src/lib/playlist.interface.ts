@@ -1,4 +1,5 @@
 import { PlaylistRecentlyViewedItem } from './playlist-recently-viewed.interface';
+import { VpnProvider } from './settings.interface';
 import { StalkerPortalItem } from './stalker-portal-item.interface';
 
 /**
@@ -67,4 +68,23 @@ export interface Playlist {
     };
     /** Hidden M3U group titles for the groups view */
     hiddenGroupTitles?: string[];
+    /** Optional per-source VPN adapter to prepare before opening this source. */
+    vpnProvider?: VpnProvider;
+    /** Optional per-source VPN country/location code. */
+    vpnLocation?: string;
+    /** Prepare the configured VPN automatically when this source is opened. */
+    vpnAutoConnectOnOpen?: boolean;
+    /**
+     * Prepare the configured VPN automatically at app startup when this source
+     * is the default/only source selected by the workspace.
+     */
+    vpnAutoConnectWhenDefault?: boolean;
 }
+
+export type PlaylistSourceVpnConfig = Pick<
+    Playlist,
+    | 'vpnProvider'
+    | 'vpnLocation'
+    | 'vpnAutoConnectOnOpen'
+    | 'vpnAutoConnectWhenDefault'
+>;

@@ -3,6 +3,7 @@ import {
     AfterViewInit,
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     computed,
     effect,
     inject,
@@ -35,16 +36,14 @@ import {
     buildXtreamNavigationTarget,
     EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER,
     isPortalCatalogLanguageFilterActive,
+    isPortalCatalogVideoQualityFilterActive,
     isWorkspaceLayoutRoute,
     PortalCatalogLanguageFilterSection,
+    PortalCatalogVideoQualityFilterValue,
     queryParamSignal,
 } from '@iptvnator/portal/shared/util';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import {
-    matchesXtreamLanguageFilter,
-    XtreamContentItem,
-    XtreamLanguageFilterCandidate,
-} from '@iptvnator/portal/xtream/data-access';
+import { XtreamContentItem } from '@iptvnator/portal/xtream/data-access';
 import { SearchFilters } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { ContentType } from '@iptvnator/portal/xtream/data-access';
@@ -104,6 +103,7 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
+    private readonly destroyRef = inject(DestroyRef);
     private readonly logger = createLogger('XtreamSearchResults');
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
     readonly routeSearchTerm = queryParamSignal(
@@ -130,6 +130,42 @@ export class SearchResultsComponent implements AfterViewInit {
             this.xtreamStore.languageFilterActive?.() ??
             isPortalCatalogLanguageFilterActive(this.languageFilter())
     );
+    readonly videoQualityFilter = computed(
+        () => this.xtreamStore.videoQualityFilter?.() ?? 'all'
+    );
+    readonly videoQualityFilterOptions = computed(
+        () => this.xtreamStore.videoQualityFilterOptions?.() ?? []
+    );
+    readonly videoQualityFilterActive = computed(
+        () =>
+            this.xtreamStore.videoQualityFilterActive?.() ??
+            isPortalCatalogVideoQualityFilterActive(this.videoQualityFilter())
+    );
+    readonly metadataFiltersReady = computed(
+        () => this.xtreamStore.metadataFiltersReady?.() ?? true
+    );
+    readonly hasSelectedLanguageFilter = computed(() =>
+        isPortalCatalogLanguageFilterActive(this.languageFilter())
+    );
+    readonly metadataFilterActive = computed(
+        () => this.languageFilterActive() || this.videoQualityFilterActive()
+    );
+    private readonly metadataBackgroundStatus =
+        signal<MediaMetadataBackgroundStatus | null>(null);
+    readonly filterIndexProgress = computed(() => {
+        const metadataProgress = this.metadataBackgroundFilterProgress();
+        if (metadataProgress) {
+            return metadataProgress;
+        }
+
+        return this.xtreamStore.filterIndexProgress?.() ?? null;
+    });
+    readonly showFilterIndexProgress = computed(() => {
+        const progress = this.filterIndexProgress();
+        return Boolean(
+            progress && progress.totalItems > 0 && progress.status === 'running'
+        );
+    });
     readonly filteredResults = computed(
         () =>
             this.xtreamStore.filteredSearchResults?.() ??
@@ -182,16 +218,8 @@ export class SearchResultsComponent implements AfterViewInit {
             titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_INCLUDE',
         },
         {
-            key: 'audioExclude',
-            titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_EXCLUDE',
-        },
-        {
             key: 'subtitleInclude',
             titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_INCLUDE',
-        },
-        {
-            key: 'subtitleExclude',
-            titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_EXCLUDE',
         },
     ];
 
@@ -208,14 +236,9 @@ export class SearchResultsComponent implements AfterViewInit {
         const filteredKeys = new Set(
             filteredResults.map((item) => this.getSearchResultKey(item))
         );
-        const filterExcludedItems = this.languageFilterActive()
+        const filterExcludedItems = this.metadataFilterActive()
             ? rawResults.filter(
-                  (item) =>
-                      !filteredKeys.has(this.getSearchResultKey(item)) &&
-                      matchesXtreamLanguageFilter(
-                          item as unknown as XtreamLanguageFilterCandidate,
-                          this.languageFilter()
-                      ) === false
+                  (item) => !filteredKeys.has(this.getSearchResultKey(item))
               )
             : [];
         const visibleItems = filteredResults.filter(
@@ -305,6 +328,8 @@ export class SearchResultsComponent implements AfterViewInit {
 
             this.xtreamStore.setSearchTerm(queryTerm);
         });
+
+        this.connectMetadataBackgroundProgress();
     }
 
     ngAfterViewInit() {
@@ -392,6 +417,14 @@ export class SearchResultsComponent implements AfterViewInit {
 
     resetLanguageFilter(): void {
         this.xtreamStore.resetLanguageFilter?.();
+    }
+
+    setVideoQualityFilter(filter: PortalCatalogVideoQualityFilterValue): void {
+        this.xtreamStore.setVideoQualityFilter?.(filter);
+    }
+
+    resetVideoQualityFilter(): void {
+        this.xtreamStore.resetVideoQualityFilter?.();
     }
 
     /**
@@ -515,6 +548,74 @@ export class SearchResultsComponent implements AfterViewInit {
             default:
                 return 'PORTALS.SEARCH_VIEW.VISIBLE_CATEGORIES_SECTION';
         }
+    }
+
+    private connectMetadataBackgroundProgress(): void {
+        if (!window.electron?.getMediaMetadataBackgroundStatus) {
+            return;
+        }
+
+        void window.electron
+            .getMediaMetadataBackgroundStatus()
+            .then((status) => this.metadataBackgroundStatus.set(status))
+            .catch((error) => {
+                this.logger.error(
+                    'Failed to read metadata background progress',
+                    error
+                );
+            });
+
+        const unsubscribe = window.electron.onMediaMetadataBackgroundEvent?.(
+            (event) => {
+                const status = this.extractMetadataBackgroundStatus(event);
+                if (status) {
+                    this.metadataBackgroundStatus.set(status);
+                }
+            }
+        );
+
+        if (typeof unsubscribe === 'function') {
+            this.destroyRef.onDestroy(unsubscribe);
+        }
+    }
+
+    private metadataBackgroundFilterProgress() {
+        const status = this.metadataBackgroundStatus();
+        if (!status?.running || status.totalItems <= 0) {
+            return null;
+        }
+
+        const processedItems = Math.max(0, status.processedItems);
+        const totalItems = Math.max(processedItems, status.totalItems);
+
+        return {
+            status: 'running' as const,
+            processedItems,
+            totalItems,
+            percent:
+                totalItems > 0
+                    ? Math.min(
+                          100,
+                          Math.round((processedItems / totalItems) * 100)
+                      )
+                    : 0,
+            updatedAt: Date.now(),
+        };
+    }
+
+    private extractMetadataBackgroundStatus(
+        event: unknown
+    ): MediaMetadataBackgroundStatus | null {
+        const candidate = event as
+            | { status?: MediaMetadataBackgroundStatus }
+            | null
+            | undefined;
+
+        return candidate?.status &&
+            typeof candidate.status === 'object' &&
+            typeof candidate.status.running === 'boolean'
+            ? candidate.status
+            : null;
     }
 
     private getSearchResultKey(item: XtreamContentItem): string {

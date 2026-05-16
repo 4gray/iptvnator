@@ -4,6 +4,7 @@ const registeredHandlers = new Map<string, (...args: unknown[]) => unknown>();
 const axiosMock = Object.assign(jest.fn(), {
     isAxiosError: jest.fn(),
 });
+const mockEnsureSourceNetworkReady = jest.fn();
 
 function createDeferred<T>() {
     let resolve!: (value: T) => void;
@@ -33,6 +34,11 @@ jest.mock('./portal-debug.events', () => ({
     emitPortalDebugEvent: jest.fn(),
 }));
 
+jest.mock('../services/source-network-options', () => ({
+    ensureSourceNetworkReady: mockEnsureSourceNetworkReady,
+    getSourceAxiosAgents: jest.fn(() => ({})),
+}));
+
 describe('XtreamEvents session cancellation', () => {
     let consoleErrorSpy: jest.SpyInstance;
 
@@ -41,6 +47,8 @@ describe('XtreamEvents session cancellation', () => {
         registeredHandlers.clear();
         axiosMock.mockReset();
         axiosMock.isAxiosError.mockReset();
+        mockEnsureSourceNetworkReady.mockReset();
+        mockEnsureSourceNetworkReady.mockResolvedValue(null);
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
         await import('./xtream.events');
@@ -48,6 +56,168 @@ describe('XtreamEvents session cancellation', () => {
 
     afterEach(() => {
         consoleErrorSpy.mockRestore();
+    });
+
+    it('prepares source VPN before an Xtream request leaves the process', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+        axiosMock.mockResolvedValue({
+            status: 200,
+            data: Buffer.from('{"user_info":{"status":"Active"}}'),
+            headers: { 'content-type': 'application/json' },
+        });
+
+        await requestHandler?.({}, {
+            url: 'http://localhost:3211',
+            params: {
+                action: 'get_account_info',
+                password: 'secret',
+                username: 'user1',
+            },
+            sourceVpn: {
+                provider: 'proton',
+                location: 'DE',
+                sourceId: 'source-1',
+            },
+        });
+
+        expect(mockEnsureSourceNetworkReady).toHaveBeenCalledWith({
+            provider: 'proton',
+            location: 'DE',
+            sourceId: 'source-1',
+        });
+        expect(mockEnsureSourceNetworkReady.mock.invocationCallOrder[0]).toBeLessThan(
+            axiosMock.mock.invocationCallOrder[0]
+        );
+    });
+
+    it('normalizes Xtream API URLs without adding duplicate slashes or player_api.php segments', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+        axiosMock.mockResolvedValue({
+            status: 200,
+            data: Buffer.from('{"user_info":{"status":"Active"}}'),
+            headers: { 'content-type': 'application/json' },
+        });
+
+        await requestHandler?.({}, {
+            url: ' http://localhost:3211/player_api.php ',
+            params: {
+                action: 'get_account_info',
+                password: 'secret',
+                username: 'user1',
+            },
+        });
+
+        const calledUrl = new URL(axiosMock.mock.calls[0][0].url);
+        expect(calledUrl.origin).toBe('http://localhost:3211');
+        expect(calledUrl.pathname).toBe('/player_api.php');
+        expect(calledUrl.searchParams.get('action')).toBe('get_account_info');
+        expect(calledUrl.searchParams.get('password')).toBe('secret');
+        expect(calledUrl.searchParams.get('username')).toBe('user1');
+    });
+
+    it('retries transient portal failures before returning Portal unavailable to the renderer', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 503,
+                statusText: 'Service Unavailable',
+                data: Buffer.from(''),
+                headers: {},
+            })
+            .mockResolvedValueOnce({
+                status: 200,
+                data: Buffer.from('{"user_info":{"status":"Active"}}'),
+                headers: { 'content-type': 'application/json' },
+            });
+
+        const result = await requestHandler?.({}, {
+            url: 'http://localhost:3211/',
+            params: {
+                action: 'get_account_info',
+                password: 'secret',
+                username: 'user1',
+            },
+        });
+
+        expect(result).toEqual(
+            expect.objectContaining({
+                payload: {
+                    user_info: {
+                        status: 'Active',
+                    },
+                },
+            })
+        );
+        expect(mockEnsureSourceNetworkReady).toHaveBeenCalledTimes(2);
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+        const calledUrl = new URL(axiosMock.mock.calls[1][0].url);
+        expect(calledUrl.origin).toBe('http://localhost:3211');
+        expect(calledUrl.pathname).toBe('/player_api.php');
+        expect(calledUrl.searchParams.get('action')).toBe('get_account_info');
+        expect(calledUrl.searchParams.get('password')).toBe('secret');
+        expect(calledUrl.searchParams.get('username')).toBe('user1');
+    });
+
+    it('retries when the source VPN is not ready yet and sends the request only after preparation succeeds', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+        mockEnsureSourceNetworkReady
+            .mockRejectedValueOnce({
+                message: 'VPN is required but not ready',
+                status: 599,
+            })
+            .mockResolvedValueOnce(null);
+        axiosMock.mockResolvedValue({
+            status: 200,
+            data: Buffer.from('{"user_info":{"status":"Active"}}'),
+            headers: { 'content-type': 'application/json' },
+        });
+
+        await requestHandler?.({}, {
+            url: 'http://localhost:3211',
+            params: {
+                action: 'get_account_info',
+                password: 'secret',
+                username: 'user1',
+            },
+            sourceVpn: {
+                provider: 'proton',
+                location: 'HR',
+                sourceId: 'source-1',
+            },
+        });
+
+        expect(mockEnsureSourceNetworkReady).toHaveBeenCalledTimes(2);
+        expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not retry credential or authorization errors', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+        axiosMock.mockResolvedValue({
+            status: 401,
+            statusText: 'Unauthorized',
+            data: Buffer.from(''),
+            headers: {},
+        });
+
+        await expect(
+            requestHandler?.({}, {
+                url: 'http://localhost:3211',
+                params: {
+                    action: 'get_account_info',
+                    password: 'bad',
+                    username: 'user1',
+                },
+                suppressErrorLog: true,
+            })
+        ).rejects.toMatchObject({
+            status: 401,
+        });
+        expect(axiosMock).toHaveBeenCalledTimes(1);
     });
 
     it('aborts requests that were registered with only a session id', async () => {
@@ -81,6 +251,7 @@ describe('XtreamEvents session cancellation', () => {
             suppressErrorLog: true,
         }) as Promise<unknown>;
 
+        await Promise.resolve();
         expect(abortSignal?.aborted).toBe(false);
 
         const cancelResult = (await cancelHandler?.(
@@ -150,6 +321,7 @@ describe('XtreamEvents session cancellation', () => {
             suppressErrorLog: true,
         }) as Promise<unknown>;
 
+        await Promise.resolve();
         const cancelResult = (await cancelHandler?.(
             {},
             'session-2'

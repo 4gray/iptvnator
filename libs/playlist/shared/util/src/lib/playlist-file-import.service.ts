@@ -1,7 +1,11 @@
 import { Injectable, inject } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions } from 'm3u-state';
-import { Playlist } from 'shared-interfaces';
+import {
+    decodeTextBytes,
+    Playlist,
+    PlaylistSourceVpnConfig,
+} from 'shared-interfaces';
 
 const M3U_EXTENSIONS = ['.m3u', '.m3u8'];
 
@@ -33,7 +37,9 @@ export class PlaylistFileImportService {
         return M3U_EXTENSIONS.some((ext) => lower.endsWith(ext));
     }
 
-    async importFromNativeDialog(): Promise<NativePlaylistFileImportResult> {
+    async importFromNativeDialog(
+        sourceVpn?: PlaylistSourceVpnConfig
+    ): Promise<NativePlaylistFileImportResult> {
         const openPlaylistFromFile = this.getNativeFileDialog();
         if (!openPlaylistFromFile) {
             return { ok: false, reason: 'read-error' };
@@ -45,26 +51,38 @@ export class PlaylistFileImportService {
                 return { ok: false, reason: 'cancelled' };
             }
 
-            this.store.dispatch(PlaylistActions.addPlaylist({ playlist }));
+            const nextPlaylist = {
+                ...playlist,
+                ...(sourceVpn ?? {}),
+            };
+
+            this.store.dispatch(
+                PlaylistActions.addPlaylist({ playlist: nextPlaylist })
+            );
 
             return {
                 ok: true,
                 title:
-                    playlist.title || playlist.filename || 'Untitled playlist',
+                    nextPlaylist.title ||
+                    nextPlaylist.filename ||
+                    'Untitled playlist',
             };
         } catch {
             return { ok: false, reason: 'read-error' };
         }
     }
 
-    async importFile(file: File): Promise<PlaylistFileImportResult> {
+    async importFile(
+        file: File,
+        sourceVpn?: PlaylistSourceVpnConfig
+    ): Promise<PlaylistFileImportResult> {
         if (!this.isSupportedFile(file)) {
             return { ok: false, reason: 'unsupported' };
         }
 
         let playlist: string;
         try {
-            playlist = await file.text();
+            playlist = decodeTextBytes(await file.arrayBuffer(), file.type);
         } catch {
             return { ok: false, reason: 'read-error' };
         }
@@ -80,6 +98,7 @@ export class PlaylistFileImportService {
                 playlist,
                 title,
                 path: this.getFilePath(file),
+                ...(sourceVpn ? { sourceVpn } : {}),
             })
         );
 

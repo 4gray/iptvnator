@@ -6,10 +6,11 @@ import {
 } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
+    XtreamApiService,
     XtreamUrlService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { MediaMetadataService } from 'services';
+import { DatabaseService, MediaMetadataService, SettingsStore } from 'services';
 import { XtreamCatalogFacadeService } from './xtream-catalog-facade.service';
 
 const PLAYLIST_ONE: XtreamPlaylistData = {
@@ -59,9 +60,20 @@ describe('XtreamCatalogFacadeService', () => {
     ]);
     const videoQualityFilterActive = signal(false);
     const currentPlaylist = signal<XtreamPlaylistData | null>(PLAYLIST_ONE);
+    const liveStreams = signal<Record<string, unknown>[]>([]);
+    const vodStreams = signal<Record<string, unknown>[]>([]);
+    const serialStreams = signal<Record<string, unknown>[]>([]);
+    const backgroundMetadataWarmup = signal(false);
+    const backgroundMetadataWarmupSchedule = signal<
+        'every-opening' | 'weekly' | 'monthly'
+    >('weekly');
+    const backgroundMetadataWarmupConcurrency = signal(2);
     const mediaMetadataProbe = jest.fn();
     const constructLiveUrl = jest.fn();
     const constructVodUrl = jest.fn();
+    const constructEpisodeUrl = jest.fn();
+    const getSeriesInfo = jest.fn();
+    const setXtreamContentMediaMetadata = jest.fn();
 
     const xtreamStore = {
         selectedContentType: contentType,
@@ -82,6 +94,9 @@ describe('XtreamCatalogFacadeService', () => {
         videoQualityFilterOptions,
         videoQualityFilterActive,
         currentPlaylist,
+        liveStreams,
+        vodStreams,
+        serialStreams,
         loadAllPositions: jest.fn(),
         setCategorySearchTerm: jest.fn(),
         setSelectedItem: jest.fn((item: Record<string, unknown> | null) => {
@@ -137,6 +152,12 @@ describe('XtreamCatalogFacadeService', () => {
         ]);
         videoQualityFilterActive.set(false);
         currentPlaylist.set(PLAYLIST_ONE);
+        liveStreams.set([]);
+        vodStreams.set([]);
+        serialStreams.set([]);
+        backgroundMetadataWarmup.set(false);
+        backgroundMetadataWarmupSchedule.set('weekly');
+        backgroundMetadataWarmupConcurrency.set(2);
 
         xtreamStore.loadAllPositions.mockClear();
         xtreamStore.setCategorySearchTerm.mockClear();
@@ -170,6 +191,16 @@ describe('XtreamCatalogFacadeService', () => {
         constructLiveUrl.mockReturnValue('http://localhost/live/1.ts');
         constructVodUrl.mockReset();
         constructVodUrl.mockReturnValue('http://localhost/movie/1.mkv');
+        constructEpisodeUrl.mockReset();
+        constructEpisodeUrl.mockReturnValue('http://localhost/series/1.mp4');
+        getSeriesInfo.mockReset();
+        getSeriesInfo.mockResolvedValue({
+            episodes: {},
+            seasons: [],
+            info: {},
+        });
+        setXtreamContentMediaMetadata.mockReset();
+        setXtreamContentMediaMetadata.mockResolvedValue(true);
 
         TestBed.configureTestingModule({
             providers: [
@@ -185,10 +216,31 @@ describe('XtreamCatalogFacadeService', () => {
                     },
                 },
                 {
+                    provide: DatabaseService,
+                    useValue: {
+                        setXtreamContentMediaMetadata,
+                    },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        backgroundMetadataWarmup,
+                        backgroundMetadataWarmupSchedule,
+                        backgroundMetadataWarmupConcurrency,
+                    },
+                },
+                {
                     provide: XtreamUrlService,
                     useValue: {
                         constructLiveUrl,
                         constructVodUrl,
+                        constructEpisodeUrl,
+                    },
+                },
+                {
+                    provide: XtreamApiService,
+                    useValue: {
+                        getSeriesInfo,
                     },
                 },
             ],
@@ -294,14 +346,202 @@ describe('XtreamCatalogFacadeService', () => {
             url: 'http://localhost/movie/1.mkv',
             headers: {},
         });
-        expect(xtreamStore.setContentMediaMetadata).toHaveBeenCalledWith({
-            contentType: 'vod',
-            xtreamId: 44,
-            metadata: expect.objectContaining({
+        expect(xtreamStore.setContentMediaMetadata).toHaveBeenCalledWith(
+            expect.objectContaining({
+                contentType: 'vod',
+                xtreamId: 44,
+                metadataUpdatedAt: expect.any(Number),
+                metadata: expect.objectContaining({
+                    qualityLabel: '2160p HEVC',
+                    audioLanguages: ['ITA'],
+                    subtitleLanguages: ['ENG'],
+                }),
+            })
+        );
+        expect(setXtreamContentMediaMetadata).toHaveBeenCalledWith(
+            'playlist-1',
+            'movie',
+            44,
+            expect.objectContaining({
                 qualityLabel: '2160p HEVC',
                 audioLanguages: ['ITA'],
                 subtitleLanguages: ['ENG'],
-            }),
+            })
+        );
+    });
+
+    it('does not rewrite existing complete metadata during visible warmup', () => {
+        service.warmVisibleMediaMetadata([
+            {
+                xtream_id: 44,
+                title: 'Movie with complete metadata',
+                mediaMetadata: {
+                    available: true,
+                    qualityLabel: '2160p HEVC',
+                    height: 2160,
+                    videoCodecs: ['HEVC'],
+                    audioLanguages: ['ITA'],
+                    audioCodecs: [],
+                    subtitleLanguages: ['ENG'],
+                    subtitleCodecs: [],
+                },
+            },
+        ]);
+
+        expect(mediaMetadataProbe).not.toHaveBeenCalled();
+        expect(xtreamStore.setContentMediaMetadata).not.toHaveBeenCalled();
+    });
+
+    it('does not rediscover fresh partial series metadata on each startup', async () => {
+        jest.useFakeTimers();
+        const originalElectron = window.electron;
+        const startMediaMetadataBackgroundWarmup = jest
+            .fn()
+            .mockResolvedValue({ running: false, pendingItems: 0 });
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: {
+                getMediaMetadataBackgroundStatus: jest
+                    .fn()
+                    .mockResolvedValue({ running: false, pendingItems: 0 }),
+                startMediaMetadataBackgroundWarmup,
+            },
         });
+
+        try {
+            serialStreams.set([
+                {
+                    series_id: 55,
+                    title: 'Series with no subtitles',
+                    mediaMetadata: {
+                        available: true,
+                        qualityLabel: '1080p H.264',
+                        audioLanguages: ['ITA'],
+                        audioCodecs: [],
+                        subtitleLanguages: [],
+                        subtitleCodecs: [],
+                    },
+                    mediaMetadataUpdatedAt: Date.now(),
+                },
+            ]);
+            backgroundMetadataWarmup.set(true);
+            TestBed.flushEffects();
+
+            jest.advanceTimersByTime(5000);
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(startMediaMetadataBackgroundWarmup).not.toHaveBeenCalled();
+        } finally {
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: originalElectron,
+            });
+            jest.useRealTimers();
+        }
+    });
+
+    it('queues live, movie and series metadata with the source VPN context', async () => {
+        const originalElectron = window.electron;
+        const startMediaMetadataBackgroundWarmup = jest
+            .fn()
+            .mockResolvedValue({ running: false, pendingItems: 0 });
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: {
+                getMediaMetadataBackgroundStatus: jest
+                    .fn()
+                    .mockResolvedValue({ running: false, pendingItems: 0 }),
+                startMediaMetadataBackgroundWarmup,
+            },
+        });
+
+        try {
+            currentPlaylist.set({
+                ...PLAYLIST_ONE,
+                vpnProvider: 'proton',
+                vpnLocation: 'HR',
+            });
+            liveStreams.set([
+                {
+                    stream_id: 33,
+                    title: 'Live channel without metadata',
+                },
+            ]);
+            vodStreams.set([
+                {
+                    stream_id: 44,
+                    title: 'Movie without metadata',
+                    container_extension: 'mkv',
+                },
+            ]);
+            serialStreams.set([
+                {
+                    series_id: 55,
+                    title: 'Series without metadata',
+                },
+            ]);
+            backgroundMetadataWarmup.set(true);
+
+            await (service as unknown as {
+                startBackgroundMetadataWarmup: () => Promise<void>;
+            }).startBackgroundMetadataWarmup();
+            await Promise.resolve();
+            await Promise.resolve();
+
+            expect(startMediaMetadataBackgroundWarmup).toHaveBeenCalledTimes(2);
+            expect(startMediaMetadataBackgroundWarmup).toHaveBeenNthCalledWith(
+                1,
+                expect.objectContaining({
+                    jobs: expect.arrayContaining([
+                        expect.objectContaining({
+                            playlistId: 'playlist-1',
+                            contentType: 'live',
+                            sourceVpn: expect.objectContaining({
+                                provider: 'proton',
+                                location: 'HR',
+                                sourceId: 'playlist-1',
+                                sourceTitle: 'Playlist One',
+                            }),
+                        }),
+                        expect.objectContaining({
+                            playlistId: 'playlist-1',
+                            contentType: 'movie',
+                            sourceVpn: expect.objectContaining({
+                                provider: 'proton',
+                                location: 'HR',
+                                sourceId: 'playlist-1',
+                                sourceTitle: 'Playlist One',
+                            }),
+                        }),
+                    ]),
+                    runAfterWindowClose: true,
+                })
+            );
+            expect(startMediaMetadataBackgroundWarmup).toHaveBeenNthCalledWith(
+                2,
+                expect.objectContaining({
+                    jobs: [],
+                    seriesDiscoveryJobs: [
+                        expect.objectContaining({
+                            playlistId: 'playlist-1',
+                            seriesXtreamId: 55,
+                            sourceVpn: expect.objectContaining({
+                                provider: 'proton',
+                                location: 'HR',
+                                sourceId: 'playlist-1',
+                                sourceTitle: 'Playlist One',
+                            }),
+                        }),
+                    ],
+                    runAfterWindowClose: true,
+                })
+            );
+        } finally {
+            Object.defineProperty(window, 'electron', {
+                configurable: true,
+                value: originalElectron,
+            });
+        }
     });
 });

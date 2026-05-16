@@ -40,6 +40,69 @@ function createDbMock(result: unknown[] = []) {
     };
 }
 
+function createSaveContentDbMock(
+    categories: Array<{ id: number; xtreamId: number }>,
+    existingContent: Array<Record<string, unknown>>
+) {
+    const categoriesWhere = jest.fn().mockResolvedValue(categories);
+    const categoriesFrom = jest.fn().mockReturnValue({ where: categoriesWhere });
+    const existingContentWhere = jest.fn().mockResolvedValue(existingContent);
+    const existingContentInnerJoin = jest
+        .fn()
+        .mockReturnValue({ where: existingContentWhere });
+    const existingContentFrom = jest
+        .fn()
+        .mockReturnValue({ innerJoin: existingContentInnerJoin });
+    const select = jest
+        .fn()
+        .mockReturnValueOnce({ from: categoriesFrom })
+        .mockReturnValueOnce({ from: existingContentFrom });
+
+    const run = jest.fn();
+    const onConflictDoNothing = jest.fn().mockReturnValue({ run });
+    const values = jest.fn().mockReturnValue({ onConflictDoNothing });
+    const insert = jest.fn().mockReturnValue({ values });
+    const updateWhere = jest.fn().mockReturnValue({ run });
+    const set = jest.fn().mockReturnValue({ where: updateWhere });
+    const update = jest.fn().mockReturnValue({ set });
+    const deleteWhere = jest.fn().mockReturnValue({ run });
+    const deleteFn = jest.fn().mockReturnValue({ where: deleteWhere });
+    const transactionResults: unknown[] = [];
+    const transaction = jest.fn((callback: (tx: unknown) => unknown) => {
+        const result = callback({
+            delete: deleteFn,
+            insert,
+            update,
+        });
+        transactionResults.push(result);
+
+        if (
+            typeof result === 'object' &&
+            result !== null &&
+            'then' in result
+        ) {
+            throw new Error('Transaction function cannot return a promise');
+        }
+
+        return result;
+    });
+
+    return {
+        db: {
+            select,
+            transaction,
+        } as unknown as AppDatabase,
+        deleteFn,
+        insert,
+        run,
+        set,
+        transaction,
+        transactionResults,
+        update,
+        values,
+    };
+}
+
 describe('content.operations', () => {
     beforeEach(() => {
         andMock.mockClear();
@@ -93,7 +156,7 @@ describe('content.operations', () => {
     });
 
     it('uses a synchronous better-sqlite transaction callback when saving content', async () => {
-        const existingContentWhere = jest.fn().mockResolvedValue([{ count: 0 }]);
+        const existingContentWhere = jest.fn().mockResolvedValue([]);
         const existingContentInnerJoin = jest
             .fn()
             .mockReturnValue({ where: existingContentWhere });
@@ -113,8 +176,8 @@ describe('content.operations', () => {
 
         const select = jest
             .fn()
-            .mockReturnValueOnce({ from: existingContentFrom })
-            .mockReturnValueOnce({ from: categoriesFrom });
+            .mockReturnValueOnce({ from: categoriesFrom })
+            .mockReturnValueOnce({ from: existingContentFrom });
 
         const run = jest.fn();
         const onConflictDoNothing = jest.fn().mockReturnValue({ run });
@@ -147,7 +210,7 @@ describe('content.operations', () => {
                 [
                     {
                         category_id: '201',
-                        name: 'News Live',
+                        name: 'Cinema cittÃ ',
                         stream_id: '100',
                     },
                 ],
@@ -159,11 +222,159 @@ describe('content.operations', () => {
         expect(values).toHaveBeenCalledWith([
             expect.objectContaining({
                 categoryId: 42,
-                title: 'News Live',
+                title: 'Cinema città',
                 xtreamId: 100,
                 type: 'live',
             }),
         ]);
         expect(run).toHaveBeenCalled();
+    });
+
+    it('updates changed catalog fields without replacing cached media metadata', async () => {
+        const { db, insert, set, update, values } = createSaveContentDbMock(
+            [
+                {
+                    id: 42,
+                    xtreamId: 201,
+                },
+            ],
+            [
+                {
+                    id: 7,
+                    categoryId: 42,
+                    title: 'Old title',
+                    rating: '',
+                    added: '',
+                    posterUrl: '',
+                    epgChannelId: null,
+                    tvArchive: 0,
+                    tvArchiveDuration: 0,
+                    directSource: null,
+                    xtreamId: 100,
+                    type: 'live',
+                },
+            ]
+        );
+
+        await expect(
+            saveContent(
+                db,
+                'playlist-1',
+                [
+                    {
+                        category_id: '201',
+                        name: 'New title',
+                        stream_id: '100',
+                    },
+                ],
+                'live'
+            )
+        ).resolves.toEqual({ success: true, count: 1 });
+
+        expect(insert).not.toHaveBeenCalled();
+        expect(values).not.toHaveBeenCalled();
+        expect(update).toHaveBeenCalled();
+        expect(set).toHaveBeenCalledWith(
+            expect.not.objectContaining({
+                mediaMetadata: expect.anything(),
+                mediaMetadataUpdatedAt: expect.anything(),
+            })
+        );
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                title: 'New title',
+            })
+        );
+    });
+
+    it('keeps the existing cache when the provider returns an empty catalog', async () => {
+        const { db, transaction } = createSaveContentDbMock(
+            [
+                {
+                    id: 42,
+                    xtreamId: 201,
+                },
+            ],
+            [
+                {
+                    id: 7,
+                    categoryId: 42,
+                    title: 'Cached title',
+                    rating: '',
+                    added: '',
+                    posterUrl: '',
+                    epgChannelId: null,
+                    tvArchive: 0,
+                    tvArchiveDuration: 0,
+                    directSource: null,
+                    xtreamId: 100,
+                    type: 'live',
+                },
+            ]
+        );
+
+        await expect(
+            saveContent(db, 'playlist-1', [], 'live')
+        ).resolves.toEqual({ success: true, count: 1 });
+
+        expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('removes stale content and metadata jobs for catalog entries that disappeared', async () => {
+        const { db, deleteFn } = createSaveContentDbMock(
+            [
+                {
+                    id: 42,
+                    xtreamId: 201,
+                },
+            ],
+            [
+                {
+                    id: 7,
+                    categoryId: 42,
+                    title: 'Current movie',
+                    rating: '',
+                    added: '',
+                    posterUrl: '',
+                    epgChannelId: null,
+                    tvArchive: null,
+                    tvArchiveDuration: null,
+                    directSource: null,
+                    xtreamId: 100,
+                    type: 'movie',
+                },
+                {
+                    id: 8,
+                    categoryId: 42,
+                    title: 'Removed movie',
+                    rating: '',
+                    added: '',
+                    posterUrl: '',
+                    epgChannelId: null,
+                    tvArchive: null,
+                    tvArchiveDuration: null,
+                    directSource: null,
+                    xtreamId: 101,
+                    type: 'movie',
+                },
+            ]
+        );
+
+        await expect(
+            saveContent(
+                db,
+                'playlist-1',
+                [
+                    {
+                        category_id: '201',
+                        name: 'Current movie',
+                        stream_id: '100',
+                    },
+                ],
+                'movie'
+            )
+        ).resolves.toEqual({ success: true, count: 1 });
+
+        expect(deleteFn).toHaveBeenCalledTimes(2);
     });
 });

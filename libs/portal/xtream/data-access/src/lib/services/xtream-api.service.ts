@@ -10,6 +10,9 @@ import {
     XtreamVodDetails,
     XtreamVodStream,
     XTREAM_REQUEST,
+    normalizeTextValuesDeep,
+    repairMojibakeText,
+    SourceVpnRequestContext,
 } from 'shared-interfaces';
 import { XtreamAccountInfo } from '../account-info/account-info.interface';
 
@@ -20,6 +23,7 @@ export interface XtreamCredentials {
     serverUrl: string;
     username: string;
     password: string;
+    sourceVpn?: SourceVpnRequestContext;
 }
 
 /**
@@ -35,6 +39,7 @@ export type StreamType = 'live' | 'movie' | 'series';
 export interface XtreamRequestOptions {
     requestId?: string;
     sessionId?: string;
+    sourceVpn?: SourceVpnRequestContext;
     suppressErrorLog?: boolean;
 }
 
@@ -99,7 +104,7 @@ export class XtreamApiService {
                 password: credentials.password,
                 action: XtreamCodeActions.GetAccountInfo,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
     }
 
@@ -124,7 +129,7 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
 
         return Array.isArray(response) ? response : [];
@@ -144,7 +149,7 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
 
         return Array.isArray(response) ? response : [];
@@ -164,7 +169,7 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
 
         return Array.isArray(response) ? response : [];
@@ -184,7 +189,7 @@ export class XtreamApiService {
                 username: credentials.username,
                 password: credentials.password,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
 
         return Array.isArray(response) ? response : [];
@@ -224,7 +229,7 @@ export class XtreamApiService {
                 password: credentials.password,
                 vod_id: vodId,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
     }
 
@@ -244,7 +249,7 @@ export class XtreamApiService {
                 password: credentials.password,
                 series_id: seriesId,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
     }
 
@@ -267,7 +272,7 @@ export class XtreamApiService {
                 stream_id: streamId,
                 limit,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
 
         return this.normalizeShortEpgItems(response);
@@ -291,7 +296,7 @@ export class XtreamApiService {
                     password: credentials.password,
                     stream_id: streamId,
                 },
-                options
+                this.getRequestOptions(credentials, options)
             );
             const items = this.normalizeFullEpgItems(response);
             if (items.length > 0) {
@@ -309,7 +314,7 @@ export class XtreamApiService {
                 password: credentials.password,
                 stream_id: streamId,
             },
-            options
+            this.getRequestOptions(credentials, options)
         );
 
         return this.normalizeFullEpgItems(fallbackResponse);
@@ -320,17 +325,20 @@ export class XtreamApiService {
      */
     private decodeBase64Unicode(str: string): string {
         try {
-            return decodeURIComponent(
-                Array.prototype.map
-                    .call(atob(str), (c: string) => {
-                        return (
-                            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
-                        );
-                    })
-                    .join('')
+            return repairMojibakeText(
+                decodeURIComponent(
+                    Array.prototype.map
+                        .call(atob(str), (c: string) => {
+                            return (
+                                '%' +
+                                ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                            );
+                        })
+                        .join('')
+                )
             );
         } catch {
-            return str;
+            return repairMojibakeText(str);
         }
     }
 
@@ -470,6 +478,14 @@ export class XtreamApiService {
         return Date.parse(isoValue);
     }
 
+    private getRequestOptions(
+        credentials: XtreamCredentials,
+        options?: XtreamRequestOptions
+    ): XtreamRequestOptions | undefined {
+        const sourceVpn = options?.sourceVpn ?? credentials.sourceVpn;
+        return sourceVpn ? { ...options, sourceVpn } : options;
+    }
+
     /**
      * Send request via IPC to avoid CORS issues
      */
@@ -488,6 +504,7 @@ export class XtreamApiService {
             params: serializedParams,
             requestId: options?.requestId,
             sessionId: options?.sessionId,
+            sourceVpn: options?.sourceVpn,
             suppressErrorLog: options?.suppressErrorLog,
         })) as {
             message?: string;
@@ -502,6 +519,6 @@ export class XtreamApiService {
             throw new Error(response?.message ?? 'Request failed');
         }
 
-        return response?.payload as TResponse;
+        return normalizeTextValuesDeep(response?.payload) as TResponse;
     }
 }

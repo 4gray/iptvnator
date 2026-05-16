@@ -8,7 +8,10 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, NavigationStart, Router } from '@angular/router';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     XtreamCachedContentScope,
@@ -53,6 +56,14 @@ function toXtreamPlaylistData(
         ...(userAgent ? { userAgent } : {}),
         ...(referrer ? { referrer } : {}),
         ...(origin ? { origin } : {}),
+        ...(playlist.vpnProvider ? { vpnProvider: playlist.vpnProvider } : {}),
+        ...(playlist.vpnLocation ? { vpnLocation: playlist.vpnLocation } : {}),
+        ...(playlist.vpnAutoConnectOnOpen !== undefined
+            ? { vpnAutoConnectOnOpen: playlist.vpnAutoConnectOnOpen }
+            : {}),
+        ...(playlist.vpnAutoConnectWhenDefault !== undefined
+            ? { vpnAutoConnectWhenDefault: playlist.vpnAutoConnectWhenDefault }
+            : {}),
     };
 }
 
@@ -130,6 +141,14 @@ function hasPlaylistConnectionChanges(
         currentPlaylist.origin
     );
     const nextOrigin = normalizeOptionalConnectionValue(nextPlaylist.origin);
+    const currentVpnProvider = currentPlaylist.vpnProvider ?? null;
+    const nextVpnProvider = nextPlaylist.vpnProvider ?? null;
+    const currentVpnLocation = normalizeOptionalConnectionValue(
+        currentPlaylist.vpnLocation
+    );
+    const nextVpnLocation = normalizeOptionalConnectionValue(
+        nextPlaylist.vpnLocation
+    );
 
     return (
         currentPlaylist.serverUrl !== nextPlaylist.serverUrl ||
@@ -137,7 +156,13 @@ function hasPlaylistConnectionChanges(
         currentPlaylist.password !== nextPlaylist.password ||
         currentUserAgent !== nextUserAgent ||
         currentReferrer !== nextReferrer ||
-        currentOrigin !== nextOrigin
+        currentOrigin !== nextOrigin ||
+        currentVpnProvider !== nextVpnProvider ||
+        currentVpnLocation !== nextVpnLocation ||
+        Boolean(currentPlaylist.vpnAutoConnectOnOpen) !==
+            Boolean(nextPlaylist.vpnAutoConnectOnOpen) ||
+        Boolean(currentPlaylist.vpnAutoConnectWhenDefault) !==
+            Boolean(nextPlaylist.vpnAutoConnectWhenDefault)
     );
 }
 
@@ -188,16 +213,21 @@ function getRoutePath(url: string): string {
     return url.split('?')[0] ?? url;
 }
 
+const BLOCKED_PORTAL_RECOVERY_DEDUPE_MS = 30_000;
+
 @Injectable()
 export class XtreamWorkspaceRouteSession {
     private readonly destroyRef = inject(DestroyRef);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly xtreamStore = inject(XtreamStore);
 
     private syncInFlight = false;
     private syncPending = false;
     private lastSyncedRoutePath: string | null = null;
+    private lastBlockedPortalRecoveryKey: string | null = null;
+    private lastBlockedPortalRecoveryAt = 0;
 
     constructor() {
         effect(() => {
@@ -275,9 +305,13 @@ export class XtreamWorkspaceRouteSession {
                 : null;
         const routeSection =
             routeContext.provider === 'xtreams' ? routeContext.section : null;
+        const activePlaylist =
+            routeContext.provider === 'xtreams'
+                ? this.playlistContext.activePlaylist()
+                : null;
         const routePlaylist =
             routeContext.provider === 'xtreams'
-                ? toXtreamPlaylistData(this.playlistContext.activePlaylist())
+                ? toXtreamPlaylistData(activePlaylist)
                 : null;
         const storePlaylistId = this.xtreamStore.playlistId();
         const currentPlaylist = this.xtreamStore.currentPlaylist();
@@ -303,6 +337,10 @@ export class XtreamWorkspaceRouteSession {
                 this.xtreamStore.prepareContentLoading(cacheScope);
             }
 
+            await this.sourceVpnPreparation.prepareForPlaylist(
+                activePlaylist,
+                'source-open'
+            );
             await this.xtreamStore.fetchXtreamPlaylist();
             portalStatus = await this.xtreamStore.checkPortalStatus();
             canUseCachedContent =
@@ -344,6 +382,38 @@ export class XtreamWorkspaceRouteSession {
             portalStatus !== 'active' &&
             !canUseCachedContent
         ) {
+            const nextPortalStatus =
+                await this.recoverBlockedPortalIfNeeded(
+                    activePlaylist,
+                    playlistId,
+                    section,
+                    portalStatus
+                );
+
+            if (nextPortalStatus !== portalStatus) {
+                portalStatus = nextPortalStatus;
+                if (portalStatus === 'active') {
+                    this.xtreamStore.setContentInitBlockReason(null);
+                } else if (cacheScope) {
+                    canUseCachedContent =
+                        this.xtreamStore.isCachedContentScopeReady(
+                            cacheScope
+                        ) ||
+                        (await this.xtreamStore.hasUsableOfflineCache(
+                            cacheScope
+                        ));
+                }
+            }
+        }
+
+        if (
+            isImportDrivenSection(section) &&
+            portalStatus !== 'active' &&
+            !canUseCachedContent
+        ) {
+            this.xtreamStore.setContentInitBlockReason(
+                toContentInitBlockReason(portalStatus)
+            );
             return;
         }
 
@@ -385,6 +455,48 @@ export class XtreamWorkspaceRouteSession {
         this.xtreamStore.setSelectedCategory(routeCategoryId);
 
         return section;
+    }
+
+    private async recoverBlockedPortalIfNeeded(
+        activePlaylist: PlaylistMeta | null,
+        playlistId: string | null,
+        section: PortalRailSection | null,
+        portalStatus: PortalStatusType
+    ): Promise<PortalStatusType> {
+        if (
+            !playlistId ||
+            portalStatus !== 'unavailable' ||
+            !isImportDrivenSection(section) ||
+            !this.sourceVpnPreparation.shouldPrepareForPlaylist(
+                activePlaylist,
+                'source-open'
+            )
+        ) {
+            return portalStatus;
+        }
+
+        const recoveryKey = [
+            playlistId,
+            this.sourceVpnPreparation.getLocation(activePlaylist),
+            section,
+        ].join(':');
+        if (
+            recoveryKey === this.lastBlockedPortalRecoveryKey &&
+            Date.now() - this.lastBlockedPortalRecoveryAt <
+                BLOCKED_PORTAL_RECOVERY_DEDUPE_MS
+        ) {
+            return portalStatus;
+        }
+
+        this.lastBlockedPortalRecoveryKey = recoveryKey;
+        this.lastBlockedPortalRecoveryAt = Date.now();
+
+        await this.sourceVpnPreparation.prepareForPlaylist(
+            activePlaylist,
+            'source-open'
+        );
+
+        return this.xtreamStore.checkPortalStatus();
     }
 
     private async initializeCurrentSectionContent(

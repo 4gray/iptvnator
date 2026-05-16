@@ -60,7 +60,7 @@ import { EpgItem, EpgProgram, ResolvedPortalPlayback } from 'shared-interfaces';
 import { MediaStreamMetadata } from 'shared-interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
-import { MediaMetadataService, SettingsStore } from 'services';
+import { DatabaseService, MediaMetadataService, SettingsStore } from 'services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -103,6 +103,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly xtreamUrlService = inject(XtreamUrlService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly mediaMetadataService = inject(MediaMetadataService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
@@ -355,6 +356,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                                 xtreamId,
                                 metadata,
                             });
+                            this.persistMediaMetadata(xtreamId, metadata);
                         }
                     }
                 });
@@ -672,6 +674,24 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         }
 
         return headers;
+    }
+
+    private persistMediaMetadata(
+        xtreamId: string | number,
+        metadata: MediaStreamMetadata | null
+    ): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const numericId = Number(xtreamId);
+        if (!playlistId || !metadata || !Number.isFinite(numericId)) {
+            return;
+        }
+
+        void this.databaseService.setXtreamContentMediaMetadata(
+            String(playlistId),
+            'live',
+            numericId,
+            metadata
+        );
     }
 
     private clearAutoOpenHistoryState(): void {

@@ -1,5 +1,6 @@
 import { eq, inArray } from 'drizzle-orm';
 import * as schema from 'database-schema';
+import { normalizeTextValuesDeep, repairMojibakeText } from 'shared-interfaces';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,
@@ -102,10 +103,11 @@ function buildPlaylistRow(
 
     return {
         id,
-        name:
+        name: repairMojibakeText(
             getStringValue(playlist.title) ??
-            getStringValue(playlist.name) ??
-            id,
+                getStringValue(playlist.name) ??
+                id
+        ),
         serverUrl: getStringValue(playlist.serverUrl),
         username: getStringValue(playlist.username),
         password: getStringValue(playlist.password),
@@ -156,13 +158,14 @@ export function parseAppPlaylist(row: schema.Playlist): Record<string, unknown> 
         row.updateDate ??
         (row.lastUpdated ? new Date(row.lastUpdated).getTime() : undefined);
 
-    return {
+    const parsedPlaylist: Record<string, unknown> = {
         ...base,
         _id: row.id,
-        title:
+        title: repairMojibakeText(
             getStringValue(base.title) ??
-            getStringValue(base.name) ??
-            row.name,
+                getStringValue(base.name) ??
+                row.name
+        ),
         count: row.count ?? getNumericValue(base.count) ?? 0,
         importDate: getStringValue(base.importDate) ?? importDate,
         lastUsage:
@@ -189,6 +192,14 @@ export function parseAppPlaylist(row: schema.Playlist): Record<string, unknown> 
         macAddress: row.macAddress ?? getStringValue(base.macAddress),
         portalUrl: portalUrl ?? getStringValue(base.portalUrl),
     };
+
+    if (parsedPlaylist.playlist) {
+        parsedPlaylist.playlist = normalizeTextValuesDeep(
+            parsedPlaylist.playlist
+        );
+    }
+
+    return parsedPlaylist;
 }
 
 export async function createPlaylist(
@@ -206,7 +217,7 @@ export async function createPlaylist(
 ): Promise<{ success: boolean }> {
     await db.insert(schema.playlists).values({
         id: playlist.id,
-        name: playlist.name,
+        name: repairMojibakeText(playlist.name),
         serverUrl: playlist.serverUrl,
         username: playlist.username,
         password: playlist.password,

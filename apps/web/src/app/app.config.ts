@@ -39,6 +39,7 @@ import {
     providePortalNavigationActions,
 } from './services/portal-navigation-actions.service';
 import { providePortalPlaybackPositions } from './services/portal-playback-positions.service';
+import { readPreferredLanguageHint } from './services/preferred-language-hint';
 import { PwaService } from './services/pwa.service';
 import { provideWorkspaceShellActions } from './services/workspace-shell-actions.service';
 
@@ -56,37 +57,8 @@ export function HttpLoaderFactory(http: HttpClient): TranslateHttpLoader {
  * settings resolve, so first-ever boots fall back to English (no hint
  * present yet) and every subsequent boot uses the saved language.
  */
-const SUPPORTED_LANGS = new Set([
-    'ar',
-    'ary',
-    'by',
-    'de',
-    'el',
-    'en',
-    'es',
-    'fr',
-    'it',
-    'ja',
-    'ko',
-    'nl',
-    'pl',
-    'pt',
-    'ru',
-    'tr',
-    'zh',
-    'zhtw',
-]);
-export const PREFERRED_LANGUAGE_STORAGE_KEY = 'iptvnator:preferred-language';
 export function getInitialLanguage(): string {
-    try {
-        const saved = localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY);
-        if (saved && SUPPORTED_LANGS.has(saved)) {
-            return saved;
-        }
-    } catch {
-        // localStorage may throw in privacy modes; fall through to default.
-    }
-    return 'en';
+    return readPreferredLanguageHint() ?? 'en';
 }
 
 /**

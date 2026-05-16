@@ -1,5 +1,11 @@
 import { createActionGroup, emptyProps, props } from '@ngrx/store';
-import { Channel, EpgProgram, Playlist, PlaylistMeta } from 'shared-interfaces';
+import {
+    Channel,
+    EpgProgram,
+    Playlist,
+    PlaylistMeta,
+    PlaylistSourceVpnConfig,
+} from 'shared-interfaces';
 
 export const PlaylistActions = createActionGroup({
     source: 'Playlists',
@@ -17,6 +23,7 @@ export const PlaylistActions = createActionGroup({
             playlist: string;
             title: string;
             path?: string;
+            sourceVpn?: PlaylistSourceVpnConfig;
         }>(),
         'Set Active Playlist': props<{ playlistId: string }>(),
         'Update Playlist Positions': props<{

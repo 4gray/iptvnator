@@ -420,6 +420,93 @@ describe('withContent import state', () => {
         expect(store.isContentInitialized()).toBe(true);
     });
 
+    it('updates only the matching content item when metadata arrives', () => {
+        const untouched = { stream_id: 1, name: 'Movie 1' };
+        const target = { stream_id: 2, name: 'Movie 2' };
+        const metadata = {
+            available: true,
+            audioLanguages: ['it'],
+            audioCodecs: [],
+            subtitleLanguages: ['en'],
+            subtitleCodecs: [],
+            qualityLabel: '4K',
+        };
+
+        patchState(store, {
+            vodStreams: [untouched, target],
+        });
+
+        store.setContentMediaMetadata({
+            contentType: 'movie',
+            xtreamId: 2,
+            metadata,
+        });
+
+        const updatedStreams = store.vodStreams();
+        expect(updatedStreams[0]).toBe(untouched);
+        expect(updatedStreams[1]).toEqual({
+            ...target,
+            mediaMetadata: metadata,
+            audioLanguages: ['it'],
+            subtitleLanguages: ['en'],
+        });
+        expect(updatedStreams[1]).not.toBe(target);
+
+        store.setContentMediaMetadata({
+            contentType: 'movie',
+            xtreamId: 2,
+            metadata,
+        });
+
+        expect(store.vodStreams()).toBe(updatedStreams);
+    });
+
+    it('refreshes the in-memory metadata timestamp when metadata is unchanged', () => {
+        const metadata = {
+            available: true,
+            audioLanguages: ['it'],
+            audioCodecs: [],
+            subtitleLanguages: [],
+            subtitleCodecs: [],
+            qualityLabel: 'HD',
+        };
+        const target = {
+            stream_id: 2,
+            name: 'Movie 2',
+            mediaMetadata: metadata,
+            mediaMetadataUpdatedAt: 100,
+        };
+
+        patchState(store, {
+            vodStreams: [target],
+        });
+
+        store.setContentMediaMetadata({
+            contentType: 'movie',
+            xtreamId: 2,
+            metadata,
+            metadataUpdatedAt: 200,
+        });
+
+        const updatedStreams = store.vodStreams();
+        expect(updatedStreams[0]).toEqual({
+            ...target,
+            mediaMetadataUpdatedAt: 200,
+            audioLanguages: ['it'],
+            subtitleLanguages: [],
+        });
+        expect(updatedStreams[0]).not.toBe(target);
+
+        store.setContentMediaMetadata({
+            contentType: 'movie',
+            xtreamId: 2,
+            metadata,
+            metadataUpdatedAt: 200,
+        });
+
+        expect(store.vodStreams()).toBe(updatedStreams);
+    });
+
     it('loads categories before starting content import', async () => {
         const pendingCategories = {
             live: createDeferred<any[]>(),
@@ -470,6 +557,49 @@ describe('withContent import state', () => {
             PLAYLIST.id,
             expect.anything(),
             'importing'
+        );
+    });
+
+    it('keeps an existing cache usable when a refresh import fails', async () => {
+        dataSource.hasContent.mockImplementation(
+            (_playlistId: string, type: ContentType) =>
+                Promise.resolve(type === 'live')
+        );
+        dataSource.getCategories.mockResolvedValue([]);
+        dataSource.getContent.mockImplementation(
+            (
+                _playlistId: string,
+                _credentials: unknown,
+                _type: ContentType,
+                _onProgress?: (count: number) => void,
+                _onTotal?: (total: number) => void,
+                options?: { onPhaseChange?: (phase: string) => void }
+            ) => {
+                options?.onPhaseChange?.('loading-live');
+                return Promise.reject(new Error('Network unavailable'));
+            }
+        );
+
+        await store.initializeContent();
+
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            'live',
+            'completed'
+        );
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            'movie',
+            'failed'
+        );
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            PLAYLIST.id,
+            'series',
+            'failed'
+        );
+        expect(databaseService.clearXtreamImportCache).not.toHaveBeenCalledWith(
+            PLAYLIST.id,
+            'live'
         );
     });
 
@@ -554,7 +684,7 @@ describe('withContent import state', () => {
         expect(store.contentInitBlockReason()).toBeNull();
     });
 
-    it('keeps provider IMDb ratings and still resolves missing IMDb IDs for VOD items', async () => {
+    it('keeps provider IMDb ratings and resolves only missing IMDb ratings for VOD items', async () => {
         dataSource.getCachedCategories.mockResolvedValueOnce([]);
         dataSource.getCachedContent.mockResolvedValueOnce([
             {
@@ -598,11 +728,6 @@ describe('withContent import state', () => {
         );
 
         expect(imdbRatingsService.resolveMovieRatings).toHaveBeenCalledWith([
-            expect.objectContaining({
-                id: '1',
-                kind: 'movie',
-                title: 'Provider Rated',
-            }),
             expect.objectContaining({
                 id: '2',
                 kind: 'movie',

@@ -73,11 +73,12 @@
                     <h3>{{ 'PORTALS.LANGUAGE_FILTER.TITLE' | translate }}</h3>
                     <p>
                         {{
-                            languageFilterActive()
-                                ? ('PORTALS.LANGUAGE_FILTER.ACTIVE_HINT'
-                                  | translate)
-                                : ('PORTALS.LANGUAGE_FILTER.DESCRIPTION'
-                                  | translate)
+                            (!metadataFiltersReady()
+                                ? 'PORTALS.LANGUAGE_FILTER.DISABLED_HINT'
+                                : languageFilterActive()
+                                  ? 'PORTALS.LANGUAGE_FILTER.ACTIVE_HINT'
+                                  : 'PORTALS.LANGUAGE_FILTER.DESCRIPTION'
+                            ) | translate
                         }}
                     </p>
                 </div>
@@ -85,10 +86,66 @@
                     type="button"
                     mat-button
                     (click)="resetLanguageFilter()"
+                    [disabled]="!hasSelectedLanguageFilter()"
                 >
                     {{ 'PORTALS.LANGUAGE_FILTER.RESET' | translate }}
                 </button>
             </div>
+            @if (
+                videoQualityFilterOptions().length ||
+                videoQualityFilter() !== 'all'
+            ) {
+                <section
+                    class="search-language-filter__group search-language-filter__group--quality"
+                >
+                    <div class="search-language-filter__group-header">
+                        <h4>
+                            {{
+                                'PORTALS.VIDEO_QUALITY_FILTER.TOGGLE'
+                                    | translate
+                            }}
+                        </h4>
+                        <div class="search-language-filter__actions">
+                            <button
+                                type="button"
+                                mat-button
+                                (click)="resetVideoQualityFilter()"
+                                [disabled]="
+                                    !metadataFiltersReady() ||
+                                    videoQualityFilter() === 'all'
+                                "
+                            >
+                                {{
+                                    'PORTALS.VIDEO_QUALITY_FILTER.ALL'
+                                        | translate
+                                }}
+                            </button>
+                        </div>
+                    </div>
+                    <div class="search-quality-filter__options">
+                        @for (
+                            option of videoQualityFilterOptions();
+                            track option.value
+                        ) {
+                            <button
+                                type="button"
+                                mat-button
+                                class="search-quality-filter__option"
+                                [class.search-quality-filter__option--active]="
+                                    videoQualityFilter() === option.value
+                                "
+                                (click)="setVideoQualityFilter(option.value)"
+                                [disabled]="!metadataFiltersReady()"
+                            >
+                                <span>{{ option.label }}</span>
+                                <span class="search-quality-filter__count">
+                                    {{ option.count }}
+                                </span>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
             <div class="search-language-filter__grid">
                 @for (section of languageFilterSections; track section.key) {
                     <section class="search-language-filter__group">
@@ -103,6 +160,7 @@
                                             section.key
                                         )
                                     "
+                                    [disabled]="!metadataFiltersReady()"
                                 >
                                     {{
                                         'PORTALS.LANGUAGE_FILTER.SELECT_ALL'
@@ -115,6 +173,7 @@
                                     (click)="
                                         clearLanguageFilterOptions(section.key)
                                     "
+                                    [disabled]="!metadataFiltersReady()"
                                 >
                                     {{
                                         'PORTALS.LANGUAGE_FILTER.DESELECT_ALL'
@@ -127,6 +186,7 @@
                                     (click)="
                                         invertLanguageFilterOptions(section.key)
                                     "
+                                    [disabled]="!metadataFiltersReady()"
                                 >
                                     {{
                                         'PORTALS.LANGUAGE_FILTER.INVERT'
@@ -154,6 +214,7 @@
                                             $event
                                         )
                                     "
+                                    [disabled]="!metadataFiltersReady()"
                                 >
                                     {{ option.label }}
                                 </mat-checkbox>
@@ -162,6 +223,24 @@
                     </section>
                 }
             </div>
+            @if (filterIndexProgress(); as progress) {
+                @if (showFilterIndexProgress()) {
+                    <div
+                        class="search-filter-index-progress"
+                        role="status"
+                        aria-live="polite"
+                    >
+                        <div class="search-filter-index-progress__track">
+                            <span [style.width.%]="progress.percent"></span>
+                        </div>
+                        <div class="search-filter-index-progress__label">
+                            {{ 'PORTALS.FILTER_INDEX.UPDATING' | translate }}
+                            {{ progress.processedItems }} /
+                            {{ progress.totalItems }}
+                        </div>
+                    </div>
+                }
+            }
         </div>
     </ng-container>
 

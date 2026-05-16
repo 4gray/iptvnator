@@ -15,12 +15,15 @@ import {
     ExternalPlayerSession,
     ImdbMovieRatingRequestItem,
     ImdbMovieRatingsResponse,
+    MediaStreamMetadata,
     PlaybackPositionData,
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
     PortalDebugEvent,
     ResolvedPortalPlayback,
+    SourceVpnPreparationRequest,
+    VpnIntegrationStatus,
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
@@ -39,6 +42,58 @@ import {
 type JsonObject = Record<string, unknown>;
 type JsonArray = unknown[];
 
+interface MediaMetadataBackgroundWarmJob {
+    playlistId: string;
+    contentType: 'live' | 'movie' | 'episode';
+    xtreamId: number;
+    seriesXtreamId?: number | null;
+    seasonNumber?: number | null;
+    episodeNumber?: number | null;
+    url: string;
+    headers?: Record<string, string>;
+    staticMetadata?: MediaStreamMetadata | null;
+    sourceVpn?: SourceVpnPreparationRequest;
+}
+
+interface MediaMetadataBackgroundSeriesDiscoveryJob {
+    playlistId: string;
+    serverUrl: string;
+    username: string;
+    password: string;
+    seriesXtreamId: number;
+    headers?: Record<string, string>;
+    sourceVpn?: SourceVpnPreparationRequest;
+}
+
+interface MediaMetadataBackgroundStatus {
+    allowRunAfterWindowClose: boolean;
+    averageProbeMs?: number;
+    completedAt?: number;
+    failedItems: number;
+    itemsPerMinute?: number;
+    lastProbeMs?: number;
+    lastError?: string;
+    pendingItems: number;
+    processedItems: number;
+    running: boolean;
+    startedAt?: number;
+    totalItems: number;
+}
+
+type MediaMetadataBackgroundEvent =
+    | {
+          type: 'status';
+          status: MediaMetadataBackgroundStatus;
+      }
+    | {
+          type: 'item';
+          playlistId: string;
+          contentType: 'live' | 'movie' | 'series' | 'episode';
+          xtreamId: number;
+          metadata: MediaStreamMetadata;
+          status: MediaMetadataBackgroundStatus;
+      };
+
 declare global {
     interface Window {
         electron: {
@@ -49,6 +104,7 @@ declare global {
                 callback: (data: PlaylistRefreshEvent) => void
             ) => () => void;
             getAppVersion: () => Promise<string>;
+            notifyRendererReady?: () => void;
             platform: string;
             fetchPlaylistByUrl: (
                 url: string,
@@ -122,6 +178,13 @@ declare global {
                 limit?: number
             ) => Promise<EpgProgram[]>;
             updateSettings: (settings: JsonObject) => Promise<void>;
+            getVpnIntegrationStatus?: () => Promise<VpnIntegrationStatus>;
+            prepareSourceVpn?: (
+                payload: SourceVpnPreparationRequest
+            ) => Promise<VpnIntegrationStatus>;
+            setMetadataWarmupLoginItem?: (
+                enabled: boolean
+            ) => Promise<{ success: boolean; enabled: boolean }>;
             resolveAcceleratedPlaybackUrl: (
                 url: string,
                 headers?: Record<string, string>
@@ -162,19 +225,18 @@ declare global {
             probeMediaStreamMetadata: (
                 url: string,
                 headers?: Record<string, string>
-            ) => Promise<{
-                available: boolean;
-                qualityLabel?: string;
-                width?: number;
-                height?: number;
-                videoCodec?: string;
-                audioLanguages: string[];
-                audioCodecs: string[];
-                subtitleLanguages: string[];
-                subtitleCodecs: string[];
-                source?: 'xtream' | 'ffprobe' | 'derived';
-                reason?: string;
-            }>;
+            ) => Promise<MediaStreamMetadata>;
+            startMediaMetadataBackgroundWarmup: (payload: {
+                jobs: MediaMetadataBackgroundWarmJob[];
+                seriesDiscoveryJobs?: MediaMetadataBackgroundSeriesDiscoveryJob[];
+                runAfterWindowClose: boolean;
+                concurrency?: number;
+            }) => Promise<MediaMetadataBackgroundStatus>;
+            getMediaMetadataBackgroundStatus: () => Promise<MediaMetadataBackgroundStatus>;
+            cancelMediaMetadataBackgroundWarmup: () => Promise<MediaMetadataBackgroundStatus>;
+            onMediaMetadataBackgroundEvent: (
+                callback: (event: MediaMetadataBackgroundEvent) => void
+            ) => () => void;
             resolveImdbMovieRatings: (
                 items: ImdbMovieRatingRequestItem[]
             ) => Promise<ImdbMovieRatingsResponse>;
@@ -192,12 +254,14 @@ declare global {
                 token?: string;
                 serialNumber?: string;
                 requestId?: string;
+                sourceVpn?: SourceVpnPreparationRequest;
             }) => Promise<JsonObject>;
             xtreamRequest: (payload: {
                 url: string;
                 params: Record<string, string>;
                 requestId?: string;
                 sessionId?: string;
+                sourceVpn?: SourceVpnPreparationRequest;
                 suppressErrorLog?: boolean;
             }) => Promise<{ payload: unknown; action: string }>;
             xtreamCancelSession: (
@@ -348,6 +412,36 @@ declare global {
                 playlistId: string,
                 contentType?: 'live' | 'movie' | 'series'
             ) => Promise<XtreamContent | null>;
+            dbSetContentMediaMetadata: (
+                playlistId: string,
+                contentType: 'live' | 'movie' | 'series',
+                xtreamId: number,
+                metadata: MediaStreamMetadata
+            ) => Promise<{ success: boolean; count: number }>;
+            dbClearContentMediaMetadata: () => Promise<{ success: boolean }>;
+            dbSetEpisodeMediaMetadata: (
+                playlistId: string,
+                seriesXtreamId: number,
+                episodeXtreamId: number,
+                metadata: MediaStreamMetadata,
+                seasonNumber?: number | null,
+                episodeNumber?: number | null
+            ) => Promise<{ success: boolean }>;
+            dbGetSeriesEpisodeMediaMetadata: (
+                playlistId: string,
+                seriesXtreamId: number
+            ) => Promise<
+                Array<{
+                    playlistId: string;
+                    seriesXtreamId: number;
+                    episodeXtreamId: number;
+                    seasonNumber?: number | null;
+                    episodeNumber?: number | null;
+                    mediaMetadata: MediaStreamMetadata;
+                    mediaMetadataUpdatedAt: number;
+                }>
+            >;
+            dbClearEpisodeMediaMetadata: () => Promise<{ success: boolean }>;
             dbSetContentBackdropIfMissing: (
                 contentId: number,
                 backdropUrl?: string

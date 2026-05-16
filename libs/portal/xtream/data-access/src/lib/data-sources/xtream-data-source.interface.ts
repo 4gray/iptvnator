@@ -5,6 +5,7 @@ import {
     XtreamCategory,
     XtreamLiveStream,
     MediaStreamMetadata,
+    VpnProvider,
     XtreamSerieItem,
     XtreamVodStream,
 } from 'shared-interfaces';
@@ -34,6 +35,10 @@ export interface XtreamPlaylistData {
     referrer?: string;
     origin?: string;
     serverTimezone?: string;
+    vpnProvider?: VpnProvider;
+    vpnLocation?: string;
+    vpnAutoConnectOnOpen?: boolean;
+    vpnAutoConnectWhenDefault?: boolean;
 }
 
 /**

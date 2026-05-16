@@ -47,14 +47,18 @@ import {
 } from 'services';
 import {
     EmbeddedMpvSupport,
+    BackgroundMetadataWarmupSchedule,
     CoverSize,
     Language,
+    Settings,
     normalizeExternalPlayerArguments,
     StartupBehavior,
     StreamFormat,
     Theme,
     VideoPlayer,
+    VpnProvider,
 } from 'shared-interfaces';
+import { writePreferredLanguageHint } from '../services/preferred-language-hint';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
@@ -208,7 +212,16 @@ export class SettingsComponent implements OnInit, OnDestroy {
             ],
         ],
         acceleratedDownloads: true,
-        redirectIndirectStreamsToDirectSource: false,
+        redirectIndirectStreamsToDirectSource: true,
+        backgroundMetadataWarmup: true,
+        backgroundMetadataWarmupSchedule:
+            'monthly' as BackgroundMetadataWarmupSchedule,
+        backgroundMetadataWarmupAtLogin: true,
+        backgroundMetadataWarmupConcurrency: 8,
+        vpnIntegrationEnabled: true,
+        vpnProvider: 'proton',
+        vpnLocation: 'HR',
+        vpnRestoreOnExit: true,
         recordingFolder: '',
         coverSize: 'medium' as CoverSize,
         ...(this.isDesktop ? { preferUploadedEpgOverXtream: false } : {}),
@@ -407,8 +420,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm.markAsDirty();
     }
 
-    clearMediaMetadataCache(): void {
+    async clearMediaMetadataCache(): Promise<void> {
         this.mediaMetadataService.clearCache();
+        await this.databaseService.clearXtreamContentMediaMetadata();
+        await this.databaseService.clearXtreamEpisodeMediaMetadata();
         this.openSettingsSnackbar(
             this.translate.instant('SETTINGS.MEDIA_METADATA_CACHE_CLEARED')
         );
@@ -488,8 +503,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * the indexed db store
      */
     onSubmit(): void {
-        const settings = {
+        const settings: Partial<Settings> = {
             ...this.settingsForm.value,
+            vpnProvider: this.normalizeVpnProvider(
+                this.settingsForm.value.vpnProvider
+            ),
             mpvPlayerPath: this.normalizeExternalPlayerPath(
                 this.settingsForm.value.mpvPlayerPath
             ),
@@ -525,6 +543,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
         return playerPath?.trim() ?? '';
     }
 
+    private normalizeVpnProvider(
+        provider: string | null | undefined
+    ): VpnProvider {
+        return provider === 'proton' ? 'proton' : 'none';
+    }
+
     /**
      * Applies the changed settings to the app
      */
@@ -543,7 +567,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 }
             }
         }
-        this.translate.use(this.settingsForm.value.language);
+        const language = this.settingsForm.value.language ?? Language.ENGLISH;
+        writePreferredLanguageHint(language);
+        this.translate.use(language);
         this.settingsService.changeTheme(
             this.settingsForm.value.theme ?? Theme.SystemTheme
         );

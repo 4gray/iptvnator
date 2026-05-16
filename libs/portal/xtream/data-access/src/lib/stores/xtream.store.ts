@@ -1,6 +1,10 @@
 import { computed, inject } from '@angular/core';
 import { signalStore, withComputed, withMethods } from '@ngrx/signals';
-import { XtreamSerieDetails, XtreamVodDetails } from 'shared-interfaces';
+import {
+    SourceVpnRequestContext,
+    XtreamSerieDetails,
+    XtreamVodDetails,
+} from 'shared-interfaces';
 
 // Import existing features that are already separate
 import { withFavorites } from '../with-favorites.feature';
@@ -69,6 +73,35 @@ export const XtreamStore = signalStore(
         const xtreamApiService = inject(XtreamApiService);
         const dataSource = inject(XTREAM_DATA_SOURCE);
         const logger = createLogger('XtreamStore');
+        const buildCredentials = (
+            playlist: {
+                id?: string;
+                name?: string;
+                password: string;
+                serverUrl: string;
+                title?: string;
+                username: string;
+                vpnLocation?: string;
+                vpnProvider?: 'none' | 'proton';
+            }
+        ) => {
+            const sourceVpn: SourceVpnRequestContext | undefined =
+                playlist.vpnProvider
+                    ? {
+                          provider: playlist.vpnProvider,
+                          location: playlist.vpnLocation,
+                          sourceId: playlist.id,
+                          sourceTitle: playlist.name ?? playlist.title,
+                      }
+                    : undefined;
+
+            return {
+                serverUrl: playlist.serverUrl,
+                username: playlist.username,
+                password: playlist.password,
+                ...(sourceVpn ? { sourceVpn } : {}),
+            };
+        };
         const findVodCatalogItem = (vodId: string | number) =>
             store.vodStreams().find((item) => {
                 const candidateId =
@@ -154,14 +187,7 @@ export const XtreamStore = signalStore(
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
                 xtreamApiService
-                    .getVodInfo(
-                        {
-                            serverUrl: playlist.serverUrl,
-                            username: playlist.username,
-                            password: playlist.password,
-                        },
-                        params.vodId
-                    )
+                    .getVodInfo(buildCredentials(playlist), params.vodId)
                     .then((vodDetails: XtreamVodDetails) => {
                         const catalogItem = findVodCatalogItem(params.vodId);
 
@@ -201,14 +227,7 @@ export const XtreamStore = signalStore(
                 store.setIsLoadingDetails(true);
                 store.setDetailsError(null);
                 xtreamApiService
-                    .getSeriesInfo(
-                        {
-                            serverUrl: playlist.serverUrl,
-                            username: playlist.username,
-                            password: playlist.password,
-                        },
-                        params.serialId
-                    )
+                    .getSeriesInfo(buildCredentials(playlist), params.serialId)
                     .then((serialDetails: XtreamSerieDetails) => {
                         const catalogItem = findSeriesCatalogItem(
                             params.serialId

@@ -98,6 +98,8 @@ export const content = sqliteTable(
         tvArchive: integer('tv_archive'),
         tvArchiveDuration: integer('tv_archive_duration'),
         directSource: text('direct_source'),
+        mediaMetadata: text('media_metadata'),
+        mediaMetadataUpdatedAt: integer('media_metadata_updated_at'),
         xtreamId: integer('xtream_id').notNull(),
         type: text('type', { enum: ['live', 'movie', 'series'] }).notNull(),
     },
@@ -112,6 +114,95 @@ export const content = sqliteTable(
         typeAddedIdx: index('idx_content_type_added').on(
             table.type,
             table.added
+        ),
+    })
+);
+
+export const episodeMediaMetadata = sqliteTable(
+    'episode_media_metadata',
+    {
+        id: integer('id').primaryKey({ autoIncrement: true }),
+        playlistId: text('playlist_id')
+            .notNull()
+            .references(() => playlists.id, { onDelete: 'cascade' }),
+        seriesXtreamId: integer('series_xtream_id').notNull(),
+        episodeXtreamId: integer('episode_xtream_id').notNull(),
+        seasonNumber: integer('season_number'),
+        episodeNumber: integer('episode_number'),
+        mediaMetadata: text('media_metadata').notNull(),
+        mediaMetadataUpdatedAt: integer('media_metadata_updated_at').notNull(),
+    },
+    (table) => ({
+        playlistSeriesIdx: index('episode_media_metadata_series_idx').on(
+            table.playlistId,
+            table.seriesXtreamId
+        ),
+        uniqueEpisode: uniqueIndex(
+            'episode_media_metadata_playlist_series_episode_unique'
+        ).on(table.playlistId, table.seriesXtreamId, table.episodeXtreamId),
+    })
+);
+
+export const mediaMetadataJobs = sqliteTable(
+    'media_metadata_jobs',
+    {
+        jobKey: text('job_key').primaryKey(),
+        playlistId: text('playlist_id')
+            .notNull()
+            .references(() => playlists.id, { onDelete: 'cascade' }),
+        contentType: text('content_type', {
+            enum: ['live', 'movie', 'episode'],
+        }).notNull(),
+        xtreamId: integer('xtream_id').notNull(),
+        seriesXtreamId: integer('series_xtream_id'),
+        seasonNumber: integer('season_number'),
+        episodeNumber: integer('episode_number'),
+        url: text('url').notNull(),
+        headers: text('headers'),
+        staticMetadata: text('static_metadata'),
+        sourceVpn: text('source_vpn'),
+        runAfterWindowClose: integer('run_after_window_close', {
+            mode: 'boolean',
+        }).default(false),
+        createdAt: integer('created_at').notNull(),
+        updatedAt: integer('updated_at').notNull(),
+    },
+    (table) => ({
+        playlistIdx: index('media_metadata_jobs_playlist_idx').on(
+            table.playlistId
+        ),
+        contentIdx: index('media_metadata_jobs_content_idx').on(
+            table.contentType,
+            table.xtreamId
+        ),
+    })
+);
+
+export const mediaMetadataSeriesDiscoveryJobs = sqliteTable(
+    'media_metadata_series_discovery_jobs',
+    {
+        jobKey: text('job_key').primaryKey(),
+        playlistId: text('playlist_id')
+            .notNull()
+            .references(() => playlists.id, { onDelete: 'cascade' }),
+        serverUrl: text('server_url').notNull(),
+        username: text('username').notNull(),
+        password: text('password').notNull(),
+        seriesXtreamId: integer('series_xtream_id').notNull(),
+        headers: text('headers'),
+        sourceVpn: text('source_vpn'),
+        runAfterWindowClose: integer('run_after_window_close', {
+            mode: 'boolean',
+        }).default(false),
+        createdAt: integer('created_at').notNull(),
+        updatedAt: integer('updated_at').notNull(),
+    },
+    (table) => ({
+        playlistIdx: index('media_metadata_series_jobs_playlist_idx').on(
+            table.playlistId
+        ),
+        seriesIdx: index('media_metadata_series_jobs_series_idx').on(
+            table.seriesXtreamId
         ),
     })
 );
@@ -256,9 +347,10 @@ export const playbackPositions = sqliteTable(
             table.seriesXtreamId
         ),
         updatedIdx: index('playback_positions_updated_idx').on(table.updatedAt),
-        playlistUpdatedIdx: index(
-            'playback_positions_playlist_updated_idx'
-        ).on(table.playlistId, sql`${table.updatedAt} DESC`),
+        playlistUpdatedIdx: index('playback_positions_playlist_updated_idx').on(
+            table.playlistId,
+            sql`${table.updatedAt} DESC`
+        ),
     })
 );
 

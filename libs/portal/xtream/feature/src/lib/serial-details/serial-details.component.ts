@@ -36,7 +36,7 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { ImdbRatingOverridesService } from 'services';
+import { DatabaseService, ImdbRatingOverridesService } from 'services';
 import {
     MediaStreamMetadata,
     PlaybackPositionData,
@@ -102,6 +102,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
     private readonly imdbOverrides = inject(ImdbRatingOverridesService);
+    private readonly databaseService = inject(DatabaseService);
 
     readonly selectedItem = signal<XtreamSerieDetailsView | null>(null);
     readonly selectedContentType = this.xtreamStore.selectedContentType;
@@ -618,11 +619,13 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
 
     setSeriesEpisodeMediaMetadata(metadata: MediaStreamMetadata | null): void {
         this.seriesEpisodeMediaMetadata.set(metadata);
+        const seriesId = this.selectedSeriesId();
         this.xtreamStore.setContentMediaMetadata({
             contentType: 'series',
-            xtreamId: this.selectedSeriesId(),
+            xtreamId: seriesId,
             metadata,
         });
+        this.persistMediaMetadata(seriesId, metadata);
     }
 
     private addToRecentlyViewed(xtreamId: number): void {
@@ -684,6 +687,23 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             positionsMap.set(position.contentXtreamId, position);
         });
         this.episodePlaybackPositions.set(positionsMap);
+    }
+
+    private persistMediaMetadata(
+        seriesId: number,
+        metadata: MediaStreamMetadata | null
+    ): void {
+        const playlistId = this.currentPlaylistId();
+        if (!playlistId || !metadata || !Number.isFinite(seriesId)) {
+            return;
+        }
+
+        void this.databaseService.setXtreamContentMediaMetadata(
+            playlistId,
+            'series',
+            seriesId,
+            metadata
+        );
     }
 
     private updateEpisodePlaybackPosition(

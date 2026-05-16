@@ -3,6 +3,7 @@ import { open } from 'fs/promises';
 import * as http from 'http';
 import * as https from 'https';
 import { dirname } from 'path';
+import { getSourceRequestOptions } from './source-network-options';
 
 const DEFAULT_CHUNK_BYTES = 4 * 1024 * 1024;
 const DEFAULT_PARALLELISM = 10;
@@ -510,6 +511,7 @@ function requestBuffer(
                 method: options.method,
                 headers: options.headers,
                 timeout: options.timeoutMs,
+                ...getSourceRequestOptions(),
             },
             (res) => {
                 const status = res.statusCode ?? 0;
@@ -602,6 +604,7 @@ function requestBenchmarkStream(
                 method: options.method,
                 headers: options.headers,
                 timeout: options.timeoutMs,
+                ...getSourceRequestOptions(),
             },
             (res) => {
                 const status = res.statusCode ?? 0;
@@ -734,6 +737,7 @@ function requestHeadersOnly(
                 method: options.method,
                 headers: options.headers,
                 timeout: options.timeoutMs,
+                ...getSourceRequestOptions(),
             },
             (res) => {
                 const status = res.statusCode ?? 0;

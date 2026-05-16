@@ -51,6 +51,7 @@ import {
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import { from, of } from 'rxjs';
 import { ElectronServiceStub } from '../services/electron.service.stub';
+import { PREFERRED_LANGUAGE_STORAGE_KEY } from '../services/preferred-language-hint';
 import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
@@ -85,7 +86,15 @@ const DEFAULT_SETTINGS = {
     remoteControlPort: 8765,
     epgUrl: [],
     acceleratedDownloads: true,
-    redirectIndirectStreamsToDirectSource: false,
+    redirectIndirectStreamsToDirectSource: true,
+    backgroundMetadataWarmup: true,
+    backgroundMetadataWarmupSchedule: 'monthly',
+    backgroundMetadataWarmupAtLogin: true,
+    backgroundMetadataWarmupConcurrency: 8,
+    vpnIntegrationEnabled: true,
+    vpnProvider: 'proton',
+    vpnLocation: 'HR',
+    vpnRestoreOnExit: true,
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
@@ -203,6 +212,12 @@ describe('SettingsComponent', () => {
                         .fn()
                         .mockReturnValue('delete-all-op'),
                     deleteAllPlaylists: jest.fn().mockResolvedValue(true),
+                    clearXtreamContentMediaMetadata: jest
+                        .fn()
+                        .mockResolvedValue(true),
+                    clearXtreamEpisodeMediaMetadata: jest
+                        .fn()
+                        .mockResolvedValue(true),
                 }),
                 MockProvider(PlaylistBackupService, {
                     exportBackup: jest.fn().mockResolvedValue({
@@ -285,6 +300,7 @@ describe('SettingsComponent', () => {
     });
 
     afterEach(() => {
+        localStorage.removeItem(PREFERRED_LANGUAGE_STORAGE_KEY);
         window.electron = originalElectron;
     });
 
@@ -923,6 +939,7 @@ describe('SettingsComponent', () => {
         mockStore.updateSettings.mockResolvedValue(undefined);
         const updateSettings = jest.spyOn(window.electron, 'updateSettings');
 
+        component.settingsForm.patchValue({ language: Language.ENGLISH });
         component.onSubmit();
         await fixture.whenStable();
 
@@ -931,6 +948,9 @@ describe('SettingsComponent', () => {
         );
         expect(updateSettings).toHaveBeenCalledWith(
             component.settingsForm.value
+        );
+        expect(localStorage.getItem(PREFERRED_LANGUAGE_STORAGE_KEY)).toBe(
+            Language.ENGLISH
         );
     });
 

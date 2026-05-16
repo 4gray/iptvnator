@@ -242,9 +242,9 @@
                             <div class="account-vod-header-actions">
                                 <div class="account-vod-count">
                                     <strong>{{
-                                        overview.filteredUnique
+                                        overview.filteredItems
                                     }}</strong>
-                                    <span>/ {{ overview.totalUnique }}</span>
+                                    <span>/ {{ overview.totalItems }}</span>
                                 </div>
                                 <div class="account-vod-export-actions">
                                     <button
@@ -274,6 +274,13 @@
                         </div>
 
                         <div class="account-vod-audit">
+                            <span>
+                                {{
+                                    'XTREAM.ACCOUNT_INFO.UNIQUE_MOVIES'
+                                        | translate
+                                }}
+                                <strong>{{ overview.totalUnique }}</strong>
+                            </span>
                             <span>
                                 {{
                                     'XTREAM.ACCOUNT_INFO.METADATA_KNOWN'
@@ -308,6 +315,80 @@
                             </span>
                         </div>
 
+                        <section
+                            class="account-diagnostics"
+                            [attr.aria-label]="
+                                'XTREAM.ACCOUNT_INFO.DIAGNOSTICS'
+                                    | translate
+                            "
+                        >
+                            <div class="account-diagnostics__header">
+                                <div>
+                                    <h4>
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.DIAGNOSTICS'
+                                                | translate
+                                        }}
+                                    </h4>
+                                    <p>
+                                        {{
+                                            'XTREAM.ACCOUNT_INFO.DIAGNOSTICS_HINT'
+                                                | translate
+                                        }}
+                                    </p>
+                                </div>
+                                <div class="account-diagnostics__summary">
+                                    <strong>{{
+                                        overview.diagnosticIssueUnique
+                                    }}</strong>
+                                    <span>/ {{ overview.totalUnique }}</span>
+                                </div>
+                            </div>
+
+                            <div class="account-diagnostics__grid">
+                                @for (
+                                    card of overview.diagnosticCards;
+                                    track card.labelKey
+                                ) {
+                                    <article
+                                        class="account-diagnostic-card"
+                                        [class.account-diagnostic-card--warning]="
+                                            card.tone === 'warning'
+                                        "
+                                        [class.account-diagnostic-card--danger]="
+                                            card.tone === 'danger'
+                                        "
+                                    >
+                                        <div
+                                            class="account-diagnostic-card__top"
+                                        >
+                                            <span
+                                                class="account-diagnostic-card__icon"
+                                            >
+                                                <mat-icon>{{
+                                                    card.icon
+                                                }}</mat-icon>
+                                            </span>
+                                            <span
+                                                class="account-diagnostic-card__count"
+                                            >
+                                                <strong>{{
+                                                    card.value
+                                                }}</strong>
+                                                <span>/ {{ card.total }}</span>
+                                            </span>
+                                        </div>
+                                        <h5>{{ card.labelKey | translate }}</h5>
+                                        <p>
+                                            {{
+                                                card.descriptionKey | translate
+                                            }}
+                                        </p>
+                                    </article>
+                                }
+                            </div>
+                        </section>
+
                         <div
                             class="account-vod-filters"
                             role="group"
@@ -331,7 +412,7 @@
                                             'XTREAM.ACCOUNT_INFO.ALL_AUDIO_LANGUAGES'
                                                 | translate
                                         }}
-                                        ({{ overview.totalUnique }})
+                                        ({{ overview.totalItems }})
                                     </option>
                                     @for (
                                         option of overview.audioOptions;
@@ -363,7 +444,7 @@
                                             'XTREAM.ACCOUNT_INFO.ALL_SUBTITLE_LANGUAGES'
                                                 | translate
                                         }}
-                                        ({{ overview.totalUnique }})
+                                        ({{ overview.totalItems }})
                                     </option>
                                     @for (
                                         option of overview.subtitleOptions;
@@ -393,7 +474,7 @@
                                             'XTREAM.ACCOUNT_INFO.ALL_SOURCE_MODES'
                                                 | translate
                                         }}
-                                        ({{ overview.totalUnique }})
+                                        ({{ overview.totalItems }})
                                     </option>
                                     @for (
                                         option of overview.sourceOptions;
@@ -423,7 +504,7 @@
                                             'XTREAM.ACCOUNT_INFO.ALL_VIDEO_QUALITIES'
                                                 | translate
                                         }}
-                                        ({{ overview.totalUnique }})
+                                        ({{ overview.totalItems }})
                                     </option>
                                     @for (
                                         option of overview.qualityOptions;
@@ -451,6 +532,28 @@
                                 </button>
                             }
                         </div>
+
+                        @if (overview.indexStatus === 'running') {
+                            <div
+                                class="account-vod-index-progress"
+                                role="status"
+                                aria-live="polite"
+                            >
+                                <div class="account-vod-index-progress__track">
+                                    <span
+                                        [style.width.%]="overview.indexPercent"
+                                    ></span>
+                                </div>
+                                <div class="account-vod-index-progress__label">
+                                    {{
+                                        'PORTALS.FILTER_INDEX.UPDATING'
+                                            | translate
+                                    }}
+                                    {{ overview.indexProcessed }} /
+                                    {{ overview.indexTotal }}
+                                </div>
+                            </div>
+                        }
 
                         <p class="account-vod-note">
                             {{

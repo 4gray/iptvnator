@@ -19,7 +19,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
 import type { WorkspacePlaylistType } from '@iptvnator/workspace/shell/util';
 import {
     PlaylistActions,
@@ -34,7 +37,6 @@ import {
     DataService,
     DbOperationEvent,
     isDbAbortError,
-    PlaybackPositionService,
     PlaylistRefreshService,
     SortBy,
     SortService,
@@ -76,7 +78,6 @@ export class RecentPlaylistsComponent {
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
     private readonly dataService = inject(DataService);
-    private readonly playbackPositionService = inject(PlaybackPositionService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly router = inject(Router);
     private readonly snackBar = inject(MatSnackBar);
@@ -84,6 +85,7 @@ export class RecentPlaylistsComponent {
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -207,7 +209,19 @@ export class RecentPlaylistsComponent {
         this.addPlaylistClicked.emit(type);
     }
 
-    getPlaylist(playlistMeta: PlaylistMeta): void {
+    async getPlaylist(playlistMeta: PlaylistMeta): Promise<void> {
+        if (
+            this.sourceVpnPreparation.shouldPrepareForPlaylist(
+                playlistMeta,
+                'source-open'
+            )
+        ) {
+            await this.sourceVpnPreparation.prepareForPlaylist(
+                playlistMeta,
+                'source-open'
+            );
+        }
+
         if (playlistMeta.serverUrl) {
             this.router.navigate(['/workspace', 'xtreams', playlistMeta._id]);
         } else if (playlistMeta.macAddress) {
@@ -346,36 +360,53 @@ export class RecentPlaylistsComponent {
                         undefined,
                         { duration: 2000 }
                     );
+                    const vpnPreparation =
+                        this.prepareSourceVpnForPlaylistNetwork(item);
 
-                    // Delete content/categories and update the timestamp in
-                    // parallel — both operations are fully independent.
+                    // Keep the local catalog and metadata cache in place. The
+                    // Xtream data source will refetch only because these import
+                    // statuses are invalidated, then upsert changed rows.
+                    const importTypes = ['live', 'movie', 'series'] as const;
                     const updateDate = Date.now();
-                    const [restoreState, playbackPositions] = await Promise.all(
-                        [
-                            this.databaseService.deleteXtreamPlaylistContent(
-                                item._id,
-                                {
-                                    operationId,
-                                    onEvent: (workerEvent) =>
-                                        this.updateBusyOperation(
-                                            item._id,
-                                            workerEvent
-                                        ),
-                                }
-                            ),
-                            this.playbackPositionService.getAllPlaybackPositions(
-                                item._id
-                            ),
-                            this.databaseService.updateXtreamPlaylistDetails({
-                                id: item._id,
-                                updateDate,
-                            }),
-                        ]
-                    );
+                    this.updateBusyOperation(item._id, {
+                        operation: 'refresh-xtream-catalog',
+                        operationId,
+                        status: 'started',
+                        phase: 'invalidating-import-cache',
+                        current: 0,
+                        total: importTypes.length,
+                    });
 
-                    this.pendingRestoreService.set(item._id, {
-                        ...restoreState,
-                        playbackPositions,
+                    await Promise.all([
+                        ...importTypes.map(async (type, index) => {
+                            await this.databaseService.setXtreamImportStatus(
+                                item._id,
+                                type,
+                                'idle'
+                            );
+                            this.updateBusyOperation(item._id, {
+                                operation: 'refresh-xtream-catalog',
+                                operationId,
+                                status: 'progress',
+                                phase: 'invalidating-import-cache',
+                                current: index + 1,
+                                total: importTypes.length,
+                            });
+                        }),
+                        this.databaseService.updateXtreamPlaylistDetails({
+                            id: item._id,
+                            updateDate,
+                        }),
+                        vpnPreparation,
+                    ]);
+
+                    this.pendingRestoreService.clear(item._id);
+
+                    this.updateBusyOperation(item._id, {
+                        operation: 'refresh-xtream-catalog',
+                        operationId,
+                        status: 'completed',
+                        phase: 'invalidating-import-cache',
                     });
 
                     // Update the timestamp in NgRx / IndexedDB
@@ -419,6 +450,7 @@ export class RecentPlaylistsComponent {
             this.databaseService.createOperationId('playlist-refresh');
 
         try {
+            await this.prepareSourceVpnForPlaylistNetwork(item);
             const refreshedPlaylist =
                 await this.playlistRefreshService.refreshPlaylist(
                     {
@@ -487,6 +519,13 @@ export class RecentPlaylistsComponent {
     }
 
     getBusyMessage(item: PlaylistMeta): string {
+        if (this.isVpnPreparing(item._id)) {
+            return this.translateWithFallback(
+                'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_PREPARING',
+                'Preparing VPN...'
+            );
+        }
+
         const operation = this.busyOperations().get(item._id);
         if (!operation) {
             return '';
@@ -496,6 +535,7 @@ export class RecentPlaylistsComponent {
             case 'delete-playlist':
                 return this.translateDeletePhase(operation.phase);
             case 'delete-xtream-content':
+            case 'refresh-xtream-catalog':
                 return this.translateRefreshPhase(operation.phase);
             case 'playlist-refresh':
                 return this.translatePlaylistRefreshPhase(operation.phase);
@@ -505,6 +545,10 @@ export class RecentPlaylistsComponent {
     }
 
     getBusyProgress(playlistId: string): number | null {
+        if (this.isVpnPreparing(playlistId)) {
+            return null;
+        }
+
         const operation = this.busyOperations().get(playlistId);
         if (
             !operation ||
@@ -522,6 +566,10 @@ export class RecentPlaylistsComponent {
     }
 
     canCancelBusyOperation(item: PlaylistMeta): boolean {
+        if (this.isVpnPreparing(item._id)) {
+            return false;
+        }
+
         const operation = this.busyOperations().get(item._id);
         if (!operation?.operationId) {
             return false;
@@ -535,6 +583,10 @@ export class RecentPlaylistsComponent {
     }
 
     async cancelBusyOperation(item: PlaylistMeta): Promise<void> {
+        if (this.isVpnPreparing(item._id)) {
+            return;
+        }
+
         const operation = this.busyOperations().get(item._id);
         if (!operation?.operationId) {
             return;
@@ -560,6 +612,39 @@ export class RecentPlaylistsComponent {
             }
             return next;
         });
+    }
+
+    private async prepareSourceVpnForPlaylistNetwork(
+        playlist: PlaylistMeta
+    ): Promise<void> {
+        if (
+            !this.sourceVpnPreparation.shouldPrepareForPlaylist(
+                playlist,
+                'source-open'
+            )
+        ) {
+            return;
+        }
+
+        const status = await this.sourceVpnPreparation.prepareForPlaylist(
+            playlist,
+            'source-open'
+        );
+
+        if (status?.status === 'failed' || status?.status === 'timeout') {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_FAILED',
+                    'VPN could not be prepared. Continuing anyway.'
+                ),
+                undefined,
+                { duration: 4000 }
+            );
+        }
+    }
+
+    isVpnPreparing(playlistId: string): boolean {
+        return this.sourceVpnPreparation.preparingSourceId() === playlistId;
     }
 
     private setPendingRefresh(playlistId: string, isPending: boolean): void {
@@ -662,6 +747,10 @@ export class RecentPlaylistsComponent {
 
     private translateRefreshPhase(phase?: string): string {
         switch (phase) {
+            case 'invalidating-import-cache':
+                return this.translate.instant(
+                    'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.IN_PROGRESS'
+                );
             case 'collecting-user-data':
                 return this.translate.instant(
                     'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.COLLECTING_DATA'

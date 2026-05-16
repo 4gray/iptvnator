@@ -53,16 +53,12 @@ ipcMain.handle(
         operationId?: string
     ) => {
         try {
-            return await requestWorkerWithEvents(
-                event,
-                'DB_SAVE_CONTENT',
-                {
-                    playlistId,
-                    streams,
-                    type,
-                    operationId,
-                }
-            );
+            return await requestWorkerWithEvents(event, 'DB_SAVE_CONTENT', {
+                playlistId,
+                streams,
+                type,
+                operationId,
+            });
         } catch (error) {
             console.error('Error handling DB_SAVE_CONTENT:', error);
             throw error;
@@ -90,6 +86,52 @@ handleWorkerRequest(
         contentType,
     })
 );
+
+handleWorkerRequest(
+    'DB_SET_CONTENT_MEDIA_METADATA',
+    (
+        playlistId: string,
+        contentType: 'live' | 'movie' | 'series',
+        xtreamId: number,
+        metadata: unknown
+    ) => ({
+        playlistId,
+        contentType,
+        xtreamId,
+        metadata,
+    })
+);
+
+handleWorkerRequest('DB_CLEAR_CONTENT_MEDIA_METADATA', () => ({}));
+
+handleWorkerRequest(
+    'DB_SET_EPISODE_MEDIA_METADATA',
+    (
+        playlistId: string,
+        seriesXtreamId: number,
+        episodeXtreamId: number,
+        metadata: unknown,
+        seasonNumber?: number | null,
+        episodeNumber?: number | null
+    ) => ({
+        playlistId,
+        seriesXtreamId,
+        episodeXtreamId,
+        seasonNumber,
+        episodeNumber,
+        metadata,
+    })
+);
+
+handleWorkerRequest(
+    'DB_GET_SERIES_EPISODE_MEDIA_METADATA',
+    (playlistId: string, seriesXtreamId: number) => ({
+        playlistId,
+        seriesXtreamId,
+    })
+);
+
+handleWorkerRequest('DB_CLEAR_EPISODE_MEDIA_METADATA', () => ({}));
 
 handleWorkerRequest(
     'DB_SET_CONTENT_BACKDROP_IF_MISSING',

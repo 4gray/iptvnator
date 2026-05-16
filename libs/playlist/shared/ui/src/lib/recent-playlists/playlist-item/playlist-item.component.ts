@@ -43,10 +43,13 @@ export class PlaylistItemComponent implements OnInit {
     readonly isSelected = input(false);
     readonly isRefreshing = input(false);
     readonly isDeleting = input(false);
+    readonly isPreparingVpn = input(false);
     readonly busyMessage = input('');
     readonly busyProgress = input<number | null>(null);
     readonly canCancelBusyAction = input(false);
-    readonly isBusy = computed(() => this.isRefreshing() || this.isDeleting());
+    readonly isBusy = computed(
+        () => this.isRefreshing() || this.isDeleting() || this.isPreparingVpn()
+    );
 
     readonly editPlaylistClicked = output<PlaylistMeta>();
     readonly playlistClicked = output<string>();
@@ -76,11 +79,27 @@ export class PlaylistItemComponent implements OnInit {
 
     private async checkPortalStatus() {
         if (this.item.serverUrl && this.item.username && this.item.password) {
-            this.portalStatus = await this.portalStatusService.checkPortalStatus(
-                this.item.serverUrl,
-                this.item.username,
-                this.item.password
-            );
+            const sourceVpn =
+                this.item.vpnProvider
+                    ? {
+                          provider: this.item.vpnProvider,
+                          location: this.item.vpnLocation,
+                          sourceId: this.item._id,
+                          sourceTitle: this.item.title,
+                      }
+                    : undefined;
+            this.portalStatus = sourceVpn
+                ? await this.portalStatusService.checkPortalStatus(
+                      this.item.serverUrl,
+                      this.item.username,
+                      this.item.password,
+                      { sourceVpn }
+                  )
+                : await this.portalStatusService.checkPortalStatus(
+                      this.item.serverUrl,
+                      this.item.username,
+                      this.item.password
+                  );
         }
     }
 
@@ -90,6 +109,14 @@ export class PlaylistItemComponent implements OnInit {
 
     getStatusIcon(): string {
         return this.portalStatusService.getStatusIcon(this.portalStatus);
+    }
+
+    hasSourceVpn(): boolean {
+        return Boolean(
+            this.item.vpnProvider === 'proton' &&
+                (this.item.vpnAutoConnectOnOpen ||
+                    this.item.vpnAutoConnectWhenDefault)
+        );
     }
 
     onPlaylistClick(): void {

@@ -28,6 +28,7 @@ import {
     PlaylistRecentlyViewedItem,
     PlaylistUpdateState,
     StalkerPortalItem,
+    repairMojibakeText,
     normalizeStalkerDate,
 } from 'shared-interfaces';
 
@@ -212,6 +213,10 @@ export class PlaylistsService {
             isFullStalkerPortal: playlist.isFullStalkerPortal,
             stalkerToken: playlist.stalkerToken,
             stalkerAccountInfo: playlist.stalkerAccountInfo,
+            vpnProvider: playlist.vpnProvider,
+            vpnLocation: playlist.vpnLocation,
+            vpnAutoConnectOnOpen: playlist.vpnAutoConnectOnOpen,
+            vpnAutoConnectWhenDefault: playlist.vpnAutoConnectWhenDefault,
         } as Playlist;
     }
 
@@ -550,6 +555,24 @@ export class PlaylistsService {
                                   updatedPlaylist.stalkerSignature2,
                           }
                         : {}),
+                    ...(updatedPlaylist.vpnProvider !== undefined
+                        ? { vpnProvider: updatedPlaylist.vpnProvider }
+                        : {}),
+                    ...(updatedPlaylist.vpnLocation !== undefined
+                        ? { vpnLocation: updatedPlaylist.vpnLocation }
+                        : {}),
+                    ...(updatedPlaylist.vpnAutoConnectOnOpen !== undefined
+                        ? {
+                              vpnAutoConnectOnOpen:
+                                  updatedPlaylist.vpnAutoConnectOnOpen,
+                          }
+                        : {}),
+                    ...(updatedPlaylist.vpnAutoConnectWhenDefault !== undefined
+                        ? {
+                              vpnAutoConnectWhenDefault:
+                                  updatedPlaylist.vpnAutoConnectWhenDefault,
+                          }
+                        : {}),
                 };
 
                 if (this.isElectronStorageAvailable) {
@@ -785,7 +808,7 @@ export class PlaylistsService {
             // on user-triggered imports.
             const parserModule = await import('iptv-playlist-parser');
             const parse = resolvePlaylistParser(parserModule);
-            const parsedPlaylist = parse(playlist);
+            const parsedPlaylist = parse(repairMojibakeText(playlist));
             return createPlaylistObject(
                 title,
                 parsedPlaylist,

@@ -39,7 +39,15 @@ const DEFAULT_SETTINGS: Settings = {
     epgUrl: [],
     downloadFolder: '',
     acceleratedDownloads: true,
-    redirectIndirectStreamsToDirectSource: false,
+    redirectIndirectStreamsToDirectSource: true,
+    backgroundMetadataWarmup: true,
+    backgroundMetadataWarmupSchedule: 'monthly',
+    backgroundMetadataWarmupAtLogin: true,
+    backgroundMetadataWarmupConcurrency: 8,
+    vpnIntegrationEnabled: true,
+    vpnProvider: 'proton',
+    vpnLocation: 'HR',
+    vpnRestoreOnExit: true,
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
@@ -84,6 +92,34 @@ function scheduleEmbeddedMpvPrepare(): void {
     }
 }
 
+function migrateSettings(stored: Settings): Settings {
+    const legacyProtonEnabled =
+        stored.protonVpnIntegrationEnabled !== undefined
+            ? Boolean(stored.protonVpnIntegrationEnabled)
+            : undefined;
+    const vpnIntegrationEnabled =
+        stored.vpnIntegrationEnabled ?? legacyProtonEnabled ?? true;
+    const vpnProvider =
+        stored.vpnProvider ??
+        (vpnIntegrationEnabled && legacyProtonEnabled !== false
+            ? 'proton'
+            : 'none');
+
+    return {
+        ...stored,
+        acceleratedDownloads:
+            stored.acceleratedDownloads ?? stored.fastDownloadEnabled ?? true,
+        redirectIndirectStreamsToDirectSource:
+            stored.redirectIndirectStreamsToDirectSource ??
+            stored.redirectIndirectSourcesToDirect ??
+            true,
+        vpnIntegrationEnabled,
+        vpnProvider,
+        vpnLocation: stored.vpnLocation ?? stored.protonVpnLocation ?? 'HR',
+        vpnRestoreOnExit: stored.vpnRestoreOnExit ?? true,
+    };
+}
+
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
@@ -96,7 +132,7 @@ export const SettingsStore = signalStore(
                 if (stored) {
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
-                        ...(stored as Settings),
+                        ...migrateSettings(stored as Settings),
                     });
                     void this.sanitizeEmbeddedMpvSelection().catch((error) => {
                         console.warn(
@@ -150,8 +186,22 @@ export const SettingsStore = signalStore(
                 epgUrl: store.epgUrl(),
                 downloadFolder: store.downloadFolder!(),
                 acceleratedDownloads: store.acceleratedDownloads!(),
+                fastDownloadEnabled: store.acceleratedDownloads!(),
                 redirectIndirectStreamsToDirectSource:
                     store.redirectIndirectStreamsToDirectSource!(),
+                redirectIndirectSourcesToDirect:
+                    store.redirectIndirectStreamsToDirectSource!(),
+                backgroundMetadataWarmup: store.backgroundMetadataWarmup!(),
+                backgroundMetadataWarmupSchedule:
+                    store.backgroundMetadataWarmupSchedule!(),
+                backgroundMetadataWarmupAtLogin:
+                    store.backgroundMetadataWarmupAtLogin!(),
+                backgroundMetadataWarmupConcurrency:
+                    store.backgroundMetadataWarmupConcurrency!(),
+                vpnIntegrationEnabled: store.vpnIntegrationEnabled!(),
+                vpnProvider: store.vpnProvider!(),
+                vpnLocation: store.vpnLocation!(),
+                vpnRestoreOnExit: store.vpnRestoreOnExit!(),
                 recordingFolder: store.recordingFolder!(),
                 coverSize: store.coverSize!(),
                 preferUploadedEpgOverXtream:

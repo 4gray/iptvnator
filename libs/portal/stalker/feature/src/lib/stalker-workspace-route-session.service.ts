@@ -9,7 +9,10 @@ import {
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { filter, firstValueFrom } from 'rxjs';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
 import { PortalRailSection } from '@iptvnator/portal/shared/util';
 import {
     StalkerContentType,
@@ -23,6 +26,7 @@ export class StalkerWorkspaceRouteSession {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly stalkerStore = inject(StalkerStore);
 
     private currentPlaylistId: string | null = null;
@@ -69,6 +73,10 @@ export class StalkerWorkspaceRouteSession {
                 (await firstValueFrom(
                     this.playlistsService.getPlaylistById(playlistId)
                 ));
+            await this.sourceVpnPreparation.prepareForPlaylist(
+                playlist,
+                'source-open'
+            );
             await this.stalkerStore.setCurrentPlaylist(playlist);
         }
 

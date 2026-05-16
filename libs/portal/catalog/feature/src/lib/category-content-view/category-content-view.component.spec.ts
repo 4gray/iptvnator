@@ -444,4 +444,12 @@ describe('CategoryContentViewComponent', () => {
 
         expect(fixture.componentInstance.canFilterVideoQuality()).toBe(false);
     });
+
+    it('only exposes include language filter sections', () => {
+        expect(
+            fixture.componentInstance.languageFilterSections.map(
+                (section) => section.key
+            )
+        ).toEqual(['audioInclude', 'subtitleInclude']);
+    });
 });

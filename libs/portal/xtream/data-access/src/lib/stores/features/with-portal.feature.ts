@@ -46,22 +46,33 @@ export function withPortal() {
 
     const resolvePortalStatus = (response: {
         user_info?: {
+            auth?: number | string | boolean;
             exp_date?: string;
             status?: string;
         };
     } | null): PortalStatusType => {
-        if (!response?.user_info?.status) {
+        const userInfo = response?.user_info;
+        const status = userInfo?.status?.trim().toLowerCase();
+        const auth = userInfo?.auth;
+        const isAuthenticated =
+            auth === true || auth === 1 || auth === '1' || auth === 'true';
+
+        if (!status && !isAuthenticated) {
             return 'unavailable';
         }
 
-        if (response.user_info.status === 'Active') {
-            if (!response.user_info.exp_date) {
+        if (!status || status === 'active') {
+            const rawExpDate = userInfo?.exp_date;
+            if (!rawExpDate || rawExpDate === '0') {
                 return 'active';
             }
 
-            const expDate = new Date(
-                parseInt(response.user_info.exp_date, 10) * 1000
-            );
+            const expTimestamp = parseInt(rawExpDate, 10);
+            if (!Number.isFinite(expTimestamp) || expTimestamp <= 0) {
+                return 'active';
+            }
+
+            const expDate = new Date(expTimestamp * 1000);
             return expDate < new Date() ? 'expired' : 'active';
         }
 
@@ -97,7 +108,25 @@ export function withPortal() {
                             await dataSource.getPlaylist(playlistId);
 
                         if (playlist) {
-                            patchState(store, { currentPlaylist: playlist });
+                            const currentPlaylist = store.currentPlaylist();
+                            patchState(store, {
+                                currentPlaylist: {
+                                    ...playlist,
+                                    vpnProvider:
+                                        playlist.vpnProvider ??
+                                        currentPlaylist?.vpnProvider,
+                                    vpnLocation:
+                                        playlist.vpnLocation ??
+                                        currentPlaylist?.vpnLocation,
+                                    vpnAutoConnectOnOpen:
+                                        playlist.vpnAutoConnectOnOpen ??
+                                        currentPlaylist?.vpnAutoConnectOnOpen,
+                                    vpnAutoConnectWhenDefault:
+                                        playlist.vpnAutoConnectWhenDefault ??
+                                        currentPlaylist
+                                            ?.vpnAutoConnectWhenDefault,
+                                },
+                            });
                             return;
                         }
 
@@ -134,6 +163,12 @@ export function withPortal() {
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
+                        sourceVpn: {
+                            provider: playlist.vpnProvider,
+                            location: playlist.vpnLocation,
+                            sourceId: playlist.id,
+                            sourceTitle: playlist.name ?? playlist.title,
+                        },
                     };
 
                     try {

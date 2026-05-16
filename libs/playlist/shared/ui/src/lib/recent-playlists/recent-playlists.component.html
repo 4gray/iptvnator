@@ -30,6 +30,7 @@
                     [isDraggable]="isCustomSortActive()"
                     [isRefreshing]="isRefreshPending(item._id)"
                     [isDeleting]="isDeletePending(item._id)"
+                    [isPreparingVpn]="isVpnPreparing(item._id)"
                     [busyMessage]="getBusyMessage(item)"
                     [busyProgress]="getBusyProgress(item._id)"
                     [canCancelBusyAction]="canCancelBusyOperation(item)"

@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output, inject } from '@angular/core';
+import { Component, EventEmitter, Output, inject, input } from '@angular/core';
 import {
     FormControl,
     FormGroup,
@@ -11,9 +11,10 @@ import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
+import { SourceVpnPreparationService } from '@iptvnator/playlist/shared/util';
 import { PlaylistActions } from 'm3u-state';
 import { PortalStatus, PortalStatusService } from 'services';
-import { Playlist } from 'shared-interfaces';
+import { Playlist, PlaylistSourceVpnConfig } from 'shared-interfaces';
 import { v4 as uuid } from 'uuid';
 
 @Component({
@@ -67,6 +68,7 @@ import { v4 as uuid } from 'uuid';
 export class XtreamCodeImportComponent {
     @Output() addClicked = new EventEmitter<void>();
     URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+    readonly sourceVpn = input<PlaylistSourceVpnConfig | undefined>();
 
     form = new FormGroup({
         _id: new FormControl(uuid()),
@@ -82,6 +84,7 @@ export class XtreamCodeImportComponent {
 
     readonly store = inject(Store);
     readonly portalStatusService = inject(PortalStatusService);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
 
     connectionStatus: PortalStatus | null = null;
     isTestingConnection = false;
@@ -97,6 +100,7 @@ export class XtreamCodeImportComponent {
         }`;
 
         try {
+            await this.prepareSourceVpnForImport();
             // User-initiated connection test — bypass the shared cache so the
             // result reflects the portal's current state, not whatever was
             // cached up to 30 s ago by another component.
@@ -147,6 +151,7 @@ export class XtreamCodeImportComponent {
                 playlist: {
                     ...this.form.value,
                     serverUrl,
+                    ...(this.sourceVpn() ?? {}),
                 } as Playlist,
             })
         );
@@ -172,5 +177,25 @@ export class XtreamCodeImportComponent {
         } catch (error) {
             console.error('Invalid URL', error);
         }
+    }
+
+    private async prepareSourceVpnForImport(): Promise<void> {
+        const sourceVpn = this.sourceVpn();
+        if (!sourceVpn) {
+            return;
+        }
+
+        await this.sourceVpnPreparation.prepareForPlaylist(
+            {
+                _id: this.form.value._id || 'xtream-import',
+                title: this.form.value.title || 'Xtream',
+                count: 0,
+                autoRefresh: false,
+                importDate:
+                    this.form.value.importDate || new Date().toISOString(),
+                ...sourceVpn,
+            },
+            'source-open'
+        );
     }
 }

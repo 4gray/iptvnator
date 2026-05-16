@@ -97,6 +97,258 @@
         </div>
     </div>
 
+    @if (isDesktop()) {
+        <div class="setting-item" data-test-id="vpn-integration-setting">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.VPN_INTEGRATION' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.VPN_INTEGRATION_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox formControlName="vpnIntegrationEnabled">
+                </mat-checkbox>
+            </div>
+        </div>
+
+        @if (form().value.vpnIntegrationEnabled) {
+            <div class="setting-item" data-test-id="vpn-provider-setting">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.VPN_PROVIDER' | translate }}</h4>
+                    <p>
+                        {{ 'SETTINGS.VPN_PROVIDER_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-label>{{
+                            'SETTINGS.VPN_PROVIDER' | translate
+                        }}</mat-label>
+                        <mat-select formControlName="vpnProvider">
+                            @for (
+                                option of vpnProviderOptions;
+                                track option.value
+                            ) {
+                                <mat-option [value]="option.value">
+                                    {{ option.labelKey | translate }}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+            </div>
+
+            @if (form().value.vpnProvider === 'proton') {
+            <div class="setting-item" data-test-id="vpn-location-setting">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.VPN_LOCATION' | translate }}</h4>
+                    <p>
+                        {{ 'SETTINGS.VPN_LOCATION_DESCRIPTION' | translate }}
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-label>{{
+                            'SETTINGS.VPN_LOCATION' | translate
+                        }}</mat-label>
+                        <mat-select formControlName="vpnLocation">
+                            @for (
+                                option of vpnLocationOptions;
+                                track option.code
+                            ) {
+                                <mat-option [value]="option.code">
+                                    {{ option.label }}
+                                </mat-option>
+                            }
+                        </mat-select>
+                    </mat-form-field>
+                </div>
+            </div>
+
+            <div class="setting-item" data-test-id="vpn-restore-setting">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.VPN_RESTORE_ON_EXIT' | translate }}</h4>
+                    <p>
+                        {{
+                            'SETTINGS.VPN_RESTORE_ON_EXIT_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-checkbox formControlName="vpnRestoreOnExit">
+                    </mat-checkbox>
+                </div>
+            </div>
+            }
+
+            <div class="setting-item" data-test-id="vpn-status-setting">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.VPN_STATUS' | translate }}</h4>
+                    <p>
+                        @if (vpnStatus(); as status) {
+                            {{
+                                'SETTINGS.VPN_STATUS_DESCRIPTION'
+                                    | translate
+                                        : {
+                                              provider: status.provider,
+                                              status: status.status,
+                                              location: status.location,
+                                              reason: status.reason || '-'
+                                          }
+                            }}
+                        } @else {
+                            {{ 'SETTINGS.VPN_STATUS_EMPTY' | translate }}
+                        }
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        [disabled]="vpnStatusLoading()"
+                        (click)="refreshVpnStatus()"
+                    >
+                        <mat-icon>sync</mat-icon>
+                        {{ 'SETTINGS.VPN_STATUS_REFRESH' | translate }}
+                    </button>
+                </div>
+            </div>
+        }
+    }
+
+    <div class="setting-item" data-test-id="background-metadata-warmup-setting">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.BACKGROUND_METADATA_WARMUP' | translate }}</h4>
+            <p>
+                {{
+                    'SETTINGS.BACKGROUND_METADATA_WARMUP_DESCRIPTION'
+                        | translate
+                }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox formControlName="backgroundMetadataWarmup">
+            </mat-checkbox>
+        </div>
+    </div>
+
+    @if (form().value.backgroundMetadataWarmup) {
+        <div
+            class="setting-item"
+            data-test-id="background-metadata-warmup-schedule-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{
+                        'SETTINGS.BACKGROUND_METADATA_WARMUP_SCHEDULE'
+                            | translate
+                    }}
+                </h4>
+                <p>
+                    {{
+                        'SETTINGS.BACKGROUND_METADATA_WARMUP_SCHEDULE_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{
+                        'SETTINGS.BACKGROUND_METADATA_WARMUP_SCHEDULE'
+                            | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="backgroundMetadataWarmupSchedule"
+                    >
+                        @for (
+                            option of metadataWarmupScheduleOptions;
+                            track option.value
+                        ) {
+                            <mat-option [value]="option.value">
+                                {{ option.labelKey | translate }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+
+        <div
+            class="setting-item"
+            data-test-id="background-metadata-warmup-concurrency-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{
+                        'SETTINGS.BACKGROUND_METADATA_WARMUP_CONCURRENCY'
+                            | translate
+                    }}
+                </h4>
+                <p>
+                    {{
+                        'SETTINGS.BACKGROUND_METADATA_WARMUP_CONCURRENCY_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control">
+                <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <mat-label>{{
+                        'SETTINGS.BACKGROUND_METADATA_WARMUP_CONCURRENCY'
+                            | translate
+                    }}</mat-label>
+                    <mat-select
+                        formControlName="backgroundMetadataWarmupConcurrency"
+                    >
+                        @for (
+                            option of metadataWarmupConcurrencyOptions;
+                            track option
+                        ) {
+                            <mat-option [value]="option">
+                                {{ option }}
+                            </mat-option>
+                        }
+                    </mat-select>
+                </mat-form-field>
+            </div>
+        </div>
+
+        @if (isDesktop()) {
+            <div
+                class="setting-item"
+                data-test-id="background-metadata-warmup-login-setting"
+            >
+                <div class="setting-item__meta">
+                    <h4>
+                        {{
+                            'SETTINGS.BACKGROUND_METADATA_WARMUP_AT_LOGIN'
+                                | translate
+                        }}
+                    </h4>
+                    <p>
+                        {{
+                            'SETTINGS.BACKGROUND_METADATA_WARMUP_AT_LOGIN_DESCRIPTION'
+                                | translate
+                        }}
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-checkbox
+                        formControlName="backgroundMetadataWarmupAtLogin"
+                    >
+                    </mat-checkbox>
+                </div>
+            </div>
+        }
+    }
+
     <div class="setting-item" data-test-id="media-metadata-cache-setting">
         <div class="setting-item__meta">
             <h4>{{ 'SETTINGS.MEDIA_METADATA_CACHE' | translate }}</h4>

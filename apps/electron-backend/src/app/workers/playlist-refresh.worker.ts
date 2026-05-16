@@ -8,11 +8,14 @@ import type {
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
 } from 'shared-interfaces';
+import { decodeTextBytes } from 'shared-interfaces';
 import type {
     PlaylistRefreshWorkerIncomingMessage,
     PlaylistRefreshWorkerMessage,
 } from './playlist-refresh.worker.types';
+import { getSourceLocalAddress } from '../services/source-network-options';
 
+const http = require('http');
 const https = require('https');
 
 type ActiveRefreshState = {
@@ -80,16 +83,27 @@ async function fetchPlaylistFromUrl(
 
     const agent = new https.Agent({
         rejectUnauthorized: false,
+        localAddress: getSourceLocalAddress(),
+    });
+    const httpAgent = new http.Agent({
+        localAddress: getSourceLocalAddress(),
     });
     const result = await axios.get(payload.url!, {
+        httpAgent,
         httpsAgent: agent,
         signal: controller.signal,
         timeout: 30000,
+        responseType: 'arraybuffer',
     });
 
     checkpoint(payload);
     emitEvent(payload, { status: 'progress', phase: 'parsing' });
-    const parsedPlaylist = parse(result.data);
+    const parsedPlaylist = parse(
+        decodeTextBytes(
+            result.data as ArrayBuffer | ArrayBufferView,
+            String(result.headers?.['content-type'] ?? '')
+        )
+    );
     checkpoint(payload);
 
     const extractedName =
@@ -114,11 +128,11 @@ async function fetchPlaylistFromFile(
 ): Promise<Playlist> {
     emitEvent(payload, { status: 'started', phase: 'reading-file' });
     checkpoint(payload);
-    const fileContent = await readFile(payload.filePath!, 'utf-8');
+    const fileContent = await readFile(payload.filePath!);
     checkpoint(payload);
 
     emitEvent(payload, { status: 'progress', phase: 'parsing' });
-    const parsedPlaylist = parse(fileContent);
+    const parsedPlaylist = parse(decodeTextBytes(fileContent));
     checkpoint(payload);
 
     return createPlaylistObject(

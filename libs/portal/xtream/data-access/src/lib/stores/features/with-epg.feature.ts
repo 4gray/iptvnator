@@ -6,7 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { EpgItem } from 'shared-interfaces';
+import { EpgItem, SourceVpnRequestContext } from 'shared-interfaces';
 import { DataService, SettingsStore } from 'services';
 import {
     XtreamApiService,
@@ -41,9 +41,14 @@ export function withEpg() {
     const logger = createLogger('withEpg');
     type ParentSelectionStoreLike = {
         currentPlaylist?: () => {
+            id?: string;
+            name?: string;
             password: string;
             serverUrl: string;
+            title?: string;
             username: string;
+            vpnLocation?: string;
+            vpnProvider?: 'none' | 'proton';
         } | null;
         selectedItem?: () => {
             xtream_id?: number | null;
@@ -105,6 +110,32 @@ export function withEpg() {
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
+                    ...getSourceVpnContext(playlist),
+                };
+            };
+
+            const getSourceVpnContext = (playlist: {
+                id?: string;
+                name?: string;
+                title?: string;
+                vpnLocation?: string;
+                vpnProvider?: 'none' | 'proton';
+            }):
+                | {
+                      sourceVpn: SourceVpnRequestContext;
+                  }
+                | Record<string, never> => {
+                if (!playlist.vpnProvider) {
+                    return {};
+                }
+
+                return {
+                    sourceVpn: {
+                        provider: playlist.vpnProvider,
+                        location: playlist.vpnLocation,
+                        sourceId: playlist.id,
+                        sourceTitle: playlist.name ?? playlist.title,
+                    },
                 };
             };
 

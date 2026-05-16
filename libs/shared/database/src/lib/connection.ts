@@ -118,6 +118,8 @@ const CREATE_TABLE_STATEMENTS = [
       tv_archive INTEGER,
       tv_archive_duration INTEGER,
       direct_source TEXT,
+      media_metadata TEXT,
+      media_metadata_updated_at INTEGER,
       xtream_id INTEGER NOT NULL,
       type TEXT NOT NULL CHECK (type IN ('live', 'movie', 'series')),
       UNIQUE(category_id, type, xtream_id),
@@ -161,6 +163,54 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_idx ON recently_viewed(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS recently_viewed_viewed_at_idx ON recently_viewed(viewed_at)`,
     `CREATE INDEX IF NOT EXISTS recently_viewed_playlist_viewed_idx ON recently_viewed(playlist_id, viewed_at DESC)`,
+    `CREATE TABLE IF NOT EXISTS episode_media_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playlist_id TEXT NOT NULL,
+      series_xtream_id INTEGER NOT NULL,
+      episode_xtream_id INTEGER NOT NULL,
+      season_number INTEGER,
+      episode_number INTEGER,
+      media_metadata TEXT NOT NULL,
+      media_metadata_updated_at INTEGER NOT NULL,
+      UNIQUE(playlist_id, series_xtream_id, episode_xtream_id),
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS episode_media_metadata_series_idx ON episode_media_metadata(playlist_id, series_xtream_id)`,
+    `CREATE TABLE IF NOT EXISTS media_metadata_jobs (
+      job_key TEXT PRIMARY KEY,
+      playlist_id TEXT NOT NULL,
+      content_type TEXT NOT NULL CHECK (content_type IN ('live', 'movie', 'episode')),
+      xtream_id INTEGER NOT NULL,
+      series_xtream_id INTEGER,
+      season_number INTEGER,
+      episode_number INTEGER,
+      url TEXT NOT NULL,
+      headers TEXT,
+      static_metadata TEXT,
+      source_vpn TEXT,
+      run_after_window_close INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_jobs_playlist_idx ON media_metadata_jobs(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_jobs_content_idx ON media_metadata_jobs(content_type, xtream_id)`,
+    `CREATE TABLE IF NOT EXISTS media_metadata_series_discovery_jobs (
+      job_key TEXT PRIMARY KEY,
+      playlist_id TEXT NOT NULL,
+      server_url TEXT NOT NULL,
+      username TEXT NOT NULL,
+      password TEXT NOT NULL,
+      series_xtream_id INTEGER NOT NULL,
+      headers TEXT,
+      source_vpn TEXT,
+      run_after_window_close INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_series_jobs_playlist_idx ON media_metadata_series_discovery_jobs(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_series_jobs_series_idx ON media_metadata_series_discovery_jobs(series_xtream_id)`,
     // EPG tables
     `CREATE TABLE IF NOT EXISTS epg_channels (
       id TEXT PRIMARY KEY,
@@ -284,6 +334,12 @@ const COLUMN_MIGRATION_STATEMENTS = [
     `ALTER TABLE content ADD COLUMN direct_source TEXT`,
     // v1.5.0 -> v1.6.0: Cinematic backdrop persisted on first detail fetch
     `ALTER TABLE content ADD COLUMN backdrop_url TEXT`,
+    // v1.7.0 -> v1.8.0: Persist media probe metadata for fast filters/previews
+    `ALTER TABLE content ADD COLUMN media_metadata TEXT`,
+    `ALTER TABLE content ADD COLUMN media_metadata_updated_at INTEGER`,
+    // v1.9.0 -> v1.10.0: Keep source VPN routing with persisted background metadata jobs
+    `ALTER TABLE media_metadata_jobs ADD COLUMN source_vpn TEXT`,
+    `ALTER TABLE media_metadata_series_discovery_jobs ADD COLUMN source_vpn TEXT`,
 ];
 
 const INDEX_MIGRATION_STATEMENTS = [
@@ -292,6 +348,55 @@ const INDEX_MIGRATION_STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)`,
     // v1.6.0 -> v1.7.0: Query global favorites in stable display order
     `CREATE INDEX IF NOT EXISTS favorites_playlist_position_idx ON favorites(playlist_id, position, added_at DESC)`,
+    // v1.8.0 -> v1.9.0: Persist per-episode metadata and restartable metadata jobs
+    `CREATE TABLE IF NOT EXISTS episode_media_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      playlist_id TEXT NOT NULL,
+      series_xtream_id INTEGER NOT NULL,
+      episode_xtream_id INTEGER NOT NULL,
+      season_number INTEGER,
+      episode_number INTEGER,
+      media_metadata TEXT NOT NULL,
+      media_metadata_updated_at INTEGER NOT NULL,
+      UNIQUE(playlist_id, series_xtream_id, episode_xtream_id),
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS episode_media_metadata_series_idx ON episode_media_metadata(playlist_id, series_xtream_id)`,
+    `CREATE TABLE IF NOT EXISTS media_metadata_jobs (
+      job_key TEXT PRIMARY KEY,
+      playlist_id TEXT NOT NULL,
+      content_type TEXT NOT NULL CHECK (content_type IN ('live', 'movie', 'episode')),
+      xtream_id INTEGER NOT NULL,
+      series_xtream_id INTEGER,
+      season_number INTEGER,
+      episode_number INTEGER,
+      url TEXT NOT NULL,
+      headers TEXT,
+      static_metadata TEXT,
+      source_vpn TEXT,
+      run_after_window_close INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_jobs_playlist_idx ON media_metadata_jobs(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_jobs_content_idx ON media_metadata_jobs(content_type, xtream_id)`,
+    `CREATE TABLE IF NOT EXISTS media_metadata_series_discovery_jobs (
+      job_key TEXT PRIMARY KEY,
+      playlist_id TEXT NOT NULL,
+      server_url TEXT NOT NULL,
+      username TEXT NOT NULL,
+      password TEXT NOT NULL,
+      series_xtream_id INTEGER NOT NULL,
+      headers TEXT,
+      source_vpn TEXT,
+      run_after_window_close INTEGER DEFAULT 0,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      FOREIGN KEY (playlist_id) REFERENCES playlists (id) ON DELETE CASCADE
+  )`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_series_jobs_playlist_idx ON media_metadata_series_discovery_jobs(playlist_id)`,
+    `CREATE INDEX IF NOT EXISTS media_metadata_series_jobs_series_idx ON media_metadata_series_discovery_jobs(series_xtream_id)`,
 ];
 
 export const __databaseConnectionTestHooks = {
@@ -437,7 +542,9 @@ function deduplicateXtreamCache(sqliteDb: Database.Database): void {
         const deleteRecentlyViewed = sqliteDb.prepare(
             `DELETE FROM recently_viewed WHERE content_id = ?`
         );
-        const deleteContent = sqliteDb.prepare(`DELETE FROM content WHERE id = ?`);
+        const deleteContent = sqliteDb.prepare(
+            `DELETE FROM content WHERE id = ?`
+        );
 
         for (const group of duplicateContentGroups) {
             const candidates = selectContentCandidates.all(

@@ -1,6 +1,9 @@
 import { spawn } from 'child_process';
 import { existsSync, readdirSync } from 'fs';
+import * as http from 'http';
+import * as https from 'https';
 import { delimiter, join } from 'path';
+import { getSourceRequestOptions } from './source-network-options';
 
 const DEFAULT_PROBE_TIMEOUT_MS = 15_000;
 const FETCH_PROBE_TIMEOUT_MS = 20_000;
@@ -237,70 +240,111 @@ async function fetchMediaPrefix(
     headers?: Record<string, string>,
     maxBytes = FETCH_PROBE_BYTES
 ): Promise<{ buffer: Buffer; contentType: string }> {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_PROBE_TIMEOUT_MS);
+    return requestMediaPrefix(url, headers, maxBytes);
+}
 
-    try {
-        const response = await fetch(url, {
-            headers: buildFetchHeaders(headers),
-            redirect: 'follow',
-            signal: controller.signal,
-        });
+function requestMediaPrefix(
+    rawUrl: string,
+    headers?: Record<string, string>,
+    maxBytes = FETCH_PROBE_BYTES,
+    redirectCount = 0
+): Promise<{ buffer: Buffer; contentType: string }> {
+    return new Promise((resolve, reject) => {
+        const parsed = new URL(rawUrl);
+        const transport = parsed.protocol === 'https:' ? https : http;
+        const chunks: Buffer[] = [];
+        let totalBytes = 0;
+        let settled = false;
 
-        const buffer = await readResponsePrefix(response, maxBytes);
-        if (!response.ok) {
-            return {
-                buffer,
-                contentType: response.headers.get('content-type') ?? '',
-            };
-        }
-
-        return {
-            buffer,
-            contentType: response.headers.get('content-type') ?? '',
+        const finish = (contentType: string) => {
+            if (settled) return;
+            settled = true;
+            resolve({
+                buffer: Buffer.concat(chunks, totalBytes),
+                contentType,
+            });
         };
-    } finally {
-        clearTimeout(timer);
-    }
-}
 
-async function readResponsePrefix(
-    response: Response,
-    maxBytes: number
-): Promise<Buffer> {
-    if (!response.body) {
-        const arrayBuffer = await response.arrayBuffer();
-        return Buffer.from(arrayBuffer).subarray(0, maxBytes);
-    }
+        const req = transport.request(
+            {
+                protocol: parsed.protocol,
+                hostname: parsed.hostname,
+                port: parsed.port,
+                path: `${parsed.pathname}${parsed.search}`,
+                method: 'GET',
+                headers: buildFetchHeaders(headers),
+                timeout: FETCH_PROBE_TIMEOUT_MS,
+                ...getSourceRequestOptions(),
+            },
+            (res) => {
+                const status = res.statusCode ?? 0;
+                const location = res.headers.location;
+                if (
+                    [301, 302, 303, 307, 308].includes(status) &&
+                    location &&
+                    redirectCount < 5
+                ) {
+                    res.resume();
+                    const nextUrl = new URL(location, rawUrl).toString();
+                    requestMediaPrefix(
+                        nextUrl,
+                        headers,
+                        maxBytes,
+                        redirectCount + 1
+                    )
+                        .then(resolve)
+                        .catch(reject);
+                    return;
+                }
 
-    const reader = response.body.getReader();
-    const chunks: Buffer[] = [];
-    let totalBytes = 0;
+                const contentType =
+                    typeof res.headers['content-type'] === 'string'
+                        ? res.headers['content-type']
+                        : '';
 
-    try {
-        while (totalBytes < maxBytes) {
-            const { done, value } = await reader.read();
-            if (done || !value) {
-                break;
+                res.on('data', (chunk: Buffer) => {
+                    if (settled) return;
+                    const remainingBytes = maxBytes - totalBytes;
+                    if (remainingBytes <= 0) {
+                        finish(contentType);
+                        res.destroy();
+                        return;
+                    }
+
+                    const accepted =
+                        chunk.length > remainingBytes
+                            ? chunk.subarray(0, remainingBytes)
+                            : chunk;
+                    chunks.push(accepted);
+                    totalBytes += accepted.length;
+
+                    if (totalBytes >= maxBytes) {
+                        finish(contentType);
+                        res.destroy();
+                    }
+                });
+                res.on('end', () => finish(contentType));
+                res.on('error', (error) => {
+                    if (settled) return;
+                    settled = true;
+                    reject(error);
+                });
             }
+        );
 
-            const chunk = Buffer.from(value);
-            const remainingBytes = maxBytes - totalBytes;
-            chunks.push(
-                chunk.length > remainingBytes
-                    ? chunk.subarray(0, remainingBytes)
-                    : chunk
-            );
-            totalBytes += Math.min(chunk.length, remainingBytes);
-        }
-    } finally {
-        await reader.cancel().catch(() => undefined);
-    }
-
-    return Buffer.concat(chunks, totalBytes);
+        req.on('timeout', () => {
+            req.destroy(new Error('Media probe timed out'));
+        });
+        req.on('error', (error) => {
+            if (settled) return;
+            settled = true;
+            reject(error);
+        });
+        req.end();
+    });
 }
 
-function buildFetchHeaders(headers?: Record<string, string>): HeadersInit {
+function buildFetchHeaders(headers?: Record<string, string>): Record<string, string> {
     const normalized = normalizeHeaders(headers);
     if (!findHeader(normalized, 'User-Agent')) {
         normalized['User-Agent'] = DEFAULT_USER_AGENT;

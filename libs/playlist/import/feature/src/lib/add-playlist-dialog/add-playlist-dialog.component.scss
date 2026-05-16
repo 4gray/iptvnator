@@ -116,6 +116,44 @@
     }
 }
 
+.apd-source-vpn {
+    border-top: 1px solid var(--apd-border);
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-top: 14px;
+    padding-top: 14px;
+
+    h3 {
+        color: var(--apd-heading);
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 1.35;
+        margin: 0 0 3px;
+    }
+
+    p {
+        color: var(--apd-muted);
+        font-size: 11.5px;
+        line-height: 1.45;
+        margin: 0;
+    }
+
+    mat-checkbox {
+        margin-top: -2px;
+    }
+
+    &__grid {
+        display: grid;
+        gap: 10px;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+
+        .mat-mdc-form-field {
+            width: 100%;
+        }
+    }
+}
+
 .apd-actions {
     display: flex;
     flex-wrap: wrap;
@@ -137,6 +175,10 @@
 }
 
 @media (max-width: 520px) {
+    .apd-source-vpn__grid {
+        grid-template-columns: 1fr;
+    }
+
     .apd-actions {
         align-items: stretch;
         flex-direction: column;

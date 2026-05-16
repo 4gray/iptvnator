@@ -8,13 +8,13 @@ import {
     DatabaseService,
     type DbOperationEvent,
     isDbAbortError,
-    PlaybackPositionService,
     PlaylistRefreshService,
     XtreamPendingRestoreService,
 } from 'services';
 import { ChannelActions, PlaylistActions } from 'm3u-state';
 import { PlaylistMeta } from 'shared-interfaces';
 import { PlaylistContextFacade } from './playlist-context.facade';
+import { SourceVpnPreparationService } from './source-vpn-preparation.service';
 
 export interface XtreamRefreshPreparationState {
     playlistId: string;
@@ -32,9 +32,9 @@ export class PlaylistRefreshActionService {
     private readonly snackBar = inject(MatSnackBar);
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
-    private readonly playbackPositionService = inject(PlaybackPositionService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -85,7 +85,9 @@ export class PlaylistRefreshActionService {
                 this.refreshPreparationState.set({
                     playlistId: item._id,
                     operationId,
-                    phase: 'collecting-user-data',
+                    phase: 'invalidating-import-cache',
+                    current: 0,
+                    total: 3,
                 });
 
                 try {
@@ -97,35 +99,49 @@ export class PlaylistRefreshActionService {
                         { duration: 2000 }
                     );
                     await this.waitForRefreshPreparationPaint();
+                    const vpnPreparation =
+                        this.prepareSourceVpnForRefresh(item);
 
                     const updateDate = Date.now();
-                    const [restoreState, playbackPositions] = await Promise.all(
-                        [
-                            this.databaseService.deleteXtreamPlaylistContent(
+                    const importTypes = ['live', 'movie', 'series'] as const;
+                    await Promise.all([
+                        ...importTypes.map(async (type, index) => {
+                            await this.databaseService.setXtreamImportStatus(
                                 item._id,
-                                {
-                                    operationId,
-                                    onEvent: (event) =>
-                                        this.updateRefreshPreparationFromEvent(
-                                            item._id,
-                                            operationId,
-                                            event
-                                        ),
-                                }
-                            ),
-                            this.playbackPositionService.getAllPlaybackPositions(
-                                item._id
-                            ),
-                            this.databaseService.updateXtreamPlaylistDetails({
-                                id: item._id,
-                                updateDate,
-                            }),
-                        ]
-                    );
+                                type,
+                                'idle'
+                            );
+                            this.refreshPreparationState.update((current) =>
+                                current?.operationId === operationId
+                                    ? {
+                                          ...current,
+                                          phase: 'invalidating-import-cache',
+                                          current: index + 1,
+                                          total: importTypes.length,
+                                      }
+                                    : current
+                            );
+                        }),
+                        this.databaseService.updateXtreamPlaylistDetails({
+                            id: item._id,
+                            updateDate,
+                        }),
+                        vpnPreparation,
+                    ]);
 
-                    this.pendingRestoreService.set(item._id, {
-                        ...restoreState,
-                        playbackPositions,
+                    this.pendingRestoreService.clear(item._id);
+
+                    this.refreshPreparationState.update((current) => {
+                        if (current?.operationId !== operationId) {
+                            return current;
+                        }
+
+                        return {
+                            ...current,
+                            phase: 'invalidating-import-cache',
+                            current: importTypes.length,
+                            total: importTypes.length,
+                        };
                     });
 
                     this.store.dispatch(
@@ -174,6 +190,7 @@ export class PlaylistRefreshActionService {
         }
 
         try {
+            await this.prepareSourceVpnForRefresh(item);
             const refreshedPlaylist =
                 await this.playlistRefreshService.refreshPlaylist({
                     operationId:
@@ -223,6 +240,43 @@ export class PlaylistRefreshActionService {
         }
     }
 
+    private async prepareSourceVpnForRefresh(
+        playlist: PlaylistMeta
+    ): Promise<void> {
+        if (
+            !this.sourceVpnPreparation.shouldPrepareForPlaylist(
+                playlist,
+                'source-open'
+            )
+        ) {
+            return;
+        }
+
+        const snackBarRef = this.snackBar.open(
+            this.translateWithFallback(
+                'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_PREPARING',
+                'Preparing VPN...'
+            )
+        );
+
+        const status = await this.sourceVpnPreparation.prepareForPlaylist(
+            playlist,
+            'source-open'
+        );
+        snackBarRef?.dismiss();
+
+        if (status?.status === 'failed' || status?.status === 'timeout') {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_FAILED',
+                    'VPN could not be prepared. Continuing anyway.'
+                ),
+                undefined,
+                { duration: 4000 }
+            );
+        }
+    }
+
     private getRefreshErrorMessage(error: unknown, item: PlaylistMeta): string {
         if (
             error instanceof Error &&
@@ -235,6 +289,11 @@ export class PlaylistRefreshActionService {
         }
 
         return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+    }
+
+    private translateWithFallback(key: string, fallback: string): string {
+        const translated = this.translate.instant(key);
+        return translated === key ? fallback : translated;
     }
 
     private updateRefreshPreparationFromEvent(

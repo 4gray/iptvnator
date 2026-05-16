@@ -140,6 +140,10 @@
     border-radius: 8px;
 }
 
+.search-language-filter__group--quality {
+    padding-bottom: 8px;
+}
+
 .search-language-filter__group-header {
     display: flex;
     align-items: center;
@@ -169,10 +173,60 @@
     }
 }
 
+.search-quality-filter__options {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.search-quality-filter__option {
+    min-width: 0;
+    height: 32px;
+    padding: 0 10px;
+    border-radius: 6px;
+
+    &--active {
+        background: color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
+        color: var(--mat-sys-primary);
+    }
+}
+
+.search-quality-filter__count {
+    margin-left: 6px;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.74rem;
+}
+
 .search-language-filter__options {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(112px, 1fr));
     gap: 2px 8px;
+}
+
+.search-filter-index-progress {
+    display: grid;
+    gap: 6px;
+}
+
+.search-filter-index-progress__track {
+    overflow: hidden;
+    height: 4px;
+    border-radius: 999px;
+    background: var(--app-separator, var(--mat-sys-outline-variant));
+
+    span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--mat-sys-primary);
+        transition: width 0.18s ease;
+    }
+}
+
+.search-filter-index-progress__label {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.74rem;
+    font-weight: 600;
 }
 
 // Playlist grouping styles for global search

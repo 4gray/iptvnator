@@ -24,6 +24,7 @@ import {
     getPortalPlaybackProgressPercent,
     isPortalPlaybackInProgress,
     isPortalPlaybackWatched,
+    mediaMetadataNeedsProbe,
     mergeMediaStreamMetadata,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -33,6 +34,7 @@ import {
     XtreamSerieEpisodeInfo,
 } from 'shared-interfaces';
 import {
+    DatabaseService,
     DownloadsService,
     MediaMetadataService,
     SettingsStore,
@@ -60,8 +62,13 @@ export interface SeasonContainerPlaybackToggleRequest {
 
 interface EpisodeProbeJob {
     key: string;
+    episodeXtreamId: number;
+    seriesXtreamId: number;
+    seasonNumber: number | null;
+    episodeNumber: number | null;
     url: string;
     headers: Record<string, string>;
+    staticMetadata: MediaStreamMetadata | null;
 }
 
 function parseDuration(duration: string | number | undefined): number {
@@ -92,16 +99,6 @@ function uniqueNumbers(values: number[]): number[] {
     return Array.from(new Set(values));
 }
 
-function intersectStrings(valueSets: string[][]): string[] {
-    if (valueSets.length === 0) {
-        return [];
-    }
-
-    return uniqueStrings(valueSets[0]).filter((value) =>
-        valueSets.every((values) => values.includes(value))
-    );
-}
-
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
@@ -120,6 +117,7 @@ function intersectStrings(valueSets: string[][]): string[] {
     ],
 })
 export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
+    private readonly databaseService = inject(DatabaseService);
     private readonly downloadsService = inject(DownloadsService);
     private readonly mediaMetadataService = inject(MediaMetadataService);
     private readonly settingsStore = inject(SettingsStore);
@@ -130,6 +128,8 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
     private activeEpisodeProbeCount = 0;
     private destroyed = false;
     private lastSeriesMetadataSignature = '';
+    private episodeMetadataLoadSignature = '';
+    private episodeMetadataLoadingSignature = '';
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -155,6 +155,9 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
     readonly episodeProbeMetadata = signal<Record<string, MediaStreamMetadata>>(
         {}
     );
+    readonly episodePersistedMetadata = signal<
+        Record<string, MediaStreamMetadata>
+    >({});
     readonly episodeProbePending = signal<Record<string, boolean>>({});
 
     selectedSeason: string | undefined;
@@ -171,6 +174,7 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
 
     ngDoCheck(): void {
         this.syncSelectedSeason();
+        this.syncPersistedEpisodeMetadata();
         this.scheduleEpisodeMetadataProbes();
         this.emitSeriesMediaMetadataIfChanged();
     }
@@ -522,6 +526,50 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
         }
     }
 
+    private syncPersistedEpisodeMetadata(): void {
+        const playlistId = this.playlistId();
+        const seriesId = this.seriesId();
+        const signature =
+            playlistId && seriesId ? `${playlistId}:${seriesId}` : '';
+        if (signature === this.episodeMetadataLoadSignature) {
+            return;
+        }
+
+        this.episodeMetadataLoadSignature = signature;
+        this.episodeMetadataLoadingSignature = signature;
+        this.episodePersistedMetadata.set({});
+
+        if (!playlistId || !seriesId) {
+            this.episodeMetadataLoadingSignature = '';
+            return;
+        }
+
+        void this.databaseService
+            .getXtreamSeriesEpisodeMediaMetadata(playlistId, seriesId)
+            .then((rows) => {
+                if (
+                    this.destroyed ||
+                    this.episodeMetadataLoadSignature !== signature
+                ) {
+                    return;
+                }
+
+                const next: Record<string, MediaStreamMetadata> = {};
+                for (const row of rows) {
+                    next[String(row.episodeXtreamId)] = row.mediaMetadata;
+                }
+                this.episodePersistedMetadata.set(next);
+                this.emitSeriesMediaMetadataIfChanged();
+            })
+            .catch(() => undefined)
+            .finally(() => {
+                if (this.episodeMetadataLoadingSignature === signature) {
+                    this.episodeMetadataLoadingSignature = '';
+                    this.scheduleEpisodeMetadataProbes();
+                }
+            });
+    }
+
     private scheduleEpisodeMetadataProbes(): void {
         const context = this.xtreamDownloadContext();
         if (
@@ -532,8 +580,12 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
         ) {
             return;
         }
+        if (this.episodeMetadataLoadingSignature) {
+            return;
+        }
 
         const existingMetadata = this.episodeProbeMetadata();
+        const persistedMetadata = this.episodePersistedMetadata();
         const pendingMetadata = this.episodeProbePending();
         const nextPendingMetadata = { ...pendingMetadata };
         const headers = this.buildProbeHeaders(context);
@@ -542,6 +594,36 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
         for (const episode of this.getAllEpisodes()) {
             const url = this.getEpisodeStreamUrl(episode, context);
             if (!url) {
+                continue;
+            }
+
+            const episodeXtreamId = this.getEpisodeContentId(episode);
+            const staticMetadata = this.getEpisodeStaticMetadata(episode);
+            const persistedEpisodeMetadata =
+                persistedMetadata[String(episodeXtreamId)];
+            const currentMetadata = mergeMediaStreamMetadata(
+                persistedEpisodeMetadata,
+                staticMetadata
+            );
+            if (currentMetadata && !mediaMetadataNeedsProbe(currentMetadata)) {
+                if (!persistedEpisodeMetadata) {
+                    this.persistEpisodeMetadata(
+                        {
+                            key: this.getEpisodeProbeKey(url, headers),
+                            episodeXtreamId,
+                            seriesXtreamId: this.seriesId(),
+                            seasonNumber:
+                                Number(episode.season || this.selectedSeason) ||
+                                null,
+                            episodeNumber:
+                                Number(episode.episode_num) || null,
+                            url,
+                            headers,
+                            staticMetadata,
+                        },
+                        currentMetadata
+                    );
+                }
                 continue;
             }
 
@@ -555,7 +637,17 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
             }
 
             this.queuedEpisodeProbeKeys.add(key);
-            this.episodeProbeQueue.push({ key, url, headers });
+            this.episodeProbeQueue.push({
+                key,
+                episodeXtreamId,
+                seriesXtreamId: this.seriesId(),
+                seasonNumber:
+                    Number(episode.season || this.selectedSeason) || null,
+                episodeNumber: Number(episode.episode_num) || null,
+                url,
+                headers,
+                staticMetadata,
+            });
             nextPendingMetadata[key] = true;
             hasQueuedProbe = true;
         }
@@ -590,13 +682,30 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
                 url: job.url,
                 headers: job.headers,
             });
+            const mergedMetadata =
+                mergeMediaStreamMetadata(metadata, job.staticMetadata) ??
+                metadata;
 
             if (!this.destroyed) {
-                this.setEpisodeProbeMetadata(job.key, metadata);
+                this.setEpisodeProbeMetadata(job.key, mergedMetadata);
+                this.persistEpisodeMetadata(job, mergedMetadata);
             }
         } catch (error) {
             if (!this.destroyed) {
-                this.setEpisodeProbeMetadata(job.key, {
+                const metadata = mergeMediaStreamMetadata(
+                    {
+                        available: false,
+                        audioLanguages: [],
+                        audioCodecs: [],
+                        subtitleLanguages: [],
+                        subtitleCodecs: [],
+                        reason:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    },
+                    job.staticMetadata
+                ) ?? {
                     available: false,
                     audioLanguages: [],
                     audioCodecs: [],
@@ -604,7 +713,9 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
                     subtitleCodecs: [],
                     reason:
                         error instanceof Error ? error.message : String(error),
-                });
+                };
+                this.setEpisodeProbeMetadata(job.key, metadata);
+                this.persistEpisodeMetadata(job, metadata);
             }
         } finally {
             this.activeEpisodeProbeCount = Math.max(
@@ -628,6 +739,30 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
             ...current,
             [key]: metadata,
         }));
+    }
+
+    private persistEpisodeMetadata(
+        job: EpisodeProbeJob,
+        metadata: MediaStreamMetadata
+    ): void {
+        const playlistId = this.playlistId();
+        if (!playlistId || !job.seriesXtreamId || !job.episodeXtreamId) {
+            return;
+        }
+
+        this.episodePersistedMetadata.update((current) => ({
+            ...current,
+            [String(job.episodeXtreamId)]: metadata,
+        }));
+
+        void this.databaseService.setXtreamEpisodeMediaMetadata(
+            playlistId,
+            job.seriesXtreamId,
+            job.episodeXtreamId,
+            metadata,
+            job.seasonNumber,
+            job.episodeNumber
+        );
     }
 
     private setEpisodeProbePending(key: string, isPending: boolean): void {
@@ -663,70 +798,99 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
             this.getEpisodeMetadataForSeriesSummary(episode)
         );
 
+        const metadataList = episodeMetadata.filter(
+            (metadata): metadata is MediaStreamMetadata => Boolean(metadata)
+        );
         if (
             episodeMetadata.length === 0 ||
-            episodeMetadata.some((metadata) => !metadata)
+            metadataList.length !== episodeMetadata.length
         ) {
             return null;
         }
 
-        if (episodeMetadata.some((metadata) => !metadata?.qualityLabel)) {
-            return null;
-        }
-
         const qualityLabels = uniqueStrings(
-            episodeMetadata.map((metadata) => metadata?.qualityLabel ?? '')
+            metadataList.reduce<string[]>(
+                (values, metadata) => [
+                    ...values,
+                    ...(metadata.qualityLabels ?? []),
+                    metadata.qualityLabel ?? '',
+                ],
+                []
+            )
         );
-        if (qualityLabels.length !== 1) {
-            return null;
-        }
+        const audioLanguages = uniqueStrings(
+            metadataList.reduce<string[]>(
+                (values, metadata) => [
+                    ...values,
+                    ...(metadata.audioLanguages ?? []),
+                ],
+                []
+            )
+        );
+        const audioCodecs = uniqueStrings(
+            metadataList.reduce<string[]>(
+                (values, metadata) => [
+                    ...values,
+                    ...(metadata.audioCodecs ?? []),
+                ],
+                []
+            )
+        );
+        const subtitleLanguages = uniqueStrings(
+            metadataList.reduce<string[]>(
+                (values, metadata) => [
+                    ...values,
+                    ...(metadata.subtitleLanguages ?? []),
+                ],
+                []
+            )
+        );
+        const subtitleCodecs = uniqueStrings(
+            metadataList.reduce<string[]>(
+                (values, metadata) => [
+                    ...values,
+                    ...(metadata.subtitleCodecs ?? []),
+                ],
+                []
+            )
+        );
 
-        const audioLanguages = intersectStrings(
-            episodeMetadata.map((metadata) => metadata?.audioLanguages ?? [])
+        const heights = uniqueNumbers(
+            metadataList
+                .reduce<
+                    (number | undefined)[]
+                >((values, metadata) => [...values, ...(metadata.heights ?? []), metadata.height], [])
+                .filter((height): height is number => Number.isFinite(height))
         );
-        const audioCodecs =
-            audioLanguages.length > 0
-                ? []
-                : intersectStrings(
-                      episodeMetadata.map(
-                          (metadata) => metadata?.audioCodecs ?? []
-                      )
-                  );
-        const subtitleLanguages = intersectStrings(
-            episodeMetadata.map((metadata) => metadata?.subtitleLanguages ?? [])
+        const widths = uniqueNumbers(
+            metadataList
+                .reduce<
+                    (number | undefined)[]
+                >((values, metadata) => [...values, ...(metadata.widths ?? []), metadata.width], [])
+                .filter((width): width is number => Number.isFinite(width))
         );
-        const subtitleCodecs =
-            subtitleLanguages.length > 0
-                ? []
-                : intersectStrings(
-                      episodeMetadata.map(
-                          (metadata) => metadata?.subtitleCodecs ?? []
-                      )
-                  );
-
-        const heights = episodeMetadata
-            .map((metadata) => metadata?.height)
-            .filter(
-                (height): height is number =>
-                    typeof height === 'number' && Number.isFinite(height)
-            );
-        const widths = episodeMetadata
-            .map((metadata) => metadata?.width)
-            .filter(
-                (width): width is number =>
-                    typeof width === 'number' && Number.isFinite(width)
-            );
         const videoCodecs = uniqueStrings(
-            episodeMetadata.map((metadata) => metadata?.videoCodec ?? '')
+            metadataList.reduce<string[]>(
+                (values, metadata) => [
+                    ...values,
+                    ...(metadata.videoCodecs ?? []),
+                    metadata.videoCodec ?? '',
+                ],
+                []
+            )
         );
 
         return {
-            available: true,
-            qualityLabel: qualityLabels[0],
-            height:
-                uniqueNumbers(heights).length === 1 ? heights[0] : undefined,
-            width: uniqueNumbers(widths).length === 1 ? widths[0] : undefined,
+            available: metadataList.some((metadata) => metadata.available),
+            qualityLabel:
+                qualityLabels.length === 1 ? qualityLabels[0] : undefined,
+            qualityLabels,
+            height: heights.length === 1 ? heights[0] : undefined,
+            heights,
+            width: widths.length === 1 ? widths[0] : undefined,
+            widths,
             videoCodec: videoCodecs.length === 1 ? videoCodecs[0] : undefined,
+            videoCodecs,
             audioLanguages,
             audioCodecs,
             subtitleLanguages,
@@ -738,6 +902,14 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
     private getEpisodeMetadataForSeriesSummary(
         episode: XtreamSerieEpisode
     ): MediaStreamMetadata | null {
+        const persistedMetadata =
+            this.episodePersistedMetadata()[
+                String(this.getEpisodeContentId(episode))
+            ];
+        if (persistedMetadata) {
+            return this.getEpisodeMergedMetadata(episode);
+        }
+
         const context = this.xtreamDownloadContext();
         const url = context ? this.getEpisodeStreamUrl(episode, context) : '';
         const key = url
@@ -783,6 +955,14 @@ export class SeasonContainerComponent implements OnInit, DoCheck, OnDestroy {
     private getEpisodeProbedMetadata(
         episode: XtreamSerieEpisode
     ): MediaStreamMetadata | null {
+        const persistedMetadata =
+            this.episodePersistedMetadata()[
+                String(this.getEpisodeContentId(episode))
+            ];
+        if (persistedMetadata) {
+            return persistedMetadata;
+        }
+
         const context = this.xtreamDownloadContext();
         const url = context ? this.getEpisodeStreamUrl(episode, context) : '';
         if (!url) {

@@ -10,7 +10,10 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { ChannelActions, FavoritesActions } from 'm3u-state';
 import { filter, firstValueFrom } from 'rxjs';
-import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
+import {
+    PlaylistContextFacade,
+    SourceVpnPreparationService,
+} from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from 'services';
 
 type M3uLoadedSection = 'all' | 'groups';
@@ -21,6 +24,7 @@ export class M3uWorkspaceRouteSession {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly router = inject(Router);
+    private readonly sourceVpnPreparation = inject(SourceVpnPreparationService);
     private readonly store = inject(Store);
 
     private currentPlaylistId: string | null = null;
@@ -88,6 +92,10 @@ export class M3uWorkspaceRouteSession {
         this.store.dispatch(ChannelActions.setChannelsLoading({ loading: true }));
 
         try {
+            await this.sourceVpnPreparation.prepareForPlaylist(
+                this.playlistContext.activePlaylist(),
+                'source-open'
+            );
             const playlist = await firstValueFrom(
                 this.playlistsService.getPlaylist(playlistId)
             );

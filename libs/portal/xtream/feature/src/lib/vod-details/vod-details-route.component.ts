@@ -39,6 +39,7 @@ import {
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
 import {
+    DatabaseService,
     DownloadsService,
     ImdbRatingOverridesService,
     MediaMetadataService,
@@ -99,6 +100,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly downloadsService = inject(DownloadsService);
     private readonly imdbOverrides = inject(ImdbRatingOverridesService);
     private readonly mediaMetadataService = inject(MediaMetadataService);
+    private readonly databaseService = inject(DatabaseService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly snackBar = inject(MatSnackBar);
@@ -534,6 +536,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                     xtreamId: vodId,
                     metadata: staticMetadata,
                 });
+                this.persistMediaMetadata(vodId, staticMetadata);
                 return;
             }
 
@@ -553,14 +556,16 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                     if (this.mediaProbeKey === streamUrl) {
                         this.mediaProbePending.set(false);
                         this.probedMediaMetadata.set(metadata);
+                        const mergedMetadata = mergeMediaStreamMetadata(
+                            metadata,
+                            staticMetadata
+                        );
                         this.xtreamStore.setContentMediaMetadata({
                             contentType: 'vod',
                             xtreamId: vodId,
-                            metadata: mergeMediaStreamMetadata(
-                                metadata,
-                                staticMetadata
-                            ),
+                            metadata: mergedMetadata,
                         });
+                        this.persistMediaMetadata(vodId, mergedMetadata);
                     }
                 });
         });
@@ -988,6 +993,23 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         if (this.playbackPositionKey === positionKey) {
             this.vodPlaybackPosition.set(position);
         }
+    }
+
+    private persistMediaMetadata(
+        vodId: number,
+        metadata: MediaStreamMetadata | null
+    ): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId || !metadata) {
+            return;
+        }
+
+        void this.databaseService.setXtreamContentMediaMetadata(
+            String(playlistId),
+            'movie',
+            vodId,
+            metadata
+        );
     }
 
     private formatImdbRating(value: unknown): string | undefined {

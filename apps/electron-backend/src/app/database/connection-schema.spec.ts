@@ -45,4 +45,27 @@ describe('database connection schema', () => {
             'CREATE INDEX IF NOT EXISTS favorites_playlist_position_idx'
         );
     });
+
+    it('persists source VPN context with restartable metadata jobs', () => {
+        expect(statementContaining('CREATE TABLE IF NOT EXISTS media_metadata_jobs')).toContain(
+            'source_vpn TEXT'
+        );
+        expect(
+            statementContaining(
+                'CREATE TABLE IF NOT EXISTS media_metadata_series_discovery_jobs'
+            )
+        ).toContain('source_vpn TEXT');
+        expect(
+            statementContaining(
+                'ALTER TABLE media_metadata_jobs ADD COLUMN source_vpn'
+            )
+        ).toBe('ALTER TABLE media_metadata_jobs ADD COLUMN source_vpn TEXT');
+        expect(
+            statementContaining(
+                'ALTER TABLE media_metadata_series_discovery_jobs ADD COLUMN source_vpn'
+            )
+        ).toBe(
+            'ALTER TABLE media_metadata_series_discovery_jobs ADD COLUMN source_vpn TEXT'
+        );
+    });
 });

@@ -13,6 +13,7 @@ import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
 import {
     AUTO_UPDATE_PLAYLISTS,
+    decodeTextBytes,
     PLAYLIST_CANCEL_REFRESH,
     PLAYLIST_REFRESH,
     PLAYLIST_REFRESH_EVENT,
@@ -25,6 +26,10 @@ import type {
     PlaylistRefreshWorkerMessage,
     PlaylistRefreshWorkerResponseMessage,
 } from '../workers/playlist-refresh.worker.types';
+import {
+    ensureSourceNetworkReady,
+    getSourceLocalAddress,
+} from '../services/source-network-options';
 
 export default class PlaylistEvents {
     static bootstrapPlaylistEvents(): Electron.IpcMain {
@@ -32,6 +37,44 @@ export default class PlaylistEvents {
     }
 }
 
+async function preparePlaylistVpnForNetwork(playlist: Playlist): Promise<void> {
+    await ensureSourceNetworkReady(
+        playlist.vpnProvider === 'proton' &&
+            (playlist.vpnAutoConnectOnOpen ||
+                playlist.vpnAutoConnectWhenDefault)
+            ? {
+                  provider: 'proton',
+                  location: playlist.vpnLocation,
+                  sourceId: playlist._id,
+                  sourceTitle: playlist.title,
+              }
+            : undefined
+    );
+}
+
+function mergeRefreshedPlaylist(
+    playlist: Playlist,
+    refreshedPlaylist: Playlist
+): Playlist {
+    return {
+        ...refreshedPlaylist,
+        _id: playlist._id,
+        autoRefresh: playlist.autoRefresh,
+        favorites: playlist.favorites || [],
+        hiddenGroupTitles: playlist.hiddenGroupTitles,
+        position: playlist.position,
+        recentlyViewed: playlist.recentlyViewed,
+        referrer: playlist.referrer,
+        origin: playlist.origin,
+        userAgent: playlist.userAgent,
+        vpnProvider: playlist.vpnProvider,
+        vpnLocation: playlist.vpnLocation,
+        vpnAutoConnectOnOpen: playlist.vpnAutoConnectOnOpen,
+        vpnAutoConnectWhenDefault: playlist.vpnAutoConnectWhenDefault,
+    };
+}
+
+const http = require('http');
 const https = require('https');
 
 type ActivePlaylistRefresh = {
@@ -53,11 +96,25 @@ async function fetchPlaylistFromUrl(
     url: string,
     title?: string
 ): Promise<any> {
+    await ensureSourceNetworkReady();
     const agent = new https.Agent({
         rejectUnauthorized: false,
+        localAddress: getSourceLocalAddress(),
     });
-    const result = await axios.get(url, { httpsAgent: agent });
-    const parsedPlaylist = parse(result.data);
+    const httpAgent = new http.Agent({
+        localAddress: getSourceLocalAddress(),
+    });
+    const result = await axios.get(url, {
+        httpAgent,
+        httpsAgent: agent,
+        responseType: 'arraybuffer',
+    });
+    const parsedPlaylist = parse(
+        decodeTextBytes(
+            result.data as ArrayBuffer | ArrayBufferView,
+            String(result.headers?.['content-type'] ?? '')
+        )
+    );
 
     const extractedName =
         url && url.length > 1 ? getFilenameFromUrl(url) : '';
@@ -86,8 +143,8 @@ async function fetchPlaylistFromFile(
     filePath: string,
     title: string
 ): Promise<any> {
-    const fileContent = await readFile(filePath, 'utf-8');
-    const parsedPlaylist = parse(fileContent);
+    const fileContent = await readFile(filePath);
+    const parsedPlaylist = parse(decodeTextBytes(fileContent));
     const playlistObject = createPlaylistObject(
         title,
         parsedPlaylist,
@@ -196,6 +253,7 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
             let playlistObject;
 
             if (playlist.importDate && playlist.url) {
+                await preparePlaylistVpnForNetwork(playlist);
                 // Update from URL
                 console.log(
                     `Updating playlist "${playlist.title}" from URL: ${playlist.url}`
@@ -205,6 +263,7 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
                     playlist.title
                 );
             } else if (playlist.filePath) {
+                await preparePlaylistVpnForNetwork(playlist);
                 // Update from file path
                 console.log(
                     `Updating playlist "${playlist.title}" from file: ${playlist.filePath}`
@@ -221,13 +280,9 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
             }
 
             // Preserve user data when updating playlist
-            updatedPlaylists.push({
-                ...playlistObject,
-                _id: playlist._id,
-                autoRefresh: playlist.autoRefresh,
-                favorites: playlist.favorites || [], // Preserve favorites
-                userAgent: playlist.userAgent, // Preserve custom user agent
-            });
+            updatedPlaylists.push(
+                mergeRefreshedPlaylist(playlist, playlistObject)
+            );
 
             console.log(`Successfully updated playlist "${playlist.title}"`);
         } catch (error) {

@@ -1,6 +1,7 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    OnDestroy,
     computed,
     inject,
     signal,
@@ -11,16 +12,18 @@ import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     getXtreamItemLanguageMetadata,
-    getXtreamLanguageOptions,
+    getXtreamItemVideoQualityBuckets,
+    getXtreamLanguageOptionsFromCodes,
+    getXtreamVideoQualityLabel,
+    getXtreamVodDuplicateKey,
     getXtreamVodQualityInfo,
-    groupXtreamVodDuplicates,
     XtreamAccountInfo,
     XtreamApiService,
     XtreamStore,
     type XtreamLanguageFilterCandidate,
-    type XtreamVodDuplicateDecorated,
 } from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { SettingsStore } from 'services';
 import type {
     XtreamAccountInfoDialogData,
     XtreamAccountInfoVodStreamItem,
@@ -36,9 +39,6 @@ type VodOverviewQualityFilter =
     | '720p'
     | 'sd'
     | 'unknown';
-type VodOverviewGroup =
-    XtreamVodDuplicateDecorated<XtreamAccountInfoVodStreamItem>;
-
 interface AccountStat {
     icon: string;
     labelKey: string;
@@ -77,6 +77,16 @@ interface VodOverviewQualityOption {
     count: number;
 }
 
+interface VodOverviewDiagnosticCard {
+    descriptionKey: string;
+    icon: string;
+    labelKey: string;
+    percent: number;
+    tone: 'neutral' | 'warning' | 'danger';
+    total: number;
+    value: number;
+}
+
 interface VodOverviewDescriptor {
     audioLanguages: string[];
     qualityBuckets: Array<Exclude<VodOverviewQualityFilter, 'all'>>;
@@ -87,19 +97,67 @@ interface VodOverviewDescriptor {
 
 interface VodOverviewStats {
     audioOptions: VodOverviewLanguageOption[];
+    audioUnknownUnique: number;
+    diagnosticCards: VodOverviewDiagnosticCard[];
+    diagnosticIssueUnique: number;
     directUnique: number;
+    filteredItems: number;
     filteredUnique: number;
     hasData: boolean;
+    indexPercent: number;
+    indexProcessed: number;
+    indexStatus: 'idle' | 'running' | 'ready';
+    indexTotal: number;
     indirectUnique: number;
+    metadataAbsentUnique: number;
     metadataKnownUnique: number;
     metadataUnknownUnique: number;
+    metadataUnavailableUnique: number;
     qualityOptions: VodOverviewQualityOption[];
+    qualityUnknownUnique: number;
     sourceOptions: VodOverviewSourceOption[];
     subtitleOptions: VodOverviewLanguageOption[];
+    subtitleUnknownUnique: number;
+    totalItems: number;
     totalUnique: number;
 }
 
+interface VodOverviewIndex {
+    audioOptions: VodOverviewLanguageOption[];
+    groups: VodOverviewDescriptor[];
+    processedItems: number;
+    qualityOptions: VodOverviewQualityOption[];
+    sourceOptions: VodOverviewSourceOption[];
+    status: 'idle' | 'running' | 'ready';
+    subtitleOptions: VodOverviewLanguageOption[];
+    totalItems: number;
+    variants: VodOverviewDescriptor[];
+}
+
+interface VodOverviewAccumulator {
+    audioCounts: Map<string, number>;
+    groupsByKey: Map<string, VodOverviewDescriptor>;
+    qualityCounts: Map<Exclude<VodOverviewQualityFilter, 'all'>, number>;
+    sourceCounts: Map<Exclude<VodOverviewSourceFilter, 'all'>, number>;
+    subtitleCounts: Map<string, number>;
+    variants: VodOverviewDescriptor[];
+}
+
+interface VodOverviewDiagnosticSummary {
+    audioUnknownUnique: number;
+    diagnosticIssueUnique: number;
+    directUnique: number;
+    indirectUnique: number;
+    metadataAbsentUnique: number;
+    metadataKnownUnique: number;
+    metadataUnavailableUnique: number;
+    qualityUnknownUnique: number;
+    subtitleUnknownUnique: number;
+}
+
 const ALL_FILTER_VALUE = 'all';
+const VOD_OVERVIEW_INDEX_CHUNK_SIZE = 300;
+const VOD_OVERVIEW_INDEX_IDLE_DELAY_MS = 16;
 const SOURCE_FILTER_OPTIONS: readonly Omit<VodOverviewSourceOption, 'count'>[] =
     [
         {
@@ -137,7 +195,7 @@ const QUALITY_FILTER_OPTIONS: readonly Omit<
     },
     {
         value: 'unknown',
-        label: 'Non rilevata',
+        label: 'Not detected',
     },
 ];
 
@@ -148,13 +206,14 @@ const QUALITY_FILTER_OPTIONS: readonly Omit<
     styleUrl: './account-info.component.scss',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-export class AccountInfoComponent {
+export class AccountInfoComponent implements OnDestroy {
     readonly data =
         inject<XtreamAccountInfoDialogData | null>(MAT_DIALOG_DATA, {
             optional: true,
         }) ?? {};
     private readonly xtreamApiService = inject(XtreamApiService);
     private readonly xtreamStore = inject(XtreamStore);
+    private readonly settingsStore = inject(SettingsStore, { optional: true });
     private readonly logger = createLogger('XtreamAccountInfo');
 
     readonly currentPlaylist = computed(
@@ -168,6 +227,11 @@ export class AccountInfoComponent {
     readonly selectedQuality = signal<VodOverviewQualityFilter>('all');
     readonly selectedSourceMode = signal<VodOverviewSourceFilter>('all');
     readonly selectedSubtitleLanguage = signal(ALL_FILTER_VALUE);
+    readonly vodOverviewIndex = signal<VodOverviewIndex>(
+        this.createEmptyVodOverviewIndex()
+    );
+    private vodOverviewIndexRunId = 0;
+    private vodOverviewIndexTimer: ReturnType<typeof setTimeout> | null = null;
 
     readonly isActive = computed(
         () => this.accountInfo()?.user_info?.status === 'Active'
@@ -265,13 +329,10 @@ export class AccountInfoComponent {
             meter: null,
         },
     ]);
-    readonly uniqueVodGroups = computed<VodOverviewGroup[]>(() =>
-        groupXtreamVodDuplicates(this.data.vodStreams ?? [])
-    );
     readonly vodOverview = computed<VodOverviewStats>(() => {
-        const groups = this.uniqueVodGroups().map((item) =>
-            this.describeVodGroup(item)
-        );
+        const index = this.vodOverviewIndex();
+        const groups = index.groups;
+        const variants = index.variants;
         const audioLanguage = this.selectedAudioLanguage();
         const subtitleLanguage = this.selectedSubtitleLanguage();
         const sourceMode = this.selectedSourceMode();
@@ -285,28 +346,59 @@ export class AccountInfoComponent {
                 quality
             )
         );
+        const filteredVariants = variants.filter((variant) =>
+            this.matchesVodOverviewFilters(
+                variant,
+                audioLanguage,
+                subtitleLanguage,
+                sourceMode,
+                quality
+            )
+        );
+        const indexPercent =
+            index.totalItems > 0
+                ? Math.min(
+                      100,
+                      Math.round(
+                          (index.processedItems / index.totalItems) * 100
+                      )
+                  )
+                : index.status === 'ready'
+                  ? 100
+                  : 0;
+        const diagnosticSummary = this.summarizeVodOverviewGroups(groups);
+        const totalUnique = groups.length;
 
         return {
-            audioOptions: this.buildLanguageOptions(groups, 'audio'),
-            directUnique: this.countGroups(groups, (group) =>
-                group.sourceModes.includes('direct')
+            audioOptions: this.relabelLanguageOptions(index.audioOptions),
+            audioUnknownUnique: diagnosticSummary.audioUnknownUnique,
+            diagnosticCards: this.buildVodDiagnosticCards(
+                diagnosticSummary,
+                totalUnique
             ),
+            diagnosticIssueUnique: diagnosticSummary.diagnosticIssueUnique,
+            directUnique: diagnosticSummary.directUnique,
+            filteredItems: filteredVariants.length,
             filteredUnique: filteredGroups.length,
             hasData: Array.isArray(this.data.vodStreams),
-            indirectUnique: this.countGroups(groups, (group) =>
-                group.sourceModes.includes('indirect')
-            ),
-            metadataKnownUnique: this.countGroups(groups, (group) =>
-                this.hasKnownVodMetadata(group)
-            ),
-            metadataUnknownUnique: this.countGroups(
-                groups,
-                (group) => !this.hasKnownVodMetadata(group)
-            ),
-            qualityOptions: this.buildQualityOptions(groups),
-            sourceOptions: this.buildSourceOptions(groups),
-            subtitleOptions: this.buildLanguageOptions(groups, 'subtitle'),
-            totalUnique: groups.length,
+            indexPercent,
+            indexProcessed: index.processedItems,
+            indexStatus: index.status,
+            indexTotal: index.totalItems,
+            indirectUnique: diagnosticSummary.indirectUnique,
+            metadataAbsentUnique: diagnosticSummary.metadataAbsentUnique,
+            metadataKnownUnique: diagnosticSummary.metadataKnownUnique,
+            metadataUnknownUnique:
+                totalUnique - diagnosticSummary.metadataKnownUnique,
+            metadataUnavailableUnique:
+                diagnosticSummary.metadataUnavailableUnique,
+            qualityOptions: this.relabelQualityOptions(index.qualityOptions),
+            qualityUnknownUnique: diagnosticSummary.qualityUnknownUnique,
+            sourceOptions: index.sourceOptions,
+            subtitleOptions: this.relabelLanguageOptions(index.subtitleOptions),
+            subtitleUnknownUnique: diagnosticSummary.subtitleUnknownUnique,
+            totalItems: variants.length,
+            totalUnique,
         };
     });
     readonly hasActiveVodOverviewFilters = computed(
@@ -371,7 +463,16 @@ export class AccountInfoComponent {
     ]);
 
     constructor() {
+        this.startVodOverviewIndex();
         void this.reload();
+    }
+
+    ngOnDestroy(): void {
+        this.vodOverviewIndexRunId++;
+        if (this.vodOverviewIndexTimer) {
+            clearTimeout(this.vodOverviewIndexTimer);
+            this.vodOverviewIndexTimer = null;
+        }
     }
 
     async reload(): Promise<void> {
@@ -409,20 +510,20 @@ export class AccountInfoComponent {
     }
 
     exportVodOverview(format: 'json' | 'csv'): void {
-        const descriptors = this.uniqueVodGroups().map((group) => ({
-            key: group.duplicateGroupKey ?? this.resolveVariantId(group),
-            title: group.name ?? group.title ?? group.o_name ?? '',
-            defaultVariantId: this.resolveVariantId(group),
-            duplicateCount: group.duplicateCount ?? 1,
-            quality: group.duplicateQualityLabel ?? '',
-            variants: this.getVodVariants(group).map((variant) => {
+        const descriptors = this.vodOverviewIndex().groups.map((group) => ({
+            key: this.resolveGroupKey(group),
+            title: this.resolveVariantTitle(group.variants[0]),
+            defaultVariantId: this.resolveVariantId(group.variants[0]),
+            duplicateCount: group.variants.length,
+            quality: this.resolveVariantQualityLabel(group.variants[0]),
+            variants: group.variants.map((variant) => {
                 const metadata = getXtreamItemLanguageMetadata(
                     this.asLanguageCandidate(variant)
                 );
 
                 return {
                     id: this.resolveVariantId(variant),
-                    title: variant.name ?? variant.title ?? '',
+                    title: this.resolveVariantTitle(variant),
                     quality: getXtreamVodQualityInfo(variant).label,
                     sourceMode: this.getVodSourceMode(variant),
                     audioLanguages: metadata.audioLanguages,
@@ -516,64 +617,193 @@ export class AccountInfoComponent {
         this.setSubtitleLanguage(this.readSelectValue(event));
     }
 
-    private describeVodGroup(item: VodOverviewGroup): VodOverviewDescriptor {
-        const variants = this.getVodVariants(item);
-        const audioLanguages: string[] = [];
-        const subtitleLanguages: string[] = [];
-        const qualityBuckets: Array<Exclude<VodOverviewQualityFilter, 'all'>> =
-            [];
-        const sourceModes: Array<Exclude<VodOverviewSourceFilter, 'all'>> = [];
+    private startVodOverviewIndex(): void {
+        const streams = this.data.vodStreams ?? [];
+        const runId = ++this.vodOverviewIndexRunId;
+        const accumulator = this.createVodOverviewAccumulator();
+        let processedItems = 0;
 
-        for (const variant of variants) {
-            const metadata = getXtreamItemLanguageMetadata(
-                this.asLanguageCandidate(variant)
-            );
-            audioLanguages.push(...metadata.audioLanguages);
-            subtitleLanguages.push(...metadata.subtitleLanguages);
-            qualityBuckets.push(this.getVodQualityBucket(variant));
-            sourceModes.push(this.getVodSourceMode(variant));
+        if (this.vodOverviewIndexTimer) {
+            clearTimeout(this.vodOverviewIndexTimer);
+            this.vodOverviewIndexTimer = null;
         }
 
+        this.publishVodOverviewIndex(
+            accumulator,
+            streams.length > 0 ? 'running' : 'ready',
+            processedItems,
+            streams.length
+        );
+
+        const processChunk = (): void => {
+            if (runId !== this.vodOverviewIndexRunId) {
+                return;
+            }
+
+            const chunkEnd = Math.min(
+                processedItems + VOD_OVERVIEW_INDEX_CHUNK_SIZE,
+                streams.length
+            );
+            for (let index = processedItems; index < chunkEnd; index++) {
+                this.processVodOverviewItem(accumulator, streams[index]);
+            }
+            processedItems = chunkEnd;
+
+            const isComplete = processedItems >= streams.length;
+            this.publishVodOverviewIndex(
+                accumulator,
+                isComplete ? 'ready' : 'running',
+                processedItems,
+                streams.length
+            );
+
+            if (isComplete) {
+                return;
+            }
+
+            this.vodOverviewIndexTimer = setTimeout(
+                processChunk,
+                VOD_OVERVIEW_INDEX_IDLE_DELAY_MS
+            );
+        };
+
+        processChunk();
+    }
+
+    private createVodOverviewAccumulator(): VodOverviewAccumulator {
         return {
-            audioLanguages: this.uniqueStrings(audioLanguages),
-            qualityBuckets: this.uniqueStrings(qualityBuckets),
-            sourceModes: this.uniqueStrings(sourceModes),
-            subtitleLanguages: this.uniqueStrings(subtitleLanguages),
-            variants,
+            audioCounts: new Map<string, number>(),
+            groupsByKey: new Map<string, VodOverviewDescriptor>(),
+            qualityCounts: new Map<
+                Exclude<VodOverviewQualityFilter, 'all'>,
+                number
+            >(),
+            sourceCounts: new Map<
+                Exclude<VodOverviewSourceFilter, 'all'>,
+                number
+            >(),
+            subtitleCounts: new Map<string, number>(),
+            variants: [],
         };
     }
 
-    private getVodVariants(
-        item: VodOverviewGroup
-    ): XtreamAccountInfoVodStreamItem[] {
-        if (item.duplicateVariants?.length) {
-            return item.duplicateVariants;
-        }
+    private processVodOverviewItem(
+        accumulator: VodOverviewAccumulator,
+        item: XtreamAccountInfoVodStreamItem
+    ): void {
+        const descriptor = this.describeVodVariant(item);
+        accumulator.variants.push(descriptor);
+        descriptor.audioLanguages.forEach((code) =>
+            this.incrementCount(accumulator.audioCounts, code)
+        );
+        descriptor.subtitleLanguages.forEach((code) =>
+            this.incrementCount(accumulator.subtitleCounts, code)
+        );
+        descriptor.qualityBuckets.forEach((bucket) =>
+            this.incrementCount(accumulator.qualityCounts, bucket)
+        );
+        descriptor.sourceModes.forEach((mode) =>
+            this.incrementCount(accumulator.sourceCounts, mode)
+        );
 
-        return [item];
+        const groupKey =
+            getXtreamVodDuplicateKey(item) ?? this.resolveVariantId(item);
+        const existing = accumulator.groupsByKey.get(groupKey);
+        if (existing) {
+            this.mergeVodOverviewDescriptor(existing, descriptor);
+        } else {
+            accumulator.groupsByKey.set(groupKey, { ...descriptor });
+        }
     }
 
-    private buildLanguageOptions(
-        groups: readonly VodOverviewDescriptor[],
-        axis: 'audio' | 'subtitle'
+    private describeVodVariant(
+        item: XtreamAccountInfoVodStreamItem
+    ): VodOverviewDescriptor {
+        const metadata = getXtreamItemLanguageMetadata(
+            this.asLanguageCandidate(item)
+        );
+
+        return {
+            audioLanguages: metadata.audioLanguages,
+            qualityBuckets: this.getVodQualityBuckets(item),
+            sourceModes: [this.getVodSourceMode(item)],
+            subtitleLanguages: metadata.subtitleLanguages,
+            variants: [item],
+        };
+    }
+
+    private mergeVodOverviewDescriptor(
+        target: VodOverviewDescriptor,
+        source: VodOverviewDescriptor
+    ): void {
+        target.audioLanguages = this.uniqueStrings([
+            ...target.audioLanguages,
+            ...source.audioLanguages,
+        ]);
+        target.subtitleLanguages = this.uniqueStrings([
+            ...target.subtitleLanguages,
+            ...source.subtitleLanguages,
+        ]);
+        target.qualityBuckets = this.uniqueStrings([
+            ...target.qualityBuckets,
+            ...source.qualityBuckets,
+        ]);
+        target.sourceModes = this.uniqueStrings([
+            ...target.sourceModes,
+            ...source.sourceModes,
+        ]);
+        target.variants = [...target.variants, ...source.variants];
+    }
+
+    private publishVodOverviewIndex(
+        accumulator: VodOverviewAccumulator,
+        status: VodOverviewIndex['status'],
+        processedItems: number,
+        totalItems: number
+    ): void {
+        this.vodOverviewIndex.set({
+            audioOptions: this.buildLanguageOptionsFromCounts(
+                accumulator.audioCounts
+            ),
+            groups: [...accumulator.groupsByKey.values()],
+            processedItems,
+            qualityOptions: this.buildQualityOptionsFromCounts(
+                accumulator.qualityCounts
+            ),
+            sourceOptions: this.buildSourceOptionsFromCounts(
+                accumulator.sourceCounts
+            ),
+            status,
+            subtitleOptions: this.buildLanguageOptionsFromCounts(
+                accumulator.subtitleCounts
+            ),
+            totalItems,
+            variants: [...accumulator.variants],
+        });
+    }
+
+    private createEmptyVodOverviewIndex(): VodOverviewIndex {
+        return {
+            audioOptions: [],
+            groups: [],
+            processedItems: 0,
+            qualityOptions: [],
+            sourceOptions: this.buildSourceOptionsFromCounts(new Map()),
+            status: 'idle',
+            subtitleOptions: [],
+            totalItems: 0,
+            variants: [],
+        };
+    }
+
+    private buildLanguageOptionsFromCounts(
+        counts: ReadonlyMap<string, number>
     ): VodOverviewLanguageOption[] {
-        const counts = new Map<string, number>();
-
-        for (const group of groups) {
-            const languages =
-                axis === 'audio'
-                    ? group.audioLanguages
-                    : group.subtitleLanguages;
-
-            for (const language of languages) {
-                counts.set(language, (counts.get(language) ?? 0) + 1);
-            }
-        }
-
         const labelsByCode = new Map(
-            getXtreamLanguageOptions(
-                (this.data.vodStreams ??
-                    []) as unknown as XtreamLanguageFilterCandidate[]
+            getXtreamLanguageOptionsFromCodes(
+                counts.keys(),
+                undefined,
+                this.appLanguage()
             ).map((option) => [option.code, option.label])
         );
 
@@ -584,49 +814,233 @@ export class AccountInfoComponent {
                 label: labelsByCode.get(code) ?? code.toUpperCase(),
             }))
             .sort((a, b) =>
-                a.label.localeCompare(b.label, undefined, {
+                a.label.localeCompare(b.label, this.appLanguage(), {
                     sensitivity: 'base',
                 })
             );
     }
 
-    private buildQualityOptions(
-        groups: readonly VodOverviewDescriptor[]
+    private relabelLanguageOptions(
+        options: readonly VodOverviewLanguageOption[]
+    ): VodOverviewLanguageOption[] {
+        const labelsByCode = new Map(
+            getXtreamLanguageOptionsFromCodes(
+                options.map((option) => option.code),
+                undefined,
+                this.appLanguage()
+            ).map((option) => [option.code, option.label])
+        );
+
+        return options
+            .map((option) => ({
+                ...option,
+                label:
+                    labelsByCode.get(option.code) ?? option.code.toUpperCase(),
+            }))
+            .sort((a, b) =>
+                a.label.localeCompare(b.label, this.appLanguage(), {
+                    sensitivity: 'base',
+                })
+            );
+    }
+
+    private appLanguage(): string {
+        return String(this.settingsStore?.language?.() ?? 'en');
+    }
+
+    private buildQualityOptionsFromCounts(
+        counts: ReadonlyMap<Exclude<VodOverviewQualityFilter, 'all'>, number>
     ): VodOverviewQualityOption[] {
         return QUALITY_FILTER_OPTIONS.map((option) => ({
             ...option,
-            count: this.countGroups(groups, (group) =>
-                group.qualityBuckets.includes(option.value)
-            ),
+            label: getXtreamVideoQualityLabel(option.value, this.appLanguage()),
+            count: counts.get(option.value) ?? 0,
         })).filter((option) => option.count > 0);
     }
 
-    private buildSourceOptions(
-        groups: readonly VodOverviewDescriptor[]
-    ): VodOverviewSourceOption[] {
-        return SOURCE_FILTER_OPTIONS.map((option) => ({
+    private relabelQualityOptions(
+        options: readonly VodOverviewQualityOption[]
+    ): VodOverviewQualityOption[] {
+        return options.map((option) => ({
             ...option,
-            count: this.countGroups(groups, (group) =>
-                group.sourceModes.includes(option.value)
-            ),
+            label: getXtreamVideoQualityLabel(option.value, this.appLanguage()),
         }));
     }
 
-    private countGroups(
-        groups: readonly VodOverviewDescriptor[],
-        predicate: (group: VodOverviewDescriptor) => boolean
-    ): number {
-        return groups.reduce(
-            (count, group) => count + (predicate(group) ? 1 : 0),
-            0
-        );
+    private buildSourceOptionsFromCounts(
+        counts: ReadonlyMap<Exclude<VodOverviewSourceFilter, 'all'>, number>
+    ): VodOverviewSourceOption[] {
+        return SOURCE_FILTER_OPTIONS.map((option) => ({
+            ...option,
+            count: counts.get(option.value) ?? 0,
+        }));
+    }
+
+    private summarizeVodOverviewGroups(
+        groups: readonly VodOverviewDescriptor[]
+    ): VodOverviewDiagnosticSummary {
+        const summary: VodOverviewDiagnosticSummary = {
+            audioUnknownUnique: 0,
+            diagnosticIssueUnique: 0,
+            directUnique: 0,
+            indirectUnique: 0,
+            metadataAbsentUnique: 0,
+            metadataKnownUnique: 0,
+            metadataUnavailableUnique: 0,
+            qualityUnknownUnique: 0,
+            subtitleUnknownUnique: 0,
+        };
+
+        for (const group of groups) {
+            const audioUnknown = group.audioLanguages.length === 0;
+            const subtitleUnknown = group.subtitleLanguages.length === 0;
+            const qualityUnknown = !this.hasKnownVodQuality(group);
+            const metadataAbsent = !this.hasAnyVodMediaMetadata(group);
+            const metadataUnavailable =
+                this.hasUnavailableVodMediaMetadata(group);
+
+            if (group.sourceModes.includes('direct')) {
+                summary.directUnique++;
+            }
+            if (group.sourceModes.includes('indirect')) {
+                summary.indirectUnique++;
+            }
+            if (this.hasKnownVodMetadata(group)) {
+                summary.metadataKnownUnique++;
+            }
+            if (audioUnknown) {
+                summary.audioUnknownUnique++;
+            }
+            if (subtitleUnknown) {
+                summary.subtitleUnknownUnique++;
+            }
+            if (qualityUnknown) {
+                summary.qualityUnknownUnique++;
+            }
+            if (metadataAbsent) {
+                summary.metadataAbsentUnique++;
+            }
+            if (metadataUnavailable) {
+                summary.metadataUnavailableUnique++;
+            }
+            if (
+                audioUnknown ||
+                subtitleUnknown ||
+                qualityUnknown ||
+                metadataAbsent ||
+                metadataUnavailable
+            ) {
+                summary.diagnosticIssueUnique++;
+            }
+        }
+
+        return summary;
+    }
+
+    private buildVodDiagnosticCards(
+        summary: VodOverviewDiagnosticSummary,
+        totalUnique: number
+    ): VodOverviewDiagnosticCard[] {
+        return [
+            this.createVodDiagnosticCard({
+                descriptionKey:
+                    'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_AUDIO_MISSING_HINT',
+                icon: 'record_voice_over',
+                labelKey: 'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_AUDIO_MISSING',
+                totalUnique,
+                value: summary.audioUnknownUnique,
+            }),
+            this.createVodDiagnosticCard({
+                descriptionKey:
+                    'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_SUBTITLE_MISSING_HINT',
+                icon: 'subtitles',
+                labelKey: 'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_SUBTITLE_MISSING',
+                totalUnique,
+                value: summary.subtitleUnknownUnique,
+            }),
+            this.createVodDiagnosticCard({
+                descriptionKey:
+                    'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_QUALITY_MISSING_HINT',
+                icon: 'high_quality',
+                labelKey: 'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_QUALITY_MISSING',
+                totalUnique,
+                value: summary.qualityUnknownUnique,
+            }),
+            this.createVodDiagnosticCard({
+                descriptionKey:
+                    'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_METADATA_ABSENT_HINT',
+                icon: 'storage',
+                labelKey: 'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_METADATA_ABSENT',
+                totalUnique,
+                value: summary.metadataAbsentUnique,
+            }),
+            this.createVodDiagnosticCard({
+                descriptionKey:
+                    'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_PROBE_UNAVAILABLE_HINT',
+                icon: 'report_problem',
+                labelKey: 'XTREAM.ACCOUNT_INFO.DIAGNOSTIC_PROBE_UNAVAILABLE',
+                totalUnique,
+                value: summary.metadataUnavailableUnique,
+            }),
+        ];
+    }
+
+    private createVodDiagnosticCard(params: {
+        descriptionKey: string;
+        icon: string;
+        labelKey: string;
+        totalUnique: number;
+        value: number;
+    }): VodOverviewDiagnosticCard {
+        const percent =
+            params.totalUnique > 0
+                ? Math.round((params.value / params.totalUnique) * 100)
+                : 0;
+
+        return {
+            descriptionKey: params.descriptionKey,
+            icon: params.icon,
+            labelKey: params.labelKey,
+            percent,
+            tone:
+                params.value === 0
+                    ? 'neutral'
+                    : percent >= 25
+                      ? 'danger'
+                      : 'warning',
+            total: params.totalUnique,
+            value: params.value,
+        };
     }
 
     private hasKnownVodMetadata(group: VodOverviewDescriptor): boolean {
         return (
             group.audioLanguages.length > 0 ||
             group.subtitleLanguages.length > 0 ||
-            group.qualityBuckets.some((quality) => quality !== 'unknown')
+            this.hasKnownVodQuality(group)
+        );
+    }
+
+    private hasKnownVodQuality(group: VodOverviewDescriptor): boolean {
+        return group.qualityBuckets.some((quality) => quality !== 'unknown');
+    }
+
+    private hasAnyVodMediaMetadata(group: VodOverviewDescriptor): boolean {
+        return group.variants.some((variant) => Boolean(variant.mediaMetadata));
+    }
+
+    private hasUnavailableVodMediaMetadata(
+        group: VodOverviewDescriptor
+    ): boolean {
+        const hasAvailable = group.variants.some(
+            (variant) => variant.mediaMetadata?.available === true
+        );
+        if (hasAvailable) {
+            return false;
+        }
+
+        return group.variants.some(
+            (variant) => variant.mediaMetadata?.available === false
         );
     }
 
@@ -661,38 +1075,12 @@ export class AccountInfoComponent {
         );
     }
 
-    private getVodQualityBucket(
+    private getVodQualityBuckets(
         item: XtreamAccountInfoVodStreamItem
-    ): Exclude<VodOverviewQualityFilter, 'all'> {
-        const metadataHeight = item.mediaMetadata?.height;
-        const height =
-            typeof metadataHeight === 'number' &&
-            Number.isFinite(metadataHeight) &&
-            metadataHeight > 0
-                ? metadataHeight
-                : getXtreamVodQualityInfo(item).height;
-
-        if (!height) {
-            return 'unknown';
-        }
-
-        if (height >= 2160) {
-            return '2160p';
-        }
-
-        if (height >= 1440) {
-            return '1440p';
-        }
-
-        if (height >= 1080) {
-            return '1080p';
-        }
-
-        if (height >= 720) {
-            return '720p';
-        }
-
-        return 'sd';
+    ): Array<Exclude<VodOverviewQualityFilter, 'all'>> {
+        return getXtreamItemVideoQualityBuckets(
+            item as unknown as Record<string, unknown>
+        ) as Array<Exclude<VodOverviewQualityFilter, 'all'>>;
     }
 
     private getVodSourceMode(
@@ -723,6 +1111,31 @@ export class AccountInfoComponent {
                 item.movie_data?.stream_id ??
                 ''
         );
+    }
+
+    private resolveGroupKey(group: VodOverviewDescriptor): string {
+        const firstVariant = group.variants[0];
+        return firstVariant
+            ? (getXtreamVodDuplicateKey(firstVariant) ??
+                  this.resolveVariantId(firstVariant))
+            : '';
+    }
+
+    private resolveVariantTitle(item?: XtreamAccountInfoVodStreamItem): string {
+        return String(item?.name ?? item?.title ?? item?.o_name ?? '');
+    }
+
+    private resolveVariantQualityLabel(
+        item?: XtreamAccountInfoVodStreamItem
+    ): string {
+        return item ? getXtreamVodQualityInfo(item).label : '';
+    }
+
+    private incrementCount<T extends string>(
+        counts: Map<T, number>,
+        key: T
+    ): void {
+        counts.set(key, (counts.get(key) ?? 0) + 1);
     }
 
     private downloadTextFile(

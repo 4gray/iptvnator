@@ -332,6 +332,60 @@ describe('PlaylistSwitcherComponent', () => {
         ).toBe('');
     }));
 
+    it('passes source VPN overrides, including none, to portal status checks', fakeAsync(async () => {
+        const vpnDisabledXtream = createPlaylist({
+            ...xtreamPlaylist,
+            _id: 'xtream-none',
+            title: 'No VPN Xtream',
+            vpnProvider: 'none',
+        });
+        const protonXtream = createPlaylist({
+            ...xtreamPlaylist,
+            _id: 'xtream-proton',
+            title: 'Proton Xtream',
+            vpnLocation: 'DE',
+            vpnProvider: 'proton',
+        });
+        playlistsSignal.set([vpnDisabledXtream, protonXtream]);
+        portalStatusService.checkPortalStatus.mockReset();
+        portalStatusService.checkPortalStatus
+            .mockResolvedValueOnce('active')
+            .mockResolvedValueOnce('active');
+
+        await createComponent();
+
+        component.onMenuOpened();
+        flushMicrotasks();
+        tick();
+
+        expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
+            vpnDisabledXtream.serverUrl,
+            vpnDisabledXtream.username,
+            vpnDisabledXtream.password,
+            {
+                sourceVpn: {
+                    location: undefined,
+                    provider: 'none',
+                    sourceId: 'xtream-none',
+                    sourceTitle: 'No VPN Xtream',
+                },
+            }
+        );
+        expect(portalStatusService.checkPortalStatus).toHaveBeenCalledWith(
+            protonXtream.serverUrl,
+            protonXtream.username,
+            protonXtream.password,
+            {
+                sourceVpn: {
+                    location: 'DE',
+                    provider: 'proton',
+                    sourceId: 'xtream-proton',
+                    sourceTitle: 'Proton Xtream',
+                },
+            }
+        );
+    }));
+
     it('falls back to the active playlist title when no explicit current title is provided', async () => {
         await createComponent();
 

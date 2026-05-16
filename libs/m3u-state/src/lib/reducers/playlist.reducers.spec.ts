@@ -46,6 +46,52 @@ describe('playlistReducers', () => {
         ).toEqual(['Movies', 'News']);
     });
 
+    it('updates source-scoped VPN settings when playlist meta is updated', () => {
+        const existingPlaylist: PlaylistMeta = {
+            _id: 'playlist-1',
+            title: 'Xtream Playlist',
+            count: 0,
+            importDate: '2026-03-28T00:00:00.000Z',
+            autoRefresh: false,
+            serverUrl: 'http://localhost:8080',
+            username: 'demo',
+            password: 'secret',
+            vpnProvider: 'proton',
+            vpnLocation: 'FASTEST',
+            vpnAutoConnectOnOpen: false,
+            vpnAutoConnectWhenDefault: false,
+        };
+        const state = {
+            ...initialState,
+            playlists: playlistsAdapter.addOne(
+                existingPlaylist,
+                initialState.playlists
+            ),
+        };
+
+        const nextState = reducer(
+            state,
+            PlaylistActions.updatePlaylistMeta({
+                playlist: {
+                    _id: 'playlist-1',
+                    vpnProvider: 'proton',
+                    vpnLocation: 'HR',
+                    vpnAutoConnectOnOpen: true,
+                    vpnAutoConnectWhenDefault: true,
+                } as PlaylistMeta,
+            })
+        );
+
+        expect(nextState.playlists.entities['playlist-1']).toEqual(
+            expect.objectContaining({
+                vpnProvider: 'proton',
+                vpnLocation: 'HR',
+                vpnAutoConnectOnOpen: true,
+                vpnAutoConnectWhenDefault: true,
+            })
+        );
+    });
+
     it('updates the active playlist channel cache and clears loading on playlist refresh', () => {
         const refreshedChannel = {
             epgParams: '',

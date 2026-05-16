@@ -18,6 +18,10 @@ import {
     STORE_KEY,
     Theme,
 } from 'shared-interfaces';
+import {
+    normalizePreferredLanguage,
+    writePreferredLanguageHint,
+} from './services/preferred-language-hint';
 import { SettingsService } from './services/settings.service';
 
 @Component({
@@ -109,18 +113,7 @@ export class AppComponent implements OnInit {
                     const resolvedLang =
                         settings.language ?? this.DEFAULT_LANG;
                     this.translate.use(resolvedLang);
-                    // Mirror the active language to localStorage so the next
-                    // cold start can read it synchronously in app.config.ts's
-                    // getInitialLanguage() and avoid the English-then-localized
-                    // flash for non-English users.
-                    try {
-                        localStorage.setItem(
-                            'iptvnator:preferred-language',
-                            resolvedLang
-                        );
-                    } catch {
-                        // Ignore quota / privacy mode errors.
-                    }
+                    this.mirrorAppLanguageForColdStart(resolvedLang);
 
                     // Fetch EPG if URLs are configured (only fetch stale data)
                     if (
@@ -139,6 +132,28 @@ export class AppComponent implements OnInit {
                 } else {
                     this.detectDarkMode();
                 }
+            });
+    }
+
+    private mirrorAppLanguageForColdStart(language: string): void {
+        const normalizedLanguage = normalizePreferredLanguage(language);
+        if (!normalizedLanguage) {
+            return;
+        }
+
+        writePreferredLanguageHint(normalizedLanguage);
+
+        if (!window.electron?.updateSettings) {
+            return;
+        }
+
+        void window.electron
+            .updateSettings({ language: normalizedLanguage })
+            .catch((error) => {
+                console.warn(
+                    'Failed to mirror app language to Electron startup settings.',
+                    error
+                );
             });
     }
 

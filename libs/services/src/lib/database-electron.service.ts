@@ -5,6 +5,7 @@
 
 import { Injectable } from '@angular/core';
 import {
+    MediaStreamMetadata,
     PlaylistMeta,
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
@@ -33,11 +34,25 @@ export interface XtreamContent {
     tv_archive?: number | null;
     tv_archive_duration?: number | null;
     direct_source?: string | null;
+    mediaMetadata?: MediaStreamMetadata;
+    mediaMetadataUpdatedAt?: number | null;
+    audioLanguages?: string[];
+    subtitleLanguages?: string[];
     xtream_id: number;
     type: string;
     added_at?: string;
     viewed_at?: string;
     position?: number | null;
+}
+
+export interface XtreamEpisodeMediaMetadata {
+    playlistId: string;
+    seriesXtreamId: number;
+    episodeXtreamId: number;
+    seasonNumber?: number | null;
+    episodeNumber?: number | null;
+    mediaMetadata: MediaStreamMetadata;
+    mediaMetadataUpdatedAt: number;
 }
 
 export interface XtreamPlaylist {
@@ -501,6 +516,105 @@ export class DatabaseService {
             return true;
         } catch (error) {
             console.error('Error clearing Xtream import cache:', error);
+            return false;
+        }
+    }
+
+    async setXtreamContentMediaMetadata(
+        playlistId: string,
+        contentType: 'live' | 'movie' | 'series',
+        xtreamId: number,
+        metadata: MediaStreamMetadata
+    ): Promise<boolean> {
+        if (!window.electron?.dbSetContentMediaMetadata) {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.dbSetContentMediaMetadata(
+                playlistId,
+                contentType,
+                xtreamId,
+                metadata
+            );
+            return result.success;
+        } catch (error) {
+            console.error('Error saving media metadata:', error);
+            return false;
+        }
+    }
+
+    async clearXtreamContentMediaMetadata(): Promise<boolean> {
+        if (!window.electron?.dbClearContentMediaMetadata) {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.dbClearContentMediaMetadata();
+            return result.success;
+        } catch (error) {
+            console.error('Error clearing media metadata:', error);
+            return false;
+        }
+    }
+
+    async setXtreamEpisodeMediaMetadata(
+        playlistId: string,
+        seriesXtreamId: number,
+        episodeXtreamId: number,
+        metadata: MediaStreamMetadata,
+        seasonNumber?: number | null,
+        episodeNumber?: number | null
+    ): Promise<boolean> {
+        if (!window.electron?.dbSetEpisodeMediaMetadata) {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.dbSetEpisodeMediaMetadata(
+                playlistId,
+                seriesXtreamId,
+                episodeXtreamId,
+                metadata,
+                seasonNumber,
+                episodeNumber
+            );
+            return result.success;
+        } catch (error) {
+            console.error('Error saving episode media metadata:', error);
+            return false;
+        }
+    }
+
+    async getXtreamSeriesEpisodeMediaMetadata(
+        playlistId: string,
+        seriesXtreamId: number
+    ): Promise<XtreamEpisodeMediaMetadata[]> {
+        if (!window.electron?.dbGetSeriesEpisodeMediaMetadata) {
+            return [];
+        }
+
+        try {
+            return await window.electron.dbGetSeriesEpisodeMediaMetadata(
+                playlistId,
+                seriesXtreamId
+            );
+        } catch (error) {
+            console.error('Error loading episode media metadata:', error);
+            return [];
+        }
+    }
+
+    async clearXtreamEpisodeMediaMetadata(): Promise<boolean> {
+        if (!window.electron?.dbClearEpisodeMediaMetadata) {
+            return false;
+        }
+
+        try {
+            const result = await window.electron.dbClearEpisodeMediaMetadata();
+            return result.success;
+        } catch (error) {
+            console.error('Error clearing episode media metadata:', error);
             return false;
         }
     }

@@ -65,6 +65,7 @@ describe('RecentPlaylistsComponent busy state', () => {
         createOperationId: jest.Mock;
         deletePlaylist: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
+        setXtreamImportStatus: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
     };
     let dialogService: {
@@ -90,6 +91,7 @@ describe('RecentPlaylistsComponent busy state', () => {
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
             deletePlaylist: jest.fn(),
             deleteXtreamPlaylistContent: jest.fn(),
+            setXtreamImportStatus: jest.fn().mockResolvedValue(true),
             updateXtreamPlaylistDetails: jest.fn().mockResolvedValue(undefined),
         };
         dialogService = {
@@ -249,19 +251,7 @@ describe('RecentPlaylistsComponent busy state', () => {
 
     it('tracks Xtream refresh progress and clears the busy row after abort', async () => {
         const item = createPlaylistMeta({ _id: 'playlist-refresh-1' });
-        const refresh = createDeferred<{
-            success: boolean;
-            favorites: Array<{ xtreamId: number; contentType: string }>;
-            recentlyViewed: Array<{
-                xtreamId: number;
-                contentType: string;
-                viewedAt: string;
-            }>;
-            hiddenCategories: Array<{
-                xtreamId: number;
-                categoryType: string;
-            }>;
-        }>();
+        const refresh = createDeferred<boolean>();
         let confirmPromise: Promise<void> | undefined;
 
         dialogService.openConfirmDialog.mockImplementation(
@@ -270,24 +260,8 @@ describe('RecentPlaylistsComponent busy state', () => {
             }
         );
 
-        databaseService.deleteXtreamPlaylistContent.mockImplementation(
-            (
-                _playlistId: string,
-                options?: {
-                    onEvent?: (event: any) => void;
-                    operationId?: string;
-                }
-            ) => {
-                options?.onEvent?.({
-                    operation: 'delete-xtream-content',
-                    operationId: 'xtream-refresh-op',
-                    status: 'progress',
-                    phase: 'collecting-user-data',
-                    current: 1,
-                    total: 4,
-                });
-                return refresh.promise;
-            }
+        databaseService.setXtreamImportStatus.mockImplementation(
+            () => refresh.promise
         );
 
         component.refreshXtreamPlaylist(item);
@@ -295,9 +269,9 @@ describe('RecentPlaylistsComponent busy state', () => {
 
         expect(component.isRefreshPending(item._id)).toBe(true);
         expect(component.getBusyMessage(item)).toBe(
-            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.COLLECTING_DATA'
+            'HOME.PLAYLISTS.REFRESH_XTREAM_DIALOG.IN_PROGRESS'
         );
-        expect(component.getBusyProgress(item._id)).toBe(25);
+        expect(component.getBusyProgress(item._id)).toBe(0);
         expect(component.canCancelBusyOperation(item)).toBe(true);
 
         await component.cancelBusyOperation(item);
@@ -341,22 +315,6 @@ describe('RecentPlaylistsComponent busy state', () => {
             executionOrder.push('navigate');
             return Promise.resolve(Boolean(commands));
         });
-        databaseService.deleteXtreamPlaylistContent.mockResolvedValue({
-            success: true,
-            favorites: [
-                { xtreamId: 101, contentType: 'live' },
-                { xtreamId: 202, contentType: 'movie' },
-            ],
-            recentlyViewed: [
-                {
-                    xtreamId: 303,
-                    contentType: 'series',
-                    viewedAt: '2026-04-03T11:15:00.000Z',
-                },
-            ],
-            hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-        });
-
         component.refreshXtreamPlaylist(item);
         await confirmPromise;
 
@@ -371,35 +329,37 @@ describe('RecentPlaylistsComponent busy state', () => {
             id: item._id,
             updateDate: 1712145600000,
         });
+        expect(
+            databaseService.deleteXtreamPlaylistContent
+        ).not.toHaveBeenCalled();
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledTimes(3);
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            item._id,
+            'live',
+            'idle'
+        );
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            item._id,
+            'movie',
+            'idle'
+        );
+        expect(databaseService.setXtreamImportStatus).toHaveBeenCalledWith(
+            item._id,
+            'series',
+            'idle'
+        );
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
                 playlist: { ...item, updateDate: 1712145600000 },
             })
         );
-        expect(setItemSpy).toHaveBeenCalledWith(
-            `xtream-restore-${item._id}`,
-            JSON.stringify({
-                hiddenCategories: [{ xtreamId: 404, categoryType: 'live' }],
-                favorites: [
-                    { xtreamId: 101, contentType: 'live' },
-                    { xtreamId: 202, contentType: 'movie' },
-                ],
-                recentlyViewed: [
-                    {
-                        xtreamId: 303,
-                        contentType: 'series',
-                        viewedAt: '2026-04-03T11:15:00.000Z',
-                    },
-                ],
-                playbackPositions: [],
-            })
-        );
+        expect(setItemSpy).not.toHaveBeenCalled();
         expect(router.navigate).toHaveBeenCalledWith([
             '/workspace',
             'xtreams',
             item._id,
         ]);
-        expect(executionOrder).toEqual(['setItem', 'dispatch', 'navigate']);
+        expect(executionOrder).toEqual(['dispatch', 'navigate']);
 
         setItemSpy.mockRestore();
         dateNowSpy.mockRestore();

@@ -9,6 +9,7 @@ import {
     XtreamContentItem,
     XtreamStore,
     matchesXtreamLanguageFilter,
+    matchesXtreamVideoQualityFilter,
 } from '@iptvnator/portal/xtream/data-access';
 import { EMPTY_PORTAL_CATALOG_LANGUAGE_FILTER } from '@iptvnator/portal/shared/util';
 
@@ -50,6 +51,20 @@ function createDeferred<T>() {
     return { promise, resolve, reject };
 }
 
+function createBackgroundStatus(
+    overrides: Partial<MediaMetadataBackgroundStatus> = {}
+): MediaMetadataBackgroundStatus {
+    return {
+        allowRunAfterWindowClose: true,
+        failedItems: 0,
+        pendingItems: 0,
+        processedItems: 0,
+        running: false,
+        totalItems: 0,
+        ...overrides,
+    };
+}
+
 class MockXtreamStore {
     readonly searchTerm = signal('');
     readonly searchFilters = signal(DEFAULT_SEARCH_FILTERS);
@@ -59,12 +74,38 @@ class MockXtreamStore {
         { code: 'it', label: 'Italiano' },
     ]);
     readonly languageFilterActive = signal(false);
+    readonly videoQualityFilter = signal<'all' | '2160p' | 'unknown'>('all');
+    readonly videoQualityFilterOptions = signal([
+        { value: '2160p' as const, label: '2160p+', count: 1 },
+        { value: 'unknown' as const, label: 'Not detected', count: 1 },
+    ]);
+    readonly videoQualityFilterActive = signal(false);
+    readonly metadataFiltersReady = signal(true);
     readonly filteredSearchResults = () =>
-        this.languageFilterActive()
-            ? this.searchResults().filter((item) =>
-                  matchesXtreamLanguageFilter(item, this.languageFilter())
-              )
-            : this.searchResults();
+        this.searchResults().filter((item) => {
+            if (!this.metadataFiltersReady()) {
+                return true;
+            }
+
+            if (
+                this.languageFilterActive() &&
+                !matchesXtreamLanguageFilter(item, this.languageFilter())
+            ) {
+                return false;
+            }
+
+            if (
+                this.videoQualityFilterActive() &&
+                !matchesXtreamVideoQualityFilter(
+                    item,
+                    this.videoQualityFilter()
+                )
+            ) {
+                return false;
+            }
+
+            return true;
+        });
     readonly isSearching = signal(false);
 
     setSearchTerm = jest.fn((term: string) => {
@@ -82,15 +123,27 @@ class MockXtreamStore {
     });
     resetSearchResults = jest.fn();
     searchContent = jest.fn();
+    setVideoQualityFilter = jest.fn((filter: 'all' | '2160p' | 'unknown') => {
+        this.videoQualityFilter.set(filter);
+        this.videoQualityFilterActive.set(filter !== 'all');
+    });
+    resetVideoQualityFilter = jest.fn(() => {
+        this.videoQualityFilter.set('all');
+        this.videoQualityFilterActive.set(false);
+    });
     setSelectedContentType = jest.fn();
     playlistId = jest.fn(() => 'playlist-1');
 }
 
 describe('SearchResultsComponent initialQuery contract', () => {
     let routerNavigateMock: jest.Mock;
+    let originalElectron: unknown;
 
     beforeEach(() => {
         routerNavigateMock = jest.fn();
+        originalElectron = (window as unknown as { electron?: unknown })
+            .electron;
+        (window as unknown as { electron?: unknown }).electron = undefined;
 
         TestBed.configureTestingModule({
             providers: [
@@ -122,6 +175,11 @@ describe('SearchResultsComponent initialQuery contract', () => {
                 },
             ],
         });
+    });
+
+    afterEach(() => {
+        (window as unknown as { electron?: unknown }).electron =
+            originalElectron;
     });
 
     it('applies initialQuery when opened as global search', () => {
@@ -259,5 +317,192 @@ describe('SearchResultsComponent initialQuery contract', () => {
         ]);
         expect(sections[0].items).toEqual([italianMovie]);
         expect(sections[1].items).toEqual([englishMovie]);
+    });
+
+    it('keeps quality-filtered-out results in the same filter-excluded search section', () => {
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: false,
+                    },
+                    undefined
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const uhdMovie = createSearchItem({
+            id: 1,
+            xtream_id: 101,
+            title: 'UHD movie 2160p',
+            mediaMetadata: {
+                available: true,
+                height: 2160,
+                audioLanguages: [],
+                audioCodecs: [],
+                subtitleLanguages: [],
+                subtitleCodecs: [],
+            },
+        });
+        const unknownMovie = createSearchItem({
+            id: 2,
+            xtream_id: 102,
+            title: 'Unknown quality movie',
+        });
+
+        store.searchResults.set([uhdMovie, unknownMovie]);
+        store.videoQualityFilter.set('2160p');
+        store.videoQualityFilterActive.set(true);
+
+        const sections = component.resultSections();
+
+        expect(sections.map((section) => section.key)).toEqual([
+            'visible',
+            'filter-excluded',
+        ]);
+        expect(sections[0].items).toEqual([uhdMovie]);
+        expect(sections[1].items).toEqual([unknownMovie]);
+    });
+
+    it('does not apply metadata filters to search results until the shared metadata index is ready', () => {
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: false,
+                    },
+                    undefined
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        const uhdMovie = createSearchItem({
+            id: 1,
+            xtream_id: 101,
+            title: 'UHD movie 2160p',
+            mediaMetadata: {
+                available: true,
+                height: 2160,
+                audioLanguages: ['en'],
+                audioCodecs: [],
+                subtitleLanguages: [],
+                subtitleCodecs: [],
+            },
+        });
+        const italianMovie = createSearchItem({
+            id: 2,
+            xtream_id: 102,
+            title: 'Italian movie',
+            audioLanguages: ['it'],
+        });
+
+        store.searchResults.set([uhdMovie, italianMovie]);
+        store.languageFilter.set({
+            audioInclude: ['en'],
+            audioExclude: [],
+            subtitleInclude: [],
+            subtitleExclude: [],
+        });
+        store.languageFilterActive.set(true);
+        store.videoQualityFilter.set('2160p');
+        store.videoQualityFilterActive.set(true);
+        store.metadataFiltersReady.set(false);
+
+        expect(component.resultSections()[0].items).toEqual([
+            uhdMovie,
+            italianMovie,
+        ]);
+
+        store.metadataFiltersReady.set(true);
+
+        expect(component.resultSections()[0].items).toEqual([uhdMovie]);
+    });
+
+    it('forwards search quality filter changes to the shared Xtream store', () => {
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: false,
+                    },
+                    undefined
+                )
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        component.setVideoQualityFilter('2160p');
+        component.resetVideoQualityFilter();
+
+        expect(store.setVideoQualityFilter).toHaveBeenCalledWith('2160p');
+        expect(store.resetVideoQualityFilter).toHaveBeenCalled();
+    });
+
+    it('advances the search filter progress bar with the metadata background process', async () => {
+        let metadataEventHandler: ((event: unknown) => void) | undefined;
+        (
+            window as unknown as { electron?: Partial<Window['electron']> }
+        ).electron = {
+            getMediaMetadataBackgroundStatus: jest.fn().mockResolvedValue(
+                createBackgroundStatus({
+                    pendingItems: 8,
+                    processedItems: 2,
+                    running: true,
+                    totalItems: 10,
+                })
+            ),
+            onMediaMetadataBackgroundEvent: jest.fn((handler) => {
+                metadataEventHandler = handler;
+                return jest.fn();
+            }),
+        };
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: false,
+                    },
+                    undefined
+                )
+        );
+
+        await Promise.resolve();
+
+        expect(component.filterIndexProgress()).toMatchObject({
+            status: 'running',
+            processedItems: 2,
+            totalItems: 10,
+            percent: 20,
+        });
+
+        metadataEventHandler?.({
+            type: 'status',
+            status: createBackgroundStatus({
+                pendingItems: 5,
+                processedItems: 5,
+                running: true,
+                totalItems: 10,
+            }),
+        });
+
+        expect(component.filterIndexProgress()).toMatchObject({
+            status: 'running',
+            processedItems: 5,
+            totalItems: 10,
+            percent: 50,
+        });
+    });
+
+    it('only exposes include language filter sections', () => {
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: false,
+                    },
+                    undefined
+                )
+        );
+
+        expect(
+            component.languageFilterSections.map((section) => section.key)
+        ).toEqual(['audioInclude', 'subtitleInclude']);
     });
 });

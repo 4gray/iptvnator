@@ -375,6 +375,11 @@
     position: relative;
     cursor: pointer;
 
+    &.is-preparing-vpn {
+        cursor: progress;
+        opacity: 0.82;
+    }
+
     &:not(:last-child) {
         border-bottom: 1px solid
             color-mix(in srgb, var(--app-on-surface) 8%, transparent);
@@ -530,6 +535,36 @@
     display: flex;
     align-items: center;
     justify-content: center;
+}
+
+.source-vpn-indicator,
+.source-vpn-preparing-indicator {
+    position: absolute;
+    right: -3px;
+    top: -3px;
+    font-size: 13px !important;
+    width: 15px !important;
+    height: 15px !important;
+    color: var(--mat-sys-primary);
+    background-color: var(--mat-menu-container-color, var(--mat-sys-surface));
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.28);
+}
+
+.source-vpn-preparing-indicator {
+    animation: switcher-vpn-spin 1s linear infinite;
+}
+
+@keyframes switcher-vpn-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .playlist-details {

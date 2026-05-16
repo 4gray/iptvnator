@@ -31,6 +31,16 @@
                         >autorenew</mat-icon
                     >
                 }
+                @if (hasSourceVpn()) {
+                    <mat-icon
+                        class="source-vpn-indicator"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_ENABLED'
+                                | translate
+                        "
+                        >vpn_key</mat-icon
+                    >
+                }
             </div>
         }
         @if (!item.url && !item.serverUrl && !item.macAddress) {
@@ -49,6 +59,16 @@
                         >autorenew</mat-icon
                     >
                 }
+                @if (hasSourceVpn()) {
+                    <mat-icon
+                        class="source-vpn-indicator"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_ENABLED'
+                                | translate
+                        "
+                        >vpn_key</mat-icon
+                    >
+                }
             </div>
         }
         @if (item.serverUrl) {
@@ -64,14 +84,36 @@
                     [matTooltip]="'Portal status: ' + portalStatus"
                     [attr.aria-label]="'Portal status: ' + portalStatus"
                 ></span>
+                @if (hasSourceVpn()) {
+                    <mat-icon
+                        class="source-vpn-indicator"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_ENABLED'
+                                | translate
+                        "
+                        >vpn_key</mat-icon
+                    >
+                }
             </div>
         }
         @if (item.macAddress) {
-            <mat-icon
-                class="upload-type-icon"
-                [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
-                >dashboard</mat-icon
-            >
+            <div class="icon-container">
+                <mat-icon
+                    class="upload-type-icon"
+                    [matTooltip]="'HOME.PLAYLISTS.STALKER_PORTAL' | translate"
+                    >dashboard</mat-icon
+                >
+                @if (hasSourceVpn()) {
+                    <mat-icon
+                        class="source-vpn-indicator"
+                        [matTooltip]="
+                            'HOME.PLAYLISTS.INFO_DIALOG.SOURCE_VPN_ENABLED'
+                                | translate
+                        "
+                        >vpn_key</mat-icon
+                    >
+                }
+            </div>
         }
     </div>
     <div class="playlist-content">

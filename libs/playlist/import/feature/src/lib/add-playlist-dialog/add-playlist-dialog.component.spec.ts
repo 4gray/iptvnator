@@ -3,6 +3,7 @@ import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { SourceVpnPreparationService } from '@iptvnator/playlist/shared/util';
 import { PlaylistActions } from 'm3u-state';
 import { DataService } from 'services';
 import { PLAYLIST_PARSE_BY_URL } from 'shared-interfaces';
@@ -13,6 +14,7 @@ describe('AddPlaylistDialogComponent', () => {
     let component: AddPlaylistDialogComponent;
     let dataService: { sendIpcEvent: jest.Mock };
     let dialogRef: { close: jest.Mock };
+    let sourceVpnPreparation: { prepareForPlaylist: jest.Mock };
     let store: { dispatch: jest.Mock };
 
     beforeEach(() => {
@@ -21,6 +23,11 @@ describe('AddPlaylistDialogComponent', () => {
         };
         dialogRef = {
             close: jest.fn(),
+        };
+        sourceVpnPreparation = {
+            prepareForPlaylist: jest.fn().mockResolvedValue({
+                status: 'configured',
+            }),
         };
         store = {
             dispatch: jest.fn(),
@@ -39,6 +46,10 @@ describe('AddPlaylistDialogComponent', () => {
                 {
                     provide: Store,
                     useValue: store,
+                },
+                {
+                    provide: SourceVpnPreparationService,
+                    useValue: sourceVpnPreparation,
                 },
                 {
                     provide: MatSnackBar,
@@ -64,7 +75,7 @@ describe('AddPlaylistDialogComponent', () => {
         );
     });
 
-    it('sends a trimmed custom title for URL playlists', () => {
+    it('sends a trimmed custom title for URL playlists', async () => {
         (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
             form: {
                 getRawValue: () => ({
@@ -74,7 +85,7 @@ describe('AddPlaylistDialogComponent', () => {
             },
         }));
 
-        component.submitUrlPlaylist();
+        await component.submitUrlPlaylist();
 
         expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_PARSE_BY_URL,
@@ -86,7 +97,7 @@ describe('AddPlaylistDialogComponent', () => {
         expect(dialogRef.close).toHaveBeenCalled();
     });
 
-    it('omits the title when the optional name is blank', () => {
+    it('omits the title when the optional name is blank', async () => {
         (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
             form: {
                 getRawValue: () => ({
@@ -96,12 +107,55 @@ describe('AddPlaylistDialogComponent', () => {
             },
         }));
 
-        component.submitUrlPlaylist();
+        await component.submitUrlPlaylist();
 
         expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
             PLAYLIST_PARSE_BY_URL,
             {
                 url: 'https://example.com/list.m3u',
+            }
+        );
+        expect(dialogRef.close).toHaveBeenCalled();
+    });
+
+    it('prepares source VPN and includes metadata for URL imports', async () => {
+        (component as { isDesktop: boolean }).isDesktop = true;
+        component.sourceVpnForm.patchValue({
+            vpnLocation: 'HR',
+            vpnAutoConnectOnOpen: true,
+            vpnAutoConnectWhenDefault: false,
+        });
+        (component as { urlUpload: jest.Mock }).urlUpload = jest.fn(() => ({
+            form: {
+                getRawValue: () => ({
+                    playlistName: '  VPN Source  ',
+                    playlistUrl: 'https://example.com/list.m3u',
+                }),
+            },
+        }));
+
+        await component.submitUrlPlaylist();
+
+        expect(sourceVpnPreparation.prepareForPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                _id: 'import-url',
+                title: 'VPN Source',
+                vpnProvider: 'proton',
+                vpnLocation: 'HR',
+                vpnAutoConnectOnOpen: true,
+                vpnAutoConnectWhenDefault: false,
+            }),
+            'source-open'
+        );
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            PLAYLIST_PARSE_BY_URL,
+            {
+                title: 'VPN Source',
+                url: 'https://example.com/list.m3u',
+                vpnProvider: 'proton',
+                vpnLocation: 'HR',
+                vpnAutoConnectOnOpen: true,
+                vpnAutoConnectWhenDefault: false,
             }
         );
         expect(dialogRef.close).toHaveBeenCalled();

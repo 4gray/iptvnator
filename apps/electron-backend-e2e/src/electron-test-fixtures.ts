@@ -151,16 +151,21 @@ export async function launchElectronApp(
         env,
     });
 
-    const mainWindow = await findMainWindow(electronApp);
-    await waitForAppReady(mainWindow);
-    await startPortalDebugCapture(mainWindow);
-    await startDbOperationCapture(mainWindow);
-    await startRendererFrameCapture(mainWindow);
+    try {
+        const mainWindow = await findMainWindow(electronApp);
+        await waitForAppReady(mainWindow);
+        await startPortalDebugCapture(mainWindow);
+        await startDbOperationCapture(mainWindow);
+        await startRendererFrameCapture(mainWindow);
 
-    return {
-        electronApp,
-        mainWindow,
-    };
+        return {
+            electronApp,
+            mainWindow,
+        };
+    } catch (error) {
+        await electronApp.close().catch(() => undefined);
+        throw error;
+    }
 }
 
 export async function closeElectronApp(
@@ -192,19 +197,47 @@ function assertPackagedRendererBuildIsElectronSafe(): void {
 }
 
 async function findMainWindow(app: ElectronApplication): Promise<Page> {
-    await new Promise((resolvePromise) => setTimeout(resolvePromise, 2000));
+    const startedAt = Date.now();
+    let lastWindowSummary = '<none>';
 
-    const windows = app.windows();
+    while (Date.now() - startedAt < 45000) {
+        const windows = app.windows().filter((window) => !window.isClosed());
+        const summaries: string[] = [];
 
-    for (const window of windows) {
-        const title = await window.title();
+        for (const window of windows) {
+            const [title, url, hasAppRoot] = await Promise.all([
+                window.title().catch(() => ''),
+                Promise.resolve(window.url()).catch(() => ''),
+                window
+                    .locator('app-root')
+                    .count()
+                    .then((count) => count > 0)
+                    .catch(() => false),
+            ]);
 
-        if (!title.includes('DevTools')) {
-            return window;
+            summaries.push(`${JSON.stringify(title)} ${url}`);
+
+            if (title.includes('DevTools')) {
+                continue;
+            }
+
+            if (
+                title === 'IPTVnator' ||
+                hasAppRoot ||
+                /[/\\]dist[/\\]apps[/\\]web[/\\]index\.html/i.test(url) ||
+                /[/\\]apps[/\\]web[/\\]index\.html/i.test(url)
+            ) {
+                return window;
+            }
         }
+
+        lastWindowSummary = summaries.join('; ') || '<none>';
+        await new Promise((resolvePromise) => setTimeout(resolvePromise, 250));
     }
 
-    return app.firstWindow();
+    throw new Error(
+        `Electron main window was not created within 45000ms. Windows: ${lastWindowSummary}`
+    );
 }
 
 async function waitForAppReady(page: Page): Promise<void> {

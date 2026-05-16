@@ -1,7 +1,15 @@
-import { Component, EventEmitter, Output, inject, signal } from '@angular/core';
+import {
+    Component,
+    EventEmitter,
+    Output,
+    inject,
+    input,
+    signal,
+} from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistFileImportService } from '@iptvnator/playlist/shared/util';
+import { PlaylistSourceVpnConfig } from 'shared-interfaces';
 import { DragDropFileUploadDirective } from './drag-drop-file-upload.directive';
 
 const MB = 1024 * 1024;
@@ -23,6 +31,7 @@ export class FileUploadComponent {
     readonly selectedFile = signal<File | null>(null);
     readonly isDragging = signal(false);
     readonly isImporting = signal(false);
+    readonly sourceVpn = input<PlaylistSourceVpnConfig | undefined>();
 
     async openPicker(input: HTMLInputElement): Promise<void> {
         if (this.importService.canImportFromNativeDialog()) {
@@ -70,7 +79,10 @@ export class FileUploadComponent {
         if (!file || this.isImporting()) return;
 
         this.isImporting.set(true);
-        const result = await this.importService.importFile(file);
+        const result = await this.importService.importFile(
+            file,
+            this.sourceVpn()
+        );
         this.isImporting.set(false);
 
         if (result.ok === true) {
@@ -101,7 +113,9 @@ export class FileUploadComponent {
         if (this.isImporting()) return;
 
         this.isImporting.set(true);
-        const result = await this.importService.importFromNativeDialog();
+        const result = await this.importService.importFromNativeDialog(
+            this.sourceVpn()
+        );
         this.isImporting.set(false);
 
         if (result.ok === true) {

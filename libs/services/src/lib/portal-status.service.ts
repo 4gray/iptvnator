@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { DataService } from './data.service';
+import { SourceVpnRequestContext } from 'shared-interfaces';
 
 export type PortalStatus =
     | 'active'
@@ -11,6 +12,7 @@ export type PortalStatus =
 interface XtreamPortalStatusResponse {
     payload?: {
         user_info?: {
+            auth?: number | string | boolean;
             status?: string;
             exp_date?: string;
         };
@@ -29,6 +31,7 @@ interface CheckPortalStatusOptions {
      * within TTL returns immediately) is correct for passive status checks.
      */
     skipCache?: boolean;
+    sourceVpn?: SourceVpnRequestContext;
 }
 
 const PORTAL_STATUS_CACHE_TTL_MS = 30_000;
@@ -70,7 +73,12 @@ export class PortalStatusService {
         password: string,
         options?: CheckPortalStatusOptions
     ): Promise<PortalStatus> {
-        const cacheKey = this.buildCacheKey(serverUrl, username, password);
+        const cacheKey = this.buildCacheKey(
+            serverUrl,
+            username,
+            password,
+            options?.sourceVpn
+        );
 
         if (!options?.skipCache) {
             const cached = this.cache.get(cacheKey);
@@ -87,7 +95,12 @@ export class PortalStatusService {
             }
         }
 
-        const request = this.fetchPortalStatus(serverUrl, username, password)
+        const request = this.fetchPortalStatus(
+            serverUrl,
+            username,
+            password,
+            options?.sourceVpn
+        )
             .then((status) => {
                 this.cache.set(cacheKey, {
                     status,
@@ -113,10 +126,11 @@ export class PortalStatusService {
     getCachedStatus(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        sourceVpn?: SourceVpnRequestContext
     ): PortalStatus | null {
         const cached = this.cache.get(
-            this.buildCacheKey(serverUrl, username, password)
+            this.buildCacheKey(serverUrl, username, password, sourceVpn)
         );
         if (!cached) {
             return null;
@@ -135,15 +149,23 @@ export class PortalStatusService {
     private buildCacheKey(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        sourceVpn?: SourceVpnRequestContext
     ): string {
-        return `${serverUrl}|${username}|${password}`;
+        return [
+            serverUrl,
+            username,
+            password,
+            sourceVpn?.provider ?? '',
+            sourceVpn?.location ?? '',
+        ].join('|');
     }
 
     private async fetchPortalStatus(
         serverUrl: string,
         username: string,
-        password: string
+        password: string,
+        sourceVpn?: SourceVpnRequestContext
     ): Promise<PortalStatus> {
         try {
             let normalizedUrl = serverUrl;
@@ -161,23 +183,36 @@ export class PortalStatusService {
                             username,
                             action: 'get_account_info',
                         },
+                        sourceVpn,
                         suppressErrorLog: true,
                     }
-                );
+            );
             const payload = response?.payload;
+            const userInfo = payload?.user_info;
+            const status = userInfo?.status?.trim().toLowerCase();
+            const auth = userInfo?.auth;
+            const isAuthenticated =
+                auth === true ||
+                auth === 1 ||
+                auth === '1' ||
+                auth === 'true';
 
-            if (!payload?.user_info?.status) {
+            if (!status && !isAuthenticated) {
                 return 'unavailable';
             }
 
-            if (payload.user_info.status === 'Active') {
-                if (!payload.user_info.exp_date) {
+            if (!status || status === 'active') {
+                const rawExpDate = userInfo?.exp_date;
+                if (!rawExpDate || rawExpDate === '0') {
                     return 'active';
                 }
 
-                const expDate = new Date(
-                    parseInt(payload.user_info.exp_date, 10) * 1000
-                );
+                const expTimestamp = parseInt(rawExpDate, 10);
+                if (!Number.isFinite(expTimestamp) || expTimestamp <= 0) {
+                    return 'active';
+                }
+
+                const expDate = new Date(expTimestamp * 1000);
                 return expDate < new Date() ? 'expired' : 'active';
             } else {
                 return 'inactive';

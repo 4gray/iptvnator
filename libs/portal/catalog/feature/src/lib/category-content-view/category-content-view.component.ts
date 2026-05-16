@@ -104,16 +104,8 @@ export class CategoryContentViewComponent implements OnInit {
             titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_INCLUDE',
         },
         {
-            key: 'audioExclude',
-            titleKey: 'PORTALS.LANGUAGE_FILTER.AUDIO_EXCLUDE',
-        },
-        {
             key: 'subtitleInclude',
             titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_INCLUDE',
-        },
-        {
-            key: 'subtitleExclude',
-            titleKey: 'PORTALS.LANGUAGE_FILTER.SUBTITLE_EXCLUDE',
         },
     ];
 
@@ -169,6 +161,24 @@ export class CategoryContentViewComponent implements OnInit {
             this.catalog.videoQualityFilterActive?.() ??
             isPortalCatalogVideoQualityFilterActive(this.videoQualityFilter())
     );
+    readonly metadataFiltersReady = computed(
+        () => this.catalog.metadataFiltersReady?.() ?? true
+    );
+    readonly hasSelectedLanguageFilter = computed(() =>
+        isPortalCatalogLanguageFilterActive(this.languageFilter())
+    );
+    readonly filterIndexProgress = computed(
+        () => this.catalog.filterIndexProgress?.() ?? null
+    );
+    readonly showFilterIndexProgress = computed(() => {
+        const progress = this.filterIndexProgress();
+        return Boolean(
+            progress &&
+            progress.totalItems > 0 &&
+            progress.status === 'running' &&
+            (this.canFilterLanguages() || this.canFilterVideoQuality())
+        );
+    });
     readonly canWarmMediaMetadata = computed(() =>
         Boolean(this.catalog.warmVisibleMediaMetadata)
     );

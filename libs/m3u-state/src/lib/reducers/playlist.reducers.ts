@@ -143,6 +143,24 @@ export const playlistReducers = [
                         ...(p.updateDate !== undefined
                             ? { updateDate: p.updateDate }
                             : {}),
+                        ...(p.vpnProvider !== undefined
+                            ? { vpnProvider: p.vpnProvider }
+                            : {}),
+                        ...(p.vpnLocation !== undefined
+                            ? { vpnLocation: p.vpnLocation }
+                            : {}),
+                        ...(p.vpnAutoConnectOnOpen !== undefined
+                            ? {
+                                  vpnAutoConnectOnOpen:
+                                      p.vpnAutoConnectOnOpen,
+                              }
+                            : {}),
+                        ...(p.vpnAutoConnectWhenDefault !== undefined
+                            ? {
+                                  vpnAutoConnectWhenDefault:
+                                      p.vpnAutoConnectWhenDefault,
+                              }
+                            : {}),
                     },
                 },
                 state.playlists

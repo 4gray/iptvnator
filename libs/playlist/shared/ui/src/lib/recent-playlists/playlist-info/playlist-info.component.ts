@@ -13,6 +13,7 @@ import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
+import { MatSelectModule } from '@angular/material/select';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
@@ -20,7 +21,11 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from 'm3u-state';
 import { firstValueFrom } from 'rxjs';
 import { DatabaseService, PlaylistsService } from 'services';
-import { Playlist, PlaylistMeta } from 'shared-interfaces';
+import {
+    Playlist,
+    PlaylistMeta,
+    PROTON_VPN_LOCATION_OPTIONS,
+} from 'shared-interfaces';
 
 @Component({
     selector: 'app-playlist-info',
@@ -55,6 +60,21 @@ import { Playlist, PlaylistMeta } from 'shared-interfaces';
                 font-size: 12.5px;
                 line-height: 1.45;
             }
+
+            .source-vpn-settings {
+                border-top: 1px solid var(--app-border-color);
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                margin-top: 2px;
+                padding-top: 14px;
+            }
+
+            .source-vpn-settings h3 {
+                font-size: 15px;
+                font-weight: 600;
+                margin: 0;
+            }
         `,
     ],
     providers: [DatePipe],
@@ -66,6 +86,7 @@ import { Playlist, PlaylistMeta } from 'shared-interfaces';
         MatIcon,
         MatIconButton,
         MatInputModule,
+        MatSelectModule,
         MatTooltip,
         ReactiveFormsModule,
         TranslatePipe,
@@ -83,6 +104,13 @@ export class PlaylistInfoComponent {
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
 
     readonly isDesktop = !!window.electron;
+    readonly vpnLocationOptions = PROTON_VPN_LOCATION_OPTIONS;
+    readonly vpnProviderOptions = [
+        {
+            value: 'proton',
+            labelKey: 'SETTINGS.VPN_PROVIDER_PROTON',
+        },
+    ] as const;
 
     /** Playlist object */
     playlist: Playlist & { id: string };
@@ -136,6 +164,20 @@ export class PlaylistInfoComponent {
             stalkerDeviceId2: new FormControl(this.playlist.stalkerDeviceId2),
             stalkerSignature1: new FormControl(this.playlist.stalkerSignature1),
             stalkerSignature2: new FormControl(this.playlist.stalkerSignature2),
+            vpnProvider: new FormControl(
+                this.playlist.vpnProvider === 'proton'
+                    ? this.playlist.vpnProvider
+                    : 'proton'
+            ),
+            vpnLocation: new FormControl(
+                this.playlist.vpnLocation || 'FASTEST'
+            ),
+            vpnAutoConnectOnOpen: new FormControl(
+                Boolean(this.playlist.vpnAutoConnectOnOpen)
+            ),
+            vpnAutoConnectWhenDefault: new FormControl(
+                Boolean(this.playlist.vpnAutoConnectWhenDefault)
+            ),
         });
     }
 
