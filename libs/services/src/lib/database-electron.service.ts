@@ -506,6 +506,10 @@ export class DatabaseService {
     }
 
     async getAppState(key: string): Promise<string | null> {
+        if (typeof window.electron?.dbGetAppState !== 'function') {
+            return null;
+        }
+
         try {
             return await window.electron.dbGetAppState(key);
         } catch (error) {
@@ -515,6 +519,10 @@ export class DatabaseService {
     }
 
     async setAppState(key: string, value: string): Promise<boolean> {
+        if (typeof window.electron?.dbSetAppState !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbSetAppState(key, value);
             return true;

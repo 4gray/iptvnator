@@ -98,14 +98,14 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     }
 
     selectItem(item: Record<string, unknown>): string[] | null {
-        const xtreamId = item['xtream_id'];
-        if (xtreamId === undefined || xtreamId === null) {
+        const itemId = this.getCatalogItemId(item);
+        if (itemId === undefined || itemId === null) {
             return null;
         }
 
         const selectedCategoryId = this.xtreamStore.selectedCategoryId();
         if (selectedCategoryId !== null && selectedCategoryId !== undefined) {
-            return [String(xtreamId)];
+            return [String(itemId)];
         }
 
         const categoryId = item['category_id'];
@@ -113,14 +113,12 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
             return null;
         }
 
-        return [String(categoryId), String(xtreamId)];
+        return [String(categoryId), String(itemId)];
     }
 
     getItemProgress(item: Record<string, unknown>): PortalCatalogItemProgress {
         const isSeries = this.contentType() === 'series';
-        const itemId = Number(
-            item['xtream_id'] ?? item['series_id'] ?? item['stream_id']
-        );
+        const itemId = Number(this.getCatalogItemId(item));
         if (Number.isNaN(itemId)) {
             return {};
         }
@@ -135,6 +133,17 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
             progress: this.xtreamStore.getProgressPercent(itemId, 'vod'),
             isWatched: this.xtreamStore.isWatched(itemId, 'vod'),
         };
+    }
+
+    private getCatalogItemId(
+        item: Record<string, unknown>
+    ): string | number | null | undefined {
+        const itemId =
+            item['xtream_id'] ?? item['series_id'] ?? item['stream_id'];
+
+        return typeof itemId === 'string' || typeof itemId === 'number'
+            ? itemId
+            : null;
     }
 }
 

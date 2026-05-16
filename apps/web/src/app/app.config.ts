@@ -6,6 +6,7 @@ import {
 import {
     ApplicationConfig,
     importProvidersFrom,
+    inject,
     provideZoneChangeDetection,
 } from '@angular/core';
 import { MAT_FORM_FIELD_DEFAULT_OPTIONS } from '@angular/material/form-field';
@@ -24,9 +25,13 @@ import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYER,
+    XTREAM_COLLECTION_DATA_SOURCE,
 } from '@iptvnator/portal/shared/util';
 import { PLAYLIST_PLAYER_ACTIONS } from '@iptvnator/playlist/shared/util';
-import { provideXtreamDataSource } from '@iptvnator/portal/xtream/data-access';
+import {
+    provideXtreamDataSource,
+    XTREAM_DATA_SOURCE,
+} from '@iptvnator/portal/xtream/data-access';
 import { DataService } from '@iptvnator/services';
 import { dbConfig } from '@iptvnator/shared/interfaces';
 import { AppConfig } from '../environments/environment';
@@ -153,6 +158,10 @@ export const appConfig: ApplicationConfig = {
         },
         ...provideWorkspaceShellActions(),
         ...provideXtreamDataSource(),
+        {
+            provide: XTREAM_COLLECTION_DATA_SOURCE,
+            useFactory: () => inject(XTREAM_DATA_SOURCE),
+        },
         {
             provide: MAT_FORM_FIELD_DEFAULT_OPTIONS,
             useValue: { appearance: 'outline', subscriptSizing: 'dynamic' },

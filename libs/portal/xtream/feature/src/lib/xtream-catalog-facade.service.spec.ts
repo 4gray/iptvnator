@@ -1,8 +1,6 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
-import {
-    PortalCatalogSortMode,
-} from '@iptvnator/portal/shared/util';
+import { PortalCatalogSortMode } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
     XtreamStore,
@@ -178,6 +176,43 @@ describe('XtreamCatalogFacadeService', () => {
         expect(xtreamStore.loadAllPositions).toHaveBeenLastCalledWith(
             'playlist-2'
         );
+    });
+
+    it('routes raw Xtream VOD stream items by stream_id inside a category', () => {
+        selectedCategoryId.set(201);
+
+        expect(
+            service.selectItem({
+                stream_id: 650020,
+                category_id: '201',
+                title: 'Movie',
+            })
+        ).toEqual(['650020']);
+    });
+
+    it('routes raw Xtream VOD stream items from the all-items view with their category', () => {
+        selectedCategoryId.set(null);
+
+        expect(
+            service.selectItem({
+                stream_id: 650020,
+                category_id: '201',
+                title: 'Movie',
+            })
+        ).toEqual(['201', '650020']);
+    });
+
+    it('routes raw Xtream series items by series_id', () => {
+        contentType.set('series');
+        selectedCategoryId.set(301);
+
+        expect(
+            service.selectItem({
+                series_id: 103,
+                category_id: '301',
+                title: 'Series',
+            })
+        ).toEqual(['103']);
     });
 
     it('persists sort mode changes and delegates them to the store', () => {

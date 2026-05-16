@@ -7,7 +7,6 @@ import {
     XtreamSerieItem,
     XtreamVodStream,
 } from '@iptvnator/shared/interfaces';
-import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     CategoryType,
     StreamType,
@@ -35,8 +34,11 @@ const STORAGE_KEYS = {
 };
 
 interface XtreamCachedContentItem {
-    readonly added?: string;
+    readonly added?: string | number;
+    readonly added_at?: string | number;
+    readonly backdrop_url?: string | null;
     readonly category_id?: string | number;
+    readonly cover?: string;
     readonly id?: number;
     readonly name?: string;
     readonly poster_url?: string;
@@ -44,15 +46,38 @@ interface XtreamCachedContentItem {
     readonly stream_display_name?: string;
     readonly stream_id?: number;
     readonly stream_icon?: string;
+    readonly stream_type?: string;
     readonly title?: string;
     readonly type?: string;
     readonly viewed_at?: string;
 }
 
+interface StoredFavoriteItem {
+    readonly id: number;
+    readonly addedAt: string;
+    readonly backdropUrl?: string;
+    readonly content?: XtreamCachedContentItem;
+}
+
+type StoredFavoriteEntry = number | StoredFavoriteItem;
+
 interface StoredRecentItem {
     readonly id: number;
     readonly viewedAt: string;
+    readonly backdropUrl?: string;
+    readonly content?: XtreamCachedContentItem;
 }
+
+type PwaContentCacheType = 'live' | 'movie' | 'vod' | 'series';
+type PwaRestoreFavoriteItem = XtreamPendingRestoreState['favorites'][number] & {
+    readonly backdropUrl?: string;
+    readonly content?: XtreamCachedContentItem;
+};
+type PwaRestoreRecentItem =
+    XtreamPendingRestoreState['recentlyViewed'][number] & {
+        readonly backdropUrl?: string;
+        readonly content?: XtreamCachedContentItem;
+    };
 
 /**
  * PWA implementation of the Xtream data source.
@@ -62,11 +87,24 @@ interface StoredRecentItem {
 @Injectable({ providedIn: 'root' })
 export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly apiService = inject(XtreamApiService);
-    private readonly logger = createLogger('PwaXtreamDataSource');
 
     // In-memory cache for the current session
     private categoryCache = new Map<string, XtreamCategory[]>();
     private contentCache = new Map<string, XtreamCachedContentItem[]>();
+
+    private getContentCacheLookupTypes(
+        contentType?: 'live' | 'movie' | 'series'
+    ): PwaContentCacheType[] {
+        if (contentType === 'movie') {
+            return ['movie', 'vod'];
+        }
+
+        if (contentType) {
+            return [contentType];
+        }
+
+        return ['live', 'movie', 'vod', 'series'];
+    }
 
     // =========================================================================
     // Playlist Operations (localStorage)
@@ -197,7 +235,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         void categoryIds;
         void hidden;
         // Category visibility is not supported in PWA mode
-        this.logger.warn('Category visibility not supported in PWA mode');
+        console.warn(
+            '[PwaXtreamDataSource]',
+            'Category visibility not supported in PWA mode'
+        );
     }
 
     // =========================================================================
@@ -319,17 +360,27 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allFavorites = this.getFavoritesFromStorage();
         const playlistFavorites = allFavorites[playlistId] || [];
 
-        // Match favorites with cached content
         const results: XtreamCachedContentItem[] = [];
-        for (const type of ['live', 'movie', 'series']) {
-            const cacheKey = `${playlistId}-${type}-content`;
-            const content = this.contentCache.get(cacheKey) || [];
+        const seenIds = new Set<number>();
 
-            for (const item of content) {
-                const itemId = item.stream_id || item.series_id || item.id;
-                if (playlistFavorites.includes(itemId)) {
-                    results.push(item);
-                }
+        for (const favorite of playlistFavorites) {
+            const favoriteId = this.getStoredFavoriteId(favorite);
+            if (seenIds.has(favoriteId)) {
+                continue;
+            }
+
+            const content =
+                this.getStoredFavoriteContent(favorite) ??
+                this.findCachedContentById(playlistId, favoriteId);
+            if (content) {
+                results.push({
+                    ...content,
+                    added_at: this.getStoredFavoriteAddedAt(favorite),
+                    backdrop_url:
+                        this.getStoredFavoriteBackdropUrl(favorite) ??
+                        content.backdrop_url,
+                });
+                seenIds.add(favoriteId);
             }
         }
 
@@ -347,8 +398,35 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         if (!allFavorites[playlistId]) {
             allFavorites[playlistId] = [];
         }
-        if (!allFavorites[playlistId].includes(contentId)) {
-            allFavorites[playlistId].push(contentId);
+
+        const existingIndex = allFavorites[playlistId].findIndex(
+            (entry) => this.getStoredFavoriteId(entry) === contentId
+        );
+        const existing =
+            existingIndex >= 0 ? allFavorites[playlistId][existingIndex] : null;
+        const cachedContent = this.findCachedContentById(playlistId, contentId);
+        const nextFavorite: StoredFavoriteItem = {
+            id: contentId,
+            addedAt:
+                existing && typeof existing !== 'number'
+                    ? existing.addedAt
+                    : new Date().toISOString(),
+            backdropUrl:
+                _backdropUrl ??
+                (existing && typeof existing !== 'number'
+                    ? existing.backdropUrl
+                    : undefined),
+            content:
+                cachedContent ??
+                (existing && typeof existing !== 'number'
+                    ? existing.content
+                    : undefined),
+        };
+
+        if (existingIndex >= 0) {
+            allFavorites[playlistId][existingIndex] = nextFavorite;
+        } else {
+            allFavorites[playlistId].push(nextFavorite);
         }
         this.saveFavoritesToStorage(allFavorites);
     }
@@ -357,7 +435,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allFavorites = this.getFavoritesFromStorage();
         if (allFavorites[playlistId]) {
             allFavorites[playlistId] = allFavorites[playlistId].filter(
-                (id: number) => id !== contentId
+                (entry) => this.getStoredFavoriteId(entry) !== contentId
             );
         }
         this.saveFavoritesToStorage(allFavorites);
@@ -365,10 +443,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
         const allFavorites = this.getFavoritesFromStorage();
-        return (allFavorites[playlistId] || []).includes(contentId);
+        return (allFavorites[playlistId] || []).some(
+            (entry) => this.getStoredFavoriteId(entry) === contentId
+        );
     }
 
-    private getFavoritesFromStorage(): Record<string, number[]> {
+    private getFavoritesFromStorage(): Record<string, StoredFavoriteEntry[]> {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.FAVORITES);
             return data ? JSON.parse(data) : {};
@@ -377,8 +457,32 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
     }
 
-    private saveFavoritesToStorage(favorites: Record<string, number[]>): void {
+    private saveFavoritesToStorage(
+        favorites: Record<string, StoredFavoriteEntry[]>
+    ): void {
         localStorage.setItem(STORAGE_KEYS.FAVORITES, JSON.stringify(favorites));
+    }
+
+    private getStoredFavoriteId(favorite: StoredFavoriteEntry): number {
+        return typeof favorite === 'number' ? favorite : favorite.id;
+    }
+
+    private getStoredFavoriteContent(
+        favorite: StoredFavoriteEntry
+    ): XtreamCachedContentItem | undefined {
+        return typeof favorite === 'number' ? undefined : favorite.content;
+    }
+
+    private getStoredFavoriteAddedAt(favorite: StoredFavoriteEntry): string {
+        return typeof favorite === 'number'
+            ? new Date(0).toISOString()
+            : favorite.addedAt;
+    }
+
+    private getStoredFavoriteBackdropUrl(
+        favorite: StoredFavoriteEntry
+    ): string | undefined {
+        return typeof favorite === 'number' ? undefined : favorite.backdropUrl;
     }
 
     private clearFavoritesForPlaylist(playlistId: string): void {
@@ -526,21 +630,25 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allRecent = this.getRecentItemsFromStorage();
         const playlistRecent = allRecent[playlistId] || [];
 
-        // Match recent items with cached content
         const results: (XtreamCachedContentItem & { viewed_at: string })[] = [];
-        for (const type of ['live', 'movie', 'series']) {
-            const cacheKey = `${playlistId}-${type}-content`;
-            const content = this.contentCache.get(cacheKey) || [];
+        const seenIds = new Set<number>();
 
-            for (const item of content) {
-                const itemId = item.stream_id || item.series_id || item.id;
-                const recentEntry = playlistRecent.find((r) => r.id === itemId);
-                if (recentEntry) {
-                    results.push({
-                        ...item,
-                        viewed_at: recentEntry.viewedAt,
-                    });
-                }
+        for (const recentEntry of playlistRecent) {
+            if (seenIds.has(recentEntry.id)) {
+                continue;
+            }
+
+            const content =
+                recentEntry.content ??
+                this.findCachedContentById(playlistId, recentEntry.id);
+            if (content) {
+                results.push({
+                    ...content,
+                    viewed_at: recentEntry.viewedAt,
+                    backdrop_url:
+                        recentEntry.backdropUrl ?? content.backdrop_url,
+                });
+                seenIds.add(recentEntry.id);
             }
         }
 
@@ -573,6 +681,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         allRecent[playlistId].unshift({
             id: contentId,
             viewedAt: new Date().toISOString(),
+            backdropUrl: _backdropUrl,
+            content: this.findCachedContentById(playlistId, contentId),
         });
 
         // Keep only last 50 items
@@ -631,19 +741,13 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContentItem | null> {
-        const types = contentType
-            ? [contentType]
-            : (['live', 'movie', 'series'] as const);
-
-        for (const type of types) {
+        for (const type of this.getContentCacheLookupTypes(contentType)) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
-            const found = content.find((item) => {
-                const itemXtreamId =
-                    item.stream_id || item.series_id || item.id;
-                return itemXtreamId === xtreamId;
-            });
+            const found = content.find(
+                (item) => this.resolveContentId(item) === xtreamId
+            );
 
             if (found) {
                 return found as XtreamContentItem;
@@ -658,29 +762,81 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         xtreamId: number,
         contentType?: 'live' | 'movie' | 'series'
     ): { contentType: 'live' | 'movie' | 'series'; xtreamId: number } | null {
-        const types = contentType
-            ? [contentType]
-            : (['live', 'movie', 'series'] as const);
-
-        for (const type of types) {
+        for (const type of this.getContentCacheLookupTypes(contentType)) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
-            const found = content.find((item) => {
-                const itemXtreamId =
-                    item.stream_id || item.series_id || item.id;
-                return itemXtreamId === xtreamId;
-            });
+            const found = content.find(
+                (item) => this.resolveContentId(item) === xtreamId
+            );
 
             if (found) {
                 return {
-                    contentType: type,
+                    contentType: type === 'vod' ? 'movie' : type,
                     xtreamId,
                 };
             }
         }
 
         return null;
+    }
+
+    private findStoredContentIdentity(
+        content: XtreamCachedContentItem | undefined,
+        fallbackId: number
+    ): { contentType: 'live' | 'movie' | 'series'; xtreamId: number } | null {
+        if (!content) {
+            return null;
+        }
+
+        const xtreamId = this.resolveContentId(content) ?? fallbackId;
+        const contentType = this.resolveContentType(content);
+
+        return contentType ? { contentType, xtreamId } : null;
+    }
+
+    private findCachedContentById(
+        playlistId: string,
+        contentId: number,
+        contentType?: 'live' | 'movie' | 'series'
+    ): XtreamCachedContentItem | undefined {
+        for (const type of this.getContentCacheLookupTypes(contentType)) {
+            const cacheKey = `${playlistId}-${type}-content`;
+            const content = this.contentCache.get(cacheKey) || [];
+            const found = content.find(
+                (item) => this.resolveContentId(item) === contentId
+            );
+
+            if (found) {
+                return found;
+            }
+        }
+
+        return undefined;
+    }
+
+    private resolveContentType(
+        item: XtreamCachedContentItem
+    ): 'live' | 'movie' | 'series' | null {
+        if (item.series_id != null) {
+            return 'series';
+        }
+
+        const type = String(item.type ?? item.stream_type ?? '').toLowerCase();
+        if (type === 'live' || type === 'series') {
+            return type;
+        }
+
+        if (type === 'movie' || type === 'vod') {
+            return 'movie';
+        }
+
+        return null;
+    }
+
+    private resolveContentId(item: XtreamCachedContentItem): number | null {
+        const id = Number(item.stream_id ?? item.series_id ?? item.id);
+        return Number.isFinite(id) && id > 0 ? id : null;
     }
 
     // =========================================================================
@@ -697,19 +853,39 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             await this.getAllPlaybackPositions(playlistId);
 
         const typedFavorites = (favorites[playlistId] || [])
-            .map((xtreamId) => this.findContentIdentity(playlistId, xtreamId))
-            .filter(
-                (
-                    value
-                ): value is {
-                    contentType: 'live' | 'movie' | 'series';
-                    xtreamId: number;
-                } => value !== null
-            );
+            .map<PwaRestoreFavoriteItem | null>((favorite) => {
+                const favoriteId = this.getStoredFavoriteId(favorite);
+                const content =
+                    this.getStoredFavoriteContent(favorite) ??
+                    this.findCachedContentById(playlistId, favoriteId);
+                const identity =
+                    this.findStoredContentIdentity(content, favoriteId) ??
+                    this.findContentIdentity(playlistId, favoriteId);
+
+                if (!identity) {
+                    return null;
+                }
+
+                return {
+                    ...identity,
+                    addedAt: this.getStoredFavoriteAddedAt(favorite),
+                    backdropUrl:
+                        this.getStoredFavoriteBackdropUrl(favorite) ??
+                        content?.backdrop_url ??
+                        undefined,
+                    content,
+                };
+            })
+            .filter((value): value is PwaRestoreFavoriteItem => value !== null);
 
         const typedRecentlyViewed = (recentItems[playlistId] || [])
-            .map((item) => {
-                const identity = this.findContentIdentity(playlistId, item.id);
+            .map<PwaRestoreRecentItem | null>((item) => {
+                const content =
+                    item.content ??
+                    this.findCachedContentById(playlistId, item.id);
+                const identity =
+                    this.findStoredContentIdentity(content, item.id) ??
+                    this.findContentIdentity(playlistId, item.id);
 
                 if (!identity) {
                     return null;
@@ -718,17 +894,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 return {
                     ...identity,
                     viewedAt: item.viewedAt,
+                    backdropUrl:
+                        item.backdropUrl ?? content?.backdrop_url ?? undefined,
+                    content,
                 };
             })
-            .filter(
-                (
-                    value
-                ): value is {
-                    contentType: 'live' | 'movie' | 'series';
-                    xtreamId: number;
-                    viewedAt: string;
-                } => value !== null
-            );
+            .filter((value): value is PwaRestoreRecentItem => value !== null);
 
         // Clear in-memory cache
         this.clearCacheForPlaylist(playlistId);
@@ -749,17 +920,46 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         void options;
         // Restore favorites
         const favorites = this.getFavoritesFromStorage();
-        favorites[playlistId] = restoreState.favorites.map(
-            (item) => item.xtreamId
-        );
+        favorites[playlistId] = restoreState.favorites.map((item) => {
+            const pwaItem = item as PwaRestoreFavoriteItem;
+            const content =
+                pwaItem.content ??
+                this.findCachedContentById(
+                    playlistId,
+                    item.xtreamId,
+                    item.contentType
+                );
+
+            return {
+                id: item.xtreamId,
+                addedAt: item.addedAt ?? new Date().toISOString(),
+                backdropUrl:
+                    pwaItem.backdropUrl ?? content?.backdrop_url ?? undefined,
+                content,
+            };
+        });
         this.saveFavoritesToStorage(favorites);
 
         // Restore recent items
         const recentItems = this.getRecentItemsFromStorage();
-        recentItems[playlistId] = restoreState.recentlyViewed.map((item) => ({
-            id: item.xtreamId,
-            viewedAt: item.viewedAt,
-        }));
+        recentItems[playlistId] = restoreState.recentlyViewed.map((item) => {
+            const pwaItem = item as PwaRestoreRecentItem;
+            const content =
+                pwaItem.content ??
+                this.findCachedContentById(
+                    playlistId,
+                    item.xtreamId,
+                    item.contentType
+                );
+
+            return {
+                id: item.xtreamId,
+                viewedAt: item.viewedAt,
+                backdropUrl:
+                    pwaItem.backdropUrl ?? content?.backdrop_url ?? undefined,
+                content,
+            };
+        });
         this.saveRecentItemsToStorage(recentItems);
 
         // Restore playback positions

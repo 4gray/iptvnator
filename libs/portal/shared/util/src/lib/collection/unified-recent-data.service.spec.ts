@@ -10,6 +10,10 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from './unified-collection-item.interface';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
+import {
+    XTREAM_COLLECTION_DATA_SOURCE,
+    XtreamCollectionDataSourceItem,
+} from './xtream-collection-data-source.token';
 
 describe('UnifiedRecentDataService', () => {
     let service: UnifiedRecentDataService;
@@ -32,6 +36,12 @@ describe('UnifiedRecentDataService', () => {
         clearGlobalRecentlyViewed: jest.Mock;
         addRecentItem: jest.Mock;
         getContentByXtreamId: jest.Mock;
+    };
+    let xtreamDataSource: {
+        addRecentItem: jest.Mock;
+        clearRecentItems: jest.Mock;
+        getRecentItems: jest.Mock;
+        removeRecentItem: jest.Mock;
     };
 
     const playlistMeta = {
@@ -87,6 +97,12 @@ describe('UnifiedRecentDataService', () => {
     ];
 
     beforeEach(() => {
+        Object.defineProperty(window, 'electron', {
+            value: {
+                dbGetRecentlyViewed: jest.fn(),
+            } as unknown as Window['electron'],
+            configurable: true,
+        });
         store = {
             select: jest.fn(() => of([playlistMeta])),
             dispatch: jest.fn(),
@@ -136,6 +152,12 @@ describe('UnifiedRecentDataService', () => {
             addRecentItem: jest.fn().mockResolvedValue(true),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
         };
+        xtreamDataSource = {
+            addRecentItem: jest.fn().mockResolvedValue(undefined),
+            clearRecentItems: jest.fn().mockResolvedValue(undefined),
+            getRecentItems: jest.fn().mockResolvedValue([]),
+            removeRecentItem: jest.fn().mockResolvedValue(undefined),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -143,6 +165,10 @@ describe('UnifiedRecentDataService', () => {
                 { provide: Store, useValue: store },
                 { provide: PlaylistsService, useValue: playlistsService },
                 { provide: DatabaseService, useValue: dbService },
+                {
+                    provide: XTREAM_COLLECTION_DATA_SOURCE,
+                    useValue: xtreamDataSource,
+                },
             ],
         });
 
@@ -286,6 +312,52 @@ describe('UnifiedRecentDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('filters PWA Xtream recent rows that have no positive Xtream identity', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream One',
+                    serverUrl: 'https://example.com',
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        xtreamDataSource.getRecentItems.mockResolvedValue([
+            {
+                id: 20203,
+                stream_id: 20203,
+                title: 'PWA Recent Movie',
+                type: 'movie',
+                poster_url: 'https://example.com/movie.png',
+                viewed_at: '2026-04-21T20:42:27.000Z',
+            } satisfies XtreamCollectionDataSourceItem,
+            {
+                title: 'Broken PWA Recent',
+                type: 'movie',
+                poster_url: 'https://example.com/broken.png',
+                viewed_at: '2026-04-21T20:43:27.000Z',
+            } satisfies XtreamCollectionDataSourceItem,
+        ]);
+
+        const items = await service.getRecentItems(
+            'playlist',
+            'xtream-1',
+            'xtream'
+        );
+
+        expect(items).toEqual([
+            expect.objectContaining({
+                uid: 'xtream::xtream-1::movie:20203',
+                contentId: 20203,
+                xtreamId: 20203,
+            }),
+        ]);
     });
 
     it('keeps Stalker radio recent items in the live collection with radio metadata', async () => {
