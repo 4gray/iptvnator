@@ -32,9 +32,17 @@ NODE
 
 node /opt/iptvnator/web-backend/main.cjs &
 backend_pid="$!"
+nginx_pid=""
 
 shutdown() {
+  if [ -n "${nginx_pid:-}" ]; then
+    kill -TERM "$nginx_pid" 2>/dev/null || true
+    wait "$nginx_pid" 2>/dev/null || true
+  else
+    kill -TERM "$(cat /var/run/nginx.pid 2>/dev/null)" 2>/dev/null || true
+  fi
   kill "$backend_pid" 2>/dev/null || true
+  wait "$backend_pid" 2>/dev/null || true
 }
 
 trap shutdown INT TERM EXIT
@@ -87,4 +95,6 @@ function check() {
 check();
 NODE
 
-nginx -g 'daemon off;'
+nginx -g 'daemon off;' &
+nginx_pid="$!"
+wait "$nginx_pid"
