@@ -5,3 +5,8 @@ export * from './unified-favorites-data.service';
 export * from './unified-recent-data.service';
 export * from './stream-resolver.service';
 export * from './xtream-collection-data-source.token';
+export {
+    getPwaXtreamContentType,
+    getXtreamNumericValue,
+    getXtreamString,
+} from './collection-helpers';

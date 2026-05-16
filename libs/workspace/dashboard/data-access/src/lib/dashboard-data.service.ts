@@ -42,7 +42,6 @@ import {
     mapDbFavoriteToItem,
     mapDbRecentlyAddedToItem,
     mapDbRecentToItem,
-    normalizeActivityType,
     toDateTimestamp,
     toTimestamp,
 } from './dashboard-mappers';
@@ -50,8 +49,11 @@ import {
     buildStalkerDetailNavigationTarget,
     buildStalkerStateItem,
     buildXtreamNavigationTarget,
+    getPwaXtreamContentType,
     getGlobalFavoriteNavigation,
     getRecentItemNavigation,
+    getXtreamNumericValue,
+    getXtreamString,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
 
@@ -512,14 +514,14 @@ export class DashboardDataService {
         playlist: PlaylistMeta
     ): Omit<DashboardFavoriteItem, 'added_at'> {
         const record = item as unknown as Record<string, unknown>;
-        const id = this.getXtreamNumericValue(record, [
+        const id = getXtreamNumericValue(record, [
             'id',
             'stream_id',
             'series_id',
             'xtream_id',
         ]);
         const xtreamId =
-            this.getXtreamNumericValue(record, [
+            getXtreamNumericValue(record, [
                 'xtream_id',
                 'stream_id',
                 'series_id',
@@ -529,7 +531,7 @@ export class DashboardDataService {
         return {
             id: id ?? String(record['stream_id'] ?? record['series_id'] ?? ''),
             title: this.getXtreamTitle(record),
-            type: normalizeActivityType(this.getPwaXtreamActivityType(record)),
+            type: getPwaXtreamContentType(record),
             playlist_id: playlist._id,
             playlist_name:
                 playlist.title ||
@@ -540,33 +542,25 @@ export class DashboardDataService {
                 xtreamId ??
                 String(record['stream_id'] ?? record['series_id'] ?? ''),
             poster_url: this.getXtreamImage(record),
-            backdrop_url: this.getXtreamString(record['backdrop_url']),
+            backdrop_url: getXtreamString(record['backdrop_url']),
             source: 'xtream',
         };
     }
 
-    private getPwaXtreamActivityType(item: Record<string, unknown>): string {
-        if (item['series_id'] != null) {
-            return 'series';
-        }
-
-        return String(item['type'] ?? item['stream_type'] ?? 'movie');
-    }
-
     private getXtreamTitle(item: Record<string, unknown>): string {
         return (
-            this.getXtreamString(item['title']) ??
-            this.getXtreamString(item['name']) ??
-            this.getXtreamString(item['stream_display_name']) ??
+            getXtreamString(item['title']) ??
+            getXtreamString(item['name']) ??
+            getXtreamString(item['stream_display_name']) ??
             this.translateText('WORKSPACE.DASHBOARD.UNKNOWN_TITLE')
         );
     }
 
     private getXtreamImage(item: Record<string, unknown>): string {
         return (
-            this.getXtreamString(item['poster_url']) ??
-            this.getXtreamString(item['stream_icon']) ??
-            this.getXtreamString(item['cover']) ??
+            getXtreamString(item['poster_url']) ??
+            getXtreamString(item['stream_icon']) ??
+            getXtreamString(item['cover']) ??
             ''
         );
     }
@@ -582,26 +576,6 @@ export class DashboardDataService {
             new Date(0).toISOString();
         const timestamp = toTimestamp(value as string | number);
         return timestamp ? new Date(timestamp).toISOString() : String(value);
-    }
-
-    private getXtreamString(value: unknown): string | undefined {
-        return typeof value === 'string' && value.trim().length > 0
-            ? value
-            : undefined;
-    }
-
-    private getXtreamNumericValue(
-        item: Record<string, unknown>,
-        keys: string[]
-    ): number | null {
-        for (const key of keys) {
-            const value = Number(item[key]);
-            if (Number.isFinite(value) && value > 0) {
-                return value;
-            }
-        }
-
-        return null;
     }
 
     private hasElectronGlobalRecentApi(): boolean {

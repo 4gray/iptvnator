@@ -894,7 +894,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 return {
                     ...identity,
                     viewedAt: item.viewedAt,
-                    backdropUrl: item.backdropUrl ?? content?.backdrop_url,
+                    backdropUrl:
+                        item.backdropUrl ?? content?.backdrop_url ?? undefined,
                     content,
                 };
             })

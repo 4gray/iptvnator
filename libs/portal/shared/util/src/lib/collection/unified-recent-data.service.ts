@@ -25,7 +25,12 @@ import {
     UnifiedCollectionItem,
 } from './unified-collection-item.interface';
 import { CollectionScope } from './scope-toggle.service';
-import { xtreamContentType } from './collection-helpers';
+import {
+    getPwaXtreamContentType,
+    getXtreamNumericValue,
+    getXtreamString,
+    xtreamContentType,
+} from './collection-helpers';
 import {
     XTREAM_COLLECTION_DATA_SOURCE,
     XtreamCollectionDataSourceItem,
@@ -443,7 +448,9 @@ export class UnifiedRecentDataService {
     ): Promise<UnifiedCollectionItem[]> {
         try {
             const rows = await this.xtreamDataSource.getRecentItems(meta._id);
-            return rows.map((row) => this.mapPwaXtreamRecentItem(row, meta));
+            return rows
+                .map((row) => this.mapPwaXtreamRecentItem(row, meta))
+                .filter((item): item is UnifiedCollectionItem => item !== null);
         } catch {
             return [];
         }
@@ -452,30 +459,34 @@ export class UnifiedRecentDataService {
     private mapPwaXtreamRecentItem(
         row: XtreamCollectionDataSourceItem,
         meta: PlaylistMeta
-    ): UnifiedCollectionItem {
+    ): UnifiedCollectionItem | null {
         const record = row as unknown as Record<string, unknown>;
-        const contentType = this.getPwaXtreamContentType(record);
-        const xtreamId = this.getXtreamNumericValue(record, [
+        const contentType = getPwaXtreamContentType(record);
+        const xtreamId = getXtreamNumericValue(record, [
             'xtream_id',
             'stream_id',
             'series_id',
             'id',
         ]);
-        const contentId = this.getXtreamNumericValue(record, [
+        if (xtreamId == null) {
+            return null;
+        }
+
+        const contentId = getXtreamNumericValue(record, [
             'id',
             'stream_id',
             'series_id',
             'xtream_id',
         ]);
         const title =
-            this.getXtreamString(record['title']) ??
-            this.getXtreamString(record['name']) ??
-            this.getXtreamString(record['stream_display_name']) ??
+            getXtreamString(record['title']) ??
+            getXtreamString(record['name']) ??
+            getXtreamString(record['stream_display_name']) ??
             'Unknown';
         const image =
-            this.getXtreamString(record['poster_url']) ??
-            this.getXtreamString(record['stream_icon']) ??
-            this.getXtreamString(record['cover']) ??
+            getXtreamString(record['poster_url']) ??
+            getXtreamString(record['stream_icon']) ??
+            getXtreamString(record['cover']) ??
             null;
 
         return {
@@ -490,47 +501,15 @@ export class UnifiedRecentDataService {
             xtreamId,
             categoryId: record['category_id'] as string | number,
             tvgId: contentType === 'live' ? String(xtreamId) : undefined,
-            contentId,
+            contentId: contentId ?? xtreamId,
             viewedAt: normalizeStalkerDate(
-                this.getXtreamString(record['viewed_at']) ?? ''
+                getXtreamString(record['viewed_at']) ?? ''
             ),
         };
     }
 
     private hasElectronRecentApi(): boolean {
         return typeof window.electron?.dbGetRecentlyViewed === 'function';
-    }
-
-    private getPwaXtreamContentType(
-        item: Record<string, unknown>
-    ): UnifiedCollectionItem['contentType'] {
-        if (item['series_id'] != null) {
-            return 'series';
-        }
-
-        return xtreamContentType(
-            String(item['type'] ?? item['stream_type'] ?? 'movie')
-        );
-    }
-
-    private getXtreamString(value: unknown): string | undefined {
-        return typeof value === 'string' && value.trim().length > 0
-            ? value
-            : undefined;
-    }
-
-    private getXtreamNumericValue(
-        item: Record<string, unknown>,
-        keys: string[]
-    ): number {
-        for (const key of keys) {
-            const value = Number(item[key]);
-            if (Number.isFinite(value) && value > 0) {
-                return value;
-            }
-        }
-
-        return 0;
     }
 
     private async getM3uGlobalRecent(): Promise<UnifiedCollectionItem[]> {

@@ -477,14 +477,19 @@ describe('UnifiedFavoritesDataService', () => {
                 rating: '8.1',
                 added_at: '2026-03-26T08:00:00.000Z',
             } satisfies XtreamCollectionDataSourceItem,
+            {
+                name: 'Broken PWA Movie',
+                stream_type: 'movie',
+                stream_icon: 'broken.png',
+                added_at: '2026-03-26T09:00:00.000Z',
+            } satisfies XtreamCollectionDataSourceItem,
         ]);
 
         const items = await service.getFavorites('all');
 
         expect(databaseService.getAllGlobalFavorites).not.toHaveBeenCalled();
-        expect(xtreamDataSource.getFavorites).toHaveBeenCalledWith(
-            'xtream-1'
-        );
+        expect(xtreamDataSource.getFavorites).toHaveBeenCalledWith('xtream-1');
+        expect(items).toHaveLength(1);
         expect(items).toEqual([
             expect.objectContaining({
                 uid: 'xtream::xtream-1::movie:20203',
