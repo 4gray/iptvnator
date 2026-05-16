@@ -42,6 +42,20 @@ describe('PwaXtreamDataSource', () => {
         dataSource = TestBed.inject(PwaXtreamDataSource);
     });
 
+    function createFreshDataSource(): PwaXtreamDataSource {
+        TestBed.resetTestingModule();
+        TestBed.configureTestingModule({
+            providers: [
+                PwaXtreamDataSource,
+                {
+                    provide: XtreamApiService,
+                    useValue: apiService,
+                },
+            ],
+        });
+        return TestBed.inject(PwaXtreamDataSource);
+    }
+
     it('finds VOD cached under vod when callers request movie content', async () => {
         await dataSource.getContent('playlist-1', credentials, 'vod');
 
@@ -73,17 +87,63 @@ describe('PwaXtreamDataSource', () => {
         await dataSource.addFavorite(20203, 'playlist-1');
         await dataSource.addRecentItem(20203, 'playlist-1');
 
-        TestBed.resetTestingModule();
-        TestBed.configureTestingModule({
-            providers: [
-                PwaXtreamDataSource,
-                {
-                    provide: XtreamApiService,
-                    useValue: apiService,
-                },
-            ],
-        });
-        const freshDataSource = TestBed.inject(PwaXtreamDataSource);
+        const freshDataSource = createFreshDataSource();
+
+        await expect(
+            freshDataSource.getFavorites('playlist-1')
+        ).resolves.toEqual([
+            expect.objectContaining({
+                stream_id: 20203,
+                title: 'Movie',
+            }),
+        ]);
+        await expect(
+            freshDataSource.getRecentItems('playlist-1')
+        ).resolves.toEqual([
+            expect.objectContaining({
+                stream_id: 20203,
+                title: 'Movie',
+                viewed_at: expect.any(String),
+            }),
+        ]);
+    });
+
+    it('keeps PWA favorites in restore state when only stored snapshots are available', async () => {
+        await dataSource.getContent('playlist-1', credentials, 'vod');
+
+        await dataSource.addFavorite(20203, 'playlist-1');
+        await dataSource.addRecentItem(20203, 'playlist-1');
+
+        const freshDataSource = createFreshDataSource();
+        const restoreState =
+            await freshDataSource.clearPlaylistContent('playlist-1');
+
+        expect(restoreState.favorites).toEqual([
+            expect.objectContaining({
+                contentType: 'movie',
+                xtreamId: 20203,
+            }),
+        ]);
+        expect(restoreState.recentlyViewed).toEqual([
+            expect.objectContaining({
+                contentType: 'movie',
+                xtreamId: 20203,
+                viewedAt: expect.any(String),
+            }),
+        ]);
+    });
+
+    it('restores PWA favorites and recent items with snapshots after content refresh', async () => {
+        await dataSource.getContent('playlist-1', credentials, 'vod');
+
+        await dataSource.addFavorite(20203, 'playlist-1');
+        await dataSource.addRecentItem(20203, 'playlist-1');
+
+        const restoreState =
+            await dataSource.clearPlaylistContent('playlist-1');
+        await dataSource.restoreUserData('playlist-1', restoreState);
+
+        const freshDataSource = createFreshDataSource();
 
         await expect(
             freshDataSource.getFavorites('playlist-1')
