@@ -3,6 +3,8 @@ import {
     buildDashboardSourceActions,
     calcEpgProgress,
     formatEpgTimeRange,
+    formatRemainingLabel,
+    playbackProgressPercent,
     resolveDashboardHeroArtwork,
 } from './workspace-dashboard-rails.component';
 
@@ -195,6 +197,110 @@ describe('EPG enrichment helpers', () => {
                     start
                 )
             ).toBeNull();
+        });
+    });
+});
+
+describe('playback-position helpers', () => {
+    describe('playbackProgressPercent', () => {
+        it('returns null when there is no position or no duration', () => {
+            expect(playbackProgressPercent(null)).toBeNull();
+            expect(
+                playbackProgressPercent({ positionSeconds: 300 })
+            ).toBeNull();
+            expect(
+                playbackProgressPercent({
+                    positionSeconds: 300,
+                    durationSeconds: 0,
+                })
+            ).toBeNull();
+        });
+
+        it('returns the integer percent watched, clamped to [0, 100]', () => {
+            expect(
+                playbackProgressPercent({
+                    positionSeconds: 0,
+                    durationSeconds: 6000,
+                })
+            ).toBe(0);
+            expect(
+                playbackProgressPercent({
+                    positionSeconds: 3000,
+                    durationSeconds: 6000,
+                })
+            ).toBe(50);
+            expect(
+                playbackProgressPercent({
+                    positionSeconds: 6000,
+                    durationSeconds: 6000,
+                })
+            ).toBe(100);
+            // Past-end resume is clamped, not negative.
+            expect(
+                playbackProgressPercent({
+                    positionSeconds: 7000,
+                    durationSeconds: 6000,
+                })
+            ).toBe(100);
+            // Floor rounding — 99.97% stays at 99% to avoid the "watched
+            // completely" optical illusion when 1 second remains.
+            expect(
+                playbackProgressPercent({
+                    positionSeconds: 5998.5,
+                    durationSeconds: 6000,
+                })
+            ).toBe(99);
+        });
+    });
+
+    describe('formatRemainingLabel', () => {
+        it('returns null without a usable position/duration', () => {
+            expect(formatRemainingLabel(null)).toBeNull();
+            expect(
+                formatRemainingLabel({ positionSeconds: 100 })
+            ).toBeNull();
+            expect(
+                formatRemainingLabel({
+                    positionSeconds: 100,
+                    durationSeconds: -1,
+                })
+            ).toBeNull();
+        });
+
+        it('formats sub-minute, minute, and hour-spanning remainders', () => {
+            expect(
+                formatRemainingLabel({
+                    positionSeconds: 5970,
+                    durationSeconds: 6000,
+                })
+            ).toBe('30s left');
+            expect(
+                formatRemainingLabel({
+                    positionSeconds: 0,
+                    durationSeconds: 1800,
+                })
+            ).toBe('30m left');
+            expect(
+                formatRemainingLabel({
+                    positionSeconds: 0,
+                    durationSeconds: 3600,
+                })
+            ).toBe('1h left');
+            expect(
+                formatRemainingLabel({
+                    positionSeconds: 600,
+                    durationSeconds: 6840,
+                })
+            ).toBe('1h 44m left');
+        });
+
+        it('clamps below zero — a completed program reads as "0s left" not negative', () => {
+            expect(
+                formatRemainingLabel({
+                    positionSeconds: 7000,
+                    durationSeconds: 6000,
+                })
+            ).toBe('0s left');
         });
     });
 });

@@ -5,7 +5,12 @@ import { TranslateService } from '@ngx-translate/core';
 import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
-import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PlaybackPositionData,
+    Playlist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
+import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
 import { DashboardDataService } from './dashboard-data.service';
 
 describe('DashboardDataService', () => {
@@ -112,6 +117,16 @@ describe('DashboardDataService', () => {
         ),
     };
 
+    const playbackPositionsMock = {
+        savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
+        getPlaybackPosition: jest.fn().mockResolvedValue(null),
+        getSeriesPlaybackPositions: jest.fn().mockResolvedValue([]),
+        getAllPlaybackPositions: jest
+            .fn<Promise<PlaybackPositionData[]>, [string]>()
+            .mockResolvedValue([]),
+        clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
+    };
+
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
             value: {} as Window['electron'],
@@ -140,6 +155,9 @@ describe('DashboardDataService', () => {
         dbServiceMock.removeRecentItem.mockClear();
         storeMock.dispatch.mockClear();
 
+        playbackPositionsMock.getAllPlaybackPositions.mockClear();
+        playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([]);
+
         TestBed.configureTestingModule({
             providers: [
                 DashboardDataService,
@@ -157,6 +175,10 @@ describe('DashboardDataService', () => {
                         currentLang: 'en',
                         defaultLang: 'en',
                     },
+                },
+                {
+                    provide: PORTAL_PLAYBACK_POSITIONS,
+                    useValue: playbackPositionsMock,
                 },
             ],
         });
@@ -486,6 +508,133 @@ describe('DashboardDataService', () => {
             service.globalRecentVodItems().length +
                 service.globalRecentLiveItems().length
         ).toBe(service.globalRecentItems().length);
+    });
+
+    it('loads playback positions for every playlist that owns VOD/series recent items and exposes them by content key', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 101,
+                category_id: 18,
+                title: 'Atlantic City',
+                rating: '7.3',
+                viewed_at: '2026-04-21T10:00:00.000Z',
+                poster_url: 'https://example.com/atlantic.png',
+                xtream_id: 4242,
+                type: 'movie',
+                playlist_id: 'xtream-A',
+                playlist_name: 'Xtream A',
+            },
+            {
+                id: 102,
+                category_id: 19,
+                title: 'Color Orchard S02E04',
+                rating: '8.1',
+                viewed_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/orchard.png',
+                xtream_id: 909,
+                type: 'series',
+                playlist_id: 'xtream-B',
+                playlist_name: 'Xtream B',
+            },
+        ]);
+
+        playlistsSignal.set([
+            ...playlistsSignal(),
+            {
+                _id: 'xtream-A',
+                title: 'Xtream A',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://a.example.com',
+            },
+            {
+                _id: 'xtream-B',
+                title: 'Xtream B',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://b.example.com',
+            },
+        ]);
+
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            (playlistId: string) => {
+                if (playlistId === 'xtream-A') {
+                    return Promise.resolve([
+                        {
+                            contentXtreamId: 4242,
+                            contentType: 'vod',
+                            positionSeconds: 3600,
+                            durationSeconds: 6000,
+                            playlistId,
+                        } as PlaybackPositionData,
+                    ]);
+                }
+                if (playlistId === 'xtream-B') {
+                    return Promise.resolve([
+                        {
+                            contentXtreamId: 909,
+                            contentType: 'episode',
+                            seriesXtreamId: 900,
+                            seasonNumber: 2,
+                            episodeNumber: 4,
+                            positionSeconds: 720,
+                            durationSeconds: 1800,
+                            playlistId,
+                        } as PlaybackPositionData,
+                    ]);
+                }
+                return Promise.resolve([]);
+            }
+        );
+
+        await service.reloadGlobalRecentItems();
+        await service.reloadPlaybackPositions();
+
+        // Bulk fetched once per playlist that owns a tracked item — and ONLY
+        // for the playlists that own VOD/series recent items. The default M3U
+        // playlist (live channel) must not be queried.
+        const queriedPlaylists =
+            playbackPositionsMock.getAllPlaybackPositions.mock.calls.map(
+                (call) => call[0]
+            );
+        expect(new Set(queriedPlaylists)).toEqual(
+            new Set(['xtream-A', 'xtream-B'])
+        );
+
+        const vodItems = service.globalRecentVodItems();
+        const movie = vodItems.find((item) => item.title === 'Atlantic City');
+        const series = vodItems.find(
+            (item) => item.title === 'Color Orchard S02E04'
+        );
+
+        // Movie: vod position with 60% watched.
+        const moviePos = service.getPlaybackPositionForItem(movie!);
+        expect(moviePos?.positionSeconds).toBe(3600);
+        expect(moviePos?.contentType).toBe('vod');
+
+        // Series: episode position keyed by the recent item's xtream_id (the
+        // episode id, not the series id).
+        const seriesPos = service.getPlaybackPositionForItem(series!);
+        expect(seriesPos?.contentType).toBe('episode');
+        expect(seriesPos?.positionSeconds).toBe(720);
+    });
+
+    it('returns null playback position for live channels (no position tracking in schema)', async () => {
+        // The default M3U playlist contains a live channel. Without
+        // reloading playback positions the lookup still gracefully returns
+        // null — and `reloadPlaybackPositions` should skip the IPC entirely.
+        const liveItem = service
+            .globalRecentItems()
+            .find((item) => item.type === 'live');
+        expect(liveItem).toBeDefined();
+        expect(service.getPlaybackPositionForItem(liveItem!)).toBeNull();
+
+        await service.reloadPlaybackPositions();
+        expect(
+            playbackPositionsMock.getAllPlaybackPositions
+        ).not.toHaveBeenCalled();
     });
 
     it('prioritizes recently used Xtream sources over newer imported M3U sources', async () => {

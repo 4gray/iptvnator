@@ -46,6 +46,14 @@ export interface DashboardRailCard {
     nowPlayingTimeRange?: string | null;
     /** 0–100, % through the current program. */
     nowPlayingProgress?: number | null;
+
+    /**
+     * 0–100 watched, attached for movies/series with a resume position so
+     * the cover layout can render a thin "watched up to here" bar at the
+     * bottom of the poster. Live cards and content without a tracked
+     * position leave this unset.
+     */
+    watchProgress?: number | null;
 }
 
 /**

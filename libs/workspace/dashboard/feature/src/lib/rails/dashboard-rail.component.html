@@ -172,6 +172,17 @@
                                         <mat-icon>{{ card.icon }}</mat-icon>
                                     </div>
                                 }
+
+                                @if (card.watchProgress != null) {
+                                    <span
+                                        class="rail__art-progress"
+                                        aria-hidden="true"
+                                    >
+                                        <i
+                                            [style.width.%]="card.watchProgress"
+                                        ></i>
+                                    </span>
+                                }
                             </div>
 
                             <div class="rail__meta">

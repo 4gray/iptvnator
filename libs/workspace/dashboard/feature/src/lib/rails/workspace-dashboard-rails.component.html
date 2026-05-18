@@ -76,6 +76,24 @@
                     <h1 class="hero__title">{{ item.title }}</h1>
                     <p class="hero__subtitle">{{ item.subtitle }}</p>
 
+                    @if (item.watchProgress != null) {
+                        <span class="hero__progress" aria-hidden="true">
+                            <span
+                                class="hero__progress-bar"
+                                [style.width.%]="item.watchProgress"
+                            ></span>
+                        </span>
+                        <span class="hero__progress-meta">
+                            @if (item.remainingLabel) {
+                                <span>{{ item.remainingLabel }}</span>
+                                <span class="hero__progress-meta-sep"
+                                    >·</span
+                                >
+                            }
+                            <span>{{ item.watchProgress }}% watched</span>
+                        </span>
+                    }
+
                     <span class="hero__cta">
                         <mat-icon>play_arrow</mat-icon>
                         <span>{{

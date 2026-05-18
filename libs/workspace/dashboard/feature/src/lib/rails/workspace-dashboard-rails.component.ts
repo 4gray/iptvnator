@@ -73,6 +73,10 @@ interface DashboardHeroModel {
     readonly state?: Record<string, unknown>;
     readonly subtitle: string;
     readonly title: string;
+    /** 0–100 watched, when a resume position is known. */
+    readonly watchProgress?: number | null;
+    /** "1h 04m left" — pre-formatted for direct rendering. */
+    readonly remainingLabel?: string | null;
 }
 
 export type DashboardHeroBackdropSource = 'backdrop' | 'poster' | 'fallback';
@@ -254,6 +258,58 @@ export function calcEpgProgress(
     return Math.max(0, Math.min(100, ratio * 100));
 }
 
+// ── Playback-position helpers (used by both hero + Continue Watching cards)
+// — kept as plain functions so they're easy to unit-test without mounting the
+// component or the data service.
+
+export function playbackProgressPercent(
+    position: { positionSeconds: number; durationSeconds?: number } | null
+): number | null {
+    if (
+        !position ||
+        position.durationSeconds == null ||
+        position.durationSeconds <= 0
+    ) {
+        return null;
+    }
+    const ratio = position.positionSeconds / position.durationSeconds;
+    if (!Number.isFinite(ratio)) {
+        return null;
+    }
+    // Integer percent — keeps "92% watched" out of "92.4% watched" territory,
+    // and matches the resolution of a 3px-tall progress bar on a 280px card.
+    return Math.max(0, Math.min(100, Math.floor(ratio * 100)));
+}
+
+export function formatRemainingLabel(
+    position: { positionSeconds: number; durationSeconds?: number } | null
+): string | null {
+    if (
+        !position ||
+        position.durationSeconds == null ||
+        position.durationSeconds <= 0
+    ) {
+        return null;
+    }
+    const remaining = Math.max(
+        0,
+        Math.round(position.durationSeconds - position.positionSeconds)
+    );
+    if (remaining < 60) {
+        return `${remaining}s left`;
+    }
+    const totalMinutes = Math.round(remaining / 60);
+    if (totalMinutes < 60) {
+        return `${totalMinutes}m left`;
+    }
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (minutes === 0) {
+        return `${hours}h left`;
+    }
+    return `${hours}h ${minutes.toString().padStart(2, '0')}m left`;
+}
+
 function isXtreamAccountPlaylist(
     playlist: PlaylistMeta
 ): playlist is PlaylistMeta & {
@@ -321,6 +377,8 @@ export class WorkspaceDashboardRailsComponent {
             this.failedHeroImages()
         );
 
+        const position = this.data.getPlaybackPositionForItem(item);
+
         return {
             ...artwork,
             contentType: item.type,
@@ -329,6 +387,8 @@ export class WorkspaceDashboardRailsComponent {
             state: this.data.getRecentItemNavigationState(item),
             subtitle: this.buildHeroSubtitle(item),
             title: item.title,
+            watchProgress: playbackProgressPercent(position),
+            remainingLabel: formatRemainingLabel(position),
         };
     });
 
@@ -459,6 +519,21 @@ export class WorkspaceDashboardRailsComponent {
 
             void this.data.reloadXtreamRecentlyAddedItems(RAIL_ITEM_LIMIT);
         });
+
+        // Reload playback positions whenever the set of VOD/series recent
+        // items changes (new playlists with watch history, removed playlist,
+        // newly tracked content). Using just the count + the playlist ids as
+        // the dependency keeps unrelated tick churn out of the IPC path.
+        effect(() => {
+            const playlistKeys = new Set<string>();
+            for (const item of this.data.globalRecentVodItems()) {
+                playlistKeys.add(item.playlist_id);
+            }
+            void this.data.reloadPlaybackPositions();
+            // Sort so the effect dep is stable across re-renders for the
+            // same set; otherwise the computed identity flips every tick.
+            void [...playlistKeys].sort().join('|');
+        });
     }
 
     onAddPlaylist(type?: WorkspacePlaylistType): void {
@@ -506,6 +581,8 @@ export class WorkspaceDashboardRailsComponent {
     }
 
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
+        const position = this.data.getPlaybackPositionForItem(item);
+        const watchProgress = playbackProgressPercent(position);
         return {
             id: `recent-${item.id}-${item.playlist_id}-${item.viewed_at}`,
             title: item.title,
@@ -515,6 +592,7 @@ export class WorkspaceDashboardRailsComponent {
             contentType: item.type,
             link: this.data.getRecentItemLink(item),
             state: this.data.getRecentItemNavigationState(item),
+            watchProgress,
         };
     }
 

@@ -249,6 +249,28 @@
     }
 }
 
+// Thin "watched-up-to-here" bar pinned to the bottom of the poster art.
+// Mirrors the Netflix / Plex resume-card pattern: the bar is the user's
+// quick "did I finish this?" cue without needing to read the metadata
+// strip below the card.
+.rail__art-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2;
+    pointer-events: none;
+
+    i {
+        display: block;
+        height: 100%;
+        background: var(--app-selection-color, #78adff);
+        transition: width 0.4s ease;
+    }
+}
+
 .rail__art-bg {
     position: absolute;
     inset: 0;
