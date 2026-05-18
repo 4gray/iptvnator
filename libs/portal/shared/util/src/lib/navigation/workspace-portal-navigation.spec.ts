@@ -7,15 +7,11 @@ import {
     getCollectionViewState,
     getOpenCollectionDetailItemState,
     getOpenLiveCollectionItemState,
-    getOpenStalkerItemState,
     getRecentItemNavigation,
-    getStalkerReturnToState,
     getUnifiedCollectionNavigation,
     OPEN_COLLECTION_DETAIL_STATE_KEY,
     matchesOpenLiveCollectionItem,
     OPEN_LIVE_COLLECTION_ITEM_STATE_KEY,
-    OPEN_STALKER_ITEM_STATE_KEY,
-    STALKER_RETURN_TO_STATE_KEY,
 } from './workspace-portal-navigation';
 
 describe('workspace-portal-navigation', () => {

@@ -22,10 +22,10 @@ import {
 import {
     buildCollectionUid,
     buildXtreamCollectionUid,
+    CollectionScope,
     UnifiedCollectionItem,
-} from './unified-collection-item.interface';
-import { CollectionScope } from './scope-toggle.service';
-import { xtreamContentType } from './collection-helpers';
+    xtreamContentType,
+} from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };

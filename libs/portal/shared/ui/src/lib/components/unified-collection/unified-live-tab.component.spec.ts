@@ -40,11 +40,13 @@ import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     PORTAL_PLAYER,
     FavoritesChannelSortMode,
-    StreamResolverService,
     UnifiedCollectionItem,
     UnifiedFavoriteChannel,
-    UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/util';
+import {
+    StreamResolverService,
+    UnifiedRecentDataService,
+} from '@iptvnator/portal/shared/data-access';
 
 @Directive({
     selector: '[appResizable]',

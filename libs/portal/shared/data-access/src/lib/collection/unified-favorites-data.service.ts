@@ -19,14 +19,12 @@ import {
 import {
     buildCollectionUid,
     buildXtreamCollectionUid,
-    UnifiedCollectionItem,
-} from './unified-collection-item.interface';
-import { CollectionScope } from './scope-toggle.service';
-import {
+    CollectionScope,
     isStalkerItem,
+    UnifiedCollectionItem,
     xtreamContentType,
     XtreamFavoriteRow,
-} from './collection-helpers';
+} from '@iptvnator/portal/shared/util';
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 
@@ -346,18 +344,22 @@ export class UnifiedFavoritesDataService {
     private async clearXtreamFavorites(
         items: UnifiedCollectionItem[]
     ): Promise<void> {
-        if (!window.electron) {
+        const electron = window.electron;
+        if (!electron) {
             return;
         }
 
         await Promise.all(
             items
-                .filter((item) => item.contentId != null)
+                .filter(
+                    (
+                        item
+                    ): item is UnifiedCollectionItem & {
+                        readonly contentId: number;
+                    } => item.contentId != null
+                )
                 .map((item) =>
-                    window.electron!.dbRemoveFavorite(
-                        item.contentId!,
-                        item.playlistId
-                    )
+                    electron.dbRemoveFavorite(item.contentId, item.playlistId)
                 )
         );
     }
@@ -679,9 +681,11 @@ export class UnifiedFavoritesDataService {
         const unordered: UnifiedCollectionItem[] = [];
         for (const item of items) {
             const pos = orderMap.get(item.uid);
-            pos != null
-                ? ordered.push({ ...item, position: pos })
-                : unordered.push(item);
+            if (pos != null) {
+                ordered.push({ ...item, position: pos });
+            } else {
+                unordered.push(item);
+            }
         }
         ordered.sort((a, b) => (a.position ?? 0) - (b.position ?? 0));
         unordered.sort(
@@ -693,14 +697,18 @@ export class UnifiedFavoritesDataService {
     }
 
     private buildXtreamPositionUpdates(items: UnifiedCollectionItem[]) {
-        return items
-            .filter(
-                (item) => item.sourceType === 'xtream' && item.contentId != null
-            )
-            .map((item, index) => ({
-                content_id: item.contentId!,
-                position: index,
-            }));
+        const updates: { content_id: number; position: number }[] = [];
+
+        for (const item of items) {
+            if (item.sourceType === 'xtream' && item.contentId != null) {
+                updates.push({
+                    content_id: item.contentId,
+                    position: updates.length,
+                });
+            }
+        }
+
+        return updates;
     }
 
     private groupItemsByPlaylist(

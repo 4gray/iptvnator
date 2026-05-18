@@ -15,7 +15,7 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
-import { UnifiedCollectionItem } from './unified-collection-item.interface';
+import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };
