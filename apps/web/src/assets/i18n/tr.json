@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "İzlemeye Devam Et",
             "LIVE_RECENT": "Favorilerinizde şu an canlı",
+            "LIVE_CONTINUE": "Canlı TV ile devam et",
             "UNTITLED_SOURCE": "Adsız kaynak",
             "GLOBAL_FAVORITES": "Tüm Favoriler",
             "REMOVE_FROM_HISTORY": "Geçmişten kaldır",

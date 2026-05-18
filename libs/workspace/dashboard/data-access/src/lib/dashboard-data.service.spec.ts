@@ -621,6 +621,69 @@ describe('DashboardDataService', () => {
         expect(seriesPos?.positionSeconds).toBe(720);
     });
 
+    it('exposes a live-only slice of global favorites so the dashboard can promote favorited channels into the Live rail', async () => {
+        // Seed two favorites: a movie and a live channel.
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: 500,
+                category_id: 18,
+                title: 'Favorite Movie',
+                rating: '7.0',
+                added_at: '2026-04-21T10:00:00.000Z',
+                poster_url: 'https://example.com/fav-movie.png',
+                xtream_id: 5500,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+            {
+                id: 501,
+                category_id: 19,
+                title: 'Favorite Channel HD',
+                rating: '0',
+                added_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/fav-channel.png',
+                xtream_id: 5501,
+                type: 'live',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+        playlistsSignal.set([
+            ...playlistsSignal(),
+            {
+                _id: 'xtream-1',
+                title: 'Xtream Playlist',
+                count: 2,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://example.com',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+
+        const liveOnly = service.globalFavoriteLiveItems();
+        // Includes the Xtream "Favorite Channel HD" plus the two M3U live
+        // favorites already seeded by the default fixture.
+        expect(liveOnly.map((it) => it.title)).toEqual(
+            expect.arrayContaining([
+                'Favorite Channel HD',
+                'Channel One',
+                'Channel Two',
+            ])
+        );
+
+        // Crucially, the movie favorite is excluded — the rail source must
+        // never leak VOD posters into the channel layout.
+        expect(liveOnly.map((it) => it.title)).not.toContain(
+            'Favorite Movie'
+        );
+        expect(
+            service.globalFavoriteLiveItems().every((it) => it.type === 'live')
+        ).toBe(true);
+    });
+
     it('returns null playback position for live channels (no position tracking in schema)', async () => {
         // The default M3U playlist contains a live channel. Without
         // reloading playback positions the lookup still gracefully returns

@@ -403,11 +403,43 @@ export class WorkspaceDashboardRailsComponent {
             .map((item) => this.toRecentCard(item))
     );
 
-    readonly liveOnFavoritesCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    // Live rail source — favorited live channels take precedence so the EPG
+    // enrichment lands on the channels the user actually cares about. When
+    // no favorites exist (fresh install, or a user who hasn't starred any
+    // channel yet), fall back to recently-watched live so the rail still
+    // has something to show. `liveRailSource` drives the title swap.
+    readonly liveRailSource = computed<'favorites' | 'recent'>(() =>
+        this.data.globalFavoriteLiveItems().length > 0
+            ? 'favorites'
+            : 'recent'
+    );
+
+    readonly liveOnFavoritesCards = computed<DashboardRailCard[]>(() => {
+        if (this.liveRailSource() === 'favorites') {
+            return this.data
+                .globalFavoriteLiveItems()
+                .slice(0, RAIL_ITEM_LIMIT)
+                .map((item) => this.toFavoriteCard(item));
+        }
+        return this.data
             .globalRecentLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toRecentCard(item))
+            .map((item) => this.toRecentCard(item));
+    });
+
+    // Title key flips with the source — "Live now on your favorites" when
+    // we're rendering favorites, "Continue with live TV" when we're falling
+    // back to recently-watched. Always honest about what the user is seeing.
+    readonly liveRailTitleKey = computed(() =>
+        this.liveRailSource() === 'favorites'
+            ? 'WORKSPACE.DASHBOARD.LIVE_RECENT'
+            : 'WORKSPACE.DASHBOARD.LIVE_CONTINUE'
+    );
+
+    readonly liveRailTotalCount = computed(() =>
+        this.liveRailSource() === 'favorites'
+            ? this.data.globalFavoriteLiveItems().length
+            : this.data.globalRecentLiveItems().length
     );
 
     // Best-effort EPG lookup keyed by the channel's display name. This works

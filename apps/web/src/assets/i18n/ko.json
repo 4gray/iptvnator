@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "이어서 시청",
             "LIVE_RECENT": "즐겨찾기에서 지금 라이브 중인 채널입니다",
+            "LIVE_CONTINUE": "라이브 TV 이어서 시청",
             "UNTITLED_SOURCE": "제목 없는 소스",
             "GLOBAL_FAVORITES": "전체 즐겨찾기",
             "REMOVE_FROM_HISTORY": "기록에서 제거",

@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Continue Watching",
             "LIVE_RECENT": "Live now on your favorites",
+            "LIVE_CONTINUE": "Continue with live TV",
             "UNTITLED_SOURCE": "Untitled source",
             "GLOBAL_FAVORITES": "Global Favorites",
             "REMOVE_FROM_HISTORY": "Remove from history",

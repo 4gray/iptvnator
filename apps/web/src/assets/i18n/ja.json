@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "視聴を再開",
             "LIVE_RECENT": "お気に入りで現在放送中",
+            "LIVE_CONTINUE": "ライブTVの視聴を再開",
             "UNTITLED_SOURCE": "無題のソース",
             "GLOBAL_FAVORITES": "グローバルお気に入り",
             "REMOVE_FROM_HISTORY": "履歴から削除",

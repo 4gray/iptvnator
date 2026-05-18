@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Продолжить просмотр",
             "LIVE_RECENT": "Сейчас в эфире на избранных каналах",
+            "LIVE_CONTINUE": "Продолжить просмотр прямого эфира",
             "UNTITLED_SOURCE": "Источник без названия",
             "GLOBAL_FAVORITES": "Глобальные избранные",
             "REMOVE_FROM_HISTORY": "Удалить из истории",

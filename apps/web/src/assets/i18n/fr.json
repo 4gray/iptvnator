@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Reprendre la lecture",
             "LIVE_RECENT": "En direct sur vos favoris",
+            "LIVE_CONTINUE": "Reprendre la TV en direct",
             "UNTITLED_SOURCE": "Source sans titre",
             "GLOBAL_FAVORITES": "Favoris globaux",
             "REMOVE_FROM_HISTORY": "Retirer de l'historique",

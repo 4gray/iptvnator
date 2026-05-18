@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "繼續觀看",
             "LIVE_RECENT": "我的最愛正在直播",
+            "LIVE_CONTINUE": "繼續觀看直播電視",
             "UNTITLED_SOURCE": "未命名的來源",
             "GLOBAL_FAVORITES": "全域我的最愛",
             "REMOVE_FROM_HISTORY": "從歷史記錄中移除",

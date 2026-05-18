@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "كمل المشاهدة",
             "LIVE_RECENT": "مباشر دابا على المفضلة ديالك",
+            "LIVE_CONTINUE": "كمل مع المباشر",
             "UNTITLED_SOURCE": "مصدر بلا عنوان",
             "GLOBAL_FAVORITES": "المفضلة العامة",
             "REMOVE_FROM_HISTORY": "حيد من السجل",

@@ -824,6 +824,7 @@
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Працягнуць прагляд",
             "LIVE_RECENT": "Цяпер у эфіры на выбраных",
+            "LIVE_CONTINUE": "Працягнуць прагляд эфіру",
             "UNTITLED_SOURCE": "Крыніца без назвы",
             "GLOBAL_FAVORITES": "Усе фаварыты",
             "REMOVE_FROM_HISTORY": "Выдаліць з гісторыі",
