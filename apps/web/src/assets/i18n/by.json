@@ -375,9 +375,9 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Цёмная тэма",
-        "LIGHT_THEME": "Светлая тэма",
-        "SYSTEM_THEME": "Сістэмная тэма"
+        "DARK_THEME": "Цёмная",
+        "LIGHT_THEME": "Светлая",
+        "SYSTEM_THEME": "Сістэмная"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {

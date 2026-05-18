@@ -14,18 +14,20 @@
         class="settings-layout"
         novalidate
     >
+        <!-- Page-level "Settings" h1 intentionally removed: the left rail
+             already labels the page "Settings" (sg-nav-title), and each
+             section below provides its own h3 + subtitle. Stacking another
+             h1 in the right pane reproduced the audit's "vertical ladder
+             of identical labels" complaint. -->
         @if (!isDialog) {
-            <header
-                class="settings-page-header"
+            <!-- Reserved hook so the page test selector still resolves,
+                 even though there's no visible chrome here. -->
+            <span
+                class="visually-hidden"
                 data-test-id="settings-page-header"
             >
-                <div class="settings-page-header__text">
-                    <h1 data-test-id="settings-page-title">
-                        {{ 'SETTINGS.TITLE' | translate }}
-                    </h1>
-                    <p>{{ 'SETTINGS.GENERAL_SUBTITLE' | translate }}</p>
-                </div>
-            </header>
+                {{ 'SETTINGS.TITLE' | translate }}
+            </span>
         }
 
         <div class="settings-content">

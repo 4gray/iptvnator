@@ -375,8 +375,8 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "暗黑模式",
-        "LIGHT_THEME": "明亮模式",
+        "DARK_THEME": "深色",
+        "LIGHT_THEME": "浅色",
         "SYSTEM_THEME": "跟随系统"
     },
     "PLAYBACK_DIAGNOSTICS": {

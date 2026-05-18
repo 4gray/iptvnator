@@ -375,9 +375,9 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "السمة الداكنة",
-        "LIGHT_THEME": "السمة الفاتحة",
-        "SYSTEM_THEME": "سمة النظام"
+        "DARK_THEME": "داكن",
+        "LIGHT_THEME": "فاتح",
+        "SYSTEM_THEME": "النظام"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {

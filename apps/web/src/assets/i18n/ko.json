@@ -375,9 +375,9 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "어두운 테마",
-        "LIGHT_THEME": "밝은 테마",
-        "SYSTEM_THEME": "시스템 테마"
+        "DARK_THEME": "어둡게",
+        "LIGHT_THEME": "밝게",
+        "SYSTEM_THEME": "시스템"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {

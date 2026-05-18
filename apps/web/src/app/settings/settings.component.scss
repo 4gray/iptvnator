@@ -235,50 +235,59 @@
     }
 }
 
+// Compact segmented control — replaces the previous 3 buttons each ~78px
+// tall. Per the UX audit, "Light/Dark/System" was reading as the most
+// important setting on the page because of its sheer footprint. Now the
+// row reads at the same weight as the other compact rows (Language,
+// Startup behavior, etc.), restoring the visual hierarchy.
 .theme-switcher {
-    width: min(100%, 540px);
-    display: grid;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    gap: 8px;
+    width: min(100%, 360px);
+    display: inline-flex;
+    padding: 3px;
+    gap: 2px;
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-surface-container-low) 80%,
+        transparent
+    );
+    border: 1px solid
+        color-mix(in srgb, var(--mat-sys-outline-variant) 60%, transparent);
+    border-radius: 10px;
 }
 
 .theme-switcher__option {
+    flex: 1 1 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    gap: 8px;
-    min-height: 54px;
-    padding: 12px 14px;
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
-    border-radius: 16px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 88%,
-        transparent
-    );
+    gap: 6px;
+    min-height: 30px;
+    padding: 4px 12px;
+    border: 0;
+    border-radius: 7px;
+    background: transparent;
     color: var(--mat-sys-on-surface-variant);
     font: inherit;
-    font-size: 0.9rem;
-    font-weight: 600;
-    letter-spacing: -0.01em;
+    font-size: 0.82rem;
+    font-weight: 500;
+    letter-spacing: 0;
     cursor: pointer;
     transition:
-        border-color 0.18s ease,
-        background 0.18s ease,
-        box-shadow 0.18s ease,
-        color 0.18s ease;
+        background 0.16s ease,
+        color 0.16s ease,
+        box-shadow 0.16s ease;
 
     mat-icon {
-        width: 18px;
-        height: 18px;
-        font-size: 18px;
+        width: 16px;
+        height: 16px;
+        font-size: 16px;
+        line-height: 16px;
     }
 
     &:hover {
         background: color-mix(
             in srgb,
-            var(--mat-sys-surface-container-high) 86%,
+            var(--mat-sys-surface-container-highest) 70%,
             transparent
         );
         color: var(--mat-sys-on-surface);
@@ -286,31 +295,19 @@
 
     &:focus-visible {
         outline: none;
-        box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--app-selection-color) 18%, transparent);
+        box-shadow: 0 0 0 2px
+            color-mix(in srgb, var(--app-selection-color) 50%, transparent);
     }
 }
 
 .theme-switcher__option--selected {
-    border-color: var(--settings-group-active-ring);
-    background: linear-gradient(
-        135deg,
-        color-mix(
-            in srgb,
-            var(--app-selection-surface-strong) 72%,
-            var(--mat-sys-surface-container-high)
-        ),
-        color-mix(
-            in srgb,
-            var(--app-selection-surface) 72%,
-            var(--mat-sys-surface-container)
-        )
-    );
+    background: var(--app-widget-bg, var(--mat-sys-surface));
     color: var(--app-selection-color);
+    font-weight: 600;
     box-shadow:
+        0 1px 2px rgba(0, 0, 0, 0.18),
         inset 0 0 0 1px
-            color-mix(in srgb, var(--app-selection-border) 54%, transparent),
-        0 10px 18px -22px var(--settings-group-active-glow);
+            color-mix(in srgb, var(--app-selection-border) 36%, transparent);
 }
 
 .epg-sources {
@@ -708,21 +705,31 @@
     );
 }
 
+// Sticky-footer Save bar — full content width so it never overlaps form
+// rows. The previous chip-style bar (border-radius:18px, margin-left:auto)
+// floated in the bottom-right corner and clipped fields underneath; the
+// UX audit called this out as the worst of three available patterns.
+// Now the bar acts as a proper footer: spans the column, separator line
+// on top, sits flush with the bottom edge while still sticking on scroll.
 .action-bar {
     position: sticky;
     bottom: calc(
         var(--settings-action-bar-offset) + var(--settings-safe-bottom)
     );
-    margin-left: auto;
+    margin-left: 0;
+    margin-right: 0;
     z-index: 100;
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-    padding: 10px 14px;
-    border: 1px solid var(--settings-action-bar-border);
-    border-radius: 18px;
+    padding: 12px 18px;
+    border-top: 1px solid var(--settings-action-bar-border);
+    border-left: 0;
+    border-right: 0;
+    border-bottom: 0;
+    border-radius: 0;
     background: var(--settings-action-bar-bg);
     backdrop-filter: blur(12px);
     box-shadow: var(--settings-action-bar-shadow);
@@ -735,16 +742,21 @@
     box-shadow: none;
     border-radius: 16px;
     padding: 12px;
+    border-top: 1px solid var(--settings-action-bar-border);
     justify-content: space-between;
 }
 
 .settings-save-button.mat-mdc-button-base {
-    background: linear-gradient(135deg, #3b82f6 0%, #2563eb 100%);
-    color: #fff;
+    // Use the unified blue primary (--app-selection-color) instead of the
+    // old hand-rolled #3b82f6 gradient that didn't match the rest of the
+    // app's CTAs after the color unification commit.
+    background: var(--app-selection-color);
+    color: var(--app-selection-on-color, #fff);
     font-weight: 500;
     padding: 0 20px;
     border-radius: 10px;
-    box-shadow: 0 4px 14px rgba(59, 130, 246, 0.28);
+    box-shadow: 0 4px 14px
+        color-mix(in srgb, var(--app-selection-color) 28%, transparent);
     transition:
         transform 0.2s ease,
         box-shadow 0.2s ease,
@@ -756,7 +768,8 @@
 
     &:hover:not([disabled]) {
         transform: translateY(-1px);
-        box-shadow: 0 6px 18px rgba(59, 130, 246, 0.38);
+        box-shadow: 0 6px 18px
+            color-mix(in srgb, var(--app-selection-color) 38%, transparent);
     }
 
     &:active:not([disabled]) {

@@ -203,3 +203,20 @@ textarea,
 .mat-mdc-snack-bar-container.settings-snackbar {
     margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
+
+// WCAG-friendly visually-hidden helper — content stays in the
+// accessibility tree and DOM query results but occupies no layout box.
+// Used where a visible heading would duplicate adjacent navigation
+// context (e.g. Settings page title that the left rail already
+// announces).
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}

@@ -375,9 +375,9 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Σκούρο θέμα",
-        "LIGHT_THEME": "Ανοιχτόχρωμο θέμα",
-        "SYSTEM_THEME": "Θέμα συστήματος"
+        "DARK_THEME": "Σκούρο",
+        "LIGHT_THEME": "Ανοιχτό",
+        "SYSTEM_THEME": "Σύστημα"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
