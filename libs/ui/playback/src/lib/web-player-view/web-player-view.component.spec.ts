@@ -234,6 +234,69 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
+    it('preserves playback HTTP metadata for channel-based players', () => {
+        const streamUrl = 'https://example.com/live/channel.m3u8';
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.Html5Player);
+        fixture.componentRef.setInput('playback', {
+            streamUrl,
+            title: 'Header Locked Channel',
+            userAgent: 'ProviderAgent/1.0',
+            referer: 'https://provider.example/ref',
+            origin: 'https://provider.example',
+            headers: {
+                'User-Agent': 'IgnoredFallbackAgent/1.0',
+                Referer: 'https://ignored.example/ref',
+                Origin: 'https://ignored.example',
+            },
+        });
+
+        fixture.detectChanges();
+
+        const player = fixture.debugElement.query(
+            By.directive(StubHtmlVideoPlayerComponent)
+        ).componentInstance as StubHtmlVideoPlayerComponent;
+        expect(player.channel()).toEqual(
+            expect.objectContaining({
+                url: streamUrl,
+                name: 'Header Locked Channel',
+                http: {
+                    'user-agent': 'ProviderAgent/1.0',
+                    referrer: 'https://provider.example/ref',
+                    origin: 'https://provider.example',
+                },
+            })
+        );
+    });
+
+    it('falls back to playback headers when explicit HTTP metadata is absent', () => {
+        const streamUrl = 'https://example.com/live/channel.m3u8';
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.Html5Player);
+        fixture.componentRef.setInput('playback', {
+            streamUrl,
+            title: 'Header Fallback Channel',
+            headers: {
+                'user-agent': 'HeaderAgent/1.0',
+                referer: 'https://headers.example/ref',
+                origin: 'https://headers.example',
+            },
+        });
+
+        fixture.detectChanges();
+
+        const player = fixture.debugElement.query(
+            By.directive(StubHtmlVideoPlayerComponent)
+        ).componentInstance as StubHtmlVideoPlayerComponent;
+        expect(player.channel()).toEqual(
+            expect.objectContaining({
+                http: {
+                    'user-agent': 'HeaderAgent/1.0',
+                    referrer: 'https://headers.example/ref',
+                    origin: 'https://headers.example',
+                },
+            })
+        );
+    });
+
     it('uses browser access diagnostic translation keys', () => {
         const issue = createBrowserAccessDiagnostic();
 
@@ -311,6 +374,13 @@ describe('WebPlayerViewComponent', () => {
 
     it('clears playback diagnostics when retrying inline playback', () => {
         fixture.detectChanges();
+        const player = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
+        expect(player.options()).toEqual(
+            expect.objectContaining({ reloadToken: 0 })
+        );
+
         component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
         fixture.detectChanges();
 
@@ -327,6 +397,9 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
 
         expect(component.playbackDiagnostic()).toBeNull();
+        expect(player.options()).toEqual(
+            expect.objectContaining({ reloadToken: 1 })
+        );
         expect(
             fixture.debugElement.query(
                 By.css('[data-test-id="playback-diagnostic-banner"]')
