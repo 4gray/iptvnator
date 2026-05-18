@@ -18,12 +18,21 @@
 }
 
 // ─── Dialog head (title + helper subtitle) ──────────────────────────────────
+// `mat-dialog-title` carries Material's `.mdc-dialog__title` defaults, which
+// include a 40px-tall `::before` ghost element for baseline alignment plus a
+// 6px/9px asymmetric padding. Both fight our custom two-line head — kill the
+// ghost and apply explicit padding so the title shares the same 24px
+// horizontal inset as `mat-dialog-content` below.
 .apd-head {
     display: flex;
     flex-direction: column;
     gap: 4px;
-    margin: 0 0 8px;
-    padding: 0;
+    margin: 0;
+    padding: 20px 24px 4px;
+
+    &::before {
+        display: none;
+    }
 }
 
 .apd-title {
