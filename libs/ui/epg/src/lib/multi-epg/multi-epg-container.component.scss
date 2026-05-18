@@ -6,10 +6,12 @@ $bg-hover: #24243a;
 $border-subtle: rgba(255, 255, 255, 0.06);
 $border-medium: rgba(255, 255, 255, 0.12);
 
-// Accent colors - TV broadcast vibes
-$accent-primary: #00d4aa; // Cyan/teal for time
-$accent-secondary: #8b5cf6; // Purple for programs
-$accent-tertiary: #f472b6; // Pink for highlights
+// Accent colors — unified with the rest of the app:
+// cyan is reserved for the EPG "now" indicator, blue is the app primary,
+// purple/pink had no semantic role and are dropped per the UX audit.
+$accent-primary: #5cd6ff; // Cyan — reserved for "now" indicator
+$accent-secondary: #4f8eff; // Blue — programs (matches --app-selection-color)
+$accent-tertiary: #4f8eff; // Blue — highlights
 $accent-warning: #fbbf24;
 
 // Text colors
@@ -20,17 +22,17 @@ $text-muted: rgba(248, 250, 252, 0.4);
 // Gradients
 $gradient-program: linear-gradient(
     135deg,
-    rgba(139, 92, 246, 0.15) 0%,
-    rgba(139, 92, 246, 0.05) 100%
+    rgba(79, 142, 255, 0.15) 0%,
+    rgba(79, 142, 255, 0.05) 100%
 );
 $gradient-program-hover: linear-gradient(
     135deg,
-    rgba(139, 92, 246, 0.3) 0%,
-    rgba(139, 92, 246, 0.15) 100%
+    rgba(79, 142, 255, 0.3) 0%,
+    rgba(79, 142, 255, 0.15) 100%
 );
 $gradient-header: linear-gradient(
     180deg,
-    rgba(0, 212, 170, 0.08) 0%,
+    rgba(92, 214, 255, 0.08) 0%,
     transparent 100%
 );
 

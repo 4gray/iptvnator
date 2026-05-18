@@ -155,10 +155,13 @@
     background: color-mix(in srgb, var(--mat-sys-surface-container) 60%, transparent);
     backdrop-filter: blur(6px);
 
+    // LIVE stays in the app's red "broadcasting now" role across every
+    // surface (channel rows, EPG now-bar, badges). The station's extracted
+    // dominant color is only used as a soft aura on the artwork.
     &.live {
-        color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
-        border-color: color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 52%, transparent);
-        background: color-mix(in srgb, var(--radio-accent, var(--app-selection-color)) 14%, transparent);
+        color: var(--app-live-color, #ff8f8f);
+        border-color: color-mix(in srgb, var(--app-live-color, #ff8f8f) 52%, transparent);
+        background: color-mix(in srgb, var(--app-live-color, #ff8f8f) 14%, transparent);
     }
 }
 
@@ -199,9 +202,11 @@
     }
 }
 
+// Play / Pause uses the unified app primary, not the station's dominant color
+// — same blue as every other CTA so radio doesn't feel like a different app.
 .play-btn {
-    --mdc-fab-container-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
-    --mat-fab-container-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mdc-fab-container-color: var(--app-selection-color, var(--mat-sys-primary));
+    --mat-fab-container-color: var(--app-selection-color, var(--mat-sys-primary));
     --mdc-fab-icon-color: #fff;
     --mat-fab-foreground-color: #fff;
     --mat-fab-icon-color: #fff;
@@ -238,10 +243,10 @@
 
 .vol-slider {
     flex: 1;
-    --mdc-slider-active-track-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
-    --mdc-slider-handle-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
-    --mat-slider-active-track-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
-    --mat-slider-handle-color: var(--radio-accent, var(--app-selection-color, var(--mat-sys-primary)));
+    --mdc-slider-active-track-color: var(--app-selection-color, var(--mat-sys-primary));
+    --mdc-slider-handle-color: var(--app-selection-color, var(--mat-sys-primary));
+    --mat-slider-active-track-color: var(--app-selection-color, var(--mat-sys-primary));
+    --mat-slider-handle-color: var(--app-selection-color, var(--mat-sys-primary));
     --mdc-slider-inactive-track-color: var(--mat-sys-outline-variant);
     --mdc-slider-handle-width: 12px;
     --mdc-slider-handle-height: 12px;

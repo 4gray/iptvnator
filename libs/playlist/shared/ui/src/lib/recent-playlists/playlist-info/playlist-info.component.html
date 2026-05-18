@@ -168,7 +168,7 @@
         @if (!playlist.serverUrl && !playlist.portalUrl) {
             <button
                 mat-flat-button
-                color="accent"
+                color="primary"
                 type="button"
                 (click)="exportPlaylist()"
             >
@@ -183,7 +183,7 @@
         <button
             mat-flat-button
             mat-dialog-close
-            color="accent"
+            color="primary"
             type="submit"
             [disabled]="!playlistDetails.valid || playlistDetails.pristine"
         >

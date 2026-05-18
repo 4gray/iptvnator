@@ -24,18 +24,21 @@
         --text-primary: #1a1a1a;
         --text-secondary: rgba(26, 26, 26, 0.75);
         --text-muted: rgba(26, 26, 26, 0.5);
-        --accent-color: #b81d24;
+        // Single primary CTA color — matches --app-selection-color so the
+        // Play button reads as the same blue used everywhere else for
+        // "active / call to action".
+        --accent-color: #2f7bff;
         --tag-bg: rgba(0, 0, 0, 0.06);
         --tag-border: rgba(0, 0, 0, 0.12);
         --play-idle-bg: linear-gradient(
             135deg,
-            #fffaf2 0%,
-            #ffffff 52%,
-            #f7ecdf 100%
+            #2f7bff 0%,
+            #3b86ff 52%,
+            #4a90ff 100%
         );
-        --play-idle-fg: #161310;
-        --play-idle-border: rgba(88, 48, 18, 0.12);
-        --play-idle-shadow: 0 18px 38px rgba(91, 56, 24, 0.14);
+        --play-idle-fg: #ffffff;
+        --play-idle-border: rgba(47, 123, 255, 0.4);
+        --play-idle-shadow: 0 18px 38px rgba(47, 123, 255, 0.32);
         --play-launching-bg: linear-gradient(
             135deg,
             #ffd36f 0%,
@@ -74,19 +77,19 @@
         --text-primary: #fff;
         --text-secondary: rgba(255, 255, 255, 0.7);
         --text-muted: rgba(255, 255, 255, 0.5);
-        --accent-color: #e50914;
+        --accent-color: #78adff;
         --tag-bg: rgba(255, 255, 255, 0.1);
         --tag-border: rgba(255, 255, 255, 0.2);
         --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
         --play-idle-bg: linear-gradient(
             135deg,
-            #fff5e6 0%,
-            #f6efe5 58%,
-            #e7dac9 100%
+            #2f7bff 0%,
+            #4f8eff 58%,
+            #78adff 100%
         );
-        --play-idle-fg: #15110d;
-        --play-idle-border: rgba(255, 255, 255, 0.18);
-        --play-idle-shadow: 0 20px 42px rgba(0, 0, 0, 0.36);
+        --play-idle-fg: #ffffff;
+        --play-idle-border: rgba(120, 173, 255, 0.32);
+        --play-idle-shadow: 0 20px 42px rgba(47, 123, 255, 0.32);
         --play-launching-bg: linear-gradient(
             135deg,
             #ffdd79 0%,

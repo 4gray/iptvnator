@@ -90,7 +90,7 @@
                 @case ('url') {
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!urlUpload()?.form?.valid"
                         (click)="submitUrlPlaylist()"
@@ -101,7 +101,7 @@
                 @case ('file') {
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!fileUpload()?.selectedFile()"
                         (click)="fileUpload()?.confirm()"
@@ -112,7 +112,7 @@
                 @case ('text') {
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!textImport()?.textForm?.valid"
                         (click)="
@@ -142,7 +142,7 @@
                     </button>
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!xtreamImport()?.form?.valid"
                         (click)="xtreamImport()?.addPlaylist()"
@@ -154,7 +154,7 @@
                     @if (stalkerImport()?.isLoading()) {
                         <button
                             mat-flat-button
-                            color="accent"
+                            color="primary"
                             type="button"
                             disabled
                         >
@@ -165,7 +165,7 @@
                     } @else {
                         <button
                             mat-flat-button
-                            color="accent"
+                            color="primary"
                             type="button"
                             [disabled]="!stalkerImport()?.form?.valid"
                             (click)="stalkerImport()?.addPlaylist()"
