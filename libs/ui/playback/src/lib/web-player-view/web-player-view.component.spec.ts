@@ -158,6 +158,9 @@ describe('WebPlayerViewComponent', () => {
         expect(banner.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER.TITLE'
         );
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
+        );
         mpvButton.nativeElement.click();
 
         expect(requests).toEqual([
@@ -231,6 +234,69 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
+    it('preserves playback HTTP metadata for channel-based players', () => {
+        const streamUrl = 'https://example.com/live/channel.m3u8';
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.Html5Player);
+        fixture.componentRef.setInput('playback', {
+            streamUrl,
+            title: 'Header Locked Channel',
+            userAgent: 'ProviderAgent/1.0',
+            referer: 'https://provider.example/ref',
+            origin: 'https://provider.example',
+            headers: {
+                'User-Agent': 'IgnoredFallbackAgent/1.0',
+                Referer: 'https://ignored.example/ref',
+                Origin: 'https://ignored.example',
+            },
+        });
+
+        fixture.detectChanges();
+
+        const player = fixture.debugElement.query(
+            By.directive(StubHtmlVideoPlayerComponent)
+        ).componentInstance as StubHtmlVideoPlayerComponent;
+        expect(player.channel()).toEqual(
+            expect.objectContaining({
+                url: streamUrl,
+                name: 'Header Locked Channel',
+                http: {
+                    'user-agent': 'ProviderAgent/1.0',
+                    referrer: 'https://provider.example/ref',
+                    origin: 'https://provider.example',
+                },
+            })
+        );
+    });
+
+    it('falls back to playback headers when explicit HTTP metadata is absent', () => {
+        const streamUrl = 'https://example.com/live/channel.m3u8';
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.Html5Player);
+        fixture.componentRef.setInput('playback', {
+            streamUrl,
+            title: 'Header Fallback Channel',
+            headers: {
+                'user-agent': 'HeaderAgent/1.0',
+                referer: 'https://headers.example/ref',
+                origin: 'https://headers.example',
+            },
+        });
+
+        fixture.detectChanges();
+
+        const player = fixture.debugElement.query(
+            By.directive(StubHtmlVideoPlayerComponent)
+        ).componentInstance as StubHtmlVideoPlayerComponent;
+        expect(player.channel()).toEqual(
+            expect.objectContaining({
+                http: {
+                    'user-agent': 'HeaderAgent/1.0',
+                    referrer: 'https://headers.example/ref',
+                    origin: 'https://headers.example',
+                },
+            })
+        );
+    });
+
     it('uses browser access diagnostic translation keys', () => {
         const issue = createBrowserAccessDiagnostic();
 
@@ -239,6 +305,27 @@ describe('WebPlayerViewComponent', () => {
         );
         expect(component.getDiagnosticDescriptionKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
+        );
+    });
+
+    it('uses an inline recovery headline when external fallback actions are unavailable', () => {
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+
+        const banner = fixture.debugElement.query(
+            By.css('[data-test-id="playback-diagnostic-banner"]')
+        );
+        const mpvButton = fixture.debugElement.query(
+            By.css('[data-test-id="playback-fallback-mpv"]')
+        );
+
+        expect(mpvButton).toBeNull();
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.NETWORK_ERROR.TITLE'
+        );
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
         );
     });
 
@@ -284,6 +371,41 @@ describe('WebPlayerViewComponent', () => {
             'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
         );
     });
+
+    it('clears playback diagnostics when retrying inline playback', () => {
+        fixture.detectChanges();
+        const player = fixture.debugElement.query(
+            By.directive(StubVjsPlayerComponent)
+        ).componentInstance as StubVjsPlayerComponent;
+        expect(player.options()).toEqual(
+            expect.objectContaining({ reloadToken: 0 })
+        );
+
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        fixture.detectChanges();
+
+        const retryButton = fixture.debugElement.query(
+            By.css('[data-test-id="playback-retry"]')
+        );
+        const utilityControls = fixture.nativeElement.querySelectorAll(
+            '[data-test-id="playback-retry"], [data-test-id="playback-diagnostic-details"]'
+        );
+
+        expect(utilityControls[0]).toBe(retryButton.nativeElement);
+
+        retryButton.nativeElement.click();
+        fixture.detectChanges();
+
+        expect(component.playbackDiagnostic()).toBeNull();
+        expect(player.options()).toEqual(
+            expect.objectContaining({ reloadToken: 1 })
+        );
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-diagnostic-banner"]')
+            )
+        ).toBeNull();
+    });
 });
 
 function createUnsupportedContainerDiagnostic(): PlaybackDiagnostic {
@@ -327,5 +449,20 @@ function createUnsupportedCodecDiagnostic(): PlaybackDiagnostic {
         videoCodecs: ['hvc1.1.6.L93.B0'],
         details: 'manifestIncompatibleCodecsError',
         externalFallbackRecommended: true,
+    };
+}
+
+function createNetworkDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.MpegTs,
+        sourceUrl: 'https://example.com/live/channel.ts',
+        container: 'ts',
+        mimeType: 'video/mp2t',
+        player: 'videojs',
+        audioCodecs: [],
+        videoCodecs: [],
+        details: 'HttpStatusCodeInvalid {"code":456,"msg":"<none>"}',
+        externalFallbackRecommended: false,
     };
 }

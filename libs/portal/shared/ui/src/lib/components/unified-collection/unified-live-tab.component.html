@@ -56,40 +56,15 @@
                         "
                     />
                 } @else {
-                    @if (player() === 'videojs') {
-                        <app-vjs-player
-                            [options]="{
-                                sources: [
-                                    {
-                                        src: currentStreamUrl(),
-                                        type: 'application/x-mpegURL',
-                                    },
-                                ],
-                            }"
-                            [volume]="1"
-                        />
-                    }
-                    @if (player() === 'html5') {
-                        <app-html-video-player
-                            [channel]="activeChannelForOverlay()!"
-                            [volume]="1"
-                            [showCaptions]="false"
-                        />
-                    }
-                    @if (player() === 'artplayer') {
-                        <app-art-player
-                            [channel]="activeChannelForOverlay()!"
-                            [volume]="1"
-                            [showCaptions]="false"
-                        />
-                    }
-                    @if (player() === 'embedded-mpv') {
-                        <app-web-player-view
-                            [streamUrl]="currentStreamUrl()"
-                            [title]="activeDetail()?.playback?.title ?? ''"
-                            [playback]="activeDetail()?.playback ?? null"
-                        />
-                    }
+                    <app-web-player-view
+                        [streamUrl]="currentStreamUrl()"
+                        [title]="activeDetail()?.playback?.title ?? ''"
+                        [playback]="activeDetail()?.playback ?? null"
+                        [playerOverride]="player()"
+                        (externalFallbackRequested)="
+                            handleExternalFallbackRequest($event)
+                        "
+                    />
                 }
             </div>
         }

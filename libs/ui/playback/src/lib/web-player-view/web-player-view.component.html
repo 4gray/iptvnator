@@ -46,21 +46,26 @@
         data-test-id="playback-diagnostic-banner"
         role="status"
     >
-        <div class="web-player-diagnostic__icon" aria-hidden="true">
-            <mat-icon>warning</mat-icon>
-        </div>
-        <div class="web-player-diagnostic__body">
-            <div class="web-player-diagnostic__title">
-                {{ getDiagnosticTitleKey(issue) | translate }}
+        <div class="web-player-diagnostic__content">
+            <div class="web-player-diagnostic__badge">
+                <mat-icon aria-hidden="true">warning</mat-icon>
+                <span>{{ getDiagnosticTitleKey(issue) | translate }}</span>
             </div>
+
+            <h2 class="web-player-diagnostic__headline">
+                {{ diagnosticHeadlineKey() | translate }}
+            </h2>
+
             <div class="web-player-diagnostic__description">
                 {{ getDiagnosticDescriptionKey(issue) | translate }}
             </div>
+
             @if (getDiagnosticMeta(issue); as meta) {
                 <div class="web-player-diagnostic__meta">
                     {{ meta }}
                 </div>
             }
+
             @if (getDiagnosticCodecHint(issue); as codecHint) {
                 <div
                     class="web-player-diagnostic__codec-hint"
@@ -72,58 +77,113 @@
                     }}
                 </div>
             }
-            <details
-                class="web-player-diagnostic__details"
-                data-test-id="playback-diagnostic-details"
-            >
-                <summary>
-                    <mat-icon aria-hidden="true">info</mat-icon>
-                    {{ 'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY' | translate }}
-                </summary>
-                <dl>
-                    @for (
-                        detail of getDiagnosticDetails(issue);
-                        track detail.labelKey
-                    ) {
-                        <div class="web-player-diagnostic__detail-row">
-                            <dt>{{ detail.labelKey | translate }}</dt>
-                            <dd>{{ detail.value }}</dd>
-                        </div>
-                    }
-                </dl>
-            </details>
-        </div>
-        <div class="web-player-diagnostic__actions">
+
             @if (canShowExternalFallbackActions()) {
-                <button
-                    mat-stroked-button
-                    type="button"
-                    data-test-id="playback-fallback-mpv"
-                    (click)="requestExternalFallback('mpv')"
+                <div
+                    class="web-player-diagnostic__player-actions"
+                    aria-label="External player fallbacks"
                 >
-                    <mat-icon>open_in_new</mat-icon>
-                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV' | translate }}
-                </button>
-                <button
-                    mat-stroked-button
-                    type="button"
-                    data-test-id="playback-fallback-vlc"
-                    (click)="requestExternalFallback('vlc')"
-                >
-                    <mat-icon>open_in_new</mat-icon>
-                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC' | translate }}
-                </button>
+                    <button
+                        class="web-player-diagnostic__player-card web-player-diagnostic__player-card--primary"
+                        type="button"
+                        data-test-id="playback-fallback-mpv"
+                        (click)="requestExternalFallback('mpv')"
+                    >
+                        <mat-icon aria-hidden="true">open_in_new</mat-icon>
+                        <span class="web-player-diagnostic__player-copy">
+                            <span class="web-player-diagnostic__player-label">
+                                {{
+                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV'
+                                        | translate
+                                }}
+                            </span>
+                            <span class="web-player-diagnostic__player-hint">
+                                {{
+                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_MPV_HINT'
+                                        | translate
+                                }}
+                            </span>
+                        </span>
+                    </button>
+
+                    <button
+                        class="web-player-diagnostic__player-card"
+                        type="button"
+                        data-test-id="playback-fallback-vlc"
+                        (click)="requestExternalFallback('vlc')"
+                    >
+                        <mat-icon aria-hidden="true">open_in_new</mat-icon>
+                        <span class="web-player-diagnostic__player-copy">
+                            <span class="web-player-diagnostic__player-label">
+                                {{
+                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC'
+                                        | translate
+                                }}
+                            </span>
+                            <span class="web-player-diagnostic__player-hint">
+                                {{
+                                    'PLAYBACK_DIAGNOSTICS.ACTION_OPEN_VLC_HINT'
+                                        | translate
+                                }}
+                            </span>
+                        </span>
+                    </button>
+                </div>
             }
-            <button
-                mat-button
-                type="button"
-                [cdkCopyToClipboard]="resolvedPlayback().streamUrl"
-                [matTooltip]="resolvedPlayback().streamUrl"
-                data-test-id="playback-copy-url"
-            >
-                <mat-icon>content_copy</mat-icon>
-                {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_URL' | translate }}
-            </button>
+
+            <div class="web-player-diagnostic__utilities">
+                <button
+                    class="web-player-diagnostic__utility-button"
+                    type="button"
+                    [cdkCopyToClipboard]="resolvedPlayback().streamUrl"
+                    [matTooltip]="resolvedPlayback().streamUrl"
+                    data-test-id="playback-copy-url"
+                >
+                    <mat-icon aria-hidden="true">content_copy</mat-icon>
+                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_COPY_URL' | translate }}
+                </button>
+
+                <span
+                    class="web-player-diagnostic__divider"
+                    aria-hidden="true"
+                ></span>
+
+                <button
+                    class="web-player-diagnostic__utility-button"
+                    type="button"
+                    data-test-id="playback-retry"
+                    (click)="retryPlayback()"
+                >
+                    <mat-icon aria-hidden="true">refresh</mat-icon>
+                    {{ 'PLAYBACK_DIAGNOSTICS.ACTION_RETRY' | translate }}
+                </button>
+
+                <span
+                    class="web-player-diagnostic__divider"
+                    aria-hidden="true"
+                ></span>
+
+                <details
+                    class="web-player-diagnostic__details"
+                    data-test-id="playback-diagnostic-details"
+                >
+                    <summary>
+                        <mat-icon aria-hidden="true">expand_more</mat-icon>
+                        {{ 'PLAYBACK_DIAGNOSTICS.DETAILS_SUMMARY' | translate }}
+                    </summary>
+                    <dl>
+                        @for (
+                            detail of getDiagnosticDetails(issue);
+                            track detail.labelKey
+                        ) {
+                            <div class="web-player-diagnostic__detail-row">
+                                <dt>{{ detail.labelKey | translate }}</dt>
+                                <dd>{{ detail.value }}</dd>
+                            </div>
+                        }
+                    </dl>
+                </details>
+            </div>
         </div>
     </section>
 }

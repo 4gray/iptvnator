@@ -37,6 +37,7 @@ type VideoPlayerSource = {
 type VideoPlayerOptions = Record<string, unknown> & {
     autoplay?: boolean;
     isLive?: boolean;
+    reloadToken?: number;
     sources?: VideoPlayerSource[];
 };
 
@@ -235,7 +236,14 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const previousSource =
                 changes['options'].previousValue.sources?.[0];
             const newSource = changes['options'].currentValue.sources?.[0];
-            if (this.hasSourceChanged(previousSource, newSource)) {
+            if (
+                this.hasPlaybackInputChanged(
+                    changes['options'].previousValue,
+                    changes['options'].currentValue,
+                    previousSource,
+                    newSource
+                )
+            ) {
                 this.playbackIssue.emit(null);
                 this.destroyMpegTs();
                 if (!newSource) {
@@ -274,11 +282,14 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         return (extension === 'ts' || !extension) && mpegts.isSupported();
     }
 
-    private hasSourceChanged(
+    private hasPlaybackInputChanged(
+        previousOptions: VideoPlayerOptions,
+        newOptions: VideoPlayerOptions,
         previousSource: VideoPlayerSource | undefined,
         newSource: VideoPlayerSource | undefined
     ): boolean {
         return (
+            previousOptions.reloadToken !== newOptions.reloadToken ||
             previousSource?.src !== newSource?.src ||
             previousSource?.type !== newSource?.type
         );

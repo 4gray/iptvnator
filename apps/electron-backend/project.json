@@ -118,6 +118,10 @@
             }
         },
         "serve-electron": {
+            "dependsOn": [
+                "electron-backend:build-worker",
+                "electron-backend:build-embedded-mpv"
+            ],
             "executor": "nx-electron:execute",
             "options": {
                 "buildTarget": "electron-backend:build",

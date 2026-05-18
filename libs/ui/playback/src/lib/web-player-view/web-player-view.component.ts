@@ -8,6 +8,7 @@ import {
     input,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
@@ -17,6 +18,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
+    Channel,
     ResolvedPortalPlayback,
     Settings,
     STORE_KEY,
@@ -80,18 +82,25 @@ export class WebPlayerViewComponent {
         this.storage.get(STORE_KEY.Settings)
     ) as Signal<Settings>;
 
-    channel!: { url: string };
+    channel!: Channel;
     player!: VideoPlayer;
     vjsOptions!: {
         isLive: boolean;
+        reloadToken: number;
         sources: { src: string; type: string }[];
     };
     readonly isDesktop = signal(this.detectDesktop());
+    readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     readonly canShowExternalFallbackActions = computed(
         () =>
             this.isDesktop() &&
             !!this.playbackDiagnostic()?.externalFallbackRecommended
+    );
+    readonly diagnosticHeadlineKey = computed(() =>
+        this.canShowExternalFallbackActions()
+            ? 'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
+            : 'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
     );
 
     readonly resolvedPlayback = computed<ResolvedPortalPlayback>(() => {
@@ -119,7 +128,7 @@ export class WebPlayerViewComponent {
 
             const playback = this.resolvedPlayback();
             this.playbackDiagnostic.set(null);
-            this.setChannel(playback.streamUrl);
+            this.setChannel(playback);
             this.setVjsOptions(
                 playback.streamUrl,
                 this.isLivePlayback(playback)
@@ -138,13 +147,47 @@ export class WebPlayerViewComponent {
 
         this.vjsOptions = {
             isLive,
+            reloadToken: untracked(() => this.reloadToken()),
             sources: [{ src: streamUrl, type: mimeType }],
         };
     }
 
-    setChannel(streamUrl: string) {
+    setChannel(playbackOrUrl: ResolvedPortalPlayback | string) {
+        const playback =
+            typeof playbackOrUrl === 'string'
+                ? {
+                      streamUrl: playbackOrUrl,
+                      title: playbackOrUrl,
+                  }
+                : playbackOrUrl;
+
         this.channel = {
-            url: streamUrl,
+            id: playback.streamUrl,
+            url: playback.streamUrl,
+            name: playback.title || playback.streamUrl,
+            group: { title: '' },
+            tvg: {
+                id: '',
+                name: playback.title || playback.streamUrl,
+                url: '',
+                logo: playback.thumbnail ?? '',
+                rec: '',
+            },
+            http: {
+                referrer:
+                    playback.referer ??
+                    this.getHeaderValue(playback.headers, 'Referer') ??
+                    '',
+                'user-agent':
+                    playback.userAgent ??
+                    this.getHeaderValue(playback.headers, 'User-Agent') ??
+                    '',
+                origin:
+                    playback.origin ??
+                    this.getHeaderValue(playback.headers, 'Origin') ??
+                    '',
+            },
+            radio: 'false',
         };
     }
 
@@ -163,6 +206,15 @@ export class WebPlayerViewComponent {
             playback: this.resolvedPlayback(),
             diagnostic,
         });
+    }
+
+    retryPlayback(): void {
+        const playback = this.resolvedPlayback();
+
+        this.playbackDiagnostic.set(null);
+        this.reloadToken.update((value) => value + 1);
+        this.setChannel(playback);
+        this.setVjsOptions(playback.streamUrl, this.isLivePlayback(playback));
     }
 
     getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
@@ -263,6 +315,20 @@ export class WebPlayerViewComponent {
         }
 
         return !playback.contentInfo;
+    }
+
+    private getHeaderValue(
+        headers: ResolvedPortalPlayback['headers'] | undefined,
+        name: string
+    ): string | undefined {
+        if (!headers) {
+            return undefined;
+        }
+
+        const matchingKey = Object.keys(headers).find(
+            (key) => key.toLowerCase() === name.toLowerCase()
+        );
+        return matchingKey ? headers[matchingKey] : undefined;
     }
 
     private formatPlayer(player: PlaybackDiagnostic['player']): string {
