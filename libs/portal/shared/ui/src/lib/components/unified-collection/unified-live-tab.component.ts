@@ -37,7 +37,11 @@ import {
 } from '@iptvnator/ui/epg';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
-import { AudioPlayerComponent } from '@iptvnator/ui/playback';
+import {
+    AudioPlayerComponent,
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
+} from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
@@ -45,8 +49,6 @@ import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    type PlaybackFallbackRequest,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 
 @Component({

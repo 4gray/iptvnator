@@ -11,7 +11,11 @@ import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';
-import { AudioPlayerComponent } from '@iptvnator/ui/playback';
+import {
+    AudioPlayerComponent,
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
+} from '@iptvnator/ui/playback';
 import {
     EpgDateNavigationDirection,
     EpgListComponent,
@@ -31,8 +35,6 @@ import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
-    type PlaybackFallbackRequest,
-    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
