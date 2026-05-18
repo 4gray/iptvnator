@@ -196,6 +196,19 @@ export class DashboardDataService {
             .slice(0, 200)
     );
 
+    // Split the recent list by content type so the dashboard can render
+    // movies/series ("Continue watching") separately from live channels
+    // ("Live now on your favorites"). Two card formats — one rail each.
+    readonly globalRecentVodItems = computed<GlobalRecentItem[]>(() =>
+        this.globalRecentItems().filter(
+            (item) => item.type === 'movie' || item.type === 'series'
+        )
+    );
+
+    readonly globalRecentLiveItems = computed<GlobalRecentItem[]>(() =>
+        this.globalRecentItems().filter((item) => item.type === 'live')
+    );
+
     readonly stalkerGlobalFavorites = computed<DashboardFavoriteItem[]>(() => {
         this.languageTick();
         return buildStalkerFavoriteItems(

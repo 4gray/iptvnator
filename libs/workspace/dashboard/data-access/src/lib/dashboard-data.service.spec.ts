@@ -419,6 +419,75 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('splits global recent items into VOD and live computed signals so the dashboard can render two rails', async () => {
+        // Seed an Xtream movie and an Xtream series alongside the M3U live
+        // channel already present in defaultPlaylists, then verify the
+        // splits land on the right computed signal.
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 401,
+                category_id: 18,
+                title: 'Recent Movie',
+                rating: '7.8',
+                viewed_at: '2026-04-21T10:00:00.000Z',
+                poster_url: 'https://example.com/recent-movie.png',
+                xtream_id: 7001,
+                type: 'movie',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+            {
+                id: 402,
+                category_id: 19,
+                title: 'Recent Series',
+                rating: '8.1',
+                viewed_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/recent-series.png',
+                xtream_id: 7002,
+                type: 'series',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+
+        playlistsSignal.set([
+            ...playlistsSignal(),
+            {
+                _id: 'xtream-1',
+                title: 'Xtream Playlist',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://example.com',
+            },
+        ]);
+
+        await service.reloadGlobalRecentItems();
+
+        const vodTitles = service
+            .globalRecentVodItems()
+            .map((item) => item.title);
+        const liveTitles = service
+            .globalRecentLiveItems()
+            .map((item) => item.title);
+
+        expect(vodTitles).toEqual(
+            expect.arrayContaining(['Recent Movie', 'Recent Series'])
+        );
+        expect(vodTitles).not.toContain('Channel One');
+
+        expect(liveTitles).toContain('Channel One');
+        expect(liveTitles).not.toEqual(
+            expect.arrayContaining(['Recent Movie', 'Recent Series'])
+        );
+
+        // Splits stay mutually exclusive — sum of partitions equals the whole.
+        expect(
+            service.globalRecentVodItems().length +
+                service.globalRecentLiveItems().length
+        ).toBe(service.globalRecentItems().length);
+    });
+
     it('prioritizes recently used Xtream sources over newer imported M3U sources', async () => {
         playlistsSignal.set([
             {

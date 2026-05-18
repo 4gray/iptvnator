@@ -270,9 +270,20 @@ export class WorkspaceDashboardRailsComponent {
         };
     });
 
-    readonly recentlyWatchedCards = computed<DashboardRailCard[]>(() =>
+    // Split the mixed "recently watched" history into two rails. VOD items
+    // (movies/series) get one rail; live channels get their own. Two card
+    // formats — one rail each — so users can scan each surface at a glance
+    // instead of decoding a mixed grid of fallback posters and channel logos.
+    readonly continueWatchingCards = computed<DashboardRailCard[]>(() =>
         this.data
-            .globalRecentItems()
+            .globalRecentVodItems()
+            .slice(0, RAIL_ITEM_LIMIT)
+            .map((item) => this.toRecentCard(item))
+    );
+
+    readonly liveOnFavoritesCards = computed<DashboardRailCard[]>(() =>
+        this.data
+            .globalRecentLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
             .map((item) => this.toRecentCard(item))
     );

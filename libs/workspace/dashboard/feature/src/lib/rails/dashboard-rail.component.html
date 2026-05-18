@@ -14,9 +14,20 @@
                 [routerLink]="link"
                 [attr.data-test-id]="testId() ? testId() + '-manage-all' : null"
             >
-                <span class="rail__see-all-label">{{
-                    'WORKSPACE.DASHBOARD.MANAGE_ALL' | translate
-                }}</span>
+                <span class="rail__see-all-label">
+                    @if ((totalCount() ?? items().length) > items().length) {
+                        {{
+                            'WORKSPACE.DASHBOARD.SEE_ALL_COUNT'
+                                | translate
+                                    : {
+                                          count:
+                                              totalCount() ?? items().length,
+                                      }
+                        }}
+                    } @else {
+                        {{ 'WORKSPACE.DASHBOARD.SEE_ALL' | translate }}
+                    }
+                </span>
                 <mat-icon>chevron_right</mat-icon>
             </a>
         }

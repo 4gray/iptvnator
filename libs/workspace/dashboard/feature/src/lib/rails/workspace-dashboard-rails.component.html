@@ -102,16 +102,33 @@
             </section>
         }
 
-        <!-- Recently watched rail -->
-        @if (recentlyWatchedCards().length > 0) {
+        <!-- Continue watching (movies + series) -->
+        @if (continueWatchingCards().length > 0) {
             <lib-dashboard-rail
-                [label]="'WORKSPACE.DASHBOARD.RECENTLY_WATCHED' | translate"
-                [items]="recentlyWatchedCards()"
-                [totalCount]="data.globalRecentItems().length"
+                [label]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
+                [items]="continueWatchingCards()"
+                [totalCount]="data.globalRecentVodItems().length"
                 [seeAllLink]="['/workspace/global-recent']"
-                [testId]="'dashboard-recently-watched-rail'"
+                [testId]="'dashboard-continue-watching-rail'"
             />
-        } @else if (data.globalRecentLoading()) {
+        }
+
+        <!-- Live now on your favorites (channels you recently watched) -->
+        @if (liveOnFavoritesCards().length > 0) {
+            <lib-dashboard-rail
+                [label]="'WORKSPACE.DASHBOARD.LIVE_RECENT' | translate"
+                [items]="liveOnFavoritesCards()"
+                [totalCount]="data.globalRecentLiveItems().length"
+                [seeAllLink]="['/workspace/global-recent']"
+                [testId]="'dashboard-live-recent-rail'"
+            />
+        }
+
+        @if (
+            continueWatchingCards().length === 0 &&
+            liveOnFavoritesCards().length === 0 &&
+            data.globalRecentLoading()
+        ) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
