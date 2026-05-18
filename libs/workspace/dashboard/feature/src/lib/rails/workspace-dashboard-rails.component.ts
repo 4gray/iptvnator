@@ -6,6 +6,10 @@ import {
     inject,
     signal,
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { interval, of, startWith, switchMap } from 'rxjs';
+import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -43,6 +47,13 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 // the DOM stays cheap, and the "Manage all" link is one click away for the
 // full list. Matches the single-rail density of Netflix / Apple TV+.
 const RAIL_ITEM_LIMIT = 20;
+
+// EPG "now" data ticks every 30s — short enough that the progress bar moves
+// visibly between long-tail program changes, long enough that we don't hammer
+// the SQLite backend with a batched IPC every animation frame. Matches the
+// channel-list-container's existing progress cadence so the two surfaces
+// can't drift out of sync.
+const LIVE_EPG_TICK_MS = 30_000;
 
 // Six placeholder slots per skeleton rail — fills a typical viewport without
 // taking the whole page. Mirrors the recently-added skeleton density.
@@ -193,6 +204,56 @@ export function buildDashboardSourceActions(
     return actions;
 }
 
+// Reads either an ISO `start`/`stop` or the pre-computed `startTimestamp`
+// when present (the parsed XMLTV pipeline populates both, but legacy rows
+// only carry the strings).
+function epgTimestampMs(
+    program: EpgProgram,
+    side: 'start' | 'stop'
+): number | null {
+    const cached =
+        side === 'start' ? program.startTimestamp : program.stopTimestamp;
+    if (cached != null) {
+        return cached;
+    }
+    const iso = side === 'start' ? program.start : program.stop;
+    const ms = iso ? new Date(iso).getTime() : NaN;
+    return Number.isFinite(ms) ? ms : null;
+}
+
+function formatEpgTime(ms: number): string {
+    const d = new Date(ms);
+    return `${d.getHours().toString().padStart(2, '0')}:${d
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}`;
+}
+
+export function formatEpgTimeRange(program: EpgProgram): string | null {
+    const start = epgTimestampMs(program, 'start');
+    const stop = epgTimestampMs(program, 'stop');
+    if (start == null || stop == null) {
+        return null;
+    }
+    return `${formatEpgTime(start)} – ${formatEpgTime(stop)}`;
+}
+
+export function calcEpgProgress(
+    program: EpgProgram,
+    nowMs: number
+): number | null {
+    const start = epgTimestampMs(program, 'start');
+    const stop = epgTimestampMs(program, 'stop');
+    if (start == null || stop == null || stop <= start) {
+        return null;
+    }
+    const ratio = (nowMs - start) / (stop - start);
+    if (!Number.isFinite(ratio)) {
+        return null;
+    }
+    return Math.max(0, Math.min(100, ratio * 100));
+}
+
 function isXtreamAccountPlaylist(
     playlist: PlaylistMeta
 ): playlist is PlaylistMeta & {
@@ -234,6 +295,7 @@ export class WorkspaceDashboardRailsComponent {
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
+    private readonly epgService = inject(EpgService);
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
     readonly ready = this.data.dashboardReady;
@@ -286,6 +348,64 @@ export class WorkspaceDashboardRailsComponent {
             .globalRecentLiveItems()
             .slice(0, RAIL_ITEM_LIMIT)
             .map((item) => this.toRecentCard(item))
+    );
+
+    // Best-effort EPG lookup keyed by the channel's display name. This works
+    // for M3U sources whose XMLTV channel ids resolve through the existing
+    // `resolveChannelEpgLookupKey()` (tvg-id → tvg-name → name) chain.
+    // Xtream/Stalker live items often have no XMLTV side-channel and will
+    // simply return null — the card renders without the program row.
+    private readonly liveChannelLookupKeys = computed(() => {
+        const seen = new Set<string>();
+        const keys: string[] = [];
+        for (const card of this.liveOnFavoritesCards()) {
+            const key = card.title.trim();
+            if (!key || seen.has(key)) continue;
+            seen.add(key);
+            keys.push(key);
+        }
+        return keys;
+    });
+
+    // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
+    // catches the boundary between programs without a full page revisit.
+    private readonly liveEpgPrograms = toSignal(
+        toObservable(this.liveChannelLookupKeys).pipe(
+            switchMap((keys) =>
+                keys.length === 0
+                    ? of(new Map<string, EpgProgram | null>())
+                    : interval(LIVE_EPG_TICK_MS).pipe(
+                          startWith(0),
+                          switchMap(() =>
+                              this.epgService.getCurrentProgramsForChannels(
+                                  keys
+                              )
+                          )
+                      )
+            )
+        ),
+        { initialValue: new Map<string, EpgProgram | null>() }
+    );
+
+    readonly liveOnFavoritesCardsEnriched = computed<DashboardRailCard[]>(
+        () => {
+            const epgMap = this.liveEpgPrograms();
+            // Recompute the now-window each tick so progress moves between
+            // 30s ticks even if the program identity is unchanged.
+            const now = Date.now();
+            return this.liveOnFavoritesCards().map((card) => {
+                const program = epgMap.get(card.title.trim()) ?? null;
+                if (!program) {
+                    return card;
+                }
+                return {
+                    ...card,
+                    nowPlayingTitle: program.title || null,
+                    nowPlayingTimeRange: formatEpgTimeRange(program),
+                    nowPlayingProgress: calcEpgProgress(program, now),
+                };
+            });
+        }
     );
 
     readonly favoriteCards = computed<DashboardRailCard[]>(() =>
