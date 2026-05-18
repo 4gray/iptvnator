@@ -123,16 +123,16 @@
   <svg id="channels-column" [attr.height]="filteredChannels().length * barHeight + barHeight + 50">
     @for (item of filteredChannels(); track item.id; let i = $index) {
       <g>
-        <!-- channel name -->
+        <!-- channel name (column widened to 180px per UX audit) -->
         <g class="channel" [class.active]="item.id === activeChannelId">
           <rect
-            width="100"
+            width="180"
             [attr.height]="barHeight"
             [attr.y]="barHeight * i + barHeight"
             stroke="black"
             />
           <foreignObject
-            width="100"
+            width="180"
             [attr.height]="barHeight"
             [attr.y]="barHeight * i + barHeight"
             >
@@ -141,7 +141,6 @@
                 <img
                   [src]="getChannelIcon(item)"
                   [alt]="getChannelName(item)"
-                  style="height: 20px; width: 20px; margin-right: 8px;"
                   >
               }
               <span>{{ getChannelName(item) }}</span>
@@ -191,6 +190,7 @@
               [attr.transform]="'translate(' + program.startPosition + ',' + (barHeight * i + barHeight) + ')'"
               class="program"
               [class.highlighted]="highlightedProgramKey() === getProgramKey(program)"
+              [class.is-now]="isProgramAiringNow(program)"
               (click)="showDescription(program)"
               >
               <rect
@@ -209,7 +209,10 @@
         </g>
       }
 
-      <!-- current time line -->
+      <!-- current time line + label badge.
+           The badge sits on top of the time-header row so users can read the
+           current time at a glance — addresses the UX-audit complaint that
+           the now-line was a "decorative gradient" without a time anchor. -->
       <line
         [attr.x1]="currentTimeLine()"
         y1="0"
@@ -217,7 +220,19 @@
         [attr.y2]="filteredChannels().length * barHeight + barHeight"
         stroke="red"
         stroke-width="2"
+        id="current-time-line"
       ></line>
+      <g class="now-label" [attr.transform]="'translate(' + currentTimeLine() + ', ' + (barHeight - 14) + ')'">
+        <rect
+          x="-26"
+          y="-9"
+          width="52"
+          height="18"
+          rx="9"
+          ry="9"
+        ></rect>
+        <text x="0" y="4" text-anchor="middle">{{ currentTimeLabel() }}</text>
+      </g>
     </svg>
   </div>
 </div>
