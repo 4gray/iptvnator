@@ -1,6 +1,10 @@
 .settings-container {
     --settings-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --settings-action-bar-offset: 24px;
+    // Action bar is a full-width sticky footer, so it sits flush against
+    // the bottom edge of the scroll container — no hover offset. The
+    // previous 24px gap was tuned for the old floating-chip layout where
+    // the bar visually hovered above the bottom.
+    --settings-action-bar-offset: 0px;
     --settings-action-bar-space: 112px;
     --settings-page-header-bg: color-mix(
         in srgb,
