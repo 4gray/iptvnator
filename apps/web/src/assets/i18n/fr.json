@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Succès ! Les listes de lecture ont été mises à jour avec succès",
             "AUTO_REFRESH_ENABLED": "Actualisation automatique activée"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Choisissez comment vous souhaitez vous connecter. Vous pourrez renommer la liste plus tard.",
+            "METHOD_URL_SUB": "Collez un lien vers un fichier .m3u ou .m3u8 distant",
+            "METHOD_FILE_SUB": "Téléversez une liste de lecture depuis votre ordinateur",
+            "METHOD_XTREAM_SUB": "Connectez-vous avec hôte, nom d'utilisateur et mot de passe",
+            "METHOD_STALKER_SUB": "Adresse MAC et URL du portail",
+            "METHOD_TEXT_SUB": "Pour les listes ponctuelles ou quand vous n'avez que du texte"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Glissez un fichier ici",
             "OR": "ou",

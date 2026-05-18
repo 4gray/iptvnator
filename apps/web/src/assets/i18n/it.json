@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Le playlist sono state aggiornate correttamente",
             "AUTO_REFRESH_ENABLED": "Aggiornamento automatico attivo"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Scegli come connetterti. Puoi rinominarla in seguito.",
+            "METHOD_URL_SUB": "Incolla un link a un file .m3u o .m3u8 remoto",
+            "METHOD_FILE_SUB": "Carica una playlist dal tuo computer",
+            "METHOD_XTREAM_SUB": "Connetti con host, nome utente e password",
+            "METHOD_STALKER_SUB": "Indirizzo MAC e URL del portale",
+            "METHOD_TEXT_SUB": "Per liste occasionali o quando hai solo il testo"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Trascina e rilascia qui i file",
             "OR": "o",

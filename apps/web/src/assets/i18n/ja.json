@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました",
             "AUTO_REFRESH_ENABLED": "自動更新が有効です"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "接続方法を選択してください。名前は後から変更できます。",
+            "METHOD_URL_SUB": "リモートの.m3uまたは.m3u8へのリンクを貼り付け",
+            "METHOD_FILE_SUB": "コンピューターからプレイリストをアップロード",
+            "METHOD_XTREAM_SUB": "ホスト、ユーザー名、パスワードで接続",
+            "METHOD_STALKER_SUB": "MACアドレスとポータルURL",
+            "METHOD_TEXT_SUB": "一度限りのリストやテキストしかない場合に"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
             "OR": "または",

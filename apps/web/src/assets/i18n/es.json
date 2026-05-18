@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "¡Listo! Las listas de reproducción se actualizaron correctamente",
             "AUTO_REFRESH_ENABLED": "Auto-actualización activada"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Elige cómo quieres conectar. Puedes renombrarla más tarde.",
+            "METHOD_URL_SUB": "Pega un enlace a un archivo .m3u o .m3u8 remoto",
+            "METHOD_FILE_SUB": "Sube una lista de reproducción desde tu computadora",
+            "METHOD_XTREAM_SUB": "Conecta con host, usuario y contraseña",
+            "METHOD_STALKER_SUB": "Dirección MAC y URL del portal",
+            "METHOD_TEXT_SUB": "Para listas puntuales o cuando solo tienes texto"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Arrastre & suelte archivos aquí",
             "OR": "o",

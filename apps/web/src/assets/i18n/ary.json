@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! قوائم التشغيل تحدثات بنجاح",
             "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "اختار كيفاش بغيتي تربط. تقدر تبدل الاسم من بعد.",
+            "METHOD_URL_SUB": "لصق رابط ل ملف .m3u ولا .m3u8 بعيد",
+            "METHOD_FILE_SUB": "زيد قائمة تشغيل من الجهاز ديالك",
+            "METHOD_XTREAM_SUB": "ربط بالخادم، اسم المستخدم وكلمة المرور",
+            "METHOD_STALKER_SUB": "عنوان MAC ورابط البوابة",
+            "METHOD_TEXT_SUB": "للقوائم المؤقتة ولا إلى عندك غير النص"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "جر وأفلت الملفات هنا",
             "OR": "أو",

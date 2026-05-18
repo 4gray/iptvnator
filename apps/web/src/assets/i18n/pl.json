@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Sukces! Listy odtwarzania zostały pomyślnie zaktualizowane",
             "AUTO_REFRESH_ENABLED": "Automatyczne odświeżanie włączone"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Wybierz sposób połączenia. Nazwę można zmienić później.",
+            "METHOD_URL_SUB": "Wklej link do zdalnego pliku .m3u lub .m3u8",
+            "METHOD_FILE_SUB": "Prześlij listę odtwarzania z komputera",
+            "METHOD_XTREAM_SUB": "Połącz przy użyciu hosta, nazwy użytkownika i hasła",
+            "METHOD_STALKER_SUB": "Adres MAC i URL portalu",
+            "METHOD_TEXT_SUB": "Do jednorazowych list lub gdy dostępny jest tylko tekst"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Przeciągnij i upuść pliki tutaj",
             "OR": "lub",

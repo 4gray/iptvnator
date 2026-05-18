@@ -128,6 +128,14 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Gelukt! De afspeellijsten zijn succesvol bijgewerkt",
             "AUTO_REFRESH_ENABLED": "Automatisch vernieuwen ingeschakeld"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Kies hoe je verbinding wilt maken. Je kunt het later hernoemen.",
+            "METHOD_URL_SUB": "Plak een link naar een externe .m3u of .m3u8",
+            "METHOD_FILE_SUB": "Upload een afspeellijst vanaf je computer",
+            "METHOD_XTREAM_SUB": "Maak verbinding met host, gebruikersnaam en wachtwoord",
+            "METHOD_STALKER_SUB": "MAC-adres en portal-URL",
+            "METHOD_TEXT_SUB": "Voor eenmalige lijsten of als je alleen tekst hebt"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Sleep bestanden hierheen",
             "OR": "of",
