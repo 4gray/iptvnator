@@ -9,7 +9,7 @@ import {
     PlaylistMeta,
     StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
-import { UnifiedCollectionItem } from './unified-collection-item.interface';
+import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 
 describe('UnifiedFavoritesDataService', () => {

@@ -76,3 +76,9 @@ buildable dependency paths to `dist/` during `@nx/js:tsc` builds.
 
 If a change needs a dependency in the opposite direction, move the shared
 contract into a lower-level library instead of weakening boundaries.
+
+Portal collection orchestration that reads/writes favorites, recent items, live
+playback, or EPG data belongs in `libs/portal/shared/data-access`, not
+`libs/portal/shared/util`. That keeps pure collection helpers importable by
+Xtream/Stalker data-access libraries while allowing shared UI to use
+provider-specific collection services without creating cycles.

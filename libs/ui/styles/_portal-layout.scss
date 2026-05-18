@@ -1,6 +1,5 @@
 // ─── Shared mixin for live-stream portal layouts ──────────────────────────────
-// Used by: xtream live-stream-layout, stalker live-stream-layout,
-//           portal-collection-live-shell
+// Used by: xtream live-stream-layout and stalker live-stream-layout.
 //
 // Include this mixin in a component's SCSS to get the shared flex host+sidebar
 // skeleton, then add only the component-specific rules underneath.

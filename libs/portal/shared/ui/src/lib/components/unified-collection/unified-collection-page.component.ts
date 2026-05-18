@@ -48,10 +48,12 @@ import {
     ScopeToggleService,
     STALKER_RETURN_TO_STATE_KEY,
     UnifiedCollectionItem,
-    UnifiedFavoritesDataService,
-    UnifiedRecentDataService,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
+import {
+    UnifiedFavoritesDataService,
+    UnifiedRecentDataService,
+} from '@iptvnator/portal/shared/data-access';
 import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { EmptyStateComponent } from '@iptvnator/playlist/shared/ui';
 import { UnifiedLiveTabComponent } from './unified-live-tab.component';

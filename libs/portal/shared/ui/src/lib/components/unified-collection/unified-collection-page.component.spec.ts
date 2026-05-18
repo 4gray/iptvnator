@@ -19,10 +19,12 @@ import {
     OPEN_COLLECTION_DETAIL_STATE_KEY,
     ScopeToggleService,
     UnifiedCollectionItem,
-    UnifiedFavoritesDataService,
-    UnifiedRecentDataService,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
+import {
+    UnifiedFavoritesDataService,
+    UnifiedRecentDataService,
+} from '@iptvnator/portal/shared/data-access';
 import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
 import { BehaviorSubject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';

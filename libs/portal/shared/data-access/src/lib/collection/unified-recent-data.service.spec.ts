@@ -8,7 +8,7 @@ import {
     Playlist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
-import { UnifiedCollectionItem } from './unified-collection-item.interface';
+import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
 
 describe('UnifiedRecentDataService', () => {

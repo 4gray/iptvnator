@@ -1,19 +1,22 @@
 import { Injectable, signal } from '@angular/core';
 
 export type CollectionScope = 'playlist' | 'all';
+type CollectionScopeSignal = ReturnType<typeof signal<CollectionScope>>;
 
 const STORAGE_PREFIX = 'collection-scope-';
 
 @Injectable({ providedIn: 'root' })
 export class ScopeToggleService {
-    private readonly scopes = new Map<string, ReturnType<typeof signal<CollectionScope>>>();
+    private readonly scopes = new Map<string, CollectionScopeSignal>();
 
-    getScope(viewKey: string): ReturnType<typeof signal<CollectionScope>> {
-        if (!this.scopes.has(viewKey)) {
+    getScope(viewKey: string): CollectionScopeSignal {
+        let scope = this.scopes.get(viewKey);
+        if (!scope) {
             const persisted = this.readFromStorage(viewKey);
-            this.scopes.set(viewKey, signal<CollectionScope>(persisted));
+            scope = signal<CollectionScope>(persisted);
+            this.scopes.set(viewKey, scope);
         }
-        return this.scopes.get(viewKey)!;
+        return scope;
     }
 
     setScope(viewKey: string, value: CollectionScope): void {

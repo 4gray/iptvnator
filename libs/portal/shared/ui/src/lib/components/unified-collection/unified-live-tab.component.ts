@@ -22,13 +22,15 @@ import {
     OpenLiveCollectionItemState,
     PORTAL_PLAYER,
     persistLiveEpgPanelState,
-    ResolvedLiveCollectionDetail,
     restoreLiveEpgPanelState,
-    StreamResolverService,
     UnifiedCollectionItem,
     UnifiedFavoriteChannel,
-    UnifiedRecentDataService,
 } from '@iptvnator/portal/shared/util';
+import {
+    ResolvedLiveCollectionDetail,
+    StreamResolverService,
+    UnifiedRecentDataService,
+} from '@iptvnator/portal/shared/data-access';
 import {
     EpgDateNavigationDirection,
     EpgListComponent,
