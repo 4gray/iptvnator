@@ -138,7 +138,7 @@ and playback-position saving keep the same behavior as manual episode clicks.
 
 ## Codec And Container Diagnostics
 
-The shared `WebPlayerViewComponent` is the central browser-player viewport for M3U, Xtream, and Stalker inline playback. Video.js, HTML5, and ArtPlayer report native media errors, HLS.js errors, mpegts.js errors, and HLS manifest codec metadata into the shared diagnostics classifier.
+The shared `WebPlayerViewComponent` is the central browser-player viewport for M3U, Xtream, and Stalker inline playback, including live streams opened from favorites and recently viewed collections. Video.js, HTML5, and ArtPlayer report native media errors, HLS.js errors, mpegts.js errors, and HLS manifest codec metadata into the shared diagnostics classifier.
 
 The diagnostics remain client-only:
 
@@ -161,13 +161,13 @@ Supported diagnostic codes are:
 
 mpegts.js `Early-EOF` failures on MPEG-TS streams are classified as `media-decode-error` instead of generic `network-error`. These failures usually mean the fetch stream ended before mpegts.js expected a complete transport stream, and external players may still handle the same URL more tolerant of short reads or malformed TS boundaries.
 
-The banner keeps the primary message compact, then exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, and raw HLS/mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
+The diagnostic surface covers the inline player viewport when playback fails, with a compact warning badge, a native-player fallback headline, and player-card actions for configured external players. It exposes technical details on demand: diagnostic code, reporting player/source, detected container/MIME, video/audio codecs, native browser error fields, and raw HLS/mpegts details. HLS manifest codec metadata also drives a concise browser-support hint for codecs that Chromium/Electron commonly cannot decode inline, such as HEVC, AC-3, E-AC-3, DTS, and MPEG-2 video.
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
 Portal VOD and episode payloads with `contentInfo` are treated as non-live by the Video.js MPEG-TS path unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 
-When a diagnostic is actionable in Electron, the inline banner may offer `Open in MPV`, `Open in VLC`, and `Copy URL`. Web builds only expose copy/help text. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact.
+When a diagnostic is actionable in Electron, the diagnostic surface may offer `Open in MPV`, `Open in VLC`, `Copy URL`, technical details, and `Retry`. Web builds only expose copy/help text and retry. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact. Retry clears the current diagnostic and rebuilds the active inline player inputs; it does not change the saved player setting.
 
 `PortalPlayer.openExternalPlayback(playback, player)` is the forced external launch API. It sends the playback payload to MPV or VLC regardless of the current saved player setting, so fallback buttons do not mutate preferences.
 

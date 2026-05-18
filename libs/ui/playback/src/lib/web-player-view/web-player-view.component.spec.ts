@@ -158,6 +158,9 @@ describe('WebPlayerViewComponent', () => {
         expect(banner.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER.TITLE'
         );
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
+        );
         mpvButton.nativeElement.click();
 
         expect(requests).toEqual([
@@ -242,6 +245,27 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
+    it('uses an inline recovery headline when external fallback actions are unavailable', () => {
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+
+        const banner = fixture.debugElement.query(
+            By.css('[data-test-id="playback-diagnostic-banner"]')
+        );
+        const mpvButton = fixture.debugElement.query(
+            By.css('[data-test-id="playback-fallback-mpv"]')
+        );
+
+        expect(mpvButton).toBeNull();
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.NETWORK_ERROR.TITLE'
+        );
+        expect(banner.nativeElement.textContent).toContain(
+            'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE'
+        );
+    });
+
     it('renders technical details and codec-specific hints in the diagnostic banner', () => {
         fixture.detectChanges();
         const issue = createUnsupportedCodecDiagnostic();
@@ -283,6 +307,31 @@ describe('WebPlayerViewComponent', () => {
         expect(codecHint.nativeElement.textContent).toContain(
             'PLAYBACK_DIAGNOSTICS.CODEC_HINT'
         );
+    });
+
+    it('clears playback diagnostics when retrying inline playback', () => {
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        fixture.detectChanges();
+
+        const retryButton = fixture.debugElement.query(
+            By.css('[data-test-id="playback-retry"]')
+        );
+        const utilityControls = fixture.nativeElement.querySelectorAll(
+            '[data-test-id="playback-retry"], [data-test-id="playback-diagnostic-details"]'
+        );
+
+        expect(utilityControls[0]).toBe(retryButton.nativeElement);
+
+        retryButton.nativeElement.click();
+        fixture.detectChanges();
+
+        expect(component.playbackDiagnostic()).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-diagnostic-banner"]')
+            )
+        ).toBeNull();
     });
 });
 
@@ -327,5 +376,20 @@ function createUnsupportedCodecDiagnostic(): PlaybackDiagnostic {
         videoCodecs: ['hvc1.1.6.L93.B0'],
         details: 'manifestIncompatibleCodecsError',
         externalFallbackRecommended: true,
+    };
+}
+
+function createNetworkDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.MpegTs,
+        sourceUrl: 'https://example.com/live/channel.ts',
+        container: 'ts',
+        mimeType: 'video/mp2t',
+        player: 'videojs',
+        audioCodecs: [],
+        videoCodecs: [],
+        details: 'HttpStatusCodeInvalid {"code":456,"msg":"<none>"}',
+        externalFallbackRecommended: false,
     };
 }

@@ -165,12 +165,26 @@ export class WebPlayerViewComponent {
         });
     }
 
+    retryPlayback(): void {
+        const playback = this.resolvedPlayback();
+
+        this.playbackDiagnostic.set(null);
+        this.setChannel(playback.streamUrl);
+        this.setVjsOptions(playback.streamUrl, this.isLivePlayback(playback));
+    }
+
     getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
         return `${this.getDiagnosticTranslationBase(issue)}.TITLE`;
     }
 
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
         return `${this.getDiagnosticTranslationBase(issue)}.DESCRIPTION`;
+    }
+
+    getDiagnosticHeadlineKey(): string {
+        return this.canShowExternalFallbackActions()
+            ? 'PLAYBACK_DIAGNOSTICS.NATIVE_FALLBACK_TITLE'
+            : 'PLAYBACK_DIAGNOSTICS.INLINE_FAILURE_TITLE';
     }
 
     getDiagnosticMeta(issue: PlaybackDiagnostic): string {

@@ -37,20 +37,16 @@ import {
 } from '@iptvnator/ui/epg';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
-import {
-    AudioPlayerComponent,
-    ArtPlayerComponent,
-    HtmlVideoPlayerComponent,
-    VjsPlayerComponent,
-    WebPlayerViewComponent,
-} from '@iptvnator/ui/playback';
+import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
-import { Channel, EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 
 @Component({
@@ -60,11 +56,9 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AudioPlayerComponent,
-        ArtPlayerComponent,
         EpgListComponent,
         EpgViewComponent,
         GlobalFavoritesListComponent,
-        HtmlVideoPlayerComponent,
         LiveEpgPanelComponent,
         MatButtonModule,
         MatIconModule,
@@ -72,7 +66,6 @@ import {
         PortalEmptyStateComponent,
         ResizableDirective,
         TranslatePipe,
-        VjsPlayerComponent,
         WebPlayerViewComponent,
     ],
 })
@@ -161,38 +154,6 @@ export class UnifiedLiveTabComponent {
     readonly liveEpgPanelSummary = computed(() => {
         this.progressTick();
         return this.getLiveEpgPanelSummary(this.activeDetail());
-    });
-
-    readonly activeChannelForOverlay = computed((): Channel | undefined => {
-        const detail = this.activeDetail();
-        if (!detail) {
-            return undefined;
-        }
-
-        if (detail.channel) {
-            return detail.channel;
-        }
-
-        return {
-            id: this.activeUid() ?? '',
-            name: detail.playback.title ?? '',
-            url: detail.playback.streamUrl,
-            tvg: {
-                logo: detail.playback.thumbnail ?? '',
-                id: '',
-                name: '',
-                rec: '',
-                url: '',
-            },
-            group: { title: '' },
-            http: {
-                referrer: detail.playback.referer ?? '',
-                'user-agent': detail.playback.userAgent ?? '',
-                origin: detail.playback.origin ?? '',
-            },
-            radio: 'false',
-            epgParams: '',
-        } satisfies Channel;
     });
 
     readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
@@ -331,6 +292,13 @@ export class UnifiedLiveTabComponent {
         this.selectedLiveEpgDate.set(selectedDate);
     }
 
+    handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
+        void this.portalPlayer.openExternalPlayback(
+            request.playback,
+            request.player
+        );
+    }
+
     onClose(): void {
         this.selectionRequestId += 1;
         this.isSelecting.set(false);
@@ -348,14 +316,13 @@ export class UnifiedLiveTabComponent {
         isAutoOpen = false,
         startPlayback = false
     ): Promise<void> {
-        if (this.activeUid() === item.uid && this.activeDetail()) {
+        const activeDetail = this.activeDetail();
+        if (this.activeUid() === item.uid && activeDetail) {
             if (
                 startPlayback &&
-                this.shouldOpenExternalPlayback(this.activeDetail()!, true)
+                this.shouldOpenExternalPlayback(activeDetail, true)
             ) {
-                void this.portalPlayer.openResolvedPlayback(
-                    this.activeDetail()!.playback
-                );
+                void this.portalPlayer.openResolvedPlayback(activeDetail.playback);
             }
             if (isAutoOpen) {
                 this.autoOpenHandled.emit();

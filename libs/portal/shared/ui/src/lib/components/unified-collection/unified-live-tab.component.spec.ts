@@ -9,16 +9,9 @@ import {
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
-import {
-    GlobalFavoritesListComponent,
-    UnifiedLiveTabComponent,
-} from '@iptvnator/portal/shared/ui';
-import {
-    AudioPlayerComponent,
-    ArtPlayerComponent,
-    HtmlVideoPlayerComponent,
-    VjsPlayerComponent,
-} from '@iptvnator/ui/playback';
+import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
+import { UnifiedLiveTabComponent } from './unified-live-tab.component';
+import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import {
     EpgDateNavigationDirection,
     EpgListComponent,
@@ -27,11 +20,19 @@ import {
 } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
-import { Channel, EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    Channel,
+    EpgItem,
+    EpgProgram,
+    ResolvedPortalPlayback,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import {
     EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
+    type PlaybackFallbackRequest,
+    WebPlayerViewComponent,
 } from '@iptvnator/ui/shared-portals';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
@@ -116,38 +117,6 @@ class StubLiveEpgPanelComponent {
 }
 
 @Component({
-    selector: 'app-vjs-player',
-    template: '',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubVjsPlayerComponent {
-    readonly options = input<unknown>();
-    readonly volume = input(1);
-}
-
-@Component({
-    selector: 'app-html-video-player',
-    template: '',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubHtmlVideoPlayerComponent {
-    readonly channel = input<Channel | null>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-}
-
-@Component({
-    selector: 'app-art-player',
-    template: '',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubArtPlayerComponent {
-    readonly channel = input<Channel | null>(null);
-    readonly volume = input(1);
-    readonly showCaptions = input(false);
-}
-
-@Component({
     selector: 'app-audio-player',
     template: '<div class="stub-audio-player"></div>',
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -158,9 +127,23 @@ class StubAudioPlayerComponent {
     readonly channelName = input('');
 }
 
+@Component({
+    selector: 'app-web-player-view',
+    template: '<div class="stub-web-player-view"></div>',
+    changeDetection: ChangeDetectionStrategy.OnPush,
+})
+class StubWebPlayerViewComponent {
+    readonly streamUrl = input.required<string>();
+    readonly title = input('');
+    readonly playback = input<ResolvedPortalPlayback | null>(null);
+    readonly playerOverride = input<VideoPlayer | null>(null);
+    readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+}
+
 describe('UnifiedLiveTabComponent', () => {
     let fixture: ComponentFixture<UnifiedLiveTabComponent>;
     let component: UnifiedLiveTabComponent;
+    let player: ReturnType<typeof signal<VideoPlayer>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
@@ -173,6 +156,7 @@ describe('UnifiedLiveTabComponent', () => {
     let portalPlayer: {
         isEmbeddedPlayer: jest.Mock;
         openResolvedPlayback: jest.Mock;
+        openExternalPlayback: jest.Mock;
     };
 
     beforeEach(async () => {
@@ -187,9 +171,11 @@ describe('UnifiedLiveTabComponent', () => {
         recentData = {
             recordLivePlayback: jest.fn(),
         };
+        player = signal(VideoPlayer.VideoJs);
         portalPlayer = {
             isEmbeddedPlayer: jest.fn().mockReturnValue(false),
             openResolvedPlayback: jest.fn(),
+            openExternalPlayback: jest.fn(),
         };
 
         await TestBed.configureTestingModule({
@@ -201,7 +187,7 @@ describe('UnifiedLiveTabComponent', () => {
                     provide: SettingsStore,
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
-                        player: signal('videojs'),
+                        player,
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
@@ -211,27 +197,23 @@ describe('UnifiedLiveTabComponent', () => {
                 remove: {
                     imports: [
                         AudioPlayerComponent,
-                        ArtPlayerComponent,
                         EpgListComponent,
                         EpgViewComponent,
                         GlobalFavoritesListComponent,
-                        HtmlVideoPlayerComponent,
                         LiveEpgPanelComponent,
                         ResizableDirective,
-                        VjsPlayerComponent,
+                        WebPlayerViewComponent,
                     ],
                 },
                 add: {
                     imports: [
                         StubAudioPlayerComponent,
-                        StubArtPlayerComponent,
                         StubEpgListComponent,
                         StubEpgViewComponent,
                         StubGlobalFavoritesListComponent,
-                        StubHtmlVideoPlayerComponent,
                         StubLiveEpgPanelComponent,
                         StubResizableDirective,
-                        StubVjsPlayerComponent,
+                        StubWebPlayerViewComponent,
                     ],
                 },
             })
@@ -453,6 +435,77 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(component.isLiveEpgPanelCollapsed()).toBe(true);
         expect(localStorage.getItem('live-epg-panel-state')).toBe('collapsed');
+    });
+
+    it('uses the shared web player wrapper for inline live playback diagnostics', async () => {
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        player.set(VideoPlayer.VideoJs);
+        const item = buildLiveItem('xtream');
+        streamResolver.resolveLiveDetail.mockResolvedValue({
+            epgMode: 'portal',
+            playback: {
+                streamUrl: 'https://example.com/xtream.m3u8',
+                title: 'Xtream Live',
+            },
+            epgItems: [],
+        });
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const webPlayer = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+
+        expect(webPlayer.streamUrl()).toBe('https://example.com/xtream.m3u8');
+        expect(webPlayer.title()).toBe('Xtream Live');
+        const playback = webPlayer.playback();
+        expect(playback).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/xtream.m3u8',
+                title: 'Xtream Live',
+            })
+        );
+        if (!playback) {
+            throw new Error('Expected wrapper playback to be set');
+        }
+        expect(webPlayer.playerOverride()).toBe(VideoPlayer.VideoJs);
+        expect(fixture.nativeElement.querySelector('app-vjs-player')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-html-video-player')
+        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-art-player')).toBeNull();
+
+        webPlayer.externalFallbackRequested.emit({
+            player: 'mpv',
+            playback,
+            diagnostic: {
+                code: 'network-error',
+                player: 'videojs',
+                source: 'hls',
+                container: '',
+                mimeType: '',
+                videoCodecs: [],
+                audioCodecs: [],
+                externalFallbackRecommended: false,
+            },
+        });
+
+        expect(portalPlayer.openExternalPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/xtream.m3u8',
+            }),
+            'mpv'
+        );
     });
 
     it('does not wait for M3U program lookup before opening playback', async () => {
