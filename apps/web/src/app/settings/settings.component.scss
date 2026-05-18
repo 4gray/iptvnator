@@ -64,36 +64,33 @@
     gap: 16px;
 }
 
+// Flat section — no panel chrome. The v0.22 mockup treats Settings as a
+// single scroll column with each section anchored by a large title +
+// bottom-border separator. The previous card frame (border-radius 22px,
+// filled bg, box-shadow, active-state ring + icon-circle) made every
+// section look like a feature card, which fought the inline form rhythm.
 .settings-group {
     position: relative;
-    background: var(--settings-group-bg);
-    overflow: hidden;
-    scroll-margin-top: 24px;
+    background: transparent;
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    overflow: visible;
     padding: 0;
-    border: 1px solid var(--settings-group-border);
-    border-radius: 22px;
-    box-shadow: var(--settings-group-shadow);
-    transition:
-        background 0.2s ease,
-        box-shadow 0.2s ease,
-        border-color 0.2s ease;
+    margin-top: 24px;
+    scroll-margin-top: 24px;
+    transition: none;
+
+    &:first-of-type {
+        margin-top: 0;
+    }
 }
 
+// The active section no longer gets a ring/shadow — the rail's active
+// state on the left already announces "you are here". Title still
+// colours to the accent so users scanning the right pane don't lose the
+// anchor.
 .settings-group--active {
-    background: var(--settings-group-active-bg);
-    border-color: var(--settings-group-active-ring);
-    box-shadow: var(--settings-group-active-shadow);
-
-    .settings-group__header-icon {
-        background: color-mix(
-            in srgb,
-            var(--app-selection-surface-strong) 70%,
-            var(--mat-sys-surface-container-high)
-        );
-        color: var(--app-selection-color);
-        border-color: var(--settings-group-active-ring);
-    }
-
     .settings-group__header-text h3 {
         color: var(--app-selection-color);
     }
@@ -101,46 +98,33 @@
 
 .settings-group__header {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 14px;
-    padding: 16px 18px 14px;
+    padding: 4px 0 18px;
+    margin: 0 0 8px;
+    border-bottom: 1px solid var(--settings-item-border);
 
+    // Icon-circle removed per UX-audit recommendation (the section title
+    // is the anchor, not a card). Hidden rather than ripped out of every
+    // section template so the existing markup stays untouched.
     .settings-group__header-icon {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        width: 40px;
-        height: 40px;
-        flex-shrink: 0;
-        border: 1px solid
-            color-mix(in srgb, var(--mat-sys-outline-variant) 74%, transparent);
-        border-radius: 12px;
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-surface-container-high) 78%,
-            transparent
-        );
-        color: var(--mat-sys-on-surface-variant);
-
-        mat-icon {
-            font-size: 20px;
-            width: 20px;
-            height: 20px;
-        }
+        display: none;
     }
 
     .settings-group__header-text {
         h3 {
             margin: 0;
-            font-size: 1.08rem;
-            font-weight: 700;
-            letter-spacing: -0.02em;
+            font-size: 1.5rem;
+            font-weight: 600;
+            letter-spacing: -0.015em;
+            line-height: 1.2;
+            color: var(--app-heading-color);
         }
 
         p {
-            margin: 2px 0 0;
-            color: var(--settings-muted);
-            font-size: 0.84rem;
+            margin: 6px 0 0;
+            color: var(--app-body-color);
+            font-size: 0.92rem;
             line-height: 1.45;
         }
     }
@@ -151,14 +135,22 @@
     border-top: 1px solid var(--settings-item-border);
 }
 
+// Row layout — flat list aligned to the section title (no inset). The
+// previous `margin: 0 18px` came from the card chrome; now that each
+// section is a flat block, rows sit at the same gutter as the title.
 .setting-item {
     display: grid;
     grid-template-columns: minmax(0, 1.15fr) minmax(220px, 340px);
     gap: 14px;
-    margin: 0 18px;
-    padding: 14px 0;
+    margin: 0;
+    padding: 18px 0;
     border-top: 1px solid var(--settings-item-border);
     background: transparent;
+
+    &:first-of-type {
+        border-top: 0;
+        padding-top: 8px;
+    }
 
     &:last-of-type {
         margin-bottom: 0;

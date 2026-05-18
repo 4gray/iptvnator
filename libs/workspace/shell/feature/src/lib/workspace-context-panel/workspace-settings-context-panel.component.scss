@@ -7,12 +7,21 @@
     overflow: hidden;
 }
 
+// Quiet mono eyebrow per the v0.22 mockup — replaces the previous bold
+// 20px h2 that competed with the section headers on the right pane for
+// "biggest text on screen". The rail is now a scannable list; the section
+// titles on the right are the dominant heading.
 .panel-title {
     margin: 0;
-    padding: 16px 16px 0;
-    font-size: 20px;
+    padding: 20px 18px 12px;
+    font-family:
+        'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas,
+        monospace;
+    font-size: 11px;
     font-weight: 500;
-    color: var(--mat-sys-on-surface);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--mat-sys-on-surface-variant);
 }
 
 .settings-panel-body {
