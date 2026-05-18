@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Scegli come connetterti. Puoi rinominarla in seguito.",
+            "METHOD_URL_LABEL": "URL M3U",
             "METHOD_URL_SUB": "Incolla un link a un file .m3u o .m3u8 remoto",
+            "METHOD_FILE_LABEL": "File M3U",
             "METHOD_FILE_SUB": "Carica una playlist dal tuo computer",
+            "METHOD_XTREAM_LABEL": "Credenziali Xtream",
             "METHOD_XTREAM_SUB": "Connetti con host, nome utente e password",
+            "METHOD_STALKER_LABEL": "Portale Stalker",
             "METHOD_STALKER_SUB": "Indirizzo MAC e URL del portale",
+            "METHOD_TEXT_LABEL": "Testo m3u grezzo",
             "METHOD_TEXT_SUB": "Per liste occasionali o quando hai solo il testo"
         },
         "FILE_UPLOAD": {

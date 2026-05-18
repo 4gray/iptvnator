@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Nasıl bağlanmak istediğinizi seçin. Daha sonra yeniden adlandırabilirsiniz.",
+            "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "Uzak bir .m3u veya .m3u8 bağlantısını yapıştırın",
+            "METHOD_FILE_LABEL": "M3U dosyası",
             "METHOD_FILE_SUB": "Bilgisayarınızdan bir oynatma listesi yükleyin",
+            "METHOD_XTREAM_LABEL": "Xtream kimlik bilgileri",
             "METHOD_XTREAM_SUB": "Sunucu, kullanıcı adı ve parola ile bağlanın",
+            "METHOD_STALKER_LABEL": "Stalker portalı",
             "METHOD_STALKER_SUB": "MAC adresi ve portal URL'si",
+            "METHOD_TEXT_LABEL": "Ham m3u metni",
             "METHOD_TEXT_SUB": "Tek seferlik listeler veya yalnızca metniniz olduğunda"
         },
         "FILE_UPLOAD": {

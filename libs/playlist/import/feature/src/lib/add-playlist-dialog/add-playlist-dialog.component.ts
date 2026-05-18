@@ -75,36 +75,39 @@ export class AddPlaylistDialogComponent {
 
     // Order matches the v0.22 mockup left-to-right: URL first (Most common),
     // then File, Xtream credentials, Stalker portal, raw text paste. Each
-    // entry stands on its own — no nested subtypes.
+    // entry stands on its own — no nested subtypes. Labels are short and
+    // sentence-cased; the "Add via …" / "Add Xtreme Code" wording from the
+    // old tab labels is redundant inside a dialog already titled "Add
+    // playlist".
     readonly methodOptions: PlaylistMethodOption[] = [
         {
             value: 'url',
             icon: 'public',
-            labelKey: 'HOME.TABS.URL_UPLOAD',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_URL_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_URL_SUB',
         },
         {
             value: 'file',
             icon: 'folder_open',
-            labelKey: 'HOME.TABS.FILE_UPLOAD',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_FILE_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_FILE_SUB',
         },
         {
             value: 'xtream',
             icon: 'vpn_key',
-            labelKey: 'HOME.TABS.XTREME_IMPORT',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_SUB',
         },
         {
             value: 'stalker',
             icon: 'cast',
-            labelKey: 'HOME.TABS.STALKER_PORTAL_IMPORT',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_SUB',
         },
         {
             value: 'text',
             icon: 'subject',
-            labelKey: 'HOME.TABS.TEXT_IMPORT',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_LABEL',
             subKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_SUB',
         },
     ];

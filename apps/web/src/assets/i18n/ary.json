@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "اختار كيفاش بغيتي تربط. تقدر تبدل الاسم من بعد.",
+            "METHOD_URL_LABEL": "رابط M3U",
             "METHOD_URL_SUB": "لصق رابط ل ملف .m3u ولا .m3u8 بعيد",
+            "METHOD_FILE_LABEL": "ملف M3U",
             "METHOD_FILE_SUB": "زيد قائمة تشغيل من الجهاز ديالك",
+            "METHOD_XTREAM_LABEL": "بيانات Xtream",
             "METHOD_XTREAM_SUB": "ربط بالخادم، اسم المستخدم وكلمة المرور",
+            "METHOD_STALKER_LABEL": "بوابة Stalker",
             "METHOD_STALKER_SUB": "عنوان MAC ورابط البوابة",
+            "METHOD_TEXT_LABEL": "نص m3u خام",
             "METHOD_TEXT_SUB": "للقوائم المؤقتة ولا إلى عندك غير النص"
         },
         "FILE_UPLOAD": {

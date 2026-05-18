@@ -18,7 +18,12 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
         void import('@iptvnator/playlist/import/feature').then(
             ({ AddPlaylistDialogComponent }) => {
                 this.dialog.open(AddPlaylistDialogComponent, {
-                    width: '560px',
+                    // Width sized for the 5-card method picker plus the
+                    // selected method's form below. Matches the v0.22
+                    // mockup; falls back to viewport-clamped width on
+                    // narrow screens so the grid can collapse via the
+                    // SCSS responsive breakpoints.
+                    width: '780px',
                     maxWidth: '92vw',
                     data: type ? { type } : {},
                 });

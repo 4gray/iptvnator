@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "請選擇您要使用的連線方式，之後仍可重新命名。",
+            "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "貼上遠端 .m3u 或 .m3u8 的連結",
+            "METHOD_FILE_LABEL": "M3U 檔案",
             "METHOD_FILE_SUB": "從您的電腦上傳播放清單",
+            "METHOD_XTREAM_LABEL": "Xtream 帳號",
             "METHOD_XTREAM_SUB": "使用主機位址、帳號和密碼連線",
+            "METHOD_STALKER_LABEL": "Stalker 入口網站",
             "METHOD_STALKER_SUB": "MAC 位址與入口網址",
+            "METHOD_TEXT_LABEL": "M3U 原始文字",
             "METHOD_TEXT_SUB": "適合一次性清單，或您只有文字內容時使用"
         },
         "FILE_UPLOAD": {

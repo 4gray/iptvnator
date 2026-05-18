@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Επιλέξτε τρόπο σύνδεσης. Μπορείτε να τη μετονομάσετε αργότερα.",
+            "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "Επικολλήστε έναν σύνδεσμο σε απομακρυσμένο .m3u ή .m3u8",
+            "METHOD_FILE_LABEL": "Αρχείο M3U",
             "METHOD_FILE_SUB": "Ανεβάστε μια λίστα αναπαραγωγής από τον υπολογιστή σας",
+            "METHOD_XTREAM_LABEL": "Διαπιστευτήρια Xtream",
             "METHOD_XTREAM_SUB": "Σύνδεση με διακομιστή, όνομα χρήστη και κωδικό πρόσβασης",
+            "METHOD_STALKER_LABEL": "Πύλη Stalker",
             "METHOD_STALKER_SUB": "MAC address και URL πύλης",
+            "METHOD_TEXT_LABEL": "Ακατέργαστο κείμενο m3u",
             "METHOD_TEXT_SUB": "Για λίστες μίας χρήσης ή όταν έχετε μόνο κείμενο"
         },
         "FILE_UPLOAD": {

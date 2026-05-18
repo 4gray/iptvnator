@@ -57,15 +57,20 @@
     background: var(--apd-segment-track);
     border: 1px solid var(--apd-border);
     border-radius: 10px;
-    padding: 12px 12px 14px;
+    padding: 10px 11px 12px;
     display: flex;
     flex-direction: column;
-    gap: 6px;
+    gap: 5px;
     cursor: pointer;
     text-align: left;
     font: inherit;
     color: var(--apd-heading);
     min-width: 0;
+    // Locks every card to the same height regardless of which has the
+    // longest subtitle. Without this the URL card (short text) collapses
+    // and the Stalker/Xtream cards (longer text) push tall — selection
+    // states then look visually inconsistent.
+    min-height: 132px;
     transition:
         background-color 160ms ease,
         border-color 160ms ease,

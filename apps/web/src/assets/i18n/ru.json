@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Выберите способ подключения. Переименовать плейлист можно позже.",
+            "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "Вставьте ссылку на удалённый файл .m3u или .m3u8",
+            "METHOD_FILE_LABEL": "Файл M3U",
             "METHOD_FILE_SUB": "Загрузите плейлист с вашего компьютера",
+            "METHOD_XTREAM_LABEL": "Учётные данные Xtream",
             "METHOD_XTREAM_SUB": "Подключение через сервер, имя пользователя и пароль",
+            "METHOD_STALKER_LABEL": "Stalker портал",
             "METHOD_STALKER_SUB": "MAC-адрес и URL портала",
+            "METHOD_TEXT_LABEL": "M3U текстом",
             "METHOD_TEXT_SUB": "Для разовых плейлистов или когда есть только текст"
         },
         "FILE_UPLOAD": {

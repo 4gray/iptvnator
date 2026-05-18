@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "接続方法を選択してください。名前は後から変更できます。",
+            "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "リモートの.m3uまたは.m3u8へのリンクを貼り付け",
+            "METHOD_FILE_LABEL": "M3Uファイル",
             "METHOD_FILE_SUB": "コンピューターからプレイリストをアップロード",
+            "METHOD_XTREAM_LABEL": "Xtream認証情報",
             "METHOD_XTREAM_SUB": "ホスト、ユーザー名、パスワードで接続",
+            "METHOD_STALKER_LABEL": "Stalkerポータル",
             "METHOD_STALKER_SUB": "MACアドレスとポータルURL",
+            "METHOD_TEXT_LABEL": "M3Uテキスト",
             "METHOD_TEXT_SUB": "一度限りのリストやテキストしかない場合に"
         },
         "FILE_UPLOAD": {

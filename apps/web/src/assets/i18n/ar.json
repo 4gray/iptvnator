@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "اختر طريقة الاتصال، ويمكنك إعادة تسميتها لاحقًا.",
+            "METHOD_URL_LABEL": "رابط M3U",
             "METHOD_URL_SUB": "ألصق رابطًا لملف .m3u أو .m3u8 بعيد",
+            "METHOD_FILE_LABEL": "ملف M3U",
             "METHOD_FILE_SUB": "حمّل قائمة تشغيل من جهازك",
+            "METHOD_XTREAM_LABEL": "بيانات اعتماد Xtream",
             "METHOD_XTREAM_SUB": "اتصل باستخدام المضيف واسم المستخدم وكلمة المرور",
+            "METHOD_STALKER_LABEL": "بوابة Stalker",
             "METHOD_STALKER_SUB": "عنوان MAC ورابط البوابة",
+            "METHOD_TEXT_LABEL": "نص m3u الخام",
             "METHOD_TEXT_SUB": "للقوائم العابرة أو عندما يتوفر لديك النص فقط"
         },
         "FILE_UPLOAD": {

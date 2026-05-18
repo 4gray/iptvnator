@@ -130,10 +130,15 @@
         },
         "ADD_PLAYLIST": {
             "PICK_METHOD": "Pick how you want to connect. You can rename it later.",
+            "METHOD_URL_LABEL": "M3U URL",
             "METHOD_URL_SUB": "Paste a link to a remote .m3u or .m3u8",
+            "METHOD_FILE_LABEL": "M3U file",
             "METHOD_FILE_SUB": "Upload a playlist from your computer",
+            "METHOD_XTREAM_LABEL": "Xtream credentials",
             "METHOD_XTREAM_SUB": "Connect with host, username and password",
+            "METHOD_STALKER_LABEL": "Stalker portal",
             "METHOD_STALKER_SUB": "MAC address and portal URL",
+            "METHOD_TEXT_LABEL": "Raw m3u text",
             "METHOD_TEXT_SUB": "For one-off lists or when you only have text"
         },
         "FILE_UPLOAD": {
