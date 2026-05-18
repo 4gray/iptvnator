@@ -108,7 +108,12 @@ export function buildSettingsSectionNavItems(
             visible: isDesktop,
         },
         {
-            id: '@iptvnator/ui/remote-control',
+            // Must match the section's HTML id (`remote-control`) so the
+            // settings-section-scroll directive can resolve the anchor.
+            // Was previously '@iptvnator/ui/remote-control' (the NX lib
+            // name), which meant clicking the nav item silently no-op'd
+            // because document.getElementById of that string returned null.
+            id: 'remote-control',
             label: 'SETTINGS.NAV_REMOTE',
             icon: 'smartphone',
             visible: isDesktop,
