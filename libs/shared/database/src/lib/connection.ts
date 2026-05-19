@@ -23,6 +23,10 @@ let db: DatabaseInstance | null = null;
 let sqlite: Database.Database | null = null;
 let initPromise: Promise<DatabaseInstance> | null = null;
 
+const XTREAM_ADDED_EPOCH_MILLISECONDS_THRESHOLD = 10_000_000_000;
+const XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY =
+    'migration:xtream-content-added-epoch-seconds:v1';
+
 function readTraceFlag(name: string): boolean {
     const value = process.env[name]?.trim().toLowerCase();
     return value ? TRACE_ENV_TRUE_VALUES.has(value) : false;
@@ -298,6 +302,7 @@ export const __databaseConnectionTestHooks = {
     createTableStatements: CREATE_TABLE_STATEMENTS,
     columnMigrationStatements: COLUMN_MIGRATION_STATEMENTS,
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,
+    normalizeXtreamContentAddedEpochs,
 } as const;
 
 /**
@@ -437,7 +442,9 @@ function deduplicateXtreamCache(sqliteDb: Database.Database): void {
         const deleteRecentlyViewed = sqliteDb.prepare(
             `DELETE FROM recently_viewed WHERE content_id = ?`
         );
-        const deleteContent = sqliteDb.prepare(`DELETE FROM content WHERE id = ?`);
+        const deleteContent = sqliteDb.prepare(
+            `DELETE FROM content WHERE id = ?`
+        );
 
         for (const group of duplicateContentGroups) {
             const candidates = selectContentCandidates.all(
@@ -462,6 +469,58 @@ function deduplicateXtreamCache(sqliteDb: Database.Database): void {
     });
 
     executeCleanup();
+}
+
+function normalizeXtreamContentAddedEpochs(sqliteDb: Database.Database): void {
+    try {
+        const migrationState = sqliteDb
+            .prepare(`SELECT value FROM app_state WHERE key = ?`)
+            .get(XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY) as
+            | { value?: unknown }
+            | undefined;
+
+        if (migrationState?.value === 'done') {
+            return;
+        }
+
+        const executeMigration = sqliteDb.transaction(() => {
+            sqliteDb
+                .prepare(
+                    `UPDATE content
+                     SET added = CAST(CAST(added AS INTEGER) / 1000 AS TEXT)
+                     WHERE added IS NOT NULL
+                       AND added <> ''
+                       AND added NOT GLOB '*[^0-9]*'
+                       AND CAST(added AS INTEGER) >= ?
+                       AND CAST(added AS INTEGER) / 1000 < ?`
+                )
+                .run(
+                    XTREAM_ADDED_EPOCH_MILLISECONDS_THRESHOLD,
+                    XTREAM_ADDED_EPOCH_MILLISECONDS_THRESHOLD
+                );
+
+            sqliteDb
+                .prepare(
+                    `INSERT INTO app_state (key, value, updated_at)
+                     VALUES (?, 'done', datetime('now'))
+                     ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at`
+                )
+                .run(XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY);
+        });
+
+        executeMigration();
+    } catch (error) {
+        const message =
+            typeof error === 'object' && error !== null && 'message' in error
+                ? String((error as { message?: unknown }).message ?? error)
+                : String(error);
+
+        console.warn(
+            `Xtream added timestamp normalization failed (continuing): ${message}`
+        );
+    }
 }
 
 function runMigrationStatements(
@@ -498,6 +557,7 @@ function runMigrationStatements(
 function runMigrations(sqliteDb: Database.Database): void {
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
     deduplicateXtreamCache(sqliteDb);
+    normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);
 }
 

@@ -22,6 +22,7 @@ describe('database schema statements', () => {
         createTableStatements,
         columnMigrationStatements,
         indexMigrationStatements,
+        normalizeXtreamContentAddedEpochs,
     } = __databaseConnectionTestHooks;
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
@@ -116,5 +117,57 @@ describe('database schema statements', () => {
         ];
 
         expect(objectNames).toHaveLength(new Set(objectNames).size);
+    });
+
+    it('runs the legacy millisecond Xtream timestamp normalization once', () => {
+        const selectGet = jest.fn().mockReturnValue(undefined);
+        const updateRun = jest.fn();
+        const stateRun = jest.fn();
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return { get: selectGet };
+            }
+            if (statement.includes('UPDATE content')) {
+                return { run: updateRun };
+            }
+            if (statement.includes('INSERT INTO app_state')) {
+                return { run: stateRun };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof normalizeXtreamContentAddedEpochs>[0];
+
+        normalizeXtreamContentAddedEpochs(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(updateRun).toHaveBeenCalledWith(10_000_000_000, 10_000_000_000);
+        expect(stateRun).toHaveBeenCalledWith(
+            'migration:xtream-content-added-epoch-seconds:v1'
+        );
+    });
+
+    it('skips legacy Xtream timestamp normalization after it has run', () => {
+        const selectGet = jest.fn().mockReturnValue({ value: 'done' });
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return { get: selectGet };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof normalizeXtreamContentAddedEpochs>[0];
+
+        normalizeXtreamContentAddedEpochs(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
     });
 });
