@@ -45,43 +45,14 @@ export class SettingsSectionScrollDirective
             { injector: this.injector }
         );
 
-        effect(
-            (onCleanup) => {
-                const activeSectionId = this.settingsCtx.activeSection();
-                const activeSectionElement =
-                    this.elementRef.nativeElement.querySelector(
-                        `#${activeSectionId}`
-                    ) as HTMLElement | null;
-
-                if (!activeSectionElement) {
-                    return;
-                }
-
-                const animation = activeSectionElement.animate(
-                    [
-                        {
-                            boxShadow:
-                                'inset 0 0 0 1px var(--settings-group-active-ring), 0 8px 18px -24px var(--settings-group-active-glow)',
-                        },
-                        {
-                            boxShadow:
-                                'inset 0 0 0 1px var(--settings-group-active-ring), 0 12px 22px -24px var(--settings-group-active-glow)',
-                        },
-                        {
-                            boxShadow:
-                                'inset 0 0 0 1px var(--settings-group-active-ring), 0 8px 18px -24px var(--settings-group-active-glow)',
-                        },
-                    ],
-                    {
-                        duration: 260,
-                        easing: 'ease-out',
-                    }
-                );
-
-                onCleanup(() => animation.cancel());
-            },
-            { injector: this.injector }
-        );
+        // The previous active-section change handler ran a 260ms box-shadow
+        // animation (inset 1px ring + soft glow) on whichever section
+        // became active during scroll. With the new flat layout (no card
+        // chrome, no static active ring) that pulse drew a brief 1px
+        // border around each block as the user scrolled past — what the
+        // user reported as "short border kind of highlight around blocks".
+        // The rail's left active state already announces the current
+        // section, so the inline pulse is redundant. Removed entirely.
     }
 
     ngAfterViewInit(): void {
