@@ -55,7 +55,7 @@
                         [title]="item.title || item.name"
                         [posterUrl]="item.poster_url || item.cover"
                         [type]="'series'"
-                        [date]="getDate(item)"
+                        [date]="getDate(item, true)"
                         (cardClick)="openItem(item, 'series')"
                     />
                 }
