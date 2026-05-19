@@ -23,10 +23,22 @@
     >
     <mat-icon>chevron_right</mat-icon>
   </button>
-  <button mat-icon-button (click)="zoomOut()" [disabled]="hourWidth() <= 50" matTooltip="Zoom out">
+  <button
+    mat-icon-button
+    (click)="zoomOut()"
+    [disabled]="hourWidth() <= 50"
+    [matTooltip]="'EPG.ZOOM_OUT' | translate"
+    [attr.aria-label]="'EPG.ZOOM_OUT' | translate"
+  >
     <mat-icon>remove</mat-icon>
   </button>
-  <button mat-icon-button (click)="zoomIn()" [disabled]="hourWidth() >= 800" matTooltip="Zoom in">
+  <button
+    mat-icon-button
+    (click)="zoomIn()"
+    [disabled]="hourWidth() >= 800"
+    [matTooltip]="'EPG.ZOOM_IN' | translate"
+    [attr.aria-label]="'EPG.ZOOM_IN' | translate"
+  >
     <mat-icon>add</mat-icon>
   </button>
 
@@ -53,7 +65,14 @@
     <button
       mat-icon-button
       (click)="toggleSearch()"
-      [matTooltip]="isSearchExpanded() ? 'Close filter' : 'Filter channels'"
+      [matTooltip]="
+        (isSearchExpanded() ? 'EPG.CLOSE_FILTER' : 'EPG.FILTER_CHANNELS')
+          | translate
+      "
+      [attr.aria-label]="
+        (isSearchExpanded() ? 'EPG.CLOSE_FILTER' : 'EPG.FILTER_CHANNELS')
+          | translate
+      "
       >
       <mat-icon>{{ isSearchExpanded() ? 'filter_list_off' : 'filter_list' }}</mat-icon>
     </button>
@@ -113,7 +132,18 @@
     <button
       mat-icon-button
       (click)="toggleProgramSearch()"
-      [matTooltip]="isProgramSearchOpen() ? 'Close program search' : 'Search programs'"
+      [matTooltip]="
+        (isProgramSearchOpen()
+          ? 'EPG.CLOSE_PROGRAM_SEARCH'
+          : 'EPG.SEARCH_PROGRAMS'
+        ) | translate
+      "
+      [attr.aria-label]="
+        (isProgramSearchOpen()
+          ? 'EPG.CLOSE_PROGRAM_SEARCH'
+          : 'EPG.SEARCH_PROGRAMS'
+        ) | translate
+      "
       >
       <mat-icon>{{ isProgramSearchOpen() ? 'close' : 'manage_search' }}</mat-icon>
     </button>
