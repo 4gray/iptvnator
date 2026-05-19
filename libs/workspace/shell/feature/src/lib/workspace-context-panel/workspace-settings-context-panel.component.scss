@@ -7,19 +7,18 @@
     overflow: hidden;
 }
 
-// Quiet eyebrow header — small, uppercase, letter-spaced so it doesn't
-// compete with the section titles on the right pane (which is now the
-// dominant heading). Stays on the app's inherited sans-serif (DM Sans)
-// rather than the mockup's mono — the rest of the workspace shell uses
-// sans for every other small label, so a one-off mono eyebrow stood out
-// as inconsistent.
+// Quiet sentence-case rail header — matches the typography of the
+// section nav items below ("Dashboard", "Sources", etc., all sentence
+// case) instead of standing out as an uppercase eyebrow that didn't
+// appear anywhere else in the workspace rail. The muted colour and
+// small size still distinguish it from the clickable items so it reads
+// as a section caption rather than competing for focus.
 .panel-title {
     margin: 0;
-    padding: 20px 18px 12px;
-    font-size: 11px;
+    padding: 20px 18px 10px;
+    font-size: 13px;
     font-weight: 600;
-    letter-spacing: 0.1em;
-    text-transform: uppercase;
+    letter-spacing: 0.005em;
     color: var(--mat-sys-on-surface-variant);
 }
 
