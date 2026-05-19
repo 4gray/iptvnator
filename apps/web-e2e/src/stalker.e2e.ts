@@ -126,7 +126,8 @@ async function addStalkerPortal(
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('tab', { name: 'Stalker', exact: true }).click();
+    // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
+    await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
 
     await setInputValue(dialog.locator('input#title'), name);
     await setInputValue(dialog.locator('input#portalUrl'), PORTAL_URL);

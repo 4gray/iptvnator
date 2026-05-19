@@ -49,17 +49,26 @@ test.describe('Settings', () => {
 
     test('Change app theme', async ({ page }) => {
         await openSettings(page);
+        // v0.22 compact theme picker exposes the segmented control as a
+        // radiogroup with options labelled just "Light"/"Dark"/"System".
+        // Scope to the theme radiogroup so we don't collide with the
+        // identically-labelled cover-size options below.
+        const themeGroup = page.locator(
+            '[data-test-id="select-theme"][role="radiogroup"]'
+        );
         await expect(
-            page.getByRole('radio', { name: 'System theme' })
+            themeGroup.getByRole('radio', { name: 'System', exact: true })
         ).toHaveAttribute('aria-checked', 'true');
-        await page.getByRole('radio', { name: 'Dark theme' }).click();
+        await themeGroup
+            .getByRole('radio', { name: 'Dark', exact: true })
+            .click();
 
         await saveSettings(page);
         await page.reload();
         await openSettings(page);
 
         await expect(
-            page.getByRole('radio', { name: 'Dark theme' })
+            themeGroup.getByRole('radio', { name: 'Dark', exact: true })
         ).toHaveAttribute('aria-checked', 'true');
     });
 

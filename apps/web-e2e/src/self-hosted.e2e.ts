@@ -36,7 +36,10 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('tab', { name: 'Xtream', exact: true }).click();
+    // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
+    await dialog
+        .getByRole('radio', { name: /Xtream credentials/i })
+        .click();
 
     await dialog.locator('#title').fill('Self-hosted Xtream');
     await dialog.locator('#serverUrl').fill(XTREAM_MOCK_SERVER);
@@ -52,7 +55,8 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('tab', { name: 'Stalker', exact: true }).click();
+    // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
+    await dialog.getByRole('radio', { name: /Stalker portal/i }).click();
 
     await setInputValue(dialog.locator('input#title'), 'Self-hosted Stalker');
     await setInputValue(dialog.locator('input#portalUrl'), STALKER_PORTAL_URL);
