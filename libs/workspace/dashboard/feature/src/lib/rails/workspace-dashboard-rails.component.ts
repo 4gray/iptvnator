@@ -615,6 +615,18 @@ export class WorkspaceDashboardRailsComponent {
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
         const position = this.data.getPlaybackPositionForItem(item);
         const watchProgress = playbackProgressPercent(position);
+        const episodeBadge =
+            item.type === 'series' &&
+            position?.seasonNumber != null &&
+            position?.episodeNumber != null
+                ? this.translate.instant(
+                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
+                      {
+                          season: position.seasonNumber,
+                          episode: position.episodeNumber,
+                      }
+                  )
+                : null;
         return {
             id: `recent-${item.id}-${item.playlist_id}-${item.viewed_at}`,
             title: item.title,
@@ -625,6 +637,7 @@ export class WorkspaceDashboardRailsComponent {
             link: this.data.getRecentItemLink(item),
             state: this.data.getRecentItemNavigationState(item),
             watchProgress,
+            episodeBadge,
         };
     }
 

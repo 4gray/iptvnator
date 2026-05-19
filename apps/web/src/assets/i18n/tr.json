@@ -872,6 +872,7 @@
             "TYPE_LIVE": "Canlı",
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Dizi",
+            "SEASON_EPISODE_BADGE": "S{{season}}·B{{episode}}",
             "NOT_YET_SYNCED": "Henüz eşitlenmedi"
         },
         "SHELL": {

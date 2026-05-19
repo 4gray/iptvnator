@@ -872,6 +872,7 @@
             "TYPE_LIVE": "直播",
             "TYPE_MOVIE": "电影",
             "TYPE_SERIES": "剧集",
+            "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "尚未同步"
         },
         "SHELL": {

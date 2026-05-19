@@ -872,6 +872,7 @@
             "TYPE_LIVE": "Na żywo",
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Serial",
+            "SEASON_EPISODE_BADGE": "S{{season}}·O{{episode}}",
             "NOT_YET_SYNCED": "Jeszcze niezsynchronizowane"
         },
         "SHELL": {

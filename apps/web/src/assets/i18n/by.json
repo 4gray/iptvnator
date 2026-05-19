@@ -872,6 +872,7 @@
             "TYPE_LIVE": "Прамы эфір",
             "TYPE_MOVIE": "Фільм",
             "TYPE_SERIES": "Серыял",
+            "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Яшчэ не сінхранізавана"
         },
         "SHELL": {

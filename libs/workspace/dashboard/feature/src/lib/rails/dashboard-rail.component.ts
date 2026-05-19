@@ -54,6 +54,13 @@ export interface DashboardRailCard {
      * position leave this unset.
      */
     watchProgress?: number | null;
+
+    /**
+     * Localised "S{n} · E{n}" badge for series with a tracked episode
+     * position. Renders as a small chip next to the card subtitle so the
+     * user can see which episode they were on without opening the show.
+     */
+    episodeBadge?: string | null;
 }
 
 /**

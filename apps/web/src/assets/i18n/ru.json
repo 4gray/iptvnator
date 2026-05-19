@@ -872,6 +872,7 @@
             "TYPE_LIVE": "ТВ",
             "TYPE_MOVIE": "Фильм",
             "TYPE_SERIES": "Сериал",
+            "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Еще не синхронизировано"
         },
         "SHELL": {

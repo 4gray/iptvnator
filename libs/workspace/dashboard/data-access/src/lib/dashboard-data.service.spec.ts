@@ -619,6 +619,87 @@ describe('DashboardDataService', () => {
         const seriesPos = service.getPlaybackPositionForItem(series!);
         expect(seriesPos?.contentType).toBe('episode');
         expect(seriesPos?.positionSeconds).toBe(720);
+        // Season/episode metadata travels with the position so cards can
+        // render an "S2 · E5" badge without an extra round-trip.
+        expect(seriesPos?.seasonNumber).toBe(2);
+        expect(seriesPos?.episodeNumber).toBe(4);
+    });
+
+    it('resolves the latest episode position for series whose recent_items row carries the series id', async () => {
+        // The Xtream series landing page records the recent item with the
+        // SERIES id, while each played episode saves its position keyed by
+        // the EPISODE id (with seriesXtreamId pointing back). The lookup
+        // must follow seriesXtreamId so both card shapes show progress.
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 200,
+                category_id: 30,
+                title: 'Shadow Bay',
+                rating: '7.5',
+                viewed_at: '2026-05-01T09:00:00.000Z',
+                poster_url: 'https://example.com/shadow-bay.png',
+                xtream_id: 4000, // series id
+                type: 'series',
+                playlist_id: 'xtream-C',
+                playlist_name: 'Xtream C',
+            },
+        ]);
+        playlistsSignal.set([
+            ...playlistsSignal(),
+            {
+                _id: 'xtream-C',
+                title: 'Xtream C',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://c.example.com',
+            },
+        ]);
+        playbackPositionsMock.getAllPlaybackPositions.mockImplementation(
+            (playlistId: string) => {
+                if (playlistId === 'xtream-C') {
+                    return Promise.resolve([
+                        // Earlier episode — should NOT win even if it also
+                        // matches the series, because the newer one is more
+                        // relevant for "where you left off".
+                        {
+                            contentXtreamId: 4001,
+                            contentType: 'episode',
+                            seriesXtreamId: 4000,
+                            seasonNumber: 1,
+                            episodeNumber: 1,
+                            positionSeconds: 60,
+                            durationSeconds: 1800,
+                            playlistId,
+                            updatedAt: '2026-04-25T12:00:00.000Z',
+                        } as PlaybackPositionData,
+                        {
+                            contentXtreamId: 4007,
+                            contentType: 'episode',
+                            seriesXtreamId: 4000,
+                            seasonNumber: 3,
+                            episodeNumber: 7,
+                            positionSeconds: 540,
+                            durationSeconds: 1800,
+                            playlistId,
+                            updatedAt: '2026-05-01T09:30:00.000Z',
+                        } as PlaybackPositionData,
+                    ]);
+                }
+                return Promise.resolve([]);
+            }
+        );
+
+        await service.reloadGlobalRecentItems();
+        await service.reloadPlaybackPositions();
+
+        const series = service
+            .globalRecentVodItems()
+            .find((item) => item.title === 'Shadow Bay');
+        const position = service.getPlaybackPositionForItem(series!);
+        expect(position?.contentType).toBe('episode');
+        expect(position?.seasonNumber).toBe(3);
+        expect(position?.episodeNumber).toBe(7);
     });
 
     it('exposes a live-only slice of global favorites so the dashboard can promote favorited channels into the Live rail', async () => {

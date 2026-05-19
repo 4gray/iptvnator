@@ -248,8 +248,6 @@ export class DashboardDataService {
         if (item.type !== 'movie' && item.type !== 'series') {
             return null;
         }
-        const positionType: 'vod' | 'episode' =
-            item.type === 'series' ? 'episode' : 'vod';
         const xtreamId =
             typeof item.xtream_id === 'number'
                 ? item.xtream_id
@@ -257,12 +255,41 @@ export class DashboardDataService {
         if (!Number.isFinite(xtreamId)) {
             return null;
         }
-        const key = playbackPositionMapKey(
-            item.playlist_id,
-            xtreamId,
-            positionType
-        );
-        return this.playbackPositionsMap().get(key) ?? null;
+
+        if (item.type === 'movie') {
+            const key = playbackPositionMapKey(
+                item.playlist_id,
+                xtreamId,
+                'vod'
+            );
+            return this.playbackPositionsMap().get(key) ?? null;
+        }
+
+        // Series recent_items rows carry either the series id (the series
+        // landing page writes the series itself) or, for direct-play flows,
+        // the episode id. Match both shapes and prefer the most recently
+        // updated episode position so the card can show resume progress and
+        // a "S2 · E5" badge regardless of how the row was originally saved.
+        let best: PlaybackPositionData | null = null;
+        for (const position of this.playbackPositionsMap().values()) {
+            if (position.contentType !== 'episode') continue;
+            if (
+                position.playlistId &&
+                position.playlistId !== item.playlist_id
+            ) {
+                continue;
+            }
+            const matchesEpisode = position.contentXtreamId === xtreamId;
+            const matchesSeries = position.seriesXtreamId === xtreamId;
+            if (!matchesEpisode && !matchesSeries) continue;
+            if (
+                !best ||
+                (position.updatedAt ?? '') > (best.updatedAt ?? '')
+            ) {
+                best = position;
+            }
+        }
+        return best;
     }
 
     /**

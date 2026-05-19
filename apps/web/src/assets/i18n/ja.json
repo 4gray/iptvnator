@@ -872,6 +872,7 @@
             "TYPE_LIVE": "ライブ",
             "TYPE_MOVIE": "映画",
             "TYPE_SERIES": "シリーズ",
+            "SEASON_EPISODE_BADGE": "S{{season}}・E{{episode}}",
             "NOT_YET_SYNCED": "未同期"
         },
         "SHELL": {

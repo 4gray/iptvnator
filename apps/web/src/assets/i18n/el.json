@@ -872,6 +872,7 @@
             "TYPE_LIVE": "Ζωντανά",
             "TYPE_MOVIE": "Ταινία",
             "TYPE_SERIES": "Σειρά",
+            "SEASON_EPISODE_BADGE": "Σ{{season}}·Ε{{episode}}",
             "NOT_YET_SYNCED": "Δεν έχει συγχρονιστεί ακόμα"
         },
         "SHELL": {

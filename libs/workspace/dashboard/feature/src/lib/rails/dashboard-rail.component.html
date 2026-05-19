@@ -189,11 +189,18 @@
                                 <span class="rail__card-title">{{
                                     card.title
                                 }}</span>
-                                @if (card.subtitle) {
-                                    <span class="rail__card-subtitle">{{
-                                        card.subtitle
-                                    }}</span>
-                                }
+                                <span class="rail__card-meta-row">
+                                    @if (card.episodeBadge) {
+                                        <span class="rail__card-episode">{{
+                                            card.episodeBadge
+                                        }}</span>
+                                    }
+                                    @if (card.subtitle) {
+                                        <span class="rail__card-subtitle">{{
+                                            card.subtitle
+                                        }}</span>
+                                    }
+                                </span>
                             </div>
                         </a>
 

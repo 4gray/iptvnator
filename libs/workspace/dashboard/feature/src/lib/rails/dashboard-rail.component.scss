@@ -350,7 +350,34 @@
     transition: color 0.15s ease;
 }
 
+.rail__card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.rail__card-episode {
+    flex: 0 0 auto;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: color-mix(
+        in srgb,
+        var(--app-selection-color, #2f86ff) 14%,
+        transparent
+    );
+    color: var(--app-selection-color, #2f86ff);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
 .rail__card-subtitle {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 0.72rem;
     font-weight: 500;
     line-height: 1.4;

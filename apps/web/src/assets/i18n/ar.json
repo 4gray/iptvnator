@@ -872,6 +872,7 @@
             "TYPE_LIVE": "مباشر",
             "TYPE_MOVIE": "فيلم",
             "TYPE_SERIES": "مسلسل",
+            "SEASON_EPISODE_BADGE": "م{{season}}·ح{{episode}}",
             "NOT_YET_SYNCED": "لم تتم المزامنة بعد"
         },
         "SHELL": {

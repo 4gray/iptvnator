@@ -872,6 +872,7 @@
             "TYPE_LIVE": "라이브",
             "TYPE_MOVIE": "영화",
             "TYPE_SERIES": "시리즈",
+            "SEASON_EPISODE_BADGE": "시즌{{season}} {{episode}}화",
             "NOT_YET_SYNCED": "아직 동기화되지 않음"
         },
         "SHELL": {
