@@ -7,18 +7,17 @@
     overflow: hidden;
 }
 
-// Quiet mono eyebrow per the v0.22 mockup — replaces the previous bold
-// 20px h2 that competed with the section headers on the right pane for
-// "biggest text on screen". The rail is now a scannable list; the section
-// titles on the right are the dominant heading.
+// Quiet eyebrow header — small, uppercase, letter-spaced so it doesn't
+// compete with the section titles on the right pane (which is now the
+// dominant heading). Stays on the app's inherited sans-serif (DM Sans)
+// rather than the mockup's mono — the rest of the workspace shell uses
+// sans for every other small label, so a one-off mono eyebrow stood out
+// as inconsistent.
 .panel-title {
     margin: 0;
     padding: 20px 18px 12px;
-    font-family:
-        'JetBrains Mono', ui-monospace, 'SF Mono', Menlo, Monaco, Consolas,
-        monospace;
     font-size: 11px;
-    font-weight: 500;
+    font-weight: 600;
     letter-spacing: 0.1em;
     text-transform: uppercase;
     color: var(--mat-sys-on-surface-variant);
