@@ -379,6 +379,15 @@
         "LIGHT_THEME": "فاتح",
         "SYSTEM_THEME": "النظام"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "تشغيل",
+        "PAUSE": "إيقاف مؤقت",
+        "PREVIOUS_STATION": "المحطة السابقة",
+        "NEXT_STATION": "المحطة التالية",
+        "MUTE": "كتم الصوت",
+        "UNMUTE": "إلغاء كتم الصوت",
+        "VOLUME": "مستوى الصوت"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

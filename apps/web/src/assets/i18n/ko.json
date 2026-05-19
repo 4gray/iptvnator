@@ -379,6 +379,15 @@
         "LIGHT_THEME": "밝게",
         "SYSTEM_THEME": "시스템"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "재생",
+        "PAUSE": "일시정지",
+        "PREVIOUS_STATION": "이전 방송국",
+        "NEXT_STATION": "다음 방송국",
+        "MUTE": "음소거",
+        "UNMUTE": "음소거 해제",
+        "VOLUME": "볼륨"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Claro",
         "SYSTEM_THEME": "Sistema"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Reproduzir",
+        "PAUSE": "Pausar",
+        "PREVIOUS_STATION": "Estação anterior",
+        "NEXT_STATION": "Próxima estação",
+        "MUTE": "Silenciar",
+        "UNMUTE": "Ativar som",
+        "VOLUME": "Volume"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Светлая",
         "SYSTEM_THEME": "Системная"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Воспроизвести",
+        "PAUSE": "Пауза",
+        "PREVIOUS_STATION": "Предыдущая станция",
+        "NEXT_STATION": "Следующая станция",
+        "MUTE": "Отключить звук",
+        "UNMUTE": "Включить звук",
+        "VOLUME": "Громкость"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "Контейнер потока, вероятно, не поддерживается встроенным браузерным плеером",

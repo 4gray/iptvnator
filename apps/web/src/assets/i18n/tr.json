@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Açık",
         "SYSTEM_THEME": "Sistem"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Oynat",
+        "PAUSE": "Duraklat",
+        "PREVIOUS_STATION": "Önceki istasyon",
+        "NEXT_STATION": "Sonraki istasyon",
+        "MUTE": "Sesi kapat",
+        "UNMUTE": "Sesi aç",
+        "VOLUME": "Ses seviyesi"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Светлая",
         "SYSTEM_THEME": "Сістэмная"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Прайграць",
+        "PAUSE": "Паўза",
+        "PREVIOUS_STATION": "Папярэдняя станцыя",
+        "NEXT_STATION": "Наступная станцыя",
+        "MUTE": "Адключыць гук",
+        "UNMUTE": "Уключыць гук",
+        "VOLUME": "Гучнасць"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

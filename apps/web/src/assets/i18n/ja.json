@@ -379,6 +379,15 @@
         "LIGHT_THEME": "ライト",
         "SYSTEM_THEME": "システム"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "再生",
+        "PAUSE": "一時停止",
+        "PREVIOUS_STATION": "前の局",
+        "NEXT_STATION": "次の局",
+        "MUTE": "ミュート",
+        "UNMUTE": "ミュート解除",
+        "VOLUME": "音量"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

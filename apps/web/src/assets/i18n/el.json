@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Ανοιχτό",
         "SYSTEM_THEME": "Σύστημα"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Αναπαραγωγή",
+        "PAUSE": "Παύση",
+        "PREVIOUS_STATION": "Προηγούμενος σταθμός",
+        "NEXT_STATION": "Επόμενος σταθμός",
+        "MUTE": "Σίγαση",
+        "UNMUTE": "Κατάργηση σίγασης",
+        "VOLUME": "Ένταση"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Licht",
         "SYSTEM_THEME": "Systeem"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Afspelen",
+        "PAUSE": "Pauzeren",
+        "PREVIOUS_STATION": "Vorige zender",
+        "NEXT_STATION": "Volgende zender",
+        "MUTE": "Dempen",
+        "UNMUTE": "Dempen opheffen",
+        "VOLUME": "Volume"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

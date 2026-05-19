@@ -379,6 +379,15 @@
         "LIGHT_THEME": "淺色",
         "SYSTEM_THEME": "跟隨系統"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "播放",
+        "PAUSE": "暫停",
+        "PREVIOUS_STATION": "上一個電台",
+        "NEXT_STATION": "下一個電台",
+        "MUTE": "靜音",
+        "UNMUTE": "取消靜音",
+        "VOLUME": "音量"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

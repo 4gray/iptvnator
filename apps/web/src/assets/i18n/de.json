@@ -379,6 +379,15 @@
         "LIGHT_THEME": "Hell",
         "SYSTEM_THEME": "System"
     },
+    "AUDIO_PLAYER": {
+        "PLAY": "Wiedergabe",
+        "PAUSE": "Pause",
+        "PREVIOUS_STATION": "Vorheriger Sender",
+        "NEXT_STATION": "Nächster Sender",
+        "MUTE": "Stummschalten",
+        "UNMUTE": "Stummschaltung aufheben",
+        "VOLUME": "Lautstärke"
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",
