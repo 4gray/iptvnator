@@ -159,6 +159,9 @@ Keyboard shortcut help is shell-owned:
    content-editable elements via `isTypingInInput(...)`.
 3. `libs/portal/shared/util/src/lib/keyboard-shortcuts.ts` is the metadata
    registry for shortcuts shown in the help dialog and documented in README.
+   Shortcuts that only work through the Electron bridge, such as embedded MPV
+   controls, must set `electronOnly: true` so the PWA dialog does not advertise
+   unavailable commands.
 4. New custom shortcuts should be added to that registry when the handler is
    added. Do not include native browser/editor behavior such as `Tab` or
    platform text editing shortcuts.

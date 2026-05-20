@@ -69,9 +69,9 @@ Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 | Global | `Enter` in workspace search | Submit the current search |
 | Navigation | `Ctrl/Cmd+B` | Toggle the live sidebar |
 | Navigation | `0-9` | Select an M3U channel by number |
-| Playback | `Space` / `K` | Play or pause embedded MPV playback |
-| Playback | `F` | Toggle embedded MPV fullscreen |
-| Playback | `ArrowLeft` / `ArrowRight` | Seek embedded MPV playback by 5 seconds |
+| Playback | `Space` / `K` | Play or pause embedded MPV playback in the desktop app |
+| Playback | `F` | Toggle embedded MPV fullscreen in the desktop app |
+| Playback | `ArrowLeft` / `ArrowRight` | Seek embedded MPV playback by 5 seconds in the desktop app |
 | Playback | `ArrowUp` / `ArrowDown` | Adjust volume by 5% |
 | Playback | `M` | Mute audio |
 | Dialogs and lists | `ArrowUp` / `ArrowDown` | Move command palette selection |
