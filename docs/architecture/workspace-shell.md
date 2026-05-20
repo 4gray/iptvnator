@@ -157,8 +157,10 @@ Keyboard shortcut help is shell-owned:
    `Shift+/`.
 2. The listener ignores events from inputs, textareas, selects, and
    content-editable elements via `isTypingInInput(...)`.
-3. `libs/portal/shared/util/src/lib/keyboard-shortcuts.ts` is the metadata
-   registry for shortcuts shown in the help dialog and documented in README.
+3. `libs/portal/shared/util/src/lib/keyboard-shortcut-definitions.ts` is the
+   metadata registry for shortcuts shown in the help dialog and documented in
+   README. `keyboard-shortcuts.ts` owns the display transformation and help
+   trigger detection.
    Shortcuts that only work through the Electron bridge, such as embedded MPV
    controls, must set `electronOnly: true` so the PWA dialog does not advertise
    unavailable commands.
