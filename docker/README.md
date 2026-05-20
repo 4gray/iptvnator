@@ -43,12 +43,12 @@ before it creates `PwaService`.
 These variables are supported by the Docker image. The compose file sets the
 safe local defaults shown below.
 
-| Variable                                 | Default                 | Purpose                                                                                                            |
-| ---------------------------------------- | ----------------------- | ------------------------------------------------------------------------------------------------------------------ |
-| `BACKEND_URL`                            | `/api`                  | Browser-facing backend URL used by the PWA. Keep `/api` for the bundled nginx proxy.                               |
-| `CLIENT_URL`                             | `http://localhost:4333` | Allowed browser origin for backend CORS. Use the public URL when hosting behind a reverse proxy. Multiple origins can be comma-separated. |
-| `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is rendered from the template to match it at startup.            |
-| `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0`                     | Set to `1` or `true` only for trusted local/LAN deployments that intentionally proxy private network IPTV or mock endpoints. |
+| Variable                                 | Default                 | Purpose                                                                                                                                      |
+| ---------------------------------------- | ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------- |
+| `BACKEND_URL`                            | `/api`                  | Browser-facing backend URL used by the PWA. Keep `/api` for the bundled nginx proxy.                                                         |
+| `CLIENT_URL`                             | `http://localhost:4333` | Allowed browser origin for backend CORS. Use the public URL when hosting behind a reverse proxy. Multiple origins can be comma-separated.    |
+| `PORT`                                   | `3000`                  | Internal Express backend port. nginx proxy config is rendered from the template to match it at startup.                                      |
+| `IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS` | `0`                     | Set to `1` or `true` only for trusted local/LAN deployments that intentionally proxy private network IPTV or mock endpoints.                 |
 | `NODE_EXTRA_CA_CERTS`                    | unset                   | Optional Node.js CA bundle path for providers using private certificate authorities. Mount the CA file into the container and set this path. |
 
 The web backend proxy accepts only `http` and `https` provider URLs. The PWA
@@ -64,18 +64,20 @@ enabled and pass the CA bundle to Node:
 
 ```yaml
 services:
-  iptvnator:
-    volumes:
-      - ./ca.pem:/etc/ssl/private/provider-ca.pem:ro
-    environment:
-      NODE_EXTRA_CA_CERTS: /etc/ssl/private/provider-ca.pem
+    iptvnator:
+        volumes:
+            - ./ca.pem:/etc/ssl/private/provider-ca.pem:ro
+        environment:
+            NODE_EXTRA_CA_CERTS: /etc/ssl/private/provider-ca.pem
 ```
 
 The entrypoint renders the nginx config from `docker/nginx.conf`, starts the
 backend, waits for `/health`, and only then starts nginx. The nginx config
 serves the PWA with SPA fallback, avoids caching `assets/app-config.js`, and
 proxies `/api/*` to the internal backend. The Dockerfile and compose file both
-define a health check against `/api/health`.
+define a health check against `/api/health`. If nginx or the backend exits
+after startup, the entrypoint exits the container so Docker Compose can apply
+the `restart: unless-stopped` policy.
 
 ## Local Validation
 

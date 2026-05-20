@@ -33,11 +33,22 @@ cleanup() {
 
     if [ -n "${NGINX_PID:-}" ]; then
         kill "$NGINX_PID" 2>/dev/null || true
+        wait "$NGINX_PID" 2>/dev/null || true
     fi
 
     if [ -n "${BACKEND_PID:-}" ]; then
         kill "$BACKEND_PID" 2>/dev/null || true
+        wait "$BACKEND_PID" 2>/dev/null || true
     fi
+}
+
+process_is_running() {
+    if [ ! -r "/proc/$1/stat" ]; then
+        return 1
+    fi
+
+    state="$(awk '{ print $3 }' "/proc/$1/stat" 2>/dev/null || true)"
+    [ -n "$state" ] && [ "$state" != "Z" ]
 }
 
 trap cleanup INT TERM EXIT
@@ -50,9 +61,12 @@ for _ in $(seq 1 30); do
         break
     fi
 
-    if ! kill -0 "$BACKEND_PID" 2>/dev/null; then
+    if ! process_is_running "$BACKEND_PID"; then
+        set +e
         wait "$BACKEND_PID"
-        exit $?
+        BACKEND_STATUS=$?
+        set -e
+        exit "$BACKEND_STATUS"
     fi
 
     sleep 1
@@ -66,4 +80,24 @@ fi
 nginx -g 'daemon off;' &
 NGINX_PID=$!
 
-wait "$NGINX_PID"
+while :; do
+    if ! process_is_running "$BACKEND_PID"; then
+        set +e
+        wait "$BACKEND_PID"
+        EXIT_STATUS=$?
+        set -e
+        echo "IPTVnator web backend exited with status ${EXIT_STATUS}."
+        exit "$EXIT_STATUS"
+    fi
+
+    if ! process_is_running "$NGINX_PID"; then
+        set +e
+        wait "$NGINX_PID"
+        EXIT_STATUS=$?
+        set -e
+        echo "nginx exited with status ${EXIT_STATUS}."
+        exit "$EXIT_STATUS"
+    fi
+
+    sleep 1
+done

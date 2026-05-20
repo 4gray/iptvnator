@@ -109,7 +109,9 @@ The Docker image has two stages:
 2. Runtime stage uses `node:22-alpine` with nginx installed. nginx serves
    `dist/apps/web` and proxies `/api/*` to the local Express backend.
    The entrypoint renders the nginx config from a `${PORT}` template, starts the
-   backend, waits for `/health`, and then starts nginx.
+   backend, waits for `/health`, and then starts nginx. If either process exits
+   after startup, the entrypoint exits the container so the compose restart
+   policy can recover the service.
 
 Default runtime values:
 
