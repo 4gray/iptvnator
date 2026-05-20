@@ -34,6 +34,29 @@ pnpm nx build web --configuration=pwa
 pnpm nx build web-backend
 ```
 
+## Published Docker Tags
+
+Pull request builds validate the Dockerfile without pushing an image. Docker
+Hub publishing happens only from trusted repository events.
+Publishing requires the repository secrets `DOCKERHUB_USERNAME` and
+`DOCKERHUB_TOKEN`; pull request builds and default manual runs do not use those
+secrets.
+
+| Tag pattern                | Published from           | Use case                                                                  |
+| -------------------------- | ------------------------ | ------------------------------------------------------------------------- |
+| `latest`                   | `master` pushes          | Default self-hosted image for users who want the newest merged PWA build. |
+| `<version>-pwa`            | `master` pushes          | Latest PWA image for the current `package.json` version.                  |
+| `<version>-pwa-<sha>`      | `master` pushes          | Immutable PWA image for a specific merged commit within a version.        |
+| `sha-<sha>`                | `master` pushes          | Commit-addressable image, useful for rollback and support diagnostics.    |
+| `<version>` / `v<version>` | `v*` release tags        | Release image aligned with a repository release tag.                      |
+| `stable`                   | Stable `v*` release tags | Most recent non-prerelease tagged release image.                          |
+| `manual-<sha>`             | Manual runs with `push`  | Explicit maintainer-triggered rebuilds outside normal publish events.     |
+
+Use `latest` for the simplest self-hosted setup. Pin `sha-<sha>` or
+`<version>-pwa-<sha>` when you need reproducible deployments. Use release tags
+when you want the Docker image to track a tagged IPTVnator release rather than
+every merge to `master`.
+
 ## Runtime Configuration
 
 The container writes `/usr/share/nginx/html/assets/app-config.js` on startup.
