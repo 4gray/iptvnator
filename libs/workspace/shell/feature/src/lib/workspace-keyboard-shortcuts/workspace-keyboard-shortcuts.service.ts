@@ -87,8 +87,7 @@ export class WorkspaceKeyboardShortcutsService {
             userAgentData?: { platform?: string };
         };
         const platform =
-            navigatorWithUserAgentData.userAgentData?.platform ??
-            navigator.platform ??
+            navigatorWithUserAgentData.userAgentData?.platform ||
             navigator.userAgent;
 
         return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'mac' : 'other';

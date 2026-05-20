@@ -146,6 +146,7 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         icon: 'play_arrow',
         keys: ['Space', 'K'],
         order: 10,
+        electronOnly: true,
     },
     {
         id: 'embedded-mpv-fullscreen',
@@ -154,6 +155,7 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         icon: 'fullscreen',
         keys: ['F'],
         order: 20,
+        electronOnly: true,
     },
     {
         id: 'embedded-mpv-seek',
@@ -162,6 +164,7 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         icon: 'swap_horiz',
         keys: ['ArrowLeft', 'ArrowRight'],
         order: 30,
+        electronOnly: true,
     },
     {
         id: 'adjust-volume',
@@ -186,6 +189,7 @@ export const APP_KEYBOARD_SHORTCUTS: readonly KeyboardShortcutDefinition[] = [
         icon: 'close',
         keys: ['Escape'],
         order: 60,
+        electronOnly: true,
     },
     {
         id: 'command-palette-navigation',

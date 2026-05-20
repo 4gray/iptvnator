@@ -22,7 +22,13 @@ describe('keyboard shortcuts registry', () => {
 
         expect(ids).not.toContain('open-global-search');
         expect(ids).not.toContain('open-recently-viewed');
+        expect(ids).not.toContain('embedded-mpv-play-pause');
+        expect(ids).not.toContain('embedded-mpv-fullscreen');
+        expect(ids).not.toContain('embedded-mpv-seek');
+        expect(ids).not.toContain('close-player-popovers');
         expect(ids).toContain('open-command-palette');
+        expect(ids).toContain('adjust-volume');
+        expect(ids).toContain('mute-audio');
     });
 
     it('uses platform-specific modifier labels', () => {

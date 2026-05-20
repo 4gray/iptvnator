@@ -27,6 +27,10 @@ describe('WorkspaceKeyboardShortcutsService', () => {
     });
 
     afterEach(() => {
+        Object.defineProperty(navigator, 'userAgentData', {
+            configurable: true,
+            value: undefined,
+        });
         TestBed.resetTestingModule();
     });
 
@@ -69,5 +73,24 @@ describe('WorkspaceKeyboardShortcutsService', () => {
         service.openShortcutsDialog();
 
         expect(dialog.open).toHaveBeenCalledTimes(2);
+    });
+
+    it('uses userAgentData platform when resolving shortcut modifier labels', () => {
+        Object.defineProperty(navigator, 'userAgentData', {
+            configurable: true,
+            value: { platform: 'Windows' },
+        });
+
+        service.openShortcutsDialog();
+
+        const dialogData = dialog.open.mock.calls[0][1].data;
+        const commandPaletteShortcut = dialogData.groups
+            .flatMap((group) => group.items)
+            .find((item) => item.id === 'open-command-palette');
+
+        expect(dialogData.platformLabelKey).toBe(
+            'WORKSPACE.SHORTCUTS.PLATFORM.OTHER'
+        );
+        expect(commandPaletteShortcut?.chords[0].keys[0].label).toBe('Ctrl');
     });
 });
