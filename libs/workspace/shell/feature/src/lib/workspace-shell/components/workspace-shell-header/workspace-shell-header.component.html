@@ -59,17 +59,22 @@
         </label>
     }
 
-    @if (!isSettingsRoute()) {
-        <div class="header-actions header-actions--leading">
-            <button
-                type="button"
-                mat-icon-button
-                (click)="onAddPlaylistRequested()"
-                [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
-                [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
-            >
-                <mat-icon>add</mat-icon>
-            </button>
+    <!-- The "Add playlist" button stays visible on /settings — adding a
+         playlist is a global action, not playlist-scoped, so it must
+         remain reachable (e.g. a fresh user configuring the app before
+         importing their first source). Only the per-playlist shortcut
+         and bulk actions are hidden on Settings. -->
+    <div class="header-actions header-actions--leading">
+        <button
+            type="button"
+            mat-icon-button
+            (click)="onAddPlaylistRequested()"
+            [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
+            [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"
+        >
+            <mat-icon>add</mat-icon>
+        </button>
+        @if (!isSettingsRoute()) {
             @if (headerShortcut(); as action) {
                 <button
                     type="button"
@@ -95,8 +100,8 @@
                     <mat-icon>{{ bulk.icon }}</mat-icon>
                 </button>
             }
-        </div>
-    }
+        }
+    </div>
 
     @if (isElectron()) {
         <div class="header-actions header-actions--trailing">

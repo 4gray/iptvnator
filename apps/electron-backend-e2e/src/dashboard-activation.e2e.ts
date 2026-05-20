@@ -85,10 +85,17 @@ test.describe('Dashboard Activation', () => {
 
             await goToDashboard(app.mainWindow);
 
-            await expectDashboardRail(app.mainWindow, 'dashboard-global-favorites-rail');
+            // v0.22 dashboard: the mixed Global Favorites rail was removed.
+            // Favorited live channels are promoted into the favorites-first
+            // Live rail; clicking one still opens the Xtream favorites
+            // collection with the channel playing.
+            await expectDashboardRail(
+                app.mainWindow,
+                'dashboard-live-recent-rail'
+            );
             await dashboardRailCardByTitle(
                 app.mainWindow,
-                'dashboard-global-favorites-rail',
+                'dashboard-live-recent-rail',
                 liveTitle
             ).click();
             await app.mainWindow.waitForURL(
@@ -108,22 +115,16 @@ test.describe('Dashboard Activation', () => {
             await app.mainWindow.goBack();
             await app.mainWindow.waitForURL(/\/workspace\/dashboard$/);
 
+            // Movies and series that were played land in the Continue
+            // Watching rail (formerly "recently-watched"); clicking a card
+            // opens it inline in the global-recent collection detail view.
+            await expectDashboardRail(
+                app.mainWindow,
+                'dashboard-continue-watching-rail'
+            );
             await dashboardRailCardByTitle(
                 app.mainWindow,
-                'dashboard-global-favorites-rail',
-                movieTitle
-            ).click();
-            await expectInlineCollectionDetail(app.mainWindow, {
-                pathname: /\/workspace\/global-favorites$/,
-                title: movieTitle,
-            });
-
-            await goBackFromDetail(app.mainWindow);
-            await expectPathname(app.mainWindow, /\/workspace\/dashboard$/);
-
-            await dashboardRailCardByTitle(
-                app.mainWindow,
-                'dashboard-recently-watched-rail',
+                'dashboard-continue-watching-rail',
                 movieTitle
             ).click();
             await expectInlineCollectionDetail(app.mainWindow, {
@@ -136,7 +137,7 @@ test.describe('Dashboard Activation', () => {
 
             await dashboardRailCardByTitle(
                 app.mainWindow,
-                'dashboard-recently-watched-rail',
+                'dashboard-continue-watching-rail',
                 seriesTitle
             ).click();
             await expectInlineCollectionDetail(app.mainWindow, {
