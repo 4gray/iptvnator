@@ -1,0 +1,42 @@
+<section class="shortcuts-dialog">
+    <header class="shortcuts-dialog__header">
+        <div>
+            <h2 mat-dialog-title>{{ 'WORKSPACE.SHORTCUTS.TITLE' | translate }}</h2>
+            <p>{{ 'WORKSPACE.SHORTCUTS.SUBTITLE' | translate }}</p>
+        </div>
+        <button
+            type="button"
+            mat-icon-button
+            [attr.aria-label]="'CLOSE' | translate"
+            (click)="close()"
+        >
+            <mat-icon>close</mat-icon>
+        </button>
+    </header>
+
+    <mat-dialog-content class="shortcuts-dialog__content">
+        @for (group of groups; track group.id) {
+            <section class="shortcuts-dialog__group">
+                <h3>{{ group.labelKey | translate }}</h3>
+                <div class="shortcuts-dialog__rows">
+                    @for (item of group.items; track item.id) {
+                        <div class="shortcuts-dialog__row">
+                            <div class="shortcuts-dialog__keys">
+                                @for (key of item.keys; track key) {
+                                    <kbd>{{ key }}</kbd>
+                                }
+                            </div>
+                            <span>{{ item.labelKey | translate }}</span>
+                        </div>
+                    }
+                </div>
+            </section>
+        }
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end" class="shortcuts-dialog__actions">
+        <button type="button" mat-button (click)="close()">
+            {{ 'CLOSE' | translate }}
+        </button>
+    </mat-dialog-actions>
+</section>

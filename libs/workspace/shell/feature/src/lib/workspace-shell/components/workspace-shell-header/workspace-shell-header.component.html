@@ -57,6 +57,15 @@
         <button
             type="button"
             mat-icon-button
+            (click)="onShortcutsRequested()"
+            [matTooltip]="'WORKSPACE.SHORTCUTS.OPEN_TOOLTIP' | translate"
+            [attr.aria-label]="'WORKSPACE.SHORTCUTS.OPEN_ARIA' | translate"
+        >
+            <mat-icon>keyboard</mat-icon>
+        </button>
+        <button
+            type="button"
+            mat-icon-button
             (click)="onAddPlaylistRequested()"
             [matTooltip]="'WORKSPACE.SHELL.ADD_PLAYLIST_ALL' | translate"
             [attr.aria-label]="'WORKSPACE.SHELL.ADD_PLAYLIST' | translate"

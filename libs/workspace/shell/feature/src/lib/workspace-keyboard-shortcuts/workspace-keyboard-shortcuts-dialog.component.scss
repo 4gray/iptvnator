@@ -1,0 +1,124 @@
+:host {
+    display: block;
+    app-region: no-drag;
+}
+
+.shortcuts-dialog {
+    color: var(--mat-sys-on-surface);
+    background: var(--app-widget-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+    border-radius: 14px;
+    overflow: hidden;
+}
+
+.shortcuts-dialog__header {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 20px 22px 14px;
+    border-bottom: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+
+    h2 {
+        margin: 0;
+        padding: 0;
+        font-size: 1.08rem;
+        font-weight: 650;
+        line-height: 1.25;
+    }
+
+    p {
+        margin: 4px 0 0;
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 0.86rem;
+        line-height: 1.4;
+    }
+
+    button {
+        flex: 0 0 auto;
+    }
+}
+
+.shortcuts-dialog__content {
+    max-height: min(62vh, 580px);
+    padding: 8px 10px 12px;
+}
+
+.shortcuts-dialog__group {
+    padding: 8px 0;
+
+    h3 {
+        margin: 0;
+        padding: 8px 12px 6px;
+        color: var(--mat-sys-on-surface-variant);
+        font-size: 0.72rem;
+        font-weight: 700;
+        line-height: 1.2;
+        text-transform: uppercase;
+    }
+}
+
+.shortcuts-dialog__rows {
+    display: grid;
+    gap: 2px;
+}
+
+.shortcuts-dialog__row {
+    display: grid;
+    grid-template-columns: minmax(150px, 0.42fr) minmax(0, 1fr);
+    gap: 16px;
+    align-items: center;
+    min-height: 38px;
+    padding: 7px 12px;
+    border-radius: 8px;
+    font-size: 0.88rem;
+    line-height: 1.35;
+
+    &:hover {
+        background: color-mix(
+            in srgb,
+            var(--mat-sys-on-surface) 5%,
+            transparent
+        );
+    }
+}
+
+.shortcuts-dialog__keys {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    min-width: 0;
+}
+
+kbd {
+    display: inline-flex;
+    align-items: center;
+    min-height: 24px;
+    padding: 2px 7px;
+    color: var(--mat-sys-on-surface);
+    background: var(--mat-sys-surface-container-high);
+    border: 1px solid var(--mat-sys-outline-variant);
+    border-radius: 5px;
+    font-family: inherit;
+    font-size: 0.74rem;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.shortcuts-dialog__actions {
+    padding: 8px 14px 14px;
+    border-top: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+}
+
+@media (max-width: 640px) {
+    .shortcuts-dialog__header {
+        padding: 16px 16px 12px;
+    }
+
+    .shortcuts-dialog__row {
+        grid-template-columns: 1fr;
+        gap: 6px;
+        align-items: start;
+    }
+}

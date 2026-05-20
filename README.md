@@ -57,6 +57,27 @@ The application is a cross-platform, open-source project built with Electron and
 - Light and Dark themes
 - Docker version available for self-hosting
 
+## Keyboard shortcuts
+
+Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
+
+| Area | Shortcut | Action |
+| --- | --- | --- |
+| Global | `Ctrl/Cmd+K` | Open command palette |
+| Global | `Ctrl/Cmd+F` | Open global search in the desktop app |
+| Global | `Ctrl/Cmd+R` | Open recently viewed in the desktop app |
+| Global | `Enter` in workspace search | Submit the current search |
+| Navigation | `Ctrl/Cmd+B` | Toggle the live sidebar |
+| Navigation | `0-9` | Select an M3U channel by number |
+| Playback | `Space` / `K` | Play or pause embedded MPV playback |
+| Playback | `F` | Toggle embedded MPV fullscreen |
+| Playback | `ArrowLeft` / `ArrowRight` | Seek embedded MPV playback by 5 seconds |
+| Playback | `ArrowUp` / `ArrowDown` | Adjust volume by 5% |
+| Playback | `M` | Mute audio |
+| Dialogs and lists | `ArrowUp` / `ArrowDown` | Move command palette selection |
+| Dialogs and lists | `Enter` | Run the selected command or open a focused item |
+| Dialogs and lists | `Escape` | Close dialogs and dismiss overlays |
+
 ## Screenshots:
 
 | Dashboard with recently watched content | Live channels with inline player and EPG |

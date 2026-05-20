@@ -105,6 +105,18 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(requested).toHaveBeenCalledTimes(1);
     });
 
+    it('emits keyboard shortcuts requests from the help button', () => {
+        const requested = jest.fn();
+        component.shortcutsRequested.subscribe(requested);
+
+        const button: HTMLButtonElement = fixture.nativeElement.querySelector(
+            'button[aria-label="WORKSPACE.SHORTCUTS.OPEN_ARIA"]'
+        );
+        button.click();
+
+        expect(requested).toHaveBeenCalledTimes(1);
+    });
+
     it('does not render the removed global favorites shortcut', () => {
         const button: HTMLButtonElement | null =
             fixture.nativeElement.querySelector(
