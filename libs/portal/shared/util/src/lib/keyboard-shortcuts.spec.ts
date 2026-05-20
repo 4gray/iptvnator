@@ -35,10 +35,25 @@ describe('keyboard shortcuts registry', () => {
             isElectron: true,
         });
 
-        expect(findKeys(macGroups, 'open-command-palette')).toEqual(['Cmd+K']);
-        expect(findKeys(linuxGroups, 'open-command-palette')).toEqual([
-            'Ctrl+K',
+        expect(findChordLabels(macGroups, 'open-command-palette')).toEqual([
+            ['Cmd', 'K'],
         ]);
+        expect(findChordLabels(linuxGroups, 'open-command-palette')).toEqual([
+            ['Ctrl', 'K'],
+        ]);
+    });
+
+    it('normalizes display labels for compact keycaps', () => {
+        const groups = getKeyboardShortcutGroups({
+            isMac: false,
+            isElectron: true,
+        });
+
+        expect(findChordLabels(groups, 'embedded-mpv-seek')).toEqual([
+            ['←'],
+            ['→'],
+        ]);
+        expect(findChordLabels(groups, 'close-dialogs')).toEqual([['Esc']]);
     });
 
     it('detects the shortcuts help trigger', () => {
@@ -60,13 +75,15 @@ describe('keyboard shortcuts registry', () => {
     });
 });
 
-function findKeys(
+function findChordLabels(
     groups: ReturnType<typeof getKeyboardShortcutGroups>,
     id: string
-): readonly string[] {
+): readonly (readonly string[])[] {
     const item = groups
         .flatMap((group) => group.items)
         .find((shortcut) => shortcut.id === id);
 
-    return item?.keys ?? [];
+    return (
+        item?.chords.map((chord) => chord.keys.map((key) => key.label)) ?? []
+    );
 }

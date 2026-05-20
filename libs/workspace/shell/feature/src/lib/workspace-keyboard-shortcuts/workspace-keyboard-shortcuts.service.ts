@@ -27,10 +27,7 @@ export class WorkspaceKeyboardShortcutsService {
         if (typeof document !== 'undefined') {
             document.addEventListener('keydown', this.onDocumentKeydown);
             this.destroyRef.onDestroy(() => {
-                document.removeEventListener(
-                    'keydown',
-                    this.onDocumentKeydown
-                );
+                document.removeEventListener('keydown', this.onDocumentKeydown);
             });
         }
     }
@@ -40,19 +37,26 @@ export class WorkspaceKeyboardShortcutsService {
             return;
         }
 
+        const platform = this.getShortcutPlatform();
         const dialogRef = this.dialog.open<
             WorkspaceKeyboardShortcutsDialogComponent,
             WorkspaceKeyboardShortcutsDialogData
         >(WorkspaceKeyboardShortcutsDialogComponent, {
-            width: 'min(760px, 92vw)',
-            maxWidth: '92vw',
+            width: 'min(960px, 94vw)',
+            maxWidth: '94vw',
             panelClass: 'workspace-shortcuts-overlay',
             autoFocus: false,
             data: {
                 groups: getKeyboardShortcutGroups({
-                    isMac: this.isMacPlatform(),
+                    isMac: platform === 'mac',
                     isElectron: this.isElectron(),
                 }),
+                platformIcon:
+                    platform === 'mac' ? 'laptop_mac' : 'desktop_windows',
+                platformLabelKey:
+                    platform === 'mac'
+                        ? 'WORKSPACE.SHORTCUTS.PLATFORM.MAC'
+                        : 'WORKSPACE.SHORTCUTS.PLATFORM.OTHER',
             },
         });
 
@@ -66,10 +70,7 @@ export class WorkspaceKeyboardShortcutsService {
     }
 
     private handleKeydown(event: KeyboardEvent): void {
-        if (
-            isTypingInInput(event) ||
-            !isKeyboardShortcutHelpTrigger(event)
-        ) {
+        if (isTypingInInput(event) || !isKeyboardShortcutHelpTrigger(event)) {
             return;
         }
 
@@ -77,11 +78,20 @@ export class WorkspaceKeyboardShortcutsService {
         this.openShortcutsDialog();
     }
 
-    private isMacPlatform(): boolean {
-        return (
-            typeof navigator !== 'undefined' &&
-            /Mac|iPhone|iPad|iPod/i.test(navigator.platform)
-        );
+    private getShortcutPlatform(): 'mac' | 'other' {
+        if (typeof navigator === 'undefined') {
+            return 'other';
+        }
+
+        const navigatorWithUserAgentData = navigator as Navigator & {
+            userAgentData?: { platform?: string };
+        };
+        const platform =
+            navigatorWithUserAgentData.userAgentData?.platform ??
+            navigator.platform ??
+            navigator.userAgent;
+
+        return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'mac' : 'other';
     }
 
     private isElectron(): boolean {

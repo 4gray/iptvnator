@@ -18,22 +18,71 @@ describe('WorkspaceKeyboardShortcutsDialogComponent', () => {
                             {
                                 id: 'global',
                                 labelKey: 'WORKSPACE.SHORTCUTS.GROUPS.GLOBAL',
+                                icon: 'keyboard',
                                 items: [
                                     {
                                         id: 'open-command-palette',
                                         labelKey:
                                             'WORKSPACE.SHORTCUTS.ITEMS.OPEN_COMMAND_PALETTE',
-                                        keys: ['Cmd+K'],
+                                        icon: 'terminal',
+                                        chords: [
+                                            {
+                                                id: 'Cmd+K',
+                                                ariaLabel: 'Command + K',
+                                                keys: [
+                                                    {
+                                                        id: 'cmd',
+                                                        label: 'Cmd',
+                                                        ariaLabel: 'Command',
+                                                        isModifier: true,
+                                                    },
+                                                    {
+                                                        id: 'k',
+                                                        label: 'K',
+                                                        ariaLabel: 'K',
+                                                        isModifier: false,
+                                                    },
+                                                ],
+                                            },
+                                        ],
                                     },
                                     {
                                         id: 'play-pause',
                                         labelKey:
                                             'WORKSPACE.SHORTCUTS.ITEMS.PLAY_PAUSE',
-                                        keys: ['Space', 'K'],
+                                        icon: 'play_arrow',
+                                        chords: [
+                                            {
+                                                id: 'Space',
+                                                ariaLabel: 'Space',
+                                                keys: [
+                                                    {
+                                                        id: 'space',
+                                                        label: 'Space',
+                                                        ariaLabel: 'Space',
+                                                        isModifier: false,
+                                                    },
+                                                ],
+                                            },
+                                            {
+                                                id: 'K',
+                                                ariaLabel: 'K',
+                                                keys: [
+                                                    {
+                                                        id: 'k',
+                                                        label: 'K',
+                                                        ariaLabel: 'K',
+                                                        isModifier: false,
+                                                    },
+                                                ],
+                                            },
+                                        ],
                                     },
                                 ],
                             },
                         ],
+                        platformIcon: 'laptop_mac',
+                        platformLabelKey: 'WORKSPACE.SHORTCUTS.PLATFORM.MAC',
                     },
                 },
                 {
@@ -76,7 +125,14 @@ describe('WorkspaceKeyboardShortcutsDialogComponent', () => {
             'WORKSPACE.SHORTCUTS.ITEMS.OPEN_COMMAND_PALETTE'
         );
         expect(text).toContain('WORKSPACE.SHORTCUTS.ITEMS.PLAY_PAUSE');
+        expect(text).toContain('Cmd');
         expect(text).toContain('Space');
         expect(text).toContain('K');
+    });
+
+    it('renders the detected platform label', () => {
+        expect(fixture.nativeElement.textContent).toContain(
+            'WORKSPACE.SHORTCUTS.PLATFORM.MAC'
+        );
     });
 });

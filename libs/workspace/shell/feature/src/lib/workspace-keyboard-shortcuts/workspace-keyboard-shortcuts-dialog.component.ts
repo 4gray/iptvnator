@@ -11,6 +11,8 @@ import { KeyboardShortcutDisplayGroup } from '@iptvnator/portal/shared/util';
 
 export interface WorkspaceKeyboardShortcutsDialogData {
     groups: readonly KeyboardShortcutDisplayGroup[];
+    platformIcon: string;
+    platformLabelKey: string;
 }
 
 @Component({
@@ -23,9 +25,8 @@ export class WorkspaceKeyboardShortcutsDialogComponent {
     private readonly dialogRef = inject(
         MatDialogRef<WorkspaceKeyboardShortcutsDialogComponent>
     );
-    readonly data = inject<WorkspaceKeyboardShortcutsDialogData>(
-        MAT_DIALOG_DATA
-    );
+    readonly data =
+        inject<WorkspaceKeyboardShortcutsDialogData>(MAT_DIALOG_DATA);
 
     readonly groups = this.data.groups;
 

@@ -1024,6 +1024,10 @@
             "SUBTITLE": "Workspace, navigation, playback, and dialog shortcuts available in IPTVnator.",
             "OPEN_TOOLTIP": "Keyboard shortcuts (?)",
             "OPEN_ARIA": "Open keyboard shortcuts",
+            "PLATFORM": {
+                "MAC": "macOS layout",
+                "OTHER": "Windows/Linux layout"
+            },
             "GROUPS": {
                 "GLOBAL": "Global",
                 "NAVIGATION": "Navigation",
