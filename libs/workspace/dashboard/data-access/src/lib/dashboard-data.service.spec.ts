@@ -20,6 +20,20 @@ describe('DashboardDataService', () => {
     let service: DashboardDataService;
     const playlistsLoadedSignal = signal(true);
 
+    const createPendingItems = <T = never>() => {
+        let resolvePending: (items: T[]) => void = () => {
+            throw new Error('Pending item promise resolved before init');
+        };
+        const promise = new Promise<T[]>((resolve) => {
+            resolvePending = resolve;
+        });
+
+        return {
+            promise,
+            resolve: resolvePending,
+        };
+    };
+
     const createDefaultPlaylists = (): PlaylistMeta[] => [
         {
             _id: 'm3u-1',
@@ -388,6 +402,74 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('loads PWA Xtream favorites for multiple playlists in parallel', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        playlistsSignal.set([
+            {
+                _id: 'xtream-1',
+                title: 'Xtream One',
+                serverUrl: 'https://one.example.com',
+            },
+            {
+                _id: 'xtream-2',
+                title: 'Xtream Two',
+                serverUrl: 'https://two.example.com',
+            },
+        ]);
+        const firstFavorites = createPendingItems();
+        xtreamDataSourceMock.getFavorites.mockImplementation((playlistId) =>
+            playlistId === 'xtream-1'
+                ? firstFavorites.promise
+                : Promise.resolve([])
+        );
+
+        const reload = service.reloadGlobalFavorites();
+        await Promise.resolve();
+
+        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledWith(
+            'xtream-2'
+        );
+
+        firstFavorites.resolve([]);
+        await reload;
+    });
+
+    it('uses the epoch fallback for PWA Xtream favorites with empty added dates', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSourceMock.getFavorites.mockResolvedValue([
+            {
+                id: 52,
+                category_id: 12,
+                title: 'Undated Movie',
+                rating: '8.0',
+                added: '',
+                poster_url: 'https://example.com/movie.png',
+                xtream_id: 5002,
+                type: 'movie',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+
+        expect(service.globalFavoriteItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 52,
+                    added_at: new Date(0).toISOString(),
+                }),
+            ])
+        );
+    });
+
     it('does not load Stalker playlists through the PWA Xtream favorites path', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,
@@ -685,6 +767,44 @@ describe('DashboardDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('loads PWA Xtream recent items for multiple playlists in parallel', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        playlistsSignal.set([
+            {
+                _id: 'xtream-1',
+                title: 'Xtream One',
+                serverUrl: 'https://one.example.com',
+            },
+            {
+                _id: 'xtream-2',
+                title: 'Xtream Two',
+                serverUrl: 'https://two.example.com',
+            },
+        ]);
+        const firstRecentItems = createPendingItems();
+        xtreamDataSourceMock.getRecentItems.mockImplementation((playlistId) =>
+            playlistId === 'xtream-1'
+                ? firstRecentItems.promise
+                : Promise.resolve([])
+        );
+
+        const reload = service.reloadGlobalRecentItems();
+        await Promise.resolve();
+
+        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+            'xtream-2'
+        );
+
+        firstRecentItems.resolve([]);
+        await reload;
     });
 
     it('does not load Stalker playlists through the PWA Xtream recent path', async () => {

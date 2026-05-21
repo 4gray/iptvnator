@@ -434,33 +434,39 @@ export class DashboardDataService {
     private async loadPwaXtreamGlobalRecentItems(): Promise<
         GlobalRecentItem[]
     > {
-        const results: GlobalRecentItem[] = [];
-        for (const playlist of this.getXtreamPlaylists()) {
-            const rows = await this.xtreamDataSource.getRecentItems(
-                playlist._id
-            );
-            results.push(
-                ...rows.map((item) =>
+        const nested = await Promise.all(
+            this.getXtreamPlaylists().map(async (playlist) => {
+                const rows = await this.xtreamDataSource.getRecentItems(
+                    playlist._id
+                );
+                return rows.map((item) =>
                     this.mapPwaXtreamRecentItem(item, playlist)
-                )
-            );
-        }
-        return results;
+                );
+            })
+        );
+        return nested.reduce<GlobalRecentItem[]>(
+            (items, playlistItems) => items.concat(playlistItems),
+            []
+        );
     }
 
     private async loadPwaXtreamGlobalFavorites(): Promise<
         DashboardFavoriteItem[]
     > {
-        const results: DashboardFavoriteItem[] = [];
-        for (const playlist of this.getXtreamPlaylists()) {
-            const rows = await this.xtreamDataSource.getFavorites(playlist._id);
-            results.push(
-                ...rows.map((item) =>
+        const nested = await Promise.all(
+            this.getXtreamPlaylists().map(async (playlist) => {
+                const rows = await this.xtreamDataSource.getFavorites(
+                    playlist._id
+                );
+                return rows.map((item) =>
                     this.mapPwaXtreamFavoriteItem(item, playlist)
-                )
-            );
-        }
-        return results;
+                );
+            })
+        );
+        return nested.reduce<DashboardFavoriteItem[]>(
+            (items, playlistItems) => items.concat(playlistItems),
+            []
+        );
     }
 
     private getXtreamPlaylists(): PlaylistMeta[] {
@@ -498,7 +504,7 @@ export class DashboardDataService {
             type: this.normalizeXtreamActivityType(item.type),
             playlist_id: playlist._id,
             playlist_name: playlist.title || 'Xtream',
-            added_at: item.added_at ?? item.added ?? new Date(0).toISOString(),
+            added_at: item.added_at || item.added || new Date(0).toISOString(),
             category_id: item.category_id,
             xtream_id: item.xtream_id,
             poster_url: item.poster_url,
