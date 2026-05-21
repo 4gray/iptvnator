@@ -14,6 +14,7 @@ import {
     PortalRecentItem,
 } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { XTREAM_DATA_SOURCE } from './data-sources/xtream-data-source.interface';
 
 export interface RecentlyViewedItem extends PortalRecentItem {
     /** @deprecated Redundant — always equals `id`. Retained for compat. */
@@ -29,7 +30,7 @@ function mapDbRecentItem(
         backdrop_url?: string | null;
         viewed_at?: string;
         xtream_id: number;
-        category_id: number;
+        category_id: number | string;
     },
     playlistId: string
 ): RecentlyViewedItem {
@@ -53,11 +54,11 @@ export const withRecentItems = function () {
         withState({
             recentItems: [],
         }),
-        withMethods((store, dbService = inject(DatabaseService)) => ({
+        withMethods((store, dataSource = inject(XTREAM_DATA_SOURCE)) => ({
             loadRecentItems: rxMethod<{ id: string }>(
                 pipe(
                     switchMap(async (playlist) => {
-                        const items = await dbService.getRecentItems(
+                        const items = await dataSource.getRecentItems(
                             playlist.id
                         );
                         return items.map((item) =>
@@ -74,10 +75,11 @@ export const withRecentItems = function () {
             (
                 store,
                 dbService = inject(DatabaseService),
-                playlistsService = inject(PlaylistsService)
+                playlistsService = inject(PlaylistsService),
+                dataSource = inject(XTREAM_DATA_SOURCE)
             ) => ({
                 addRecentItem: rxMethod<{
-                    xtreamId: number;
+                    xtreamId: number | string;
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string }>;
                     backdropUrl?: string;
@@ -90,30 +92,49 @@ export const withRecentItems = function () {
                                 playlist,
                                 backdropUrl,
                             }) => {
-                            const playlistId = playlist().id;
-                            const content = await dbService.getContentByXtreamId(
-                                xtreamId,
-                                playlistId,
-                                contentType
-                            );
-                            if (content) {
-                                await dbService.addRecentItem(
-                                    content.id,
-                                    playlistId,
-                                    backdropUrl
-                                );
+                                const playlistId = playlist().id;
+                                const normalizedXtreamId = Number(xtreamId);
+                                if (
+                                    !playlistId ||
+                                    !Number.isFinite(normalizedXtreamId) ||
+                                    normalizedXtreamId <= 0
+                                ) {
+                                    return;
+                                }
 
-                                // Reload after add/update so re-watched items
-                                // immediately move to the top in recently-viewed.
-                                const items =
-                                    await dbService.getRecentItems(playlistId);
-                                patchState(store, {
-                                    recentItems: items.map((item) =>
-                                        mapDbRecentItem(item, playlistId)
-                                    ),
-                                });
+                                const content =
+                                    await dataSource.getContentByXtreamId(
+                                        normalizedXtreamId,
+                                        playlistId,
+                                        contentType
+                                    );
+                                const contentId =
+                                    content?.id ??
+                                    (!window.electron
+                                        ? normalizedXtreamId
+                                        : null);
+
+                                if (contentId != null) {
+                                    await dataSource.addRecentItem(
+                                        contentId,
+                                        playlistId,
+                                        backdropUrl
+                                    );
+
+                                    // Reload after add/update so re-watched items
+                                    // immediately move to the top in recently-viewed.
+                                    const items =
+                                        await dataSource.getRecentItems(
+                                            playlistId
+                                        );
+                                    patchState(store, {
+                                        recentItems: items.map((item) =>
+                                            mapDbRecentItem(item, playlistId)
+                                        ),
+                                    });
+                                }
                             }
-                        })
+                        )
                     )
                 ),
                 async backfillContentBackdrop({
@@ -122,23 +143,25 @@ export const withRecentItems = function () {
                     playlist,
                     backdropUrl,
                 }: {
-                    xtreamId: number;
+                    xtreamId: number | string;
                     contentType: 'live' | 'movie' | 'series';
                     playlist: Signal<{ id: string }>;
                     backdropUrl?: string;
                 }): Promise<void> {
-                    if (!window.electron) {
-                        return;
-                    }
-
                     const playlistId = playlist().id;
+                    const normalizedXtreamId = Number(xtreamId);
                     const normalizedBackdropUrl = backdropUrl?.trim();
-                    if (!playlistId || !normalizedBackdropUrl) {
+                    if (
+                        !playlistId ||
+                        !Number.isFinite(normalizedXtreamId) ||
+                        normalizedXtreamId <= 0 ||
+                        !normalizedBackdropUrl
+                    ) {
                         return;
                     }
 
-                    const content = await dbService.getContentByXtreamId(
-                        xtreamId,
+                    const content = await dataSource.getContentByXtreamId(
+                        normalizedXtreamId,
                         playlistId,
                         contentType
                     );
@@ -146,17 +169,22 @@ export const withRecentItems = function () {
                         return;
                     }
 
-                    await dbService.setContentBackdropIfMissing(
+                    await dataSource.setContentBackdropIfMissing(
                         content.id,
+                        playlistId,
                         normalizedBackdropUrl
                     );
                 },
                 clearRecentItems: rxMethod<{ id: string }>(
                     pipe(
                         switchMap(async (playlist) => {
-                            await dbService.clearPlaylistRecentItems(
-                                playlist.id
-                            );
+                            if (window.electron) {
+                                await dbService.clearPlaylistRecentItems(
+                                    playlist.id
+                                );
+                            } else {
+                                await dataSource.clearRecentItems(playlist.id);
+                            }
                             patchState(store, { recentItems: [] });
                         })
                     )
@@ -167,13 +195,13 @@ export const withRecentItems = function () {
                 }>(
                     pipe(
                         switchMap(async ({ itemId, playlistId }) => {
-                            await dbService.removeRecentItem(
+                            await dataSource.removeRecentItem(
                                 itemId,
                                 playlistId
                             );
                             // Reload recent items to update UI
                             const items =
-                                await dbService.getRecentItems(playlistId);
+                                await dataSource.getRecentItems(playlistId);
                             patchState(store, {
                                 recentItems: items.map((item) =>
                                     mapDbRecentItem(item, playlistId)
@@ -189,14 +217,16 @@ export const withRecentItems = function () {
                         const playlists = (await firstValueFrom(
                             playlistsService.getAllPlaylists()
                         )) as Playlist[];
-                        const playlistBackedItems =
-                            buildPlaylistRecentItems(playlists, {
+                        const playlistBackedItems = buildPlaylistRecentItems(
+                            playlists,
+                            {
                                 stalker: 'Stalker Portal',
                                 m3u: 'M3U',
-                            }).map((item) => ({
-                                ...item,
-                                content_id: item.id,
-                            })) as RecentlyViewedItem[];
+                            }
+                        ).map((item) => ({
+                            ...item,
+                            content_id: item.id,
+                        })) as RecentlyViewedItem[];
 
                         const normalizedXtream: RecentlyViewedItem[] = (
                             xtreamItems || []
@@ -236,24 +266,35 @@ export const withRecentItems = function () {
                 },
                 async clearGlobalRecentlyViewed() {
                     try {
-                        await dbService.clearGlobalRecentlyViewed();
+                        if (window.electron) {
+                            await dbService.clearGlobalRecentlyViewed();
+                        }
                         const playlists = (await firstValueFrom(
                             playlistsService.getAllPlaylists()
                         )) as Playlist[];
                         await Promise.all(
-                            playlists
-                                .filter(
-                                    (playlist) =>
-                                        Boolean(playlist.macAddress) ||
-                                        !playlist.serverUrl
-                                )
-                                .map((playlist) =>
-                                    firstValueFrom(
+                            playlists.map(async (playlist) => {
+                                if (
+                                    !window.electron &&
+                                    playlist.serverUrl &&
+                                    !playlist.macAddress
+                                ) {
+                                    await dataSource.clearRecentItems(
+                                        playlist._id
+                                    );
+                                }
+
+                                if (
+                                    Boolean(playlist.macAddress) ||
+                                    !playlist.serverUrl
+                                ) {
+                                    await firstValueFrom(
                                         playlistsService.clearPlaylistRecentlyViewed(
                                             playlist._id
                                         )
-                                    )
-                                )
+                                    );
+                                }
+                            })
                         );
                         patchState(store, { recentItems: [] });
                     } catch (error) {

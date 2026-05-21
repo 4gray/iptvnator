@@ -9,6 +9,16 @@ import { renderMarketingAssetSvg } from './app/generators/marketing.generator.js
 
 const app = express();
 const PORT = parseInt(process.env['PORT'] ?? '3211', 10);
+const M3U_FIXTURE = `#EXTM3U
+#EXTINF:0 tvg-id="1" tvg-logo="http://channel.icons.url/img/1.png" group-title="News", Channel 1
+https://example.channels/path-to-file/1.m3u8
+#EXTINF:0 tvg-id="2" tvg-logo="http://channel.icons.url/img/2.png" group-title="News", Positive News TV
+https://example.channels/path-to-file/2.m3u8
+#EXTINF:0 tvg-id="3" tvg-logo="http://channel.icons.url/img/3.png" group-title="Sport", Sport TVX
+https://example.channels/path-to-file/3.m3u8
+#EXTINF:0 tvg-id="4" tvg-logo="http://channel.icons.url/img/4.png" group-title="Kids", HappyKids TV
+https://example.channels/path-to-file/4.m3u8
+`;
 const marketingRasterAssetRoot = join(
     process.cwd(),
     'apps/xtream-mock-server/public/marketing'
@@ -26,6 +36,13 @@ app.get('/health', (_req, res) => {
 app.post('/reset', (_req, res) => {
     resetAll();
     res.json({ status: 'reset' });
+});
+
+// ─── M3U fixture endpoint for self-hosted PWA URL import tests ───────────────
+app.get('/playlist.m3u', (_req, res) => {
+    res.type('audio/x-mpegurl')
+        .set('Cache-Control', 'no-store')
+        .send(M3U_FIXTURE);
 });
 
 // ─── Local fictional artwork for release screenshots ──────────────────────────
@@ -46,18 +63,20 @@ app.get('/assets/marketing/:kind/:slug', (req, res) => {
     }
 
     const rasterSlug = slug.replace(/\.(svg|png)$/i, '');
-    const rasterPath = join(marketingRasterAssetRoot, kind, `${rasterSlug}.png`);
+    const rasterPath = join(
+        marketingRasterAssetRoot,
+        kind,
+        `${rasterSlug}.png`
+    );
 
     if (existsSync(rasterPath)) {
-        res
-            .type('image/png')
+        res.type('image/png')
             .set('Cache-Control', 'public, max-age=3600')
             .send(readFileSync(rasterPath));
         return;
     }
 
-    res
-        .type('image/svg+xml')
+    res.type('image/svg+xml')
         .set('Cache-Control', 'public, max-age=3600')
         .send(renderMarketingAssetSvg(kind, slug, size));
 });
@@ -149,8 +168,12 @@ server.on('error', (err: NodeJS.ErrnoException) => {
 
 server.listen(PORT, () => {
     console.log(`[xtream-mock] Listening on http://localhost:${PORT}`);
-    console.log(`[xtream-mock] Direct API:  http://localhost:${PORT}/player_api.php?username=user1&password=pass1&action=get_account_info`);
-    console.log(`[xtream-mock] PWA proxy:   http://localhost:${PORT}/xtream?url=http://localhost:${PORT}&username=user1&password=pass1&action=get_account_info`);
+    console.log(
+        `[xtream-mock] Direct API:  http://localhost:${PORT}/player_api.php?username=user1&password=pass1&action=get_account_info`
+    );
+    console.log(
+        `[xtream-mock] PWA proxy:   http://localhost:${PORT}/xtream?url=http://localhost:${PORT}&username=user1&password=pass1&action=get_account_info`
+    );
     console.log(`[xtream-mock] Health:      http://localhost:${PORT}/health`);
 });
 
@@ -173,4 +196,6 @@ process.on('unhandledRejection', (reason) => {
 // When Nx (or any process manager) closes stdin, prevent auto-exit.
 // The HTTP server handle is what keeps the process alive.
 process.stdin.resume();
-process.stdin.on('end', () => { /* ignore stdin close */ });
+process.stdin.on('end', () => {
+    /* ignore stdin close */
+});

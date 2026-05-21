@@ -452,6 +452,18 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
         );
     }
 
+    async setContentBackdropIfMissing(
+        contentId: number,
+        playlistId: string,
+        backdropUrl: string
+    ): Promise<void> {
+        void playlistId;
+        await this.dbService.setContentBackdropIfMissing(
+            contentId,
+            backdropUrl
+        );
+    }
+
     // =========================================================================
     // Playback Position Operations
     // =========================================================================

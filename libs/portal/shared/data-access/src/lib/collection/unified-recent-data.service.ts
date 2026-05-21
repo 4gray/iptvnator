@@ -26,6 +26,10 @@ import {
     UnifiedCollectionItem,
     xtreamContentType,
 } from '@iptvnator/portal/shared/util';
+import {
+    XTREAM_DATA_SOURCE,
+    XtreamContentItem,
+} from '@iptvnator/portal/xtream/data-access';
 
 type PlaylistWithChannels = Playlist & {
     readonly playlist?: { readonly items?: Channel[] };
@@ -36,6 +40,7 @@ export class UnifiedRecentDataService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
 
     async getRecentItems(
         scope: CollectionScope,
@@ -52,6 +57,14 @@ export class UnifiedRecentDataService {
     async removeRecentItem(item: UnifiedCollectionItem): Promise<void> {
         if (item.sourceType === 'xtream') {
             if (item.contentId == null) {
+                return;
+            }
+
+            if (!window.electron) {
+                await this.xtreamDataSource.removeRecentItem(
+                    item.contentId,
+                    item.playlistId
+                );
                 return;
             }
 
@@ -126,7 +139,18 @@ export class UnifiedRecentDataService {
         const tasks: Promise<unknown>[] = [];
 
         if (xtreamBatch.length > 0) {
-            tasks.push(this.dbService.removeRecentItemsBatch(xtreamBatch));
+            if (window.electron) {
+                tasks.push(this.dbService.removeRecentItemsBatch(xtreamBatch));
+            } else {
+                tasks.push(
+                    ...xtreamBatch.map((item) =>
+                        this.xtreamDataSource.removeRecentItem(
+                            item.contentId,
+                            item.playlistId
+                        )
+                    )
+                );
+            }
         }
 
         for (const [playlistId, identities] of groupedByPlaylist) {
@@ -153,7 +177,11 @@ export class UnifiedRecentDataService {
         playlistId?: string
     ): Promise<void> {
         if (scope === 'playlist' && playlistId) {
-            await this.dbService.clearPlaylistRecentItems(playlistId);
+            if (window.electron) {
+                await this.dbService.clearPlaylistRecentItems(playlistId);
+            } else {
+                await this.xtreamDataSource.clearRecentItems(playlistId);
+            }
             const updatedPlaylist = await firstValueFrom(
                 this.playlistsService.clearPlaylistRecentlyViewed(playlistId)
             );
@@ -161,18 +189,26 @@ export class UnifiedRecentDataService {
             return;
         }
 
-        await this.dbService.clearGlobalRecentlyViewed();
+        if (window.electron) {
+            await this.dbService.clearGlobalRecentlyViewed();
+        } else {
+            const allMeta = await this.getAllMeta();
+            await Promise.all(
+                allMeta
+                    .filter((playlist) => playlist._id)
+                    .filter((playlist) => this.isXtreamPlaylist(playlist))
+                    .map((playlist) =>
+                        this.xtreamDataSource.clearRecentItems(playlist._id)
+                    )
+            );
+        }
         const playlists = (await firstValueFrom(
             this.playlistsService.getAllPlaylists()
         )) as Playlist[];
 
         await Promise.all(
-            playlists
-                .filter(
-                    (playlist) =>
-                        Boolean(playlist.macAddress) || !playlist.serverUrl
-                )
-                .map(async (playlist) => {
+            playlists.map(async (playlist) => {
+                if (this.isPlaylistBackedRecentPlaylist(playlist)) {
                     const updatedPlaylist = await firstValueFrom(
                         this.playlistsService.clearPlaylistRecentlyViewed(
                             playlist._id
@@ -182,7 +218,8 @@ export class UnifiedRecentDataService {
                         playlist._id,
                         updatedPlaylist
                     );
-                })
+                }
+            })
         );
     }
 
@@ -223,17 +260,21 @@ export class UnifiedRecentDataService {
             const contentId =
                 item.contentId ??
                 (item.xtreamId != null
-                    ? (
-                          await this.dbService.getContentByXtreamId(
-                              item.xtreamId,
-                              item.playlistId,
-                              item.contentType
-                          )
-                      )?.id
+                    ? await this.resolveXtreamContentId(item)
                     : null);
 
             if (contentId != null) {
-                await this.dbService.addRecentItem(contentId, item.playlistId);
+                if (window.electron) {
+                    await this.dbService.addRecentItem(
+                        contentId,
+                        item.playlistId
+                    );
+                } else {
+                    await this.xtreamDataSource.addRecentItem(
+                        contentId,
+                        item.playlistId
+                    );
+                }
             }
 
             return {
@@ -309,6 +350,17 @@ export class UnifiedRecentDataService {
     }
 
     private async getXtreamGlobalRecent(): Promise<UnifiedCollectionItem[]> {
+        if (!window.electron) {
+            const allMeta = await this.getAllMeta();
+            const results: UnifiedCollectionItem[] = [];
+            for (const meta of allMeta.filter(
+                (playlist) => playlist._id && this.isXtreamPlaylist(playlist)
+            )) {
+                results.push(...(await this.getXtreamPlaylistRecent(meta._id)));
+            }
+            return results;
+        }
+
         try {
             const rows = await this.dbService.getGlobalRecentlyViewed();
             return (rows || []).map((row) => ({
@@ -340,9 +392,16 @@ export class UnifiedRecentDataService {
         playlistId: string
     ): Promise<UnifiedCollectionItem[]> {
         try {
-            const rows = await this.dbService.getRecentItems(playlistId);
             const meta = await this.getPlaylistMeta(playlistId);
+            if (!window.electron) {
+                const rows =
+                    await this.xtreamDataSource.getRecentItems(playlistId);
+                return rows.map((row) =>
+                    this.mapXtreamContentItem(row, playlistId, meta?.title)
+                );
+            }
 
+            const rows = await this.dbService.getRecentItems(playlistId);
             return (rows || []).map((row) => ({
                 uid: buildXtreamCollectionUid(
                     playlistId,
@@ -366,6 +425,60 @@ export class UnifiedRecentDataService {
         } catch {
             return [];
         }
+    }
+
+    private async resolveXtreamContentId(
+        item: UnifiedCollectionItem
+    ): Promise<number | null> {
+        if (item.xtreamId == null) {
+            return null;
+        }
+
+        if (!window.electron) {
+            const content = await this.xtreamDataSource.getContentByXtreamId(
+                item.xtreamId,
+                item.playlistId,
+                item.contentType
+            );
+            return content?.id ?? item.xtreamId;
+        }
+
+        const content = await this.dbService.getContentByXtreamId(
+            item.xtreamId,
+            item.playlistId,
+            item.contentType
+        );
+
+        return content?.id ?? null;
+    }
+
+    private mapXtreamContentItem(
+        item: XtreamContentItem,
+        playlistId: string,
+        playlistName?: string
+    ): UnifiedCollectionItem {
+        const contentType = xtreamContentType(item.type);
+
+        return {
+            uid: buildXtreamCollectionUid(
+                playlistId,
+                contentType,
+                item.xtream_id
+            ),
+            name: item.title,
+            contentType,
+            sourceType: 'xtream',
+            playlistId,
+            playlistName: playlistName ?? item.playlist_name ?? 'Xtream',
+            logo: contentType === 'live' ? (item.poster_url ?? null) : null,
+            posterUrl:
+                contentType !== 'live' ? (item.poster_url ?? null) : null,
+            xtreamId: item.xtream_id,
+            categoryId: item.category_id,
+            tvgId: contentType === 'live' ? String(item.xtream_id) : undefined,
+            contentId: item.id,
+            viewedAt: normalizeStalkerDate(item.viewed_at),
+        };
     }
 
     private async getM3uGlobalRecent(): Promise<UnifiedCollectionItem[]> {
@@ -588,5 +701,17 @@ export class UnifiedRecentDataService {
         playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
     ): boolean {
         return !playlist.serverUrl && !playlist.macAddress;
+    }
+
+    private isXtreamPlaylist(
+        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
+    ): boolean {
+        return Boolean(playlist.serverUrl) && !playlist.macAddress;
+    }
+
+    private isPlaylistBackedRecentPlaylist(
+        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
+    ): boolean {
+        return Boolean(playlist.macAddress) || this.isM3uPlaylist(playlist);
     }
 }
