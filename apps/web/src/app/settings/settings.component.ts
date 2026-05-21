@@ -12,6 +12,7 @@ import {
 import {
     FormArray,
     FormBuilder,
+    FormControl,
     ReactiveFormsModule,
     Validators,
 } from '@angular/forms';
@@ -48,6 +49,7 @@ import {
     CoverSize,
     Language,
     normalizeExternalPlayerArguments,
+    Settings,
     StartupBehavior,
     StreamFormat,
     Theme,
@@ -162,10 +164,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
     ]);
 
     /** Current version of the app */
-    version: string;
+    version = '';
 
     /** Update message to show */
-    updateMessage: string;
+    updateMessage = '';
 
     /** EPG availability flag */
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
@@ -178,7 +180,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isDesktop ? { epgUrl: new FormArray([]) } : {}),
+        ...(this.isDesktop
+            ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
+            : {}),
         streamFormat: StreamFormat.M3u8StreamFormat,
         openStreamOnDoubleClick: false,
         language: Language.ENGLISH,
@@ -468,21 +472,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * the indexed db store
      */
     onSubmit(): void {
-        const settings = {
-            ...this.settingsForm.value,
-            mpvPlayerPath: this.normalizeExternalPlayerPath(
-                this.settingsForm.value.mpvPlayerPath
-            ),
-            vlcPlayerPath: this.normalizeExternalPlayerPath(
-                this.settingsForm.value.vlcPlayerPath
-            ),
-            mpvPlayerArguments: normalizeExternalPlayerArguments(
-                this.settingsForm.value.mpvPlayerArguments
-            ),
-            vlcPlayerArguments: normalizeExternalPlayerArguments(
-                this.settingsForm.value.vlcPlayerArguments
-            ),
-        };
+        const settings = this.createSettingsFromFormValue();
 
         this.settingsStore.updateSettings(settings).then(() => {
             this.applyChangedSettings();
@@ -505,6 +495,48 @@ export class SettingsComponent implements OnInit, OnDestroy {
         return playerPath?.trim() ?? '';
     }
 
+    private createSettingsFromFormValue(): Settings {
+        const value = this.settingsForm.value;
+        const epgUrl = Array.isArray(value.epgUrl)
+            ? value.epgUrl.filter(
+                  (url): url is string => typeof url === 'string'
+              )
+            : [];
+
+        return {
+            player: value.player ?? VideoPlayer.VideoJs,
+            streamFormat: value.streamFormat ?? StreamFormat.M3u8StreamFormat,
+            openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
+            language: value.language ?? Language.ENGLISH,
+            showCaptions: value.showCaptions ?? false,
+            showDashboard: value.showDashboard ?? true,
+            startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
+            showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
+            theme: value.theme ?? Theme.SystemTheme,
+            mpvPlayerPath: this.normalizeExternalPlayerPath(
+                value.mpvPlayerPath
+            ),
+            mpvPlayerArguments: normalizeExternalPlayerArguments(
+                value.mpvPlayerArguments
+            ),
+            mpvReuseInstance: value.mpvReuseInstance ?? false,
+            vlcPlayerPath: this.normalizeExternalPlayerPath(
+                value.vlcPlayerPath
+            ),
+            vlcPlayerArguments: normalizeExternalPlayerArguments(
+                value.vlcPlayerArguments
+            ),
+            vlcReuseInstance: value.vlcReuseInstance ?? false,
+            remoteControl: value.remoteControl ?? false,
+            remoteControlPort: Number(value.remoteControlPort ?? 8765),
+            recordingFolder: value.recordingFolder ?? '',
+            coverSize: value.coverSize ?? 'medium',
+            epgUrl,
+            preferUploadedEpgOverXtream:
+                value.preferUploadedEpgOverXtream ?? false,
+        };
+    }
+
     /**
      * Applies the changed settings to the app
      */
@@ -516,14 +548,19 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 if (!Array.isArray(epgUrls)) {
                     epgUrls = [epgUrls];
                 }
-                epgUrls = epgUrls.filter((url) => url !== '');
-                if (epgUrls.length > 0) {
+                const validEpgUrls = epgUrls.filter(
+                    (url): url is string =>
+                        typeof url === 'string' && url !== ''
+                );
+                if (validEpgUrls.length > 0) {
                     // Fetch all EPG URLs at once
-                    this.epgService.fetchEpg(epgUrls);
+                    this.epgService.fetchEpg(validEpgUrls);
                 }
             }
         }
-        this.translate.use(this.settingsForm.value.language);
+        this.translate.use(
+            this.settingsForm.value.language ?? Language.ENGLISH
+        );
         this.settingsService.changeTheme(
             this.settingsForm.value.theme ?? Theme.SystemTheme
         );

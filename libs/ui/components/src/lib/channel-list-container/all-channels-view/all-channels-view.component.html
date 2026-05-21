@@ -93,7 +93,7 @@
                 (contextMenuRequested)="onChannelContextMenu(channel, $event)"
                 [selected]="activeChannelUrl() === channel?.url"
                 [showFavoriteButton]="true"
-                [isFavorite]="favoriteIds().has(channel?.url)"
+                [isFavorite]="favoriteIds().has(channel?.url ?? '')"
                 (favoriteToggled)="onFavoriteToggle(channel, $event)"
             />
         </cdk-virtual-scroll-viewport>

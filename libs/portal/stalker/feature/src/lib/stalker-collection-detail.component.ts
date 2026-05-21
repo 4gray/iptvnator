@@ -181,7 +181,7 @@ export class StalkerCollectionDetailComponent {
             this.originalState.selectedContentType
         );
         this.stalkerStore.setSelectedCategory(
-            this.originalState.selectedCategoryId
+            this.originalState.selectedCategoryId ?? null
         );
         this.stalkerStore.setSelectedItem(
             this.originalState.selectedItem as never

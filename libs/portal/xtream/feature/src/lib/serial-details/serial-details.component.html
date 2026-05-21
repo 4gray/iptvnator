@@ -1,46 +1,47 @@
 @let item = selectedItem();
-@if (item?.info) {
+@if (item && item.info) {
+    @let info = item.info;
     <app-content-hero
-        [title]="item.info?.name"
-        [description]="item.info?.plot"
-        [posterUrl]="item.info?.cover"
-        [backdropUrl]="item.info?.backdrop_path?.[0]"
+        [title]="info.name"
+        [description]="info.plot"
+        [posterUrl]="info.cover"
+        [backdropUrl]="info.backdrop_path?.[0]"
         (backClicked)="goBack()"
     >
         <ng-container hero-tags>
-            @if (item.info?.releaseDate) {
+            @if (info.releaseDate) {
                 <span class="details__tag">{{
-                    item.info.releaseDate | slice: 0 : 4
+                    info.releaseDate | slice: 0 : 4
                 }}</span>
             }
-            @if (item.info?.genre) {
-                <span class="details__tag">{{ item.info.genre }}</span>
+            @if (info.genre) {
+                <span class="details__tag">{{ info.genre }}</span>
             }
-            @if (item.info?.episode_run_time) {
+            @if (info.episode_run_time) {
                 <span class="details__tag"
-                    >{{ item.info.episode_run_time }} min/ep</span
+                    >{{ info.episode_run_time }} min/ep</span
                 >
             }
-            @if (item.info?.rating) {
+            @if (info.rating) {
                 <span class="details__tag details__tag--rating">
-                    ⭐ {{ item.info.rating }}
+                    ⭐ {{ info.rating }}
                 </span>
             }
         </ng-container>
 
         <ng-container hero-meta>
-            @if (item.info?.cast) {
+            @if (info.cast) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
-                    <span class="value">{{ item.info.cast }}</span>
+                    <span class="value">{{ info.cast }}</span>
                 </div>
             }
-            @if (item.info?.director) {
+            @if (info.director) {
                 <div class="details__meta-item">
                     <span class="label">{{
                         'XTREAM.DIRECTOR' | translate
                     }}</span>
-                    <span class="value">{{ item.info.director }}</span>
+                    <span class="value">{{ info.director }}</span>
                 </div>
             }
         </ng-container>
@@ -100,7 +101,7 @@
             [seasons]="item.episodes"
             [seriesId]="item.series_id"
             [playlistId]="currentPlaylistId()"
-            [seriesTitle]="item.info?.name"
+            [seriesTitle]="info.name ?? ''"
             [playbackPositions]="episodePlaybackPositions()"
             [xtreamDownloadContext]="xtreamDownloadContext()"
             [openingEpisodeId]="openingEpisodeId()"
@@ -111,7 +112,7 @@
     </app-content-hero>
 } @else if (detailsError()) {
     <app-content-hero
-        [errorMessage]="detailsError()"
+        [errorMessage]="detailsError() ?? undefined"
         (backClicked)="goBack()"
     />
 } @else {

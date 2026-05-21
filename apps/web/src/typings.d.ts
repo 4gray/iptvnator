@@ -19,6 +19,7 @@ import {
     PlaylistRefreshPayload,
     PortalDebugEvent,
     ResolvedPortalPlayback,
+    Settings,
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
     XtreamBackupRecentlyViewedItem,
@@ -119,7 +120,7 @@ declare global {
                 searchTerm: string,
                 limit?: number
             ) => Promise<EpgProgram[]>;
-            updateSettings: (settings: JsonObject) => Promise<void>;
+            updateSettings: (settings: Partial<Settings>) => Promise<void>;
             getAiSettings: () => Promise<{
                 aiProvider: string;
                 aiModelName: string;

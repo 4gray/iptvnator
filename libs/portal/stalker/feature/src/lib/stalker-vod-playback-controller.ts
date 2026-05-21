@@ -56,7 +56,7 @@ export class StalkerVodPlaybackController {
                     : this.config.translateService.instant(
                           'PORTALS.PLAYBACK_ERROR'
                       );
-            this.config.snackBar.open(errorMessage, null, {
+            this.config.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
         }
@@ -122,7 +122,7 @@ export class StalkerVodPlaybackController {
     showCopyNotification(): void {
         this.config.snackBar.open(
             this.config.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
+            undefined,
             {
                 duration: 2000,
             }

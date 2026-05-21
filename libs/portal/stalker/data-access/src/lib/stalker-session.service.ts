@@ -8,10 +8,7 @@ import {
     type StalkerPortalIdentity,
 } from './stalker-identity.utils';
 
-export {
-    getStalkerPortalIdentityFromPlaylist,
-    normalizeStalkerPortalIdentity,
-};
+export { getStalkerPortalIdentityFromPlaylist, normalizeStalkerPortalIdentity };
 export type { StalkerPortalIdentity };
 
 /**
@@ -100,7 +97,10 @@ export class StalkerSessionService {
         string,
         Promise<{ token: string; serialNumber?: string }>
     >();
-    private watchdogIntervals = new Map<string, ReturnType<typeof setInterval>>();
+    private watchdogIntervals = new Map<
+        string,
+        ReturnType<typeof setInterval>
+    >();
     private watchdogPlaylists = new Map<string, Playlist>();
     private watchdogInFlight = new Set<string>();
     private activeWatchdogPlaylistId: string | null = null;
@@ -494,14 +494,16 @@ export class StalkerSessionService {
             console.error('[StalkerSession] Missing portal URL or MAC address');
             throw new Error('Portal URL and MAC address are required');
         }
+        const portalUrl = playlist.portalUrl;
+        const macAddress = playlist.macAddress;
 
         // Create the authentication promise and store it to prevent concurrent auth attempts
         // Use async/await wrapper to properly clean up on both success and failure
         const authPromise = (async () => {
             try {
                 const { token } = await this.authenticate(
-                    playlist.portalUrl,
-                    playlist.macAddress,
+                    portalUrl,
+                    macAddress,
                     identity
                 );
                 this.setCachedToken(playlist._id, token);

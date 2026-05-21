@@ -15,7 +15,7 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
-import { firstValueFrom, map } from 'rxjs';
+import { firstValueFrom, map, startWith } from 'rxjs';
 import {
     DatabaseService,
     type DownloadItem,
@@ -83,16 +83,22 @@ export class DownloadsComponent {
     readonly searchTerm = queryParamSignal(this.route, 'q', (value) =>
         (value ?? '').trim().toLowerCase()
     );
-    readonly playlists = toSignal(this.playlistsService.getAllPlaylists(), {
-        initialValue: null as Playlist[] | null,
-    });
+    readonly playlists = toSignal(
+        this.playlistsService.getAllPlaylists().pipe(startWith(null)),
+        {
+            initialValue: null as Playlist[] | null,
+        }
+    );
     readonly playlistsLoaded = computed(() => this.playlists() !== null);
     readonly playlistItems = computed(() => this.playlists() ?? []);
     readonly hasNoPlaylists = computed(
         () => this.playlistsLoaded() && this.playlistItems().length === 0
     );
     readonly skeletonItems = Array.from({ length: 6 }, (_, index) => index);
-    readonly skeletonActionSlots = Array.from({ length: 4 }, (_, index) => index);
+    readonly skeletonActionSlots = Array.from(
+        { length: 4 },
+        (_, index) => index
+    );
 
     addPlaylist(): void {
         this.shellActions.openAddPlaylistDialog();
@@ -275,7 +281,9 @@ export class DownloadsComponent {
 
     async reveal(item: DownloadItem) {
         if (item.filePath) {
-            const result = await this.downloadsService.revealFile(item.filePath);
+            const result = await this.downloadsService.revealFile(
+                item.filePath
+            );
             if (!result.success) {
                 this.handleFileActionError(result.error);
             }
@@ -309,7 +317,10 @@ export class DownloadsComponent {
     }
 
     hasPoster(item: DownloadItem): boolean {
-        return !!item.posterUrl && !this.failedPosterKeys()[this.getPosterKey(item)];
+        return (
+            !!item.posterUrl &&
+            !this.failedPosterKeys()[this.getPosterKey(item)]
+        );
     }
 
     markPosterFailed(item: DownloadItem): void {

@@ -51,7 +51,7 @@ function mapDbRecentItem(
 export const withRecentItems = function () {
     const logger = createLogger('withRecentItems');
     return signalStoreFeature(
-        withState({
+        withState<{ recentItems: RecentlyViewedItem[] }>({
             recentItems: [],
         }),
         withMethods((store, dataSource = inject(XTREAM_DATA_SOURCE)) => ({
@@ -81,7 +81,7 @@ export const withRecentItems = function () {
                 addRecentItem: rxMethod<{
                     xtreamId: number | string;
                     contentType: 'live' | 'movie' | 'series';
-                    playlist: Signal<{ id: string }>;
+                    playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
                 }>(
                     pipe(
@@ -92,7 +92,7 @@ export const withRecentItems = function () {
                                 playlist,
                                 backdropUrl,
                             }) => {
-                                const playlistId = playlist().id;
+                                const playlistId = playlist()?.id;
                                 const normalizedXtreamId = Number(xtreamId);
                                 if (
                                     !playlistId ||
@@ -145,10 +145,10 @@ export const withRecentItems = function () {
                 }: {
                     xtreamId: number | string;
                     contentType: 'live' | 'movie' | 'series';
-                    playlist: Signal<{ id: string }>;
+                    playlist: Signal<{ id: string } | null | undefined>;
                     backdropUrl?: string;
                 }): Promise<void> {
-                    const playlistId = playlist().id;
+                    const playlistId = playlist()?.id;
                     const normalizedXtreamId = Number(xtreamId);
                     const normalizedBackdropUrl = backdropUrl?.trim();
                     if (

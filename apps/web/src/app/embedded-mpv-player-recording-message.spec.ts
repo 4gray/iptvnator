@@ -2,9 +2,11 @@ import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
-import { EmbeddedMpvOverlayVisibilityService } from '../../../../libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-overlay-visibility.service';
-import { EmbeddedMpvPlayerComponent } from '../../../../libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-player.component';
-import { EmbeddedMpvSessionController } from '../../../../libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller';
+import {
+    EmbeddedMpvOverlayVisibilityService,
+    EmbeddedMpvPlayerComponent,
+    EmbeddedMpvSessionController,
+} from '@iptvnator/ui/playback/embedded-mpv-player';
 
 @Component({
     imports: [EmbeddedMpvPlayerComponent],

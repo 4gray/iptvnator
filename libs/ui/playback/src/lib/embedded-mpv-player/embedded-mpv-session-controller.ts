@@ -51,7 +51,7 @@ export class EmbeddedMpvSessionController {
                 this.session.set(session);
             });
 
-        if (window.electron?.getEmbeddedMpvSupport) {
+        if (typeof window.electron?.getEmbeddedMpvSupport === 'function') {
             void this.loadSupport();
         } else {
             this.support.set({

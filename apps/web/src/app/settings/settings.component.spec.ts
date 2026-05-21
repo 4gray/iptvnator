@@ -494,7 +494,8 @@ describe('SettingsComponent', () => {
                     .some((player) => player.id === VideoPlayer.EmbeddedMpv)
             ).toBe(false);
 
-            resolveSupport!({
+            expect(resolveSupport).toBeDefined();
+            resolveSupport({
                 supported: true,
                 platform: 'darwin',
             });
