@@ -675,10 +675,17 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            await this.dbService.removeRecentItem(
-                item.id as number,
-                item.playlist_id
-            );
+            if (window.electron) {
+                await this.dbService.removeRecentItem(
+                    item.id as number,
+                    item.playlist_id
+                );
+            } else {
+                await this.xtreamDataSource.removeRecentItem(
+                    item.id as number,
+                    item.playlist_id
+                );
+            }
             await this.reloadGlobalRecentItems();
             return;
         }
@@ -829,10 +836,17 @@ export class DashboardDataService {
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
         if (item.source === 'xtream') {
-            await this.dbService.removeFromFavorites(
-                item.id as number,
-                item.playlist_id
-            );
+            if (window.electron) {
+                await this.dbService.removeFromFavorites(
+                    item.id as number,
+                    item.playlist_id
+                );
+            } else {
+                await this.xtreamDataSource.removeFavorite(
+                    item.id as number,
+                    item.playlist_id
+                );
+            }
             await this.reloadGlobalFavorites();
             return;
         }

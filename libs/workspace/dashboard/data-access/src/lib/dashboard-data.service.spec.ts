@@ -10,7 +10,11 @@ import { of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
-import { DashboardDataService } from './dashboard-data.service';
+import {
+    DashboardDataService,
+    DashboardFavoriteItem,
+    GlobalRecentItem,
+} from './dashboard-data.service';
 
 describe('DashboardDataService', () => {
     let service: DashboardDataService;
@@ -75,6 +79,8 @@ describe('DashboardDataService', () => {
     const xtreamDataSourceMock = {
         getFavorites: jest.fn().mockResolvedValue([]),
         getRecentItems: jest.fn().mockResolvedValue([]),
+        removeFavorite: jest.fn().mockResolvedValue(undefined),
+        removeRecentItem: jest.fn().mockResolvedValue(undefined),
     };
     const playlistMock: Playlist = {
         _id: 'm3u-1',
@@ -150,6 +156,10 @@ describe('DashboardDataService', () => {
         xtreamDataSourceMock.getFavorites.mockResolvedValue([]);
         xtreamDataSourceMock.getRecentItems.mockClear();
         xtreamDataSourceMock.getRecentItems.mockResolvedValue([]);
+        xtreamDataSourceMock.removeFavorite.mockClear();
+        xtreamDataSourceMock.removeFavorite.mockResolvedValue(undefined);
+        xtreamDataSourceMock.removeRecentItem.mockClear();
+        xtreamDataSourceMock.removeRecentItem.mockResolvedValue(undefined);
         storeMock.dispatch.mockClear();
 
         TestBed.configureTestingModule({
@@ -455,6 +465,35 @@ describe('DashboardDataService', () => {
         expect(playlistsServiceMock.setFavorites).toHaveBeenCalledWith(
             'm3u-1',
             ['https://example.com/stream-2.m3u8']
+        );
+    });
+
+    it('removes PWA Xtream favorites through the active data source', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        const item = {
+            id: 51,
+            category_id: 12,
+            title: 'Action Movie',
+            poster_url: 'https://example.com/movie.png',
+            xtream_id: 5001,
+            type: 'movie',
+            playlist_id: 'xtream-1',
+            playlist_name: 'Xtream Playlist',
+            source: 'xtream',
+        } satisfies DashboardFavoriteItem;
+
+        await service.removeGlobalFavorite(item);
+
+        expect(xtreamDataSourceMock.removeFavorite).toHaveBeenCalledWith(
+            51,
+            'xtream-1'
+        );
+        expect(dbServiceMock.removeFromFavorites).not.toHaveBeenCalled();
+        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledWith(
+            'xtream-1'
         );
     });
 
@@ -828,5 +867,35 @@ describe('DashboardDataService', () => {
         expect(
             playlistsServiceMock.removeFromM3uRecentlyViewed
         ).toHaveBeenCalledWith('m3u-1', 'https://example.com/stream-1.m3u8');
+    });
+
+    it('removes PWA Xtream recently viewed through the active data source', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        const item = {
+            id: 91,
+            category_id: 18,
+            title: 'Recent Movie',
+            viewed_at: '2026-04-21T10:00:00.000Z',
+            poster_url: 'https://example.com/recent-movie.png',
+            xtream_id: 7001,
+            type: 'movie',
+            playlist_id: 'xtream-1',
+            playlist_name: 'Xtream Playlist',
+            source: 'xtream',
+        } satisfies GlobalRecentItem;
+
+        await service.removeGlobalRecentItem(item);
+
+        expect(xtreamDataSourceMock.removeRecentItem).toHaveBeenCalledWith(
+            91,
+            'xtream-1'
+        );
+        expect(dbServiceMock.removeRecentItem).not.toHaveBeenCalled();
+        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
     });
 });
