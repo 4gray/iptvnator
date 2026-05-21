@@ -7,7 +7,11 @@ import {
     withState,
 } from '@ngrx/signals';
 import { EpgItem } from '@iptvnator/shared/interfaces';
-import { DataService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -82,11 +86,10 @@ export function withEpg() {
             const apiService = inject(XtreamApiService);
             const dataService = inject(DataService);
             const fallbackService = inject(XtreamXmltvFallbackService);
+            const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
 
-            const supportsEpg = (): boolean =>
-                typeof dataService.getAppEnvironment !== 'function' ||
-                dataService.getAppEnvironment() !== 'pwa';
+            const supportsEpg = (): boolean => runtime.supportsEpg;
 
             /**
              * Helper to get credentials from parent store

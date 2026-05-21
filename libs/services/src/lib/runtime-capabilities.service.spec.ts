@@ -1,0 +1,81 @@
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
+
+describe('RuntimeCapabilitiesService', () => {
+    const testWindow = window as unknown as {
+        electron?: Record<string, unknown>;
+    };
+    const originalElectron = testWindow.electron;
+
+    afterEach(() => {
+        testWindow.electron = originalElectron;
+    });
+
+    it('reports browser PWA capabilities when the Electron bridge is absent', () => {
+        testWindow.electron = undefined;
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.environment).toBe('pwa');
+        expect(service.isPwa).toBe(true);
+        expect(service.isElectron).toBe(false);
+        expect(service.supportsEpg).toBe(false);
+        expect(service.supportsSqlite).toBe(false);
+        expect(service.supportsDownloads).toBe(false);
+        expect(service.supportsManagedExternalPlayers).toBe(false);
+        expect(service.supportsEmbeddedMpv).toBe(false);
+        expect(service.supportsRemoteControl).toBe(false);
+    });
+
+    it('reports Electron capabilities from the available preload bridge methods', () => {
+        testWindow.electron = {
+            dbGetAppPlaylists: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbGetAppState: jest.fn(),
+            dbSetAppState: jest.fn(),
+            downloadsGetList: jest.fn(),
+            prepareEmbeddedMpv: jest.fn(),
+            updateRemoteControlStatus: jest.fn(),
+            onChannelChange: jest.fn(),
+            onRemoteControlCommand: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.environment).toBe('electron');
+        expect(service.isElectron).toBe(true);
+        expect(service.isPwa).toBe(false);
+        expect(service.supportsEpg).toBe(true);
+        expect(service.supportsSqlite).toBe(true);
+        expect(service.supportsDownloads).toBe(true);
+        expect(service.supportsManagedExternalPlayers).toBe(true);
+        expect(service.supportsEmbeddedMpv).toBe(true);
+        expect(service.supportsRemoteControl).toBe(true);
+    });
+
+    it('keeps feature-specific capabilities false when an Electron bridge is partial', () => {
+        testWindow.electron = {
+            updateRemoteControlStatus: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.environment).toBe('electron');
+        expect(service.supportsEpg).toBe(true);
+        expect(service.supportsSqlite).toBe(false);
+        expect(service.supportsDownloads).toBe(false);
+        expect(service.supportsEmbeddedMpv).toBe(false);
+        expect(service.supportsRemoteControl).toBe(false);
+    });
+
+    it('reads the bridge dynamically so tests and late preload setup stay accurate', () => {
+        testWindow.electron = undefined;
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isPwa).toBe(true);
+
+        testWindow.electron = {};
+
+        expect(service.isElectron).toBe(true);
+        expect(service.environment).toBe('electron');
+    });
+});

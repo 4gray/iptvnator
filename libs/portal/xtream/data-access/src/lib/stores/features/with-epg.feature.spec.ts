@@ -1,6 +1,10 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import { DataService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgItem } from '@iptvnator/shared/interfaces';
 import { XtreamApiService } from '../../services/xtream-api.service';
 import { XtreamXmltvFallbackService } from '../../services/xtream-xmltv-fallback.service';
@@ -85,6 +89,14 @@ function configureStore(setup: TestStoreSetup) {
                         () => setup.appEnvironment ?? 'electron'
                     ),
                     isElectron: setup.isElectron ?? true,
+                },
+            },
+            {
+                provide: RuntimeCapabilitiesService,
+                useValue: {
+                    get supportsEpg() {
+                        return (setup.appEnvironment ?? 'electron') !== 'pwa';
+                    },
                 },
             },
             { provide: XtreamApiService, useValue: xtreamApiService },

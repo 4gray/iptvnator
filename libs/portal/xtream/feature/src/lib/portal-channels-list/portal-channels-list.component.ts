@@ -38,6 +38,7 @@ import { EpgQueueService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamCredentials } from '@iptvnator/portal/xtream/data-access';
 import { FavoritesService } from '@iptvnator/portal/xtream/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 
 export interface XtreamChannelListItem {
     readonly category_id?: string | number;
@@ -80,7 +81,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly favoritesService = inject(FavoritesService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
-    readonly supportsEpg = Boolean(window.electron);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {

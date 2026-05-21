@@ -36,6 +36,7 @@ import {
     PlaylistsService,
     PortalStatus,
     PortalStatusService,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { firstValueFrom, startWith } from 'rxjs';
@@ -80,6 +81,7 @@ export class PlaylistSwitcherComponent {
     private readonly dialogService = inject(DialogService);
     private readonly databaseService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -313,7 +315,7 @@ export class PlaylistSwitcherComponent {
     private async removePlaylistConfirmed(
         playlist: PlaylistMeta
     ): Promise<void> {
-        const deleted = window.electron
+        const deleted = this.runtime.isElectron
             ? await this.deletePlaylistInElectron(playlist)
             : await this.deletePlaylistInBrowser(playlist);
 

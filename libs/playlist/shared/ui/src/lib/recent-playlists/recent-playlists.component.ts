@@ -36,6 +36,7 @@ import {
     PlaybackPositionService,
     PlaylistRefreshService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SortBy,
     SortService,
     XtreamPendingRestoreService,
@@ -83,6 +84,7 @@ export class RecentPlaylistsComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly sortService = inject(SortService);
     private readonly store = inject(Store);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistsService = inject(PlaylistsService);
@@ -95,7 +97,7 @@ export class RecentPlaylistsComponent {
     readonly playlistClicked = output<string>();
     readonly addPlaylistClicked = output<PlaylistType | undefined>();
 
-    readonly isElectron = !!window.electron;
+    readonly isElectron = this.runtime.isElectron;
 
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag

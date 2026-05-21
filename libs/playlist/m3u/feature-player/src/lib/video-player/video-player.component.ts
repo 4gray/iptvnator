@@ -80,6 +80,7 @@ import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import {
@@ -133,6 +134,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly router = inject(Router);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
@@ -250,8 +252,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         showCaptions: false,
     };
 
-    readonly isDesktop = !!window['electron'];
-    readonly supportsEpg = this.isDesktop;
+    readonly isDesktop = this.runtime.isElectron;
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     /** EPG overlay reference */

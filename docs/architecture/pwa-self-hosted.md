@@ -64,6 +64,13 @@ The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
 bridge.
 
+Renderer code that needs to branch by runtime should use
+`RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new
+direct `window.electron` or `DataService.getAppEnvironment()` checks. Keep
+feature decisions expressed as capabilities such as `supportsEpg`,
+`supportsSqlite`, `supportsDownloads`, or `supportsManagedExternalPlayers` so
+PWA and Electron behavior stays auditable from one shared boundary.
+
 ## Runtime Limitations
 
 The self-hosted build is the browser PWA, not the Electron desktop app. Keep

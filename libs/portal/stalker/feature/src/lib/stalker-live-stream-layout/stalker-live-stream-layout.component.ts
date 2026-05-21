@@ -25,7 +25,11 @@ import {
     ChannelListSkeletonComponent,
     ResizableDirective,
 } from '@iptvnator/ui/components';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -91,6 +95,7 @@ import {
 export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
     private readonly playlistService = inject(PlaylistsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly snackBar = inject(MatSnackBar);
@@ -138,8 +143,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     readonly selectedChannelId = this.stalkerStore.selectedItvId;
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
-    readonly isElectron = Boolean(window.electron);
-    readonly supportsEpg = this.isElectron;
+    readonly isElectron = this.runtime.isElectron;
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );

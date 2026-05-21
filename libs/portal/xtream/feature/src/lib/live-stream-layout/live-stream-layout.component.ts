@@ -63,7 +63,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute } from '@angular/router';
-import { SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -104,6 +104,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly xtreamUrlService = inject(XtreamUrlService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly liveSidebarStateService = inject(
@@ -119,8 +120,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly isLoadingEpg = this.xtreamStore.isLoadingEpg;
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
-    readonly isElectron = Boolean(window.electron);
-    readonly supportsEpg = this.isElectron;
+    readonly isElectron = this.runtime.isElectron;
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,

@@ -30,7 +30,11 @@ import {
 } from '@iptvnator/workspace/shell/util';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     DashboardDataService,
     DashboardFavoriteItem,
@@ -428,11 +432,12 @@ export class WorkspaceDashboardRailsComponent {
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly epgService = inject(EpgService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
     readonly ready = this.data.dashboardReady;
     readonly xtreamPlaylistCount = this.data.xtreamPlaylistCount;
-    readonly isElectron = !!window.electron;
+    readonly isElectron = this.runtime.isElectron;
 
     readonly skeletonSlots = SKELETON_CARDS_PER_RAIL;
     readonly skeletonRails = SKELETON_RAILS;
@@ -776,7 +781,7 @@ export class WorkspaceDashboardRailsComponent {
     }
 
     private async removePlaylist(playlist: PlaylistMeta): Promise<void> {
-        const deleted = window.electron
+        const deleted = this.runtime.isElectron
             ? await this.deletePlaylistInElectron(playlist)
             : await this.deletePlaylistInBrowser(playlist);
 

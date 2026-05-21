@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import { DataService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EpgItem, Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerEpg } from './with-stalker-epg.feature';
@@ -56,6 +56,14 @@ describe('withStalkerEpg', () => {
             providers: [
                 TestStalkerEpgStore,
                 { provide: DataService, useValue: dataService },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        get supportsEpg() {
+                            return dataService.getAppEnvironment() !== 'pwa';
+                        },
+                    },
+                },
                 {
                     provide: StalkerSessionService,
                     useValue: stalkerSessionService,

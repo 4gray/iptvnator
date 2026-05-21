@@ -45,7 +45,7 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgViewComponent,
@@ -92,12 +92,13 @@ export class UnifiedLiveTabComponent {
 
     private readonly streamResolver = inject(StreamResolverService);
     private readonly recentData = inject(UnifiedRecentDataService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly destroyRef = inject(DestroyRef);
 
     readonly player = this.settingsStore.player;
-    readonly supportsEpg = Boolean(window.electron);
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly isEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );

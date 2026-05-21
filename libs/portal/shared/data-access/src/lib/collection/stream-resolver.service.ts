@@ -1,6 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -59,6 +63,7 @@ export class StreamResolverService {
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
     private readonly portalEpgTimeoutMs = 3000;
@@ -68,7 +73,7 @@ export class StreamResolverService {
     private readonly xtreamEpgFailureCooldownMs = 60 * 1000;
 
     private get supportsEpg(): boolean {
-        return typeof window !== 'undefined' && !!window.electron;
+        return this.runtime.supportsEpg;
     }
 
     private async getElectronPlaylist(
