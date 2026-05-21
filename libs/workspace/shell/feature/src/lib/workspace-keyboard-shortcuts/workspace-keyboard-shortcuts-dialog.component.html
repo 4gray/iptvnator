@@ -1,0 +1,105 @@
+<section class="shortcuts-dialog">
+    <header class="shortcuts-dialog__header">
+        <div class="shortcuts-dialog__title-block">
+            <span class="shortcuts-dialog__hero-icon" aria-hidden="true">
+                <mat-icon>keyboard</mat-icon>
+            </span>
+            <div>
+                <h2 mat-dialog-title>
+                    {{ 'WORKSPACE.SHORTCUTS.TITLE' | translate }}
+                </h2>
+                <p>{{ 'WORKSPACE.SHORTCUTS.SUBTITLE' | translate }}</p>
+            </div>
+        </div>
+        <div class="shortcuts-dialog__header-actions">
+            <span class="shortcuts-dialog__platform">
+                <mat-icon aria-hidden="true">{{ data.platformIcon }}</mat-icon>
+                {{ data.platformLabelKey | translate }}
+            </span>
+            <button
+                type="button"
+                mat-icon-button
+                class="shortcuts-dialog__close"
+                [attr.aria-label]="'CLOSE' | translate"
+                (click)="close()"
+            >
+                <mat-icon>close</mat-icon>
+            </button>
+        </div>
+    </header>
+
+    <mat-dialog-content class="shortcuts-dialog__content">
+        <div class="shortcuts-dialog__groups">
+            @for (group of groups; track group.id) {
+                <section class="shortcuts-dialog__group">
+                    <header class="shortcuts-dialog__group-header">
+                        <span
+                            class="shortcuts-dialog__group-icon"
+                            aria-hidden="true"
+                        >
+                            <mat-icon>{{ group.icon }}</mat-icon>
+                        </span>
+                        <h3>{{ group.labelKey | translate }}</h3>
+                    </header>
+
+                    <div class="shortcuts-dialog__rows">
+                        @for (item of group.items; track item.id) {
+                            <article class="shortcuts-dialog__row">
+                                <span
+                                    class="shortcuts-dialog__action-icon"
+                                    aria-hidden="true"
+                                >
+                                    <mat-icon>{{ item.icon }}</mat-icon>
+                                </span>
+                                <span class="shortcuts-dialog__label">
+                                    {{ item.labelKey | translate }}
+                                </span>
+                                <span class="shortcuts-dialog__chords">
+                                    @for (
+                                        chord of item.chords;
+                                        track chord.id
+                                    ) {
+                                        <span
+                                            class="shortcuts-dialog__chord"
+                                            [attr.aria-label]="chord.ariaLabel"
+                                        >
+                                            @for (
+                                                key of chord.keys;
+                                                track key.id
+                                            ) {
+                                                <kbd
+                                                    [attr.aria-label]="
+                                                        key.ariaLabel
+                                                    "
+                                                    [class.shortcuts-dialog__keycap--modifier]="
+                                                        key.isModifier
+                                                    "
+                                                >
+                                                    {{ key.label }}
+                                                </kbd>
+                                                @if (!$last) {
+                                                    <span
+                                                        class="shortcuts-dialog__joiner"
+                                                        aria-hidden="true"
+                                                    >
+                                                        +
+                                                    </span>
+                                                }
+                                            }
+                                        </span>
+                                    }
+                                </span>
+                            </article>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    </mat-dialog-content>
+
+    <mat-dialog-actions align="end" class="shortcuts-dialog__actions">
+        <button type="button" mat-button (click)="close()">
+            {{ 'CLOSE' | translate }}
+        </button>
+    </mat-dialog-actions>
+</section>

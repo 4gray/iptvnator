@@ -21,6 +21,10 @@ import {
     PlaylistsService,
 } from '@iptvnator/services';
 import {
+    XTREAM_DATA_SOURCE,
+    XtreamContentItem,
+} from '@iptvnator/portal/xtream/data-access';
+import {
     buildPlaylistRecentItems,
     Channel,
     Playlist,
@@ -99,6 +103,7 @@ export type DashboardRecentlyAddedFilterKind = GlobalRecentlyAddedKind;
 export class DashboardDataService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
+    private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly playlistsService = inject(PlaylistsService);
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
@@ -475,7 +480,10 @@ export class DashboardDataService {
         }
 
         if (!window.electron) {
-            this.xtreamGlobalRecentItems.set([]);
+            const recentItems = await this.loadPwaXtreamGlobalRecentItems();
+            this.ngZone.run(() =>
+                this.xtreamGlobalRecentItems.set(recentItems)
+            );
             this.globalRecentDbLoadedState.set(true);
             this.finishInitialGlobalRecentLoadIfReady();
             return;
@@ -577,7 +585,8 @@ export class DashboardDataService {
 
     private async reloadXtreamGlobalFavorites(): Promise<void> {
         if (!window.electron) {
-            this.xtreamGlobalFavorites.set([]);
+            const favorites = await this.loadPwaXtreamGlobalFavorites();
+            this.ngZone.run(() => this.xtreamGlobalFavorites.set(favorites));
             this.finishInitialGlobalFavoritesLoadIfReady();
             return;
         }
@@ -597,6 +606,95 @@ export class DashboardDataService {
         } finally {
             this.finishInitialGlobalFavoritesLoadIfReady();
         }
+    }
+
+    private async loadPwaXtreamGlobalRecentItems(): Promise<
+        GlobalRecentItem[]
+    > {
+        const nested = await Promise.all(
+            this.getXtreamPlaylists().map(async (playlist) => {
+                const rows = await this.xtreamDataSource.getRecentItems(
+                    playlist._id
+                );
+                return rows.map((item) =>
+                    this.mapPwaXtreamRecentItem(item, playlist)
+                );
+            })
+        );
+        return nested.reduce<GlobalRecentItem[]>(
+            (items, playlistItems) => items.concat(playlistItems),
+            []
+        );
+    }
+
+    private async loadPwaXtreamGlobalFavorites(): Promise<
+        DashboardFavoriteItem[]
+    > {
+        const nested = await Promise.all(
+            this.getXtreamPlaylists().map(async (playlist) => {
+                const rows = await this.xtreamDataSource.getFavorites(
+                    playlist._id
+                );
+                return rows.map((item) =>
+                    this.mapPwaXtreamFavoriteItem(item, playlist)
+                );
+            })
+        );
+        return nested.reduce<DashboardFavoriteItem[]>(
+            (items, playlistItems) => items.concat(playlistItems),
+            []
+        );
+    }
+
+    private getXtreamPlaylists(): PlaylistMeta[] {
+        return this.playlists().filter(
+            (playlist) => !!playlist.serverUrl && !playlist.macAddress
+        );
+    }
+
+    private mapPwaXtreamRecentItem(
+        item: XtreamContentItem,
+        playlist: PlaylistMeta
+    ): GlobalRecentItem {
+        return {
+            id: item.id,
+            title: item.title,
+            type: this.normalizeXtreamActivityType(item.type),
+            playlist_id: playlist._id,
+            playlist_name: playlist.title || 'Xtream',
+            viewed_at: item.viewed_at ?? '',
+            category_id: item.category_id,
+            xtream_id: item.xtream_id,
+            poster_url: item.poster_url,
+            backdrop_url: item.backdrop_url ?? undefined,
+            source: 'xtream',
+        };
+    }
+
+    private mapPwaXtreamFavoriteItem(
+        item: XtreamContentItem,
+        playlist: PlaylistMeta
+    ): DashboardFavoriteItem {
+        return {
+            id: item.id,
+            title: item.title,
+            type: this.normalizeXtreamActivityType(item.type),
+            playlist_id: playlist._id,
+            playlist_name: playlist.title || 'Xtream',
+            added_at: item.added_at || item.added || new Date(0).toISOString(),
+            category_id: item.category_id,
+            xtream_id: item.xtream_id,
+            poster_url: item.poster_url,
+            backdrop_url: item.backdrop_url ?? undefined,
+            source: 'xtream',
+        };
+    }
+
+    private normalizeXtreamActivityType(type: string): PortalActivityType {
+        if (type === 'live' || type === 'series') {
+            return type;
+        }
+        return 'movie';
     }
 
     private async refreshPlaylistBackedGlobalFavorites(): Promise<void> {
@@ -762,10 +860,17 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            await this.dbService.removeRecentItem(
-                item.id as number,
-                item.playlist_id
-            );
+            if (window.electron) {
+                await this.dbService.removeRecentItem(
+                    item.id as number,
+                    item.playlist_id
+                );
+            } else {
+                await this.xtreamDataSource.removeRecentItem(
+                    item.id as number,
+                    item.playlist_id
+                );
+            }
             await this.reloadGlobalRecentItems();
             return;
         }
@@ -916,10 +1021,17 @@ export class DashboardDataService {
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
         if (item.source === 'xtream') {
-            await this.dbService.removeFromFavorites(
-                item.id as number,
-                item.playlist_id
-            );
+            if (window.electron) {
+                await this.dbService.removeFromFavorites(
+                    item.id as number,
+                    item.playlist_id
+                );
+            } else {
+                await this.xtreamDataSource.removeFavorite(
+                    item.id as number,
+                    item.playlist_id
+                );
+            }
             await this.reloadGlobalFavorites();
             return;
         }
@@ -1052,8 +1164,7 @@ export class DashboardDataService {
                 const matchedFavoriteId =
                     channelIdFavoritePosition !== undefined &&
                     (channelUrlFavoritePosition === undefined ||
-                        channelIdFavoritePosition <=
-                            channelUrlFavoritePosition)
+                        channelIdFavoritePosition <= channelUrlFavoritePosition)
                         ? channelId
                         : channelUrlFavoritePosition !== undefined
                           ? channelUrl

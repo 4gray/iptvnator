@@ -44,6 +44,7 @@
         (searchChanged)="facade.onSearchInput($event)"
         (searchSubmitted)="facade.onSearchEnter($event)"
         (commandPaletteRequested)="facade.openCommandPalette()"
+        (shortcutsRequested)="keyboardShortcuts.openShortcutsDialog()"
         (addPlaylistRequested)="facade.openAddPlaylistDialog()"
         (headerShortcutRequested)="facade.runHeaderShortcut()"
         (headerBulkActionRequested)="facade.runHeaderBulkAction()"

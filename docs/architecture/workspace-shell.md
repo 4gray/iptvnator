@@ -150,6 +150,24 @@ Command palette behavior is shell-owned but view-extensible:
    value is disabled. The new player setting applies to the next playback
    session; an existing stream is not re-mounted.
 
+Keyboard shortcut help is shell-owned:
+
+1. `WorkspaceKeyboardShortcutsService` is provided by `WorkspaceShellComponent`.
+   It owns the workspace-scoped `document:keydown` listener for `?` /
+   `Shift+/`.
+2. The listener ignores events from inputs, textareas, selects, and
+   content-editable elements via `isTypingInInput(...)`.
+3. `libs/portal/shared/util/src/lib/keyboard-shortcut-definitions.ts` is the
+   metadata registry for shortcuts shown in the help dialog and documented in
+   README. `keyboard-shortcuts.ts` owns the display transformation and help
+   trigger detection.
+   Shortcuts that only work through the Electron bridge, such as embedded MPV
+   controls, must set `electronOnly: true` so the PWA dialog does not advertise
+   unavailable commands.
+4. New custom shortcuts should be added to that registry when the handler is
+   added. Do not include native browser/editor behavior such as `Tab` or
+   platform text editing shortcuts.
+
 ## Maintenance Guidance
 
 Use this document as the source of truth when changing workspace shell behavior.
@@ -160,5 +178,7 @@ Use this document as the source of truth when changing workspace shell behavior.
    not duplicated inside the shell.
 3. If a provider route changes how playlist/session bootstrap works, update the
    route-session provider and shell-facing route contract together.
-4. Historical migration notes, cleanup lists, and one-off refactor steps should
+4. When adding a non-native keyboard shortcut, update the shared shortcuts
+   registry, the help dialog tests, README, and the closest behavior test.
+5. Historical migration notes, cleanup lists, and one-off refactor steps should
    stay out of this file; track them in issues or PR notes instead.

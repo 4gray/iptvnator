@@ -12,6 +12,7 @@ import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/w
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
+import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
 @Component({
     selector: 'app-workspace-shell',
@@ -31,8 +32,10 @@ import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-
         WorkspaceShellFacade,
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
+        WorkspaceKeyboardShortcutsService,
     ],
 })
 export class WorkspaceShellComponent {
     readonly facade = inject(WorkspaceShellFacade);
+    readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
 }

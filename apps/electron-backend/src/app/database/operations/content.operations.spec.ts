@@ -93,7 +93,9 @@ describe('content.operations', () => {
     });
 
     it('uses a synchronous better-sqlite transaction callback when saving content', async () => {
-        const existingContentWhere = jest.fn().mockResolvedValue([{ count: 0 }]);
+        const existingContentWhere = jest
+            .fn()
+            .mockResolvedValue([{ count: 0 }]);
         const existingContentInnerJoin = jest
             .fn()
             .mockReturnValue({ where: existingContentWhere });
@@ -165,5 +167,92 @@ describe('content.operations', () => {
             }),
         ]);
         expect(run).toHaveBeenCalled();
+    });
+
+    it('does not persist far-future provider timestamps as valid recently-added dates', async () => {
+        const dateNowSpy = jest
+            .spyOn(Date, 'now')
+            .mockReturnValue(Date.parse('2026-05-19T00:00:00.000Z'));
+        const existingContentWhere = jest
+            .fn()
+            .mockResolvedValue([{ count: 0 }]);
+        const existingContentInnerJoin = jest
+            .fn()
+            .mockReturnValue({ where: existingContentWhere });
+        const existingContentFrom = jest
+            .fn()
+            .mockReturnValue({ innerJoin: existingContentInnerJoin });
+
+        const categoriesWhere = jest.fn().mockResolvedValue([
+            {
+                id: 42,
+                xtreamId: 201,
+            },
+        ]);
+        const categoriesFrom = jest
+            .fn()
+            .mockReturnValue({ where: categoriesWhere });
+
+        const select = jest
+            .fn()
+            .mockReturnValueOnce({ from: existingContentFrom })
+            .mockReturnValueOnce({ from: categoriesFrom });
+
+        const run = jest.fn();
+        const onConflictDoNothing = jest.fn().mockReturnValue({ run });
+        const values = jest.fn().mockReturnValue({ onConflictDoNothing });
+        const insert = jest.fn().mockReturnValue({ values });
+        const transaction = jest.fn((callback: (tx: unknown) => unknown) =>
+            callback({ insert })
+        );
+        const db = {
+            select,
+            transaction,
+        } as unknown as AppDatabase;
+
+        try {
+            await saveContent(
+                db,
+                'playlist-1',
+                [
+                    {
+                        added: '1893456000',
+                        category_id: '201',
+                        name: 'Future Movie',
+                        stream_id: '100',
+                    },
+                    {
+                        added: '1779062400',
+                        category_id: '201',
+                        name: 'Fresh Movie',
+                        stream_id: '101',
+                    },
+                    {
+                        category_id: '201',
+                        last_modified: '1778976000',
+                        name: 'Modified Movie',
+                        stream_id: '102',
+                    },
+                ],
+                'movie'
+            );
+
+            expect(values).toHaveBeenCalledWith([
+                expect.objectContaining({
+                    title: 'Future Movie',
+                    added: '',
+                }),
+                expect.objectContaining({
+                    title: 'Fresh Movie',
+                    added: '1779062400',
+                }),
+                expect.objectContaining({
+                    title: 'Modified Movie',
+                    added: '1778976000',
+                }),
+            ]);
+        } finally {
+            dateNowSpy.mockRestore();
+        }
     });
 });

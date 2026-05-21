@@ -9,6 +9,7 @@ import {
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { UnifiedRecentDataService } from './unified-recent-data.service';
 
 describe('UnifiedRecentDataService', () => {
@@ -32,6 +33,13 @@ describe('UnifiedRecentDataService', () => {
         clearGlobalRecentlyViewed: jest.Mock;
         addRecentItem: jest.Mock;
         getContentByXtreamId: jest.Mock;
+    };
+    let xtreamDataSource: {
+        addRecentItem: jest.Mock;
+        clearRecentItems: jest.Mock;
+        getContentByXtreamId: jest.Mock;
+        getRecentItems: jest.Mock;
+        removeRecentItem: jest.Mock;
     };
 
     const playlistMeta = {
@@ -87,6 +95,10 @@ describe('UnifiedRecentDataService', () => {
     ];
 
     beforeEach(() => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
         store = {
             select: jest.fn(() => of([playlistMeta])),
             dispatch: jest.fn(),
@@ -136,6 +148,13 @@ describe('UnifiedRecentDataService', () => {
             addRecentItem: jest.fn().mockResolvedValue(true),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
         };
+        xtreamDataSource = {
+            addRecentItem: jest.fn().mockResolvedValue(undefined),
+            clearRecentItems: jest.fn().mockResolvedValue(undefined),
+            getContentByXtreamId: jest.fn().mockResolvedValue(null),
+            getRecentItems: jest.fn().mockResolvedValue([]),
+            removeRecentItem: jest.fn().mockResolvedValue(undefined),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -143,6 +162,10 @@ describe('UnifiedRecentDataService', () => {
                 { provide: Store, useValue: store },
                 { provide: PlaylistsService, useValue: playlistsService },
                 { provide: DatabaseService, useValue: dbService },
+                {
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: xtreamDataSource,
+                },
             ],
         });
 
@@ -235,6 +258,43 @@ describe('UnifiedRecentDataService', () => {
         );
     });
 
+    it('uses the Xtream id as the PWA recent key when cached content is cold', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSource.getContentByXtreamId.mockResolvedValue(null);
+
+        const item = {
+            uid: 'xtream::xtream-1::movie:290',
+            name: 'PWA Movie',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 290,
+        } satisfies UnifiedCollectionItem;
+
+        const recorded = await service.recordLivePlayback(item);
+
+        expect(xtreamDataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            290,
+            'xtream-1',
+            'movie'
+        );
+        expect(xtreamDataSource.addRecentItem).toHaveBeenCalledWith(
+            290,
+            'xtream-1'
+        );
+        expect(dbService.addRecentItem).not.toHaveBeenCalled();
+        expect(recorded).toEqual(
+            expect.objectContaining({
+                contentId: 290,
+                viewedAt: expect.any(String),
+            })
+        );
+    });
+
     it('builds distinct Xtream recent UIDs when live and series share an xtream id', async () => {
         store.select.mockReturnValue(
             of([
@@ -286,6 +346,131 @@ describe('UnifiedRecentDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('loads Xtream playlist recent items through the active data source in PWA', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://example.com',
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        xtreamDataSource.getRecentItems.mockResolvedValue([
+            {
+                id: 202,
+                category_id: 20,
+                title: 'Movie One',
+                type: 'movie',
+                poster_url: 'movie.png',
+                backdrop_url: 'backdrop.png',
+                xtream_id: 202,
+                viewed_at: '2026-05-21T12:00:00.000Z',
+            },
+        ]);
+
+        const items = await service.getRecentItems(
+            'playlist',
+            'xtream-1',
+            'xtream'
+        );
+
+        expect(xtreamDataSource.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(dbService.getRecentItems).not.toHaveBeenCalled();
+        expect(items).toEqual([
+            expect.objectContaining({
+                uid: 'xtream::xtream-1::movie:202',
+                sourceType: 'xtream',
+                contentType: 'movie',
+                name: 'Movie One',
+                playlistName: 'Xtream PWA',
+                posterUrl: 'movie.png',
+                viewedAt: '2026-05-21T12:00:00.000Z',
+            }),
+        ]);
+    });
+
+    it('does not load Stalker portals through the PWA Xtream global recent path', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://xtream.example.com',
+                },
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    serverUrl: 'https://stalker.example.com',
+                    macAddress: '00:11:22:33:44:55',
+                },
+            ] satisfies Partial<PlaylistMeta>[])
+        );
+
+        await service.getRecentItems('all');
+
+        expect(xtreamDataSource.getRecentItems).toHaveBeenCalledTimes(1);
+        expect(xtreamDataSource.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+    });
+
+    it('clears Xtream recent localStorage during global PWA clear', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://xtream.example.com',
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                },
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    serverUrl: 'https://stalker.example.com',
+                    macAddress: '00:11:22:33:44:55',
+                },
+            ] satisfies Partial<Playlist>[])
+        );
+
+        await service.clearRecentItems('all');
+
+        expect(dbService.clearGlobalRecentlyViewed).not.toHaveBeenCalled();
+        expect(xtreamDataSource.clearRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).toHaveBeenCalledWith('m3u-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).toHaveBeenCalledWith('stalker-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).not.toHaveBeenCalledWith('xtream-1');
     });
 
     it('keeps Stalker radio recent items in the live collection with radio metadata', async () => {

@@ -200,6 +200,20 @@ textarea,
     overflow: visible;
 }
 
+.workspace-shortcuts-overlay,
+.workspace-shortcuts-overlay .mat-mdc-dialog-surface,
+.workspace-shortcuts-overlay .mat-mdc-dialog-container {
+    app-region: no-drag;
+}
+
+.workspace-shortcuts-overlay .mat-mdc-dialog-surface {
+    background: transparent;
+    box-shadow: none;
+    border-radius: 14px;
+    padding: 0;
+    overflow: visible;
+}
+
 .mat-mdc-snack-bar-container.settings-snackbar {
     margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }

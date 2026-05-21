@@ -1,5 +1,6 @@
 ---
 import BaseLayout from './BaseLayout.astro';
+import GiscusComments from '../components/GiscusComments.astro';
 
 interface Props {
   title: string;
@@ -150,6 +151,8 @@ const blogPostSchema = {
       >
         <slot />
       </div>
+
+      <GiscusComments />
     </div>
   </article>
 </BaseLayout>

@@ -1,18 +1,21 @@
 ---
 services:
-  backend:
-    image: 4gray/iptvnator-backend:latest
-    ports:
-      - "7333:3000"
-    environment:
-      - CLIENT_URL=http://localhost:4333 
-      # this one should match with the address and port in frontend CLIENT_URL env
-      
-  frontend: 
+  iptvnator:
     image: 4gray/iptvnator:latest
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile
+    restart: unless-stopped
     ports:
       - "4333:80"
     environment:
-      - BACKEND_URL=http://localhost:7333 
-      # this one should match with the address of the backend service
-      
+      BACKEND_URL: /api
+      CLIENT_URL: http://localhost:4333
+      PORT: "3000"
+      IPTVNATOR_PROXY_ALLOW_PRIVATE_NETWORKS: "0"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/api/health >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

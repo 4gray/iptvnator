@@ -61,6 +61,7 @@ export class WorkspaceShellHeaderComponent {
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();
     readonly commandPaletteRequested = output<void>();
+    readonly shortcutsRequested = output<void>();
     readonly addPlaylistRequested = output<void>();
     readonly headerShortcutRequested = output<void>();
     readonly headerBulkActionRequested = output<void>();
@@ -93,6 +94,10 @@ export class WorkspaceShellHeaderComponent {
 
     onCommandPaletteRequested(): void {
         this.commandPaletteRequested.emit();
+    }
+
+    onShortcutsRequested(): void {
+        this.shortcutsRequested.emit();
     }
 
     onHeaderShortcutRequested(): void {

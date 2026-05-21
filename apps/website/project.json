@@ -14,6 +14,13 @@
                 "cwd": "apps/website"
             }
         },
+        "test": {
+            "executor": "nx:run-commands",
+            "dependsOn": ["build"],
+            "options": {
+                "command": "node --test tools/testing/website-giscus-comments.test.mjs"
+            }
+        },
         "serve": {
             "executor": "nx:run-commands",
             "options": {
