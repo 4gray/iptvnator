@@ -101,6 +101,9 @@ jobs:
                   safe_deployment_target="$(printf '%s' "${deployment_target}" | tr -c 'A-Za-z0-9_.-' '-')"
                   xcode_version="$(xcodebuild -version | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
                   xcode_hash="$(printf '%s' "${xcode_version}" | shasum -a 256 | awk '{print $1}')"
+                  # Runtime source pins, source URLs, git tags, and build flags
+                  # live in build-macos-runtime.mjs; staging layout and manifest
+                  # normalization live in stage-macos-runtime.mjs.
                   source_hash="$(
                       shasum -a 256 \
                           tools/embedded-mpv/build-macos-runtime.mjs \
@@ -129,7 +132,7 @@ jobs:
                       vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json
                   key: ${{ steps.embedded-mpv-runtime-cache-key.outputs.key }}
 
-            - name: Clear non-exact embedded MPV runtime cache restore
+            - name: Clear stale embedded MPV runtime files
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
               if: matrix.os == 'macos' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
