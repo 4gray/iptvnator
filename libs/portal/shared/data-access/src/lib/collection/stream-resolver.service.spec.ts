@@ -5,7 +5,11 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
@@ -18,7 +22,7 @@ describe('StreamResolverService', () => {
     let playlistsService: { getPlaylistById: jest.Mock };
     let xtreamApi: { getShortEpg: jest.Mock };
     let xtreamUrl: { constructLiveUrl: jest.Mock };
-    let dataService: { readonly supportsEpg: boolean; sendIpcEvent: jest.Mock };
+    let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: { makeAuthenticatedRequest: jest.Mock };
 
     beforeEach(() => {
@@ -32,9 +36,6 @@ describe('StreamResolverService', () => {
             constructLiveUrl: jest.fn(),
         };
         dataService = {
-            get supportsEpg() {
-                return Boolean(window.electron);
-            },
             sendIpcEvent: jest.fn(),
         };
         stalkerSession = {
@@ -53,6 +54,14 @@ describe('StreamResolverService', () => {
                 { provide: XtreamApiService, useValue: xtreamApi },
                 { provide: XtreamUrlService, useValue: xtreamUrl },
                 { provide: DataService, useValue: dataService },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
+                    },
+                },
                 { provide: StalkerSessionService, useValue: stalkerSession },
             ],
         });

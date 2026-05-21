@@ -31,6 +31,7 @@ import {
 import {
     DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import {
@@ -255,9 +256,6 @@ describe('VideoPlayerComponent', () => {
         ),
     };
     const dataServiceMock = {
-        get supportsEpg() {
-            return Boolean(window.electron);
-        },
         sendIpcEvent: jest.fn(),
     };
 
@@ -335,6 +333,17 @@ describe('VideoPlayerComponent', () => {
                 {
                     provide: DataService,
                     useValue: dataServiceMock,
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
+                        get isElectron() {
+                            return Boolean(window.electron);
+                        },
+                    },
                 },
                 {
                     provide: PlaylistsService,

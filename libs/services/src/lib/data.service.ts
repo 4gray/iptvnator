@@ -33,9 +33,6 @@ export abstract class DataService {
         const currentWindow = window as ElectronProcessWindow;
         return Boolean(currentWindow.process?.type);
     }
-    get supportsEpg(): boolean {
-        return typeof window !== 'undefined' && Boolean(window.electron);
-    }
     get remote(): ElectronRemote | null {
         return null;
     }

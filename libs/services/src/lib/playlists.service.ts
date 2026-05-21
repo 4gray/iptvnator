@@ -31,6 +31,7 @@ import {
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
 import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
@@ -82,6 +83,7 @@ export class PlaylistsService {
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly playlistDeleteCleanups =
         inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     private electronMigrationPromise: Promise<void> | null = null;
@@ -96,15 +98,7 @@ export class PlaylistsService {
     }
 
     private get isElectronStorageAvailable(): boolean {
-        const electron = this.electronApi;
-
-        return (
-            !!electron &&
-            typeof electron.dbGetAppPlaylists === 'function' &&
-            typeof electron.dbUpsertAppPlaylist === 'function' &&
-            typeof electron.dbGetAppState === 'function' &&
-            typeof electron.dbSetAppState === 'function'
-        );
+        return this.runtime.supportsSqlite;
     }
 
     private runOnSqlite<T>(operation: () => Promise<T>) {

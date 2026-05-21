@@ -7,7 +7,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EpgItem,
     EpgProgram,
@@ -98,7 +98,8 @@ export function withStalkerEpg() {
             (
                 store,
                 dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                runtime = inject(RuntimeCapabilitiesService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerEpgFeatureStoreContract;
@@ -106,6 +107,8 @@ export function withStalkerEpg() {
                     dataService,
                     stalkerSession,
                 };
+                const supportsEpg = (): boolean => runtime.supportsEpg;
+
                 const requestEpg = async (
                     playlist: NonNullable<
                         ReturnType<
@@ -125,7 +128,7 @@ export function withStalkerEpg() {
                     channelId: number | string,
                     size: number
                 ): Promise<EpgItem[]> => {
-                    if (!dataService.supportsEpg) {
+                    if (!supportsEpg()) {
                         return [];
                     }
 
@@ -182,7 +185,7 @@ export function withStalkerEpg() {
                         }
 
                         const playlistId = String(playlist._id);
-                        if (!dataService.supportsEpg) {
+                        if (!supportsEpg()) {
                             patchState(store, {
                                 bulkItvEpgByChannel: {},
                                 bulkItvEpgLoaded: true,

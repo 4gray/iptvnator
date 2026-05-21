@@ -10,7 +10,10 @@ import {
     FavoritesService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { DataService, SettingsStore } from '@iptvnator/services';
+import {
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 
 function buildEpgItem(params: {
@@ -129,7 +132,7 @@ describe('PortalChannelsListComponent', () => {
                     useValue: epgQueueService,
                 },
                 {
-                    provide: DataService,
+                    provide: RuntimeCapabilitiesService,
                     useValue: {
                         get supportsEpg() {
                             return Boolean(window.electron);

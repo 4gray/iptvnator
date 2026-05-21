@@ -17,8 +17,8 @@ import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
 import {
-    DataService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
@@ -313,9 +313,12 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             providers: [
                 { provide: StalkerStore, useValue: stalkerStore },
                 {
-                    provide: DataService,
+                    provide: RuntimeCapabilitiesService,
                     useValue: {
                         get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
+                        get isElectron() {
                             return Boolean(window.electron);
                         },
                     },
