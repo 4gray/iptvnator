@@ -464,7 +464,9 @@ export class DashboardDataService {
     }
 
     private getXtreamPlaylists(): PlaylistMeta[] {
-        return this.playlists().filter((playlist) => !!playlist.serverUrl);
+        return this.playlists().filter(
+            (playlist) => !!playlist.serverUrl && !playlist.macAddress
+        );
     }
 
     private mapPwaXtreamRecentItem(

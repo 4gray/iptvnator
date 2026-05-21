@@ -388,6 +388,33 @@ describe('DashboardDataService', () => {
         );
     });
 
+    it('does not load Stalker playlists through the PWA Xtream favorites path', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        playlistsSignal.set([
+            {
+                _id: 'xtream-1',
+                title: 'Xtream Playlist',
+                serverUrl: 'https://xtream.example.com',
+            },
+            {
+                _id: 'stalker-1',
+                title: 'Stalker Playlist',
+                serverUrl: 'https://stalker.example.com',
+                macAddress: '00:11:22:33:44:55',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+
+        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledTimes(1);
+        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+    });
+
     it('builds the M3U favorites route', async () => {
         await service.reloadGlobalFavorites();
         const m3uItem = service
@@ -657,6 +684,33 @@ describe('DashboardDataService', () => {
                     viewed_at: '2026-04-21T10:00:00.000Z',
                 }),
             ])
+        );
+    });
+
+    it('does not load Stalker playlists through the PWA Xtream recent path', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        playlistsSignal.set([
+            {
+                _id: 'xtream-1',
+                title: 'Xtream Playlist',
+                serverUrl: 'https://xtream.example.com',
+            },
+            {
+                _id: 'stalker-1',
+                title: 'Stalker Playlist',
+                serverUrl: 'https://stalker.example.com',
+                macAddress: '00:11:22:33:44:55',
+            },
+        ]);
+
+        await service.reloadGlobalRecentItems();
+
+        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledTimes(1);
+        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
         );
     });
 

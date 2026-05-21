@@ -365,11 +365,21 @@ describe('PwaXtreamDataSource', () => {
         const stored = JSON.parse(
             localStorage.getItem('xtream-recent-items') || '{}'
         )['playlist-1'][0];
+        const storedSnapshot = JSON.parse(
+            localStorage.getItem('xtream-collection-items') || '{}'
+        )['playlist-1']['202'];
         expect(stored).toEqual(
             expect.objectContaining({
                 id: 202,
                 backdropUrl: 'https://example.com/backdrop.png',
                 viewedAt: before,
+            })
+        );
+        expect(storedSnapshot).toEqual(
+            expect.objectContaining({
+                backdrop_url: 'https://example.com/backdrop.png',
+                title: 'Movie One',
+                xtream_id: 202,
             })
         );
         await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual([
@@ -379,5 +389,72 @@ describe('PwaXtreamDataSource', () => {
                 xtream_id: 202,
             }),
         ]);
+    });
+
+    it('uses stored collection snapshots for fresh-session favorites and recent items', async () => {
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream PWA',
+            serverUrl: credentials.serverUrl,
+            username: credentials.username,
+            password: credentials.password,
+            type: 'xtream',
+        });
+        apiService.getStreams.mockResolvedValue([
+            {
+                stream_id: 202,
+                name: 'Movie One',
+                stream_icon: 'movie.png',
+                category_id: '20',
+            },
+        ]);
+
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+        await dataSource.addFavorite(202, 'playlist-1');
+        await dataSource.addRecentItem(
+            202,
+            'playlist-1',
+            'https://example.com/backdrop.png'
+        );
+
+        const storedCollectionItems = JSON.parse(
+            localStorage.getItem('xtream-collection-items') || '{}'
+        );
+        expect(storedCollectionItems['playlist-1']['202']).toEqual(
+            expect.objectContaining({
+                title: 'Movie One',
+                xtream_id: 202,
+            })
+        );
+
+        TestBed.resetTestingModule();
+        apiService = {
+            getStreams: jest.fn(),
+        };
+        TestBed.configureTestingModule({
+            providers: [
+                PwaXtreamDataSource,
+                {
+                    provide: XtreamApiService,
+                    useValue: apiService,
+                },
+            ],
+        });
+        dataSource = TestBed.inject(PwaXtreamDataSource);
+
+        await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+        await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                backdrop_url: 'https://example.com/backdrop.png',
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+        expect(apiService.getStreams).not.toHaveBeenCalled();
     });
 });
