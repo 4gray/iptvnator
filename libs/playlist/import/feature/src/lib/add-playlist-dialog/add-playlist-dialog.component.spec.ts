@@ -178,18 +178,55 @@ describe('AddPlaylistDialogComponent', () => {
         expect(component.isClearDisabled()).toBeTruthy();
     });
 
+    it('defaults to the URL method when no deep-link type is provided', () => {
+        // Constructor-injected MAT_DIALOG_DATA is null in this spec setup,
+        // so the dialog should land on its default first-row method.
+        expect(component.method()).toBe('url');
+        expect(component.playlistType()).toBe('url');
+    });
+
+    it.each([
+        ['url' as PlaylistType, 'url' as PlaylistType],
+        ['file' as PlaylistType, 'file' as PlaylistType],
+        ['text' as PlaylistType, 'text' as PlaylistType],
+        ['xtream' as PlaylistType, 'xtream' as PlaylistType],
+        ['stalker' as PlaylistType, 'stalker' as PlaylistType],
+    ])(
+        'opens directly on the %s method when MAT_DIALOG_DATA.type === %s (deep-link from rail / shell action)',
+        (deepLinkType, expectedMethod) => {
+            // Rebuild the component with a deep-link to confirm the
+            // flat-method signal honours the legacy { type } payload shape.
+            TestBed.resetTestingModule();
+            TestBed.configureTestingModule({
+                providers: [
+                    { provide: DataService, useValue: dataService },
+                    { provide: MatDialogRef, useValue: dialogRef },
+                    { provide: Store, useValue: store },
+                    { provide: MatSnackBar, useValue: { open: jest.fn() } },
+                    {
+                        provide: TranslateService,
+                        useValue: {
+                            instant: jest.fn((value: string) => value),
+                        },
+                    },
+                    {
+                        provide: MAT_DIALOG_DATA,
+                        useValue: { type: deepLinkType },
+                    },
+                ],
+            });
+            const deepLinked = TestBed.runInInjectionContext(
+                () => new AddPlaylistDialogComponent()
+            );
+
+            expect(deepLinked.method()).toBe(expectedMethod);
+            expect(deepLinked.playlistType()).toBe(expectedMethod);
+        }
+    );
+
     function selectType(type: PlaylistType): void {
-        if (type === 'xtream') {
-            component.category.set('xtream');
-            return;
-        }
-
-        if (type === 'stalker') {
-            component.category.set('stalker');
-            return;
-        }
-
-        component.category.set('m3u');
-        component.m3uSubType.set(type);
+        // The dialog now uses a single `method` signal across all 5 source
+        // types — no more category × subtype matrix.
+        component.method.set(type);
     }
 });

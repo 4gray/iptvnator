@@ -51,10 +51,45 @@ import {
     buildXtreamNavigationTarget,
     getGlobalFavoriteNavigation,
     getRecentItemNavigation,
+    PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
+import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 
 export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
+
+// Compound key for looking up a playback position by recent item — a single
+// playlist can contain the same xtream-id for a VOD and an episode (rare,
+// but the schema allows it), so contentType is part of the key.
+function playbackPositionMapKey(
+    playlistId: string,
+    contentXtreamId: number,
+    contentType: 'vod' | 'episode'
+): string {
+    return `${playlistId}::${contentXtreamId}::${contentType}`;
+}
+
+function seriesPlaybackPositionMapKey(
+    playlistId: string,
+    seriesXtreamId: number
+): string {
+    return `${playlistId}::${seriesXtreamId}`;
+}
+
+function newestPlaybackPosition(
+    current: PlaybackPositionData | null | undefined,
+    candidate: PlaybackPositionData | null | undefined
+): PlaybackPositionData | null {
+    if (!current) {
+        return candidate ?? null;
+    }
+    if (!candidate) {
+        return current;
+    }
+    return (candidate.updatedAt ?? '') > (current.updatedAt ?? '')
+        ? candidate
+        : current;
+}
 
 /** @deprecated Use {@link PortalRecentItem} from `@iptvnator/shared/interfaces` instead. */
 export type GlobalRecentItem = PortalRecentItem;
@@ -72,6 +107,7 @@ export class DashboardDataService {
     private readonly playlistsService = inject(PlaylistsService);
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
+    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private favoritesAutoRefreshEnabled = false;
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -200,6 +236,147 @@ export class DashboardDataService {
             )
             .slice(0, 200)
     );
+
+    // Split the recent list by content type so the dashboard can render
+    // movies/series ("Continue watching") separately from live channels
+    // ("Live now on your favorites"). Two card formats — one rail each.
+    readonly globalRecentVodItems = computed<GlobalRecentItem[]>(() =>
+        this.globalRecentItems().filter(
+            (item) => item.type === 'movie' || item.type === 'series'
+        )
+    );
+
+    readonly globalRecentLiveItems = computed<GlobalRecentItem[]>(() =>
+        this.globalRecentItems().filter((item) => item.type === 'live')
+    );
+
+    // Favorited live channels — the dashboard's "Live now" rail prefers this
+    // source so the EPG enrichment lands on the channels users actually care
+    // about. Falls back to globalRecentLiveItems when this is empty so a
+    // fresh-install user still sees something useful.
+    readonly globalFavoriteLiveItems = computed<DashboardFavoriteItem[]>(() =>
+        this.globalFavoriteItems().filter((item) => item.type === 'live')
+    );
+
+    // Playback positions, keyed by `${playlist_id}::${contentXtreamId}::${type}`.
+    // Loaded lazily on dashboard mount (and refreshed when recent items
+    // change) so the hero + Continue Watching cards can show "X min left"
+    // and a progress bar. Live channels never have positions; M3U content
+    // doesn't either. Map starts empty and degrades cleanly on missing data.
+    private readonly playbackPositionsMap = signal<
+        Map<string, PlaybackPositionData>
+    >(new Map());
+    private readonly playbackPositionsBySeriesMap = signal<
+        Map<string, PlaybackPositionData>
+    >(new Map());
+
+    readonly playbackPositions$ = this.playbackPositionsMap.asReadonly();
+
+    getPlaybackPositionForItem(
+        item: PortalActivityItem
+    ): PlaybackPositionData | null {
+        if (item.type !== 'movie' && item.type !== 'series') {
+            return null;
+        }
+        const xtreamId =
+            typeof item.xtream_id === 'number'
+                ? item.xtream_id
+                : Number(item.xtream_id);
+        if (!Number.isFinite(xtreamId)) {
+            return null;
+        }
+
+        if (item.type === 'movie') {
+            const key = playbackPositionMapKey(
+                item.playlist_id,
+                xtreamId,
+                'vod'
+            );
+            return this.playbackPositionsMap().get(key) ?? null;
+        }
+
+        // Series recent_items rows carry either the series id (the series
+        // landing page writes the series itself) or, for direct-play flows,
+        // the episode id. Match both shapes through keyed maps so card renders
+        // do not scan every saved playback position.
+        const episodePosition =
+            this.playbackPositionsMap().get(
+                playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
+            ) ?? null;
+        const seriesPosition =
+            this.playbackPositionsBySeriesMap().get(
+                seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
+            ) ?? null;
+        return newestPlaybackPosition(episodePosition, seriesPosition);
+    }
+
+    /**
+     * Refresh the in-memory positions map for every playlist that owns at
+     * least one VOD/series recent item. Per-playlist bulk fetch is one IPC
+     * round-trip each (vs N+1 per content item), so this stays cheap even
+     * on heavy libraries.
+     */
+    async reloadPlaybackPositions(): Promise<void> {
+        const playlistIds = new Set<string>();
+        for (const item of this.globalRecentItems()) {
+            if (item.type === 'movie' || item.type === 'series') {
+                playlistIds.add(item.playlist_id);
+            }
+        }
+        if (playlistIds.size === 0) {
+            this.playbackPositionsMap.set(new Map());
+            this.playbackPositionsBySeriesMap.set(new Map());
+            return;
+        }
+
+        const next = new Map<string, PlaybackPositionData>();
+        const nextBySeries = new Map<string, PlaybackPositionData>();
+        for (const playlistId of playlistIds) {
+            try {
+                const positions =
+                    await this.playbackPositions.getAllPlaybackPositions(
+                        playlistId
+                    );
+                for (const position of positions) {
+                    next.set(
+                        playbackPositionMapKey(
+                            playlistId,
+                            position.contentXtreamId,
+                            position.contentType
+                        ),
+                        position
+                    );
+                    if (
+                        position.contentType === 'episode' &&
+                        Number.isFinite(position.seriesXtreamId)
+                    ) {
+                        const seriesKey = seriesPlaybackPositionMapKey(
+                            playlistId,
+                            position.seriesXtreamId as number
+                        );
+                        nextBySeries.set(
+                            seriesKey,
+                            newestPlaybackPosition(
+                                nextBySeries.get(seriesKey),
+                                position
+                            ) as PlaybackPositionData
+                        );
+                    }
+                }
+            } catch (err) {
+                console.warn(
+                    '[DashboardData] Failed to load playback positions for playlist',
+                    playlistId,
+                    err
+                );
+            }
+        }
+
+        this.ngZone.run(() => {
+            this.playbackPositionsMap.set(next);
+            this.playbackPositionsBySeriesMap.set(nextBySeries);
+        });
+    }
 
     readonly stalkerGlobalFavorites = computed<DashboardFavoriteItem[]>(() => {
         this.languageTick();
@@ -1009,6 +1186,11 @@ export class DashboardDataService {
                     category_id: 'live',
                     xtream_id: matchedFavoriteId,
                     poster_url: channel.tvg?.logo || undefined,
+                    epg_lookup_key:
+                        channel.tvg?.id?.trim() ||
+                        channel.tvg?.name?.trim() ||
+                        channel.name?.trim() ||
+                        undefined,
                     source: 'm3u',
                 });
                 return acc;

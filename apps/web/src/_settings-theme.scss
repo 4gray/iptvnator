@@ -1,7 +1,19 @@
 .settings-container {
     --settings-safe-bottom: env(safe-area-inset-bottom, 0px);
-    --settings-action-bar-offset: 24px;
-    --settings-action-bar-space: 112px;
+    // Action bar is a full-width sticky footer, so it sits flush against
+    // the bottom edge of the scroll container — no hover offset. The
+    // previous 24px gap was tuned for the old floating-chip layout where
+    // the bar visually hovered above the bottom.
+    --settings-action-bar-offset: 0px;
+    // 0 by default — the action bar is now the last child of the form
+    // and acts as the natural bottom edge, so no padding-bottom is
+    // needed below it. The previous 112px/80px reservation existed to
+    // push content above the OLD floating-chip layout, but in the new
+    // sticky-footer model that just added dead scrollable space below
+    // the last setting row. The bar's own padding (12px) and the
+    // section title bottom-borders already provide visual breathing
+    // room when scrolled to the end.
+    --settings-action-bar-space: 0px;
     --settings-page-header-bg: color-mix(
         in srgb,
         var(--mat-sys-surface-container-low) 94%,

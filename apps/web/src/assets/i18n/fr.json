@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Succès ! Les listes de lecture ont été mises à jour avec succès",
             "AUTO_REFRESH_ENABLED": "Actualisation automatique activée"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Choisissez comment vous souhaitez vous connecter. Vous pourrez renommer la liste plus tard.",
+            "METHOD_URL_LABEL": "URL M3U",
+            "METHOD_URL_SUB": "Collez un lien vers un fichier .m3u ou .m3u8 distant",
+            "METHOD_FILE_LABEL": "Fichier M3U",
+            "METHOD_FILE_SUB": "Téléversez une liste de lecture depuis votre ordinateur",
+            "METHOD_XTREAM_LABEL": "Identifiants Xtream",
+            "METHOD_XTREAM_SUB": "Connectez-vous avec hôte, nom d'utilisateur et mot de passe",
+            "METHOD_STALKER_LABEL": "Portail Stalker",
+            "METHOD_STALKER_SUB": "Adresse MAC et URL du portail",
+            "METHOD_TEXT_LABEL": "Texte m3u brut",
+            "METHOD_TEXT_SUB": "Pour les listes ponctuelles ou quand vous n'avez que du texte"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Glissez un fichier ici",
             "OR": "ou",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Thème foncé",
-        "LIGHT_THEME": "Thème clair",
-        "SYSTEM_THEME": "Thème du système"
+        "DARK_THEME": "Sombre",
+        "LIGHT_THEME": "Clair",
+        "SYSTEM_THEME": "Système"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "Lecture",
+        "PAUSE": "Pause",
+        "PREVIOUS_STATION": "Station précédente",
+        "NEXT_STATION": "Station suivante",
+        "MUTE": "Muet",
+        "UNMUTE": "Activer le son",
+        "VOLUME": "Volume"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "Guide électronique des programmes",
         "NEXT_DAY": "Jour suivant",
         "PREVIOUS_DAY": "Jour précédent",
+        "ZOOM_IN": "Zoom avant",
+        "ZOOM_OUT": "Zoom arrière",
+        "FILTER_CHANNELS": "Filtrer les chaînes",
+        "CLOSE_FILTER": "Fermer le filtre",
+        "SEARCH_PROGRAMS": "Rechercher des programmes",
+        "CLOSE_PROGRAM_SEARCH": "Fermer la recherche de programmes",
         "LIVE_NOW": "En direct",
         "LIVE_STREAM": "Diffusion en direct",
         "TIMESHIFT_AVAILABLE": "Contrôle du direct disponible, cliquez pour lire",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "Trier les catégories",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Reprendre la lecture",
+            "LIVE_FAVORITES": "En direct sur vos favoris",
+            "LIVE_RECENT": "Reprendre la TV en direct",
+            "REMAINING_SECONDS": "Il reste {{seconds}} s",
+            "REMAINING_MINUTES": "Il reste {{minutes}} min",
+            "REMAINING_HOURS": "Il reste {{hours}} h",
+            "REMAINING_HOURS_MINUTES": "Il reste {{hours}} h {{minutes}} min",
+            "PERCENT_WATCHED": "{{value}}% regardé",
             "UNTITLED_SOURCE": "Source sans titre",
             "GLOBAL_FAVORITES": "Favoris globaux",
             "REMOVE_FROM_HISTORY": "Retirer de l'historique",
             "RECENT_SOURCES": "Sources récemment utilisées",
             "MANAGE_ALL": "Tout gérer",
+            "SEE_ALL": "Voir tout",
+            "SEE_ALL_COUNT": "Voir les {{count}}",
             "RECENTLY_WATCHED": "Récemment regardés",
             "XTREAM_RECENTLY_ADDED": "Récemment ajoutés sur Xtream",
             "NO_HISTORY": "Aucun élément trouvé pour ce filtre.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "Direct",
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Série",
+            "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Pas encore synchronisé"
         },
         "SHELL": {

@@ -1,36 +1,46 @@
-// Color palette - Broadcast control room aesthetic
-$bg-deep: #0a0a0f;
-$bg-surface: #12121a;
-$bg-elevated: #1a1a24;
-$bg-hover: #24243a;
-$border-subtle: rgba(255, 255, 255, 0.06);
-$border-medium: rgba(255, 255, 255, 0.12);
+// Color palette — every value resolves through the app's theme tokens so
+// Multi-EPG looks like part of IPTVnator instead of a separate broadcast
+// utility. Previously hard-coded #0a0a0f / #12121a / #1a1a24 made the grid
+// switch to near-black while the rest of the app sat on --app-content-bg,
+// which the UX audit called out as the screen "visually detaching" from
+// the rest of the app.
+$bg-deep: var(--app-content-bg);
+$bg-surface: var(--app-widget-bg);
+$bg-elevated: var(--app-widget-header-bg);
+$bg-hover: var(--app-card-hover-bg);
+$border-subtle: var(--app-widget-header-border);
+$border-medium: var(--app-separator);
 
-// Accent colors - TV broadcast vibes
-$accent-primary: #00d4aa; // Cyan/teal for time
-$accent-secondary: #8b5cf6; // Purple for programs
-$accent-tertiary: #f472b6; // Pink for highlights
+// Accent colors — unified with the rest of the app:
+// cyan stays on the "now" indicator only; blue is the primary; the old
+// $8b5cf6 purple and $00d4aa teal are dropped per the UX audit.
+$accent-primary: #5cd6ff; // Cyan — reserved for "now" indicator
+$accent-now-glow: rgba(92, 214, 255, 0.45); // Cyan glow for the now-line
+$accent-secondary: var(--app-selection-color); // Blue — programs
+$accent-tertiary: var(--app-selection-color); // Blue — highlights
 $accent-warning: #fbbf24;
 
-// Text colors
-$text-primary: #f8fafc;
-$text-secondary: rgba(248, 250, 252, 0.7);
-$text-muted: rgba(248, 250, 252, 0.4);
+// Text colors — derived from app heading/body so light and dark themes
+// stay in sync without a separate `.light-theme` override at the bottom
+// (which was duplicating responsibility with the same token chain).
+$text-primary: var(--app-heading-color);
+$text-secondary: var(--app-body-color);
+$text-muted: var(--app-muted-color);
 
 // Gradients
 $gradient-program: linear-gradient(
     135deg,
-    rgba(139, 92, 246, 0.15) 0%,
-    rgba(139, 92, 246, 0.05) 100%
+    rgba(79, 142, 255, 0.15) 0%,
+    rgba(79, 142, 255, 0.05) 100%
 );
 $gradient-program-hover: linear-gradient(
     135deg,
-    rgba(139, 92, 246, 0.3) 0%,
-    rgba(139, 92, 246, 0.15) 100%
+    rgba(79, 142, 255, 0.3) 0%,
+    rgba(79, 142, 255, 0.15) 100%
 );
 $gradient-header: linear-gradient(
     180deg,
-    rgba(0, 212, 170, 0.08) 0%,
+    rgba(92, 214, 255, 0.08) 0%,
     transparent 100%
 );
 
@@ -54,11 +64,11 @@ $gradient-header: linear-gradient(
     }
 
     &::-webkit-scrollbar-thumb {
-        background: rgba(139, 92, 246, 0.4);
+        background: rgba(47, 123, 255, 0.4);
         border-radius: 4px;
 
         &:hover {
-            background: rgba(139, 92, 246, 0.6);
+            background: rgba(47, 123, 255, 0.6);
         }
     }
 }
@@ -87,8 +97,8 @@ $gradient-header: linear-gradient(
         background: linear-gradient(
             90deg,
             transparent 0%,
-            rgba(0, 212, 170, 0.3) 20%,
-            rgba(139, 92, 246, 0.3) 80%,
+            rgba(92, 214, 255, 0.3) 20%,
+            rgba(47, 123, 255, 0.3) 80%,
             transparent 100%
         );
     }
@@ -102,7 +112,7 @@ $gradient-header: linear-gradient(
         -webkit-app-region: no-drag;
 
         &:not([disabled]):hover {
-            background: rgba(139, 92, 246, 0.15);
+            background: rgba(47, 123, 255, 0.15);
         }
 
         &[disabled] {
@@ -136,7 +146,7 @@ $gradient-header: linear-gradient(
         transition: all 0.2s ease;
 
         &:focus-within {
-            border-color: rgba(139, 92, 246, 0.5);
+            border-color: rgba(47, 123, 255, 0.5);
             background: rgba(255, 255, 255, 0.08);
         }
 
@@ -239,7 +249,7 @@ $gradient-header: linear-gradient(
         transition: all 0.2s ease;
 
         &:focus-within {
-            border-color: rgba(139, 92, 246, 0.5);
+            border-color: rgba(47, 123, 255, 0.5);
             background: rgba(255, 255, 255, 0.08);
         }
 
@@ -326,7 +336,7 @@ $gradient-header: linear-gradient(
         }
 
         &::-webkit-scrollbar-thumb {
-            background: rgba(139, 92, 246, 0.3);
+            background: rgba(47, 123, 255, 0.3);
             border-radius: 3px;
         }
 
@@ -444,11 +454,11 @@ $gradient-header: linear-gradient(
 
 @keyframes highlightPulse {
     0%, 100% {
-        filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.6));
+        filter: drop-shadow(0 0 8px rgba(92, 214, 255, 0.6));
     }
     50% {
-        filter: drop-shadow(0 0 20px rgba(0, 212, 170, 0.9))
-                drop-shadow(0 0 40px rgba(0, 212, 170, 0.4));
+        filter: drop-shadow(0 0 20px rgba(92, 214, 255, 0.9))
+                drop-shadow(0 0 40px rgba(92, 214, 255, 0.4));
     }
 }
 
@@ -496,12 +506,14 @@ $gradient-header: linear-gradient(
     text-transform: uppercase;
 
     // Glowing text effect
-    text-shadow: 0 0 20px rgba(0, 212, 170, 0.3);
+    text-shadow: 0 0 20px rgba(92, 214, 255, 0.3);
 }
 
-// Channel column
+// Channel column — bumped from 140px to 180px per the UX audit so long
+// channel names ("13th Street Universal HD", "ARD alpha", etc.) stop being
+// truncated to 5 characters.
 #channels-column {
-    width: 140px;
+    width: 180px;
     flex: none;
     border-right: 1px solid $border-medium;
     background: $bg-surface;
@@ -527,8 +539,8 @@ $gradient-header: linear-gradient(
         }
 
         &.active rect {
-            fill: rgba(139, 92, 246, 0.2);
-            stroke: rgba(139, 92, 246, 0.4);
+            fill: rgba(47, 123, 255, 0.2);
+            stroke: rgba(47, 123, 255, 0.4);
         }
 
         &.active .channel-name {
@@ -540,25 +552,40 @@ $gradient-header: linear-gradient(
     .channel-name {
         color: $text-primary;
         padding: 8px 12px;
-        font-size: 11px;
+        font-size: 12.5px;
         font-weight: 500;
         display: flex;
         align-items: center;
+        gap: 10px;
         height: 100%;
         overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        letter-spacing: 0.02em;
+        letter-spacing: 0.01em;
+        line-height: 1.2;
 
         img {
+            // Smaller logo (24px) per audit recommendation so the channel
+            // name has room to breathe in the 180px column.
+            width: 24px !important;
+            height: 24px !important;
+            margin-right: 0 !important;
+            flex: 0 0 auto;
             border-radius: 4px;
             background: rgba(255, 255, 255, 0.05);
             padding: 2px;
+            object-fit: contain;
         }
 
         span {
+            // Allow up to two lines so "13th Street Universal HD" and
+            // similar long names wrap instead of disappearing into an
+            // ellipsis after 5 characters.
+            min-width: 0;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
             overflow: hidden;
             text-overflow: ellipsis;
+            word-break: break-word;
         }
     }
 
@@ -570,7 +597,7 @@ $gradient-header: linear-gradient(
 
 // EPG container
 #epg-container {
-    width: calc(100vw - 140px);
+    width: calc(100vw - 180px);
     overflow-x: scroll;
     overflow-y: clip;
     background: $bg-deep;
@@ -586,11 +613,11 @@ $gradient-header: linear-gradient(
     }
 
     &::-webkit-scrollbar-thumb {
-        background: rgba(139, 92, 246, 0.4);
+        background: rgba(47, 123, 255, 0.4);
         border-radius: 4px;
 
         &:hover {
-            background: rgba(139, 92, 246, 0.6);
+            background: rgba(47, 123, 255, 0.6);
         }
     }
 }
@@ -631,13 +658,13 @@ $gradient-header: linear-gradient(
 
         &:hover rect {
             fill: $bg-hover;
-            stroke: rgba(139, 92, 246, 0.4);
-            filter: drop-shadow(0 0 8px rgba(139, 92, 246, 0.2));
+            stroke: rgba(47, 123, 255, 0.4);
+            filter: drop-shadow(0 0 8px rgba(47, 123, 255, 0.2));
         }
 
         // Highlighted program (from search)
         &.highlighted rect {
-            fill: rgba(0, 212, 170, 0.25);
+            fill: rgba(92, 214, 255, 0.25);
             stroke: $accent-primary;
             stroke-width: 2px;
             animation: highlightPulse 1s ease-in-out 3;
@@ -651,12 +678,12 @@ $gradient-header: linear-gradient(
 
     // Active channel row highlighting
     .active-row .program rect {
-        fill: rgba(139, 92, 246, 0.15);
-        stroke: rgba(139, 92, 246, 0.3);
+        fill: rgba(47, 123, 255, 0.15);
+        stroke: rgba(47, 123, 255, 0.3);
     }
 
     .active-row .program:hover rect {
-        fill: rgba(139, 92, 246, 0.25);
+        fill: rgba(47, 123, 255, 0.25);
     }
 
     .program-title {
@@ -681,11 +708,44 @@ $gradient-header: linear-gradient(
     line[stroke='red'] {
         stroke: $accent-primary !important;
         stroke-width: 2px;
-        filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.6))
-            drop-shadow(0 0 16px rgba(0, 212, 170, 0.3));
+        filter: drop-shadow(0 0 8px rgba(92, 214, 255, 0.6))
+            drop-shadow(0 0 16px rgba(92, 214, 255, 0.3));
 
         // Animated pulse
         animation: timePulse 2s ease-in-out infinite;
+    }
+
+    // Now-line time badge — a small filled pill sitting on top of the time
+    // header that reads "HH:MM". Keeps the cyan visual language of the line
+    // itself so the relationship is unmistakable.
+    .now-label {
+        pointer-events: none;
+
+        rect {
+            fill: $accent-primary;
+            stroke: none;
+            filter: drop-shadow(0 0 6px $accent-now-glow);
+        }
+
+        text {
+            fill: var(--app-shell-bg, #0d0f12);
+            font-family: 'JetBrains Mono', ui-monospace, 'SF Mono', Menlo,
+                monospace;
+            font-size: 10.5px;
+            font-weight: 700;
+            letter-spacing: 0.04em;
+        }
+    }
+
+    // Currently-airing program — a thin cyan border on every program block
+    // whose time window contains the now-line. Audit recommended this to
+    // make "what's airing right now" scannable without finding the line
+    // first then tracing it down each row.
+    .program.is-now {
+        rect {
+            stroke: $accent-primary;
+            stroke-width: 1.5px;
+        }
     }
 }
 
@@ -694,13 +754,13 @@ $gradient-header: linear-gradient(
     0%,
     100% {
         opacity: 1;
-        filter: drop-shadow(0 0 8px rgba(0, 212, 170, 0.6))
-            drop-shadow(0 0 16px rgba(0, 212, 170, 0.3));
+        filter: drop-shadow(0 0 8px rgba(92, 214, 255, 0.6))
+            drop-shadow(0 0 16px rgba(92, 214, 255, 0.3));
     }
     50% {
         opacity: 0.8;
-        filter: drop-shadow(0 0 12px rgba(0, 212, 170, 0.8))
-            drop-shadow(0 0 24px rgba(0, 212, 170, 0.4));
+        filter: drop-shadow(0 0 12px rgba(92, 214, 255, 0.8))
+            drop-shadow(0 0 24px rgba(92, 214, 255, 0.4));
     }
 }
 
@@ -808,7 +868,7 @@ rect {
 
                 &:hover rect {
                     fill: #f1f5f9;
-                    stroke: rgba(139, 92, 246, 0.4);
+                    stroke: rgba(47, 123, 255, 0.4);
                 }
             }
 
@@ -817,8 +877,8 @@ rect {
             }
 
             line[stroke='red'] {
-                stroke: #059669 !important;
-                filter: drop-shadow(0 0 6px rgba(5, 150, 105, 0.4));
+                stroke: $accent-primary !important;
+                filter: drop-shadow(0 0 6px $accent-now-glow);
             }
         }
     }
@@ -831,16 +891,22 @@ rect {
     }
 
     #channels-column {
-        width: 100px;
+        width: 140px;
 
         .channel-name {
-            font-size: 10px;
+            font-size: 11.5px;
             padding: 6px 8px;
+            gap: 8px;
+
+            img {
+                width: 20px !important;
+                height: 20px !important;
+            }
         }
     }
 
     #epg-container {
-        width: calc(100vw - 100px);
+        width: calc(100vw - 140px);
     }
 
     .today-date {

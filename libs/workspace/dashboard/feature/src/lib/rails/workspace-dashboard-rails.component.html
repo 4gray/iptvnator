@@ -76,6 +76,30 @@
                     <h1 class="hero__title">{{ item.title }}</h1>
                     <p class="hero__subtitle">{{ item.subtitle }}</p>
 
+                    @if (item.watchProgress !== null && item.watchProgress !== undefined) {
+                        <span class="hero__progress" aria-hidden="true">
+                            <span
+                                class="hero__progress-bar"
+                                [style.width.%]="item.watchProgress"
+                            ></span>
+                        </span>
+                        <span class="hero__progress-meta">
+                            @if (item.remainingLabel) {
+                                <span>{{
+                                    item.remainingLabel.key
+                                        | translate: item.remainingLabel.params
+                                }}</span>
+                                <span class="hero__progress-meta-sep"
+                                    >·</span
+                                >
+                            }
+                            <span>{{
+                                'WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                    | translate: { value: item.watchProgress }
+                            }}</span>
+                        </span>
+                    }
+
                     <span class="hero__cta">
                         <mat-icon>play_arrow</mat-icon>
                         <span>{{
@@ -102,16 +126,40 @@
             </section>
         }
 
-        <!-- Recently watched rail -->
-        @if (recentlyWatchedCards().length > 0) {
+        <!-- Continue watching (movies + series) -->
+        @if (continueWatchingCards().length > 0) {
             <lib-dashboard-rail
-                [label]="'WORKSPACE.DASHBOARD.RECENTLY_WATCHED' | translate"
-                [items]="recentlyWatchedCards()"
-                [totalCount]="data.globalRecentItems().length"
+                [label]="'WORKSPACE.DASHBOARD.CONTINUE_WATCHING' | translate"
+                [items]="continueWatchingCards()"
+                [totalCount]="data.globalRecentVodItems().length"
                 [seeAllLink]="['/workspace/global-recent']"
-                [testId]="'dashboard-recently-watched-rail'"
+                [testId]="'dashboard-continue-watching-rail'"
             />
-        } @else if (data.globalRecentLoading()) {
+        }
+
+        <!-- Live rail — favorited live channels first, falls back to
+             recently-watched live. Title flips based on source so the label
+             is always honest about what's rendered. -->
+        @if (liveOnFavoritesCardsEnriched().length > 0) {
+            <lib-dashboard-rail
+                [label]="liveRailTitleKey() | translate"
+                [items]="liveOnFavoritesCardsEnriched()"
+                [totalCount]="liveRailTotalCount()"
+                [seeAllLink]="
+                    liveRailSource() === 'favorites'
+                        ? ['/workspace/global-favorites']
+                        : ['/workspace/global-recent']
+                "
+                layout="channel"
+                [testId]="'dashboard-live-recent-rail'"
+            />
+        }
+
+        @if (
+            continueWatchingCards().length === 0 &&
+            liveOnFavoritesCards().length === 0 &&
+            data.globalRecentLoading()
+        ) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"
@@ -126,29 +174,11 @@
             </section>
         }
 
-        <!-- Favorites rail -->
-        @if (favoriteCards().length > 0) {
-            <lib-dashboard-rail
-                [label]="'WORKSPACE.DASHBOARD.GLOBAL_FAVORITES' | translate"
-                [items]="favoriteCards()"
-                [totalCount]="data.globalFavoriteItems().length"
-                [seeAllLink]="['/workspace/global-favorites']"
-                [testId]="'dashboard-global-favorites-rail'"
-            />
-        } @else if (data.globalFavoritesLoading()) {
-            <section
-                class="rails-page__skeleton-rail"
-                aria-hidden="true"
-                aria-busy="true"
-            >
-                <div class="rails-page__skeleton-header"></div>
-                <div class="rails-page__skeleton-track">
-                    @for (slot of skeletonSlots; track slot) {
-                        <div class="rails-page__skeleton-card"></div>
-                    }
-                </div>
-            </section>
-        }
+        <!-- Mixed Global Favorites rail intentionally NOT rendered on the
+             dashboard. Live favorites are promoted into the live rail above
+             (with current EPG), and the full mixed catalogue lives on the
+             dedicated /workspace/global-favorites page where the collection
+             UI can give it the per-type filters it needs. -->
 
         <!-- Sources rail -->
         @if (sourceCards().length > 0) {

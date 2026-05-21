@@ -17,6 +17,10 @@ interface PlaylistRecentLabels {
     m3u: string;
 }
 
+function firstNonEmpty(...values: Array<string | undefined>): string | undefined {
+    return values.map((value) => value?.trim()).find(Boolean);
+}
+
 function getPlaylistRecentItems(
     playlist: PlaylistMeta
 ): PlaylistRecentlyViewedItem[] {
@@ -76,9 +80,11 @@ function mapM3uPlaylistRecentItems(
             acc.push({
                 id: rawItem.id || channelUrl,
                 title:
-                    rawItem.title?.trim() ||
-                    rawItem.tvg_name?.trim() ||
-                    rawItem.channel_id ||
+                    firstNonEmpty(
+                        rawItem.title,
+                        rawItem.tvg_name,
+                        rawItem.channel_id
+                    ) ||
                     channelUrl,
                 type: 'live',
                 playlist_id: playlist._id,
@@ -87,6 +93,12 @@ function mapM3uPlaylistRecentItems(
                 category_id: rawItem.category_id || 'live',
                 xtream_id: channelUrl,
                 poster_url: rawItem.poster_url || undefined,
+                epg_lookup_key: firstNonEmpty(
+                    rawItem.tvg_id,
+                    rawItem.tvg_name,
+                    rawItem.title,
+                    rawItem.channel_id
+                ),
                 source: 'm3u',
             });
 

@@ -273,7 +273,7 @@ export async function importM3uPlaylistFromNativeDialog(
     await clickDialogCategoryOption(dialog, /^m3u$/i);
     await clickDialogSubtypeOption(
         dialog,
-        /add\s+via\s+file\s+upload/i,
+        /m3u\s*file|add\s+via\s+file\s+upload/i,
         'mat-button-toggle[value="file"]'
     );
     const fileInput = dialog.locator('input[type="file"][name="playlist"]');
@@ -364,7 +364,7 @@ export async function addXtreamPortal(
     const dialog = await getActiveDialog(page);
     await clickDialogCategoryOption(
         dialog,
-        /^xtream$/i,
+        /xtream(\s+credentials)?/i,
         'mat-button-toggle[value="xtream"]'
     );
 
@@ -409,57 +409,46 @@ async function setInputValue(input: Locator, value: string): Promise<void> {
     await expect(input).toHaveValue(value);
 }
 
-async function clickDialogCategoryOption(
+/**
+ * Pick a source method on the Add Playlist dialog. Since v0.22 the dialog
+ * exposes a single flat 5-card radiogroup ("M3U URL", "M3U file", "Xtream
+ * credentials", "Stalker portal", "Raw m3u text") instead of the legacy
+ * 2-level category × subtype tabs/toggles. The helper still falls through
+ * to the old tab/button/legacy-selector lookups so we don't have to rewrite
+ * every call-site on each redesign — but the radio-based picker is the
+ * primary path now.
+ */
+async function clickDialogMethodOption(
     dialog: Locator,
     label: RegExp,
     legacySelector?: string
 ): Promise<void> {
-    await clickDialogSegmentedOption(
-        dialog,
-        'Playlist category',
-        label,
-        legacySelector
-    );
-}
-
-async function clickDialogSubtypeOption(
-    dialog: Locator,
-    label: RegExp,
-    legacySelector?: string
-): Promise<void> {
-    await clickDialogSegmentedOption(
-        dialog,
-        'M3U source',
-        label,
-        legacySelector
-    );
-}
-
-async function clickDialogSegmentedOption(
-    dialog: Locator,
-    tablistLabel: string,
-    label: RegExp,
-    legacySelector?: string
-): Promise<void> {
-    const tablist = dialog
-        .locator(`[role="tablist"][aria-label="${tablistLabel}"]`)
+    const optionByRadio = dialog
+        .getByRole('radio', { name: label })
         .first();
+    if ((await optionByRadio.count()) > 0) {
+        await optionByRadio.click();
+        return;
+    }
 
-    if ((await tablist.count()) > 0) {
-        const optionByTabRole = tablist
-            .getByRole('tab', { name: label })
+    for (const tablistLabel of ['Source method', 'Playlist category', 'M3U source']) {
+        const tablist = dialog
+            .locator(`[role="tablist"][aria-label="${tablistLabel}"]`)
             .first();
-
-        if ((await optionByTabRole.count()) > 0) {
-            await optionByTabRole.click();
-            return;
+        if ((await tablist.count()) > 0) {
+            const optionByTabRole = tablist
+                .getByRole('tab', { name: label })
+                .first();
+            if ((await optionByTabRole.count()) > 0) {
+                await optionByTabRole.click();
+                return;
+            }
         }
     }
 
     const optionByGlobalTabRole = dialog
         .getByRole('tab', { name: label })
         .first();
-
     if ((await optionByGlobalTabRole.count()) > 0) {
         await optionByGlobalTabRole.click();
         return;
@@ -468,7 +457,6 @@ async function clickDialogSegmentedOption(
     const optionByButtonRole = dialog
         .getByRole('button', { name: label })
         .first();
-
     if ((await optionByButtonRole.count()) > 0) {
         await optionByButtonRole.click();
         return;
@@ -476,11 +464,39 @@ async function clickDialogSegmentedOption(
 
     if (!legacySelector) {
         throw new Error(
-            `Could not find dialog option matching ${label} in "${tablistLabel}".`
+            `Could not find dialog option matching ${label}.`
         );
     }
 
     await dialog.locator(legacySelector).click();
+}
+
+// Backwards-compat shims for the legacy two-step flow. Both helpers now route
+// through `clickDialogMethodOption` and use the patterns of the new flat
+// picker. `clickDialogCategoryOption` is a no-op for "M3U" since the new
+// picker has no parent "M3U" tile — callers immediately follow up with a
+// `clickDialogSubtypeOption` which picks the concrete M3U URL/file/text card.
+async function clickDialogCategoryOption(
+    dialog: Locator,
+    label: RegExp,
+    legacySelector?: string
+): Promise<void> {
+    // The legacy "M3U" category is now implicit — the new picker has no
+    // standalone "M3U" radio; callers always immediately specialise via
+    // `clickDialogSubtypeOption` below. Skip the click to avoid matching
+    // unrelated radios (e.g. "M3U URL" when caller wanted "M3U file").
+    if (/^\^?m3u\$?$/i.test(label.source)) {
+        return;
+    }
+    await clickDialogMethodOption(dialog, label, legacySelector);
+}
+
+async function clickDialogSubtypeOption(
+    dialog: Locator,
+    label: RegExp,
+    legacySelector?: string
+): Promise<void> {
+    await clickDialogMethodOption(dialog, label, legacySelector);
 }
 
 export async function addStalkerPortal(
@@ -501,7 +517,7 @@ export async function addStalkerPortal(
     const dialog = await getActiveDialog(page);
     await clickDialogCategoryOption(
         dialog,
-        /^stalker$/i,
+        /stalker(\s+portal)?/i,
         'mat-button-toggle[value="stalker"]'
     );
 
@@ -576,7 +592,7 @@ export async function importM3uPlaylistFromUrl(
     await clickDialogCategoryOption(dialog, /^m3u$/i);
     await clickDialogSubtypeOption(
         dialog,
-        /add\s+via\s+url/i,
+        /m3u\s*url|add\s+via\s+url/i,
         'mat-button-toggle[value="url"]'
     );
 

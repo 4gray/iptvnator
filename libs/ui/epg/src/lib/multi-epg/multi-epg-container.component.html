@@ -23,10 +23,22 @@
     >
     <mat-icon>chevron_right</mat-icon>
   </button>
-  <button mat-icon-button (click)="zoomOut()" [disabled]="hourWidth() <= 50" matTooltip="Zoom out">
+  <button
+    mat-icon-button
+    (click)="zoomOut()"
+    [disabled]="hourWidth() <= 50"
+    [matTooltip]="'EPG.ZOOM_OUT' | translate"
+    [attr.aria-label]="'EPG.ZOOM_OUT' | translate"
+  >
     <mat-icon>remove</mat-icon>
   </button>
-  <button mat-icon-button (click)="zoomIn()" [disabled]="hourWidth() >= 800" matTooltip="Zoom in">
+  <button
+    mat-icon-button
+    (click)="zoomIn()"
+    [disabled]="hourWidth() >= 800"
+    [matTooltip]="'EPG.ZOOM_IN' | translate"
+    [attr.aria-label]="'EPG.ZOOM_IN' | translate"
+  >
     <mat-icon>add</mat-icon>
   </button>
 
@@ -53,7 +65,14 @@
     <button
       mat-icon-button
       (click)="toggleSearch()"
-      [matTooltip]="isSearchExpanded() ? 'Close filter' : 'Filter channels'"
+      [matTooltip]="
+        (isSearchExpanded() ? 'EPG.CLOSE_FILTER' : 'EPG.FILTER_CHANNELS')
+          | translate
+      "
+      [attr.aria-label]="
+        (isSearchExpanded() ? 'EPG.CLOSE_FILTER' : 'EPG.FILTER_CHANNELS')
+          | translate
+      "
       >
       <mat-icon>{{ isSearchExpanded() ? 'filter_list_off' : 'filter_list' }}</mat-icon>
     </button>
@@ -113,7 +132,18 @@
     <button
       mat-icon-button
       (click)="toggleProgramSearch()"
-      [matTooltip]="isProgramSearchOpen() ? 'Close program search' : 'Search programs'"
+      [matTooltip]="
+        (isProgramSearchOpen()
+          ? 'EPG.CLOSE_PROGRAM_SEARCH'
+          : 'EPG.SEARCH_PROGRAMS'
+        ) | translate
+      "
+      [attr.aria-label]="
+        (isProgramSearchOpen()
+          ? 'EPG.CLOSE_PROGRAM_SEARCH'
+          : 'EPG.SEARCH_PROGRAMS'
+        ) | translate
+      "
       >
       <mat-icon>{{ isProgramSearchOpen() ? 'close' : 'manage_search' }}</mat-icon>
     </button>
@@ -123,16 +153,16 @@
   <svg id="channels-column" [attr.height]="filteredChannels().length * barHeight + barHeight + 50">
     @for (item of filteredChannels(); track item.id; let i = $index) {
       <g>
-        <!-- channel name -->
+        <!-- channel name (column widened to 180px per UX audit) -->
         <g class="channel" [class.active]="item.id === activeChannelId">
           <rect
-            width="100"
+            width="180"
             [attr.height]="barHeight"
             [attr.y]="barHeight * i + barHeight"
             stroke="black"
             />
           <foreignObject
-            width="100"
+            width="180"
             [attr.height]="barHeight"
             [attr.y]="barHeight * i + barHeight"
             >
@@ -141,7 +171,6 @@
                 <img
                   [src]="getChannelIcon(item)"
                   [alt]="getChannelName(item)"
-                  style="height: 20px; width: 20px; margin-right: 8px;"
                   >
               }
               <span>{{ getChannelName(item) }}</span>
@@ -191,6 +220,7 @@
               [attr.transform]="'translate(' + program.startPosition + ',' + (barHeight * i + barHeight) + ')'"
               class="program"
               [class.highlighted]="highlightedProgramKey() === getProgramKey(program)"
+              [class.is-now]="isProgramAiringNow(program)"
               (click)="showDescription(program)"
               >
               <rect
@@ -209,7 +239,10 @@
         </g>
       }
 
-      <!-- current time line -->
+      <!-- current time line + label badge.
+           The badge sits on top of the time-header row so users can read the
+           current time at a glance — addresses the UX-audit complaint that
+           the now-line was a "decorative gradient" without a time anchor. -->
       <line
         [attr.x1]="currentTimeLine()"
         y1="0"
@@ -217,7 +250,19 @@
         [attr.y2]="filteredChannels().length * barHeight + barHeight"
         stroke="red"
         stroke-width="2"
+        id="current-time-line"
       ></line>
+      <g class="now-label" [attr.transform]="'translate(' + currentTimeLine() + ', ' + (barHeight - 14) + ')'">
+        <rect
+          x="-26"
+          y="-9"
+          width="52"
+          height="18"
+          rx="9"
+          ry="9"
+        ></rect>
+        <text x="0" y="4" text-anchor="middle">{{ currentTimeLabel() }}</text>
+      </g>
     </svg>
   </div>
 </div>

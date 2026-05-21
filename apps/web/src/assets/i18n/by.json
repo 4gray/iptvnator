@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Гатова! Плэйлісты былі паспяхова абноўлены",
             "AUTO_REFRESH_ENABLED": "Аўтаабнаўленне ўключана"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Выберыце, як вы хочаце падключыцца. Перайменаваць можна пазней.",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "Устаўце спасылку на выдалены .m3u або .m3u8",
+            "METHOD_FILE_LABEL": "M3U-файл",
+            "METHOD_FILE_SUB": "Загрузіце плэйліст са свайго камп'ютара",
+            "METHOD_XTREAM_LABEL": "Xtream уліковыя даныя",
+            "METHOD_XTREAM_SUB": "Падключэнне праз хост, імя карыстальніка і пароль",
+            "METHOD_STALKER_LABEL": "Stalker партал",
+            "METHOD_STALKER_SUB": "MAC-адрас і URL партала",
+            "METHOD_TEXT_LABEL": "Тэкст M3U",
+            "METHOD_TEXT_SUB": "Для разавых спісаў або калі ў вас ёсць толькі тэкст"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Перацягніце файл у гэтую вобласць",
             "OR": "або",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Цёмная тэма",
-        "LIGHT_THEME": "Светлая тэма",
-        "SYSTEM_THEME": "Сістэмная тэма"
+        "DARK_THEME": "Цёмная",
+        "LIGHT_THEME": "Светлая",
+        "SYSTEM_THEME": "Сістэмная"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "Прайграць",
+        "PAUSE": "Паўза",
+        "PREVIOUS_STATION": "Папярэдняя станцыя",
+        "NEXT_STATION": "Наступная станцыя",
+        "MUTE": "Адключыць гук",
+        "UNMUTE": "Уключыць гук",
+        "VOLUME": "Гучнасць"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "Электронная праграма перадач",
         "NEXT_DAY": "Наступны дзень",
         "PREVIOUS_DAY": "Папярэдні дзень",
+        "ZOOM_IN": "Павялічыць маштаб",
+        "ZOOM_OUT": "Паменшыць маштаб",
+        "FILTER_CHANNELS": "Фільтраваць каналы",
+        "CLOSE_FILTER": "Закрыць фільтр",
+        "SEARCH_PROGRAMS": "Пошук перадач",
+        "CLOSE_PROGRAM_SEARCH": "Закрыць пошук перадач",
         "LIVE_NOW": "Цяпер",
         "LIVE_STREAM": "Прамая трансляцыя",
         "TIMESHIFT_AVAILABLE": "Даступная функцыя архіва (timeshift). Націсніце на перадачу для прайгравання.",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "Сартаваць катэгорыі",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Працягнуць прагляд",
+            "LIVE_FAVORITES": "Цяпер у эфіры на выбраных",
+            "LIVE_RECENT": "Працягнуць прагляд эфіру",
+            "REMAINING_SECONDS": "Засталося {{seconds}} с",
+            "REMAINING_MINUTES": "Засталося {{minutes}} хв",
+            "REMAINING_HOURS": "Засталося {{hours}} г",
+            "REMAINING_HOURS_MINUTES": "Засталося {{hours}} г {{minutes}} хв",
+            "PERCENT_WATCHED": "Прагледжана {{value}}%",
             "UNTITLED_SOURCE": "Крыніца без назвы",
             "GLOBAL_FAVORITES": "Усе фаварыты",
             "REMOVE_FROM_HISTORY": "Выдаліць з гісторыі",
             "RECENT_SOURCES": "Нядаўна выкарыстаныя крыніцы",
             "MANAGE_ALL": "Кіраваць усімі",
+            "SEE_ALL": "Паказаць усё",
+            "SEE_ALL_COUNT": "Паказаць усё ({{count}})",
             "RECENTLY_WATCHED": "Нядаўна прагледжаныя",
             "XTREAM_RECENTLY_ADDED": "Нядаўна дададзеныя на Xtream",
             "NO_HISTORY": "Не знойдзена элементаў для гэтага фільтра.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "Прамы эфір",
             "TYPE_MOVIE": "Фільм",
             "TYPE_SERIES": "Серыял",
+            "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Яшчэ не сінхранізавана"
         },
         "SHELL": {

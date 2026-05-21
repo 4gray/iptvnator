@@ -17,58 +17,164 @@
     );
 }
 
-// ─── Segmented control ──────────────────────────────────────────────────────
-.apd-segmented {
-    display: grid;
-    grid-auto-flow: column;
-    grid-auto-columns: 1fr;
-    background: var(--apd-segment-track);
-    border-radius: 12px;
-    padding: 4px;
-    gap: 2px;
-    margin-bottom: 14px;
+// ─── Dialog head (title + helper subtitle) ──────────────────────────────────
+// `mat-dialog-title` carries Material's `.mdc-dialog__title` defaults, which
+// include a 40px-tall `::before` ghost element for baseline alignment plus a
+// 6px/9px asymmetric padding. Both fight our custom two-line head — kill the
+// ghost and apply explicit padding so the title shares the same 24px
+// horizontal inset as `mat-dialog-content` below.
+.apd-head {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    margin: 0;
+    padding: 20px 24px 4px;
 
-    &--sub {
-        background: color-mix(
-            in srgb,
-            var(--apd-segment-track) 85%,
-            transparent
-        );
+    &::before {
+        display: none;
     }
 }
 
-.apd-segment {
-    appearance: none;
-    border: 0;
-    background: transparent;
-    color: var(--apd-body);
-    padding: 8px 14px;
-    border-radius: 9px;
-    font: inherit;
+.apd-title {
+    margin: 0;
+    font-size: 20px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--apd-heading);
+}
+
+.apd-sub {
+    margin: 0;
     font-size: 13px;
-    font-weight: 500;
+    color: var(--apd-body);
+    line-height: 1.45;
+}
+
+// ─── Method grid (5 flat cards instead of 2-level segmented control) ────────
+// One card per source method. Replaces the prior 3×3 type×subtype matrix
+// which had 9 cells of which only 5 were real (Xtream-via-file, etc. didn't
+// exist). Each card is self-describing — icon + label + one-line sub.
+.apd-method-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    margin: 4px 0 16px;
+}
+
+.apd-method {
+    appearance: none;
+    background: var(--apd-segment-track);
+    border: 1px solid var(--apd-border);
+    border-radius: 10px;
+    padding: 10px 11px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 5px;
     cursor: pointer;
-    line-height: 1.3;
+    text-align: left;
+    font: inherit;
+    color: var(--apd-heading);
+    min-width: 0;
+    // Locks every card to the same height regardless of which has the
+    // longest subtitle. Without this the URL card (short text) collapses
+    // and the Stalker/Xtream cards (longer text) push tall — selection
+    // states then look visually inconsistent.
+    min-height: 132px;
     transition:
         background-color 160ms ease,
-        color 160ms ease,
+        border-color 160ms ease,
         box-shadow 160ms ease;
 
     &:hover:not(.active) {
-        color: var(--apd-heading);
+        background: var(--apd-segment-active);
+        border-color: color-mix(in srgb, var(--apd-accent) 32%, transparent);
+
+        .apd-method__icon {
+            background: color-mix(
+                in srgb,
+                var(--apd-accent) 14%,
+                transparent
+            );
+            color: var(--apd-accent);
+        }
     }
 
     &.active {
-        background: var(--apd-segment-active);
-        color: var(--apd-heading);
-        box-shadow:
-            0 1px 2px rgba(0, 0, 0, 0.25),
-            inset 0 0 0 1px color-mix(in srgb, white 6%, transparent);
+        background: color-mix(in srgb, var(--apd-accent) 12%, transparent);
+        border-color: var(--apd-accent);
+        box-shadow: 0 1px 2px
+            color-mix(in srgb, var(--apd-accent) 32%, transparent);
+
+        .apd-method__icon {
+            background: color-mix(
+                in srgb,
+                var(--apd-accent) 22%,
+                transparent
+            );
+            color: var(--apd-accent);
+        }
+
+        .apd-method__title {
+            color: var(--apd-accent);
+        }
     }
 
     &:focus-visible {
         outline: 2px solid var(--apd-accent);
         outline-offset: 1px;
+    }
+}
+
+.apd-method__icon {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    border-radius: 8px;
+    background: color-mix(
+        in srgb,
+        var(--apd-surface-raised) 75%,
+        transparent
+    );
+    color: var(--apd-muted);
+    transition:
+        background-color 160ms ease,
+        color 160ms ease;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        line-height: 18px;
+    }
+}
+
+.apd-method__title {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.25;
+    color: var(--apd-heading);
+    transition: color 160ms ease;
+}
+
+.apd-method__sub {
+    font-size: 11.5px;
+    color: var(--apd-muted);
+    line-height: 1.4;
+}
+
+// On narrow widths the 5-column grid wraps to 2 columns to stay legible.
+// 480px keeps the dialog usable down to small modals; below that it stacks
+// fully.
+@media (max-width: 720px) {
+    .apd-method-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 480px) {
+    .apd-method-grid {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 

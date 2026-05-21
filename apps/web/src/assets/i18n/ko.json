@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "성공! 재생목록이 성공적으로 업데이트되었습니다",
             "AUTO_REFRESH_ENABLED": "자동 새로 고침 활성화됨"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "연결 방식을 선택하세요. 이름은 나중에 변경할 수 있습니다.",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "원격 .m3u 또는 .m3u8 링크를 붙여넣으세요",
+            "METHOD_FILE_LABEL": "M3U 파일",
+            "METHOD_FILE_SUB": "내 컴퓨터에서 재생목록을 업로드하세요",
+            "METHOD_XTREAM_LABEL": "Xtream 자격 증명",
+            "METHOD_XTREAM_SUB": "호스트, 사용자 이름, 비밀번호로 연결하세요",
+            "METHOD_STALKER_LABEL": "Stalker 포털",
+            "METHOD_STALKER_SUB": "MAC 주소와 포털 URL",
+            "METHOD_TEXT_LABEL": "원본 m3u 텍스트",
+            "METHOD_TEXT_SUB": "일회성 목록이나 텍스트만 있을 때 사용하세요"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "파일을 드래그 앤 드롭",
             "OR": "또는",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "어두운 테마",
-        "LIGHT_THEME": "밝은 테마",
-        "SYSTEM_THEME": "시스템 테마"
+        "DARK_THEME": "어둡게",
+        "LIGHT_THEME": "밝게",
+        "SYSTEM_THEME": "시스템"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "재생",
+        "PAUSE": "일시정지",
+        "PREVIOUS_STATION": "이전 방송국",
+        "NEXT_STATION": "다음 방송국",
+        "MUTE": "음소거",
+        "UNMUTE": "음소거 해제",
+        "VOLUME": "볼륨"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "전자 프로그램 가이드",
         "NEXT_DAY": "다음날",
         "PREVIOUS_DAY": "전날",
+        "ZOOM_IN": "확대",
+        "ZOOM_OUT": "축소",
+        "FILTER_CHANNELS": "채널 필터",
+        "CLOSE_FILTER": "필터 닫기",
+        "SEARCH_PROGRAMS": "프로그램 검색",
+        "CLOSE_PROGRAM_SEARCH": "프로그램 검색 닫기",
         "LIVE_NOW": "Live now",
         "LIVE_STREAM": "Live stream",
         "TIMESHIFT_AVAILABLE": "Timeshift를 사용할 수 있습니다, 클릭하여 재생합니다",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "카테고리 정렬",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "이어서 시청",
+            "LIVE_FAVORITES": "즐겨찾기에서 지금 라이브 중인 채널입니다",
+            "LIVE_RECENT": "라이브 TV 이어서 시청",
+            "REMAINING_SECONDS": "{{seconds}}초 남음",
+            "REMAINING_MINUTES": "{{minutes}}분 남음",
+            "REMAINING_HOURS": "{{hours}}시간 남음",
+            "REMAINING_HOURS_MINUTES": "{{hours}}시간 {{minutes}}분 남음",
+            "PERCENT_WATCHED": "{{value}}% 시청함",
             "UNTITLED_SOURCE": "제목 없는 소스",
             "GLOBAL_FAVORITES": "전체 즐겨찾기",
             "REMOVE_FROM_HISTORY": "기록에서 제거",
             "RECENT_SOURCES": "최근에 사용한 소스",
             "MANAGE_ALL": "모두 관리",
+            "SEE_ALL": "모두 보기",
+            "SEE_ALL_COUNT": "{{count}}개 모두 보기",
             "RECENTLY_WATCHED": "최근에 시청한 항목",
             "XTREAM_RECENTLY_ADDED": "Xtream에 최근 추가됨",
             "NO_HISTORY": "이 필터에 해당하는 항목이 없습니다.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "라이브",
             "TYPE_MOVIE": "영화",
             "TYPE_SERIES": "시리즈",
+            "SEASON_EPISODE_BADGE": "시즌{{season}} {{episode}}화",
             "NOT_YET_SYNCED": "아직 동기화되지 않음"
         },
         "SHELL": {

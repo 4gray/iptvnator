@@ -7,12 +7,19 @@
     overflow: hidden;
 }
 
+// Quiet sentence-case rail header — matches the typography of the
+// section nav items below ("Dashboard", "Sources", etc., all sentence
+// case) instead of standing out as an uppercase eyebrow that didn't
+// appear anywhere else in the workspace rail. The muted colour and
+// small size still distinguish it from the clickable items so it reads
+// as a section caption rather than competing for focus.
 .panel-title {
     margin: 0;
-    padding: 16px 16px 0;
-    font-size: 20px;
-    font-weight: 500;
-    color: var(--mat-sys-on-surface);
+    padding: 20px 18px 10px;
+    font-size: 13px;
+    font-weight: 600;
+    letter-spacing: 0.005em;
+    color: var(--mat-sys-on-surface-variant);
 }
 
 .settings-panel-body {

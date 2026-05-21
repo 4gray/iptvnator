@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "نجاح! قوائم التشغيل تحدثات بنجاح",
             "AUTO_REFRESH_ENABLED": "التحديث التلقائي مفعل"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "اختار كيفاش بغيتي تربط. تقدر تبدل الاسم من بعد.",
+            "METHOD_URL_LABEL": "رابط M3U",
+            "METHOD_URL_SUB": "لصق رابط ل ملف .m3u ولا .m3u8 بعيد",
+            "METHOD_FILE_LABEL": "ملف M3U",
+            "METHOD_FILE_SUB": "زيد قائمة تشغيل من الجهاز ديالك",
+            "METHOD_XTREAM_LABEL": "بيانات Xtream",
+            "METHOD_XTREAM_SUB": "ربط بالخادم، اسم المستخدم وكلمة المرور",
+            "METHOD_STALKER_LABEL": "بوابة Stalker",
+            "METHOD_STALKER_SUB": "عنوان MAC ورابط البوابة",
+            "METHOD_TEXT_LABEL": "نص m3u خام",
+            "METHOD_TEXT_SUB": "للقوائم المؤقتة ولا إلى عندك غير النص"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "جر وأفلت الملفات هنا",
             "OR": "أو",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "المظهر الداكن",
-        "LIGHT_THEME": "المظهر الفاتح",
-        "SYSTEM_THEME": "مظهر النظام"
+        "DARK_THEME": "داكن",
+        "LIGHT_THEME": "فاتح",
+        "SYSTEM_THEME": "النظام"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "شغل",
+        "PAUSE": "وقّف",
+        "PREVIOUS_STATION": "المحطة السابقة",
+        "NEXT_STATION": "المحطة التالية",
+        "MUTE": "كتم الصوت",
+        "UNMUTE": "رجّع الصوت",
+        "VOLUME": "الصوت"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "دليل البرامج الإلكتروني",
         "NEXT_DAY": "اليوم التالي",
         "PREVIOUS_DAY": "اليوم السابق",
+        "ZOOM_IN": "كبر",
+        "ZOOM_OUT": "صغر",
+        "FILTER_CHANNELS": "فلتر القنوات",
+        "CLOSE_FILTER": "سد الفلتر",
+        "SEARCH_PROGRAMS": "قلب على البرامج",
+        "CLOSE_PROGRAM_SEARCH": "سد البحث على البرامج",
         "LIVE_NOW": "مباشر الآن",
         "LIVE_STREAM": "بث مباشر",
         "TIMESHIFT_AVAILABLE": "التأجيل الزمني متوفر، ضغط باش تلعب",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "ترتيب التصنيفات",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "كمل المشاهدة",
+            "LIVE_FAVORITES": "مباشر دابا على المفضلة ديالك",
+            "LIVE_RECENT": "كمل مع المباشر",
+            "REMAINING_SECONDS": "باقي {{seconds}} ث",
+            "REMAINING_MINUTES": "باقي {{minutes}} د",
+            "REMAINING_HOURS": "باقي {{hours}} س",
+            "REMAINING_HOURS_MINUTES": "باقي {{hours}} س {{minutes}} د",
+            "PERCENT_WATCHED": "تشاهد {{value}}%",
             "UNTITLED_SOURCE": "مصدر بلا عنوان",
             "GLOBAL_FAVORITES": "المفضلة العامة",
             "REMOVE_FROM_HISTORY": "حيد من السجل",
             "RECENT_SOURCES": "المصادر المستعملة مؤخراً",
             "MANAGE_ALL": "تدبير الكل",
+            "SEE_ALL": "شوف الكل",
+            "SEE_ALL_COUNT": "شوف الكل ({{count}})",
             "RECENTLY_WATCHED": "متشافين مؤخراً",
             "XTREAM_RECENTLY_ADDED": "تزادو مؤخراً على Xtream",
             "NO_HISTORY": "ما تلقاو حتى عناصر لهاد الفلتر.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "مباشر",
             "TYPE_MOVIE": "فيلم",
             "TYPE_SERIES": "سلسلة",
+            "SEASON_EPISODE_BADGE": "م{{season}}·ح{{episode}}",
             "NOT_YET_SYNCED": "مازال ما تزامنش"
         },
         "SHELL": {

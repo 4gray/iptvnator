@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Başarılı! Oynatma listeleri başarıyla güncellendi",
             "AUTO_REFRESH_ENABLED": "Otomatik yenileme etkin"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Nasıl bağlanmak istediğinizi seçin. Daha sonra yeniden adlandırabilirsiniz.",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "Uzak bir .m3u veya .m3u8 bağlantısını yapıştırın",
+            "METHOD_FILE_LABEL": "M3U dosyası",
+            "METHOD_FILE_SUB": "Bilgisayarınızdan bir oynatma listesi yükleyin",
+            "METHOD_XTREAM_LABEL": "Xtream kimlik bilgileri",
+            "METHOD_XTREAM_SUB": "Sunucu, kullanıcı adı ve parola ile bağlanın",
+            "METHOD_STALKER_LABEL": "Stalker portalı",
+            "METHOD_STALKER_SUB": "MAC adresi ve portal URL'si",
+            "METHOD_TEXT_LABEL": "Ham m3u metni",
+            "METHOD_TEXT_SUB": "Tek seferlik listeler veya yalnızca metniniz olduğunda"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Dosyaları buraya sürükleyip bırakın",
             "OR": "veya",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Koyu tema",
-        "LIGHT_THEME": "Açık tema",
-        "SYSTEM_THEME": "Sistem teması"
+        "DARK_THEME": "Koyu",
+        "LIGHT_THEME": "Açık",
+        "SYSTEM_THEME": "Sistem"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "Oynat",
+        "PAUSE": "Duraklat",
+        "PREVIOUS_STATION": "Önceki istasyon",
+        "NEXT_STATION": "Sonraki istasyon",
+        "MUTE": "Sesi kapat",
+        "UNMUTE": "Sesi aç",
+        "VOLUME": "Ses seviyesi"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "Elektronik Program Rehberi",
         "NEXT_DAY": "Sonraki gün",
         "PREVIOUS_DAY": "Önceki gün",
+        "ZOOM_IN": "Yakınlaştır",
+        "ZOOM_OUT": "Uzaklaştır",
+        "FILTER_CHANNELS": "Kanalları filtrele",
+        "CLOSE_FILTER": "Filtreyi kapat",
+        "SEARCH_PROGRAMS": "Programları ara",
+        "CLOSE_PROGRAM_SEARCH": "Program aramayı kapat",
         "LIVE_NOW": "Şu an canlı",
         "LIVE_STREAM": "Canlı yayın",
         "TIMESHIFT_AVAILABLE": "Zaman kaydırma mevcut, tıklayarak oynat",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "Kategorileri sırala",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "İzlemeye Devam Et",
+            "LIVE_FAVORITES": "Favorilerinizde şu an canlı",
+            "LIVE_RECENT": "Canlı TV ile devam et",
+            "REMAINING_SECONDS": "{{seconds}} sn kaldı",
+            "REMAINING_MINUTES": "{{minutes}} dk kaldı",
+            "REMAINING_HOURS": "{{hours}} sa kaldı",
+            "REMAINING_HOURS_MINUTES": "{{hours}} sa {{minutes}} dk kaldı",
+            "PERCENT_WATCHED": "{{value}}% izlendi",
             "UNTITLED_SOURCE": "Adsız kaynak",
             "GLOBAL_FAVORITES": "Tüm Favoriler",
             "REMOVE_FROM_HISTORY": "Geçmişten kaldır",
             "RECENT_SOURCES": "Son Kullanılan Kaynaklar",
             "MANAGE_ALL": "Tümünü yönet",
+            "SEE_ALL": "Tümünü gör",
+            "SEE_ALL_COUNT": "{{count}} öğenin tümünü gör",
             "RECENTLY_WATCHED": "Son İzlenenler",
             "XTREAM_RECENTLY_ADDED": "Xtream'de Yeni Eklenenler",
             "NO_HISTORY": "Bu filtre için öğe bulunamadı.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "Canlı",
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Dizi",
+            "SEASON_EPISODE_BADGE": "S{{season}}·B{{episode}}",
             "NOT_YET_SYNCED": "Henüz eşitlenmedi"
         },
         "SHELL": {

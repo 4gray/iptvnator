@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放列表已成功更新",
             "AUTO_REFRESH_ENABLED": "已启用自动刷新"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "选择您想要的连接方式。稍后可以重命名。",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "粘贴远程 .m3u 或 .m3u8 的链接",
+            "METHOD_FILE_LABEL": "M3U 文件",
+            "METHOD_FILE_SUB": "从您的电脑上传播放列表",
+            "METHOD_XTREAM_LABEL": "Xtream 凭据",
+            "METHOD_XTREAM_SUB": "使用主机、用户名和密码连接",
+            "METHOD_STALKER_LABEL": "Stalker 门户",
+            "METHOD_STALKER_SUB": "MAC 地址和门户 URL",
+            "METHOD_TEXT_LABEL": "原始 m3u 文本",
+            "METHOD_TEXT_SUB": "用于一次性列表，或仅有文本时"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "将文件拖放到此处",
             "OR": "或",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "暗黑模式",
-        "LIGHT_THEME": "明亮模式",
+        "DARK_THEME": "深色",
+        "LIGHT_THEME": "浅色",
         "SYSTEM_THEME": "跟随系统"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "播放",
+        "PAUSE": "暂停",
+        "PREVIOUS_STATION": "上一个电台",
+        "NEXT_STATION": "下一个电台",
+        "MUTE": "静音",
+        "UNMUTE": "取消静音",
+        "VOLUME": "音量"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "电子节目指南",
         "NEXT_DAY": "明天",
         "PREVIOUS_DAY": "昨天",
+        "ZOOM_IN": "放大",
+        "ZOOM_OUT": "缩小",
+        "FILTER_CHANNELS": "筛选频道",
+        "CLOSE_FILTER": "关闭筛选",
+        "SEARCH_PROGRAMS": "搜索节目",
+        "CLOSE_PROGRAM_SEARCH": "关闭节目搜索",
         "LIVE_NOW": "正在播放",
         "LIVE_STREAM": "正在直播",
         "TIMESHIFT_AVAILABLE": "时移功能可用，点击播放",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "排序分类",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "继续观看",
+            "LIVE_FAVORITES": "收藏频道正在播放",
+            "LIVE_RECENT": "继续观看直播",
+            "REMAINING_SECONDS": "剩余 {{seconds}} 秒",
+            "REMAINING_MINUTES": "剩余 {{minutes}} 分钟",
+            "REMAINING_HOURS": "剩余 {{hours}} 小时",
+            "REMAINING_HOURS_MINUTES": "剩余 {{hours}} 小时 {{minutes}} 分钟",
+            "PERCENT_WATCHED": "已观看 {{value}}%",
             "UNTITLED_SOURCE": "未命名源",
             "GLOBAL_FAVORITES": "全局收藏",
             "REMOVE_FROM_HISTORY": "从历史记录中移除",
             "RECENT_SOURCES": "最近使用的源",
             "MANAGE_ALL": "管理全部",
+            "SEE_ALL": "查看全部",
+            "SEE_ALL_COUNT": "查看全部 {{count}} 个",
             "RECENTLY_WATCHED": "最近观看",
             "XTREAM_RECENTLY_ADDED": "Xtream 最近添加",
             "NO_HISTORY": "没有项目匹配此筛选。",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "直播",
             "TYPE_MOVIE": "电影",
             "TYPE_SERIES": "剧集",
+            "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "尚未同步"
         },
         "SHELL": {

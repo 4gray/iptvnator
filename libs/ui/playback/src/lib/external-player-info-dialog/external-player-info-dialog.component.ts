@@ -37,7 +37,7 @@ import { TranslateModule } from '@ngx-translate/core';
                     >Don't show anymore</mat-checkbox
                 >
             </div>
-            <button mat-button mat-dialog-close cdkFocusInitial color="accent">
+            <button mat-button mat-dialog-close cdkFocusInitial>
                 {{ 'CLOSE' | translate }}
             </button>
         </mat-dialog-actions>

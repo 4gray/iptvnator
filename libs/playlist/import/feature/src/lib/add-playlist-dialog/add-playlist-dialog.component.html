@@ -1,48 +1,40 @@
 <div class="apd">
-    <h2 mat-dialog-title>
-        {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
-    </h2>
+    <div mat-dialog-title class="apd-head">
+        <h2 class="apd-title">
+            {{ 'HOME.URL_UPLOAD.ADD_PLAYLIST' | translate }}
+        </h2>
+        <p class="apd-sub">
+            {{ 'HOME.ADD_PLAYLIST.PICK_METHOD' | translate }}
+        </p>
+    </div>
 
     <mat-dialog-content>
         <div
-            class="apd-segmented"
-            role="tablist"
-            aria-label="Playlist category"
+            class="apd-method-grid"
+            role="radiogroup"
+            aria-label="Source method"
         >
-            @for (opt of categoryOptions; track opt.value) {
+            @for (opt of methodOptions; track opt.value) {
                 <button
                     type="button"
-                    role="tab"
-                    [attr.aria-selected]="category() === opt.value"
-                    class="apd-segment"
-                    [class.active]="category() === opt.value"
-                    (click)="category.set(opt.value)"
+                    role="radio"
+                    [attr.aria-checked]="method() === opt.value"
+                    class="apd-method"
+                    [class.active]="method() === opt.value"
+                    (click)="method.set(opt.value)"
                 >
-                    {{ opt.label }}
+                    <span class="apd-method__icon" aria-hidden="true">
+                        <mat-icon>{{ opt.icon }}</mat-icon>
+                    </span>
+                    <span class="apd-method__title">
+                        {{ opt.labelKey | translate }}
+                    </span>
+                    <span class="apd-method__sub">
+                        {{ opt.subKey | translate }}
+                    </span>
                 </button>
             }
         </div>
-
-        @if (category() === 'm3u') {
-            <div
-                class="apd-segmented apd-segmented--sub"
-                role="tablist"
-                aria-label="M3U source"
-            >
-                @for (opt of subtypeOptions; track opt.value) {
-                    <button
-                        type="button"
-                        role="tab"
-                        [attr.aria-selected]="m3uSubType() === opt.value"
-                        class="apd-segment"
-                        [class.active]="m3uSubType() === opt.value"
-                        (click)="m3uSubType.set(opt.value)"
-                    >
-                        {{ opt.labelKey | translate }}
-                    </button>
-                }
-            </div>
-        }
 
         <div class="apd-form-area">
             @switch (playlistType()) {
@@ -90,7 +82,7 @@
                 @case ('url') {
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!urlUpload()?.form?.valid"
                         (click)="submitUrlPlaylist()"
@@ -101,7 +93,7 @@
                 @case ('file') {
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!fileUpload()?.selectedFile()"
                         (click)="fileUpload()?.confirm()"
@@ -112,7 +104,7 @@
                 @case ('text') {
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!textImport()?.textForm?.valid"
                         (click)="
@@ -142,7 +134,7 @@
                     </button>
                     <button
                         mat-flat-button
-                        color="accent"
+                        color="primary"
                         type="button"
                         [disabled]="!xtreamImport()?.form?.valid"
                         (click)="xtreamImport()?.addPlaylist()"
@@ -154,7 +146,7 @@
                     @if (stalkerImport()?.isLoading()) {
                         <button
                             mat-flat-button
-                            color="accent"
+                            color="primary"
                             type="button"
                             disabled
                         >
@@ -165,7 +157,7 @@
                     } @else {
                         <button
                             mat-flat-button
-                            color="accent"
+                            color="primary"
                             type="button"
                             [disabled]="!stalkerImport()?.form?.valid"
                             (click)="stalkerImport()?.addPlaylist()"

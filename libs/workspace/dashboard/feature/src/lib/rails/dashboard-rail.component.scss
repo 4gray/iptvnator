@@ -249,6 +249,28 @@
     }
 }
 
+// Thin "watched-up-to-here" bar pinned to the bottom of the poster art.
+// Mirrors the Netflix / Plex resume-card pattern: the bar is the user's
+// quick "did I finish this?" cue without needing to read the metadata
+// strip below the card.
+.rail__art-progress {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 3px;
+    background: rgba(0, 0, 0, 0.55);
+    z-index: 2;
+    pointer-events: none;
+
+    i {
+        display: block;
+        height: 100%;
+        background: var(--app-selection-color, #78adff);
+        transition: width 0.4s ease;
+    }
+}
+
 .rail__art-bg {
     position: absolute;
     inset: 0;
@@ -328,7 +350,34 @@
     transition: color 0.15s ease;
 }
 
+.rail__card-meta-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+}
+
+.rail__card-episode {
+    flex: 0 0 auto;
+    font-size: 0.66rem;
+    font-weight: 700;
+    line-height: 1;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: color-mix(
+        in srgb,
+        var(--app-selection-color, #2f86ff) 14%,
+        transparent
+    );
+    color: var(--app-selection-color, #2f86ff);
+    letter-spacing: 0.02em;
+    white-space: nowrap;
+    font-variant-numeric: tabular-nums;
+}
+
 .rail__card-subtitle {
+    flex: 1 1 auto;
+    min-width: 0;
     font-size: 0.72rem;
     font-weight: 500;
     line-height: 1.4;
@@ -428,4 +477,196 @@
     :host {
         --rail-card-width: min(var(--cover-rail-width, 172px), 140px);
     }
+}
+
+// ── Channel layout (compact horizontal info row) ────────────────────────────
+// Used by the "Live now on your favorites" rail. Two stacked rows:
+//   1. logo + channel name + current programme title
+//   2. LIVE chip + progress bar + time range
+// Card is wider but much shorter than the 2:3 poster — TV station logos are
+// small (100–256px square) so a poster card wastes most of its height on
+// padding. Mirrors the live strip in the v0.22 mockup.
+.rail__track[data-layout='channel'] {
+    --rail-card-width: var(--channel-rail-width, 280px);
+    --rail-gap: 10px;
+    scroll-snap-type: x mandatory;
+}
+
+.rail__card--channel {
+    background: var(--app-widget-bg, #1e2330);
+    border: 1px solid
+        var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
+    border-radius: var(--rail-radius);
+    padding: 10px 12px;
+    transition:
+        transform 0.2s ease,
+        border-color 0.2s ease,
+        box-shadow 0.2s ease;
+
+    &:hover {
+        transform: translateY(-1px);
+        border-color: var(
+            --app-selection-border,
+            rgba(47, 123, 255, 0.4)
+        );
+        box-shadow:
+            0 6px 16px -10px rgba(0, 0, 0, 0.45),
+            0 0 0 1px var(--app-selection-border, rgba(47, 123, 255, 0.3));
+
+        .rail__channel-name {
+            color: var(--app-selection-color, #2f7bff);
+        }
+    }
+}
+
+.rail__channel-link {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    color: inherit;
+    text-decoration: none;
+    border-radius: inherit;
+
+    &:focus-visible {
+        outline: 2px solid var(--app-selection-color, #2f7bff);
+        outline-offset: 3px;
+    }
+}
+
+.rail__channel-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.rail__channel-logo {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 8px;
+    background: var(--app-content-bg, #161a22);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+
+    img {
+        max-width: 100%;
+        max-height: 100%;
+        object-fit: contain;
+        // Drop-shadow gives small logos some lift against the card surface
+        // without the dark wash from the poster-style live treatment.
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.35));
+    }
+
+    &--fallback mat-icon {
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+        color: var(--app-selection-color, #78adff);
+        opacity: 0.7;
+    }
+}
+
+.rail__channel-meta {
+    min-width: 0;
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rail__channel-name {
+    font-size: 0.85rem;
+    font-weight: 600;
+    line-height: 1.2;
+    color: var(--app-heading-color, #1a1d23);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    transition: color 0.15s ease;
+}
+
+.rail__channel-now {
+    font-size: 0.72rem;
+    font-weight: 500;
+    line-height: 1.35;
+    color: var(--app-muted-color, #8891a4);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-height: 1.35em;
+}
+
+.rail__channel-progress-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.65rem;
+    color: var(--app-muted-color, #8891a4);
+}
+
+.rail__channel-live-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-family: var(
+        --font-mono,
+        ui-monospace,
+        'SF Mono',
+        'JetBrains Mono',
+        Menlo,
+        monospace
+    );
+    font-size: 0.6rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    color: var(--app-live-color, #ff8f8f);
+    text-transform: uppercase;
+
+    &::before {
+        content: '';
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--app-live-color, #ff8f8f);
+        box-shadow: 0 0 5px var(--app-live-color, #ff8f8f);
+    }
+}
+
+.rail__channel-progress {
+    position: relative;
+    flex: 1;
+    height: 3px;
+    border-radius: 2px;
+    background: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 12%,
+        transparent
+    );
+    overflow: hidden;
+
+    i {
+        display: block;
+        height: 100%;
+        background: var(--app-live-color, #ff8f8f);
+        border-radius: 2px;
+        transition: width 0.4s ease;
+    }
+
+    &--idle i {
+        // No EPG data yet — keep the bar neutral so it doesn't look like
+        // "0% watched".
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 18%,
+            transparent
+        );
+    }
+}
+
+.rail__channel-time {
+    flex: 0 0 auto;
+    font-variant-numeric: tabular-nums;
 }

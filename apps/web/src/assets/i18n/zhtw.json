@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！播放清單已成功更新",
             "AUTO_REFRESH_ENABLED": "已啟用自動重新整理"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "請選擇您要使用的連線方式，之後仍可重新命名。",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "貼上遠端 .m3u 或 .m3u8 的連結",
+            "METHOD_FILE_LABEL": "M3U 檔案",
+            "METHOD_FILE_SUB": "從您的電腦上傳播放清單",
+            "METHOD_XTREAM_LABEL": "Xtream 帳號",
+            "METHOD_XTREAM_SUB": "使用主機位址、帳號和密碼連線",
+            "METHOD_STALKER_LABEL": "Stalker 入口網站",
+            "METHOD_STALKER_SUB": "MAC 位址與入口網址",
+            "METHOD_TEXT_LABEL": "M3U 原始文字",
+            "METHOD_TEXT_SUB": "適合一次性清單，或您只有文字內容時使用"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "在此處拖放檔案",
             "OR": "或者",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "深色主題",
-        "LIGHT_THEME": "亮色主題",
+        "DARK_THEME": "深色",
+        "LIGHT_THEME": "淺色",
         "SYSTEM_THEME": "跟隨系統"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "播放",
+        "PAUSE": "暫停",
+        "PREVIOUS_STATION": "上一個電台",
+        "NEXT_STATION": "下一個電台",
+        "MUTE": "靜音",
+        "UNMUTE": "取消靜音",
+        "VOLUME": "音量"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "電子節目指南",
         "NEXT_DAY": "下一天",
         "PREVIOUS_DAY": "上一天",
+        "ZOOM_IN": "放大",
+        "ZOOM_OUT": "縮小",
+        "FILTER_CHANNELS": "篩選頻道",
+        "CLOSE_FILTER": "關閉篩選",
+        "SEARCH_PROGRAMS": "搜尋節目",
+        "CLOSE_PROGRAM_SEARCH": "關閉節目搜尋",
         "LIVE_NOW": "現在播放",
         "LIVE_STREAM": "現場直播",
         "TIMESHIFT_AVAILABLE": "時間平移功能可用，點選以播放",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "排序分類",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "繼續觀看",
+            "LIVE_FAVORITES": "我的最愛正在直播",
+            "LIVE_RECENT": "繼續觀看直播電視",
+            "REMAINING_SECONDS": "剩餘 {{seconds}} 秒",
+            "REMAINING_MINUTES": "剩餘 {{minutes}} 分鐘",
+            "REMAINING_HOURS": "剩餘 {{hours}} 小時",
+            "REMAINING_HOURS_MINUTES": "剩餘 {{hours}} 小時 {{minutes}} 分鐘",
+            "PERCENT_WATCHED": "已觀看 {{value}}%",
             "UNTITLED_SOURCE": "未命名的來源",
             "GLOBAL_FAVORITES": "全域我的最愛",
             "REMOVE_FROM_HISTORY": "從歷史記錄中移除",
             "RECENT_SOURCES": "最近使用的來源",
             "MANAGE_ALL": "管理全部",
+            "SEE_ALL": "查看全部",
+            "SEE_ALL_COUNT": "查看全部 {{count}} 個",
             "RECENTLY_WATCHED": "最近觀看",
             "XTREAM_RECENTLY_ADDED": "Xtream 最近新增",
             "NO_HISTORY": "找不到符合此篩選條件的項目。",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "直播",
             "TYPE_MOVIE": "電影",
             "TYPE_SERIES": "影集",
+            "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "尚未同步"
         },
         "SHELL": {

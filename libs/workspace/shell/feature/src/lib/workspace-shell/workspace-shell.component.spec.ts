@@ -59,6 +59,7 @@ class MockWorkspaceShellHeaderComponent {
     readonly hasNoPlaylists = input(false);
     readonly isDownloadsView = input(false);
     readonly hasActiveDownloads = input(false);
+    readonly isSettingsRoute = input(false);
     readonly headerBulkAction = input<WorkspaceHeaderBulkAction | null>(null);
     readonly searchChanged = output<string>();
     readonly searchSubmitted = output<string>();

@@ -13,7 +13,8 @@ test('basic test', async ({ page }) => {
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
-    await dialog.getByRole('tab', { name: 'Add via file upload' }).click();
+    // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
+    await dialog.getByRole('radio', { name: /M3U file/i }).click();
     await page.setInputFiles('input[type="file"]', fixturePath);
     const addButton = dialog.getByRole('button', {
         name: 'Add playlist',

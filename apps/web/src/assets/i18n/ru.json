@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Успешно! Плейлисты были успешно обновлены",
             "AUTO_REFRESH_ENABLED": "Автообновление включено"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Выберите способ подключения. Переименовать плейлист можно позже.",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "Вставьте ссылку на удалённый файл .m3u или .m3u8",
+            "METHOD_FILE_LABEL": "Файл M3U",
+            "METHOD_FILE_SUB": "Загрузите плейлист с вашего компьютера",
+            "METHOD_XTREAM_LABEL": "Учётные данные Xtream",
+            "METHOD_XTREAM_SUB": "Подключение через сервер, имя пользователя и пароль",
+            "METHOD_STALKER_LABEL": "Stalker портал",
+            "METHOD_STALKER_SUB": "MAC-адрес и URL портала",
+            "METHOD_TEXT_LABEL": "M3U текстом",
+            "METHOD_TEXT_SUB": "Для разовых плейлистов или когда есть только текст"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Перетащите файл в эту область",
             "OR": "или",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Тёмная тема",
-        "LIGHT_THEME": "Светлая тема",
-        "SYSTEM_THEME": "Системная тема"
+        "DARK_THEME": "Тёмная",
+        "LIGHT_THEME": "Светлая",
+        "SYSTEM_THEME": "Системная"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "Воспроизвести",
+        "PAUSE": "Пауза",
+        "PREVIOUS_STATION": "Предыдущая станция",
+        "NEXT_STATION": "Следующая станция",
+        "MUTE": "Отключить звук",
+        "UNMUTE": "Включить звук",
+        "VOLUME": "Громкость"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "Электронный программный гид",
         "NEXT_DAY": "Следующий день",
         "PREVIOUS_DAY": "Предыдущий день",
+        "ZOOM_IN": "Увеличить",
+        "ZOOM_OUT": "Уменьшить",
+        "FILTER_CHANNELS": "Фильтровать каналы",
+        "CLOSE_FILTER": "Закрыть фильтр",
+        "SEARCH_PROGRAMS": "Поиск программ",
+        "CLOSE_PROGRAM_SEARCH": "Закрыть поиск программ",
         "LIVE_NOW": "Сейчас",
         "LIVE_STREAM": "Прямая трансляция",
         "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "Сортировать категории",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Продолжить просмотр",
+            "LIVE_FAVORITES": "Сейчас в эфире на избранных каналах",
+            "LIVE_RECENT": "Продолжить просмотр прямого эфира",
+            "REMAINING_SECONDS": "Осталось {{seconds}} с",
+            "REMAINING_MINUTES": "Осталось {{minutes}} мин",
+            "REMAINING_HOURS": "Осталось {{hours}} ч",
+            "REMAINING_HOURS_MINUTES": "Осталось {{hours}} ч {{minutes}} мин",
+            "PERCENT_WATCHED": "Просмотрено {{value}}%",
             "UNTITLED_SOURCE": "Источник без названия",
             "GLOBAL_FAVORITES": "Глобальные избранные",
             "REMOVE_FROM_HISTORY": "Удалить из истории",
             "RECENT_SOURCES": "Недавно использованные источники",
             "MANAGE_ALL": "Управлять всем",
+            "SEE_ALL": "Смотреть все",
+            "SEE_ALL_COUNT": "Смотреть все {{count}}",
             "RECENTLY_WATCHED": "Недавно просмотренные",
             "XTREAM_RECENTLY_ADDED": "Недавно добавленные на Xtream",
             "NO_HISTORY": "Для этого фильтра элементы не найдены.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "ТВ",
             "TYPE_MOVIE": "Фильм",
             "TYPE_SERIES": "Сериал",
+            "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
             "NOT_YET_SYNCED": "Еще не синхронизировано"
         },
         "SHELL": {

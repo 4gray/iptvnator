@@ -40,8 +40,8 @@
     position: relative;
     display: grid;
     grid-template-columns: minmax(0, var(--hero-poster-width)) minmax(0, 1fr);
-    gap: 24px;
-    padding: 20px;
+    gap: 20px;
+    padding: 16px;
     text-decoration: none;
     color: inherit;
     border-radius: 18px;
@@ -56,7 +56,10 @@
         transform 0.2s ease,
         box-shadow 0.2s ease;
 
-    --hero-poster-width: 160px;
+    // Tighter than v0.21 (was 160px). Matches the v0.22 mockup's 150px
+    // poster intent, freeing space for the progress + remaining label
+    // without growing total hero height.
+    --hero-poster-width: 140px;
 
     &:hover {
         transform: translateY(-2px);
@@ -292,8 +295,58 @@
     }
 }
 
+// Watch-progress visualisation. Appears between the subtitle and the CTA
+// only when a resume position is known — VOD/series only (M3U and live
+// channels have no playback positions in the schema).
+.hero__progress {
+    display: block;
+    position: relative;
+    margin-top: 12px;
+    height: 4px;
+    width: min(320px, 70%);
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 14%,
+        transparent
+    );
+    overflow: hidden;
+
+    .hero--with-image & {
+        background: rgba(255, 255, 255, 0.18);
+    }
+}
+
+.hero__progress-bar {
+    display: block;
+    height: 100%;
+    background: var(--app-selection-color, #78adff);
+    border-radius: 999px;
+    transition: width 0.4s ease;
+}
+
+.hero__progress-meta {
+    margin-top: 6px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.74rem;
+    font-weight: 500;
+    color: var(--app-body-color, #8b93a8);
+    letter-spacing: 0.005em;
+
+    .hero--with-image & {
+        color: rgba(255, 255, 255, 0.78);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    }
+}
+
+.hero__progress-meta-sep {
+    opacity: 0.5;
+}
+
 .hero__cta {
-    margin-top: 16px;
+    margin-top: 14px;
     align-self: flex-start;
     display: inline-flex;
     align-items: center;

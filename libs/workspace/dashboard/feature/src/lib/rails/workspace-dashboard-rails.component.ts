@@ -5,7 +5,12 @@ import {
     effect,
     inject,
     signal,
+    untracked,
 } from '@angular/core';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
+import { interval, of, startWith, switchMap } from 'rxjs';
+import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
@@ -44,6 +49,13 @@ import type { PlaylistMeta } from '@iptvnator/shared/interfaces';
 // full list. Matches the single-rail density of Netflix / Apple TV+.
 const RAIL_ITEM_LIMIT = 20;
 
+// EPG "now" data ticks every 30s — short enough that the progress bar moves
+// visibly between long-tail program changes, long enough that we don't hammer
+// the SQLite backend with a batched IPC every animation frame. Matches the
+// channel-list-container's existing progress cadence so the two surfaces
+// can't drift out of sync.
+const LIVE_EPG_TICK_MS = 30_000;
+
 // Six placeholder slots per skeleton rail — fills a typical viewport without
 // taking the whole page. Mirrors the recently-added skeleton density.
 const SKELETON_CARDS_PER_RAIL = [1, 2, 3, 4, 5, 6] as const;
@@ -62,6 +74,14 @@ interface DashboardHeroModel {
     readonly state?: Record<string, unknown>;
     readonly subtitle: string;
     readonly title: string;
+    /** 0–100 watched, when a resume position is known. */
+    readonly watchProgress?: number | null;
+    readonly remainingLabel?: DashboardRemainingLabel | null;
+}
+
+export interface DashboardRemainingLabel {
+    readonly key: string;
+    readonly params: Record<string, number>;
 }
 
 export type DashboardHeroBackdropSource = 'backdrop' | 'poster' | 'fallback';
@@ -193,6 +213,170 @@ export function buildDashboardSourceActions(
     return actions;
 }
 
+// Reads either an ISO `start`/`stop` or the pre-computed `startTimestamp`
+// when present (the parsed XMLTV pipeline populates both, but legacy rows
+// only carry the strings).
+function epgTimestampMs(
+    program: EpgProgram,
+    side: 'start' | 'stop'
+): number | null {
+    const cached =
+        side === 'start' ? program.startTimestamp : program.stopTimestamp;
+    if (cached != null) {
+        return cached;
+    }
+    const iso = side === 'start' ? program.start : program.stop;
+    const ms = iso ? new Date(iso).getTime() : NaN;
+    return Number.isFinite(ms) ? ms : null;
+}
+
+function formatEpgTime(ms: number): string {
+    const d = new Date(ms);
+    return `${d.getHours().toString().padStart(2, '0')}:${d
+        .getMinutes()
+        .toString()
+        .padStart(2, '0')}`;
+}
+
+export function formatEpgTimeRange(program: EpgProgram): string | null {
+    const start = epgTimestampMs(program, 'start');
+    const stop = epgTimestampMs(program, 'stop');
+    if (start == null || stop == null) {
+        return null;
+    }
+    return `${formatEpgTime(start)} – ${formatEpgTime(stop)}`;
+}
+
+export function calcEpgProgress(
+    program: EpgProgram,
+    nowMs: number
+): number | null {
+    const start = epgTimestampMs(program, 'start');
+    const stop = epgTimestampMs(program, 'stop');
+    if (start == null || stop == null || stop <= start) {
+        return null;
+    }
+    const ratio = (nowMs - start) / (stop - start);
+    if (!Number.isFinite(ratio)) {
+        return null;
+    }
+    return Math.max(0, Math.min(100, ratio * 100));
+}
+
+function liveEpgLookupKeyForCard(card: DashboardRailCard): string {
+    return card.epgLookupKey?.trim() || card.title.trim();
+}
+
+export function buildLiveEpgLookupKeys(
+    cards: readonly DashboardRailCard[]
+): string[] {
+    const seen = new Set<string>();
+    const keys: string[] = [];
+    for (const card of cards) {
+        const key = liveEpgLookupKeyForCard(card);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        keys.push(key);
+    }
+    return keys;
+}
+
+export function getLiveEpgProgramForCard(
+    card: DashboardRailCard,
+    epgMap: ReadonlyMap<string, EpgProgram | null>
+): EpgProgram | null {
+    const key = liveEpgLookupKeyForCard(card);
+    const program = epgMap.get(key);
+    if (program) {
+        return program;
+    }
+
+    const titleKey = card.title.trim();
+    return key !== titleKey ? (epgMap.get(titleKey) ?? null) : null;
+}
+
+export function liveRailTitleKeyForSource(
+    source: 'favorites' | 'recent'
+): string {
+    return source === 'favorites'
+        ? 'WORKSPACE.DASHBOARD.LIVE_FAVORITES'
+        : 'WORKSPACE.DASHBOARD.LIVE_RECENT';
+}
+
+export function buildPlaybackPositionReloadKey(
+    items: readonly Pick<GlobalRecentItem, 'playlist_id' | 'type' | 'xtream_id'>[]
+): string {
+    return items
+        .filter((item) => item.type === 'movie' || item.type === 'series')
+        .map((item) => `${item.playlist_id}::${item.type}::${item.xtream_id}`)
+        .sort()
+        .join('|');
+}
+
+// ── Playback-position helpers (used by both hero + Continue Watching cards)
+// — kept as plain functions so they're easy to unit-test without mounting the
+// component or the data service.
+
+export function playbackProgressPercent(
+    position: { positionSeconds: number; durationSeconds?: number } | null
+): number | null {
+    if (
+        !position ||
+        position.durationSeconds == null ||
+        position.durationSeconds <= 0
+    ) {
+        return null;
+    }
+    const ratio = position.positionSeconds / position.durationSeconds;
+    if (!Number.isFinite(ratio)) {
+        return null;
+    }
+    // Integer percent — keeps "92% watched" out of "92.4% watched" territory,
+    // and matches the resolution of a 3px-tall progress bar on a 280px card.
+    return Math.max(0, Math.min(100, Math.floor(ratio * 100)));
+}
+
+export function formatRemainingLabel(
+    position: { positionSeconds: number; durationSeconds?: number } | null
+): DashboardRemainingLabel | null {
+    if (
+        !position ||
+        position.durationSeconds == null ||
+        position.durationSeconds <= 0
+    ) {
+        return null;
+    }
+    const remaining = Math.max(
+        0,
+        Math.round(position.durationSeconds - position.positionSeconds)
+    );
+    if (remaining < 60) {
+        return {
+            key: 'WORKSPACE.DASHBOARD.REMAINING_SECONDS',
+            params: { seconds: remaining },
+        };
+    }
+    const totalMinutes = Math.round(remaining / 60);
+    if (totalMinutes < 60) {
+        return {
+            key: 'WORKSPACE.DASHBOARD.REMAINING_MINUTES',
+            params: { minutes: totalMinutes },
+        };
+    }
+    const hours = Math.floor(totalMinutes / 60);
+    const minutes = totalMinutes % 60;
+    if (minutes === 0) {
+        return {
+            key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS',
+            params: { hours },
+        };
+    }
+    return {
+        key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS_MINUTES',
+        params: { hours, minutes },
+    };
+}
+
 function isXtreamAccountPlaylist(
     playlist: PlaylistMeta
 ): playlist is PlaylistMeta & {
@@ -233,7 +417,12 @@ export class WorkspaceDashboardRailsComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
+    private readonly epgService = inject(EpgService);
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
     readonly ready = this.data.dashboardReady;
@@ -259,6 +448,8 @@ export class WorkspaceDashboardRailsComponent {
             this.failedHeroImages()
         );
 
+        const position = this.data.getPlaybackPositionForItem(item);
+
         return {
             ...artwork,
             contentType: item.type,
@@ -267,14 +458,111 @@ export class WorkspaceDashboardRailsComponent {
             state: this.data.getRecentItemNavigationState(item),
             subtitle: this.buildHeroSubtitle(item),
             title: item.title,
+            watchProgress: playbackProgressPercent(position),
+            remainingLabel: formatRemainingLabel(position),
         };
     });
 
-    readonly recentlyWatchedCards = computed<DashboardRailCard[]>(() =>
-        this.data
-            .globalRecentItems()
+    // Split the mixed "recently watched" history into two rails. VOD items
+    // (movies/series) get one rail; live channels get their own. Two card
+    // formats — one rail each — so users can scan each surface at a glance
+    // instead of decoding a mixed grid of fallback posters and channel logos.
+    readonly continueWatchingCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
+            .globalRecentVodItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toRecentCard(item))
+            .map((item) => this.toRecentCard(item));
+    });
+
+    // Live rail source — favorited live channels take precedence so the EPG
+    // enrichment lands on the channels the user actually cares about. When
+    // no favorites exist (fresh install, or a user who hasn't starred any
+    // channel yet), fall back to recently-watched live so the rail still
+    // has something to show. `liveRailSource` drives the title swap.
+    readonly liveRailSource = computed<'favorites' | 'recent'>(() =>
+        this.data.globalFavoriteLiveItems().length > 0
+            ? 'favorites'
+            : 'recent'
+    );
+
+    readonly liveOnFavoritesCards = computed<DashboardRailCard[]>(() => {
+        if (this.liveRailSource() === 'favorites') {
+            return this.data
+                .globalFavoriteLiveItems()
+                .slice(0, RAIL_ITEM_LIMIT)
+                .map((item) => this.toFavoriteCard(item));
+        }
+        return this.data
+            .globalRecentLiveItems()
+            .slice(0, RAIL_ITEM_LIMIT)
+            .map((item) => this.toRecentCard(item));
+    });
+
+    // Title key flips with the source — "Live now on your favorites" when
+    // we're rendering favorites, "Continue with live TV" when we're falling
+    // back to recently-watched. Always honest about what the user is seeing.
+    readonly liveRailTitleKey = computed(() =>
+        liveRailTitleKeyForSource(this.liveRailSource())
+    );
+
+    readonly liveRailTotalCount = computed(() =>
+        this.liveRailSource() === 'favorites'
+            ? this.data.globalFavoriteLiveItems().length
+            : this.data.globalRecentLiveItems().length
+    );
+
+    // Best-effort EPG lookup keyed by the app-wide M3U XMLTV chain
+    // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
+    // Xtream/Stalker live items often have no XMLTV side-channel and will
+    // simply return null — the card renders without the program row.
+    private readonly liveChannelLookupKeys = computed(() =>
+        buildLiveEpgLookupKeys(this.liveOnFavoritesCards())
+    );
+
+    private readonly playbackPositionReloadKey = computed(() =>
+        buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
+    );
+
+    // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
+    // catches the boundary between programs without a full page revisit.
+    private readonly liveEpgPrograms = toSignal(
+        toObservable(this.liveChannelLookupKeys).pipe(
+            switchMap((keys) =>
+                keys.length === 0
+                    ? of(new Map<string, EpgProgram | null>())
+                    : interval(LIVE_EPG_TICK_MS).pipe(
+                          startWith(0),
+                          switchMap(() =>
+                              this.epgService.getCurrentProgramsForChannels(
+                                  keys
+                              )
+                          )
+                      )
+            )
+        ),
+        { initialValue: new Map<string, EpgProgram | null>() }
+    );
+
+    readonly liveOnFavoritesCardsEnriched = computed<DashboardRailCard[]>(
+        () => {
+            const epgMap = this.liveEpgPrograms();
+            // Recompute the now-window each tick so progress moves between
+            // 30s ticks even if the program identity is unchanged.
+            const now = Date.now();
+            return this.liveOnFavoritesCards().map((card) => {
+                const program = getLiveEpgProgramForCard(card, epgMap);
+                if (!program) {
+                    return card;
+                }
+                return {
+                    ...card,
+                    nowPlayingTitle: program.title || null,
+                    nowPlayingTimeRange: formatEpgTimeRange(program),
+                    nowPlayingProgress: calcEpgProgress(program, now),
+                };
+            });
+        }
     );
 
     readonly favoriteCards = computed<DashboardRailCard[]>(() =>
@@ -328,6 +616,13 @@ export class WorkspaceDashboardRailsComponent {
 
             void this.data.reloadXtreamRecentlyAddedItems(RAIL_ITEM_LIMIT);
         });
+
+        // Reload playback positions when the VOD/series recent set changes.
+        // The primitive key keeps live-only recent churn out of the IPC path.
+        effect(() => {
+            this.playbackPositionReloadKey();
+            untracked(() => void this.data.reloadPlaybackPositions());
+        });
     }
 
     onAddPlaylist(type?: WorkspacePlaylistType): void {
@@ -375,6 +670,20 @@ export class WorkspaceDashboardRailsComponent {
     }
 
     private toRecentCard(item: GlobalRecentItem): DashboardRailCard {
+        const position = this.data.getPlaybackPositionForItem(item);
+        const watchProgress = playbackProgressPercent(position);
+        const episodeBadge =
+            item.type === 'series' &&
+            position?.seasonNumber != null &&
+            position?.episodeNumber != null
+                ? this.translate.instant(
+                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
+                      {
+                          season: position.seasonNumber,
+                          episode: position.episodeNumber,
+                      }
+                  )
+                : null;
         return {
             id: `recent-${item.id}-${item.playlist_id}-${item.viewed_at}`,
             title: item.title,
@@ -382,8 +691,11 @@ export class WorkspaceDashboardRailsComponent {
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
+            epgLookupKey: item.epg_lookup_key,
             link: this.data.getRecentItemLink(item),
             state: this.data.getRecentItemNavigationState(item),
+            watchProgress,
+            episodeBadge,
         };
     }
 
@@ -395,6 +707,7 @@ export class WorkspaceDashboardRailsComponent {
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
+            epgLookupKey: item.epg_lookup_key,
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
         };

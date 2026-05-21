@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Le playlist sono state aggiornate correttamente",
             "AUTO_REFRESH_ENABLED": "Aggiornamento automatico attivo"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Scegli come connetterti. Puoi rinominarla in seguito.",
+            "METHOD_URL_LABEL": "URL M3U",
+            "METHOD_URL_SUB": "Incolla un link a un file .m3u o .m3u8 remoto",
+            "METHOD_FILE_LABEL": "File M3U",
+            "METHOD_FILE_SUB": "Carica una playlist dal tuo computer",
+            "METHOD_XTREAM_LABEL": "Credenziali Xtream",
+            "METHOD_XTREAM_SUB": "Connetti con host, nome utente e password",
+            "METHOD_STALKER_LABEL": "Portale Stalker",
+            "METHOD_STALKER_SUB": "Indirizzo MAC e URL del portale",
+            "METHOD_TEXT_LABEL": "Testo m3u grezzo",
+            "METHOD_TEXT_SUB": "Per liste occasionali o quando hai solo il testo"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Trascina e rilascia qui i file",
             "OR": "o",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Tema scuro",
-        "LIGHT_THEME": "Tema chiaro",
-        "SYSTEM_THEME": "Tema di sistema"
+        "DARK_THEME": "Scuro",
+        "LIGHT_THEME": "Chiaro",
+        "SYSTEM_THEME": "Sistema"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "Riproduci",
+        "PAUSE": "Pausa",
+        "PREVIOUS_STATION": "Stazione precedente",
+        "NEXT_STATION": "Stazione successiva",
+        "MUTE": "Disattiva audio",
+        "UNMUTE": "Attiva audio",
+        "VOLUME": "Volume"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "Guida elettronica programmi",
         "NEXT_DAY": "Giorno successivo",
         "PREVIOUS_DAY": "Giorno precedente",
+        "ZOOM_IN": "Ingrandisci",
+        "ZOOM_OUT": "Riduci",
+        "FILTER_CHANNELS": "Filtra canali",
+        "CLOSE_FILTER": "Chiudi filtro",
+        "SEARCH_PROGRAMS": "Cerca programmi",
+        "CLOSE_PROGRAM_SEARCH": "Chiudi ricerca programmi",
         "LIVE_NOW": "Live attuale",
         "LIVE_STREAM": "Stream live",
         "TIMESHIFT_AVAILABLE": "Disponibile il timeshift, fai clic per riprodurre",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "Ordina categorie",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Continua a guardare",
+            "LIVE_FAVORITES": "Live ora sui tuoi preferiti",
+            "LIVE_RECENT": "Continua con la TV live",
+            "REMAINING_SECONDS": "Mancano {{seconds}} s",
+            "REMAINING_MINUTES": "Mancano {{minutes}} min",
+            "REMAINING_HOURS": "Mancano {{hours}} h",
+            "REMAINING_HOURS_MINUTES": "Mancano {{hours}} h {{minutes}} min",
+            "PERCENT_WATCHED": "{{value}}% visto",
             "UNTITLED_SOURCE": "Sorgente senza titolo",
             "GLOBAL_FAVORITES": "Preferiti globali",
             "REMOVE_FROM_HISTORY": "Rimuovi dalla cronologia",
             "RECENT_SOURCES": "Sorgenti usate di recente",
             "MANAGE_ALL": "Gestisci tutto",
+            "SEE_ALL": "Vedi tutto",
+            "SEE_ALL_COUNT": "Vedi tutti ({{count}})",
             "RECENTLY_WATCHED": "Visti di recente",
             "XTREAM_RECENTLY_ADDED": "Aggiunti di recente su Xtream",
             "NO_HISTORY": "Nessun elemento corrisponde a questo filtro.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "Live",
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Serie",
+            "SEASON_EPISODE_BADGE": "S{{season}}·E{{episode}}",
             "NOT_YET_SYNCED": "Non ancora sincronizzato"
         },
         "SHELL": {

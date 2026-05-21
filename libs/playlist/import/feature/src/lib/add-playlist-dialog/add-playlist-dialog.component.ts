@@ -12,6 +12,7 @@ import {
     MatDialogModule,
     MatDialogRef,
 } from '@angular/material/dialog';
+import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -25,17 +26,16 @@ import { TextImportComponent } from '../text-import/text-import.component';
 import { UrlUploadComponent } from '../url-upload/url-upload.component';
 import { XtreamCodeImportComponent } from '../xtream-code-import/xtream-code-import.component';
 
-type PlaylistCategory = 'm3u' | Extract<PlaylistType, 'xtream' | 'stalker'>;
-type M3uSubType = Extract<PlaylistType, 'url' | 'file' | 'text'>;
-
-interface CategoryOption {
-    value: PlaylistCategory;
-    label: string;
-}
-
-interface SubtypeOption {
-    value: M3uSubType;
+/**
+ * Flat 5-method option model — replaces the prior category × subtype matrix
+ * (M3U/Xtream/Stalker × URL/File/Text) which created 9 combinations of which
+ * only 5 were real. Now each entry IS a method, no nesting.
+ */
+export interface PlaylistMethodOption {
+    value: PlaylistType;
+    icon: string;
     labelKey: string;
+    subKey: string;
 }
 
 @Component({
@@ -43,6 +43,7 @@ interface SubtypeOption {
         FileUploadComponent,
         MatButtonModule,
         MatDialogModule,
+        MatIcon,
         StalkerPortalImportComponent,
         TextImportComponent,
         TranslateModule,
@@ -70,42 +71,56 @@ export class AddPlaylistDialogComponent {
     readonly xtreamImport = viewChild(XtreamCodeImportComponent);
     readonly stalkerImport = viewChild(StalkerPortalImportComponent);
 
-    readonly category = signal<PlaylistCategory>('m3u');
-    readonly m3uSubType = signal<M3uSubType>('url');
+    readonly method = signal<PlaylistType>('url');
 
-    readonly categoryOptions: CategoryOption[] = [
-        { value: 'm3u', label: 'M3U' },
-        { value: 'xtream', label: 'Xtream' },
-        { value: 'stalker', label: 'Stalker' },
+    // Order matches the v0.22 mockup left-to-right: URL first (Most common),
+    // then File, Xtream credentials, Stalker portal, raw text paste. Each
+    // entry stands on its own — no nested subtypes. Labels are short and
+    // sentence-cased; the "Add via …" / "Add Xtreme Code" wording from the
+    // old tab labels is redundant inside a dialog already titled "Add
+    // playlist".
+    readonly methodOptions: PlaylistMethodOption[] = [
+        {
+            value: 'url',
+            icon: 'public',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_URL_LABEL',
+            subKey: 'HOME.ADD_PLAYLIST.METHOD_URL_SUB',
+        },
+        {
+            value: 'file',
+            icon: 'folder_open',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_FILE_LABEL',
+            subKey: 'HOME.ADD_PLAYLIST.METHOD_FILE_SUB',
+        },
+        {
+            value: 'xtream',
+            icon: 'vpn_key',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_LABEL',
+            subKey: 'HOME.ADD_PLAYLIST.METHOD_XTREAM_SUB',
+        },
+        {
+            value: 'stalker',
+            icon: 'cast',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_LABEL',
+            subKey: 'HOME.ADD_PLAYLIST.METHOD_STALKER_SUB',
+        },
+        {
+            value: 'text',
+            icon: 'subject',
+            labelKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_LABEL',
+            subKey: 'HOME.ADD_PLAYLIST.METHOD_TEXT_SUB',
+        },
     ];
 
-    readonly subtypeOptions: SubtypeOption[] = [
-        { value: 'url', labelKey: 'HOME.TABS.URL_UPLOAD' },
-        { value: 'file', labelKey: 'HOME.TABS.FILE_UPLOAD' },
-        { value: 'text', labelKey: 'HOME.TABS.TEXT_IMPORT' },
-    ];
-
-    readonly playlistType = computed<PlaylistType>(() => {
-        const cat = this.category();
-        if (cat === 'xtream') return 'xtream';
-        if (cat === 'stalker') return 'stalker';
-        return this.m3uSubType();
-    });
+    /**
+     * Backwards-compatible alias. The template's @switch and the action
+     * buttons key off this; keeping the name avoids churn in 5 case branches.
+     */
+    readonly playlistType = computed<PlaylistType>(() => this.method());
 
     constructor() {
         if (this.data?.type) {
-            this.initFromType(this.data.type);
-        }
-    }
-
-    private initFromType(type: PlaylistType): void {
-        if (type === 'xtream') {
-            this.category.set('xtream');
-        } else if (type === 'stalker') {
-            this.category.set('stalker');
-        } else {
-            this.category.set('m3u');
-            this.m3uSubType.set(type as M3uSubType);
+            this.method.set(this.data.type);
         }
     }
 

@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "成功！プレイリストが正常に更新されました",
             "AUTO_REFRESH_ENABLED": "自動更新が有効です"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "接続方法を選択してください。名前は後から変更できます。",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "リモートの.m3uまたは.m3u8へのリンクを貼り付け",
+            "METHOD_FILE_LABEL": "M3Uファイル",
+            "METHOD_FILE_SUB": "コンピューターからプレイリストをアップロード",
+            "METHOD_XTREAM_LABEL": "Xtream認証情報",
+            "METHOD_XTREAM_SUB": "ホスト、ユーザー名、パスワードで接続",
+            "METHOD_STALKER_LABEL": "Stalkerポータル",
+            "METHOD_STALKER_SUB": "MACアドレスとポータルURL",
+            "METHOD_TEXT_LABEL": "M3Uテキスト",
+            "METHOD_TEXT_SUB": "一度限りのリストやテキストしかない場合に"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "ここにファイルをドラッグ＆ドロップ",
             "OR": "または",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "ダークテーマ",
-        "LIGHT_THEME": "ライトテーマ",
-        "SYSTEM_THEME": "システムテーマ"
+        "DARK_THEME": "ダーク",
+        "LIGHT_THEME": "ライト",
+        "SYSTEM_THEME": "システム"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "再生",
+        "PAUSE": "一時停止",
+        "PREVIOUS_STATION": "前の局",
+        "NEXT_STATION": "次の局",
+        "MUTE": "ミュート",
+        "UNMUTE": "ミュート解除",
+        "VOLUME": "音量"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "電子番組表",
         "NEXT_DAY": "翌日",
         "PREVIOUS_DAY": "前日",
+        "ZOOM_IN": "拡大",
+        "ZOOM_OUT": "縮小",
+        "FILTER_CHANNELS": "チャンネルをフィルター",
+        "CLOSE_FILTER": "フィルターを閉じる",
+        "SEARCH_PROGRAMS": "番組を検索",
+        "CLOSE_PROGRAM_SEARCH": "番組検索を閉じる",
         "LIVE_NOW": "現在放送中",
         "LIVE_STREAM": "ライブストリーム",
         "TIMESHIFT_AVAILABLE": "タイムシフトが利用可能です。クリックして再生",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "カテゴリを並び替え",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "視聴を再開",
+            "LIVE_FAVORITES": "お気に入りで現在放送中",
+            "LIVE_RECENT": "ライブTVの視聴を再開",
+            "REMAINING_SECONDS": "残り{{seconds}}秒",
+            "REMAINING_MINUTES": "残り{{minutes}}分",
+            "REMAINING_HOURS": "残り{{hours}}時間",
+            "REMAINING_HOURS_MINUTES": "残り{{hours}}時間{{minutes}}分",
+            "PERCENT_WATCHED": "{{value}}% 視聴済み",
             "UNTITLED_SOURCE": "無題のソース",
             "GLOBAL_FAVORITES": "グローバルお気に入り",
             "REMOVE_FROM_HISTORY": "履歴から削除",
             "RECENT_SOURCES": "最近使用したソース",
             "MANAGE_ALL": "すべて管理",
+            "SEE_ALL": "すべて表示",
+            "SEE_ALL_COUNT": "すべて表示 ({{count}})",
             "RECENTLY_WATCHED": "最近視聴した項目",
             "XTREAM_RECENTLY_ADDED": "Xtreamに最近追加された項目",
             "NO_HISTORY": "このフィルターに該当する項目はありません。",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "ライブ",
             "TYPE_MOVIE": "映画",
             "TYPE_SERIES": "シリーズ",
+            "SEASON_EPISODE_BADGE": "S{{season}}・E{{episode}}",
             "NOT_YET_SYNCED": "未同期"
         },
         "SHELL": {

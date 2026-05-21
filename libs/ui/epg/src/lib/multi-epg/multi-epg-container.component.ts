@@ -54,6 +54,13 @@ interface ProgramSearchResult extends EpgProgram {
     display_name?: string | null;
 }
 
+export function isSelectedEpgDayToday(
+    selectedDay: string,
+    now: Date = new Date()
+): boolean {
+    return selectedDay === format(now, 'yyyyMMdd');
+}
+
 @Component({
     imports: [
         DatePipe,
@@ -145,6 +152,19 @@ export class MultiEpgContainerComponent
         return (now.getHours() + now.getMinutes() / 60) * this.hourWidth();
     });
 
+    // "16:32"-style label rendered as a badge above the now-line. Recomputes
+    // on the same 60-second tick that drives `currentTimeLine` (both depend
+    // on hourWidth's update pulse from `ngOnInit`).
+    readonly currentTimeLabel = computed(() => {
+        // Subscribe to the same tick source as currentTimeLine.
+        this.hourWidth();
+        const now = new Date();
+        return `${now.getHours().toString().padStart(2, '0')}:${now
+            .getMinutes()
+            .toString()
+            .padStart(2, '0')}`;
+    });
+
     // Constants
     readonly timeHeader = Array.from({ length: 24 }, (_, i) => i);
     readonly barHeight = 50;
@@ -226,6 +246,24 @@ export class MultiEpgContainerComponent
 
     trackByProgram(_: number, program: EnrichedProgram): string {
         return `${program.start}|${program?.title?.toString() ?? ''}`;
+    }
+
+    /**
+     * Returns true when the now-line falls within this program's rendered
+     * span — used to add a `.is-now` class so the cyan border lights up
+     * every airing program at once. The template reads `currentTimeLine()`
+     * (a signal) here so the highlight refreshes on the same 60-second tick
+     * as the line itself.
+     */
+    isProgramAiringNow(program: EnrichedProgram): boolean {
+        const nowX = this.currentTimeLine();
+        if (!isSelectedEpgDayToday(this.today())) {
+            return false;
+        }
+        return (
+            nowX >= program.startPosition &&
+            nowX <= program.startPosition + program.width
+        );
     }
 
     async requestPrograms(): Promise<void> {

@@ -128,6 +128,19 @@
             "AUTO_REFRESH_UPDATE_SUCCESS": "Επιτυχία! Οι λίστες αναπαραγωγής ενημερώθηκαν με επιτυχία",
             "AUTO_REFRESH_ENABLED": "Η αυτόματη ανανέωση είναι ενεργοποιημένη"
         },
+        "ADD_PLAYLIST": {
+            "PICK_METHOD": "Επιλέξτε τρόπο σύνδεσης. Μπορείτε να τη μετονομάσετε αργότερα.",
+            "METHOD_URL_LABEL": "M3U URL",
+            "METHOD_URL_SUB": "Επικολλήστε έναν σύνδεσμο σε απομακρυσμένο .m3u ή .m3u8",
+            "METHOD_FILE_LABEL": "Αρχείο M3U",
+            "METHOD_FILE_SUB": "Ανεβάστε μια λίστα αναπαραγωγής από τον υπολογιστή σας",
+            "METHOD_XTREAM_LABEL": "Διαπιστευτήρια Xtream",
+            "METHOD_XTREAM_SUB": "Σύνδεση με διακομιστή, όνομα χρήστη και κωδικό πρόσβασης",
+            "METHOD_STALKER_LABEL": "Πύλη Stalker",
+            "METHOD_STALKER_SUB": "MAC address και URL πύλης",
+            "METHOD_TEXT_LABEL": "Ακατέργαστο κείμενο m3u",
+            "METHOD_TEXT_SUB": "Για λίστες μίας χρήσης ή όταν έχετε μόνο κείμενο"
+        },
         "FILE_UPLOAD": {
             "DRAG_DROP": "Σύρετε και αποθέστε αρχεία εδώ",
             "OR": "or",
@@ -362,9 +375,18 @@
         "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
     },
     "THEMES": {
-        "DARK_THEME": "Σκούρο θέμα",
-        "LIGHT_THEME": "Ανοιχτόχρωμο θέμα",
-        "SYSTEM_THEME": "Θέμα συστήματος"
+        "DARK_THEME": "Σκούρο",
+        "LIGHT_THEME": "Ανοιχτό",
+        "SYSTEM_THEME": "Σύστημα"
+    },
+    "AUDIO_PLAYER": {
+        "PLAY": "Αναπαραγωγή",
+        "PAUSE": "Παύση",
+        "PREVIOUS_STATION": "Προηγούμενος σταθμός",
+        "NEXT_STATION": "Επόμενος σταθμός",
+        "MUTE": "Σίγαση",
+        "UNMUTE": "Κατάργηση σίγασης",
+        "VOLUME": "Ένταση"
     },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
@@ -506,6 +528,12 @@
         "TITLE": "Ηλεκτρονικός Οδηγός Προγράμματος",
         "NEXT_DAY": "Επόμενη μέρα",
         "PREVIOUS_DAY": "Προηγούμενη ημέρα",
+        "ZOOM_IN": "Μεγέθυνση",
+        "ZOOM_OUT": "Σμίκρυνση",
+        "FILTER_CHANNELS": "Φιλτράρισμα καναλιών",
+        "CLOSE_FILTER": "Κλείσιμο φίλτρου",
+        "SEARCH_PROGRAMS": "Αναζήτηση προγραμμάτων",
+        "CLOSE_PROGRAM_SEARCH": "Κλείσιμο αναζήτησης προγραμμάτων",
         "LIVE_NOW": "Ζωντανά τώρα",
         "LIVE_STREAM": "Ζωντανή ροή",
         "TIMESHIFT_AVAILABLE": "Η χρονική μετατόπιση είναι διαθέσιμη, κάντε κλικ για αναπαραγωγή.",
@@ -823,11 +851,20 @@
         "CATEGORY_SORT_ARIA": "Ταξινόμηση κατηγοριών",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
+            "LIVE_FAVORITES": "Ζωντανά τώρα στα αγαπημένα σας",
+            "LIVE_RECENT": "Συνέχιση με ζωντανή TV",
+            "REMAINING_SECONDS": "Απομένουν {{seconds}} δ",
+            "REMAINING_MINUTES": "Απομένουν {{minutes}} λ",
+            "REMAINING_HOURS": "Απομένουν {{hours}} ώ",
+            "REMAINING_HOURS_MINUTES": "Απομένουν {{hours}} ώ {{minutes}} λ",
+            "PERCENT_WATCHED": "Προβλήθηκε {{value}}%",
             "UNTITLED_SOURCE": "Πηγή χωρίς τίτλο",
             "GLOBAL_FAVORITES": "Βασικά Αγαπημένα",
             "REMOVE_FROM_HISTORY": "Αφαίρεση από το ιστορικό",
             "RECENT_SOURCES": "Πρόσφατα χρησιμοποιημένες πηγές",
             "MANAGE_ALL": "Διαχείριση όλων",
+            "SEE_ALL": "Δείτε όλα",
+            "SEE_ALL_COUNT": "Δείτε όλα {{count}}",
             "RECENTLY_WATCHED": "Πρόσφατα προβληθέντα",
             "XTREAM_RECENTLY_ADDED": "Πρόσφατα προστέθηκαν στο Xtream",
             "NO_HISTORY": "Δεν βρέθηκαν στοιχεία για αυτό το φίλτρο.",
@@ -840,6 +877,7 @@
             "TYPE_LIVE": "Ζωντανά",
             "TYPE_MOVIE": "Ταινία",
             "TYPE_SERIES": "Σειρά",
+            "SEASON_EPISODE_BADGE": "Σ{{season}}·Ε{{episode}}",
             "NOT_YET_SYNCED": "Δεν έχει συγχρονιστεί ακόμα"
         },
         "SHELL": {

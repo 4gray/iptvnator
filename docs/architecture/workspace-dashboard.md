@@ -35,11 +35,11 @@ Core implementation:
 ┌─────────────────────────────────────────────────────────────────────┐
 │  Hero — Continue Watching (most recent item)                        │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Recently Watched · See all →                                       │
+│  Continue Watching · See all →                                      │
 │  [poster][poster][poster][poster] →→                                │
 ├─────────────────────────────────────────────────────────────────────┤
-│  Global Favorites · See all →                                       │
-│  [poster][poster][poster] →→                                        │
+│  Live now on your favorites / Continue with live TV · See all →     │
+│  [channel][channel][channel][channel] →→                            │
 ├─────────────────────────────────────────────────────────────────────┤
 │  Recently Used Sources · See all →                                  │
 │  [tile][tile][tile][tile] →→                                        │
@@ -63,6 +63,9 @@ Render rules:
 5. The continue-watching hero prefers a stored Xtream `backdrop_url`; when it
    is missing the UI falls back to a blurred poster treatment instead of
    showing a flat panel.
+6. The mixed global favorites rail is not rendered on the dashboard. Live
+   favorites are promoted into the live rail, while mixed favorites stay on
+   `/workspace/global-favorites`.
 
 ## Rail Contract
 
@@ -83,10 +86,19 @@ Render rules:
 ## Data Flow
 
 1. `WorkspaceDashboardRailsComponent` injects `DashboardDataService`.
-2. It derives five signals via `computed()`:
+2. It derives the dashboard surface via `computed()`:
     1. `hero` — first item of `globalRecentItems()`.
-    2. `recentlyWatchedCards` — maps `globalRecentItems()` to rail cards.
-    3. `xtreamRecentlyAddedCards` — maps `xtreamRecentlyAddedItems()` to rail
+    2. `continueWatchingCards` — maps `globalRecentVodItems()` to movie/series
+       cover cards. Xtream playback positions are bulk-loaded per playlist so
+       hero and cards can show progress, remaining time, and series season/
+       episode badges. Series lookup uses keyed maps for both direct episode ids
+       and series ids; card renders must not scan the full playback-position map.
+    3. `liveOnFavoritesCardsEnriched` — maps favorited live channels first,
+       falling back to recently watched live channels when no live favorites
+       exist. M3U cards carry an `epg_lookup_key` using the app-wide XMLTV
+       fallback order (`tvg-id` -> `tvg-name` -> channel name); EPG enrichment
+       must use that key before falling back to the card title.
+    4. `xtreamRecentlyAddedCards` — maps `xtreamRecentlyAddedItems()` to rail
        cards. Aggregates newly added VOD and series across *all* Xtream
        playlists via `DashboardDataService.reloadXtreamRecentlyAddedItems()`,
        which calls `getGlobalRecentlyAdded('all', limit, 'xtream')` with the
@@ -95,7 +107,6 @@ Render rules:
        playlists never see it. Cards carry a `playlist_name · type` subtitle
        so users can tell which provider each item came from. Driven by an
        effect that re-runs whenever the Xtream playlist count changes.
-    4. `favoriteCards` — maps `globalFavoriteItems()` to rail cards.
     5. `sourceCards` — maps `recentPlaylists()` to rail cards. `recentPlaylists()`
        ranks M3U, Xtream, and Stalker sources by their latest recent activity
        from `globalRecentItems()`, then falls back to playlist
@@ -114,6 +125,9 @@ Render rules:
 7. The dashboard feature triggers a fresh reload of DB-backed recent/favorite
    rows on dashboard entry so newly backfilled backdrop data is visible as soon
    as the user returns from a detail page.
+8. Playback-position reloads are keyed by the VOD/series recent set and should
+   call `reloadPlaybackPositions()` through `untracked()` so live-only recent
+   changes do not trigger unnecessary IPC round-trips.
 
 ## Empty State
 
@@ -141,6 +155,9 @@ The welcome state is rendered via the existing
    route without switching the active playlist in the header switcher.
 6. `Recently Used Sources` reflects recent source usage across all provider
    types, not just recent imports.
+7. The live rail title key must match the rendered source: favorites use
+   `WORKSPACE.DASHBOARD.LIVE_FAVORITES`; recently watched fallback uses
+   `WORKSPACE.DASHBOARD.LIVE_RECENT`.
 
 ## Adding Or Changing Rails
 
