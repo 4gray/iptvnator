@@ -85,12 +85,18 @@
                         </span>
                         <span class="hero__progress-meta">
                             @if (item.remainingLabel) {
-                                <span>{{ item.remainingLabel }}</span>
+                                <span>{{
+                                    item.remainingLabel.key
+                                        | translate: item.remainingLabel.params
+                                }}</span>
                                 <span class="hero__progress-meta-sep"
                                     >·</span
                                 >
                             }
-                            <span>{{ item.watchProgress }}% watched</span>
+                            <span>{{
+                                'WORKSPACE.DASHBOARD.PERCENT_WATCHED'
+                                    | translate: { value: item.watchProgress }
+                            }}</span>
                         </span>
                     }
 

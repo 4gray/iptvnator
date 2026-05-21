@@ -76,8 +76,12 @@ interface DashboardHeroModel {
     readonly title: string;
     /** 0–100 watched, when a resume position is known. */
     readonly watchProgress?: number | null;
-    /** "1h 04m left" — pre-formatted for direct rendering. */
-    readonly remainingLabel?: string | null;
+    readonly remainingLabel?: DashboardRemainingLabel | null;
+}
+
+export interface DashboardRemainingLabel {
+    readonly key: string;
+    readonly params: Record<string, number>;
 }
 
 export type DashboardHeroBackdropSource = 'backdrop' | 'poster' | 'fallback';
@@ -334,7 +338,7 @@ export function playbackProgressPercent(
 
 export function formatRemainingLabel(
     position: { positionSeconds: number; durationSeconds?: number } | null
-): string | null {
+): DashboardRemainingLabel | null {
     if (
         !position ||
         position.durationSeconds == null ||
@@ -347,18 +351,30 @@ export function formatRemainingLabel(
         Math.round(position.durationSeconds - position.positionSeconds)
     );
     if (remaining < 60) {
-        return `${remaining}s left`;
+        return {
+            key: 'WORKSPACE.DASHBOARD.REMAINING_SECONDS',
+            params: { seconds: remaining },
+        };
     }
     const totalMinutes = Math.round(remaining / 60);
     if (totalMinutes < 60) {
-        return `${totalMinutes}m left`;
+        return {
+            key: 'WORKSPACE.DASHBOARD.REMAINING_MINUTES',
+            params: { minutes: totalMinutes },
+        };
     }
     const hours = Math.floor(totalMinutes / 60);
     const minutes = totalMinutes % 60;
     if (minutes === 0) {
-        return `${hours}h left`;
+        return {
+            key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS',
+            params: { hours },
+        };
     }
-    return `${hours}h ${minutes.toString().padStart(2, '0')}m left`;
+    return {
+        key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS_MINUTES',
+        params: { hours, minutes },
+    };
 }
 
 function isXtreamAccountPlaylist(
@@ -401,6 +417,10 @@ export class WorkspaceDashboardRailsComponent {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
+    private readonly languageTick = toSignal(
+        this.translate.onLangChange.pipe(startWith(null)),
+        { initialValue: null }
+    );
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly epgService = inject(EpgService);
 
@@ -447,12 +467,13 @@ export class WorkspaceDashboardRailsComponent {
     // (movies/series) get one rail; live channels get their own. Two card
     // formats — one rail each — so users can scan each surface at a glance
     // instead of decoding a mixed grid of fallback posters and channel logos.
-    readonly continueWatchingCards = computed<DashboardRailCard[]>(() =>
-        this.data
+    readonly continueWatchingCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.data
             .globalRecentVodItems()
             .slice(0, RAIL_ITEM_LIMIT)
-            .map((item) => this.toRecentCard(item))
-    );
+            .map((item) => this.toRecentCard(item));
+    });
 
     // Live rail source — favorited live channels take precedence so the EPG
     // enrichment lands on the channels the user actually cares about. When

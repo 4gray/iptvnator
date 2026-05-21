@@ -349,40 +349,55 @@ describe('playback-position helpers', () => {
             ).toBeNull();
         });
 
-        it('formats sub-minute, minute, and hour-spanning remainders', () => {
+        it('returns translation keys and params for sub-minute, minute, and hour-spanning remainders', () => {
             expect(
                 formatRemainingLabel({
                     positionSeconds: 5970,
                     durationSeconds: 6000,
                 })
-            ).toBe('30s left');
+            ).toEqual({
+                key: 'WORKSPACE.DASHBOARD.REMAINING_SECONDS',
+                params: { seconds: 30 },
+            });
             expect(
                 formatRemainingLabel({
                     positionSeconds: 0,
                     durationSeconds: 1800,
                 })
-            ).toBe('30m left');
+            ).toEqual({
+                key: 'WORKSPACE.DASHBOARD.REMAINING_MINUTES',
+                params: { minutes: 30 },
+            });
             expect(
                 formatRemainingLabel({
                     positionSeconds: 0,
                     durationSeconds: 3600,
                 })
-            ).toBe('1h left');
+            ).toEqual({
+                key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS',
+                params: { hours: 1 },
+            });
             expect(
                 formatRemainingLabel({
                     positionSeconds: 600,
                     durationSeconds: 6840,
                 })
-            ).toBe('1h 44m left');
+            ).toEqual({
+                key: 'WORKSPACE.DASHBOARD.REMAINING_HOURS_MINUTES',
+                params: { hours: 1, minutes: 44 },
+            });
         });
 
-        it('clamps below zero — a completed program reads as "0s left" not negative', () => {
+        it('clamps below zero to the translated zero-seconds state', () => {
             expect(
                 formatRemainingLabel({
                     positionSeconds: 7000,
                     durationSeconds: 6000,
                 })
-            ).toBe('0s left');
+            ).toEqual({
+                key: 'WORKSPACE.DASHBOARD.REMAINING_SECONDS',
+                params: { seconds: 0 },
+            });
         });
     });
 });
