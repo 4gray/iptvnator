@@ -90,7 +90,8 @@ function collectBackendRequests(page: Page, path: string): string[] {
     const requests: string[] = [];
     page.on('request', (request) => {
         const requestUrl = request.url();
-        if (requestUrl.startsWith(`${WEB_BACKEND_URL}${path}`)) {
+        const url = new URL(requestUrl);
+        if (url.origin === WEB_BACKEND_URL && url.pathname === path) {
             requests.push(requestUrl);
         }
     });
@@ -102,8 +103,9 @@ function expectRequestsUseTargetId(requests: string[], path: string): void {
     for (const requestUrl of requests) {
         const url = new URL(requestUrl);
         expect(url.pathname).toBe(path);
-        expect(url.searchParams.get('targetId')).toBeTruthy();
-        expect(url.searchParams.has('url')).toBeFalsy();
+        expect(url.searchParams.get('targetId')).not.toBeNull();
+        expect(url.searchParams.get('targetId')).not.toBe('');
+        expect(url.searchParams.has('url')).toBe(false);
     }
 }
 
