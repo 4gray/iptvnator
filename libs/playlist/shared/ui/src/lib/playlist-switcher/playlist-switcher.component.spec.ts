@@ -11,7 +11,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
-import { of } from 'rxjs';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistContextFacade,
@@ -19,8 +18,7 @@ import {
 } from '@iptvnator/playlist/shared/util';
 import { DialogService } from '@iptvnator/ui/components';
 import {
-    DatabaseService,
-    PlaylistsService,
+    PlaylistDeleteActionService,
     PortalStatusService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -75,11 +73,7 @@ describe('PlaylistSwitcherComponent', () => {
     let dialogService: {
         openConfirmDialog: jest.Mock;
     };
-    let databaseService: {
-        createOperationId: jest.Mock;
-        deletePlaylist: jest.Mock;
-    };
-    let playlistsService: {
+    let playlistDeleteAction: {
         deletePlaylist: jest.Mock;
     };
     let snackBar: {
@@ -134,20 +128,16 @@ describe('PlaylistSwitcherComponent', () => {
                     useValue: refreshActionService,
                 },
                 {
+                    provide: PlaylistDeleteActionService,
+                    useValue: playlistDeleteAction,
+                },
+                {
                     provide: MatDialog,
                     useValue: dialog,
                 },
                 {
                     provide: DialogService,
                     useValue: dialogService,
-                },
-                {
-                    provide: DatabaseService,
-                    useValue: databaseService,
-                },
-                {
-                    provide: PlaylistsService,
-                    useValue: playlistsService,
                 },
                 {
                     provide: MatSnackBar,
@@ -208,12 +198,8 @@ describe('PlaylistSwitcherComponent', () => {
         dialogService = {
             openConfirmDialog: jest.fn(),
         };
-        databaseService = {
-            createOperationId: jest.fn(),
-            deletePlaylist: jest.fn(),
-        };
-        playlistsService = {
-            deletePlaylist: jest.fn(() => of({ success: true })),
+        playlistDeleteAction = {
+            deletePlaylist: jest.fn().mockResolvedValue(true),
         };
         snackBar = {
             open: jest.fn(),
@@ -371,12 +357,7 @@ describe('PlaylistSwitcherComponent', () => {
         expect(component.displayTitle()).toBe('Select playlist');
     });
 
-    it('deletes browser/PWA playlists through PlaylistsService instead of the Electron database service', async () => {
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            writable: true,
-            value: undefined,
-        });
+    it('delegates playlist deletion and removes the source after confirmation', async () => {
         await createComponent();
 
         component.removePlaylistFor(xtreamPlaylist);
@@ -384,10 +365,9 @@ describe('PlaylistSwitcherComponent', () => {
             .onConfirm as () => Promise<void>;
         await confirm();
 
-        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
-            xtreamPlaylist._id
+        expect(playlistDeleteAction.deletePlaylist).toHaveBeenCalledWith(
+            xtreamPlaylist
         );
-        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.removePlaylist({
                 playlistId: xtreamPlaylist._id,

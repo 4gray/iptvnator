@@ -32,14 +32,12 @@ import {
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/util';
 import {
-    DatabaseService,
-    PlaylistsService,
+    PlaylistDeleteActionService,
     PortalStatus,
     PortalStatusService,
-    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { firstValueFrom, startWith } from 'rxjs';
+import { startWith } from 'rxjs';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 
 type PlaylistFilterType = 'm3u' | 'stalker' | 'xtream';
@@ -79,9 +77,7 @@ export class PlaylistSwitcherComponent {
     private readonly refreshAction = inject(PlaylistRefreshActionService);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
-    private readonly databaseService = inject(DatabaseService);
-    private readonly playlistsService = inject(PlaylistsService);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private focusSearchTimeoutId: ReturnType<typeof setTimeout> | null = null;
@@ -315,9 +311,8 @@ export class PlaylistSwitcherComponent {
     private async removePlaylistConfirmed(
         playlist: PlaylistMeta
     ): Promise<void> {
-        const deleted = this.runtime.isElectron
-            ? await this.deletePlaylistInElectron(playlist)
-            : await this.deletePlaylistInBrowser(playlist);
+        const deleted =
+            await this.playlistDeleteAction.deletePlaylist(playlist);
 
         if (!deleted) {
             return;
@@ -331,28 +326,6 @@ export class PlaylistSwitcherComponent {
             undefined,
             { duration: 2000 }
         );
-    }
-
-    private async deletePlaylistInElectron(
-        playlist: PlaylistMeta
-    ): Promise<boolean> {
-        const operationId = playlist.serverUrl
-            ? this.databaseService.createOperationId('playlist-delete')
-            : undefined;
-
-        return this.databaseService.deletePlaylist(
-            playlist._id,
-            operationId ? { operationId } : undefined
-        );
-    }
-
-    private async deletePlaylistInBrowser(
-        playlist: PlaylistMeta
-    ): Promise<boolean> {
-        const result = await firstValueFrom(
-            this.playlistsService.deletePlaylist(playlist._id)
-        );
-        return result.success;
     }
 
     getPlaylistIcon(playlist: PlaylistMeta): string {

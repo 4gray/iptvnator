@@ -18,7 +18,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { RouterLink } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
 import {
     EmptyStateComponent,
     PlaylistInfoComponent,
@@ -31,8 +30,7 @@ import {
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
-    DatabaseService,
-    PlaylistsService,
+    PlaylistDeleteActionService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
@@ -416,9 +414,9 @@ function isXtreamAccountPlaylist(
 })
 export class WorkspaceDashboardRailsComponent {
     readonly data = inject(DashboardDataService);
-    private readonly databaseService = inject(DatabaseService);
     private readonly dialog = inject(MatDialog);
     private readonly dialogService = inject(DialogService);
+    private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
     private readonly playlistRefreshAction = inject(
         PlaylistRefreshActionService
     );
@@ -431,7 +429,6 @@ export class WorkspaceDashboardRailsComponent {
     );
     private readonly shellActions = inject(WORKSPACE_SHELL_ACTIONS);
     private readonly epgService = inject(EpgService);
-    private readonly playlistsService = inject(PlaylistsService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
@@ -781,9 +778,8 @@ export class WorkspaceDashboardRailsComponent {
     }
 
     private async removePlaylist(playlist: PlaylistMeta): Promise<void> {
-        const deleted = this.runtime.isElectron
-            ? await this.deletePlaylistInElectron(playlist)
-            : await this.deletePlaylistInBrowser(playlist);
+        const deleted =
+            await this.playlistDeleteAction.deletePlaylist(playlist);
 
         if (!deleted) {
             return;
@@ -797,28 +793,6 @@ export class WorkspaceDashboardRailsComponent {
             undefined,
             { duration: 2000 }
         );
-    }
-
-    private async deletePlaylistInElectron(
-        playlist: PlaylistMeta
-    ): Promise<boolean> {
-        const operationId = playlist.serverUrl
-            ? this.databaseService.createOperationId('playlist-delete')
-            : undefined;
-
-        return this.databaseService.deletePlaylist(
-            playlist._id,
-            operationId ? { operationId } : undefined
-        );
-    }
-
-    private async deletePlaylistInBrowser(
-        playlist: PlaylistMeta
-    ): Promise<boolean> {
-        const result = await firstValueFrom(
-            this.playlistsService.deletePlaylist(playlist._id)
-        );
-        return result.success;
     }
 
     private t(key: string): string {

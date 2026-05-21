@@ -26,7 +26,7 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { BehaviorSubject, combineLatest, firstValueFrom, map } from 'rxjs';
+import { BehaviorSubject, combineLatest, map } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
@@ -34,8 +34,8 @@ import {
     DbOperationEvent,
     isDbAbortError,
     PlaybackPositionService,
+    PlaylistDeleteActionService,
     PlaylistRefreshService,
-    PlaylistsService,
     RuntimeCapabilitiesService,
     SortBy,
     SortService,
@@ -87,7 +87,7 @@ export class RecentPlaylistsComponent {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
     private readonly playlistContext = inject(PlaylistContextFacade);
-    private readonly playlistsService = inject(PlaylistsService);
+    private readonly playlistDeleteAction = inject(PlaylistDeleteActionService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -253,9 +253,13 @@ export class RecentPlaylistsComponent {
 
         this.setPendingDeletion(item._id, true);
         try {
-            const deleted = this.isElectron
-                ? await this.deletePlaylistInElectron(item)
-                : await this.deletePlaylistInBrowser(item);
+            const deleted = await this.playlistDeleteAction.deletePlaylist(
+                item,
+                {
+                    onEvent: (event) =>
+                        this.updateBusyOperation(item._id, event),
+                }
+            );
             if (deleted) {
                 this.store.dispatch(
                     PlaylistActions.removePlaylist({ playlistId: item._id })
@@ -274,30 +278,6 @@ export class RecentPlaylistsComponent {
             this.clearBusyOperation(item._id);
             this.setPendingDeletion(item._id, false);
         }
-    }
-
-    private async deletePlaylistInElectron(item: PlaylistMeta) {
-        const operationId = item.serverUrl
-            ? this.databaseService.createOperationId('playlist-delete')
-            : undefined;
-
-        return this.databaseService.deletePlaylist(
-            item._id,
-            operationId
-                ? {
-                      operationId,
-                      onEvent: (event) =>
-                          this.updateBusyOperation(item._id, event),
-                  }
-                : undefined
-        );
-    }
-
-    private async deletePlaylistInBrowser(item: PlaylistMeta) {
-        const result = await firstValueFrom(
-            this.playlistsService.deletePlaylist(item._id)
-        );
-        return result.success;
     }
 
     /**
