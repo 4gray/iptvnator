@@ -42,6 +42,11 @@ cleanup() {
     fi
 }
 
+handle_signal() {
+    cleanup
+    exit 0
+}
+
 process_is_running() {
     if [ ! -r "/proc/$1/stat" ]; then
         return 1
@@ -51,7 +56,8 @@ process_is_running() {
     [ -n "$state" ] && [ "$state" != "Z" ]
 }
 
-trap cleanup INT TERM EXIT
+trap handle_signal INT TERM
+trap cleanup EXIT
 
 backend_ready=0
 
