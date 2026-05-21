@@ -335,4 +335,21 @@ describe('withRecentItems', () => {
             }),
         ]);
     });
+
+    it('removes recent items through the active data source in Electron mode', async () => {
+        store.removeRecentItem({ itemId: 3941697, playlistId: 'playlist-1' });
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
+        expect(dataSource.removeRecentItem).toHaveBeenCalledWith(
+            3941697,
+            'playlist-1'
+        );
+        expect(databaseService.removeRecentItem).not.toHaveBeenCalled();
+        expect(store.recentItems()).toEqual([
+            expect.objectContaining({
+                id: 3941697,
+                title: 'Krypton',
+            }),
+        ]);
+    });
 });

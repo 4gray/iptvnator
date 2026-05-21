@@ -195,17 +195,10 @@ export const withRecentItems = function () {
                 }>(
                     pipe(
                         switchMap(async ({ itemId, playlistId }) => {
-                            if (window.electron) {
-                                await dbService.removeRecentItem(
-                                    itemId,
-                                    playlistId
-                                );
-                            } else {
-                                await dataSource.removeRecentItem(
-                                    itemId,
-                                    playlistId
-                                );
-                            }
+                            await dataSource.removeRecentItem(
+                                itemId,
+                                playlistId
+                            );
                             // Reload recent items to update UI
                             const items =
                                 await dataSource.getRecentItems(playlistId);

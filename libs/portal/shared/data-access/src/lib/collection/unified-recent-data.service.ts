@@ -191,6 +191,16 @@ export class UnifiedRecentDataService {
 
         if (window.electron) {
             await this.dbService.clearGlobalRecentlyViewed();
+        } else {
+            const allMeta = await this.getAllMeta();
+            await Promise.all(
+                allMeta
+                    .filter((playlist) => playlist._id)
+                    .filter((playlist) => this.isXtreamPlaylist(playlist))
+                    .map((playlist) =>
+                        this.xtreamDataSource.clearRecentItems(playlist._id)
+                    )
+            );
         }
         const playlists = (await firstValueFrom(
             this.playlistsService.getAllPlaylists()
@@ -198,10 +208,6 @@ export class UnifiedRecentDataService {
 
         await Promise.all(
             playlists.map(async (playlist) => {
-                if (!window.electron && this.isXtreamPlaylist(playlist)) {
-                    await this.xtreamDataSource.clearRecentItems(playlist._id);
-                }
-
                 if (this.isPlaylistBackedRecentPlaylist(playlist)) {
                     const updatedPlaylist = await firstValueFrom(
                         this.playlistsService.clearPlaylistRecentlyViewed(

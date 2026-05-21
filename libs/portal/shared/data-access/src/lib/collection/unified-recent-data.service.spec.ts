@@ -403,13 +403,17 @@ describe('UnifiedRecentDataService', () => {
             value: undefined,
             configurable: true,
         });
-        playlistsService.getAllPlaylists.mockReturnValue(
+        store.select.mockReturnValue(
             of([
                 {
                     _id: 'xtream-1',
                     title: 'Xtream PWA',
                     serverUrl: 'https://xtream.example.com',
-                },
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
                 {
                     _id: 'm3u-1',
                     title: 'M3U List',
