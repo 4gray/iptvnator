@@ -430,7 +430,7 @@ export class WorkspaceShellFacade {
             buildPortalRailLinks({
                 provider: context.provider,
                 playlistId: context.playlistId,
-                isElectron: this.isElectron,
+                supportsDownloads: this.isElectron,
                 workspace: true,
             }).primary,
             context.provider,
@@ -449,7 +449,7 @@ export class WorkspaceShellFacade {
             buildPortalRailLinks({
                 provider: context.provider,
                 playlistId: context.playlistId,
-                isElectron: this.isElectron,
+                supportsDownloads: this.isElectron,
                 workspace: true,
             }).secondary.filter((link) => link.section !== 'downloads'),
             context.provider,
