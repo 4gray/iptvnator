@@ -5,6 +5,7 @@ import {
     effect,
     inject,
     signal,
+    untracked,
 } from '@angular/core';
 import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { interval, of, startWith, switchMap } from 'rxjs';
@@ -258,6 +259,56 @@ export function calcEpgProgress(
     return Math.max(0, Math.min(100, ratio * 100));
 }
 
+function liveEpgLookupKeyForCard(card: DashboardRailCard): string {
+    return card.epgLookupKey?.trim() || card.title.trim();
+}
+
+export function buildLiveEpgLookupKeys(
+    cards: readonly DashboardRailCard[]
+): string[] {
+    const seen = new Set<string>();
+    const keys: string[] = [];
+    for (const card of cards) {
+        const key = liveEpgLookupKeyForCard(card);
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        keys.push(key);
+    }
+    return keys;
+}
+
+export function getLiveEpgProgramForCard(
+    card: DashboardRailCard,
+    epgMap: ReadonlyMap<string, EpgProgram | null>
+): EpgProgram | null {
+    const key = liveEpgLookupKeyForCard(card);
+    const program = epgMap.get(key);
+    if (program) {
+        return program;
+    }
+
+    const titleKey = card.title.trim();
+    return key !== titleKey ? (epgMap.get(titleKey) ?? null) : null;
+}
+
+export function liveRailTitleKeyForSource(
+    source: 'favorites' | 'recent'
+): string {
+    return source === 'favorites'
+        ? 'WORKSPACE.DASHBOARD.LIVE_FAVORITES'
+        : 'WORKSPACE.DASHBOARD.LIVE_RECENT';
+}
+
+export function buildPlaybackPositionReloadKey(
+    items: readonly Pick<GlobalRecentItem, 'playlist_id' | 'type' | 'xtream_id'>[]
+): string {
+    return items
+        .filter((item) => item.type === 'movie' || item.type === 'series')
+        .map((item) => `${item.playlist_id}::${item.type}::${item.xtream_id}`)
+        .sort()
+        .join('|');
+}
+
 // ── Playback-position helpers (used by both hero + Continue Watching cards)
 // — kept as plain functions so they're easy to unit-test without mounting the
 // component or the data service.
@@ -431,9 +482,7 @@ export class WorkspaceDashboardRailsComponent {
     // we're rendering favorites, "Continue with live TV" when we're falling
     // back to recently-watched. Always honest about what the user is seeing.
     readonly liveRailTitleKey = computed(() =>
-        this.liveRailSource() === 'favorites'
-            ? 'WORKSPACE.DASHBOARD.LIVE_RECENT'
-            : 'WORKSPACE.DASHBOARD.LIVE_CONTINUE'
+        liveRailTitleKeyForSource(this.liveRailSource())
     );
 
     readonly liveRailTotalCount = computed(() =>
@@ -442,22 +491,17 @@ export class WorkspaceDashboardRailsComponent {
             : this.data.globalRecentLiveItems().length
     );
 
-    // Best-effort EPG lookup keyed by the channel's display name. This works
-    // for M3U sources whose XMLTV channel ids resolve through the existing
-    // `resolveChannelEpgLookupKey()` (tvg-id → tvg-name → name) chain.
+    // Best-effort EPG lookup keyed by the app-wide M3U XMLTV chain
+    // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
     // Xtream/Stalker live items often have no XMLTV side-channel and will
     // simply return null — the card renders without the program row.
-    private readonly liveChannelLookupKeys = computed(() => {
-        const seen = new Set<string>();
-        const keys: string[] = [];
-        for (const card of this.liveOnFavoritesCards()) {
-            const key = card.title.trim();
-            if (!key || seen.has(key)) continue;
-            seen.add(key);
-            keys.push(key);
-        }
-        return keys;
-    });
+    private readonly liveChannelLookupKeys = computed(() =>
+        buildLiveEpgLookupKeys(this.liveOnFavoritesCards())
+    );
+
+    private readonly playbackPositionReloadKey = computed(() =>
+        buildPlaybackPositionReloadKey(this.data.globalRecentVodItems())
+    );
 
     // Re-fetch on rail change AND on a 30s heartbeat so the progress bar
     // catches the boundary between programs without a full page revisit.
@@ -486,7 +530,7 @@ export class WorkspaceDashboardRailsComponent {
             // 30s ticks even if the program identity is unchanged.
             const now = Date.now();
             return this.liveOnFavoritesCards().map((card) => {
-                const program = epgMap.get(card.title.trim()) ?? null;
+                const program = getLiveEpgProgramForCard(card, epgMap);
                 if (!program) {
                     return card;
                 }
@@ -552,19 +596,11 @@ export class WorkspaceDashboardRailsComponent {
             void this.data.reloadXtreamRecentlyAddedItems(RAIL_ITEM_LIMIT);
         });
 
-        // Reload playback positions whenever the set of VOD/series recent
-        // items changes (new playlists with watch history, removed playlist,
-        // newly tracked content). Using just the count + the playlist ids as
-        // the dependency keeps unrelated tick churn out of the IPC path.
+        // Reload playback positions when the VOD/series recent set changes.
+        // The primitive key keeps live-only recent churn out of the IPC path.
         effect(() => {
-            const playlistKeys = new Set<string>();
-            for (const item of this.data.globalRecentVodItems()) {
-                playlistKeys.add(item.playlist_id);
-            }
-            void this.data.reloadPlaybackPositions();
-            // Sort so the effect dep is stable across re-renders for the
-            // same set; otherwise the computed identity flips every tick.
-            void [...playlistKeys].sort().join('|');
+            this.playbackPositionReloadKey();
+            untracked(() => void this.data.reloadPlaybackPositions());
         });
     }
 
@@ -634,6 +670,7 @@ export class WorkspaceDashboardRailsComponent {
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
+            epgLookupKey: item.epg_lookup_key,
             link: this.data.getRecentItemLink(item),
             state: this.data.getRecentItemNavigationState(item),
             watchProgress,
@@ -649,6 +686,7 @@ export class WorkspaceDashboardRailsComponent {
             imageUrl: item.poster_url,
             icon: this.typeIcon(item.type),
             contentType: item.type,
+            epgLookupKey: item.epg_lookup_key,
             link: this.data.getGlobalFavoriteLink(item),
             state: this.data.getGlobalFavoriteNavigationState(item),
         };

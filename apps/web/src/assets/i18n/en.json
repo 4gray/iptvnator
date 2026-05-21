@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "Sort categories",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Continue Watching",
-            "LIVE_RECENT": "Live now on your favorites",
-            "LIVE_CONTINUE": "Continue with live TV",
+            "LIVE_FAVORITES": "Live now on your favorites",
+            "LIVE_RECENT": "Continue with live TV",
             "UNTITLED_SOURCE": "Untitled source",
             "GLOBAL_FAVORITES": "Global Favorites",
             "REMOVE_FROM_HISTORY": "Remove from history",

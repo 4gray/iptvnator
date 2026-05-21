@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "Ταξινόμηση κατηγοριών",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
-            "LIVE_RECENT": "Ζωντανά τώρα στα αγαπημένα σας",
-            "LIVE_CONTINUE": "Συνέχιση με ζωντανή TV",
+            "LIVE_FAVORITES": "Ζωντανά τώρα στα αγαπημένα σας",
+            "LIVE_RECENT": "Συνέχιση με ζωντανή TV",
             "UNTITLED_SOURCE": "Πηγή χωρίς τίτλο",
             "GLOBAL_FAVORITES": "Βασικά Αγαπημένα",
             "REMOVE_FROM_HISTORY": "Αφαίρεση από το ιστορικό",

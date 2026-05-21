@@ -65,6 +65,28 @@ function playbackPositionMapKey(
     return `${playlistId}::${contentXtreamId}::${contentType}`;
 }
 
+function seriesPlaybackPositionMapKey(
+    playlistId: string,
+    seriesXtreamId: number
+): string {
+    return `${playlistId}::${seriesXtreamId}`;
+}
+
+function newestPlaybackPosition(
+    current: PlaybackPositionData | null | undefined,
+    candidate: PlaybackPositionData | null | undefined
+): PlaybackPositionData | null {
+    if (!current) {
+        return candidate ?? null;
+    }
+    if (!candidate) {
+        return current;
+    }
+    return (candidate.updatedAt ?? '') > (current.updatedAt ?? '')
+        ? candidate
+        : current;
+}
+
 /** @deprecated Use {@link PortalRecentItem} from `@iptvnator/shared/interfaces` instead. */
 export type GlobalRecentItem = PortalRecentItem;
 /** @deprecated Use {@link PortalFavoriteItem} from `@iptvnator/shared/interfaces` instead. */
@@ -239,6 +261,9 @@ export class DashboardDataService {
     private readonly playbackPositionsMap = signal<
         Map<string, PlaybackPositionData>
     >(new Map());
+    private readonly playbackPositionsBySeriesMap = signal<
+        Map<string, PlaybackPositionData>
+    >(new Map());
 
     readonly playbackPositions$ = this.playbackPositionsMap.asReadonly();
 
@@ -267,29 +292,17 @@ export class DashboardDataService {
 
         // Series recent_items rows carry either the series id (the series
         // landing page writes the series itself) or, for direct-play flows,
-        // the episode id. Match both shapes and prefer the most recently
-        // updated episode position so the card can show resume progress and
-        // a "S2 · E5" badge regardless of how the row was originally saved.
-        let best: PlaybackPositionData | null = null;
-        for (const position of this.playbackPositionsMap().values()) {
-            if (position.contentType !== 'episode') continue;
-            if (
-                position.playlistId &&
-                position.playlistId !== item.playlist_id
-            ) {
-                continue;
-            }
-            const matchesEpisode = position.contentXtreamId === xtreamId;
-            const matchesSeries = position.seriesXtreamId === xtreamId;
-            if (!matchesEpisode && !matchesSeries) continue;
-            if (
-                !best ||
-                (position.updatedAt ?? '') > (best.updatedAt ?? '')
-            ) {
-                best = position;
-            }
-        }
-        return best;
+        // the episode id. Match both shapes through keyed maps so card renders
+        // do not scan every saved playback position.
+        const episodePosition =
+            this.playbackPositionsMap().get(
+                playbackPositionMapKey(item.playlist_id, xtreamId, 'episode')
+            ) ?? null;
+        const seriesPosition =
+            this.playbackPositionsBySeriesMap().get(
+                seriesPlaybackPositionMapKey(item.playlist_id, xtreamId)
+            ) ?? null;
+        return newestPlaybackPosition(episodePosition, seriesPosition);
     }
 
     /**
@@ -307,10 +320,12 @@ export class DashboardDataService {
         }
         if (playlistIds.size === 0) {
             this.playbackPositionsMap.set(new Map());
+            this.playbackPositionsBySeriesMap.set(new Map());
             return;
         }
 
         const next = new Map<string, PlaybackPositionData>();
+        const nextBySeries = new Map<string, PlaybackPositionData>();
         for (const playlistId of playlistIds) {
             try {
                 const positions =
@@ -326,6 +341,22 @@ export class DashboardDataService {
                         ),
                         position
                     );
+                    if (
+                        position.contentType === 'episode' &&
+                        Number.isFinite(position.seriesXtreamId)
+                    ) {
+                        const seriesKey = seriesPlaybackPositionMapKey(
+                            playlistId,
+                            position.seriesXtreamId as number
+                        );
+                        nextBySeries.set(
+                            seriesKey,
+                            newestPlaybackPosition(
+                                nextBySeries.get(seriesKey),
+                                position
+                            ) as PlaybackPositionData
+                        );
+                    }
                 }
             } catch (err) {
                 console.warn(
@@ -336,7 +367,10 @@ export class DashboardDataService {
             }
         }
 
-        this.ngZone.run(() => this.playbackPositionsMap.set(next));
+        this.ngZone.run(() => {
+            this.playbackPositionsMap.set(next);
+            this.playbackPositionsBySeriesMap.set(nextBySeries);
+        });
     }
 
     readonly stalkerGlobalFavorites = computed<DashboardFavoriteItem[]>(() => {
@@ -1041,6 +1075,11 @@ export class DashboardDataService {
                     category_id: 'live',
                     xtream_id: matchedFavoriteId,
                     poster_url: channel.tvg?.logo || undefined,
+                    epg_lookup_key:
+                        channel.tvg?.id?.trim() ||
+                        channel.tvg?.name?.trim() ||
+                        channel.name?.trim() ||
+                        undefined,
                     source: 'm3u',
                 });
                 return acc;

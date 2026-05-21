@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "Categorieën sorteren",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Verder kijken",
-            "LIVE_RECENT": "Nu live op je favorieten",
-            "LIVE_CONTINUE": "Verder kijken met live tv",
+            "LIVE_FAVORITES": "Nu live op je favorieten",
+            "LIVE_RECENT": "Verder kijken met live tv",
             "UNTITLED_SOURCE": "Naamloze bron",
             "GLOBAL_FAVORITES": "Algemene favorieten",
             "REMOVE_FROM_HISTORY": "Verwijderen uit geschiedenis",

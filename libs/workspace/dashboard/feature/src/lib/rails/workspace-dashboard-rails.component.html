@@ -76,7 +76,7 @@
                     <h1 class="hero__title">{{ item.title }}</h1>
                     <p class="hero__subtitle">{{ item.subtitle }}</p>
 
-                    @if (item.watchProgress != null) {
+                    @if (item.watchProgress !== null && item.watchProgress !== undefined) {
                         <span class="hero__progress" aria-hidden="true">
                             <span
                                 class="hero__progress-bar"

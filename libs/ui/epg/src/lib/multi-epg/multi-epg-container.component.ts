@@ -54,6 +54,13 @@ interface ProgramSearchResult extends EpgProgram {
     display_name?: string | null;
 }
 
+export function isSelectedEpgDayToday(
+    selectedDay: string,
+    now: Date = new Date()
+): boolean {
+    return selectedDay === format(now, 'yyyyMMdd');
+}
+
 @Component({
     imports: [
         DatePipe,
@@ -250,6 +257,9 @@ export class MultiEpgContainerComponent
      */
     isProgramAiringNow(program: EnrichedProgram): boolean {
         const nowX = this.currentTimeLine();
+        if (!isSelectedEpgDayToday(this.today())) {
+            return false;
+        }
         return (
             nowX >= program.startPosition &&
             nowX <= program.startPosition + program.width

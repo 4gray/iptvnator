@@ -110,7 +110,8 @@
                                 <span
                                     class="rail__channel-progress"
                                     [class.rail__channel-progress--idle]="
-                                        card.nowPlayingProgress == null
+                                        card.nowPlayingProgress === null ||
+                                        card.nowPlayingProgress === undefined
                                     "
                                 >
                                     <i
@@ -173,7 +174,7 @@
                                     </div>
                                 }
 
-                                @if (card.watchProgress != null) {
+                                @if (card.watchProgress !== null && card.watchProgress !== undefined) {
                                     <span
                                         class="rail__art-progress"
                                         aria-hidden="true"

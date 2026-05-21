@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "Ordina categorie",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "Continua a guardare",
-            "LIVE_RECENT": "Live ora sui tuoi preferiti",
-            "LIVE_CONTINUE": "Continua con la TV live",
+            "LIVE_FAVORITES": "Live ora sui tuoi preferiti",
+            "LIVE_RECENT": "Continua con la TV live",
             "UNTITLED_SOURCE": "Sorgente senza titolo",
             "GLOBAL_FAVORITES": "Preferiti globali",
             "REMOVE_FROM_HISTORY": "Rimuovi dalla cronologia",

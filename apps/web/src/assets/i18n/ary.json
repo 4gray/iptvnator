@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "ترتيب التصنيفات",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "كمل المشاهدة",
-            "LIVE_RECENT": "مباشر دابا على المفضلة ديالك",
-            "LIVE_CONTINUE": "كمل مع المباشر",
+            "LIVE_FAVORITES": "مباشر دابا على المفضلة ديالك",
+            "LIVE_RECENT": "كمل مع المباشر",
             "UNTITLED_SOURCE": "مصدر بلا عنوان",
             "GLOBAL_FAVORITES": "المفضلة العامة",
             "REMOVE_FROM_HISTORY": "حيد من السجل",

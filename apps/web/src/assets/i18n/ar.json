@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "ترتيب الفئات",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "متابعة المشاهدة",
-            "LIVE_RECENT": "يُبث الآن على المفضلة لديك",
-            "LIVE_CONTINUE": "متابعة البث المباشر",
+            "LIVE_FAVORITES": "يُبث الآن على المفضلة لديك",
+            "LIVE_RECENT": "متابعة البث المباشر",
             "UNTITLED_SOURCE": "مصدر بدون عنوان",
             "GLOBAL_FAVORITES": "المفضلة العامة",
             "REMOVE_FROM_HISTORY": "إزالة من السجل",

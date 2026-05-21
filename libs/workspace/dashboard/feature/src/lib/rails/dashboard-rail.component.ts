@@ -35,6 +35,7 @@ export interface DashboardRailCard {
     link: string[];
     state?: Record<string, unknown>;
     actions?: DashboardRailAction[];
+    epgLookupKey?: string;
 
     /**
      * Optional EPG enrichment shown by the 'channel' rail layout. Populated

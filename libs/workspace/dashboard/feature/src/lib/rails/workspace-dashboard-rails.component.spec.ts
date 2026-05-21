@@ -1,12 +1,17 @@
 import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
+    buildLiveEpgLookupKeys,
+    buildPlaybackPositionReloadKey,
     buildDashboardSourceActions,
     calcEpgProgress,
     formatEpgTimeRange,
     formatRemainingLabel,
+    getLiveEpgProgramForCard,
+    liveRailTitleKeyForSource,
     playbackProgressPercent,
     resolveDashboardHeroArtwork,
 } from './workspace-dashboard-rails.component';
+import type { DashboardRailCard } from './dashboard-rail.component';
 
 describe('buildDashboardSourceActions', () => {
     const basePlaylist = {
@@ -198,6 +203,83 @@ describe('EPG enrichment helpers', () => {
                 )
             ).toBeNull();
         });
+    });
+});
+
+describe('Live rail helpers', () => {
+    const channelCard = (
+        overrides: Partial<DashboardRailCard> = {}
+    ): DashboardRailCard => ({
+        id: 'card-1',
+        title: 'Display Channel',
+        subtitle: 'M3U · Live',
+        icon: 'live_tv',
+        contentType: 'live',
+        link: ['/workspace', 'playlists', 'm3u-1'],
+        ...overrides,
+    });
+
+    it('uses explicit EPG lookup keys before falling back to card titles', () => {
+        expect(
+            buildLiveEpgLookupKeys([
+                channelCard({
+                    title: 'Das Erste HD',
+                    epgLookupKey: 'ard.de',
+                }),
+                channelCard({
+                    id: 'card-2',
+                    title: 'Das Erste HD',
+                    epgLookupKey: 'ard.de',
+                }),
+                channelCard({
+                    id: 'card-3',
+                    title: 'Fallback News',
+                }),
+            ])
+        ).toEqual(['ard.de', 'Fallback News']);
+    });
+
+    it('reads EPG programs by explicit lookup key instead of display title', () => {
+        const program = { title: 'Tagesschau' } as EpgProgram;
+        const wrongProgram = { title: 'Wrong channel' } as EpgProgram;
+        const card = channelCard({
+            title: 'Das Erste HD',
+            epgLookupKey: 'ard.de',
+        });
+
+        expect(
+            getLiveEpgProgramForCard(
+                card,
+                new Map<string, EpgProgram | null>([
+                    ['Das Erste HD', wrongProgram],
+                    ['ard.de', program],
+                ])
+            )
+        ).toBe(program);
+    });
+
+    it('uses honest, semantically named title keys for favorite and recent live rails', () => {
+        expect(liveRailTitleKeyForSource('favorites')).toBe(
+            'WORKSPACE.DASHBOARD.LIVE_FAVORITES'
+        );
+        expect(liveRailTitleKeyForSource('recent')).toBe(
+            'WORKSPACE.DASHBOARD.LIVE_RECENT'
+        );
+    });
+
+    it('builds a stable playback-position reload key from VOD and series items only', () => {
+        const first = buildPlaybackPositionReloadKey([
+            { playlist_id: 'b', xtream_id: 20, type: 'series' },
+            { playlist_id: 'live', xtream_id: 'stream-url', type: 'live' },
+            { playlist_id: 'a', xtream_id: 10, type: 'movie' },
+        ]);
+        const second = buildPlaybackPositionReloadKey([
+            { playlist_id: 'a', xtream_id: 10, type: 'movie' },
+            { playlist_id: 'b', xtream_id: 20, type: 'series' },
+        ]);
+
+        expect(first).toBe(second);
+        expect(first).toBe('a::movie::10|b::series::20');
     });
 });
 

@@ -851,8 +851,8 @@
         "CATEGORY_SORT_ARIA": "排序分类",
         "DASHBOARD": {
             "CONTINUE_WATCHING": "继续观看",
-            "LIVE_RECENT": "收藏频道正在播放",
-            "LIVE_CONTINUE": "继续观看直播",
+            "LIVE_FAVORITES": "收藏频道正在播放",
+            "LIVE_RECENT": "继续观看直播",
             "UNTITLED_SOURCE": "未命名源",
             "GLOBAL_FAVORITES": "全局收藏",
             "REMOVE_FROM_HISTORY": "从历史记录中移除",

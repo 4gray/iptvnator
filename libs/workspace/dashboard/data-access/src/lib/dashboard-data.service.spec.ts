@@ -242,6 +242,7 @@ describe('DashboardDataService', () => {
                     playlist_id: 'm3u-1',
                     source: 'm3u',
                     poster_url: 'https://example.com/logo-1.png',
+                    epg_lookup_key: 'tvg-1',
                 }),
                 expect.objectContaining({
                     id: 'https://example.com/stream-2.m3u8',
@@ -250,6 +251,7 @@ describe('DashboardDataService', () => {
                     playlist_id: 'm3u-1',
                     source: 'm3u',
                     poster_url: 'https://example.com/logo-2.png',
+                    epg_lookup_key: 'tvg-2',
                 }),
             ])
         );
@@ -436,6 +438,7 @@ describe('DashboardDataService', () => {
                     playlist_id: 'm3u-1',
                     source: 'm3u',
                     xtream_id: 'https://example.com/stream-1.m3u8',
+                    epg_lookup_key: 'tvg-1',
                 }),
             ])
         );
@@ -696,10 +699,27 @@ describe('DashboardDataService', () => {
         const series = service
             .globalRecentVodItems()
             .find((item) => item.title === 'Shadow Bay');
-        const position = service.getPlaybackPositionForItem(series!);
+        const positionsMap = service.playbackPositions$();
+        const failOnLinearScan = jest.fn(() => {
+            throw new Error('series lookup should not scan all positions');
+        });
+        (
+            positionsMap as unknown as {
+                values: () => IterableIterator<PlaybackPositionData>;
+            }
+        ).values =
+            failOnLinearScan as unknown as () => IterableIterator<PlaybackPositionData>;
+
+        expect(series).toBeDefined();
+        if (!series) {
+            throw new Error('expected Shadow Bay recent item');
+        }
+
+        const position = service.getPlaybackPositionForItem(series);
         expect(position?.contentType).toBe('episode');
         expect(position?.seasonNumber).toBe(3);
         expect(position?.episodeNumber).toBe(7);
+        expect(failOnLinearScan).not.toHaveBeenCalled();
     });
 
     it('exposes a live-only slice of global favorites so the dashboard can promote favorited channels into the Live rail', async () => {
