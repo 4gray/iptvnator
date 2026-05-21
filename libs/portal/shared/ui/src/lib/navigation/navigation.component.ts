@@ -12,6 +12,7 @@ import {
     PortalRailSection,
 } from '@iptvnator/portal/shared/util';
 import { selectPlaylistById } from '@iptvnator/m3u-state';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { PortalRailLinksComponent } from './portal-rail-links.component';
 
@@ -33,6 +34,7 @@ import { PortalRailLinksComponent } from './portal-rail-links.component';
 export class NavigationComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
     private readonly navigationActions = inject(PORTAL_NAVIGATION_ACTIONS);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly store = inject(Store);
 
     readonly portalStatus = input<
@@ -48,7 +50,7 @@ export class NavigationComponent {
         () => !!(this.currentPlaylist() as Playlist | undefined)?.macAddress
     );
 
-    readonly isElectron = !!window.electron;
+    readonly isElectron = this.runtime.isElectron;
 
     readonly railLinks = computed(() => {
         const playlistId =
