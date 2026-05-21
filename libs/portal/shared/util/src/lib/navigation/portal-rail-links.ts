@@ -46,17 +46,6 @@ export function buildPortalRailLinks(
         const primary: PortalRailLink[] = [];
         const secondary: PortalRailLink[] = [];
 
-        if (workspace && !isElectron) {
-            primary.push({
-                icon: 'movie',
-                tooltip: 'Xtream library (this playlist)',
-                path: root,
-                exact: true,
-                section: 'library',
-            });
-            return { primary, secondary };
-        }
-
         primary.push(
             {
                 icon: 'movie',

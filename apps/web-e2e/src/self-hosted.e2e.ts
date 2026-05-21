@@ -133,11 +133,37 @@ test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     page,
 }) => {
     const xtreamRequests = collectBackendRequests(page, '/xtream');
+    const consoleErrors: string[] = [];
+    page.on('console', (message) => {
+        if (message.type() === 'error') {
+            consoleErrors.push(message.text());
+        }
+    });
 
     await addXtreamPortal(page);
 
+    const rail = page.locator('app-workspace-shell-rail');
+    await expect(rail.locator('a[aria-label="Movies"]')).toBeVisible();
+    await expect(rail.locator('a[aria-label="Live TV"]')).toBeVisible();
+    await expect(rail.locator('a[aria-label="Series"]')).toBeVisible();
+    await expect(rail.locator('a[aria-label="Recently added"]')).toBeVisible();
+    await expect(rail.locator('a[aria-label="Advanced search"]')).toBeVisible();
+
     const categoryItems = page.locator('.category-item');
     await expect(categoryItems.first()).toBeVisible({ timeout: 15_000 });
+    const vodItem = page.locator('app-grid-list mat-card').first();
+    await expect(vodItem).toBeVisible({ timeout: 30_000 });
+    await vodItem.click();
+    await expect(page).toHaveURL(/\/workspace\/xtreams\/[^/]+\/vod\/\d+\/\d+/);
+    await expect(
+        page.getByRole('button', { name: 'Play', exact: true })
+    ).toBeVisible({ timeout: 15_000 });
+
+    expect(
+        consoleErrors.filter((message) =>
+            /db(SetAppState|GetContentByXtreamId)/.test(message)
+        )
+    ).toEqual([]);
     expectRequestsUseTargetId(xtreamRequests, '/xtream');
 });
 

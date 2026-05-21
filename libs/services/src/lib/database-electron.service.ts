@@ -157,11 +157,11 @@ export class DatabaseService {
     }
 
     supportsDbOperationEvents(): boolean {
-        return typeof window.electron.onDbOperationEvent === 'function';
+        return typeof window.electron?.onDbOperationEvent === 'function';
     }
 
     supportsDbOperationCancellation(): boolean {
-        return typeof window.electron.dbCancelOperation === 'function';
+        return typeof window.electron?.dbCancelOperation === 'function';
     }
 
     async cancelOperation(operationId: string): Promise<boolean> {
@@ -496,6 +496,10 @@ export class DatabaseService {
         playlistId: string,
         type: 'live' | 'movie' | 'series'
     ): Promise<boolean> {
+        if (typeof window.electron?.dbClearXtreamImportCache !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbClearXtreamImportCache(playlistId, type);
             return true;
@@ -506,6 +510,10 @@ export class DatabaseService {
     }
 
     async getAppState(key: string): Promise<string | null> {
+        if (typeof window.electron?.dbGetAppState !== 'function') {
+            return null;
+        }
+
         try {
             return await window.electron.dbGetAppState(key);
         } catch (error) {
@@ -515,6 +523,10 @@ export class DatabaseService {
     }
 
     async setAppState(key: string, value: string): Promise<boolean> {
+        if (typeof window.electron?.dbSetAppState !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbSetAppState(key, value);
             return true;
@@ -861,6 +873,10 @@ export class DatabaseService {
         playlistId: string,
         contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContent | null> {
+        if (typeof window.electron?.dbGetContentByXtreamId !== 'function') {
+            return null;
+        }
+
         try {
             return await window.electron.dbGetContentByXtreamId(
                 xtreamId,
