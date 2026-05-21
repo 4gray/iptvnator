@@ -330,7 +330,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             ...item,
             added: item.added ?? item.last_modified ?? '',
             category_id: item.category_id ?? '',
-            id: Number.isFinite(id) ? id : xtreamId,
+            id: Number.isFinite(id) && id > 0 ? id : xtreamId,
             name: item.name ?? title,
             poster_url: posterUrl,
             rating: String(item.rating ?? ''),
@@ -351,7 +351,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             item.series_id ??
             item.id;
         const numericId = Number(preferredId);
-        return Number.isFinite(numericId) ? numericId : 0;
+        return Number.isFinite(numericId) && numericId > 0 ? numericId : -1;
     }
 
     // =========================================================================
@@ -724,7 +724,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     private normalizeStoredId(value: unknown): number | null {
         const numericValue = Number(value);
-        return Number.isFinite(numericValue) ? numericValue : null;
+        return Number.isFinite(numericValue) && numericValue > 0
+            ? numericValue
+            : null;
     }
 
     private normalizeFavoriteStorage(value: unknown): Record<string, number[]> {

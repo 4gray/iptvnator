@@ -48,6 +48,7 @@ describe('PwaXtreamDataSource', () => {
                     case 'live':
                         return Promise.resolve([
                             {
+                                id: '0',
                                 stream_id: 101,
                                 name: 'News Live',
                                 stream_icon: 'live.png',
@@ -58,6 +59,7 @@ describe('PwaXtreamDataSource', () => {
                     case 'movie':
                         return Promise.resolve([
                             {
+                                id: 0,
                                 stream_id: 202,
                                 name: 'Movie One',
                                 stream_icon: 'movie.png',
@@ -183,5 +185,74 @@ describe('PwaXtreamDataSource', () => {
                 xtream_id: 202,
             }),
         ]);
+    });
+
+    it('does not persist zero or invalid Xtream identities as user collections', async () => {
+        apiService.getStreams.mockResolvedValue([
+            {
+                id: 0,
+                name: 'Headless Zero',
+                category_id: '20',
+            },
+            {
+                id: 'not-a-number',
+                name: 'Headless Invalid',
+                category_id: '20',
+            },
+        ]);
+
+        const content = (await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        )) as Array<Record<string, unknown>>;
+
+        expect(content).toEqual([
+            expect.objectContaining({
+                id: -1,
+                xtream_id: -1,
+            }),
+            expect.objectContaining({
+                id: -1,
+                xtream_id: -1,
+            }),
+        ]);
+
+        await dataSource.addFavorite(-1, 'playlist-1');
+        await dataSource.addRecentItem(-1, 'playlist-1');
+
+        expect(localStorage.getItem('xtream-favorites')).toBeNull();
+        expect(localStorage.getItem('xtream-recent-items')).toBeNull();
+
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ 'playlist-1': [-1, 0, 'not-a-number'] })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                'playlist-1': [
+                    {
+                        id: -1,
+                        viewedAt: '2026-05-21T12:00:00.000Z',
+                    },
+                    {
+                        id: 0,
+                        viewedAt: '2026-05-21T12:00:00.000Z',
+                    },
+                    {
+                        id: 'not-a-number',
+                        viewedAt: '2026-05-21T12:00:00.000Z',
+                    },
+                ],
+            })
+        );
+
+        await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual(
+            []
+        );
+        await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual(
+            []
+        );
     });
 });
