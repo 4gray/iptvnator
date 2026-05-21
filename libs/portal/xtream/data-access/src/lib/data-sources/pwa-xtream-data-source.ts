@@ -36,6 +36,7 @@ const STORAGE_KEYS = {
 
 interface XtreamCachedContentItem {
     readonly added?: string;
+    readonly backdrop_url?: string | null;
     readonly category_id?: string | number;
     readonly cover?: string;
     readonly cover_big?: string;
@@ -59,6 +60,7 @@ interface XtreamCachedContentItem {
 interface StoredRecentItem {
     readonly id: number;
     readonly viewedAt: string;
+    readonly backdropUrl?: string;
 }
 
 /**
@@ -70,6 +72,7 @@ interface StoredRecentItem {
 export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly apiService = inject(XtreamApiService);
     private readonly logger = createLogger('PwaXtreamDataSource');
+    private readonly contentTypes = ['live', 'movie', 'series'] as const;
 
     // In-memory cache for the current session
     private categoryCache = new Map<string, XtreamCategory[]>();
@@ -391,10 +394,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
         const allFavorites = this.getFavoritesFromStorage();
         const playlistFavorites = allFavorites[playlistId] || [];
+        await this.hydrateStoredCollectionContent(
+            playlistId,
+            playlistFavorites
+        );
 
         // Match favorites with cached content
         const results: XtreamCachedContentItem[] = [];
-        for (const type of ['live', 'movie', 'series']) {
+        for (const type of this.contentTypes) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
@@ -614,10 +621,14 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getRecentItems(playlistId: string): Promise<XtreamContentItem[]> {
         const allRecent = this.getRecentItemsFromStorage();
         const playlistRecent = allRecent[playlistId] || [];
+        await this.hydrateStoredCollectionContent(
+            playlistId,
+            playlistRecent.map((item) => item.id)
+        );
 
         // Match recent items with cached content
         const results: (XtreamCachedContentItem & { viewed_at: string })[] = [];
-        for (const type of ['live', 'movie', 'series']) {
+        for (const type of this.contentTypes) {
             const cacheKey = `${playlistId}-${type}-content`;
             const content = this.contentCache.get(cacheKey) || [];
 
@@ -627,6 +638,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                 if (recentEntry) {
                     results.push({
                         ...item,
+                        backdrop_url:
+                            recentEntry.backdropUrl ?? item.backdrop_url,
                         viewed_at: recentEntry.viewedAt,
                     });
                 }
@@ -648,11 +661,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         _backdropUrl?: string
     ): Promise<void> {
-        void _backdropUrl;
         const normalizedContentId = this.normalizeStoredId(contentId);
         if (normalizedContentId == null) {
             return;
         }
+        const normalizedBackdropUrl = _backdropUrl?.trim();
 
         const allRecent = this.getRecentItemsFromStorage();
         if (!allRecent[playlistId]) {
@@ -668,6 +681,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         allRecent[playlistId].unshift({
             id: normalizedContentId,
             viewedAt: new Date().toISOString(),
+            ...(normalizedBackdropUrl
+                ? { backdropUrl: normalizedBackdropUrl }
+                : {}),
         });
 
         // Keep only last 50 items
@@ -768,6 +784,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                         const rawItem = item as {
                             readonly id?: unknown;
                             readonly viewedAt?: unknown;
+                            readonly backdropUrl?: unknown;
+                            readonly backdrop_url?: unknown;
                         };
                         const id = this.normalizeStoredId(rawItem.id);
                         if (
@@ -780,12 +798,66 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
                         return {
                             id,
                             viewedAt: rawItem.viewedAt,
+                            ...this.normalizeStoredBackdrop(rawItem),
                         };
                     })
                     .filter((item): item is StoredRecentItem => item !== null);
             }
         );
         return normalized;
+    }
+
+    private normalizeStoredBackdrop(item: {
+        readonly backdropUrl?: unknown;
+        readonly backdrop_url?: unknown;
+    }): Pick<StoredRecentItem, 'backdropUrl'> | Record<string, never> {
+        const value = item.backdropUrl ?? item.backdrop_url;
+        if (typeof value !== 'string') {
+            return {};
+        }
+
+        const backdropUrl = value.trim();
+        return backdropUrl ? { backdropUrl } : {};
+    }
+
+    private async hydrateStoredCollectionContent(
+        playlistId: string,
+        ids: readonly number[]
+    ): Promise<void> {
+        if (ids.length === 0) {
+            return;
+        }
+
+        const missingTypes = this.contentTypes.filter(
+            (type) => !this.contentCache.has(`${playlistId}-${type}-content`)
+        );
+        if (missingTypes.length === 0) {
+            return;
+        }
+
+        const playlist = await this.getPlaylist(playlistId);
+        if (!playlist) {
+            return;
+        }
+
+        const credentials: XtreamCredentials = {
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            password: playlist.password,
+        };
+
+        await Promise.all(
+            missingTypes.map(async (type) => {
+                try {
+                    await this.getContent(playlistId, credentials, type);
+                } catch (error) {
+                    this.logger.warn(
+                        'Failed to hydrate stored PWA Xtream collection content',
+                        { playlistId, type, error }
+                    );
+                }
+            })
+        );
     }
 
     // =========================================================================
@@ -816,6 +888,61 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         return null;
+    }
+
+    async setContentBackdropIfMissing(
+        contentId: number,
+        playlistId: string,
+        backdropUrl: string
+    ): Promise<void> {
+        const normalizedContentId = this.normalizeStoredId(contentId);
+        const normalizedBackdropUrl = backdropUrl.trim();
+        if (normalizedContentId == null || !normalizedBackdropUrl) {
+            return;
+        }
+
+        for (const type of this.contentTypes) {
+            const cacheKey = `${playlistId}-${type}-content`;
+            const content = this.contentCache.get(cacheKey);
+            if (!content) {
+                continue;
+            }
+
+            this.contentCache.set(
+                cacheKey,
+                content.map((item) => {
+                    const itemId = this.getItemIdentity(item, type);
+                    if (itemId !== normalizedContentId || item.backdrop_url) {
+                        return item;
+                    }
+
+                    return {
+                        ...item,
+                        backdrop_url: normalizedBackdropUrl,
+                    };
+                })
+            );
+        }
+
+        const allRecent = this.getRecentItemsFromStorage();
+        const playlistRecent = allRecent[playlistId];
+        if (!playlistRecent) {
+            return;
+        }
+
+        this.saveRecentItemsToStorage({
+            ...allRecent,
+            [playlistId]: playlistRecent.map((item) => {
+                if (item.id !== normalizedContentId || item.backdropUrl) {
+                    return item;
+                }
+
+                return {
+                    ...item,
+                    backdropUrl: normalizedBackdropUrl,
+                };
+            }),
+        });
     }
 
     private findContentIdentity(

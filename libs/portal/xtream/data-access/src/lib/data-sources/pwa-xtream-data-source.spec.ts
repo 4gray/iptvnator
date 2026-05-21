@@ -255,4 +255,104 @@ describe('PwaXtreamDataSource', () => {
             []
         );
     });
+
+    it('hydrates stored favorites and recent items from the API when content cache is cold', async () => {
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream PWA',
+            serverUrl: credentials.serverUrl,
+            username: credentials.username,
+            password: credentials.password,
+            type: 'xtream',
+        });
+        apiService.getStreams.mockImplementation(
+            (_credentials: XtreamCredentials, type: string) =>
+                Promise.resolve(
+                    type === 'movie'
+                        ? [
+                              {
+                                  stream_id: 202,
+                                  name: 'Movie One',
+                                  stream_icon: 'movie.png',
+                                  category_id: '20',
+                              },
+                          ]
+                        : []
+                )
+        );
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ 'playlist-1': [202] })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                'playlist-1': [
+                    {
+                        id: 202,
+                        viewedAt: '2026-05-21T12:00:00.000Z',
+                    },
+                ],
+            })
+        );
+
+        await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+        await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                title: 'Movie One',
+                viewed_at: '2026-05-21T12:00:00.000Z',
+                xtream_id: 202,
+            }),
+        ]);
+        expect(apiService.getStreams).toHaveBeenCalledWith(
+            credentials,
+            'movie'
+        );
+    });
+
+    it('backfills PWA recent-item backdrop metadata without rewriting recency', async () => {
+        apiService.getStreams.mockResolvedValue([
+            {
+                stream_id: 202,
+                name: 'Movie One',
+                stream_icon: 'movie.png',
+                category_id: '20',
+            },
+        ]);
+
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+        await dataSource.addRecentItem(202, 'playlist-1');
+        const before = JSON.parse(
+            localStorage.getItem('xtream-recent-items') || '{}'
+        )['playlist-1'][0].viewedAt;
+
+        await dataSource.setContentBackdropIfMissing(
+            202,
+            'playlist-1',
+            ' https://example.com/backdrop.png '
+        );
+
+        const stored = JSON.parse(
+            localStorage.getItem('xtream-recent-items') || '{}'
+        )['playlist-1'][0];
+        expect(stored).toEqual(
+            expect.objectContaining({
+                id: 202,
+                backdropUrl: 'https://example.com/backdrop.png',
+                viewedAt: before,
+            })
+        );
+        await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                backdrop_url: 'https://example.com/backdrop.png',
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+    });
 });

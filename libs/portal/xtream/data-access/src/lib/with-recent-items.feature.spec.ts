@@ -21,6 +21,7 @@ describe('withRecentItems', () => {
     const originalElectron = window.electron;
     let store: InstanceType<typeof TestRecentItemsStore>;
     let databaseService: {
+        clearGlobalRecentlyViewed: jest.Mock;
         clearPlaylistRecentItems: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
@@ -33,6 +34,11 @@ describe('withRecentItems', () => {
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
+        setContentBackdropIfMissing: jest.Mock;
+    };
+    let playlistsService: {
+        clearPlaylistRecentlyViewed: jest.Mock;
+        getAllPlaylists: jest.Mock;
     };
 
     beforeEach(() => {
@@ -42,6 +48,7 @@ describe('withRecentItems', () => {
         });
 
         databaseService = {
+            clearGlobalRecentlyViewed: jest.fn().mockResolvedValue(undefined),
             clearPlaylistRecentItems: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn(),
             getRecentItems: jest.fn().mockResolvedValue([
@@ -76,6 +83,13 @@ describe('withRecentItems', () => {
                 },
             ]),
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
+            setContentBackdropIfMissing: jest.fn().mockResolvedValue(undefined),
+        };
+        playlistsService = {
+            clearPlaylistRecentlyViewed: jest
+                .fn()
+                .mockReturnValue(of(undefined)),
+            getAllPlaylists: jest.fn().mockReturnValue(of([])),
         };
 
         TestBed.configureTestingModule({
@@ -91,12 +105,7 @@ describe('withRecentItems', () => {
                 },
                 {
                     provide: PlaylistsService,
-                    useValue: {
-                        clearPlaylistRecentlyViewed: jest
-                            .fn()
-                            .mockReturnValue(of(undefined)),
-                        getAllPlaylists: jest.fn().mockReturnValue(of([])),
-                    },
+                    useValue: playlistsService,
                 },
             ],
         });
@@ -220,7 +229,7 @@ describe('withRecentItems', () => {
     });
 
     it('backfills a backdrop without rewriting recent ordering', async () => {
-        databaseService.getContentByXtreamId.mockResolvedValue({
+        dataSource.getContentByXtreamId.mockResolvedValue({
             id: 3941697,
             title: 'Krypton',
             type: 'series',
@@ -234,18 +243,21 @@ describe('withRecentItems', () => {
             backdropUrl: ' https://example.com/krypton-backdrop.png ',
         });
 
-        expect(databaseService.getContentByXtreamId).toHaveBeenCalledWith(
+        expect(dataSource.getContentByXtreamId).toHaveBeenCalledWith(
             290,
             'playlist-1',
             'series'
         );
-        expect(
-            databaseService.setContentBackdropIfMissing
-        ).toHaveBeenCalledWith(
+        expect(dataSource.setContentBackdropIfMissing).toHaveBeenCalledWith(
             3941697,
+            'playlist-1',
             'https://example.com/krypton-backdrop.png'
         );
         expect(dataSource.addRecentItem).not.toHaveBeenCalled();
+        expect(databaseService.getContentByXtreamId).not.toHaveBeenCalled();
+        expect(
+            databaseService.setContentBackdropIfMissing
+        ).not.toHaveBeenCalled();
     });
 
     it('clears recent items through the active data source in PWA', async () => {
@@ -259,6 +271,46 @@ describe('withRecentItems', () => {
 
         expect(dataSource.clearRecentItems).toHaveBeenCalledWith('playlist-1');
         expect(databaseService.clearPlaylistRecentItems).not.toHaveBeenCalled();
+        expect(store.recentItems()).toEqual([]);
+    });
+
+    it('clears Xtream recent items during global PWA clear', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    serverUrl: 'https://xtream.example.com',
+                },
+                {
+                    _id: 'm3u-1',
+                },
+                {
+                    _id: 'stalker-1',
+                    serverUrl: 'https://stalker.example.com',
+                    macAddress: '00:11:22:33:44:55',
+                },
+            ])
+        );
+
+        await store.clearGlobalRecentlyViewed();
+
+        expect(
+            databaseService.clearGlobalRecentlyViewed
+        ).not.toHaveBeenCalled();
+        expect(dataSource.clearRecentItems).toHaveBeenCalledWith('xtream-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).toHaveBeenCalledWith('m3u-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).toHaveBeenCalledWith('stalker-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).not.toHaveBeenCalledWith('xtream-1');
         expect(store.recentItems()).toEqual([]);
     });
 

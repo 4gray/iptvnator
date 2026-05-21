@@ -197,12 +197,12 @@ export class UnifiedRecentDataService {
         )) as Playlist[];
 
         await Promise.all(
-            playlists
-                .filter(
-                    (playlist) =>
-                        Boolean(playlist.macAddress) || !playlist.serverUrl
-                )
-                .map(async (playlist) => {
+            playlists.map(async (playlist) => {
+                if (!window.electron && this.isXtreamPlaylist(playlist)) {
+                    await this.xtreamDataSource.clearRecentItems(playlist._id);
+                }
+
+                if (this.isPlaylistBackedRecentPlaylist(playlist)) {
                     const updatedPlaylist = await firstValueFrom(
                         this.playlistsService.clearPlaylistRecentlyViewed(
                             playlist._id
@@ -212,7 +212,8 @@ export class UnifiedRecentDataService {
                         playlist._id,
                         updatedPlaylist
                     );
-                })
+                }
+            })
         );
     }
 
@@ -694,5 +695,17 @@ export class UnifiedRecentDataService {
         playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
     ): boolean {
         return !playlist.serverUrl && !playlist.macAddress;
+    }
+
+    private isXtreamPlaylist(
+        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
+    ): boolean {
+        return Boolean(playlist.serverUrl) && !playlist.macAddress;
+    }
+
+    private isPlaylistBackedRecentPlaylist(
+        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
+    ): boolean {
+        return Boolean(playlist.macAddress) || this.isM3uPlaylist(playlist);
     }
 }

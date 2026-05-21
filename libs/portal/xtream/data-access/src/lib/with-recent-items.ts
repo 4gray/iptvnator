@@ -148,10 +148,6 @@ export const withRecentItems = function () {
                     playlist: Signal<{ id: string }>;
                     backdropUrl?: string;
                 }): Promise<void> {
-                    if (!window.electron) {
-                        return;
-                    }
-
                     const playlistId = playlist().id;
                     const normalizedXtreamId = Number(xtreamId);
                     const normalizedBackdropUrl = backdropUrl?.trim();
@@ -164,7 +160,7 @@ export const withRecentItems = function () {
                         return;
                     }
 
-                    const content = await dbService.getContentByXtreamId(
+                    const content = await dataSource.getContentByXtreamId(
                         normalizedXtreamId,
                         playlistId,
                         contentType
@@ -173,8 +169,9 @@ export const withRecentItems = function () {
                         return;
                     }
 
-                    await dbService.setContentBackdropIfMissing(
+                    await dataSource.setContentBackdropIfMissing(
                         content.id,
+                        playlistId,
                         normalizedBackdropUrl
                     );
                 },
@@ -276,24 +273,35 @@ export const withRecentItems = function () {
                 },
                 async clearGlobalRecentlyViewed() {
                     try {
-                        await dbService.clearGlobalRecentlyViewed();
+                        if (window.electron) {
+                            await dbService.clearGlobalRecentlyViewed();
+                        }
                         const playlists = (await firstValueFrom(
                             playlistsService.getAllPlaylists()
                         )) as Playlist[];
                         await Promise.all(
-                            playlists
-                                .filter(
-                                    (playlist) =>
-                                        Boolean(playlist.macAddress) ||
-                                        !playlist.serverUrl
-                                )
-                                .map((playlist) =>
-                                    firstValueFrom(
+                            playlists.map(async (playlist) => {
+                                if (
+                                    !window.electron &&
+                                    playlist.serverUrl &&
+                                    !playlist.macAddress
+                                ) {
+                                    await dataSource.clearRecentItems(
+                                        playlist._id
+                                    );
+                                }
+
+                                if (
+                                    Boolean(playlist.macAddress) ||
+                                    !playlist.serverUrl
+                                ) {
+                                    await firstValueFrom(
                                         playlistsService.clearPlaylistRecentlyViewed(
                                             playlist._id
                                         )
-                                    )
-                                )
+                                    );
+                                }
+                            })
                         );
                         patchState(store, { recentItems: [] });
                     } catch (error) {

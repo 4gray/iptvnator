@@ -36,6 +36,7 @@ describe('UnifiedRecentDataService', () => {
     };
     let xtreamDataSource: {
         addRecentItem: jest.Mock;
+        clearRecentItems: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getRecentItems: jest.Mock;
         removeRecentItem: jest.Mock;
@@ -149,6 +150,7 @@ describe('UnifiedRecentDataService', () => {
         };
         xtreamDataSource = {
             addRecentItem: jest.fn().mockResolvedValue(undefined),
+            clearRecentItems: jest.fn().mockResolvedValue(undefined),
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getRecentItems: jest.fn().mockResolvedValue([]),
             removeRecentItem: jest.fn().mockResolvedValue(undefined),
@@ -394,6 +396,48 @@ describe('UnifiedRecentDataService', () => {
                 viewedAt: '2026-05-21T12:00:00.000Z',
             }),
         ]);
+    });
+
+    it('clears Xtream recent localStorage during global PWA clear', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        playlistsService.getAllPlaylists.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://xtream.example.com',
+                },
+                {
+                    _id: 'm3u-1',
+                    title: 'M3U List',
+                },
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    serverUrl: 'https://stalker.example.com',
+                    macAddress: '00:11:22:33:44:55',
+                },
+            ] satisfies Partial<Playlist>[])
+        );
+
+        await service.clearRecentItems('all');
+
+        expect(dbService.clearGlobalRecentlyViewed).not.toHaveBeenCalled();
+        expect(xtreamDataSource.clearRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).toHaveBeenCalledWith('m3u-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).toHaveBeenCalledWith('stalker-1');
+        expect(
+            playlistsService.clearPlaylistRecentlyViewed
+        ).not.toHaveBeenCalledWith('xtream-1');
     });
 
     it('keeps Stalker radio recent items in the live collection with radio metadata', async () => {

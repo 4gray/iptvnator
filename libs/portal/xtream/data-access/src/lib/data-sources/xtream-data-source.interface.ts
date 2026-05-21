@@ -359,6 +359,16 @@ export interface IXtreamDataSource {
         contentType?: 'live' | 'movie' | 'series'
     ): Promise<XtreamContentItem | null>;
 
+    /**
+     * Persist a backdrop URL for an already-known content item without changing
+     * favorites or recent ordering.
+     */
+    setContentBackdropIfMissing(
+        contentId: number,
+        playlistId: string,
+        backdropUrl: string
+    ): Promise<void>;
+
     // =========================================================================
     // Playback Position Operations
     // =========================================================================
