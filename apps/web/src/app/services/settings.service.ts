@@ -147,8 +147,8 @@ export class SettingsService {
      * @param key key to get
      * @returns returns the value of the given key
      */
-    getValueFromLocalStorage(key: STORE_KEY) {
-        return this.storage.get(key);
+    getValueFromLocalStorage<T = unknown>(key: STORE_KEY): Observable<T> {
+        return this.storage.get(key) as Observable<T>;
     }
 
     /**

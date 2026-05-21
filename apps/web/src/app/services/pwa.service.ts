@@ -5,7 +5,14 @@ import { SwUpdate } from '@angular/service-worker';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { catchError, firstValueFrom, from, switchMap, throwError } from 'rxjs';
+import {
+    catchError,
+    firstValueFrom,
+    from,
+    Observable,
+    switchMap,
+    throwError,
+} from 'rxjs';
 import { DataService } from '@iptvnator/services';
 import {
     ERROR,
@@ -108,12 +115,12 @@ export class PwaService extends DataService {
      */
     sendIpcEvent<T = unknown>(type: string, payload?: unknown): T {
         if (type === PLAYLIST_PARSE_BY_URL) {
-            this.fetchFromUrl(payload);
+            this.fetchFromUrl(payload as Partial<Playlist>);
             return undefined as T;
         }
 
         if (type === PLAYLIST_UPDATE) {
-            this.refreshPlaylist(payload);
+            this.refreshPlaylist(payload as Partial<Playlist & { id: string }>);
             return undefined as T;
         }
 
@@ -138,6 +145,10 @@ export class PwaService extends DataService {
     }
 
     refreshPlaylist(payload: Partial<Playlist & { id: string }>) {
+        if (!payload.url || !payload.id) {
+            return;
+        }
+
         this.getPlaylistFromUrl(payload.url)
             .pipe(
                 catchError((error) => {
@@ -163,7 +174,7 @@ export class PwaService extends DataService {
                     this.translateService.instant(
                         'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
                     ),
-                    null,
+                    undefined,
                     { duration: 2000 }
                 );
             });
@@ -193,13 +204,19 @@ export class PwaService extends DataService {
      * @param payload playlist payload
      */
     fetchFromUrl(payload: Partial<Playlist>): void {
+        if (!payload.url) {
+            return;
+        }
+
         const title = payload.title?.trim() || undefined;
 
         this.getPlaylistFromUrl(payload.url)
             .pipe(
                 catchError((error) => {
                     this.snackBar.open(
-                        this.getErrorMessageByStatusCode(error.status),
+                        this.getErrorMessageByStatusCode(
+                            this.extractHttpStatusCode(error)
+                        ),
                         'Close',
                         {
                             duration: 5000,
@@ -226,7 +243,7 @@ export class PwaService extends DataService {
             });
     }
 
-    getErrorMessageByStatusCode(status: number) {
+    getErrorMessageByStatusCode(status: number | null | undefined) {
         let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
         switch (status) {
             case 413:
@@ -524,10 +541,10 @@ export class PwaService extends DataService {
         }
     }
 
-    getPlaylistFromUrl(url: string) {
+    getPlaylistFromUrl(url: string): Observable<Playlist> {
         return from(this.getProviderTargetId(url)).pipe(
             switchMap((targetId) =>
-                this.http.get(`${this.corsProxyUrl}/parse`, {
+                this.http.get<Playlist>(`${this.corsProxyUrl}/parse`, {
                     params: { targetId },
                 })
             )
