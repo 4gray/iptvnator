@@ -29,3 +29,21 @@ test('basic test', async ({ page }) => {
     await expect(page.getByText('1. Channel 1')).toBeVisible();
     await expect(page.getByText('4. HappyKids TV')).toBeVisible();
 });
+
+test('keyboard shortcuts help opens from question mark', async ({ page }) => {
+    await page.goto('/');
+
+    await page.getByRole('button', { name: 'Open keyboard shortcuts' }).focus();
+    await page.keyboard.press('?');
+
+    const dialog = page.getByRole('dialog');
+    await expect(
+        dialog.getByRole('heading', { name: 'Keyboard shortcuts' })
+    ).toBeVisible();
+    await expect(dialog.getByText('Open command palette')).toBeVisible();
+    await expect(dialog.getByText('Toggle sidebar')).toBeVisible();
+    await expect(dialog.getByText('Mute audio')).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(dialog).toBeHidden();
+});

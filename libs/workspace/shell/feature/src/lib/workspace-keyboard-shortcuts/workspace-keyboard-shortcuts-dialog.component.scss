@@ -1,0 +1,342 @@
+:host {
+    display: block;
+    app-region: no-drag;
+}
+
+.shortcuts-dialog {
+    --shortcut-surface: var(--app-widget-bg, #1e2330);
+    --shortcut-surface-raised: var(--app-widget-header-bg, #232840);
+    --shortcut-text: var(--app-heading-color, #d8dce8);
+    --shortcut-muted: var(--app-body-color, #8b93a8);
+    --shortcut-border: var(--app-separator, rgba(255, 255, 255, 0.14));
+    --shortcut-accent: var(--app-selection-color, #78adff);
+    --shortcut-panel-bg: color-mix(
+        in srgb,
+        var(--shortcut-surface) 86%,
+        var(--shortcut-surface-raised) 14%
+    );
+    --shortcut-panel-hover: color-mix(
+        in srgb,
+        var(--shortcut-accent) 10%,
+        var(--shortcut-surface-raised) 90%
+    );
+    --shortcut-key-bg: color-mix(
+        in srgb,
+        var(--shortcut-surface-raised) 88%,
+        white 12%
+    );
+    --shortcut-key-shadow: color-mix(in srgb, black 24%, transparent);
+
+    color: var(--shortcut-text);
+    background:
+        linear-gradient(
+            145deg,
+            color-mix(
+                in srgb,
+                var(--shortcut-accent) 8%,
+                var(--shortcut-surface) 92%
+            ),
+            var(--shortcut-surface) 42%
+        ),
+        var(--shortcut-surface);
+    border: 1px solid var(--shortcut-border);
+    border-radius: 16px;
+    box-shadow: 0 22px 70px color-mix(in srgb, black 34%, transparent);
+    overflow: hidden;
+}
+
+.shortcuts-dialog__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+    padding: 20px 22px 16px;
+    border-bottom: 1px solid var(--shortcut-border);
+}
+
+.shortcuts-dialog__title-block {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    gap: 14px;
+}
+
+.shortcuts-dialog__hero-icon {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    width: 46px;
+    height: 46px;
+    color: var(--shortcut-accent);
+    background: color-mix(in srgb, var(--shortcut-accent) 14%, transparent);
+    border: 1px solid
+        color-mix(in srgb, var(--shortcut-accent) 28%, transparent);
+    border-radius: 8px;
+
+    mat-icon {
+        width: 24px;
+        height: 24px;
+        font-size: 24px;
+    }
+}
+
+.shortcuts-dialog__header h2 {
+    margin: 0;
+    padding: 0;
+    font-size: 1.08rem;
+    font-weight: 700;
+    line-height: 1.25;
+}
+
+.shortcuts-dialog__header p {
+    margin: 5px 0 0;
+    color: var(--shortcut-muted);
+    font-size: 0.86rem;
+    line-height: 1.4;
+}
+
+.shortcuts-dialog__header-actions {
+    display: flex;
+    flex: 0 0 auto;
+    align-items: center;
+    gap: 8px;
+}
+
+.shortcuts-dialog__platform {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    min-height: 32px;
+    padding: 0 10px;
+    color: var(--shortcut-muted);
+    background: color-mix(
+        in srgb,
+        var(--shortcut-surface-raised) 82%,
+        var(--shortcut-surface) 18%
+    );
+    border: 1px solid var(--shortcut-border);
+    border-radius: 8px;
+    font-size: 0.76rem;
+    font-weight: 650;
+    line-height: 1;
+    white-space: nowrap;
+
+    mat-icon {
+        width: 17px;
+        height: 17px;
+        font-size: 17px;
+    }
+}
+
+.shortcuts-dialog__close {
+    flex: 0 0 auto;
+}
+
+.shortcuts-dialog__content {
+    max-height: min(68vh, 670px);
+    padding: 12px;
+}
+
+.shortcuts-dialog__groups {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.shortcuts-dialog__group {
+    min-width: 0;
+    background: var(--shortcut-panel-bg);
+    border: 1px solid var(--shortcut-border);
+    border-radius: 8px;
+    overflow: hidden;
+}
+
+.shortcuts-dialog__group-header {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    min-height: 38px;
+    padding: 8px 12px;
+    border-bottom: 1px solid
+        color-mix(in srgb, var(--shortcut-border) 72%, transparent);
+}
+
+.shortcuts-dialog__group-icon,
+.shortcuts-dialog__action-icon {
+    display: inline-grid;
+    flex: 0 0 auto;
+    place-items: center;
+    border-radius: 7px;
+}
+
+.shortcuts-dialog__group-icon {
+    width: 28px;
+    height: 28px;
+    color: var(--shortcut-accent);
+    background: color-mix(in srgb, var(--shortcut-accent) 12%, transparent);
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.shortcuts-dialog__group h3 {
+    margin: 0;
+    color: var(--shortcut-text);
+    font-size: 0.74rem;
+    font-weight: 750;
+    line-height: 1.2;
+    text-transform: uppercase;
+}
+
+.shortcuts-dialog__rows {
+    display: grid;
+    gap: 1px;
+}
+
+.shortcuts-dialog__row {
+    display: grid;
+    grid-template-columns: 28px minmax(0, 1fr) max-content;
+    gap: 10px;
+    align-items: center;
+    min-height: 42px;
+    padding: 7px 10px;
+    font-size: 0.88rem;
+    line-height: 1.35;
+    transition:
+        background-color 140ms ease,
+        transform 140ms ease;
+
+    &:hover {
+        background: var(--shortcut-panel-hover);
+    }
+}
+
+.shortcuts-dialog__action-icon {
+    width: 28px;
+    height: 28px;
+    color: var(--shortcut-muted);
+    background: color-mix(
+        in srgb,
+        var(--shortcut-surface-raised) 78%,
+        var(--shortcut-surface) 22%
+    );
+
+    mat-icon {
+        width: 17px;
+        height: 17px;
+        font-size: 17px;
+    }
+}
+
+.shortcuts-dialog__label {
+    min-width: 0;
+    color: var(--shortcut-text);
+    font-size: 0.85rem;
+}
+
+.shortcuts-dialog__chords {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 6px 8px;
+    min-width: 0;
+}
+
+.shortcuts-dialog__chord {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.shortcuts-dialog__joiner {
+    color: var(--shortcut-muted);
+    font-size: 0.68rem;
+    font-weight: 700;
+}
+
+.shortcuts-dialog__chord kbd {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 28px;
+    min-height: 27px;
+    padding: 2px 8px 3px;
+    color: var(--shortcut-text);
+    background: var(--shortcut-key-bg);
+    border: 1px solid var(--shortcut-border);
+    border-radius: 6px;
+    box-shadow:
+        inset 0 -2px 0 var(--shortcut-key-shadow),
+        0 1px 0 color-mix(in srgb, white 28%, transparent);
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    font-weight: 750;
+    line-height: 1;
+    white-space: nowrap;
+}
+
+.shortcuts-dialog__chord kbd.shortcuts-dialog__keycap--modifier {
+    min-width: 38px;
+    color: var(--shortcut-accent);
+    border-color: color-mix(
+        in srgb,
+        var(--shortcut-accent) 34%,
+        var(--shortcut-border)
+    );
+}
+
+.shortcuts-dialog__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    padding: 9px 14px 14px;
+    border-top: 1px solid var(--shortcut-border);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+    .shortcuts-dialog {
+        animation: shortcuts-dialog-enter 160ms ease-out;
+    }
+}
+
+@media (max-width: 640px) {
+    .shortcuts-dialog__header {
+        align-items: flex-start;
+        flex-direction: column;
+        padding: 16px 16px 12px;
+    }
+
+    .shortcuts-dialog__header-actions {
+        justify-content: space-between;
+        width: 100%;
+    }
+
+    .shortcuts-dialog__groups {
+        grid-template-columns: 1fr;
+    }
+
+    .shortcuts-dialog__row {
+        grid-template-columns: 28px minmax(0, 1fr);
+        gap: 8px 10px;
+    }
+
+    .shortcuts-dialog__chords {
+        grid-column: 2;
+        justify-content: flex-start;
+    }
+}
+
+@keyframes shortcuts-dialog-enter {
+    from {
+        opacity: 0;
+        transform: translateY(8px) scale(0.985);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+    }
+}

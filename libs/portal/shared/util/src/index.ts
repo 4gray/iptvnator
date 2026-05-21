@@ -17,6 +17,7 @@ export * from './lib/live-epg-panel-state';
 export * from './lib/live-sidebar-state';
 export * from './lib/live-layout-sidebar-state.service';
 export * from './lib/keyboard';
+export * from './lib/keyboard-shortcuts';
 export * from './lib/remote-channel-navigation';
 export * from './lib/workspace-header-context.service';
 export * from './lib/workspace-view-command.types';
