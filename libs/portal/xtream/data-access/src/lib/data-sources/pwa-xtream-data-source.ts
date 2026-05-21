@@ -467,14 +467,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getFavorites(playlistId: string): Promise<XtreamContentItem[]> {
         const allFavorites = this.getFavoritesFromStorage();
         const playlistFavorites = allFavorites[playlistId] || [];
-        await this.hydrateStoredCollectionContent(
+        const contentById = await this.getCollectionItemsWithHydration(
             playlistId,
             playlistFavorites
         );
 
-        return Array.from(
-            this.getCollectionItemsById(playlistId, playlistFavorites).values()
-        );
+        return Array.from(contentById.values());
     }
 
     async addFavorite(
@@ -684,12 +682,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     async getRecentItems(playlistId: string): Promise<XtreamContentItem[]> {
         const allRecent = this.getRecentItemsFromStorage();
         const playlistRecent = allRecent[playlistId] || [];
-        await this.hydrateStoredCollectionContent(
-            playlistId,
-            playlistRecent.map((item) => item.id)
-        );
-
-        const contentById = this.getCollectionItemsById(
+        const contentById = await this.getCollectionItemsWithHydration(
             playlistId,
             playlistRecent.map((item) => item.id)
         );
@@ -997,6 +990,20 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         }
 
         return results;
+    }
+
+    private async getCollectionItemsWithHydration(
+        playlistId: string,
+        ids: readonly number[]
+    ): Promise<Map<number, XtreamContentItem>> {
+        const contentById = this.getCollectionItemsById(playlistId, ids);
+        const missingIds = ids.filter((id) => !contentById.has(id));
+        if (missingIds.length === 0) {
+            return contentById;
+        }
+
+        await this.hydrateStoredCollectionContent(playlistId, missingIds);
+        return this.getCollectionItemsById(playlistId, ids);
     }
 
     private findCachedContentItemById(
