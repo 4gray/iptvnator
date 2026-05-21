@@ -4,14 +4,24 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslateModule } from '@ngx-translate/core';
 import { MockModule } from 'ng-mocks';
-import { PortalStatusService } from '@iptvnator/services';
+import {
+    PortalStatusService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { PlaylistItemComponent } from './playlist-item.component';
 
 describe('PlaylistItemComponent', () => {
     let component: PlaylistItemComponent;
     let fixture: ComponentFixture<PlaylistItemComponent>;
+    let runtime: {
+        isElectron: boolean;
+    };
 
     beforeEach(waitForAsync(() => {
+        runtime = {
+            isElectron: true,
+        };
+
         TestBed.configureTestingModule({
             imports: [
                 PlaylistItemComponent,
@@ -30,6 +40,10 @@ describe('PlaylistItemComponent', () => {
                         getStatusClass: jest.fn(() => 'status-active'),
                         getStatusIcon: jest.fn(() => 'check_circle'),
                     },
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtime,
                 },
             ],
         }).compileComponents();
@@ -94,21 +108,70 @@ describe('PlaylistItemComponent', () => {
         expect(nativeElement.querySelector('.refresh-btn')).not.toBeNull();
     });
 
+    it('renders the Xtream refresh action only when Electron capabilities are available', () => {
+        fixture.destroy();
+        runtime.isElectron = true;
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'Xtream Source',
+            _id: 'xtream-source',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            serverUrl: 'https://example.com',
+            username: 'demo',
+            password: 'secret',
+        };
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.refresh-btn'
+            )
+        ).not.toBeNull();
+
+        fixture.destroy();
+        runtime.isElectron = false;
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'Xtream Source',
+            _id: 'xtream-source',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            serverUrl: 'https://example.com',
+            username: 'demo',
+            password: 'secret',
+        };
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.refresh-btn'
+            )
+        ).toBeNull();
+    });
+
     it('renders cancel and progress UI for long-running playlist actions', () => {
         fixture.componentRef.setInput('isDeleting', true);
-        fixture.componentRef.setInput('busyMessage', 'Removing cached content...');
+        fixture.componentRef.setInput(
+            'busyMessage',
+            'Removing cached content...'
+        );
         fixture.componentRef.setInput('busyProgress', 42);
         fixture.componentRef.setInput('canCancelBusyAction', true);
         fixture.detectChanges();
 
         const nativeElement = fixture.nativeElement as HTMLElement;
 
-        expect(nativeElement.querySelector('.busy-state__message')?.textContent).toContain(
-            'Removing cached content...'
-        );
-        expect(nativeElement.querySelector('.busy-state__value')?.textContent).toContain(
-            '42%'
-        );
+        expect(
+            nativeElement.querySelector('.busy-state__message')?.textContent
+        ).toContain('Removing cached content...');
+        expect(
+            nativeElement.querySelector('.busy-state__value')?.textContent
+        ).toContain('42%');
         expect(nativeElement.querySelector('.cancel-btn')).not.toBeNull();
     });
 });

@@ -292,7 +292,7 @@ export class RecentPlaylistsComponent {
         if (item.serverUrl) {
             // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
-        } else if (window.electron && (item.url || item.filePath)) {
+        } else if (this.isElectron && (item.url || item.filePath)) {
             void this.refreshM3uPlaylist(item);
         } else {
             // For M3U playlists, use existing refresh logic

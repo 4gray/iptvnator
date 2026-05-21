@@ -47,6 +47,13 @@ export class RuntimeCapabilitiesService {
         return this.hasElectronMethod('prepareEmbeddedMpv');
     }
 
+    get supportsDesktopFileSave(): boolean {
+        return (
+            this.hasElectronMethod('saveFileDialog') &&
+            this.hasElectronMethod('writeFile')
+        );
+    }
+
     get supportsRemoteControl(): boolean {
         return (
             this.hasElectronMethod('updateRemoteControlStatus') &&

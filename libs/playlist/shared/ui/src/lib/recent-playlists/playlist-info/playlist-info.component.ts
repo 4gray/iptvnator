@@ -19,7 +19,11 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Component({
@@ -80,9 +84,10 @@ export class PlaylistInfoComponent {
     private databaseService = inject(DatabaseService);
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
+    private runtime = inject(RuntimeCapabilitiesService);
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
 
-    readonly isDesktop = !!window.electron;
+    readonly isDesktop = this.runtime.isElectron;
 
     /** Playlist object */
     playlist: Playlist & { id: string };
@@ -202,7 +207,7 @@ export class PlaylistInfoComponent {
             this.playlistsService.getRawPlaylistById(this.playlist._id)
         );
 
-        if (this.isDesktop) {
+        if (this.runtime.supportsDesktopFileSave && window.electron) {
             try {
                 const savePath = await window.electron.saveFileDialog(
                     `${this.playlist.title || 'exported'}.m3u8`,
@@ -224,6 +229,8 @@ export class PlaylistInfoComponent {
                         { duration: 3000 }
                     );
                 }
+
+                return;
             } catch (error) {
                 console.error('Failed to export playlist:', error);
                 this.snackBar.open(
@@ -235,23 +242,28 @@ export class PlaylistInfoComponent {
                         duration: 3000,
                     }
                 );
+                return;
             }
-        } else {
-            const element = document.createElement('a');
-            element.setAttribute(
-                'href',
-                'data:text/plain;charset=utf-8,' +
-                    encodeURIComponent(playlistAsString)
-            );
-            element.setAttribute(
-                'download',
-                this.playlist.title || 'exported.m3u'
-            );
-            element.style.display = 'none';
-            document.body.appendChild(element);
-            element.click();
-            document.body.removeChild(element);
         }
+
+        this.downloadPlaylistFile(playlistAsString);
+    }
+
+    private downloadPlaylistFile(playlistAsString: string): void {
+        const element = document.createElement('a');
+        element.setAttribute(
+            'href',
+            'data:text/plain;charset=utf-8,' +
+                encodeURIComponent(playlistAsString)
+        );
+        element.setAttribute(
+            'download',
+            this.playlist.title || 'exported.m3u'
+        );
+        element.style.display = 'none';
+        document.body.appendChild(element);
+        element.click();
+        document.body.removeChild(element);
     }
 
     /**
