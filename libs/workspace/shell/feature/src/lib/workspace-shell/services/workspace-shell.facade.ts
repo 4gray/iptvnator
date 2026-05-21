@@ -12,11 +12,11 @@ import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { filter, firstValueFrom, startWith } from 'rxjs';
-import { PlaylistInfoComponent } from '@iptvnator/playlist/shared/ui';
 import {
-    PlaylistContextFacade,
+    PlaylistInfoComponent,
     PlaylistRefreshActionService,
-} from '@iptvnator/playlist/shared/util';
+} from '@iptvnator/playlist/shared/ui';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     buildPortalRailLinks,
     PORTAL_EXTERNAL_PLAYBACK,
@@ -33,7 +33,11 @@ import {
     WorkspaceSearchCapability,
     WorkspaceStartupPreferencesService,
 } from '@iptvnator/workspace/shell/util';
-import { DownloadsService, PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    DownloadsService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {

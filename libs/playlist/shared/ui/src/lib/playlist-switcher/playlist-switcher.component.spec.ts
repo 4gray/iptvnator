@@ -12,16 +12,14 @@ import { Store } from '@ngrx/store';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import {
-    PlaylistContextFacade,
-    PlaylistRefreshActionService,
-} from '@iptvnator/playlist/shared/util';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     PlaylistDeleteActionService,
     PortalStatusService,
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistSwitcherComponent } from './playlist-switcher.component';
 
 const SEARCH_QUERY_STORAGE_KEY = 'playlist-switcher:search-query';

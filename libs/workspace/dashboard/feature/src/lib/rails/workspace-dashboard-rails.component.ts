@@ -21,8 +21,8 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     EmptyStateComponent,
     PlaylistInfoComponent,
+    PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/ui';
-import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/util';
 import {
     WORKSPACE_SHELL_ACTIONS,
     WorkspacePlaylistType,
