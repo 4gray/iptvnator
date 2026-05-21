@@ -398,6 +398,35 @@ describe('UnifiedRecentDataService', () => {
         ]);
     });
 
+    it('does not load Stalker portals through the PWA Xtream global recent path', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://xtream.example.com',
+                },
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    serverUrl: 'https://stalker.example.com',
+                    macAddress: '00:11:22:33:44:55',
+                },
+            ] satisfies Partial<PlaylistMeta>[])
+        );
+
+        await service.getRecentItems('all');
+
+        expect(xtreamDataSource.getRecentItems).toHaveBeenCalledTimes(1);
+        expect(xtreamDataSource.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+    });
+
     it('clears Xtream recent localStorage during global PWA clear', async () => {
         Object.defineProperty(window, 'electron', {
             value: undefined,

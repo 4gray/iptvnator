@@ -286,6 +286,34 @@ describe('UnifiedFavoritesDataService', () => {
         ]);
     });
 
+    it('does not load Stalker portals through the PWA Xtream global favorites path', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://xtream.example.com',
+                },
+                {
+                    _id: 'stalker-1',
+                    title: 'Stalker Portal',
+                    serverUrl: 'https://stalker.example.com',
+                    macAddress: '00:11:22:33:44:55',
+                    favorites: stalkerFavorites,
+                },
+            ] satisfies Partial<PlaylistMeta>[])
+        );
+
+        await service.getFavorites('all');
+
+        expect(xtreamDataSource.getFavorites).toHaveBeenCalledTimes(1);
+        expect(xtreamDataSource.getFavorites).toHaveBeenCalledWith('xtream-1');
+    });
+
     it('preserves persisted M3U favorites order when extracting playlist favorites', async () => {
         playlistsService.getPlaylistById.mockReturnValue(
             of({

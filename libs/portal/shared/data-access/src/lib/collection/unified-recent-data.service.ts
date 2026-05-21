@@ -354,7 +354,7 @@ export class UnifiedRecentDataService {
             const allMeta = await this.getAllMeta();
             const results: UnifiedCollectionItem[] = [];
             for (const meta of allMeta.filter(
-                (playlist) => playlist._id && playlist.serverUrl
+                (playlist) => playlist._id && this.isXtreamPlaylist(playlist)
             )) {
                 results.push(...(await this.getXtreamPlaylistRecent(meta._id)));
             }

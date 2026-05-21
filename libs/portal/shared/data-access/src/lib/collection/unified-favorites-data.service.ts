@@ -517,7 +517,9 @@ export class UnifiedFavoritesDataService {
         if (!window.electron) {
             const allMeta = await this.getAllMeta();
             const results: UnifiedCollectionItem[] = [];
-            for (const meta of allMeta.filter((p) => p._id && p.serverUrl)) {
+            for (const meta of allMeta.filter(
+                (p) => p._id && this.isXtreamPlaylist(p)
+            )) {
                 results.push(
                     ...(await this.getXtreamPlaylistFavorites(meta._id))
                 );
@@ -822,6 +824,12 @@ export class UnifiedFavoritesDataService {
 
             return groups;
         }, new Map<string, UnifiedCollectionItem[]>());
+    }
+
+    private isXtreamPlaylist(
+        playlist: Pick<PlaylistMeta, 'serverUrl' | 'macAddress'>
+    ): boolean {
+        return Boolean(playlist.serverUrl) && !playlist.macAddress;
     }
 
     private getStalkerFavoriteId(
