@@ -97,7 +97,9 @@ export class RecentPlaylistsComponent {
     readonly playlistClicked = output<string>();
     readonly addPlaylistClicked = output<PlaylistType | undefined>();
 
-    readonly isElectron = this.runtime.isElectron;
+    get isElectron(): boolean {
+        return this.runtime.isElectron;
+    }
 
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
@@ -292,7 +294,7 @@ export class RecentPlaylistsComponent {
         if (item.serverUrl) {
             // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
-        } else if (window.electron && (item.url || item.filePath)) {
+        } else if (this.runtime.isElectron && (item.url || item.filePath)) {
             void this.refreshM3uPlaylist(item);
         } else {
             // For M3U playlists, use existing refresh logic

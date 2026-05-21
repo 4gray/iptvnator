@@ -10,6 +10,7 @@ import {
     isDbAbortError,
     PlaybackPositionService,
     PlaylistRefreshService,
+    RuntimeCapabilitiesService,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
@@ -34,6 +35,7 @@ export class PlaylistRefreshActionService {
     private readonly databaseService = inject(DatabaseService);
     private readonly playbackPositionService = inject(PlaybackPositionService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
@@ -46,7 +48,7 @@ export class PlaylistRefreshActionService {
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
     canRefresh(playlist: PlaylistMeta | null): boolean {
-        if (!playlist || !window.electron) {
+        if (!playlist || !this.runtime.isElectron) {
             return false;
         }
 

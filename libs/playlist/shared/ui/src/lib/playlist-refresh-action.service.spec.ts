@@ -10,6 +10,7 @@ import {
     DbOperationEvent,
     PlaybackPositionService,
     PlaylistRefreshService,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
@@ -75,6 +76,9 @@ describe('PlaylistRefreshActionService', () => {
     let playbackPositionService: {
         getAllPlaybackPositions: jest.Mock;
     };
+    let runtime: {
+        isElectron: boolean;
+    };
     let routeProvider: ReturnType<
         typeof signal<'playlists' | 'xtreams' | null>
     >;
@@ -126,6 +130,9 @@ describe('PlaylistRefreshActionService', () => {
         playbackPositionService = {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
         };
+        runtime = {
+            isElectron: true,
+        };
         routeProvider = signal<'playlists' | 'xtreams' | null>('xtreams');
         resolvedPlaylistId = signal<string | null>(null);
 
@@ -167,6 +174,10 @@ describe('PlaylistRefreshActionService', () => {
                     useValue: playbackPositionService,
                 },
                 {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtime,
+                },
+                {
                     provide: PlaylistContextFacade,
                     useValue: {
                         routeProvider,
@@ -185,7 +196,7 @@ describe('PlaylistRefreshActionService', () => {
     });
 
     it('treats file-backed M3U playlists as refreshable in Electron', () => {
-        window.electron = { platform: 'darwin' } as typeof window.electron;
+        runtime.isElectron = true;
 
         expect(
             service.canRefresh(
@@ -200,7 +211,7 @@ describe('PlaylistRefreshActionService', () => {
     });
 
     it('does not expose filesystem refresh outside Electron', () => {
-        window.electron = undefined as unknown as typeof window.electron;
+        runtime.isElectron = false;
 
         expect(
             service.canRefresh(

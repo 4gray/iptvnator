@@ -20,6 +20,8 @@ import {
     DbOperationEvent,
     PlaybackPositionService,
     PlaylistDeleteActionService,
+    PlaylistRefreshService,
+    RuntimeCapabilitiesService,
     SortBy,
     SortOrder,
     SortService,
@@ -81,6 +83,11 @@ describe('RecentPlaylistsComponent busy state', () => {
     let playlistDeleteAction: {
         deletePlaylist: jest.Mock;
     };
+    let playlistRefreshService: {
+        cancelRefresh: jest.Mock;
+        refreshPlaylist: jest.Mock;
+    };
+    let runtimeIsElectron: boolean;
     let router: {
         navigate: jest.Mock;
     };
@@ -114,6 +121,14 @@ describe('RecentPlaylistsComponent busy state', () => {
         playlistDeleteAction = {
             deletePlaylist: jest.fn().mockResolvedValue(true),
         };
+        playlistRefreshService = {
+            cancelRefresh: jest.fn().mockResolvedValue(undefined),
+            refreshPlaylist: jest.fn().mockResolvedValue({
+                id: 'playlist-1',
+                items: [],
+            }),
+        };
+        runtimeIsElectron = true;
         router = {
             navigate: jest.fn(),
         };
@@ -155,6 +170,18 @@ describe('RecentPlaylistsComponent busy state', () => {
                 {
                     provide: PlaylistDeleteActionService,
                     useValue: playlistDeleteAction,
+                },
+                {
+                    provide: PlaylistRefreshService,
+                    useValue: playlistRefreshService,
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        get isElectron() {
+                            return runtimeIsElectron;
+                        },
+                    },
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -452,12 +479,7 @@ describe('RecentPlaylistsComponent busy state', () => {
     });
 
     it('uses the legacy IPC refresh flow for non-Xtream playlists', () => {
-        window.electron = undefined as unknown as typeof window.electron;
-        (
-            component as unknown as {
-                isElectron: boolean;
-            }
-        ).isElectron = false;
+        runtimeIsElectron = false;
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-1',
             serverUrl: undefined,
@@ -473,5 +495,38 @@ describe('RecentPlaylistsComponent busy state', () => {
             title: item.title,
             filePath: item.filePath,
         });
+    });
+
+    it('re-evaluates Electron availability when refreshing local M3U playlists', async () => {
+        runtimeIsElectron = false;
+        const lateComponent = TestBed.createComponent(
+            RecentPlaylistsComponent
+        ).componentInstance;
+        runtimeIsElectron = true;
+        const item = createPlaylistMeta({
+            _id: 'playlist-m3u-2',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            filePath: '/tmp/test.m3u',
+        });
+
+        lateComponent.refreshPlaylist(item);
+
+        expect(playlistRefreshService.refreshPlaylist).toHaveBeenCalledWith(
+            {
+                operationId: 'playlist-refresh-op',
+                playlistId: item._id,
+                title: item.title,
+                url: item.url,
+                filePath: item.filePath,
+            },
+            {
+                onEvent: expect.any(Function),
+            }
+        );
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+
+        await Promise.resolve();
     });
 });

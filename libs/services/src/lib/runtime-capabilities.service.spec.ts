@@ -23,6 +23,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
+        expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
     });
 
@@ -34,6 +35,8 @@ describe('RuntimeCapabilitiesService', () => {
             dbSetAppState: jest.fn(),
             downloadsGetList: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
+            saveFileDialog: jest.fn(),
+            writeFile: jest.fn(),
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(),
             onRemoteControlCommand: jest.fn(),
@@ -49,6 +52,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsDownloads).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
         expect(service.supportsEmbeddedMpv).toBe(true);
+        expect(service.supportsDesktopFileSave).toBe(true);
         expect(service.supportsRemoteControl).toBe(true);
     });
 
@@ -64,6 +68,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
+        expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
     });
 
