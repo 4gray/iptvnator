@@ -27,10 +27,7 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import {
-    PlaylistContextFacade,
-    PlaylistRefreshActionService,
-} from '@iptvnator/playlist/shared/util';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PlaylistDeleteActionService,
     PortalStatus,
@@ -38,6 +35,7 @@ import {
 } from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { startWith } from 'rxjs';
+import { PlaylistRefreshActionService } from '../playlist-refresh-action.service';
 import { PlaylistInfoComponent } from '../recent-playlists/playlist-info/playlist-info.component';
 
 type PlaylistFilterType = 'm3u' | 'stalker' | 'xtream';
