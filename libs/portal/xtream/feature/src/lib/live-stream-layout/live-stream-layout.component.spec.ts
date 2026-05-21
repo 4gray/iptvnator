@@ -292,6 +292,27 @@ describe('LiveStreamLayoutComponent', () => {
         expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
+    it('hides the EPG panel in browser/PWA playback', () => {
+        fixture.destroy();
+        window.electron = undefined as unknown as typeof window.electron;
+
+        fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        component = fixture.componentInstance;
+
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-web-player-view')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-live-epg-panel')
+        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+    });
+
     it('restores the collapsed live EPG panel state for embedded playback', () => {
         fixture.destroy();
         localStorage.setItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY, 'collapsed');

@@ -69,7 +69,7 @@
             </div>
         }
 
-        @if (!isRadioSelection()) {
+        @if (!isRadioSelection() && supportsEpg) {
             <div
                 class="epg"
                 [class.epg-collapsed]="

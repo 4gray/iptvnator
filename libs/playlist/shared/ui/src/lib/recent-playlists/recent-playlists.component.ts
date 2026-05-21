@@ -20,14 +20,13 @@ import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
-import type { WorkspacePlaylistType } from '@iptvnator/workspace/shell/util';
 import {
     PlaylistActions,
     selectActiveTypeFilters,
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { BehaviorSubject, combineLatest, map } from 'rxjs';
+import { BehaviorSubject, combineLatest, firstValueFrom, map } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
@@ -36,6 +35,7 @@ import {
     isDbAbortError,
     PlaybackPositionService,
     PlaylistRefreshService,
+    PlaylistsService,
     SortBy,
     SortService,
     XtreamPendingRestoreService,
@@ -47,6 +47,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 
 import { EmptyStateComponent } from './empty-state/empty-state.component';
+import type { PlaylistType } from '../add-playlist-menu/playlist-type';
 import { PlaylistInfoComponent } from './playlist-info/playlist-info.component';
 import { PlaylistItemComponent } from './playlist-item/playlist-item.component';
 
@@ -84,6 +85,7 @@ export class RecentPlaylistsComponent {
     private readonly store = inject(Store);
     private readonly translate = inject(TranslateService);
     private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly playlistsService = inject(PlaylistsService);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
     );
@@ -91,7 +93,7 @@ export class RecentPlaylistsComponent {
     readonly sidebarMode = input(false);
     readonly searchQueryInput = input<string>('');
     readonly playlistClicked = output<string>();
-    readonly addPlaylistClicked = output<WorkspacePlaylistType | undefined>();
+    readonly addPlaylistClicked = output<PlaylistType | undefined>();
 
     readonly isElectron = !!window.electron;
 
@@ -203,7 +205,7 @@ export class RecentPlaylistsComponent {
         );
     }
 
-    onAddPlaylist(type?: WorkspacePlaylistType) {
+    onAddPlaylist(type?: PlaylistType) {
         this.addPlaylistClicked.emit(type);
     }
 
@@ -248,21 +250,10 @@ export class RecentPlaylistsComponent {
         }
 
         this.setPendingDeletion(item._id, true);
-        const operationId = item.serverUrl
-            ? this.databaseService.createOperationId('playlist-delete')
-            : undefined;
-
         try {
-            const deleted = await this.databaseService.deletePlaylist(
-                item._id,
-                operationId
-                    ? {
-                          operationId,
-                          onEvent: (event) =>
-                              this.updateBusyOperation(item._id, event),
-                      }
-                    : undefined
-            );
+            const deleted = this.isElectron
+                ? await this.deletePlaylistInElectron(item)
+                : await this.deletePlaylistInBrowser(item);
             if (deleted) {
                 this.store.dispatch(
                     PlaylistActions.removePlaylist({ playlistId: item._id })
@@ -281,6 +272,30 @@ export class RecentPlaylistsComponent {
             this.clearBusyOperation(item._id);
             this.setPendingDeletion(item._id, false);
         }
+    }
+
+    private async deletePlaylistInElectron(item: PlaylistMeta) {
+        const operationId = item.serverUrl
+            ? this.databaseService.createOperationId('playlist-delete')
+            : undefined;
+
+        return this.databaseService.deletePlaylist(
+            item._id,
+            operationId
+                ? {
+                      operationId,
+                      onEvent: (event) =>
+                          this.updateBusyOperation(item._id, event),
+                  }
+                : undefined
+        );
+    }
+
+    private async deletePlaylistInBrowser(item: PlaylistMeta) {
+        const result = await firstValueFrom(
+            this.playlistsService.deletePlaylist(item._id)
+        );
+        return result.success;
     }
 
     /**

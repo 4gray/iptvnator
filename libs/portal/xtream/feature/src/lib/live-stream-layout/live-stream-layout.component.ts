@@ -120,6 +120,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly selectedCategoryId = this.xtreamStore.selectedCategoryId;
     readonly liveChannelSortMode = signal<PortalChannelSortMode>('server');
     readonly isElectron = Boolean(window.electron);
+    readonly supportsEpg = this.isElectron;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.route);
     private readonly routeSearchTerm = queryParamSignal(
         this.route,

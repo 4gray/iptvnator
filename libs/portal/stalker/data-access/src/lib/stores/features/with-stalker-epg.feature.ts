@@ -8,7 +8,11 @@ import {
 } from '@ngrx/signals';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { DataService } from '@iptvnator/services';
-import { EpgItem, EpgProgram, StalkerPortalActions } from '@iptvnator/shared/interfaces';
+import {
+    EpgItem,
+    EpgProgram,
+    StalkerPortalActions,
+} from '@iptvnator/shared/interfaces';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { StalkerEpgFeatureStoreContract } from '../stalker-store.contracts';
@@ -102,6 +106,9 @@ export function withStalkerEpg() {
                     dataService,
                     stalkerSession,
                 };
+                const supportsEpg = (): boolean =>
+                    typeof dataService.getAppEnvironment !== 'function' ||
+                    dataService.getAppEnvironment() !== 'pwa';
 
                 const requestEpg = async (
                     playlist: NonNullable<
@@ -122,6 +129,10 @@ export function withStalkerEpg() {
                     channelId: number | string,
                     size: number
                 ): Promise<EpgItem[]> => {
+                    if (!supportsEpg()) {
+                        return [];
+                    }
+
                     const playlist = storeContext.currentPlaylist();
                     if (!playlist) {
                         return [];
@@ -175,6 +186,17 @@ export function withStalkerEpg() {
                         }
 
                         const playlistId = String(playlist._id);
+                        if (!supportsEpg()) {
+                            patchState(store, {
+                                bulkItvEpgByChannel: {},
+                                bulkItvEpgLoaded: true,
+                                bulkItvEpgPeriodHours: periodHours,
+                                bulkItvEpgPlaylistId: playlistId,
+                                isLoadingBulkItvEpg: false,
+                            });
+                            return;
+                        }
+
                         const shouldReuseCache =
                             store.bulkItvEpgLoaded() &&
                             store.bulkItvEpgPlaylistId() === playlistId &&

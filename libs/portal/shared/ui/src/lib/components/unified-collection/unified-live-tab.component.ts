@@ -97,6 +97,7 @@ export class UnifiedLiveTabComponent {
     private readonly destroyRef = inject(DestroyRef);
 
     readonly player = this.settingsStore.player;
+    readonly supportsEpg = Boolean(window.electron);
     readonly isEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
@@ -186,7 +187,11 @@ export class UnifiedLiveTabComponent {
     constructor() {
         effect(() => {
             const items = this.items();
-            void this.loadEpgMap(items);
+            if (this.supportsEpg) {
+                void this.loadEpgMap(items);
+            } else {
+                this.epgMap.set(new Map());
+            }
 
             const activeUid = this.activeUid();
             if (activeUid && !items.some((item) => item.uid === activeUid)) {
@@ -326,7 +331,9 @@ export class UnifiedLiveTabComponent {
                 startPlayback &&
                 this.shouldOpenExternalPlayback(activeDetail, true)
             ) {
-                void this.portalPlayer.openResolvedPlayback(activeDetail.playback);
+                void this.portalPlayer.openResolvedPlayback(
+                    activeDetail.playback
+                );
             }
             if (isAutoOpen) {
                 this.autoOpenHandled.emit();
@@ -350,7 +357,7 @@ export class UnifiedLiveTabComponent {
 
             this.activeDetail.set(detail);
 
-            if (detail.epgMode === 'm3u') {
+            if (this.supportsEpg && detail.epgMode === 'm3u') {
                 void this.hydrateSelectedM3uPrograms(item, detail, requestId);
             }
 

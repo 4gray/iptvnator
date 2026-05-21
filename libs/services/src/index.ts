@@ -2,6 +2,7 @@ export * from './lib/data.service';
 export * from './lib/database-electron.service';
 export * from './lib/downloads.service';
 export * from './lib/playback-position.service';
+export * from './lib/playlist-delete-cleanup.token';
 export * from './lib/playlist-backup.service';
 export * from './lib/playlist-refresh.service';
 export * from './lib/playlists.service';

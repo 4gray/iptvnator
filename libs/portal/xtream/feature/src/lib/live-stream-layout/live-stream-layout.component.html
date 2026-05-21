@@ -105,38 +105,42 @@
                 />
             </div>
         }
-        <div
-            class="epg"
-            [class.epg-collapsed]="
-                isEmbeddedPlayer && isLiveEpgPanelCollapsed()
-            "
-        >
-            @if (isEmbeddedPlayer) {
-                <app-live-epg-panel
-                    [collapsed]="isLiveEpgPanelCollapsed()"
-                    [summary]="liveEpgPanelSummary()"
-                    [loading]="isLoadingEpg()"
-                    [showDateNavigator]="true"
-                    [selectedDate]="selectedLiveEpgDate()"
-                    (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
-                    (dateNavigation)="onLiveEpgDateNavigation($event)"
-                >
+        @if (supportsEpg) {
+            <div
+                class="epg"
+                [class.epg-collapsed]="
+                    isEmbeddedPlayer && isLiveEpgPanelCollapsed()
+                "
+            >
+                @if (isEmbeddedPlayer) {
+                    <app-live-epg-panel
+                        [collapsed]="isLiveEpgPanelCollapsed()"
+                        [summary]="liveEpgPanelSummary()"
+                        [loading]="isLoadingEpg()"
+                        [showDateNavigator]="true"
+                        [selectedDate]="selectedLiveEpgDate()"
+                        (collapsedChange)="
+                            onLiveEpgPanelCollapsedChange($event)
+                        "
+                        (dateNavigation)="onLiveEpgDateNavigation($event)"
+                    >
+                        <ng-container
+                            *ngTemplateOutlet="
+                                epgPanelContent;
+                                context: { unifiedDateNavigator: true }
+                            "
+                        />
+                    </app-live-epg-panel>
+                } @else {
                     <ng-container
                         *ngTemplateOutlet="
                             epgPanelContent;
-                            context: { unifiedDateNavigator: true }
+                            context: { unifiedDateNavigator: false }
                         "
                     />
-                </app-live-epg-panel>
-            } @else {
-                <ng-container
-                    *ngTemplateOutlet="
-                        epgPanelContent;
-                        context: { unifiedDateNavigator: false }
-                    "
-                />
-            }
-        </div>
+                }
+            </div>
+        }
     } @else if (!showLiveChannelSidebar()) {
         @if (isSelectedTypeContentLoading()) {
             <div class="live-loading-content">

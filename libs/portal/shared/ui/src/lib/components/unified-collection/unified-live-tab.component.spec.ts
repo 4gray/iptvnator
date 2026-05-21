@@ -162,8 +162,13 @@ describe('UnifiedLiveTabComponent', () => {
         openResolvedPlayback: jest.Mock;
         openExternalPlayback: jest.Mock;
     };
+    const originalElectron = window.electron;
 
     beforeEach(async () => {
+        window.electron = {
+            platform: 'darwin',
+        } as typeof window.electron;
+
         localStorage.removeItem('live-epg-panel-state');
 
         streamResolver = {
@@ -227,6 +232,11 @@ describe('UnifiedLiveTabComponent', () => {
         component = fixture.componentInstance;
     });
 
+    afterEach(() => {
+        fixture?.destroy();
+        window.electron = originalElectron;
+    });
+
     it('renders controlled M3U EPG and records recent history on selection', async () => {
         const item = buildLiveItem('m3u');
         streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
@@ -280,6 +290,64 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+    });
+
+    it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
+        fixture.destroy();
+        window.electron = undefined as unknown as typeof window.electron;
+
+        fixture = TestBed.createComponent(UnifiedLiveTabComponent);
+        component = fixture.componentInstance;
+        portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+        streamResolver.loadEpgForItems.mockClear();
+        streamResolver.loadM3uProgramsForItem.mockClear();
+        const item = buildLiveItem('m3u');
+        streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+            epgMode: 'm3u',
+            playback: {
+                streamUrl: 'https://example.com/m3u.m3u8',
+                title: 'M3U Live',
+            },
+            channel: {
+                id: 'm3u-channel',
+                name: 'M3U Live',
+                url: 'https://example.com/m3u.m3u8',
+                group: { title: 'News' },
+                tvg: {
+                    id: 'm3u-channel',
+                    name: 'M3U Live',
+                    url: '',
+                    logo: 'm3u.png',
+                    rec: '',
+                },
+                http: { referrer: '', 'user-agent': '', origin: '' },
+                radio: 'false',
+                epgParams: '',
+            },
+            epgPrograms: [buildProgram('M3U Show')],
+        });
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.componentRef.setInput('mode', 'recent');
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(streamResolver.loadEpgForItems).not.toHaveBeenCalled();
+        expect(streamResolver.loadM3uProgramsForItem).not.toHaveBeenCalled();
+        expect(
+            fixture.nativeElement.querySelector('app-web-player-view')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
@@ -483,11 +551,15 @@ describe('UnifiedLiveTabComponent', () => {
             throw new Error('Expected wrapper playback to be set');
         }
         expect(webPlayer.playerOverride()).toBe(VideoPlayer.VideoJs);
-        expect(fixture.nativeElement.querySelector('app-vjs-player')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-vjs-player')
+        ).toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-html-video-player')
         ).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-art-player')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-art-player')
+        ).toBeNull();
 
         webPlayer.externalFallbackRequested.emit({
             player: 'mpv',

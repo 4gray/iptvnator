@@ -28,8 +28,17 @@ import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
-import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
-import { Channel, EpgProgram, Settings, VideoPlayer } from '@iptvnator/shared/interfaces';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
+import {
+    Channel,
+    EpgProgram,
+    Settings,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { Overlay } from '@angular/cdk/overlay';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
@@ -166,6 +175,7 @@ describe('VideoPlayerComponent', () => {
 
     const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
     const showCaptions = signal(false);
+    const originalElectron = window.electron;
 
     const overlayRef = {
         attach: jest.fn().mockReturnValue({ instance: {} }),
@@ -273,6 +283,10 @@ describe('VideoPlayerComponent', () => {
     }
 
     beforeEach(async () => {
+        window.electron = {
+            platform: 'darwin',
+        } as typeof window.electron;
+
         syncStoreState(null);
         localStorage.removeItem('m3u-sidebar-width');
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
@@ -384,6 +398,7 @@ describe('VideoPlayerComponent', () => {
     afterEach(() => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        window.electron = originalElectron;
     });
 
     it('registers and clears the workspace multi-EPG header shortcut', () => {
@@ -415,6 +430,26 @@ describe('VideoPlayerComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
+    });
+
+    it('hides EPG controls and the multi-EPG header action in browser/PWA playback', () => {
+        fixture.destroy();
+        window.electron = undefined as unknown as typeof window.electron;
+
+        fixture = TestBed.createComponent(VideoPlayerComponent);
+        component = fixture.componentInstance;
+        headerContext = TestBed.inject(WorkspaceHeaderContextService);
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-web-player-view')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(headerContext.action()).toBeNull();
     });
 
     it('opens MPV fallback with the active channel headers preserved', () => {

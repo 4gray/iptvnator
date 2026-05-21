@@ -1,7 +1,11 @@
 import { inject, Provider } from '@angular/core';
+import { PLAYLIST_DELETE_CLEANUP } from '@iptvnator/services';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
-import { IXtreamDataSource, XTREAM_DATA_SOURCE } from './xtream-data-source.interface';
+import {
+    IXtreamDataSource,
+    XTREAM_DATA_SOURCE,
+} from './xtream-data-source.interface';
 
 // Re-export all types and interfaces
 export * from './xtream-data-source.interface';
@@ -34,6 +38,21 @@ export function provideXtreamDataSource(): Provider[] {
         {
             provide: XTREAM_DATA_SOURCE,
             useFactory: xtreamDataSourceFactory,
+        },
+        {
+            provide: PLAYLIST_DELETE_CLEANUP,
+            multi: true,
+            useFactory: () => {
+                const dataSource = inject(XTREAM_DATA_SOURCE);
+
+                return (playlistId: string) => {
+                    if (typeof window !== 'undefined' && window.electron) {
+                        return Promise.resolve();
+                    }
+
+                    return dataSource.deletePlaylist(playlistId);
+                };
+            },
         },
     ];
 }

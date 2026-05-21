@@ -234,8 +234,13 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
     };
+    const originalElectron = window.electron;
 
     beforeEach(async () => {
+        window.electron = {
+            platform: 'darwin',
+        } as typeof window.electron;
+
         fetchChannelEpg = stalkerStore.fetchChannelEpg;
         ensureBulkItvEpg = stalkerStore.ensureBulkItvEpg;
         resolveItvPlayback = stalkerStore.resolveItvPlayback;
@@ -358,6 +363,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     afterEach(() => {
         fixture?.destroy();
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
+        window.electron = originalElectron;
     });
 
     it('renders the controlled epg list and removes the load-more button', () => {
@@ -368,6 +374,29 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         ).not.toBeNull();
         expect(
             fixture.nativeElement.querySelector('.load-more-epg')
+        ).toBeNull();
+    });
+
+    it('does not request or render EPG in browser/PWA playback', async () => {
+        fixture.destroy();
+        window.electron = undefined as unknown as typeof window.electron;
+
+        fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
+        component = fixture.componentInstance;
+
+        await component.playChannel(itvChannels()[0]);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(ensureBulkItvEpg).not.toHaveBeenCalled();
+        expect(fetchChannelEpg).not.toHaveBeenCalled();
+        expect(
+            fixture.nativeElement.querySelector('app-web-player-view')
+        ).not.toBeNull();
+        expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-live-epg-panel')
         ).toBeNull();
     });
 

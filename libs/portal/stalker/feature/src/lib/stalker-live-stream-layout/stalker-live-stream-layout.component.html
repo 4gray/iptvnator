@@ -57,14 +57,18 @@
                         [logo]="item.logo"
                         [selected]="isSelectedChannel(item)"
                         [epgProgram]="
-                            epgPreviewPrograms.get(
-                                normalizeStalkerEntityId(item.id)
-                            ) ?? null
+                            supportsEpg
+                                ? (epgPreviewPrograms.get(
+                                      normalizeStalkerEntityId(item.id)
+                                  ) ?? null)
+                                : null
                         "
                         [progressPercentage]="
-                            currentProgramsProgress.get(
-                                normalizeStalkerEntityId(item.id)
-                            ) ?? 0
+                            supportsEpg
+                                ? (currentProgramsProgress.get(
+                                      normalizeStalkerEntityId(item.id)
+                                  ) ?? 0)
+                                : 0
                         "
                         [showFavoriteButton]="true"
                         [showProgramInfoButton]="false"
@@ -132,7 +136,7 @@
                 }
             </div>
         }
-        @if (!isRadioMode()) {
+        @if (!isRadioMode() && supportsEpg) {
             @let canCollapseEpgPanel = !!streamUrl() && isEmbeddedPlayer;
             <div
                 class="epg"

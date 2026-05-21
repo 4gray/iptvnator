@@ -5,6 +5,7 @@ import {
 } from '@angular/common/http';
 import {
     ApplicationConfig,
+    inject,
     importProvidersFrom,
     provideZoneChangeDetection,
 } from '@angular/core';
@@ -19,7 +20,7 @@ import { provideStoreDevtools } from '@ngrx/store-devtools';
 import { TranslateLoader, TranslateModule } from '@ngx-translate/core';
 import { TranslateHttpLoader } from '@ngx-translate/http-loader';
 import { PlaylistEffects, playlistReducer } from '@iptvnator/m3u-state';
-import { NgxIndexedDBModule, NgxIndexedDBService } from 'ngx-indexed-db';
+import { NgxIndexedDBModule } from 'ngx-indexed-db';
 import { NgxSkeletonLoaderModule } from 'ngx-skeleton-loader';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -95,9 +96,9 @@ export function getInitialLanguage(): string {
  */
 export function DataFactory() {
     if (window.electron) {
-        return new ElectronService();
+        return inject(ElectronService);
     }
-    return new PwaService();
+    return inject(PwaService);
 }
 
 export const appConfig: ApplicationConfig = {
@@ -135,7 +136,6 @@ export const appConfig: ApplicationConfig = {
         {
             provide: DataService,
             useFactory: DataFactory,
-            deps: [NgxIndexedDBService, HttpClient],
         },
         {
             provide: PORTAL_PLAYER,

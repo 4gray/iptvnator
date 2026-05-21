@@ -36,6 +36,7 @@ const TestStalkerEpgStore = signalStore(
 describe('withStalkerEpg', () => {
     let store: InstanceType<typeof TestStalkerEpgStore>;
     let dataService: {
+        getAppEnvironment: jest.Mock<string, []>;
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
     let stalkerSessionService: {
@@ -44,6 +45,7 @@ describe('withStalkerEpg', () => {
 
     beforeEach(() => {
         dataService = {
+            getAppEnvironment: jest.fn(() => 'electron'),
             sendIpcEvent: jest.fn(),
         };
         stalkerSessionService = {
@@ -93,16 +95,43 @@ describe('withStalkerEpg', () => {
         ]);
     });
 
+    it('does not request short EPG in browser/PWA mode', async () => {
+        dataService.getAppEnvironment.mockReturnValue('pwa');
+
+        const result = await store.fetchChannelEpg('10001');
+
+        expect(result).toEqual([]);
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(
+            stalkerSessionService.makeAuthenticatedRequest
+        ).not.toHaveBeenCalled();
+    });
+
     it('loads bulk EPG once and projects selected-channel programs from the cache', async () => {
         dataService.sendIpcEvent.mockResolvedValue({
             js: {
                 data: {
                     '10001': [
-                        buildEntry('10001', 'Morning Show', 1744358400, 1744362000),
-                        buildEntry('10001', 'Current Show', 1744362000, 1744365600),
+                        buildEntry(
+                            '10001',
+                            'Morning Show',
+                            1744358400,
+                            1744362000
+                        ),
+                        buildEntry(
+                            '10001',
+                            'Current Show',
+                            1744362000,
+                            1744365600
+                        ),
                     ],
                     '10002': [
-                        buildEntry('10002', 'Other Channel', 1744362000, 1744365600),
+                        buildEntry(
+                            '10002',
+                            'Other Channel',
+                            1744362000,
+                            1744365600
+                        ),
                     ],
                 },
             },

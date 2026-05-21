@@ -17,11 +17,14 @@ describe('PlaylistsService', () => {
     });
 
     function createService(overrides: Record<string, unknown> = {}) {
-        const service = Object.create(PlaylistsService.prototype) as PlaylistsService;
+        const service = Object.create(
+            PlaylistsService.prototype
+        ) as PlaylistsService;
 
         Object.assign(service as object, {
             dbService: {
                 clear: jest.fn(() => of(undefined)),
+                delete: jest.fn(() => of(undefined)),
                 getAll: jest.fn(() => of([])),
                 getByID: jest.fn(() => of(undefined)),
                 update: jest.fn(() => of(undefined)),
@@ -35,6 +38,7 @@ describe('PlaylistsService', () => {
             },
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
+            playlistDeleteCleanups: [],
         });
 
         return service;
@@ -48,6 +52,25 @@ describe('PlaylistsService', () => {
                 default: { parse },
             })
         ).toBe(parse);
+    });
+
+    it('runs registered cleanup hooks after deleting a browser playlist', async () => {
+        const cleanup = jest.fn().mockResolvedValue(undefined);
+        const deleteFromIndexedDb = jest.fn(() => of(undefined));
+        const service = createService({ delete: deleteFromIndexedDb });
+        Object.assign(service as object, {
+            playlistDeleteCleanups: [cleanup],
+        });
+
+        await expect(
+            firstValueFrom(service.deletePlaylist('playlist-1'))
+        ).resolves.toEqual({ success: true });
+
+        expect(deleteFromIndexedDb).toHaveBeenCalledWith(
+            DbStores.Playlists,
+            'playlist-1'
+        );
+        expect(cleanup).toHaveBeenCalledWith('playlist-1');
     });
 
     it('migrates legacy Stalker portal flags in SQLite before returning playlists', async () => {
@@ -88,7 +111,9 @@ describe('PlaylistsService', () => {
 
         const service = createService();
 
-        await expect(firstValueFrom(service.getAllPlaylists())).resolves.toEqual([
+        await expect(
+            firstValueFrom(service.getAllPlaylists())
+        ).resolves.toEqual([
             expect.objectContaining({
                 _id: 'stalker-1',
                 isFullStalkerPortal: true,
@@ -101,7 +126,9 @@ describe('PlaylistsService', () => {
                 isFullStalkerPortal: true,
             }),
         ]);
-        expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe('1');
+        expect(appState.get(STALKER_PLAYLIST_METADATA_MIGRATION_FLAG)).toBe(
+            '1'
+        );
     });
 
     it('does not rerun the SQLite Stalker metadata migration after the flag is set', async () => {

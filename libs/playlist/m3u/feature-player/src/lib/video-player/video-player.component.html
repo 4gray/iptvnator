@@ -87,7 +87,7 @@
             </div>
         }
 
-        @if (activeChannel.radio !== 'true') {
+        @if (supportsEpg && activeChannel.radio !== 'true') {
             @let canCollapseEpgPanel = shouldShowInlinePlayer(activeChannel);
             <div
                 class="epg"

@@ -80,6 +80,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly favoritesService = inject(FavoritesService);
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
+    readonly supportsEpg = Boolean(window.electron);
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {
@@ -124,6 +125,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     constructor(private cdr: ChangeDetectorRef) {
         effect(() => {
+            if (!this.supportsEpg) {
+                return;
+            }
+
             const selectedItem = this.xtreamStore.selectedItem();
             const epgItems = this.xtreamStore.epgItems();
 
@@ -163,20 +168,27 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 });
         }
 
-        // Subscribe to EPG results from the queue service
-        this.subscriptions.add(
-            this.epgQueueService.epgResult$.subscribe(({ streamId, items }) => {
-                const previewProgram = this.pickPreviewProgram(items);
-                if (previewProgram) {
-                    this.applyProgram(streamId, previewProgram);
-                }
-            })
-        );
+        if (this.supportsEpg) {
+            this.subscriptions.add(
+                this.epgQueueService.epgResult$.subscribe(
+                    ({ streamId, items }) => {
+                        const previewProgram = this.pickPreviewProgram(items);
+                        if (previewProgram) {
+                            this.applyProgram(streamId, previewProgram);
+                        }
+                    }
+                )
+            );
+        }
     }
 
     ngAfterViewInit() {
         const vp = this.viewport();
-        if (vp && this.xtreamStore.selectedContentType() === 'live') {
+        if (
+            this.supportsEpg &&
+            vp &&
+            this.xtreamStore.selectedContentType() === 'live'
+        ) {
             this.subscriptions.add(
                 vp.renderedRangeStream
                     .pipe(debounceTime(300))
@@ -192,6 +204,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     }
 
     private loadEpgForVisibleChannels(channels: XtreamChannelListItem[]): void {
+        if (!this.supportsEpg) {
+            return;
+        }
+
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) return;
 
@@ -202,7 +218,10 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         };
 
         const visibleIds = new Set<number>(channels.map((ch) => ch.xtream_id));
-        const uncachedEntries: { streamId: number; epgChannelId?: string | null }[] = [];
+        const uncachedEntries: {
+            streamId: number;
+            epgChannelId?: string | null;
+        }[] = [];
 
         // Apply cached results immediately
         for (const channel of channels) {
