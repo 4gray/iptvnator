@@ -95,6 +95,16 @@ Response: `{ payload: <data>, action: <action> }`
 This mirrors the backend proxy in `apps/electron-backend` so the same
 Angular service code works in both environments.
 
+### M3U fixture endpoint
+
+```
+GET /playlist.m3u
+```
+
+Returns a small deterministic four-channel playlist. The self-hosted PWA E2E
+suite uses this endpoint to verify M3U URL imports through `apps/web-backend`
+and the provider target registry.
+
 ### Stream stub endpoints
 
 ```

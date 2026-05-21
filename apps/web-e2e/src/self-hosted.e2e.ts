@@ -48,6 +48,27 @@ async function addXtreamPortal(page: Page): Promise<void> {
     await page.waitForURL(/xtreams.*vod/);
 }
 
+async function addM3uPlaylist(page: Page): Promise<void> {
+    await page.getByRole('button', { name: 'Add playlist' }).click();
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible();
+
+    await setInputValue(
+        dialog.getByRole('textbox', { name: /Playlist URL/ }),
+        `${XTREAM_MOCK_SERVER}/playlist.m3u`
+    );
+    await setInputValue(
+        dialog.getByRole('textbox', { name: 'Playlist title' }),
+        'Self-hosted M3U'
+    );
+
+    await dialog
+        .getByRole('button', { name: 'Add playlist', exact: true })
+        .click();
+    await expect(dialog).toBeHidden();
+    await page.waitForURL(/playlists.*all/);
+}
+
 async function addStalkerPortal(page: Page): Promise<void> {
     await page.getByRole('button', { name: 'Add playlist' }).click();
     const dialog = page.locator('mat-dialog-container');
@@ -63,6 +84,27 @@ async function addStalkerPortal(page: Page): Promise<void> {
     await addButton.click();
     await expect(dialog).toBeHidden();
     await page.waitForURL(/stalker.*vod/);
+}
+
+function collectBackendRequests(page: Page, path: string): string[] {
+    const requests: string[] = [];
+    page.on('request', (request) => {
+        const requestUrl = request.url();
+        if (requestUrl.startsWith(`${WEB_BACKEND_URL}${path}`)) {
+            requests.push(requestUrl);
+        }
+    });
+    return requests;
+}
+
+function expectRequestsUseTargetId(requests: string[], path: string): void {
+    expect(requests.length).toBeGreaterThan(0);
+    for (const requestUrl of requests) {
+        const url = new URL(requestUrl);
+        expect(url.pathname).toBe(path);
+        expect(url.searchParams.get('targetId')).toBeTruthy();
+        expect(url.searchParams.has('url')).toBeFalsy();
+    }
 }
 
 test.beforeEach(async ({ page, request }) => {
@@ -90,17 +132,36 @@ test('@self-hosted runtime config points PWA calls at the monorepo backend', asy
 test('@self-hosted Xtream portal loads through web-backend proxy', async ({
     page,
 }) => {
+    const xtreamRequests = collectBackendRequests(page, '/xtream');
+
     await addXtreamPortal(page);
 
     const categoryItems = page.locator('.category-item');
     await expect(categoryItems.first()).toBeVisible({ timeout: 15_000 });
+    expectRequestsUseTargetId(xtreamRequests, '/xtream');
+});
+
+test('@self-hosted M3U URL loads through web-backend proxy', async ({
+    page,
+}) => {
+    const parseRequests = collectBackendRequests(page, '/parse');
+
+    await addM3uPlaylist(page);
+
+    await expect(page.getByText('4 channels')).toBeVisible({ timeout: 15_000 });
+    await expect(page.getByText('1. Channel 1')).toBeVisible();
+    await expect(page.getByText('4. HappyKids TV')).toBeVisible();
+    expectRequestsUseTargetId(parseRequests, '/parse');
 });
 
 test('@self-hosted Stalker portal loads through web-backend proxy', async ({
     page,
 }) => {
+    const stalkerRequests = collectBackendRequests(page, '/stalker');
+
     await addStalkerPortal(page);
 
     const categoryItems = page.locator('.category-item');
     await expect(categoryItems.first()).toBeVisible({ timeout: 15_000 });
+    expectRequestsUseTargetId(stalkerRequests, '/stalker');
 });
