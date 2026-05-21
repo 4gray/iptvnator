@@ -2,10 +2,14 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { selectAllPlaylistsMeta, selectPlaylistsLoadingFlag } from '@iptvnator/m3u-state';
+import {
+    selectAllPlaylistsMeta,
+    selectPlaylistsLoadingFlag,
+} from '@iptvnator/m3u-state';
 import { of } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { DashboardDataService } from './dashboard-data.service';
 
 describe('DashboardDataService', () => {
@@ -67,6 +71,10 @@ describe('DashboardDataService', () => {
         getAllGlobalFavorites: jest.fn().mockResolvedValue([]),
         removeFromFavorites: jest.fn().mockResolvedValue(undefined),
         removeRecentItem: jest.fn().mockResolvedValue(undefined),
+    };
+    const xtreamDataSourceMock = {
+        getFavorites: jest.fn().mockResolvedValue([]),
+        getRecentItems: jest.fn().mockResolvedValue([]),
     };
     const playlistMock: Playlist = {
         _id: 'm3u-1',
@@ -138,6 +146,10 @@ describe('DashboardDataService', () => {
         dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([]);
         dbServiceMock.removeFromFavorites.mockClear();
         dbServiceMock.removeRecentItem.mockClear();
+        xtreamDataSourceMock.getFavorites.mockClear();
+        xtreamDataSourceMock.getFavorites.mockResolvedValue([]);
+        xtreamDataSourceMock.getRecentItems.mockClear();
+        xtreamDataSourceMock.getRecentItems.mockResolvedValue([]);
         storeMock.dispatch.mockClear();
 
         TestBed.configureTestingModule({
@@ -145,6 +157,10 @@ describe('DashboardDataService', () => {
                 DashboardDataService,
                 { provide: Store, useValue: storeMock },
                 { provide: DatabaseService, useValue: dbServiceMock },
+                {
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: xtreamDataSourceMock,
+                },
                 {
                     provide: PlaylistsService,
                     useValue: playlistsServiceMock,
@@ -322,6 +338,44 @@ describe('DashboardDataService', () => {
                 .globalFavoriteItems()
                 .filter((item) => item.type === 'series')
         ).toHaveLength(1);
+    });
+
+    it('includes PWA Xtream favorites from the active data source', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSourceMock.getFavorites.mockResolvedValue([
+            {
+                id: 51,
+                category_id: 12,
+                title: 'Action Movie',
+                rating: '8.0',
+                added_at: '2026-02-02T10:00:00.000Z',
+                poster_url: 'https://example.com/movie.png',
+                xtream_id: 5001,
+                type: 'movie',
+            },
+        ]);
+
+        await service.reloadGlobalFavorites();
+
+        expect(xtreamDataSourceMock.getFavorites).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(dbServiceMock.getAllGlobalFavorites).not.toHaveBeenCalled();
+        expect(service.globalFavoriteItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 51,
+                    title: 'Action Movie',
+                    type: 'movie',
+                    playlist_id: 'xtream-1',
+                    playlist_name: 'Xtream Playlist',
+                    source: 'xtream',
+                }),
+            ])
+        );
     });
 
     it('builds the M3U favorites route', async () => {
@@ -526,6 +580,45 @@ describe('DashboardDataService', () => {
         expect(
             service.recentPlaylists().map((playlist) => playlist._id)
         ).toEqual(['xtream-1', 'stalker-1', 'm3u-1']);
+    });
+
+    it('includes PWA Xtream recent items from the active data source', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSourceMock.getRecentItems.mockResolvedValue([
+            {
+                id: 91,
+                category_id: 18,
+                title: 'Recent Movie',
+                rating: '7.8',
+                viewed_at: '2026-04-21T10:00:00.000Z',
+                poster_url: 'https://example.com/recent-movie.png',
+                xtream_id: 7001,
+                type: 'movie',
+            },
+        ]);
+
+        await service.reloadGlobalRecentItems();
+
+        expect(xtreamDataSourceMock.getRecentItems).toHaveBeenCalledWith(
+            'xtream-1'
+        );
+        expect(dbServiceMock.getGlobalRecentlyViewed).not.toHaveBeenCalled();
+        expect(service.globalRecentItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 91,
+                    title: 'Recent Movie',
+                    type: 'movie',
+                    playlist_id: 'xtream-1',
+                    playlist_name: 'Xtream Playlist',
+                    source: 'xtream',
+                    viewed_at: '2026-04-21T10:00:00.000Z',
+                }),
+            ])
+        );
     });
 
     it('falls back to playlist metadata ordering when sources have no recent activity', async () => {

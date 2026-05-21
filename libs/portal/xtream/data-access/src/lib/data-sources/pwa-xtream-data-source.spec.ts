@@ -138,4 +138,50 @@ describe('PwaXtreamDataSource', () => {
             })
         );
     });
+
+    it('matches legacy string favorite and recent ids against numeric content identities', async () => {
+        apiService.getStreams.mockResolvedValue([
+            {
+                stream_id: 202,
+                name: 'Movie One',
+                stream_icon: 'movie.png',
+                category_id: '20',
+                added: '2',
+            },
+        ]);
+        localStorage.setItem(
+            'xtream-favorites',
+            JSON.stringify({ 'playlist-1': ['202'] })
+        );
+        localStorage.setItem(
+            'xtream-recent-items',
+            JSON.stringify({
+                'playlist-1': [
+                    {
+                        id: '202',
+                        viewedAt: '2026-05-21T12:00:00.000Z',
+                    },
+                ],
+            })
+        );
+
+        await dataSource.getContent('playlist-1', credentials, 'movie');
+
+        await expect(dataSource.isFavorite(202, 'playlist-1')).resolves.toBe(
+            true
+        );
+        await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+        await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                title: 'Movie One',
+                viewed_at: '2026-05-21T12:00:00.000Z',
+                xtream_id: 202,
+            }),
+        ]);
+    });
 });

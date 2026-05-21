@@ -41,6 +41,37 @@ describe('DatabaseService browser guards', () => {
         await expect(
             service.getContentByXtreamId(20229, 'playlist-1', 'movie')
         ).resolves.toBeNull();
+        await expect(service.getGlobalRecentlyViewed()).resolves.toEqual([]);
+        await expect(service.getGlobalFavorites()).resolves.toEqual([]);
+        await expect(service.getAllGlobalFavorites()).resolves.toEqual([]);
+        await expect(
+            service.clearGlobalRecentlyViewed()
+        ).resolves.toBeUndefined();
+        await expect(service.addToFavorites(20229, 'playlist-1')).resolves.toBe(
+            false
+        );
+        await expect(
+            service.removeFromFavorites(20229, 'playlist-1')
+        ).resolves.toBe(false);
+        await expect(service.isFavorite(20229, 'playlist-1')).resolves.toBe(
+            false
+        );
+        await expect(service.getFavorites('playlist-1')).resolves.toEqual([]);
+        await expect(service.getRecentItems('playlist-1')).resolves.toEqual([]);
+        await expect(service.addRecentItem(20229, 'playlist-1')).resolves.toBe(
+            false
+        );
+        await expect(
+            service.clearPlaylistRecentItems('playlist-1')
+        ).resolves.toBe(false);
+        await expect(
+            service.removeRecentItem(20229, 'playlist-1')
+        ).resolves.toBe(false);
+        await expect(
+            service.removeRecentItemsBatch([
+                { contentId: 20229, playlistId: 'playlist-1' },
+            ])
+        ).resolves.toBe(false);
 
         expect(consoleErrorSpy).not.toHaveBeenCalled();
     });

@@ -10,6 +10,7 @@ import {
     StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
+import { XTREAM_DATA_SOURCE } from '@iptvnator/portal/xtream/data-access';
 import { UnifiedFavoritesDataService } from './unified-favorites-data.service';
 
 describe('UnifiedFavoritesDataService', () => {
@@ -23,6 +24,12 @@ describe('UnifiedFavoritesDataService', () => {
         getAllGlobalFavorites: jest.Mock;
         getContentByXtreamId: jest.Mock;
         getFavorites: jest.Mock;
+    };
+    let xtreamDataSource: {
+        addFavorite: jest.Mock;
+        getContentByXtreamId: jest.Mock;
+        getFavorites: jest.Mock;
+        removeFavorite: jest.Mock;
     };
     let store: {
         dispatch: jest.Mock;
@@ -111,6 +118,12 @@ describe('UnifiedFavoritesDataService', () => {
             getContentByXtreamId: jest.fn().mockResolvedValue(null),
             getFavorites: jest.fn().mockResolvedValue([]),
         };
+        xtreamDataSource = {
+            addFavorite: jest.fn().mockResolvedValue(undefined),
+            getContentByXtreamId: jest.fn().mockResolvedValue(null),
+            getFavorites: jest.fn().mockResolvedValue([]),
+            removeFavorite: jest.fn().mockResolvedValue(undefined),
+        };
         store = {
             dispatch: jest.fn(),
             select: jest.fn(() =>
@@ -140,6 +153,10 @@ describe('UnifiedFavoritesDataService', () => {
                 {
                     provide: DatabaseService,
                     useValue: databaseService,
+                },
+                {
+                    provide: XTREAM_DATA_SOURCE,
+                    useValue: xtreamDataSource,
                 },
                 {
                     provide: PlaylistsService,
@@ -221,6 +238,52 @@ describe('UnifiedFavoritesDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('loads Xtream playlist favorites through the active data source in PWA', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        store.select.mockReturnValue(
+            of([
+                {
+                    _id: 'xtream-1',
+                    title: 'Xtream PWA',
+                    serverUrl: 'https://example.com',
+                } satisfies Partial<PlaylistMeta>,
+            ])
+        );
+        xtreamDataSource.getFavorites.mockResolvedValue([
+            {
+                id: 202,
+                category_id: 20,
+                title: 'Movie One',
+                type: 'movie',
+                poster_url: 'movie.png',
+                xtream_id: 202,
+                added_at: '2026-05-21T12:00:00.000Z',
+            },
+        ]);
+
+        const items = await service.getFavorites(
+            'playlist',
+            'xtream-1',
+            'xtream'
+        );
+
+        expect(xtreamDataSource.getFavorites).toHaveBeenCalledWith('xtream-1');
+        expect(databaseService.getFavorites).not.toHaveBeenCalled();
+        expect(items).toEqual([
+            expect.objectContaining({
+                uid: 'xtream::xtream-1::movie:202',
+                sourceType: 'xtream',
+                contentType: 'movie',
+                name: 'Movie One',
+                playlistName: 'Xtream PWA',
+                posterUrl: 'movie.png',
+            }),
+        ]);
     });
 
     it('preserves persisted M3U favorites order when extracting playlist favorites', async () => {
@@ -398,6 +461,37 @@ describe('UnifiedFavoritesDataService', () => {
             'xtream-1',
             'live.png'
         );
+    });
+
+    it('uses the Xtream id as the favorite key in PWA when cached content is cold', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: undefined,
+            configurable: true,
+        });
+        xtreamDataSource.getContentByXtreamId.mockResolvedValue(null);
+
+        await service.addFavorite({
+            uid: 'xtream::xtream-1::movie:101',
+            name: 'Xtream Movie',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            posterUrl: 'movie.png',
+            xtreamId: 101,
+        } satisfies UnifiedCollectionItem);
+
+        expect(xtreamDataSource.getContentByXtreamId).toHaveBeenCalledWith(
+            101,
+            'xtream-1',
+            'movie'
+        );
+        expect(xtreamDataSource.addFavorite).toHaveBeenCalledWith(
+            101,
+            'xtream-1',
+            'movie.png'
+        );
+        expect(electronApi.dbAddFavorite).not.toHaveBeenCalled();
     });
 
     it('adds Stalker favorites through portal favorites', async () => {

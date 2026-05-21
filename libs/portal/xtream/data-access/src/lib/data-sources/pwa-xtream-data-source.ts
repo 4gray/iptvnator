@@ -417,35 +417,50 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         _backdropUrl?: string
     ): Promise<void> {
         void _backdropUrl;
+        const normalizedContentId = this.normalizeStoredId(contentId);
+        if (normalizedContentId == null) {
+            return;
+        }
+
         const allFavorites = this.getFavoritesFromStorage();
         if (!allFavorites[playlistId]) {
             allFavorites[playlistId] = [];
         }
-        if (!allFavorites[playlistId].includes(contentId)) {
-            allFavorites[playlistId].push(contentId);
+        if (!allFavorites[playlistId].includes(normalizedContentId)) {
+            allFavorites[playlistId].push(normalizedContentId);
         }
         this.saveFavoritesToStorage(allFavorites);
     }
 
     async removeFavorite(contentId: number, playlistId: string): Promise<void> {
+        const normalizedContentId = this.normalizeStoredId(contentId);
+        if (normalizedContentId == null) {
+            return;
+        }
+
         const allFavorites = this.getFavoritesFromStorage();
         if (allFavorites[playlistId]) {
             allFavorites[playlistId] = allFavorites[playlistId].filter(
-                (id: number) => id !== contentId
+                (id: number) => id !== normalizedContentId
             );
         }
         this.saveFavoritesToStorage(allFavorites);
     }
 
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
+        const normalizedContentId = this.normalizeStoredId(contentId);
+        if (normalizedContentId == null) {
+            return false;
+        }
+
         const allFavorites = this.getFavoritesFromStorage();
-        return (allFavorites[playlistId] || []).includes(contentId);
+        return (allFavorites[playlistId] || []).includes(normalizedContentId);
     }
 
     private getFavoritesFromStorage(): Record<string, number[]> {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.FAVORITES);
-            return data ? JSON.parse(data) : {};
+            return this.normalizeFavoriteStorage(data ? JSON.parse(data) : {});
         } catch {
             return {};
         }
@@ -634,6 +649,11 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         _backdropUrl?: string
     ): Promise<void> {
         void _backdropUrl;
+        const normalizedContentId = this.normalizeStoredId(contentId);
+        if (normalizedContentId == null) {
+            return;
+        }
+
         const allRecent = this.getRecentItemsFromStorage();
         if (!allRecent[playlistId]) {
             allRecent[playlistId] = [];
@@ -641,12 +661,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
         // Remove existing entry if present
         allRecent[playlistId] = allRecent[playlistId].filter(
-            (r) => r.id !== contentId
+            (r) => r.id !== normalizedContentId
         );
 
         // Add new entry at the beginning
         allRecent[playlistId].unshift({
-            id: contentId,
+            id: normalizedContentId,
             viewedAt: new Date().toISOString(),
         });
 
@@ -660,10 +680,15 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         contentId: number,
         playlistId: string
     ): Promise<void> {
+        const normalizedContentId = this.normalizeStoredId(contentId);
+        if (normalizedContentId == null) {
+            return;
+        }
+
         const allRecent = this.getRecentItemsFromStorage();
         if (allRecent[playlistId]) {
             allRecent[playlistId] = allRecent[playlistId].filter(
-                (r) => r.id !== contentId
+                (r) => r.id !== normalizedContentId
             );
         }
         this.saveRecentItemsToStorage(allRecent);
@@ -676,7 +701,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private getRecentItemsFromStorage(): Record<string, StoredRecentItem[]> {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.RECENT_ITEMS);
-            return data ? JSON.parse(data) : {};
+            return this.normalizeRecentStorage(data ? JSON.parse(data) : {});
         } catch {
             return {};
         }
@@ -695,6 +720,70 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         const allRecent = this.getRecentItemsFromStorage();
         delete allRecent[playlistId];
         this.saveRecentItemsToStorage(allRecent);
+    }
+
+    private normalizeStoredId(value: unknown): number | null {
+        const numericValue = Number(value);
+        return Number.isFinite(numericValue) ? numericValue : null;
+    }
+
+    private normalizeFavoriteStorage(value: unknown): Record<string, number[]> {
+        if (!value || typeof value !== 'object') {
+            return {};
+        }
+
+        const normalized: Record<string, number[]> = {};
+        Object.entries(value as Record<string, unknown>).forEach(
+            ([playlistId, ids]) => {
+                if (!Array.isArray(ids)) {
+                    return;
+                }
+
+                normalized[playlistId] = ids
+                    .map((id) => this.normalizeStoredId(id))
+                    .filter((id): id is number => id !== null);
+            }
+        );
+        return normalized;
+    }
+
+    private normalizeRecentStorage(
+        value: unknown
+    ): Record<string, StoredRecentItem[]> {
+        if (!value || typeof value !== 'object') {
+            return {};
+        }
+
+        const normalized: Record<string, StoredRecentItem[]> = {};
+        Object.entries(value as Record<string, unknown>).forEach(
+            ([playlistId, items]) => {
+                if (!Array.isArray(items)) {
+                    return;
+                }
+
+                normalized[playlistId] = items
+                    .map((item) => {
+                        const rawItem = item as {
+                            readonly id?: unknown;
+                            readonly viewedAt?: unknown;
+                        };
+                        const id = this.normalizeStoredId(rawItem.id);
+                        if (
+                            id == null ||
+                            typeof rawItem.viewedAt !== 'string'
+                        ) {
+                            return null;
+                        }
+
+                        return {
+                            id,
+                            viewedAt: rawItem.viewedAt,
+                        };
+                    })
+                    .filter((item): item is StoredRecentItem => item !== null);
+            }
+        );
+        return normalized;
     }
 
     // =========================================================================

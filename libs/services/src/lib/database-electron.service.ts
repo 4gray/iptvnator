@@ -627,6 +627,10 @@ export class DatabaseService {
      * Get recently viewed items
      */
     async getGlobalRecentlyViewed(): Promise<GlobalRecentItem[]> {
+        if (typeof window.electron?.dbGetRecentlyViewed !== 'function') {
+            return [];
+        }
+
         try {
             const items = await window.electron.dbGetRecentlyViewed();
             return items || [];
@@ -640,6 +644,10 @@ export class DatabaseService {
      * Get global favorites across all playlists
      */
     async getGlobalFavorites(): Promise<GlobalFavoriteItem[]> {
+        if (typeof window.electron?.dbGetGlobalFavorites !== 'function') {
+            return [];
+        }
+
         try {
             const items = await window.electron.dbGetGlobalFavorites();
             return items || [];
@@ -653,6 +661,10 @@ export class DatabaseService {
      * Get global favorites across all playlists (all content types)
      */
     async getAllGlobalFavorites(): Promise<GlobalFavoriteItem[]> {
+        if (typeof window.electron?.dbGetAllGlobalFavorites !== 'function') {
+            return [];
+        }
+
         try {
             const items = await window.electron.dbGetAllGlobalFavorites();
             return items || [];
@@ -666,6 +678,10 @@ export class DatabaseService {
      * Clear recently viewed items
      */
     async clearGlobalRecentlyViewed(): Promise<void> {
+        if (typeof window.electron?.dbClearRecentlyViewed !== 'function') {
+            return;
+        }
+
         try {
             await window.electron.dbClearRecentlyViewed();
         } catch (error) {
@@ -706,6 +722,10 @@ export class DatabaseService {
         playlistId: string,
         backdropUrl?: string
     ): Promise<boolean> {
+        if (typeof window.electron?.dbAddFavorite !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbAddFavorite(
                 contentId,
@@ -726,6 +746,10 @@ export class DatabaseService {
         contentId: number,
         playlistId: string
     ): Promise<boolean> {
+        if (typeof window.electron?.dbRemoveFavorite !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbRemoveFavorite(contentId, playlistId);
             return true;
@@ -739,6 +763,10 @@ export class DatabaseService {
      * Check if content is favorited
      */
     async isFavorite(contentId: number, playlistId: string): Promise<boolean> {
+        if (typeof window.electron?.dbIsFavorite !== 'function') {
+            return false;
+        }
+
         try {
             return await window.electron.dbIsFavorite(contentId, playlistId);
         } catch (error) {
@@ -751,6 +779,10 @@ export class DatabaseService {
      * Get all favorites for a playlist
      */
     async getFavorites(playlistId: string): Promise<XtreamContent[]> {
+        if (typeof window.electron?.dbGetFavorites !== 'function') {
+            return [];
+        }
+
         try {
             return await window.electron.dbGetFavorites(playlistId);
         } catch (error) {
@@ -763,6 +795,10 @@ export class DatabaseService {
      * Get recently viewed items for a specific playlist
      */
     async getRecentItems(playlistId: string): Promise<XtreamContent[]> {
+        if (typeof window.electron?.dbGetRecentItems !== 'function') {
+            return [];
+        }
+
         try {
             return await window.electron.dbGetRecentItems(playlistId);
         } catch (error) {
@@ -779,6 +815,10 @@ export class DatabaseService {
         playlistId: string,
         backdropUrl?: string
     ): Promise<boolean> {
+        if (typeof window.electron?.dbAddRecentItem !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbAddRecentItem(
                 contentId,
@@ -825,6 +865,10 @@ export class DatabaseService {
      * Clear recently viewed for a specific playlist
      */
     async clearPlaylistRecentItems(playlistId: string): Promise<boolean> {
+        if (typeof window.electron?.dbClearPlaylistRecentItems !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbClearPlaylistRecentItems(playlistId);
             return true;
@@ -841,6 +885,10 @@ export class DatabaseService {
         contentId: number,
         playlistId: string
     ): Promise<boolean> {
+        if (typeof window.electron?.dbRemoveRecentItem !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbRemoveRecentItem(contentId, playlistId);
             return true;
@@ -856,6 +904,10 @@ export class DatabaseService {
         if (items.length === 0) {
             return true;
         }
+        if (typeof window.electron?.dbRemoveRecentItemsBatch !== 'function') {
+            return false;
+        }
+
         try {
             await window.electron.dbRemoveRecentItemsBatch(items);
             return true;
