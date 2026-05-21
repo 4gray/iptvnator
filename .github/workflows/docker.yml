@@ -1,39 +1,113 @@
 name: docker-build
 
-on: [workflow_dispatch]
+on:
+    pull_request:
+        paths:
+            - '.github/workflows/docker.yml'
+            - 'apps/web/**'
+            - 'apps/web-backend/**'
+            - 'docker/**'
+            - 'libs/**'
+            - 'package.json'
+            - 'pnpm-lock.yaml'
+    push:
+        branches:
+            - master
+        tags:
+            - 'v*'
+    workflow_dispatch:
+        inputs:
+            push:
+                description: 'Push the image to Docker Hub'
+                required: true
+                type: boolean
+                default: false
+
+permissions:
+    contents: read
 
 jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-      -
-        name: Checkout
-        uses: actions/checkout@v3
-      -
-        name: Install jq
-        run: sudo apt-get update && sudo apt-get install -y jq
-      -
-        name: Get version from package.json
-        id: package-version
-        run: echo "VERSION=$(cat package.json | jq -r .version)" >> $GITHUB_OUTPUT
-      -
-        name: Login to Docker Hub
-        uses: docker/login-action@v2
-        with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
-      -
-        name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v2
-      -
-        name: Build and push
-        uses: docker/build-push-action@v4
-        with:
-          context: .
-          file: ./docker/Dockerfile
-          push: true
-          tags: |
-              4gray/iptvnator:latest
-              4gray/iptvnator:${{ github.sha }}
-              4gray/iptvnator:${{ steps.package-version.outputs.VERSION }}
-          platforms: linux/amd64,linux/arm64
+    build:
+        name: Build Docker image
+        runs-on: ubuntu-latest
+        timeout-minutes: 90
+
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v6
+
+            - name: Prepare Docker metadata
+              id: docker-meta
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  version="$(node -p "require('./package.json').version")"
+                  short_sha="${GITHUB_SHA::12}"
+                  publish="false"
+                  platforms="linux/amd64"
+                  tags="4gray/iptvnator:pr-${{ github.event.pull_request.number || 'manual' }}"
+
+                  if [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == "refs/heads/master" ]]; then
+                    publish="true"
+                    platforms="linux/amd64,linux/arm64"
+                    tags=$(cat <<TAGS
+                  4gray/iptvnator:latest
+                  4gray/iptvnator:${version}-pwa
+                  4gray/iptvnator:${version}-pwa-${short_sha}
+                  4gray/iptvnator:sha-${short_sha}
+                  TAGS
+                  )
+                  elif [[ "${GITHUB_EVENT_NAME}" == "push" && "${GITHUB_REF}" == refs/tags/v* ]]; then
+                    publish="true"
+                    platforms="linux/amd64,linux/arm64"
+                    tag_version="${GITHUB_REF_NAME#v}"
+                    tags=$(cat <<TAGS
+                  4gray/iptvnator:${tag_version}
+                  4gray/iptvnator:v${tag_version}
+                  TAGS
+                  )
+                    if [[ "${tag_version}" != *-* ]]; then
+                      tags="${tags}"$'\n'"4gray/iptvnator:stable"
+                    fi
+                  elif [[ "${GITHUB_EVENT_NAME}" == "workflow_dispatch" && "${{ inputs.push }}" == "true" ]]; then
+                    publish="true"
+                    platforms="linux/amd64,linux/arm64"
+                    tags=$(cat <<TAGS
+                  4gray/iptvnator:manual-${short_sha}
+                  4gray/iptvnator:sha-${short_sha}
+                  TAGS
+                  )
+                  fi
+
+                  {
+                    echo "publish=${publish}"
+                    echo "platforms=${platforms}"
+                    echo "tags<<EOF"
+                    echo "${tags}"
+                    echo "EOF"
+                  } >> "${GITHUB_OUTPUT}"
+
+            - name: Login to Docker Hub
+              if: steps.docker-meta.outputs.publish == 'true'
+              uses: docker/login-action@v4
+              with:
+                  username: ${{ secrets.DOCKERHUB_USERNAME }}
+                  password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+            - name: Set up QEMU
+              uses: docker/setup-qemu-action@v4
+
+            - name: Set up Docker Buildx
+              uses: docker/setup-buildx-action@v4
+
+            - name: Build Docker image
+              uses: docker/build-push-action@v7
+              with:
+                  context: .
+                  file: ./docker/Dockerfile
+                  push: ${{ steps.docker-meta.outputs.publish == 'true' }}
+                  tags: ${{ steps.docker-meta.outputs.tags }}
+                  platforms: ${{ steps.docker-meta.outputs.platforms }}
+                  cache-from: type=gha
+                  cache-to: type=gha,mode=max,ignore-error=true
