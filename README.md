@@ -55,7 +55,7 @@ The application is a cross-platform, open-source project built with Electron and
     - Polish
 - Custom "User Agent" header configuration for playlists
 - Light and Dark themes
-- Docker version available for self-hosting
+- Docker image available for self-hosting the PWA and web backend together
 
 ## Screenshots:
 
@@ -78,6 +78,22 @@ The application is a cross-platform, open-source project built with Electron and
 | ![Application settings](./apps/website/public/screenshots/settings.webp) | |
 
 _Note: First version of the application which was developed as a PWA is available in an extra git branch._
+
+## Self-hosted PWA
+
+The Docker setup builds the Angular PWA and the monorepo web backend into one
+image. The backend handles remote M3U parsing plus Xtream and Stalker proxy
+requests under `/api`, so a separate `4gray/iptvnator-backend` container is not
+required for the default self-hosted flow.
+
+```bash
+docker compose -f docker/docker-compose.yml up --build -d
+```
+
+The application is available at <http://localhost:4333>. See
+[`docker/docker-compose.yml`](./docker/docker-compose.yml) for the ready-to-run
+compose file and [`docker/README.md`](./docker/README.md) for environment
+variables, reverse proxy notes, and build details.
 
 ## Download
 
