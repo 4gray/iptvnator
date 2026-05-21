@@ -63,6 +63,10 @@ interface StoredRecentItem {
     readonly backdropUrl?: string;
 }
 
+type StoredXtreamPlaylistData = Omit<XtreamPlaylistData, 'password'> & {
+    readonly password?: string;
+};
+
 /**
  * PWA implementation of the Xtream data source.
  * Uses API-only strategy: always fetch from API, no database caching.
@@ -77,6 +81,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // In-memory cache for the current session
     private categoryCache = new Map<string, XtreamCategory[]>();
     private contentCache = new Map<string, XtreamCachedContentItem[]>();
+    private playlistPasswords = new Map<string, string>();
 
     // =========================================================================
     // Playlist Operations (localStorage)
@@ -84,10 +89,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
 
     async getPlaylist(playlistId: string): Promise<XtreamPlaylistData | null> {
         const playlists = this.getPlaylistsFromStorage();
-        return playlists.find((p) => p.id === playlistId) || null;
+        const playlist = playlists.find((p) => p.id === playlistId);
+        return playlist?.password ? playlist : null;
     }
 
     async createPlaylist(playlist: XtreamPlaylistData): Promise<void> {
+        this.rememberPlaylistPassword(playlist);
         const playlists = this.getPlaylistsFromStorage();
         playlists.push(playlist);
         this.savePlaylistsToStorage(playlists);
@@ -97,6 +104,10 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string,
         updates: Partial<XtreamPlaylistData>
     ): Promise<void> {
+        if (updates.password) {
+            this.playlistPasswords.set(playlistId, updates.password);
+        }
+
         const playlists = this.getPlaylistsFromStorage();
         const index = playlists.findIndex((p) => p.id === playlistId);
         if (index !== -1) {
@@ -122,14 +133,75 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     private getPlaylistsFromStorage(): XtreamPlaylistData[] {
         try {
             const data = localStorage.getItem(STORAGE_KEYS.PLAYLISTS);
-            return data ? JSON.parse(data) : [];
+            const playlists = data
+                ? (JSON.parse(data) as StoredXtreamPlaylistData[])
+                : [];
+
+            return playlists.map((playlist) =>
+                this.fromStoredPlaylist(playlist)
+            );
         } catch {
             return [];
         }
     }
 
     private savePlaylistsToStorage(playlists: XtreamPlaylistData[]): void {
-        localStorage.setItem(STORAGE_KEYS.PLAYLISTS, JSON.stringify(playlists));
+        const persistedPlaylists = playlists.map((playlist) =>
+            this.toStoredPlaylist(playlist)
+        );
+        localStorage.setItem(
+            STORAGE_KEYS.PLAYLISTS,
+            JSON.stringify(persistedPlaylists)
+        );
+    }
+
+    private toStoredPlaylist(
+        playlist: XtreamPlaylistData
+    ): StoredXtreamPlaylistData {
+        return {
+            id: playlist.id,
+            name: playlist.name,
+            title: playlist.title,
+            updateDate: playlist.updateDate,
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            type: playlist.type,
+            userAgent: playlist.userAgent,
+            referrer: playlist.referrer,
+            origin: playlist.origin,
+            serverTimezone: playlist.serverTimezone,
+        };
+    }
+
+    private fromStoredPlaylist(
+        playlist: StoredXtreamPlaylistData
+    ): XtreamPlaylistData {
+        const legacyPassword =
+            typeof playlist.password === 'string' ? playlist.password : '';
+        if (legacyPassword) {
+            this.playlistPasswords.set(playlist.id, legacyPassword);
+        }
+
+        return {
+            id: playlist.id,
+            name: playlist.name,
+            title: playlist.title,
+            updateDate: playlist.updateDate,
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            password: this.playlistPasswords.get(playlist.id) ?? legacyPassword,
+            type: playlist.type,
+            userAgent: playlist.userAgent,
+            referrer: playlist.referrer,
+            origin: playlist.origin,
+            serverTimezone: playlist.serverTimezone,
+        };
+    }
+
+    private rememberPlaylistPassword(playlist: XtreamPlaylistData): void {
+        if (playlist.password) {
+            this.playlistPasswords.set(playlist.id, playlist.password);
+        }
     }
 
     // =========================================================================

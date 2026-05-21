@@ -41,6 +41,31 @@ describe('PwaXtreamDataSource', () => {
         localStorage.clear();
     });
 
+    it('keeps Xtream passwords out of localStorage playlist metadata', async () => {
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Xtream PWA',
+            serverUrl: credentials.serverUrl,
+            username: credentials.username,
+            password: credentials.password,
+            type: 'xtream',
+        });
+
+        const storedPlaylists = JSON.parse(
+            localStorage.getItem('xtream-playlists') || '[]'
+        );
+        expect(storedPlaylists).toEqual([
+            expect.not.objectContaining({
+                password: credentials.password,
+            }),
+        ]);
+        await expect(dataSource.getPlaylist('playlist-1')).resolves.toEqual(
+            expect.objectContaining({
+                password: credentials.password,
+            })
+        );
+    });
+
     it('normalizes Xtream API stream identifiers for PWA catalog navigation', async () => {
         apiService.getStreams.mockImplementation(
             (_credentials: XtreamCredentials, type: string) => {
