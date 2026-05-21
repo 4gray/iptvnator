@@ -392,7 +392,6 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         type: 'live' | 'movie' | 'series'
     ): XtreamContentItem {
         const xtreamId = this.getItemIdentity(item, type);
-        const id = Number(item.id);
         const title = item.title ?? item.name ?? item.stream_display_name ?? '';
         const posterUrl =
             item.poster_url ??
@@ -407,7 +406,7 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             ...item,
             added: item.added ?? item.last_modified ?? '',
             category_id: item.category_id ?? '',
-            id: Number.isFinite(id) && id > 0 ? id : xtreamId,
+            id: xtreamId,
             name: item.name ?? title,
             poster_url: posterUrl,
             rating: String(item.rating ?? ''),

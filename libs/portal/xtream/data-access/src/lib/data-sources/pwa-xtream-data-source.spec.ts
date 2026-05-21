@@ -340,6 +340,49 @@ describe('PwaXtreamDataSource', () => {
         );
     });
 
+    it('uses the Xtream stream ID as the PWA content ID when raw id differs', async () => {
+        apiService.getStreams.mockResolvedValue([
+            {
+                id: 5,
+                stream_id: 202,
+                name: 'Movie One',
+                stream_icon: 'movie.png',
+                category_id: '20',
+            },
+        ]);
+
+        const content = (await dataSource.getContent(
+            'playlist-1',
+            credentials,
+            'movie'
+        )) as Array<Record<string, unknown>>;
+
+        expect(content[0]).toEqual(
+            expect.objectContaining({
+                id: 202,
+                xtream_id: 202,
+            })
+        );
+
+        await dataSource.addFavorite(Number(content[0].id), 'playlist-1');
+        await dataSource.addRecentItem(Number(content[0].id), 'playlist-1');
+
+        await expect(dataSource.getFavorites('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                id: 202,
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+        await expect(dataSource.getRecentItems('playlist-1')).resolves.toEqual([
+            expect.objectContaining({
+                id: 202,
+                title: 'Movie One',
+                xtream_id: 202,
+            }),
+        ]);
+    });
+
     it('backfills PWA recent-item backdrop metadata without rewriting recency', async () => {
         apiService.getStreams.mockResolvedValue([
             {
