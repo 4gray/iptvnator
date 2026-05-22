@@ -22,6 +22,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.isMacOS).toBe(false);
         expect(service.supportsEpg).toBe(false);
         expect(service.supportsSqlite).toBe(false);
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
@@ -52,6 +53,29 @@ describe('RuntimeCapabilitiesService', () => {
             dbClearPlaylistRecentItems: jest.fn(),
             dbRemoveRecentItemsBatch: jest.fn(),
             dbGetContentByXtreamId: jest.fn(),
+            dbGetPlaylist: jest.fn(),
+            dbCreatePlaylist: jest.fn(),
+            dbUpdatePlaylist: jest.fn(),
+            dbDeletePlaylist: jest.fn(),
+            dbHasCategories: jest.fn(),
+            dbGetCategories: jest.fn(),
+            dbSaveCategories: jest.fn(),
+            dbGetAllCategories: jest.fn(),
+            dbUpdateCategoryVisibility: jest.fn(),
+            dbHasContent: jest.fn(),
+            dbGetContent: jest.fn(),
+            dbSaveContent: jest.fn(),
+            dbSearchContent: jest.fn(),
+            dbIsFavorite: jest.fn(),
+            dbSavePlaybackPosition: jest.fn(),
+            dbGetPlaybackPosition: jest.fn(),
+            dbGetSeriesPlaybackPositions: jest.fn(),
+            dbGetRecentPlaybackPositions: jest.fn(),
+            dbGetAllPlaybackPositions: jest.fn(),
+            dbClearAllPlaybackPositions: jest.fn(),
+            dbClearPlaybackPosition: jest.fn(),
+            dbDeleteXtreamContent: jest.fn(),
+            dbRestoreXtreamUserData: jest.fn(),
             downloadsGetList: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
             saveFileDialog: jest.fn(),
@@ -70,6 +94,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.isMacOS).toBe(true);
         expect(service.supportsEpg).toBe(true);
         expect(service.supportsSqlite).toBe(true);
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
         expect(service.supportsDownloads).toBe(true);
         expect(service.supportsPortalActivityStorage).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
@@ -91,6 +116,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.isMacOS).toBe(false);
         expect(service.supportsEpg).toBe(true);
         expect(service.supportsSqlite).toBe(false);
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
@@ -108,5 +134,19 @@ describe('RuntimeCapabilitiesService', () => {
 
         expect(service.isElectron).toBe(true);
         expect(service.environment).toBe('electron');
+    });
+
+    it('keeps the Xtream SQLite data source disabled when only generic SQLite methods exist', () => {
+        testWindow.electron = {
+            dbGetAppPlaylists: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbGetAppState: jest.fn(),
+            dbSetAppState: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.supportsSqlite).toBe(true);
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
     });
 });
