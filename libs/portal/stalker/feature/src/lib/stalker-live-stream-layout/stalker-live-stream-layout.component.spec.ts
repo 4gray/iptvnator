@@ -239,6 +239,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     beforeEach(async () => {
         window.electron = {
             platform: 'darwin',
+            updateRemoteControlStatus: jest.fn(),
+            onChannelChange: jest.fn(() => jest.fn()),
+            onRemoteControlCommand: jest.fn(() => jest.fn()),
         } as typeof window.electron;
 
         fetchChannelEpg = stalkerStore.fetchChannelEpg;
@@ -488,6 +491,20 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         await component.playChannel(itvChannels()[0]);
 
         expect(finallySpy).not.toHaveBeenCalled();
+    });
+
+    it('does not publish remote-control status when the bridge is incomplete', () => {
+        fixture.destroy();
+        const updateRemoteControlStatus = jest.fn();
+        window.electron = {
+            updateRemoteControlStatus,
+        } as typeof window.electron;
+
+        fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+
+        expect(updateRemoteControlStatus).not.toHaveBeenCalled();
     });
 
     it('starts external playback from remote channel navigation when double-click opening is enabled', async () => {

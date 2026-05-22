@@ -326,7 +326,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         });
 
         effect(() => {
-            if (!window.electron?.updateRemoteControlStatus) {
+            const remoteControl = this.remoteControlBridge;
+            if (!remoteControl?.updateRemoteControlStatus) {
                 return;
             }
 
@@ -335,7 +336,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             const channels = this.visibleChannels();
 
             if (selectedType !== 'itv' || !selectedItem?.id) {
-                window.electron.updateRemoteControlStatus({
+                remoteControl.updateRemoteControlStatus({
                     portal: 'stalker',
                     isLiveView: false,
                     supportsVolume: false,
@@ -348,7 +349,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             );
             const currentProgram = this.currentProgram();
 
-            window.electron.updateRemoteControlStatus({
+            remoteControl.updateRemoteControlStatus({
                 portal: 'stalker',
                 isLiveView: true,
                 channelName: selectedItem.o_name || selectedItem.name,
@@ -360,8 +361,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             });
         });
 
-        if (window.electron?.onChannelChange) {
-            const unsubscribe = window.electron.onChannelChange(
+        const remoteControl = this.remoteControlBridge;
+        if (remoteControl?.onChannelChange) {
+            const unsubscribe = remoteControl.onChannelChange(
                 (data: { direction: 'up' | 'down' }) => {
                     this.handleRemoteChannelChange(data.direction);
                 }
@@ -370,8 +372,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 this.unsubscribeRemoteChannelChange = unsubscribe;
             }
         }
-        if (window.electron?.onRemoteControlCommand) {
-            const unsubscribe = window.electron.onRemoteControlCommand(
+        if (remoteControl?.onRemoteControlCommand) {
+            const unsubscribe = remoteControl.onRemoteControlCommand(
                 (command) => {
                     this.handleRemoteControlCommand(command);
                 }
@@ -779,6 +781,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             requestId === this.epgLoadRequestId &&
             this.selectedChannelId() === normalizedChannelId
         );
+    }
+
+    private get remoteControlBridge(): Window['electron'] | undefined {
+        return this.runtime.supportsRemoteControl ? window.electron : undefined;
     }
 
     private handleRemoteChannelChange(direction: 'up' | 'down'): void {
