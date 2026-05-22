@@ -6,6 +6,7 @@ import {
     isKeyboardShortcutHelpTrigger,
     isTypingInInput,
 } from '@iptvnator/portal/shared/util';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     WorkspaceKeyboardShortcutsDialogComponent,
     WorkspaceKeyboardShortcutsDialogData,
@@ -15,6 +16,7 @@ import {
 export class WorkspaceKeyboardShortcutsService {
     private readonly dialog = inject(MatDialog);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly onDocumentKeydown = (event: KeyboardEvent): void =>
         this.handleKeydown(event);
 
@@ -49,7 +51,7 @@ export class WorkspaceKeyboardShortcutsService {
             data: {
                 groups: getKeyboardShortcutGroups({
                     isMac: platform === 'mac',
-                    isElectron: this.isElectron(),
+                    isElectron: this.runtime.isElectron,
                 }),
                 platformIcon:
                     platform === 'mac' ? 'laptop_mac' : 'desktop_windows',
@@ -93,7 +95,4 @@ export class WorkspaceKeyboardShortcutsService {
         return /Mac|iPhone|iPad|iPod/i.test(platform) ? 'mac' : 'other';
     }
 
-    private isElectron(): boolean {
-        return typeof window !== 'undefined' && !!window.electron;
-    }
 }
