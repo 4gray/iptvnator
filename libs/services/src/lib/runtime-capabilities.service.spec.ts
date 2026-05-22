@@ -23,6 +23,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpg).toBe(false);
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsDownloads).toBe(false);
+        expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
@@ -36,6 +37,11 @@ describe('RuntimeCapabilitiesService', () => {
             dbUpsertAppPlaylist: jest.fn(),
             dbGetAppState: jest.fn(),
             dbSetAppState: jest.fn(),
+            dbGetRecentlyViewed: jest.fn(),
+            dbGetAllGlobalFavorites: jest.fn(),
+            dbGetGlobalRecentlyAdded: jest.fn(),
+            dbRemoveRecentItem: jest.fn(),
+            dbRemoveFavorite: jest.fn(),
             downloadsGetList: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
             saveFileDialog: jest.fn(),
@@ -55,6 +61,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpg).toBe(true);
         expect(service.supportsSqlite).toBe(true);
         expect(service.supportsDownloads).toBe(true);
+        expect(service.supportsPortalActivityStorage).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
         expect(service.supportsEmbeddedMpv).toBe(true);
         expect(service.supportsDesktopFileSave).toBe(true);
@@ -74,6 +81,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEpg).toBe(true);
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsDownloads).toBe(false);
+        expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
