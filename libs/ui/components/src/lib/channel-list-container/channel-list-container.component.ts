@@ -40,7 +40,11 @@ import {
     firstValueFrom,
     map,
 } from 'rxjs';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     Channel,
     EpgProgram,
@@ -109,6 +113,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly router = inject(Router);
     private readonly route = inject(ActivatedRoute);
     private readonly playlistContext = inject(PlaylistContextFacade);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
 
     /** Map of channel ID to current EPG program */
@@ -287,8 +292,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     ngOnInit(): void {
         // Check if EPG should be shown (only in Electron with configured EPG URL)
-        const isElectron = !!window['electron'];
-        if (isElectron) {
+        if (this.runtime.supportsEpg) {
             this.storage
                 .get(STORE_KEY.Settings)
                 .subscribe((settings: unknown) => {
