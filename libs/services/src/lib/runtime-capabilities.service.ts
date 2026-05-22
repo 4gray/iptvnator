@@ -83,7 +83,20 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsDownloads(): boolean {
-        return this.hasElectronMethod('downloadsGetList');
+        return [
+            'downloadsStart',
+            'downloadsCancel',
+            'downloadsRetry',
+            'downloadsRemove',
+            'downloadsGetList',
+            'downloadsGet',
+            'downloadsGetDefaultFolder',
+            'downloadsSelectFolder',
+            'downloadsRevealFile',
+            'downloadsPlayFile',
+            'downloadsClearCompleted',
+            'onDownloadsUpdate',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsPortalActivityStorage(): boolean {
