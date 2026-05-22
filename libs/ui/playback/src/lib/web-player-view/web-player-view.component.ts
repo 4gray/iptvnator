@@ -25,6 +25,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
@@ -64,6 +65,7 @@ type PlaybackDiagnosticDetail = {
 })
 export class WebPlayerViewComponent {
     storage = inject(StorageMap);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
 
     streamUrl = input.required<string>();
     title = input('');
@@ -89,12 +91,11 @@ export class WebPlayerViewComponent {
         reloadToken: number;
         sources: { src: string; type: string }[];
     };
-    readonly isDesktop = signal(this.detectDesktop());
     readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     readonly canShowExternalFallbackActions = computed(
         () =>
-            this.isDesktop() &&
+            this.runtime.supportsManagedExternalPlayers &&
             !!this.playbackDiagnostic()?.externalFallbackRecommended
     );
     readonly diagnosticHeadlineKey = computed(() =>
@@ -224,7 +225,7 @@ export class WebPlayerViewComponent {
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
         if (
             issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
-            !this.isDesktop()
+            !this.runtime.supportsManagedExternalPlayers
         ) {
             return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION';
         }
@@ -310,10 +311,6 @@ export class WebPlayerViewComponent {
             default:
                 return 'PLAYBACK_DIAGNOSTICS.UNKNOWN_PLAYBACK_ERROR';
         }
-    }
-
-    private detectDesktop(): boolean {
-        return typeof window !== 'undefined' && !!window.electron;
     }
 
     private isLivePlayback(playback: ResolvedPortalPlayback): boolean {
