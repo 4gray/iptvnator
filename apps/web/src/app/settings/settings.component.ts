@@ -163,7 +163,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
                   },
               ]
             : []),
-        ...(this.supportsExternalPlayerPathSettings
+        ...(this.supportsManagedExternalPlayers
             ? SETTINGS_OS_PLAYER_OPTIONS
             : []),
     ]);

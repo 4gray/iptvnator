@@ -498,6 +498,9 @@ describe('SettingsComponent', () => {
 
             expect(partialBridgeComponent.isDesktop).toBe(true);
             expect(
+                partialBridgeComponent.supportsManagedExternalPlayers
+            ).toBe(false);
+            expect(
                 partialBridgeComponent.supportsExternalPlayerPathSettings
             ).toBe(false);
             expect(partialBridgeComponent.supportsEpg).toBe(false);
@@ -525,6 +528,44 @@ describe('SettingsComponent', () => {
                     .players()
                     .some((player) => player.id === VideoPlayer.VLC)
             ).toBe(false);
+        });
+
+        it('keeps external player choices when launch support exists without path settings', () => {
+            fixture.destroy();
+            window.electron = {
+                getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+                openInMpv: jest.fn(),
+                openInVlc: jest.fn(),
+                platform: 'linux',
+                updateSettings: jest.fn().mockResolvedValue(undefined),
+            } as unknown as typeof window.electron;
+
+            const launchOnlyBridgeFixture =
+                TestBed.createComponent(SettingsComponent);
+            const launchOnlyBridgeComponent =
+                launchOnlyBridgeFixture.componentInstance;
+            launchOnlyBridgeComponent.checkAppVersion = jest.fn();
+            launchOnlyBridgeComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            launchOnlyBridgeFixture.detectChanges();
+
+            expect(
+                launchOnlyBridgeComponent.supportsManagedExternalPlayers
+            ).toBe(true);
+            expect(
+                launchOnlyBridgeComponent.supportsExternalPlayerPathSettings
+            ).toBe(false);
+            expect(
+                launchOnlyBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.MPV)
+            ).toBe(true);
+            expect(
+                launchOnlyBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.VLC)
+            ).toBe(true);
         });
 
         it('does not block settings initialization while embedded mpv support is pending', async () => {
