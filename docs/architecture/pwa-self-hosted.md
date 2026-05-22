@@ -79,7 +79,8 @@ panels (`fetchEpg`, `getChannelPrograms`, `checkEpgFreshness`,
 `searchEpgPrograms`), `supportsPlaylistRefresh` requires the native playlist
 refresh/cancel/progress bridge, `supportsXtreamSectionNavigation` is available
 in PWA and in Electron when either the SQLite Xtream data source or the Xtream
-API transport is available, and
+API transport is available, `supportsDesktopFileSave` requires both
+`saveFileDialog` and `writeFile`, and
 `supportsManagedExternalPlayers` requires the MPV and VLC preload launch and
 path-setting methods (`openInMpv`, `openInVlc`, `setMpvPlayerPath`, and
 `setVlcPlayerPath`); a partial Electron bridge must not expose desktop-only
