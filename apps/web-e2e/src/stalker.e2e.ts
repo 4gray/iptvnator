@@ -220,13 +220,18 @@ test('@stalker minimal scenario — correct item counts', async ({ page }) => {
     expect(count).toBeGreaterThanOrEqual(2);
 });
 
-test('@stalker EPG data loads for ITV channel', async ({ page }) => {
+test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     await addStalkerPortal(page);
 
+    const epgInfoRequests: string[] = [];
     const shortEpgRequests: string[] = [];
     page.on('request', (request) => {
-        if (request.url().includes('action=get_short_epg')) {
-            shortEpgRequests.push(request.url());
+        const url = request.url();
+        if (url.includes('action=get_epg_info')) {
+            epgInfoRequests.push(url);
+        }
+        if (url.includes('action=get_short_epg')) {
+            shortEpgRequests.push(url);
         }
     });
 
@@ -244,17 +249,16 @@ test('@stalker EPG data loads for ITV channel', async ({ page }) => {
     await expect(channels.first()).toBeVisible({ timeout: 20_000 });
     expect(shortEpgRequests).toHaveLength(0);
 
-    // Click a channel — EPG info should appear
+    // Click a channel — PWA/browser playback must not expose Electron EPG UI.
     await channels.first().click();
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-list')).toBeVisible({
+    await expect(page.locator('app-web-player-view')).toBeVisible({
         timeout: 20_000,
     });
-    await expect(
-        page.locator(
-            'app-live-epg-panel .selected-date, app-epg-list .selected-date'
-        )
-    ).toBeVisible({ timeout: 20_000 });
+    await expect(page.locator('app-epg-list')).toHaveCount(0);
+    await expect(page.locator('app-live-epg-panel')).toHaveCount(0);
+    expect(epgInfoRequests).toHaveLength(0);
+    expect(shortEpgRequests).toHaveLength(0);
 });
 
 test('@stalker radio — stations use the inline audio player without EPG', async ({
@@ -309,7 +313,7 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
     expect(epgRequests).toHaveLength(0);
 });
 
-test('@stalker bulk EPG is fetched once and reused across channel switches', async ({
+test('@stalker PWA skips bulk EPG across channel switches', async ({
     page,
 }) => {
     await addStalkerPortal(page);
@@ -337,18 +341,13 @@ test('@stalker bulk EPG is fetched once and reused across channel switches', asy
     expect(shortEpgRequests).toHaveLength(0);
 
     await channels.first().click();
-    await expect(page.locator('app-epg-list')).toBeVisible({
-        timeout: 20_000,
-    });
-    await expect
-        .poll(() => epgInfoRequests.length, { timeout: 20_000 })
-        .toBe(1);
+    await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
+    await expect(page.locator('app-epg-list')).toHaveCount(0);
 
     await channels.nth(1).click();
     await expect(channels.nth(1)).toHaveClass(/active/, { timeout: 20_000 });
-    await expect
-        .poll(() => epgInfoRequests.length, { timeout: 20_000 })
-        .toBe(1);
+    await expect(page.locator('app-epg-list')).toHaveCount(0);
+    expect(epgInfoRequests).toHaveLength(0);
     expect(shortEpgRequests).toHaveLength(0);
 });
 

@@ -251,7 +251,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     };
 
     readonly isDesktop = !!window['electron'];
-    readonly supportsEpg = this.isDesktop;
+    readonly supportsEpg = this.dataService.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     /** EPG overlay reference */

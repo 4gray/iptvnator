@@ -18,7 +18,7 @@ describe('StreamResolverService', () => {
     let playlistsService: { getPlaylistById: jest.Mock };
     let xtreamApi: { getShortEpg: jest.Mock };
     let xtreamUrl: { constructLiveUrl: jest.Mock };
-    let dataService: { sendIpcEvent: jest.Mock };
+    let dataService: { readonly supportsEpg: boolean; sendIpcEvent: jest.Mock };
     let stalkerSession: { makeAuthenticatedRequest: jest.Mock };
 
     beforeEach(() => {
@@ -32,6 +32,9 @@ describe('StreamResolverService', () => {
             constructLiveUrl: jest.fn(),
         };
         dataService = {
+            get supportsEpg() {
+                return Boolean(window.electron);
+            },
             sendIpcEvent: jest.fn(),
         };
         stalkerSession = {

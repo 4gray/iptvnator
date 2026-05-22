@@ -109,7 +109,7 @@
                         [disabled]="!textImport()?.textForm?.valid"
                         (click)="
                             textImport()?.textAdded?.emit(
-                                textImport()?.textForm?.value?.text
+                                textImport()?.textForm?.value?.text ?? undefined
                             )
                         "
                     >

@@ -23,7 +23,7 @@ import {
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { SettingsStore } from '@iptvnator/services';
+import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -192,6 +192,14 @@ describe('UnifiedLiveTabComponent', () => {
             providers: [
                 { provide: StreamResolverService, useValue: streamResolver },
                 { provide: UnifiedRecentDataService, useValue: recentData },
+                {
+                    provide: DataService,
+                    useValue: {
+                        get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
+                    },
+                },
                 {
                     provide: SettingsStore,
                     useValue: {

@@ -117,7 +117,7 @@ export class ElectronService extends DataService {
         payload?: unknown
     ): Promise<T> {
         if (type === PLAYLIST_PARSE_BY_URL) {
-            this.fetchM3uPlaylistFromUrl(payload);
+            this.fetchM3uPlaylistFromUrl(payload as Partial<Playlist>);
             return undefined as T;
         }
 
@@ -219,7 +219,7 @@ export class ElectronService extends DataService {
                 this.translateService.instant(
                     'HOME.PLAYLISTS.AUTO_REFRESH_UPDATE_SUCCESS'
                 ),
-                null,
+                undefined,
                 { duration: 2000 }
             );
             return playlists as T;
@@ -266,6 +266,10 @@ export class ElectronService extends DataService {
     }
 
     private async fetchM3uPlaylistFromUrl(payload: Partial<Playlist>) {
+        if (!payload.url) {
+            return;
+        }
+
         const title = payload.title?.trim() || undefined;
 
         window.electron
@@ -353,7 +357,7 @@ export class ElectronService extends DataService {
                 this.translateService.instant(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
                 ),
-                null,
+                undefined,
                 { duration: 2000 }
             );
         } catch (error: unknown) {

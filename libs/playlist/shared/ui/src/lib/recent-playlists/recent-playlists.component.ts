@@ -475,7 +475,7 @@ export class RecentPlaylistsComponent {
                 this.translate.instant(
                     'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS'
                 ),
-                null,
+                undefined,
                 { duration: 2000 }
             );
         } catch (error) {

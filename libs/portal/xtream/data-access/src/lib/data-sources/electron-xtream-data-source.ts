@@ -360,7 +360,7 @@ export class ElectronXtreamDataSource implements IXtreamDataSource {
     ): Promise<number> {
         return this.dbService.saveXtreamContent(
             playlistId,
-            streams,
+            streams as Parameters<DatabaseService['saveXtreamContent']>[1],
             type,
             onProgress,
             options

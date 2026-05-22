@@ -49,14 +49,16 @@ export class AppComponent implements OnInit {
     private readonly DEFAULT_LANG = Language.ENGLISH;
 
     constructor() {
+        const electronProcess = this.dataService.remote?.process;
         if (
-            ((this.dataService.isElectron &&
-                this.dataService?.remote?.process.platform === 'linux') ||
-                this.dataService?.remote?.process.platform === 'win32') &&
-            this.dataService.remote.process.argv.length > 2
+            this.dataService.isElectron &&
+            electronProcess &&
+            (electronProcess.platform === 'linux' ||
+                electronProcess.platform === 'win32') &&
+            electronProcess.argv.length > 2
         ) {
-            const filePath = this.dataService.remote.process.argv.find(
-                (filepath) =>
+            const filePath = electronProcess.argv.find(
+                (filepath: string) =>
                     filepath.endsWith('.m3u') || filepath.endsWith('.m3u8')
             );
             if (filePath) {
@@ -102,7 +104,7 @@ export class AppComponent implements OnInit {
      */
     initSettings(): void {
         this.settingsService
-            .getValueFromLocalStorage(STORE_KEY.Settings)
+            .getValueFromLocalStorage<Settings>(STORE_KEY.Settings)
             .subscribe((settings: Settings) => {
                 if (settings && Object.keys(settings).length > 0) {
                     // No need to send settings to Electron on init

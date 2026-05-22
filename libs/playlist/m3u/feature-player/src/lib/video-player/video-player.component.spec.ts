@@ -255,6 +255,9 @@ describe('VideoPlayerComponent', () => {
         ),
     };
     const dataServiceMock = {
+        get supportsEpg() {
+            return Boolean(window.electron);
+        },
         sendIpcEvent: jest.fn(),
     };
 

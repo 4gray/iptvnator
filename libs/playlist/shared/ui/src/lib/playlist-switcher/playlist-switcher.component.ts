@@ -430,8 +430,16 @@ export class PlaylistSwitcherComponent {
         this.portalStatusAbortController = controller;
 
         const xtreamPlaylists = playlists.filter(
-            (playlist) =>
-                playlist.serverUrl && playlist.username && playlist.password
+            (
+                playlist
+            ): playlist is PlaylistMeta & {
+                serverUrl: string;
+                username: string;
+                password: string;
+            } =>
+                Boolean(
+                    playlist.serverUrl && playlist.username && playlist.password
+                )
         );
         if (xtreamPlaylists.length === 0) {
             return;
@@ -441,7 +449,11 @@ export class PlaylistSwitcherComponent {
         // 'checking' in a single signal write so the UI flips from blank →
         // cached/checking dots in one render, not one per playlist.
         const next = new Map(this.portalStatuses());
-        const toFetch: PlaylistMeta[] = [];
+        const toFetch: (PlaylistMeta & {
+            serverUrl: string;
+            username: string;
+            password: string;
+        })[] = [];
         for (const playlist of xtreamPlaylists) {
             const cached = this.portalStatusService.getCachedStatus(
                 playlist.serverUrl,

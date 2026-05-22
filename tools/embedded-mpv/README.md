@@ -57,6 +57,8 @@ pnpm embedded-mpv:build-runtime -- arm64 /tmp/embedded-mpv-prefix
 pnpm embedded-mpv:stage-runtime -- arm64 /tmp/embedded-mpv-prefix
 ```
 
+During temporary PR and `master` artifact testing, CI restores an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/darwin-<arch>/` runtime before falling back to the source build. The cache key includes the target architecture, macOS deployment target, Xcode version, and hashes of the runtime build/staging scripts. Cache entries are saved only from trusted repository refs and are treated strictly as a speed optimization; tagged release builds continue to rebuild from pinned sources unless a future signed and attested runtime artifact flow is introduced.
+
 The builder currently pins:
 
 - FFmpeg `8.1`, configured without `--enable-gpl` or `--enable-nonfree`, and with autodetected external libraries disabled

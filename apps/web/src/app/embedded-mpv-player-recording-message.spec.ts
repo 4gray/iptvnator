@@ -6,7 +6,7 @@ import {
     EmbeddedMpvOverlayVisibilityService,
     EmbeddedMpvPlayerComponent,
     EmbeddedMpvSessionController,
-} from '@iptvnator/ui/playback';
+} from '@iptvnator/ui/playback/embedded-mpv-player';
 
 @Component({
     imports: [EmbeddedMpvPlayerComponent],

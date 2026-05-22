@@ -28,7 +28,7 @@ import {
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
-import { SettingsStore } from '@iptvnator/services';
+import { DataService, SettingsStore } from '@iptvnator/services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -224,6 +224,14 @@ describe('LiveStreamLayoutComponent', () => {
                 { provide: XtreamStore, useValue: xtreamStore },
                 { provide: FavoritesService, useValue: favoritesService },
                 { provide: XtreamUrlService, useValue: xtreamUrlService },
+                {
+                    provide: DataService,
+                    useValue: {
+                        get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
+                    },
+                },
                 { provide: SettingsStore, useValue: settingsStore },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
             ],

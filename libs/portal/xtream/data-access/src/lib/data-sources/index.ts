@@ -47,6 +47,9 @@ export function provideXtreamDataSource(): Provider[] {
 
                 return (playlistId: string) => {
                     if (typeof window !== 'undefined' && window.electron) {
+                        // Electron playlist deletion must use DatabaseService so
+                        // SQLite content and sidecars are cleaned together; do
+                        // not invoke this cleanup path through PlaylistsService.
                         return Promise.resolve();
                     }
 

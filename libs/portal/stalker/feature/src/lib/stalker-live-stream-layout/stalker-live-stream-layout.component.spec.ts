@@ -16,7 +16,11 @@ import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
 import { MockPipe } from 'ng-mocks';
 import { of } from 'rxjs';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import {
@@ -308,6 +312,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             imports: [StalkerLiveStreamLayoutComponent, NoopAnimationsModule],
             providers: [
                 { provide: StalkerStore, useValue: stalkerStore },
+                {
+                    provide: DataService,
+                    useValue: {
+                        get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
+                    },
+                },
                 { provide: PlaylistsService, useValue: playlistService },
                 { provide: SettingsStore, useValue: settingsStore },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },

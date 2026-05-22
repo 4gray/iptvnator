@@ -85,6 +85,9 @@ function configureStore(setup: TestStoreSetup) {
                         () => setup.appEnvironment ?? 'electron'
                     ),
                     isElectron: setup.isElectron ?? true,
+                    supportsEpg:
+                        setup.appEnvironment !== 'pwa' &&
+                        (setup.isElectron ?? true),
                 },
             },
             { provide: XtreamApiService, useValue: xtreamApiService },

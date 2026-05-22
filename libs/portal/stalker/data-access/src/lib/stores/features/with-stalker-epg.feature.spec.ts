@@ -37,6 +37,7 @@ describe('withStalkerEpg', () => {
     let store: InstanceType<typeof TestStalkerEpgStore>;
     let dataService: {
         getAppEnvironment: jest.Mock<string, []>;
+        supportsEpg: boolean;
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
     let stalkerSessionService: {
@@ -46,6 +47,7 @@ describe('withStalkerEpg', () => {
     beforeEach(() => {
         dataService = {
             getAppEnvironment: jest.fn(() => 'electron'),
+            supportsEpg: true,
             sendIpcEvent: jest.fn(),
         };
         stalkerSessionService = {
@@ -97,6 +99,7 @@ describe('withStalkerEpg', () => {
 
     it('does not request short EPG in browser/PWA mode', async () => {
         dataService.getAppEnvironment.mockReturnValue('pwa');
+        dataService.supportsEpg = false;
 
         const result = await store.fetchChannelEpg('10001');
 

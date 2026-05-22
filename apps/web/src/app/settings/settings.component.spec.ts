@@ -494,7 +494,10 @@ describe('SettingsComponent', () => {
                     .some((player) => player.id === VideoPlayer.EmbeddedMpv)
             ).toBe(false);
 
-            resolveSupport!({
+            if (!resolveSupport) {
+                throw new Error('Expected embedded MPV support resolver');
+            }
+            resolveSupport({
                 supported: true,
                 platform: 'darwin',
             });
@@ -981,5 +984,40 @@ describe('SettingsComponent', () => {
                 vlcPlayerArguments: '--qt-fullscreen-screennumber=1',
             })
         );
+    });
+
+    it('preserves saved EPG settings when saving from the web settings form', async () => {
+        fixture.destroy();
+        window.electron = undefined as unknown as typeof window.electron;
+
+        const mockStore = settingsStore as unknown as MockSettingsStore;
+        mockStore._setSettings({
+            epgUrl: ['https://example.com/guide.xml'],
+            preferUploadedEpgOverXtream: true,
+        });
+        mockStore.updateSettings.mockResolvedValue(undefined);
+
+        const webFixture = TestBed.createComponent(SettingsComponent);
+        const webComponent = webFixture.componentInstance;
+        webComponent.checkAppVersion = jest.fn();
+        webComponent.fetchLocalIpAddresses = jest
+            .fn()
+            .mockResolvedValue(undefined);
+        webFixture.detectChanges();
+        await webFixture.whenStable();
+
+        webComponent.settingsForm.patchValue({ theme: Theme.DarkTheme });
+        webComponent.onSubmit();
+        await webFixture.whenStable();
+
+        expect(mockStore.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                epgUrl: ['https://example.com/guide.xml'],
+                preferUploadedEpgOverXtream: true,
+                theme: Theme.DarkTheme,
+            })
+        );
+
+        webFixture.destroy();
     });
 });

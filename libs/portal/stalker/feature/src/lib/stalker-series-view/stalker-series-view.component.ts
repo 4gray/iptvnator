@@ -334,7 +334,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     /**
      * Determines if the current selected season is loading
      */
-    isCurrentSeasonLoading(seasonKey: string): boolean {
+    isCurrentSeasonLoading(seasonKey?: string): boolean {
+        if (!seasonKey) return false;
         if (!this.isVodSeries()) return false;
         const season = this.vodSeriesSeasons().find(
             (s) => getVodSeriesSeasonKey(s) === seasonKey
@@ -498,7 +499,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     showCopyNotification(): void {
         this.snackBar.open(
             this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
+            undefined,
             {
                 duration: 2000,
             }
@@ -546,7 +547,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                           'PORTALS.CONTENT_NOT_AVAILABLE'
                       )
                     : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, null, {
+            this.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
         }

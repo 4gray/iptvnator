@@ -112,11 +112,11 @@ export class StalkerPortalImportComponent {
             const isFullStalkerPortal =
                 this.isFullStalkerPortalUrl(originalUrl);
             const stalkerIdentity = normalizeStalkerPortalIdentity({
-                serialNumber: formValue.serialNumber,
-                deviceId1: formValue.deviceId1,
-                deviceId2: formValue.deviceId2,
-                signature1: formValue.signature1,
-                signature2: formValue.signature2,
+                serialNumber: formValue.serialNumber ?? undefined,
+                deviceId1: formValue.deviceId1 ?? undefined,
+                deviceId2: formValue.deviceId2 ?? undefined,
+                signature1: formValue.signature1 ?? undefined,
+                signature2: formValue.signature2 ?? undefined,
             });
 
             let stalkerToken: string | undefined;
@@ -151,7 +151,7 @@ export class StalkerPortalImportComponent {
                         );
                         this.snackBar.open(
                             `Portal validated. Expires: ${expireDate.toLocaleDateString()}`,
-                            null,
+                            undefined,
                             { duration: 3000 }
                         );
                     }
@@ -162,7 +162,7 @@ export class StalkerPortalImportComponent {
                     );
                     this.snackBar.open(
                         'Failed to authenticate with portal. Please check URL and MAC address.',
-                        null,
+                        undefined,
                         { duration: 5000 }
                     );
                     this.isLoading.set(false);

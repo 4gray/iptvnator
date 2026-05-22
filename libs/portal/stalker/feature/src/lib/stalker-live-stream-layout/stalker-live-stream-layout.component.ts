@@ -25,12 +25,17 @@ import {
     ChannelListSkeletonComponent,
     ResizableDirective,
 } from '@iptvnator/ui/components';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
+    StalkerPortalItem,
 } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
@@ -66,6 +71,11 @@ import {
     normalizeStalkerEntityId,
 } from '@iptvnator/portal/stalker/data-access';
 
+type StalkerPlayableChannel = StalkerPortalItem & {
+    cmd?: string;
+    has_files?: unknown;
+};
+
 @Component({
     selector: 'app-stalker-live-stream-layout',
     templateUrl: './stalker-live-stream-layout.component.html',
@@ -90,6 +100,7 @@ import {
 })
 export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly dataService = inject(DataService);
     private readonly playlistService = inject(PlaylistsService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
@@ -139,7 +150,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly selectedChannelId = this.stalkerStore.selectedItvId;
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
     readonly isElectron = Boolean(window.electron);
-    readonly supportsEpg = this.isElectron;
+    readonly supportsEpg = this.dataService.supportsEpg;
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -248,19 +259,22 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     constructor() {
         // Load favorites for current playlist
-        this.playlistService
-            .getPortalFavorites(this.stalkerStore.currentPlaylist()?._id)
-            .pipe(takeUntilDestroyed())
-            .subscribe((favs) => {
-                favs.forEach((fav: StalkerFavoriteItem) => {
-                    if (fav.id !== undefined) {
-                        this.favorites.set(
-                            normalizeStalkerEntityId(fav.id),
-                            true
-                        );
-                    }
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (playlistId) {
+            this.playlistService
+                .getPortalFavorites(playlistId)
+                .pipe(takeUntilDestroyed())
+                .subscribe((favs) => {
+                    favs.forEach((fav: StalkerFavoriteItem) => {
+                        if (fav.id !== undefined) {
+                            this.favorites.set(
+                                normalizeStalkerEntityId(fav.id),
+                                true
+                            );
+                        }
+                    });
                 });
-            });
+        }
 
         // Reset channels/page on category change
         effect(() => {
@@ -431,10 +445,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
             this.logger.error('Playback failed', error);
             const errorMessage =
-                error?.message === 'nothing_to_play'
+                error instanceof Error && error.message === 'nothing_to_play'
                     ? this.translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
                     : this.translate.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, null, { duration: 3000 });
+            this.snackBar.open(errorMessage, undefined, { duration: 3000 });
         }
     }
 
@@ -450,9 +464,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             return this.playbackResolution.promise;
         }
 
+        const playableItem = this.toPlayableChannel(item);
         const promise = this.isRadioMode()
-            ? this.stalkerStore.resolveRadioPlayback(item)
-            : this.stalkerStore.resolveItvPlayback(item);
+            ? this.stalkerStore.resolveRadioPlayback(playableItem)
+            : this.stalkerStore.resolveItvPlayback(playableItem);
         this.playbackResolution = { channelId: playbackChannelId, promise };
 
         const cleanup = () => {
@@ -472,8 +487,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
             this.stalkerStore.removeFromFavorites(itemId);
             this.favorites.delete(itemId);
         } else {
+            const playableItem = this.toPlayableChannel(item);
             this.stalkerStore.addToFavorites({
-                ...item,
+                ...playableItem,
                 category_id: this.isRadioMode() ? 'radio' : 'itv',
                 title: item.o_name || item.name,
                 cover: item.logo,
@@ -631,6 +647,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         const nowMs = Date.now();
 
         if (
+            startMs !== null &&
+            stopMs !== null &&
             Number.isFinite(startMs) &&
             Number.isFinite(stopMs) &&
             nowMs >= startMs &&
@@ -645,6 +663,11 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         }
 
         this.currentProgramsProgress.delete(channelId);
+    }
+
+    private toPlayableChannel(item: StalkerItvChannel): StalkerPlayableChannel {
+        const { is_series, ...rest } = item;
+        return is_series == null ? rest : { ...rest, is_series };
     }
 
     private setupScrollListener() {

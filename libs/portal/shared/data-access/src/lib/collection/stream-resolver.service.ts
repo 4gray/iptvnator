@@ -68,7 +68,7 @@ export class StreamResolverService {
     private readonly xtreamEpgFailureCooldownMs = 60 * 1000;
 
     private get supportsEpg(): boolean {
-        return typeof window !== 'undefined' && !!window.electron;
+        return this.dataService.supportsEpg;
     }
 
     private async getElectronPlaylist(

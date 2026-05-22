@@ -74,7 +74,10 @@
                 }
             </div>
         } @else if (showSeasonEmptyState()) {
-            <div class="empty-state-panel empty-state-panel--season" role="status">
+            <div
+                class="empty-state-panel empty-state-panel--season"
+                role="status"
+            >
                 <div class="empty-state-panel__icon" aria-hidden="true">
                     <mat-icon>video_library</mat-icon>
                 </div>
@@ -109,7 +112,7 @@
                             <div class="episode-card__thumbnail">
                                 @if (episodeInfo?.movie_image) {
                                     <img
-                                        [src]="episodeInfo.movie_image"
+                                        [src]="episodeInfo?.movie_image ?? ''"
                                         (error)="
                                             $event.target.src =
                                                 './assets/images/default-episode.png'
@@ -126,8 +129,13 @@
                                     <app-progress-capsule
                                         [progress]="getEpisodeProgress(episode)"
                                     />
-                                    @if (getEpisodePositionText(episode); as time) {
-                                        <div class="episode-card__position-text">
+                                    @if (
+                                        getEpisodePositionText(episode);
+                                        as time
+                                    ) {
+                                        <div
+                                            class="episode-card__position-text"
+                                        >
                                             {{ time }}
                                         </div>
                                     }
@@ -141,17 +149,30 @@
                                             <button
                                                 mat-icon-button
                                                 class="download-btn download-btn--completed"
-                                                (click)="playFromLocal($event, episode)"
-                                                [matTooltip]="'DOWNLOADS.PLAY_LOCAL' | translate"
+                                                (click)="
+                                                    playFromLocal(
+                                                        $event,
+                                                        episode
+                                                    )
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.PLAY_LOCAL'
+                                                        | translate
+                                                "
                                             >
                                                 <mat-icon>play_circle</mat-icon>
                                             </button>
-                                        } @else if (isEpisodeDownloading(episode)) {
+                                        } @else if (
+                                            isEpisodeDownloading(episode)
+                                        ) {
                                             <button
                                                 mat-icon-button
                                                 class="download-btn download-btn--downloading"
                                                 disabled
-                                                [matTooltip]="'DOWNLOADS.STATUS.DOWNLOADING' | translate"
+                                                [matTooltip]="
+                                                    'DOWNLOADS.STATUS.DOWNLOADING'
+                                                        | translate
+                                                "
                                             >
                                                 <mat-icon>downloading</mat-icon>
                                             </button>
@@ -159,8 +180,16 @@
                                             <button
                                                 mat-icon-button
                                                 class="download-btn"
-                                                (click)="downloadEpisode($event, episode)"
-                                                [matTooltip]="'DOWNLOADS.DOWNLOAD' | translate"
+                                                (click)="
+                                                    downloadEpisode(
+                                                        $event,
+                                                        episode
+                                                    )
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.DOWNLOAD'
+                                                        | translate
+                                                "
                                             >
                                                 <mat-icon>download</mat-icon>
                                             </button>
@@ -173,7 +202,8 @@
                                         [matTooltip]="
                                             (isEpisodeWatched(episode)
                                                 ? 'XTREAM.MARK_UNWATCHED'
-                                                : 'XTREAM.MARK_WATCHED') | translate
+                                                : 'XTREAM.MARK_WATCHED'
+                                            ) | translate
                                         "
                                     >
                                         <mat-icon>{{
@@ -186,7 +216,9 @@
                                 <div class="episode-card__overlay">
                                     <div class="episode-card__play">
                                         @if (isEpisodeLaunching(episode)) {
-                                            <mat-spinner diameter="26"></mat-spinner>
+                                            <mat-spinner
+                                                diameter="26"
+                                            ></mat-spinner>
                                         } @else {
                                             <mat-icon>{{
                                                 isEpisodeActiveExternal(episode)
@@ -202,16 +234,17 @@
                             </div>
                             <div class="episode-card__info">
                                 <h4 class="episode-card__title">
-                                    {{ episode.episode_num }}. {{ episode.title }}
+                                    {{ episode.episode_num }}.
+                                    {{ episode.title }}
                                 </h4>
                                 @if (episodeInfo?.plot) {
                                     <p class="episode-card__plot">
-                                        {{ episodeInfo.plot }}
+                                        {{ episodeInfo?.plot }}
                                     </p>
                                 }
                                 @if (episodeInfo?.duration) {
                                     <span class="episode-card__duration">
-                                        {{ episodeInfo.duration }}
+                                        {{ episodeInfo?.duration }}
                                     </span>
                                 }
                             </div>
@@ -226,10 +259,18 @@
                         <article
                             class="episode-list-item"
                             (click)="selectEpisode(episode)"
-                            [class.episode-list-item--watched]="isEpisodeWatched(episode)"
-                            [class.episode-list-item--in-progress]="isEpisodeInProgress(episode)"
-                            [class.episode-list-item--launching]="isEpisodeLaunching(episode)"
-                            [class.episode-list-item--active-external]="isEpisodeActiveExternal(episode)"
+                            [class.episode-list-item--watched]="
+                                isEpisodeWatched(episode)
+                            "
+                            [class.episode-list-item--in-progress]="
+                                isEpisodeInProgress(episode)
+                            "
+                            [class.episode-list-item--launching]="
+                                isEpisodeLaunching(episode)
+                            "
+                            [class.episode-list-item--active-external]="
+                                isEpisodeActiveExternal(episode)
+                            "
                         >
                             <div class="episode-list-item__number">
                                 {{ episode.episode_num }}
@@ -239,17 +280,26 @@
                                     <h4 class="episode-list-item__title">
                                         {{ episode.title }}
                                         @if (isEpisodeWatched(episode)) {
-                                            <mat-icon class="watched-icon">check_circle</mat-icon>
+                                            <mat-icon class="watched-icon"
+                                                >check_circle</mat-icon
+                                            >
                                         }
                                     </h4>
                                     <div class="episode-list-item__meta">
                                         @if (episodeInfo?.duration) {
-                                            <span class="episode-list-item__duration">
-                                                {{ episodeInfo.duration }}
+                                            <span
+                                                class="episode-list-item__duration"
+                                            >
+                                                {{ episodeInfo?.duration }}
                                             </span>
                                         }
-                                        @if (getEpisodePositionText(episode); as time) {
-                                            <span class="episode-list-item__progress-text">
+                                        @if (
+                                            getEpisodePositionText(episode);
+                                            as time
+                                        ) {
+                                            <span
+                                                class="episode-list-item__progress-text"
+                                            >
                                                 {{ time }}
                                             </span>
                                         }
@@ -257,14 +307,18 @@
                                 </div>
                                 @if (episodeInfo?.plot) {
                                     <p class="episode-list-item__description">
-                                        {{ episodeInfo.plot }}
+                                        {{ episodeInfo?.plot }}
                                     </p>
                                 }
                                 @if (getEpisodeProgress(episode) > 0) {
-                                    <div class="episode-list-item__progress-bar">
+                                    <div
+                                        class="episode-list-item__progress-bar"
+                                    >
                                         <div
                                             class="episode-list-item__progress-fill"
-                                            [style.width.%]="getEpisodeProgress(episode)"
+                                            [style.width.%]="
+                                                getEpisodeProgress(episode)
+                                            "
                                         ></div>
                                     </div>
                                 }
@@ -273,12 +327,17 @@
                                 <button
                                     mat-icon-button
                                     class="action-btn play-btn"
-                                    (click)="selectEpisode(episode); $event.stopPropagation()"
+                                    (click)="
+                                        selectEpisode(episode);
+                                        $event.stopPropagation()
+                                    "
                                     [matTooltip]="'Play'"
                                     [disabled]="isEpisodeLaunching(episode)"
                                 >
                                     @if (isEpisodeLaunching(episode)) {
-                                        <mat-spinner diameter="18"></mat-spinner>
+                                        <mat-spinner
+                                            diameter="18"
+                                        ></mat-spinner>
                                     } @else {
                                         <mat-icon>{{
                                             isEpisodeActiveExternal(episode)
@@ -292,8 +351,13 @@
                                         <button
                                             mat-icon-button
                                             class="action-btn action-btn--success"
-                                            (click)="playFromLocal($event, episode)"
-                                            [matTooltip]="'DOWNLOADS.PLAY_LOCAL' | translate"
+                                            (click)="
+                                                playFromLocal($event, episode)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.PLAY_LOCAL'
+                                                    | translate
+                                            "
                                         >
                                             <mat-icon>folder_open</mat-icon>
                                         </button>
@@ -302,7 +366,10 @@
                                             mat-icon-button
                                             class="action-btn"
                                             disabled
-                                            [matTooltip]="'DOWNLOADS.STATUS.DOWNLOADING' | translate"
+                                            [matTooltip]="
+                                                'DOWNLOADS.STATUS.DOWNLOADING'
+                                                    | translate
+                                            "
                                         >
                                             <mat-icon>downloading</mat-icon>
                                         </button>
@@ -310,8 +377,12 @@
                                         <button
                                             mat-icon-button
                                             class="action-btn"
-                                            (click)="downloadEpisode($event, episode)"
-                                            [matTooltip]="'DOWNLOADS.DOWNLOAD' | translate"
+                                            (click)="
+                                                downloadEpisode($event, episode)
+                                            "
+                                            [matTooltip]="
+                                                'DOWNLOADS.DOWNLOAD' | translate
+                                            "
                                         >
                                             <mat-icon>download</mat-icon>
                                         </button>
@@ -324,9 +395,12 @@
                                     [matTooltip]="
                                         (isEpisodeWatched(episode)
                                             ? 'XTREAM.MARK_UNWATCHED'
-                                            : 'XTREAM.MARK_WATCHED') | translate
+                                            : 'XTREAM.MARK_WATCHED'
+                                        ) | translate
                                     "
-                                    [class.action-btn--success]="isEpisodeWatched(episode)"
+                                    [class.action-btn--success]="
+                                        isEpisodeWatched(episode)
+                                    "
                                 >
                                     <mat-icon>{{
                                         isEpisodeWatched(episode)

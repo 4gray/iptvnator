@@ -616,8 +616,8 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         // Sort by updatedAt descending
         playlistPositions.sort(
             (a, b) =>
-                new Date(b.updatedAt).getTime() -
-                new Date(a.updatedAt).getTime()
+                new Date(b.updatedAt ?? 0).getTime() -
+                new Date(a.updatedAt ?? 0).getTime()
         );
 
         return limit ? playlistPositions.slice(0, limit) : playlistPositions;

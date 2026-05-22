@@ -31,7 +31,7 @@ import {
     XtreamContentItem,
 } from '@iptvnator/portal/xtream/data-access';
 
-type PlaylistWithChannels = Playlist & {
+type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
 

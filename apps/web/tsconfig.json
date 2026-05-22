@@ -13,7 +13,7 @@
         "typeRoots": ["../../node_modules/@types"],
         "lib": ["es2018", "es2017", "es2016", "es2015", "dom"],
         "resolveJsonModule": true,
-        "strict": false,
+        "strict": true,
         "skipLibCheck": true,
         "useDefineForClassFields": false
     },

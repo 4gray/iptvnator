@@ -154,7 +154,12 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             const xtreamId = Number(selectedItem?.series_id ?? 0);
             const backdropUrl = selectedItem?.info?.backdrop_path?.[0]?.trim();
 
-            if (!playlistId || !Number.isFinite(xtreamId) || xtreamId <= 0 || !backdropUrl) {
+            if (
+                !playlistId ||
+                !Number.isFinite(xtreamId) ||
+                xtreamId <= 0 ||
+                !backdropUrl
+            ) {
                 return;
             }
 
@@ -246,14 +251,20 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     playEpisode(episode: XtreamSerieEpisode): void {
+        const playlist = this.xtreamStore.currentPlaylist();
+        const selectedItem = this.selectedItem();
+        if (!playlist || !selectedItem) {
+            return;
+        }
+
         this.addToRecentlyViewed(this.route.snapshot.params.serialId);
 
         const streamUrl = this.xtreamStore.constructEpisodeStreamUrl(episode);
         const contentInfo: PlayerContentInfo = {
-            playlistId: this.xtreamStore.currentPlaylist().id,
+            playlistId: playlist.id,
             contentXtreamId: Number(episode.id),
             contentType: 'episode',
-            seriesXtreamId: Number(this.selectedItem().series_id),
+            seriesXtreamId: Number(selectedItem.series_id),
             seasonNumber: Number(episode.season),
             episodeNumber: Number(episode.episode_num),
         };
@@ -265,7 +276,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         const playback: ResolvedPortalPlayback = {
             streamUrl,
             title: episode.title,
-            thumbnail: this.selectedItem().info.cover,
+            thumbnail: selectedItem.info.cover,
             startTime: position?.positionSeconds,
             contentInfo,
         };
@@ -283,9 +294,14 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     toggleFavorite(): void {
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            return;
+        }
+
         this.xtreamStore.toggleFavorite(
             this.route.snapshot.params.serialId,
-            this.xtreamStore.currentPlaylist().id,
+            playlist.id,
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]
         );
@@ -327,7 +343,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     showCopyNotification(): void {
         this.snackBar.open(
             this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
+            undefined,
             {
                 duration: 2000,
             }

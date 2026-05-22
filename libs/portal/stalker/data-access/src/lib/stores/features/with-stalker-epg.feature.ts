@@ -106,10 +106,6 @@ export function withStalkerEpg() {
                     dataService,
                     stalkerSession,
                 };
-                const supportsEpg = (): boolean =>
-                    typeof dataService.getAppEnvironment !== 'function' ||
-                    dataService.getAppEnvironment() !== 'pwa';
-
                 const requestEpg = async (
                     playlist: NonNullable<
                         ReturnType<
@@ -129,7 +125,7 @@ export function withStalkerEpg() {
                     channelId: number | string,
                     size: number
                 ): Promise<EpgItem[]> => {
-                    if (!supportsEpg()) {
+                    if (!dataService.supportsEpg) {
                         return [];
                     }
 
@@ -186,7 +182,7 @@ export function withStalkerEpg() {
                         }
 
                         const playlistId = String(playlist._id);
-                        if (!supportsEpg()) {
+                        if (!dataService.supportsEpg) {
                             patchState(store, {
                                 bulkItvEpgByChannel: {},
                                 bulkItvEpgLoaded: true,

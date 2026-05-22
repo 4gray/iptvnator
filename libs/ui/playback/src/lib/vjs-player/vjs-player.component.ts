@@ -174,7 +174,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 audioTracks.addEventListener('addtrack', () => {
                     debugVjsPlayer(
                         '[AudioTrack] addtrack event fired, total tracks:',
-                        this.player.audioTracks().length
+                        audioTracks.length
                     );
                     this.logAudioTracks();
                     this.setupAudioTrackMenu();
@@ -182,7 +182,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 audioTracks.addEventListener('removetrack', () => {
                     debugVjsPlayer(
                         '[AudioTrack] removetrack event fired, total tracks:',
-                        this.player.audioTracks().length
+                        audioTracks.length
                     );
                     this.logAudioTracks();
                     this.setupAudioTrackMenu();
@@ -193,19 +193,19 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             }
 
             this.player.on('volumechange', () => {
-                const currentVolume = this.player.volume();
+                const currentVolume = this.player.volume() ?? this.volume();
                 localStorage.setItem('volume', currentVolume.toString());
             });
 
             this.player.on('timeupdate', () => {
                 this.timeUpdate.emit({
-                    currentTime: this.player.currentTime(),
-                    duration: this.player.duration(),
+                    currentTime: this.player.currentTime() ?? 0,
+                    duration: this.player.duration() ?? 0,
                 });
             });
 
             // Attach mpegts.js after Video.js is ready
-            if (isMpegTs) {
+            if (isMpegTs && source) {
                 this.initMpegTs(source.src);
             }
         }) as unknown as VideoJsPlayer;
@@ -311,7 +311,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private initMpegTs(url: string): void {
         const videoEl = this.player
             .tech({ IWillNotUseThisInPlugins: true })
-            ?.el();
+            ?.el?.();
         if (!videoEl) return;
 
         debugVjsPlayer('Using mpegts.js for TS stream:', url);
@@ -473,7 +473,11 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
             '[AudioTrack] Audio tracks count:',
             audioTracks?.length ?? 0
         );
-        for (let i = 0; i < (audioTracks?.length ?? 0); i++) {
+        if (!audioTracks) {
+            return;
+        }
+
+        for (let i = 0; i < audioTracks.length; i++) {
             const t = audioTracks[i];
             debugVjsPlayer(
                 `[AudioTrack] Track ${i}: label="${t.label}", language="${t.language}", enabled=${t.enabled}, kind="${t.kind}"`
@@ -529,9 +533,9 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
 
         let audioButton =
-            controlBar.getChild('audioTrackButton') ??
-            controlBar.getChild('AudioTrackButton');
-        if (!audioButton) {
+            controlBar.getChild?.('audioTrackButton') ??
+            controlBar.getChild?.('AudioTrackButton');
+        if (!audioButton && controlBar.addChild) {
             audioButton = controlBar.addChild('audioTrackButton', {});
         }
 

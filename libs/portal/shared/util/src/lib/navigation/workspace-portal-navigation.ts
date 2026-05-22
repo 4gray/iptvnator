@@ -49,7 +49,7 @@ export function getRecentItemNavigation(
     if (item.type === 'live') {
         return buildLiveCollectionNavigationTarget({
             mode: 'recent',
-            sourceType: item.source,
+            sourceType: normalizeCollectionSourceType(item.source) ?? 'm3u',
             playlistId: item.playlist_id,
             itemId: item.xtream_id ?? item.id,
             title: item.title,
@@ -91,7 +91,7 @@ export function getGlobalFavoriteNavigation(
     if (item.type === 'live') {
         return buildLiveCollectionNavigationTarget({
             mode: 'favorites',
-            sourceType: item.source,
+            sourceType: normalizeCollectionSourceType(item.source) ?? 'm3u',
             playlistId: item.playlist_id,
             itemId: item.xtream_id ?? item.id,
             title: item.title,
@@ -231,7 +231,7 @@ export function buildOpenCollectionDetailItemState(
     item: UnifiedCollectionItem
 ): OpenCollectionDetailItemState {
     return {
-        item: normalizeCollectionDetailItem(item),
+        item: normalizeCollectionDetailItem(item) ?? item,
     };
 }
 
@@ -539,6 +539,14 @@ function normalizeCollectionScope(
     return value === 'playlist' || value === 'all' ? value : null;
 }
 
+function normalizeCollectionSourceType(
+    value: unknown
+): CollectionSourceType | null {
+    return value === 'm3u' || value === 'xtream' || value === 'stalker'
+        ? value
+        : null;
+}
+
 function buildDashboardCollectionDetailItem(
     item: PortalFavoriteItem | PortalRecentItem
 ): UnifiedCollectionItem | null {
@@ -669,9 +677,7 @@ function normalizeCollectionDetailItem(
     }
 
     const contentType = toPathSegment(record['contentType']);
-    const sourceType = toPathSegment(
-        record['sourceType']
-    ) as CollectionSourceType;
+    const sourceType = normalizeCollectionSourceType(record['sourceType']);
     const uid = toPathSegment(record['uid']);
     const name = toPathSegment(record['name']);
     const playlistId = toPathSegment(record['playlistId']);
@@ -680,6 +686,7 @@ function normalizeCollectionDetailItem(
         !uid ||
         !name ||
         !playlistId ||
+        !sourceType ||
         (contentType !== 'movie' && contentType !== 'series') ||
         (sourceType !== 'xtream' && sourceType !== 'stalker')
     ) {

@@ -41,7 +41,7 @@ interface XtreamCollectionStateSnapshot {
             <ng-container
                 *ngComponentOutlet="
                     detailComponent();
-                    injector: detailInjector()
+                    injector: detailInjector() ?? undefined
                 "
             />
         } @else {

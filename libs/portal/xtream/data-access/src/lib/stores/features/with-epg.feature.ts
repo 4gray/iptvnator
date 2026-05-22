@@ -84,10 +84,6 @@ export function withEpg() {
             const fallbackService = inject(XtreamXmltvFallbackService);
             const settingsStore = inject(SettingsStore);
 
-            const supportsEpg = (): boolean =>
-                typeof dataService.getAppEnvironment !== 'function' ||
-                dataService.getAppEnvironment() !== 'pwa';
-
             /**
              * Helper to get credentials from parent store
              */
@@ -130,7 +126,7 @@ export function withEpg() {
                  * sets `preferUploadedEpgOverXtream`.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
-                    if (!supportsEpg()) {
+                    if (!dataService.supportsEpg) {
                         patchState(store, {
                             epgItems: [],
                             isLoadingEpg: false,
@@ -186,7 +182,7 @@ export function withEpg() {
                     streamId: number,
                     epgChannelId?: string | null
                 ): Promise<EpgItem[]> {
-                    if (!supportsEpg()) {
+                    if (!dataService.supportsEpg) {
                         return [];
                     }
 
