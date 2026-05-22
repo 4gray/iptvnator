@@ -17,8 +17,9 @@ import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
     DataService,
+    DbOperationEvent,
     PlaybackPositionService,
-    PlaylistsService,
+    PlaylistDeleteActionService,
     SortBy,
     SortOrder,
     SortService,
@@ -77,7 +78,7 @@ describe('RecentPlaylistsComponent busy state', () => {
     let playbackPositionService: {
         getAllPlaybackPositions: jest.Mock;
     };
-    let playlistsService: {
+    let playlistDeleteAction: {
         deletePlaylist: jest.Mock;
     };
     let router: {
@@ -110,8 +111,8 @@ describe('RecentPlaylistsComponent busy state', () => {
         playbackPositionService = {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
         };
-        playlistsService = {
-            deletePlaylist: jest.fn(),
+        playlistDeleteAction = {
+            deletePlaylist: jest.fn().mockResolvedValue(true),
         };
         router = {
             navigate: jest.fn(),
@@ -152,8 +153,8 @@ describe('RecentPlaylistsComponent busy state', () => {
                     useValue: playbackPositionService,
                 },
                 {
-                    provide: PlaylistsService,
-                    useValue: playlistsService,
+                    provide: PlaylistDeleteActionService,
+                    useValue: playlistDeleteAction,
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -215,12 +216,11 @@ describe('RecentPlaylistsComponent busy state', () => {
         const item = createPlaylistMeta({ _id: 'playlist-delete-1' });
         const deletion = createDeferred<boolean>();
 
-        databaseService.deletePlaylist.mockImplementation(
+        playlistDeleteAction.deletePlaylist.mockImplementation(
             (
-                _playlistId: string,
+                _playlist: PlaylistMeta,
                 options?: {
-                    onEvent?: (event: any) => void;
-                    operationId?: string;
+                    onEvent?: (event: DbOperationEvent) => void;
                 }
             ) => {
                 options?.onEvent?.({
@@ -243,6 +243,9 @@ describe('RecentPlaylistsComponent busy state', () => {
         );
         expect(component.getBusyProgress(item._id)).toBe(25);
         expect(component.canCancelBusyOperation(item)).toBe(true);
+        expect(playlistDeleteAction.deletePlaylist).toHaveBeenCalledWith(item, {
+            onEvent: expect.any(Function),
+        });
 
         await component.cancelBusyOperation(item);
         expect(databaseService.cancelOperation).toHaveBeenCalledWith(
@@ -264,7 +267,7 @@ describe('RecentPlaylistsComponent busy state', () => {
         );
     });
 
-    it('deletes browser/PWA playlists through PlaylistsService instead of the Electron database service', async () => {
+    it('delegates playlist deletion and updates local UI state after success', async () => {
         const item = createPlaylistMeta({
             _id: 'pwa-playlist-1',
             serverUrl: undefined,
@@ -272,17 +275,13 @@ describe('RecentPlaylistsComponent busy state', () => {
             password: undefined,
             url: 'https://example.com/playlist.m3u',
         });
-        window.electron = undefined as unknown as typeof window.electron;
-        (
-            component as unknown as {
-                isElectron: boolean;
-            }
-        ).isElectron = false;
-        playlistsService.deletePlaylist.mockReturnValue(of({ success: true }));
+        playlistDeleteAction.deletePlaylist.mockResolvedValue(true);
 
         await component.removePlaylist(item);
 
-        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(item._id);
+        expect(playlistDeleteAction.deletePlaylist).toHaveBeenCalledWith(item, {
+            onEvent: expect.any(Function),
+        });
         expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.removePlaylist({ playlistId: item._id })
@@ -321,7 +320,7 @@ describe('RecentPlaylistsComponent busy state', () => {
             (
                 _playlistId: string,
                 options?: {
-                    onEvent?: (event: any) => void;
+                    onEvent?: (event: DbOperationEvent) => void;
                     operationId?: string;
                 }
             ) => {
