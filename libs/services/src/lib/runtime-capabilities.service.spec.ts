@@ -76,7 +76,18 @@ describe('RuntimeCapabilitiesService', () => {
             dbClearPlaybackPosition: jest.fn(),
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
+            downloadsStart: jest.fn(),
+            downloadsCancel: jest.fn(),
+            downloadsRetry: jest.fn(),
+            downloadsRemove: jest.fn(),
             downloadsGetList: jest.fn(),
+            downloadsGet: jest.fn(),
+            downloadsGetDefaultFolder: jest.fn(),
+            downloadsSelectFolder: jest.fn(),
+            downloadsRevealFile: jest.fn(),
+            downloadsPlayFile: jest.fn(),
+            downloadsClearCompleted: jest.fn(),
+            onDownloadsUpdate: jest.fn(),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
@@ -170,5 +181,33 @@ describe('RuntimeCapabilitiesService', () => {
         };
 
         expect(service.supportsManagedExternalPlayers).toBe(true);
+    });
+
+    it('requires the complete downloads preload surface', () => {
+        testWindow.electron = {
+            downloadsGetList: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsDownloads).toBe(false);
+
+        testWindow.electron = {
+            downloadsStart: jest.fn(),
+            downloadsCancel: jest.fn(),
+            downloadsRetry: jest.fn(),
+            downloadsRemove: jest.fn(),
+            downloadsGetList: jest.fn(),
+            downloadsGet: jest.fn(),
+            downloadsGetDefaultFolder: jest.fn(),
+            downloadsSelectFolder: jest.fn(),
+            downloadsRevealFile: jest.fn(),
+            downloadsPlayFile: jest.fn(),
+            downloadsClearCompleted: jest.fn(),
+            onDownloadsUpdate: jest.fn(),
+        };
+
+        expect(service.supportsDownloads).toBe(true);
     });
 });
