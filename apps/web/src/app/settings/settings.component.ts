@@ -496,12 +496,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     private createSettingsFromFormValue(): Settings {
+        const currentSettings = this.settingsStore.getSettings();
         const value = this.settingsForm.value;
         const epgUrl = Array.isArray(value.epgUrl)
             ? value.epgUrl.filter(
                   (url): url is string => typeof url === 'string'
               )
-            : [];
+            : (currentSettings.epgUrl ?? []);
 
         return {
             player: value.player ?? VideoPlayer.VideoJs,
@@ -533,7 +534,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
             coverSize: value.coverSize ?? 'medium',
             epgUrl,
             preferUploadedEpgOverXtream:
-                value.preferUploadedEpgOverXtream ?? false,
+                value.preferUploadedEpgOverXtream ??
+                currentSettings.preferUploadedEpgOverXtream ??
+                false,
         };
     }
 
