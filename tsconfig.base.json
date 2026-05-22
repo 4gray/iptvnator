@@ -45,6 +45,9 @@
             "@iptvnator/ui/playback/external-player-info-dialog": [
                 "libs/ui/playback/src/lib/external-player-info-dialog/external-player-info-dialog.component.ts"
             ],
+            "@iptvnator/ui/playback/embedded-mpv-player": [
+                "libs/ui/playback/src/lib/embedded-mpv-player/index.ts"
+            ],
             "@iptvnator/ui/playback": ["libs/ui/playback/src/index.ts"],
             "@iptvnator/playlist/import/feature": [
                 "libs/playlist/import/feature/src/index.ts"

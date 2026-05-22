@@ -27,8 +27,7 @@ function calculateProgress(position: PlaybackPositionData | undefined): number {
         return 0;
     }
 
-    const percent =
-        (position.positionSeconds / position.durationSeconds) * 100;
+    const percent = (position.positionSeconds / position.durationSeconds) * 100;
 
     if (position.positionSeconds > 10 && percent < 1) {
         return 1;
@@ -38,20 +37,17 @@ function calculateProgress(position: PlaybackPositionData | undefined): number {
 }
 
 @Injectable()
-export class StalkerCatalogFacadeService
-    implements
-        StalkerPortalCatalogFacade<
-            Record<string, unknown>,
-            StalkerVodSource,
-            StalkerVodSource
-        >
-{
+export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
+    Record<string, unknown>,
+    StalkerVodSource,
+    StalkerVodSource
+> {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly destroyRef = inject(DestroyRef);
-    private readonly stalkerPositions = signal<Map<string, PlaybackPositionData>>(
-        new Map()
-    );
+    private readonly stalkerPositions = signal<
+        Map<string, PlaybackPositionData>
+    >(new Map());
     private readonly stalkerSeriesPositions = signal<
         Map<number, PlaybackPositionData[]>
     >(new Map());
@@ -72,9 +68,9 @@ export class StalkerCatalogFacadeService
         this.stalkerStore.isPaginatedContentLoading;
     readonly selectedCategoryTitle = computed(() => {
         const category = this.selectedCategory();
-        const fromCategory = String(
-            category?.['category_name'] ?? category?.['name'] ?? ''
-        );
+        const fromCategory = category
+            ? String(category.category_name ?? '')
+            : '';
 
         if (fromCategory) {
             return fromCategory;
@@ -125,7 +121,10 @@ export class StalkerCatalogFacadeService
         if (window.electron?.onPlaybackPositionUpdate) {
             const unsubscribe = window.electron.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => {
-                    if (data.playlistId !== this.playlist()?.id) {
+                    if (
+                        !data.playlistId ||
+                        data.playlistId !== this.playlist()?.id
+                    ) {
                         return;
                     }
 
@@ -138,10 +137,7 @@ export class StalkerCatalogFacadeService
                         this.updateVodPlaybackPosition(data);
                     }
 
-                    if (
-                        data.contentType === 'episode' &&
-                        data.seriesXtreamId
-                    ) {
+                    if (data.contentType === 'episode' && data.seriesXtreamId) {
                         this.updateSeriesPlaybackPosition(data);
                     }
                 }

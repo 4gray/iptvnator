@@ -32,7 +32,7 @@ import {
 
 const GLOBAL_FAVORITES_ORDER_KEY = 'global-favorites-channel-order-v1';
 
-type PlaylistWithChannels = Playlist & {
+type PlaylistWithChannels = Omit<Playlist, 'playlist'> & {
     readonly playlist?: { readonly items?: Channel[] };
 };
 type StalkerPortalFavoriteItem = StalkerPortalItem & {

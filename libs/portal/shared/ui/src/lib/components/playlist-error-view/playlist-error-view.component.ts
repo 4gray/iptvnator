@@ -26,10 +26,10 @@ export class PlaylistErrorViewComponent {
 
     private readonly currentPlaylist = this.playlistContext.activePlaylist;
 
-    readonly description = input<string>(undefined);
+    readonly description = input<string | undefined>(undefined);
     readonly showIllustration = input(true);
     readonly showActionButtons = input(true);
-    readonly title = input<string>(undefined);
+    readonly title = input<string | undefined>(undefined);
     readonly viewType = input<'ERROR' | 'EMPTY_CATEGORY' | 'NO_SEARCH_RESULTS'>(
         'ERROR'
     );

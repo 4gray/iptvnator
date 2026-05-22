@@ -115,7 +115,10 @@ export class SettingsService {
         const mediaQuery = this.systemThemeMediaQuery as LegacyMediaQueryList;
 
         if (mediaQuery.addEventListener) {
-            mediaQuery.addEventListener('change', this.systemThemeChangeHandler);
+            mediaQuery.addEventListener(
+                'change',
+                this.systemThemeChangeHandler
+            );
         } else {
             mediaQuery.addListener?.(this.systemThemeChangeHandler);
         }
@@ -147,8 +150,8 @@ export class SettingsService {
      * @param key key to get
      * @returns returns the value of the given key
      */
-    getValueFromLocalStorage(key: STORE_KEY) {
-        return this.storage.get(key);
+    getValueFromLocalStorage<T = unknown>(key: STORE_KEY): Observable<T> {
+        return this.storage.get(key) as Observable<T>;
     }
 
     /**
@@ -175,9 +178,9 @@ export class SettingsService {
      */
     getAppVersion() {
         return this.http
-            .get<{ created_at: string; name: string }[]>(
-                'https://api.github.com/repos/4gray/iptvnator/releases'
-            )
+            .get<
+                { created_at: string; name: string }[]
+            >('https://api.github.com/repos/4gray/iptvnator/releases')
             .pipe(
                 map((response) => {
                     // Filter out pre-release versions (beta, alpha, rc, etc.)
@@ -215,10 +218,7 @@ export class SettingsService {
      * @param latestVersion latest stable version from GitHub
      * @returns true if current version is outdated
      */
-    isVersionOutdated(
-        currentVersion: string,
-        latestVersion: string
-    ): boolean {
+    isVersionOutdated(currentVersion: string, latestVersion: string): boolean {
         const cleanCurrent = parseVersion(currentVersion);
         const cleanLatest = parseVersion(latestVersion);
 

@@ -155,8 +155,8 @@ export class XtreamCodeImportComponent {
 
     extractParams(urlAsString: string): void {
         if (
-            this.form.get('username').value !== '' ||
-            this.form.get('password').value !== ''
+            this.form.get('username')?.value !== '' ||
+            this.form.get('password')?.value !== ''
         )
             return;
         try {

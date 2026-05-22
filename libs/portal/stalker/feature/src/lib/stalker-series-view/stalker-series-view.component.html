@@ -8,14 +8,10 @@
         <!-- Tags: Year, Genre, Rating -->
         <ng-container hero-tags>
             @if (serial.info.releasedate) {
-                <span class="details__tag">{{
-                    serial.info.releasedate
-                }}</span>
+                <span class="details__tag">{{ serial.info.releasedate }}</span>
             }
             @if (serial.info.genre) {
-                <span class="details__tag">{{
-                    serial.info.genre
-                }}</span>
+                <span class="details__tag">{{ serial.info.genre }}</span>
             }
             @if (serial.info.rating_imdb) {
                 <span class="details__tag details__tag--rating">
@@ -33,9 +29,7 @@
         <ng-container hero-meta>
             @if (serial.info.actors) {
                 <div class="details__meta-item">
-                    <span class="label">{{
-                        'XTREAM.ACTORS' | translate
-                    }}</span>
+                    <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
                     <span class="value">{{ serial.info.actors }}</span>
                 </div>
             }
@@ -75,10 +69,7 @@
                     </span>
                 </button>
             }
-            <app-favorites-button
-                [itemId]="serial.id"
-                [item]="serial"
-            />
+            <app-favorites-button [itemId]="serial.id" [item]="serial" />
         </ng-container>
 
         @if (inlinePlayback(); as playback) {
@@ -99,19 +90,20 @@
                 [seasons]="mappedSeasons()"
                 [seriesId]="toSeriesId(serial.id)"
                 [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
-                [seriesTitle]="serial.info?.name"
+                [seriesTitle]="serial.info.name"
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
-                    (seasonContainer?.selectedSeason &&
-                        isCurrentSeasonLoading(seasonContainer.selectedSeason))
+                    isCurrentSeasonLoading(seasonContainer?.selectedSeason)
                 "
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
                 (episodeDownloadRequested)="downloadEpisode($event)"
-                (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
+                (playbackToggleRequested)="
+                    handlePlaybackToggleRequested($event)
+                "
                 #seasonContainer
             />
         }

@@ -98,21 +98,28 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                 .find(
                     (category) =>
                         String(
-                            (category as XtreamCategory & { id?: string | number })
-                                .category_id ??
-                                (category as XtreamCategory & { id?: string | number })
-                                    .id
+                            (
+                                category as XtreamCategory & {
+                                    id?: string | number;
+                                }
+                            ).category_id ??
+                                (
+                                    category as XtreamCategory & {
+                                        id?: string | number;
+                                    }
+                                ).id
                         ) === String(categoryId)
                 ) ?? null
         );
     });
     readonly selectedCatalogItem = computed<
-        (Partial<XtreamVodStream> & {
-            id?: string | number;
-            poster_url?: string;
-            title?: string;
-            xtream_id?: string | number;
-        }) | null
+        | (Partial<XtreamVodStream> & {
+              id?: string | number;
+              poster_url?: string;
+              title?: string;
+              xtream_id?: string | number;
+          })
+        | null
     >(() => {
         const vodId = this.selectedVodId();
         if (!Number.isFinite(vodId) || vodId <= 0) {
@@ -120,29 +127,27 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore
-                .vodStreams()
-                .find(
-                    (item) =>
-                        Number(
+            this.xtreamStore.vodStreams().find(
+                (item) =>
+                    Number(
+                        (
+                            item as XtreamVodStream & {
+                                id?: string | number;
+                                xtream_id?: string | number;
+                            }
+                        ).xtream_id ??
                             (
                                 item as XtreamVodStream & {
                                     id?: string | number;
-                                    xtream_id?: string | number;
                                 }
-                            ).xtream_id ??
-                                (
-                                    item as XtreamVodStream & {
-                                        id?: string | number;
-                                    }
-                                ).stream_id ??
-                                (
-                                    item as XtreamVodStream & {
-                                        id?: string | number;
-                                    }
-                                ).id
-                        ) === vodId
-                ) ?? null
+                            ).stream_id ??
+                            (
+                                item as XtreamVodStream & {
+                                    id?: string | number;
+                                }
+                            ).id
+                    ) === vodId
+            ) ?? null
         );
     });
     readonly selectedVodInfo = computed(() => {
@@ -278,9 +283,15 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id;
             const vodId = Number(this.route.snapshot.params.vodId);
-            const backdropUrl = this.selectedVodInfo()?.backdrop_path?.[0]?.trim();
+            const backdropUrl =
+                this.selectedVodInfo()?.backdrop_path?.[0]?.trim();
 
-            if (!playlistId || !Number.isFinite(vodId) || vodId <= 0 || !backdropUrl) {
+            if (
+                !playlistId ||
+                !Number.isFinite(vodId) ||
+                vodId <= 0 ||
+                !backdropUrl
+            ) {
                 return;
             }
 
@@ -302,7 +313,8 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.unsubscribePositionUpdates =
                 window.electron.onPlaybackPositionUpdate(
                     (data: PlaybackPositionData) => {
-                        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+                        const playlistId =
+                            this.xtreamStore.currentPlaylist()?.id;
                         const vodId = Number(this.route.snapshot.params.vodId);
 
                         if (
@@ -325,7 +337,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             this.logger.warn('Deferring VOD details init: playlist not ready');
             return;
         }
-        this.initializeVodDetails(currentPlaylist.id, Number(this.route.snapshot.params.vodId));
+        this.initializeVodDetails(
+            currentPlaylist.id,
+            Number(this.route.snapshot.params.vodId)
+        );
         this.detailsInitDone.set(true);
     }
 
@@ -335,7 +350,16 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.xtreamStore.setSelectedItem(null);
     }
 
-    playVod(vodItem: XtreamVodDetails): void {
+    playVod(vodItem: XtreamVodDetails | null): void {
+        if (!vodItem) {
+            return;
+        }
+
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            return;
+        }
+
         const info = getXtreamVodInfo(vodItem);
         this.addToRecentlyViewed();
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
@@ -350,13 +374,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.logger.debug('playVod resolved ID', { id, vodItem });
 
         const contentInfo: PlayerContentInfo = {
-            playlistId: this.xtreamStore.currentPlaylist().id,
+            playlistId: playlist.id,
             contentXtreamId: id,
             contentType: 'vod',
         };
         const playback: ResolvedPortalPlayback = {
             streamUrl,
-            title: info?.name ?? vodItem.movie_data?.name,
+            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
             thumbnail: info?.movie_image,
             contentInfo,
         };
@@ -364,7 +388,16 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.startPlayback(playback);
     }
 
-    resumeVod(vodItem: XtreamVodDetails): void {
+    resumeVod(vodItem: XtreamVodDetails | null): void {
+        if (!vodItem) {
+            return;
+        }
+
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            return;
+        }
+
         const info = getXtreamVodInfo(vodItem);
         this.addToRecentlyViewed();
         const vodId = Number(this.route.snapshot.params.vodId);
@@ -372,13 +405,13 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
 
         const contentInfo: PlayerContentInfo = {
-            playlistId: this.xtreamStore.currentPlaylist().id,
+            playlistId: playlist.id,
             contentXtreamId: vodId,
             contentType: 'vod',
         };
         const playback: ResolvedPortalPlayback = {
             streamUrl,
-            title: info?.name ?? vodItem.movie_data?.name,
+            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
             thumbnail: info?.movie_image,
             startTime: position?.positionSeconds,
             contentInfo,
@@ -387,7 +420,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         this.startPlayback(playback);
     }
 
-    onPrimaryAction(vodItem: XtreamVodDetails): void {
+    onPrimaryAction(vodItem: XtreamVodDetails | null): void {
+        if (!vodItem) {
+            return;
+        }
+
         if (this.isExternalStopAction()) {
             void this.stopExternalPlayback();
             return;
@@ -402,7 +439,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     async stopExternalPlayback(): Promise<void> {
-        await this.externalPlayback.closeSession(this.matchedExternalPlayback());
+        await this.externalPlayback.closeSession(
+            this.matchedExternalPlayback()
+        );
     }
 
     formatPosition(): string {
@@ -412,15 +451,18 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         const date = new Date(0);
         date.setSeconds(position.positionSeconds);
         const timeString = date.toISOString().substr(11, 8);
-        return timeString.startsWith('00:')
-            ? timeString.substr(3)
-            : timeString;
+        return timeString.startsWith('00:') ? timeString.substr(3) : timeString;
     }
 
     toggleFavorite(): void {
+        const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            return;
+        }
+
         this.xtreamStore.toggleFavorite(
             this.route.snapshot.params.vodId,
-            this.xtreamStore.currentPlaylist().id,
+            playlist.id,
             'movie',
             this.selectedVodInfo()?.backdrop_path?.[0]
         );
@@ -462,7 +504,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     showCopyNotification(): void {
         this.snackBar.open(
             this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
+            undefined,
             {
                 duration: 2000,
             }
@@ -476,7 +518,11 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         );
     }
 
-    async downloadVod(vodItem: XtreamVodDetails): Promise<void> {
+    async downloadVod(vodItem: XtreamVodDetails | null): Promise<void> {
+        if (!vodItem) {
+            return;
+        }
+
         const info = getXtreamVodInfo(vodItem);
         const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
         const routeVodId = this.route.snapshot.params.vodId;
@@ -488,6 +534,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
               );
 
         const playlist = this.xtreamStore.currentPlaylist();
+        if (!playlist) {
+            return;
+        }
 
         await this.downloadsService.startDownload({
             playlistId: playlist.id,

@@ -162,7 +162,7 @@ export function resolveGridRating(
                 }
             }
         </div>
-        @if (showPaginator() && items()?.length > 0) {
+        @if (showPaginator() && items().length > 0) {
             <mat-paginator
                 [pageIndex]="pageIndex()"
                 [length]="totalPages() * limit()"
@@ -186,17 +186,17 @@ export function resolveGridRating(
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
-    readonly items = input<GridListItem[]>();
-    readonly isLoading = input<boolean>();
+    readonly items = input<GridListItem[]>([]);
+    readonly isLoading = input<boolean>(false);
     readonly showPaginator = input(true);
     readonly searchTerm = input<string>('');
     readonly itemClicked = output<GridListItem>();
     readonly pageChange = output<PageEvent>();
 
-    readonly pageIndex = input<number>();
-    readonly totalPages = input<number>();
-    readonly limit = input<number>();
-    readonly pageSizeOptions = input<number[]>();
+    readonly pageIndex = input<number>(0);
+    readonly totalPages = input<number>(0);
+    readonly limit = input<number>(25);
+    readonly pageSizeOptions = input<number[]>([]);
     protected readonly resolveRating = resolveGridRating;
     protected readonly hasActiveSearch = computed(
         () => (this.searchTerm() ?? '').trim().length > 0

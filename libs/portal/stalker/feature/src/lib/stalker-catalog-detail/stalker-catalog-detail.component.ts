@@ -94,9 +94,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
         const item = this.selectedItem();
         return Boolean(
             item &&
-                (this.contentType() === 'series' ||
-                    item.is_series === true ||
-                    String(item.is_series) === '1')
+            (this.contentType() === 'series' ||
+                item.is_series === true ||
+                String(item.is_series) === '1')
         );
     });
 
@@ -257,7 +257,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     showCopyNotification(): void {
         this.snackBar.open(
             this.translateService.instant('PORTALS.STREAM_URL_COPIED'),
-            null,
+            undefined,
             {
                 duration: 2000,
             }
@@ -381,7 +381,7 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
                           'PORTALS.CONTENT_NOT_AVAILABLE'
                       )
                     : this.translateService.instant('PORTALS.PLAYBACK_ERROR');
-            this.snackBar.open(errorMessage, null, {
+            this.snackBar.open(errorMessage, undefined, {
                 duration: 3000,
             });
         }

@@ -4,12 +4,36 @@ type ElectronProcessWindow = Window & {
     };
 };
 
+export interface ElectronRemoteProcess {
+    argv: string[];
+    platform:
+        | 'aix'
+        | 'android'
+        | 'darwin'
+        | 'freebsd'
+        | 'haiku'
+        | 'linux'
+        | 'openbsd'
+        | 'sunos'
+        | 'win32'
+        | 'cygwin'
+        | 'netbsd'
+        | string;
+}
+
+export interface ElectronRemote {
+    app?: {
+        getVersion: () => string;
+    };
+    process: ElectronRemoteProcess;
+}
+
 export abstract class DataService {
     get isElectron(): boolean {
         const currentWindow = window as ElectronProcessWindow;
         return Boolean(currentWindow.process?.type);
     }
-    get remote() {
+    get remote(): ElectronRemote | null {
         return null;
     }
     get ipcRenderer() {

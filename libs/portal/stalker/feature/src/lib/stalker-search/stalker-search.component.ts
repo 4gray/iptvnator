@@ -55,10 +55,12 @@ import {
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
 
 interface StalkerFilter {
-    key: string;
+    key: StalkerSearchContentType;
     label: string;
     translationKey: string;
 }
+
+type StalkerSearchContentType = 'vod' | 'series';
 
 interface StalkerSearchResponse {
     js?: {
@@ -96,7 +98,7 @@ export class StalkerSearchComponent {
     private readonly translateService = inject(TranslateService);
     private readonly logger = createLogger('StalkerSearch');
 
-    readonly filters = signal({
+    readonly filters = signal<Record<StalkerSearchContentType, boolean>>({
         series: false,
         vod: true,
     });
@@ -127,7 +129,7 @@ export class StalkerSearchComponent {
         return playlist?.macAddress ? playlist : null;
     });
 
-    readonly selectedFilterType = signal('vod');
+    readonly selectedFilterType = signal<StalkerSearchContentType>('vod');
     private readonly favoritesRefresh = createRefreshTrigger();
 
     itemDetails: StalkerSelectedVodItem | null = null;
@@ -167,6 +169,10 @@ export class StalkerSearchComponent {
             const playlist = this.currentPlaylist();
             if (!playlist) return [];
             const { portalUrl, macAddress } = playlist;
+            if (!portalUrl || !macAddress) {
+                return [];
+            }
+            const contentType = params.contentType;
 
             let token: string | undefined;
             let serialNumber: string | undefined;
@@ -189,9 +195,9 @@ export class StalkerSearchComponent {
                         url: portalUrl,
                         macAddress,
                         params: {
-                            action: StalkerContentTypes[params.contentType]
+                            action: StalkerContentTypes[contentType]
                                 .getContentAction,
-                            type: params.contentType,
+                            type: contentType,
                             search: params.search,
                             max_page_items: 100,
                         },
@@ -199,16 +205,10 @@ export class StalkerSearchComponent {
                         serialNumber,
                     }
                 );
-            if (response) {
-                const items = response.js?.data || [];
-                return items.map((item: StalkerVodSource) =>
-                    this.processItemUrls(item, portalUrl)
-                );
-            } else {
-                throw new Error(
-                    `Error: ${response.message} (Status: ${response.status})`
-                );
-            }
+            const items = response.js?.data || [];
+            return items.map((item: StalkerVodSource) =>
+                this.processItemUrls(item, portalUrl)
+            );
         },
     });
 
@@ -243,23 +243,26 @@ export class StalkerSearchComponent {
         this.searchTerm.set(term);
     }
 
-    updateFilter(key: string, value: boolean) {
+    updateFilter(key: StalkerSearchContentType, value: boolean) {
         if (value) {
             // Single selection mode - set clicked filter, disable others
             this.selectedFilterType.set(key);
-            this.filters.update((f) => {
-                const newFilters: Record<string, boolean> = {};
-                Object.keys(f).forEach((k) => {
-                    newFilters[k] = k === key;
+            this.filters.update(() => {
+                const newFilters: Record<StalkerSearchContentType, boolean> = {
+                    series: false,
+                    vod: false,
+                };
+                this.filterConfig.forEach((filter) => {
+                    newFilters[filter.key] = filter.key === key;
                 });
-                return newFilters as typeof f;
+                return newFilters;
             });
         }
     }
 
     selectItem(item: StalkerVodSource) {
         this.closeInlinePlayer();
-        const hasEmbeddedSeries = item.series?.length > 0;
+        const hasEmbeddedSeries = (item.series?.length ?? 0) > 0;
         const needsSeriesFetch =
             this.selectedFilterType() === 'vod' &&
             !hasEmbeddedSeries &&

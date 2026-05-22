@@ -2,7 +2,7 @@ import { AsyncPipe } from '@angular/common';
 import { Component, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslateModule } from '@ngx-translate/core';
-import { BehaviorSubject, map, switchMap } from 'rxjs';
+import { BehaviorSubject, map, of, switchMap } from 'rxjs';
 import { PlaylistsService } from '@iptvnator/services';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
@@ -33,11 +33,12 @@ export class FavoritesButtonComponent {
     private readonly favoritesChanged$ = new BehaviorSubject<void>(undefined);
 
     readonly isFavorite$ = this.favoritesChanged$.pipe(
-        switchMap(() =>
-            this.playlistService.getPortalFavorites(
-                this.stalkerStore.currentPlaylist()?._id
-            )
-        ),
+        switchMap(() => {
+            const playlistId = this.stalkerStore.currentPlaylist()?._id;
+            return playlistId
+                ? this.playlistService.getPortalFavorites(playlistId)
+                : of([]);
+        }),
         map((favorites) =>
             favorites.some((favorite) =>
                 matchesFavoriteById(favorite, this.itemId())
