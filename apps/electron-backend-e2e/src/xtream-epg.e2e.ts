@@ -12,7 +12,6 @@ import {
 } from './electron-test-fixtures';
 import {
     fetchXtreamEpgFixture,
-    XtreamEpgFixture,
     XtreamNormalizedEpgListing,
 } from './portal-mock-fixtures';
 
@@ -87,7 +86,7 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
             });
 
             const currentDateKey = formatDateKeyInZone(Date.now(), timeZone);
-            const currentDayTitles = visibleTitlesForCurrentDate(
+            const currentDayTitles = titlesForDate(
                 fixture.fullEpg,
                 currentDateKey,
                 timeZone
@@ -180,22 +179,6 @@ function titlesForDate(
             (listing) =>
                 formatDateKeyInZone(listing.startTimestamp * 1000, timeZone) ===
                 dateKey
-        )
-        .map((listing) => listing.title);
-}
-
-function visibleTitlesForCurrentDate(
-    listings: XtreamNormalizedEpgListing[],
-    currentDateKey: string,
-    timeZone: string
-): string[] {
-    const nowSeconds = Math.floor(Date.now() / 1000);
-
-    return listings
-        .filter(
-            (listing) =>
-                formatDateKeyInZone(listing.startTimestamp * 1000, timeZone) ===
-                    currentDateKey && listing.stopTimestamp >= nowSeconds
         )
         .map((listing) => listing.title);
 }
