@@ -70,7 +70,9 @@ direct `window.electron` or `DataService.getAppEnvironment()` checks. Keep
 feature decisions expressed as capabilities such as `supportsEpg`,
 `supportsSqlite`, `supportsXtreamSqliteDataSource`, `supportsDownloads`, or
 `supportsManagedExternalPlayers` so PWA and Electron behavior stays auditable
-from one shared boundary.
+from one shared boundary. `supportsManagedExternalPlayers` requires the MPV and
+VLC preload launch methods (`openInMpv` and `openInVlc`); a partial Electron
+bridge must not expose managed external-player actions in the PWA/shared UI.
 
 ## Runtime Limitations
 

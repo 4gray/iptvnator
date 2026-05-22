@@ -77,6 +77,8 @@ describe('RuntimeCapabilitiesService', () => {
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
             downloadsGetList: jest.fn(),
+            openInMpv: jest.fn(),
+            openInVlc: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
             saveFileDialog: jest.fn(),
             writeFile: jest.fn(),
@@ -119,6 +121,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
@@ -149,5 +152,23 @@ describe('RuntimeCapabilitiesService', () => {
 
         expect(service.supportsSqlite).toBe(true);
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
+    });
+
+    it('requires both managed external player launch methods', () => {
+        testWindow.electron = {
+            openInMpv: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsManagedExternalPlayers).toBe(false);
+
+        testWindow.electron = {
+            openInMpv: jest.fn(),
+            openInVlc: jest.fn(),
+        };
+
+        expect(service.supportsManagedExternalPlayers).toBe(true);
     });
 });
