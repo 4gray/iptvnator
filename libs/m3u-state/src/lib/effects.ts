@@ -160,13 +160,11 @@ export class PlaylistEffects {
                     this.epgService.getChannelPrograms(channelId);
                 }
 
-                // Set user agent if specified on channel
-                if (channel.http['user-agent']) {
-                    window.electron?.setUserAgent(
-                        channel.http['user-agent'],
-                        channel.http.referrer
-                    );
-                }
+                window.electron?.setUserAgent(
+                    channel.http['user-agent'],
+                    channel.http.referrer,
+                    channel.url
+                );
 
                 firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
                     (settings: any) => {

@@ -150,13 +150,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             const url = channel.url + (channel.epgParams ?? '');
             const extension = getPlaybackMediaExtensionFromUrl(channel.url);
 
-            // Set user agent if specified on channel
-            if (channel.http?.['user-agent']) {
-                window.electron?.setUserAgent(
-                    channel.http['user-agent'],
-                    channel.http.referrer
-                );
-            }
+            window.electron?.setUserAgent(
+                channel.http?.['user-agent'],
+                channel.http?.referrer,
+                channel.url
+            );
 
             if ((extension === 'ts' || !extension) && mpegts.isSupported()) {
                 debugHtmlPlayer(
