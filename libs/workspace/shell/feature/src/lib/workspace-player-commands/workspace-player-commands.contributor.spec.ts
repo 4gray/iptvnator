@@ -7,7 +7,7 @@ import {
     WorkspaceCommandContribution,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { WorkspacePlayerCommandsContributor } from './workspace-player-commands.contributor';
 
@@ -46,16 +46,10 @@ describe('WorkspacePlayerCommandsContributor', () => {
     let viewCommands: ViewCommandsMock;
     let settingsStore: SettingsStoreMock;
     let snackBar: SnackBarMock;
+    let runtime: { supportsManagedExternalPlayers: boolean };
     let translate: { instant: jest.Mock; onLangChange: ReturnType<typeof of> };
 
-    function bootstrap(options: { isDesktop: boolean }) {
-        if (options.isDesktop) {
-            window.electron = { platform: 'darwin' } as typeof window.electron;
-        } else {
-            // @ts-expect-error - simulating PWA environment
-            window.electron = undefined;
-        }
-
+    function bootstrap(options: { supportsManagedExternalPlayers: boolean }) {
         viewCommands = {
             registerCommand: jest.fn().mockReturnValue(() => undefined),
             commands: jest.fn().mockReturnValue([]),
@@ -65,6 +59,10 @@ describe('WorkspacePlayerCommandsContributor', () => {
             updateSettings: jest.fn().mockResolvedValue(undefined),
         };
         snackBar = { open: jest.fn() };
+        runtime = {
+            supportsManagedExternalPlayers:
+                options.supportsManagedExternalPlayers,
+        };
         translate = {
             instant: jest.fn(
                 (key: string, params?: Record<string, string | number>) =>
@@ -83,6 +81,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
                     useValue: viewCommands,
                 },
                 { provide: SettingsStore, useValue: settingsStore },
+                { provide: RuntimeCapabilitiesService, useValue: runtime },
                 { provide: MatSnackBar, useValue: snackBar },
                 { provide: TranslateService, useValue: translate },
             ],
@@ -96,7 +95,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
     });
 
     it('registers all five player commands when running in Electron', () => {
-        bootstrap({ isDesktop: true });
+        bootstrap({ supportsManagedExternalPlayers: true });
 
         const ids = getRegistered(viewCommands).map((c) => c.id);
         expect(ids).toEqual([
@@ -108,8 +107,8 @@ describe('WorkspacePlayerCommandsContributor', () => {
         ]);
     });
 
-    it('hides MPV and VLC when window.electron is unavailable', () => {
-        bootstrap({ isDesktop: false });
+    it('hides MPV and VLC when managed external players are unavailable', () => {
+        bootstrap({ supportsManagedExternalPlayers: false });
 
         const registered = getRegistered(viewCommands);
         const visibilityById = Object.fromEntries(
@@ -124,7 +123,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
     });
 
     it('marks the active player command as disabled', () => {
-        bootstrap({ isDesktop: true });
+        bootstrap({ supportsManagedExternalPlayers: true });
         settingsStore.player.set(VideoPlayer.MPV);
 
         const registered = getRegistered(viewCommands);
@@ -138,7 +137,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
     });
 
     it('updates settings and shows feedback on run', () => {
-        bootstrap({ isDesktop: true });
+        bootstrap({ supportsManagedExternalPlayers: true });
 
         const mpvCommand = getRegistered(viewCommands).find(
             (c) => c.id === 'switch-player-mpv'
