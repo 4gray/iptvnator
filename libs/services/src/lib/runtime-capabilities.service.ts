@@ -81,6 +81,10 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    get supportsXtreamSectionNavigation(): boolean {
+        return this.isElectron;
+    }
+
     hasElectronMethod(methodName: string): boolean {
         return typeof this.electronBridge?.[methodName] === 'function';
     }
