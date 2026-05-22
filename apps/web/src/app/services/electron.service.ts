@@ -156,7 +156,7 @@ export class ElectronService extends DataService {
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
-                    data['user-agent'] ?? undefined,
+                    data['user-agent'],
                     data.referer ?? undefined,
                     data.origin ?? undefined,
                     data.contentInfo,
@@ -185,7 +185,7 @@ export class ElectronService extends DataService {
                     data.url,
                     data.title ?? '',
                     data.thumbnail ?? '',
-                    data['user-agent'] ?? undefined,
+                    data['user-agent'],
                     data.referer ?? undefined,
                     data.origin ?? undefined,
                     data.contentInfo,
@@ -265,8 +265,8 @@ export class ElectronService extends DataService {
         }
     }
 
-    private async fetchM3uPlaylistFromUrl(payload: Partial<Playlist>) {
-        if (!payload.url) {
+    private async fetchM3uPlaylistFromUrl(payload?: Partial<Playlist>) {
+        if (!payload?.url) {
             return;
         }
 

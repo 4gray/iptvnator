@@ -144,8 +144,8 @@ export class PwaService extends DataService {
         return undefined as T;
     }
 
-    refreshPlaylist(payload: Partial<Playlist & { id: string }>) {
-        if (!payload.url || !payload.id) {
+    refreshPlaylist(payload?: Partial<Playlist & { id: string }>) {
+        if (!payload?.url || !payload?.id) {
             return;
         }
 
@@ -205,8 +205,8 @@ export class PwaService extends DataService {
      * Fetches playlist from the specified url
      * @param payload playlist payload
      */
-    fetchFromUrl(payload: Partial<Playlist>): void {
-        if (!payload.url) {
+    fetchFromUrl(payload?: Partial<Playlist>): void {
+        if (!payload?.url) {
             return;
         }
 
