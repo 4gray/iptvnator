@@ -1,10 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import {
-    DataService,
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgItem } from '@iptvnator/shared/interfaces';
 import { XtreamApiService } from '../../services/xtream-api.service';
 import { XtreamXmltvFallbackService } from '../../services/xtream-xmltv-fallback.service';
@@ -48,7 +44,6 @@ function buildProgram(
 
 interface TestStoreSetup {
     appEnvironment?: 'electron' | 'pwa';
-    isElectron?: boolean;
     selectedItem: { xtream_id: number; epg_channel_id?: string | null };
     preferUploaded?: boolean;
 }
@@ -82,18 +77,6 @@ function configureStore(setup: TestStoreSetup) {
     TestBed.configureTestingModule({
         providers: [
             TestEpgStore,
-            {
-                provide: DataService,
-                useValue: {
-                    getAppEnvironment: jest.fn(
-                        () => setup.appEnvironment ?? 'electron'
-                    ),
-                    isElectron: setup.isElectron ?? true,
-                    supportsEpg:
-                        setup.appEnvironment !== 'pwa' &&
-                        (setup.isElectron ?? true),
-                },
-            },
             {
                 provide: RuntimeCapabilitiesService,
                 useValue: {
@@ -183,7 +166,6 @@ describe('withEpg', () => {
     it('does not load Xtream or XMLTV EPG in browser/PWA mode', async () => {
         const { store, xtreamApiService, fallbackService } = configureStore({
             appEnvironment: 'pwa',
-            isElectron: false,
             selectedItem: { xtream_id: 101, epg_channel_id: 'rtl.de' },
         });
 
