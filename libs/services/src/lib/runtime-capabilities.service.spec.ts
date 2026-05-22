@@ -107,6 +107,13 @@ describe('RuntimeCapabilitiesService', () => {
             onChannelChange: jest.fn(),
             onRemoteControlCommand: jest.fn(),
             xtreamRequest: jest.fn(),
+            fetchEpg: jest.fn(),
+            getChannelPrograms: jest.fn(),
+            checkEpgFreshness: jest.fn(),
+            forceFetchEpg: jest.fn(),
+            clearEpgData: jest.fn(),
+            getEpgChannelsByRange: jest.fn(),
+            searchEpgPrograms: jest.fn(),
         };
 
         const service = new RuntimeCapabilitiesService();
@@ -140,7 +147,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.environment).toBe('electron');
         expect(service.platform).toBeUndefined();
         expect(service.isMacOS).toBe(false);
-        expect(service.supportsEpg).toBe(true);
+        expect(service.supportsEpg).toBe(false);
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
@@ -196,6 +203,31 @@ describe('RuntimeCapabilitiesService', () => {
 
         expect(service.supportsManagedExternalPlayers).toBe(true);
         expect(service.supportsExternalPlayerPathSettings).toBe(true);
+    });
+
+    it('requires the complete EPG preload surface', () => {
+        testWindow.electron = {
+            fetchEpg: jest.fn(),
+            getChannelPrograms: jest.fn(),
+            checkEpgFreshness: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsEpg).toBe(false);
+
+        testWindow.electron = {
+            fetchEpg: jest.fn(),
+            getChannelPrograms: jest.fn(),
+            checkEpgFreshness: jest.fn(),
+            forceFetchEpg: jest.fn(),
+            clearEpgData: jest.fn(),
+            getEpgChannelsByRange: jest.fn(),
+            searchEpgPrograms: jest.fn(),
+        };
+
+        expect(service.supportsEpg).toBe(true);
     });
 
     it('requires the complete downloads preload surface', () => {

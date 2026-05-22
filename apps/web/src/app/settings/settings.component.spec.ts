@@ -250,12 +250,16 @@ describe('SettingsComponent', () => {
                 staleUrls: [],
             }),
             clearEpgData: jest.fn().mockResolvedValue({ success: true }),
+            fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+            getChannelPrograms: jest.fn().mockResolvedValue([]),
+            getEpgChannelsByRange: jest.fn().mockResolvedValue([]),
             getLocalIpAddresses: jest.fn().mockResolvedValue([]),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
             platform: 'linux',
+            searchEpgPrograms: jest.fn().mockResolvedValue([]),
             saveFileDialog: jest.fn().mockResolvedValue('/tmp/backup.json'),
             setMpvPlayerPath: jest.fn().mockResolvedValue(undefined),
             setVlcPlayerPath: jest.fn().mockResolvedValue(undefined),
@@ -496,6 +500,21 @@ describe('SettingsComponent', () => {
             expect(
                 partialBridgeComponent.supportsExternalPlayerPathSettings
             ).toBe(false);
+            expect(partialBridgeComponent.supportsEpg).toBe(false);
+            expect(partialBridgeComponent.supportsRemoteControl).toBe(false);
+            expect(
+                partialBridgeComponent.settingsForm.get('epgUrl')
+            ).toBeNull();
+            expect(
+                partialBridgeComponent.sectionNav.find(
+                    (section) => section.id === 'epg'
+                )
+            ).toBeUndefined();
+            expect(
+                partialBridgeComponent.sectionNav.find(
+                    (section) => section.id === 'remote-control'
+                )
+            ).toBeUndefined();
             expect(
                 partialBridgeComponent
                     .players()
@@ -748,6 +767,8 @@ describe('SettingsComponent', () => {
 
         expect(browserComponent.isDesktop).toBe(false);
         expect(browserComponent.isPwa).toBe(true);
+        expect(browserComponent.supportsEpg).toBe(false);
+        expect(browserComponent.supportsRemoteControl).toBe(false);
         expect(browserComponent.settingsForm.get('epgUrl')).toBeNull();
 
         mockStore.overrideSelector(selectAllPlaylistsMeta, [
