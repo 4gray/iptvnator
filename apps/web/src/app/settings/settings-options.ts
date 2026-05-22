@@ -85,9 +85,15 @@ export const SETTINGS_EMBEDDED_PLAYER_OPTIONS: SettingsPlayerOption[] = [
     },
 ];
 
-export function buildSettingsSectionNavItems(
-    isDesktop: boolean
-): SettingsSection[] {
+export interface SettingsSectionVisibility {
+    supportsEpg: boolean;
+    supportsRemoteControl: boolean;
+}
+
+export function buildSettingsSectionNavItems({
+    supportsEpg,
+    supportsRemoteControl,
+}: SettingsSectionVisibility): SettingsSection[] {
     return [
         {
             id: 'general',
@@ -105,7 +111,7 @@ export function buildSettingsSectionNavItems(
             id: 'epg',
             label: 'SETTINGS.NAV_EPG',
             icon: 'calendar_month',
-            visible: isDesktop,
+            visible: supportsEpg,
         },
         {
             // Must match the section's HTML id (`remote-control`) so the
@@ -116,7 +122,7 @@ export function buildSettingsSectionNavItems(
             id: 'remote-control',
             label: 'SETTINGS.NAV_REMOTE',
             icon: 'smartphone',
-            visible: isDesktop,
+            visible: supportsRemoteControl,
         },
         {
             id: 'backup',

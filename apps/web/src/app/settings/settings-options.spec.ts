@@ -44,24 +44,34 @@ describe('buildSettingsSectionNavItems', () => {
         return ids;
     }
 
-    it('exposes desktop-only items only when isDesktop is true', () => {
-        const desktopItems = buildSettingsSectionNavItems(true);
-        const pwaItems = buildSettingsSectionNavItems(false);
+    it('exposes feature-specific items only when their runtime capabilities are supported', () => {
+        const supportedItems = buildSettingsSectionNavItems({
+            supportsEpg: true,
+            supportsRemoteControl: true,
+        });
+        const unsupportedItems = buildSettingsSectionNavItems({
+            supportsEpg: false,
+            supportsRemoteControl: false,
+        });
 
-        expect(desktopItems.map((item) => item.id)).toEqual(
+        expect(supportedItems.map((item) => item.id)).toEqual(
             expect.arrayContaining(['epg', 'remote-control'])
         );
-        expect(pwaItems.find((item) => item.id === 'epg')?.visible).toBe(
-            false
-        );
         expect(
-            pwaItems.find((item) => item.id === 'remote-control')?.visible
+            unsupportedItems.find((item) => item.id === 'epg')?.visible
+        ).toBe(false);
+        expect(
+            unsupportedItems.find((item) => item.id === 'remote-control')
+                ?.visible
         ).toBe(false);
     });
 
     it('every nav id matches an existing section template id (regression: remote-control nav no longer maps to the Nx lib name)', () => {
         const navIds = new Set(
-            buildSettingsSectionNavItems(true).map((item) => item.id)
+            buildSettingsSectionNavItems({
+                supportsEpg: true,
+                supportsRemoteControl: true,
+            }).map((item) => item.id)
         );
         const templateIds = collectSectionTemplateIds();
 

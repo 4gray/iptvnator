@@ -73,10 +73,13 @@ feature decisions expressed as capabilities such as `supportsEpg`,
 from one shared boundary. `supportsSqlite` requires the complete playlist
 storage preload API surface used by `PlaylistsService`, `supportsDownloads`
 requires the complete downloads preload API surface used by `DownloadsService`,
-`supportsPlaylistRefresh` requires the native playlist refresh/cancel/progress
-bridge, `supportsXtreamSectionNavigation` is available in PWA and in Electron
-when either the SQLite Xtream data source or the Xtream API transport is
-available, and
+`supportsEpg` requires the Electron EPG preload methods used by the shared EPG
+panels (`fetchEpg`, `getChannelPrograms`, `checkEpgFreshness`,
+`forceFetchEpg`, `clearEpgData`, `getEpgChannelsByRange`, and
+`searchEpgPrograms`), `supportsPlaylistRefresh` requires the native playlist
+refresh/cancel/progress bridge, `supportsXtreamSectionNavigation` is available
+in PWA and in Electron when either the SQLite Xtream data source or the Xtream
+API transport is available, and
 `supportsManagedExternalPlayers` requires the MPV and VLC preload launch and
 path-setting methods (`openInMpv`, `openInVlc`, `setMpvPlayerPath`, and
 `setVlcPlayerPath`); a partial Electron bridge must not expose desktop-only

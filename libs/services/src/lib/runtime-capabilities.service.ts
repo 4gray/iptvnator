@@ -32,7 +32,15 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsEpg(): boolean {
-        return this.isElectron;
+        return [
+            'fetchEpg',
+            'getChannelPrograms',
+            'checkEpgFreshness',
+            'forceFetchEpg',
+            'clearEpgData',
+            'getEpgChannelsByRange',
+            'searchEpgPrograms',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsSqlite(): boolean {

@@ -135,8 +135,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
+    readonly supportsEpg = this.runtime.supportsEpg;
     readonly supportsManagedExternalPlayers =
         this.runtime.supportsManagedExternalPlayers;
+    readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
     readonly embeddedMpvSupport = signal<EmbeddedMpvSupport | null>(null);
     readonly supportsEmbeddedMpv = computed(
         () => this.isDesktop && !!this.embeddedMpvSupport()?.supported
@@ -184,7 +186,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Settings form object */
     settingsForm = this.formBuilder.group({
         player: [VideoPlayer.VideoJs],
-        ...(this.isDesktop ? { epgUrl: new FormArray([]) } : {}),
+        ...(this.supportsEpg ? { epgUrl: new FormArray([]) } : {}),
         streamFormat: StreamFormat.M3u8StreamFormat,
         openStreamOnDoubleClick: false,
         language: Language.ENGLISH,
@@ -211,7 +213,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
         ],
         recordingFolder: '',
         coverSize: 'medium' as CoverSize,
-        ...(this.isDesktop ? { preferUploadedEpgOverXtream: false } : {}),
+        ...(this.supportsEpg
+            ? { preferUploadedEpgOverXtream: false }
+            : {}),
     });
 
     /** Form array with epg sources */
@@ -229,7 +233,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     private settingsStore = inject(SettingsStore);
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems(
-        this.isDesktop
+        {
+            supportsEpg: this.supportsEpg,
+            supportsRemoteControl: this.supportsRemoteControl,
+        }
     );
 
     readonly playlistDeleteSummary = computed<SettingsPlaylistDeleteSummary>(
@@ -337,7 +344,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * Fetches local IP addresses for remote control URL display
      */
     async fetchLocalIpAddresses(): Promise<void> {
-        if (window.electron?.getLocalIpAddresses) {
+        if (
+            this.supportsRemoteControl &&
+            window.electron?.getLocalIpAddresses
+        ) {
             const addresses = await window.electron.getLocalIpAddresses();
             this.localIpAddresses.set(addresses);
         }
@@ -361,7 +371,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         const currentSettings = this.settingsStore.getSettings();
         this.settingsForm.patchValue(currentSettings);
 
-        if (this.isDesktop && currentSettings.epgUrl) {
+        if (this.supportsEpg && currentSettings.epgUrl) {
             this.epgUrl.clear();
             this.setEpgUrls(currentSettings.epgUrl);
         }
@@ -518,7 +528,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
      */
     applyChangedSettings(): void {
         this.settingsForm.markAsPristine();
-        if (this.isDesktop) {
+        if (this.supportsEpg) {
             let epgUrls = this.settingsForm.value.epgUrl;
             if (epgUrls) {
                 if (!Array.isArray(epgUrls)) {
@@ -558,7 +568,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * intends when clicking "Refresh".
      */
     refreshEpg(url: string): void {
-        if (!url || !window.electron?.forceFetchEpg) return;
+        if (!this.supportsEpg || !url || !window.electron?.forceFetchEpg) {
+            return;
+        }
         void window.electron.forceFetchEpg(url);
     }
 
@@ -568,7 +580,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * gets visible per-URL feedback.
      */
     refreshAllEpg(): void {
-        if (!window.electron?.forceFetchEpg) return;
+        if (!this.supportsEpg || !window.electron?.forceFetchEpg) return;
         const urls = (this.epgUrl.value as string[])
             .map((url) => url?.trim())
             .filter((url): url is string => Boolean(url));
@@ -605,6 +617,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             ),
             onConfirm: async (): Promise<void> => {
                 if (
+                    !this.supportsEpg ||
                     !window.electron?.clearEpgData ||
                     this.isClearingEpgData()
                 ) {
