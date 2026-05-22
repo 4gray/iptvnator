@@ -238,6 +238,13 @@ describe('LiveStreamLayoutComponent', () => {
                         get isElectron() {
                             return Boolean(window.electron);
                         },
+                        get supportsRemoteControl() {
+                            return Boolean(
+                                window.electron?.updateRemoteControlStatus &&
+                                    window.electron.onChannelChange &&
+                                    window.electron.onRemoteControlCommand
+                            );
+                        },
                     },
                 },
                 { provide: SettingsStore, useValue: settingsStore },
