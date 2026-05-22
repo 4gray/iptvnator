@@ -8,7 +8,7 @@ import { EpgService } from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
-import { DataService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     Language,
     Settings,
@@ -64,9 +64,16 @@ describe('AppComponent', () => {
     let snackBar: MatSnackBar;
     let store: MockStore;
     let translateService: TranslateService;
+    let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
     const originalElectron = window.electron;
 
     beforeEach(waitForAsync(() => {
+        runtimeCapabilities = {
+            isElectron: true,
+            isMacOS: false,
+            supportsEpg: true,
+        };
+
         TestBed.configureTestingModule({
             imports: [AppComponent],
             providers: [
@@ -82,6 +89,10 @@ describe('AppComponent', () => {
                 {
                     provide: SettingsService,
                     useClass: MockSettingsService,
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtimeCapabilities as RuntimeCapabilitiesService,
                 },
                 MockProvider(EpgService, {
                     fetchEpg: jest.fn(),
@@ -211,5 +222,20 @@ describe('AppComponent', () => {
         expect(checkEpgFreshness).toHaveBeenCalledWith(settings.epgUrl, 12);
         expect(epgService.fetchEpg).toHaveBeenCalledWith(settings.epgUrl);
         expect(snackBar.open).not.toHaveBeenCalled();
+    });
+
+    it('does not fetch EPG settings when runtime does not support EPG', async () => {
+        const settings: Settings = {
+            ...DEFAULT_SETTINGS,
+            epgUrl: ['https://example.com/epg.xml'],
+        };
+        Object.assign(runtimeCapabilities, { supportsEpg: false });
+        settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
+
+        component.initSettings();
+        await fixture.whenStable();
+
+        expect(window.electron?.checkEpgFreshness).not.toHaveBeenCalled();
+        expect(epgService.fetchEpg).not.toHaveBeenCalled();
     });
 });
