@@ -157,7 +157,13 @@ describe('DashboardDataService', () => {
 
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
-            value: {} as Window['electron'],
+            value: {
+                dbGetGlobalRecentlyViewed: jest.fn(),
+                dbGetAllGlobalFavorites: jest.fn(),
+                dbGetGlobalRecentlyAdded: jest.fn(),
+                dbRemoveRecentItem: jest.fn(),
+                dbRemoveFavorite: jest.fn(),
+            } as unknown as Window['electron'],
             configurable: true,
         });
         playlistsLoadedSignal.set(true);

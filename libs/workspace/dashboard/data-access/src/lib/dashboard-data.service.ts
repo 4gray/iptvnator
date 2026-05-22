@@ -19,6 +19,7 @@ import {
     DatabaseService,
     GlobalRecentlyAddedKind,
     PlaylistsService,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
     XTREAM_DATA_SOURCE,
@@ -105,6 +106,7 @@ export class DashboardDataService {
     private readonly dbService = inject(DatabaseService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
@@ -158,7 +160,9 @@ export class DashboardDataService {
     );
     private readonly globalRecentLoadingState = signal(true);
     private readonly globalRecentLoadedState = signal(false);
-    private readonly globalRecentDbLoadedState = signal(!window.electron);
+    private readonly globalRecentDbLoadedState = signal(
+        !this.hasPortalActivityStorage
+    );
     private readonly globalFavoritesLoadingState = signal(true);
     private readonly globalFavoritesLoadedState = signal(false);
     private readonly xtreamRecentlyAddedLoadingState = signal(true);
@@ -185,6 +189,11 @@ export class DashboardDataService {
         this.xtreamRecentlyAddedLoadedState.asReadonly();
     readonly xtreamRecentlyAddedItems =
         this.xtreamRecentlyAddedItemsState.asReadonly();
+
+    private get hasPortalActivityStorage(): boolean {
+        return this.runtime.supportsPortalActivityStorage;
+    }
+
     readonly dashboardReady = computed(
         () =>
             this.playlistsLoaded() &&
@@ -479,7 +488,7 @@ export class DashboardDataService {
             this.globalRecentLoadingState.set(true);
         }
 
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             const recentItems = await this.loadPwaXtreamGlobalRecentItems();
             this.ngZone.run(() =>
                 this.xtreamGlobalRecentItems.set(recentItems)
@@ -523,7 +532,7 @@ export class DashboardDataService {
         kind: DashboardRecentlyAddedFilterKind,
         limit = 200
     ): Promise<DashboardRecentlyAddedItem[]> {
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             return [];
         }
 
@@ -536,7 +545,7 @@ export class DashboardDataService {
     async getXtreamRecentlyAddedItems(
         limit = 20
     ): Promise<DashboardRecentlyAddedItem[]> {
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             return [];
         }
 
@@ -555,7 +564,7 @@ export class DashboardDataService {
             this.xtreamRecentlyAddedLoadingState.set(true);
         }
 
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             this.ngZone.run(() => {
                 this.xtreamRecentlyAddedItemsState.set([]);
                 this.xtreamRecentlyAddedLoadingState.set(false);
@@ -584,7 +593,7 @@ export class DashboardDataService {
     }
 
     private async reloadXtreamGlobalFavorites(): Promise<void> {
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             const favorites = await this.loadPwaXtreamGlobalFavorites();
             this.ngZone.run(() => this.xtreamGlobalFavorites.set(favorites));
             this.finishInitialGlobalFavoritesLoadIfReady();
@@ -860,7 +869,7 @@ export class DashboardDataService {
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (window.electron) {
+            if (this.hasPortalActivityStorage) {
                 await this.dbService.removeRecentItem(
                     item.id as number,
                     item.playlist_id
@@ -1021,7 +1030,7 @@ export class DashboardDataService {
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
         if (item.source === 'xtream') {
-            if (window.electron) {
+            if (this.hasPortalActivityStorage) {
                 await this.dbService.removeFromFavorites(
                     item.id as number,
                     item.playlist_id
