@@ -22,7 +22,7 @@ export class PlaylistDeleteActionService {
         playlist: PlaylistMeta,
         options: PlaylistDeleteActionOptions = {}
     ): Promise<boolean> {
-        if (this.runtime.isElectron) {
+        if (this.runtime.supportsSqlite) {
             return this.deletePlaylistInElectron(playlist, options);
         }
 

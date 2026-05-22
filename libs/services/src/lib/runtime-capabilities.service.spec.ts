@@ -36,8 +36,12 @@ describe('RuntimeCapabilitiesService', () => {
     it('reports Electron capabilities from the available preload bridge methods', () => {
         testWindow.electron = {
             platform: 'darwin',
+            dbDeleteAllPlaylists: jest.fn(),
+            dbDeletePlaylist: jest.fn(),
+            dbGetAppPlaylist: jest.fn(),
             dbGetAppPlaylists: jest.fn(),
             dbUpsertAppPlaylist: jest.fn(),
+            dbUpsertAppPlaylists: jest.fn(),
             dbGetAppState: jest.fn(),
             dbSetAppState: jest.fn(),
             dbGetRecentlyViewed: jest.fn(),
@@ -57,7 +61,6 @@ describe('RuntimeCapabilitiesService', () => {
             dbGetPlaylist: jest.fn(),
             dbCreatePlaylist: jest.fn(),
             dbUpdatePlaylist: jest.fn(),
-            dbDeletePlaylist: jest.fn(),
             dbHasCategories: jest.fn(),
             dbGetCategories: jest.fn(),
             dbSaveCategories: jest.fn(),
@@ -157,12 +160,7 @@ describe('RuntimeCapabilitiesService', () => {
     });
 
     it('keeps the Xtream SQLite data source disabled when only generic SQLite methods exist', () => {
-        testWindow.electron = {
-            dbGetAppPlaylists: jest.fn(),
-            dbUpsertAppPlaylist: jest.fn(),
-            dbGetAppState: jest.fn(),
-            dbSetAppState: jest.fn(),
-        };
+        testWindow.electron = createPlaylistStorageBridge();
 
         const service = new RuntimeCapabilitiesService();
 
@@ -234,4 +232,35 @@ describe('RuntimeCapabilitiesService', () => {
 
         expect(service.supportsPlaylistRefresh).toBe(true);
     });
+
+    it('requires the complete playlist storage SQLite preload surface', () => {
+        testWindow.electron = {
+            dbGetAppPlaylists: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbGetAppState: jest.fn(),
+            dbSetAppState: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsSqlite).toBe(false);
+
+        testWindow.electron = createPlaylistStorageBridge();
+
+        expect(service.supportsSqlite).toBe(true);
+    });
 });
+
+function createPlaylistStorageBridge(): Record<string, jest.Mock> {
+    return {
+        dbDeleteAllPlaylists: jest.fn(),
+        dbDeletePlaylist: jest.fn(),
+        dbGetAppPlaylist: jest.fn(),
+        dbGetAppPlaylists: jest.fn(),
+        dbGetAppState: jest.fn(),
+        dbSetAppState: jest.fn(),
+        dbUpsertAppPlaylist: jest.fn(),
+        dbUpsertAppPlaylists: jest.fn(),
+    };
+}

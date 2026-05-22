@@ -36,12 +36,16 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsSqlite(): boolean {
-        return (
-            this.hasElectronMethod('dbGetAppPlaylists') &&
-            this.hasElectronMethod('dbUpsertAppPlaylist') &&
-            this.hasElectronMethod('dbGetAppState') &&
-            this.hasElectronMethod('dbSetAppState')
-        );
+        return [
+            'dbDeleteAllPlaylists',
+            'dbDeletePlaylist',
+            'dbGetAppPlaylist',
+            'dbGetAppPlaylists',
+            'dbGetAppState',
+            'dbSetAppState',
+            'dbUpsertAppPlaylist',
+            'dbUpsertAppPlaylists',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsXtreamSqliteDataSource(): boolean {
