@@ -48,6 +48,16 @@ export class RuntimeCapabilitiesService {
         return this.hasElectronMethod('downloadsGetList');
     }
 
+    get supportsPortalActivityStorage(): boolean {
+        return (
+            this.hasElectronMethod('dbGetRecentlyViewed') &&
+            this.hasElectronMethod('dbGetAllGlobalFavorites') &&
+            this.hasElectronMethod('dbGetGlobalRecentlyAdded') &&
+            this.hasElectronMethod('dbRemoveRecentItem') &&
+            this.hasElectronMethod('dbRemoveFavorite')
+        );
+    }
+
     get supportsManagedExternalPlayers(): boolean {
         return this.isElectron;
     }
