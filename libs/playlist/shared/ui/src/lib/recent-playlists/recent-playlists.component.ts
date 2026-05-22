@@ -98,6 +98,9 @@ export class RecentPlaylistsComponent {
     readonly addPlaylistClicked = output<PlaylistType | undefined>();
 
     readonly isElectron = this.runtime.isElectron;
+    readonly supportsPlaylistRefresh = this.runtime.supportsPlaylistRefresh;
+    readonly supportsXtreamSqliteDataSource =
+        this.runtime.supportsXtreamSqliteDataSource;
 
     readonly allPlaylistsLoaded = this.store.selectSignal(
         selectPlaylistsLoadingFlag
@@ -289,17 +292,20 @@ export class RecentPlaylistsComponent {
             return;
         }
 
-        if (item.serverUrl) {
+        if (item.serverUrl && this.supportsXtreamSqliteDataSource) {
             // For Xtream playlists, delete and re-import
             this.refreshXtreamPlaylist(item);
-        } else if (this.isElectron && (item.url || item.filePath)) {
+        } else if (
+            this.supportsPlaylistRefresh &&
+            (item.url || item.filePath)
+        ) {
             void this.refreshM3uPlaylist(item);
-        } else {
-            // For M3U playlists, use existing refresh logic
+        } else if (item.url) {
+            // Browser/PWA URL refresh uses the PWA data service path.
             this.dataService.sendIpcEvent(PLAYLIST_UPDATE, {
                 id: item._id,
                 title: item.title,
-                ...(item.url ? { url: item.url } : { filePath: item.filePath }),
+                url: item.url,
             });
         }
     }

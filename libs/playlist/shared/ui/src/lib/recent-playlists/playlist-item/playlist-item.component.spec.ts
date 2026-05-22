@@ -14,12 +14,14 @@ describe('PlaylistItemComponent', () => {
     let component: PlaylistItemComponent;
     let fixture: ComponentFixture<PlaylistItemComponent>;
     let runtime: {
-        isElectron: boolean;
+        supportsPlaylistRefresh: boolean;
+        supportsXtreamSqliteDataSource: boolean;
     };
 
     beforeEach(waitForAsync(() => {
         runtime = {
-            isElectron: true,
+            supportsPlaylistRefresh: true,
+            supportsXtreamSqliteDataSource: true,
         };
 
         TestBed.configureTestingModule({
@@ -91,6 +93,7 @@ describe('PlaylistItemComponent', () => {
 
     it('renders a refresh action for file-backed M3U playlists', () => {
         fixture.destroy();
+        runtime.supportsPlaylistRefresh = true;
         fixture = TestBed.createComponent(PlaylistItemComponent);
         component = fixture.componentInstance;
         component.item = {
@@ -108,9 +111,53 @@ describe('PlaylistItemComponent', () => {
         expect(nativeElement.querySelector('.refresh-btn')).not.toBeNull();
     });
 
-    it('renders the Xtream refresh action only when Electron capabilities are available', () => {
+    it('hides file-backed M3U refresh without the refresh bridge', () => {
         fixture.destroy();
-        runtime.isElectron = true;
+        runtime.supportsPlaylistRefresh = false;
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'Local Source',
+            _id: 'local-source',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            filePath: '/tmp/local-source.m3u',
+        };
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.refresh-btn'
+            )
+        ).toBeNull();
+    });
+
+    it('keeps URL-backed M3U refresh visible without the refresh bridge', () => {
+        fixture.destroy();
+        runtime.supportsPlaylistRefresh = false;
+        fixture = TestBed.createComponent(PlaylistItemComponent);
+        component = fixture.componentInstance;
+        component.item = {
+            title: 'Remote Source',
+            _id: 'remote-source',
+            count: 10,
+            importDate: Date.now().toString(),
+            autoRefresh: false,
+            url: 'https://example.com/playlist.m3u',
+        };
+        fixture.detectChanges();
+
+        expect(
+            (fixture.nativeElement as HTMLElement).querySelector(
+                '.refresh-btn'
+            )
+        ).not.toBeNull();
+    });
+
+    it('renders the Xtream refresh action only when the SQLite data source is available', () => {
+        fixture.destroy();
+        runtime.supportsXtreamSqliteDataSource = true;
         fixture = TestBed.createComponent(PlaylistItemComponent);
         component = fixture.componentInstance;
         component.item = {
@@ -132,7 +179,7 @@ describe('PlaylistItemComponent', () => {
         ).not.toBeNull();
 
         fixture.destroy();
-        runtime.isElectron = false;
+        runtime.supportsXtreamSqliteDataSource = false;
         fixture = TestBed.createComponent(PlaylistItemComponent);
         component = fixture.componentInstance;
         component.item = {

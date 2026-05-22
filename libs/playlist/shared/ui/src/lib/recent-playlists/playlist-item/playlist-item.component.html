@@ -167,7 +167,7 @@
                     <mat-icon>close</mat-icon>
                 </button>
             }
-            @if (item.url || item.filePath) {
+            @if (item.url || (item.filePath && supportsPlaylistRefresh)) {
                 <button
                     mat-icon-button
                     class="refresh-btn"
@@ -188,7 +188,7 @@
                     }
                 </button>
             }
-            @if (item.serverUrl && isElectron) {
+            @if (item.serverUrl && supportsXtreamSqliteDataSource) {
                 <button
                     mat-icon-button
                     class="refresh-btn"

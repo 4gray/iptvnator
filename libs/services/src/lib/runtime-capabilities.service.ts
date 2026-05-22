@@ -118,6 +118,14 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    get supportsPlaylistRefresh(): boolean {
+        return [
+            'refreshPlaylist',
+            'cancelPlaylistRefresh',
+            'onPlaylistRefreshEvent',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsManagedExternalPlayers(): boolean {
         return ['openInMpv', 'openInVlc'].every((methodName) =>
             this.hasElectronMethod(methodName)

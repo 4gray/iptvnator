@@ -20,6 +20,8 @@ import {
     DbOperationEvent,
     PlaybackPositionService,
     PlaylistDeleteActionService,
+    PlaylistRefreshService,
+    RuntimeCapabilitiesService,
     SortBy,
     SortOrder,
     SortService,
@@ -81,6 +83,14 @@ describe('RecentPlaylistsComponent busy state', () => {
     let playlistDeleteAction: {
         deletePlaylist: jest.Mock;
     };
+    let playlistRefreshService: {
+        refreshPlaylist: jest.Mock;
+    };
+    let runtime: {
+        isElectron: boolean;
+        supportsPlaylistRefresh: boolean;
+        supportsXtreamSqliteDataSource: boolean;
+    };
     let router: {
         navigate: jest.Mock;
     };
@@ -88,13 +98,8 @@ describe('RecentPlaylistsComponent busy state', () => {
         open: jest.Mock;
     };
     let store: MockStore;
-    const originalElectron = window.electron;
 
     beforeEach(async () => {
-        window.electron = {
-            platform: 'darwin',
-        } as typeof window.electron;
-
         databaseService = {
             cancelOperation: jest.fn().mockResolvedValue(true),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
@@ -113,6 +118,14 @@ describe('RecentPlaylistsComponent busy state', () => {
         };
         playlistDeleteAction = {
             deletePlaylist: jest.fn().mockResolvedValue(true),
+        };
+        playlistRefreshService = {
+            refreshPlaylist: jest.fn(),
+        };
+        runtime = {
+            isElectron: true,
+            supportsPlaylistRefresh: true,
+            supportsXtreamSqliteDataSource: true,
         };
         router = {
             navigate: jest.fn(),
@@ -155,6 +168,14 @@ describe('RecentPlaylistsComponent busy state', () => {
                 {
                     provide: PlaylistDeleteActionService,
                     useValue: playlistDeleteAction,
+                },
+                {
+                    provide: PlaylistRefreshService,
+                    useValue: playlistRefreshService,
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtime,
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -209,7 +230,6 @@ describe('RecentPlaylistsComponent busy state', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         localStorage.clear();
-        window.electron = originalElectron;
     });
 
     it('tracks delete progress and clears the busy row after completion', async () => {
@@ -452,12 +472,35 @@ describe('RecentPlaylistsComponent busy state', () => {
     });
 
     it('uses the legacy IPC refresh flow for non-Xtream playlists', () => {
-        window.electron = undefined as unknown as typeof window.electron;
         (
             component as unknown as {
-                isElectron: boolean;
+                supportsPlaylistRefresh: boolean;
             }
-        ).isElectron = false;
+        ).supportsPlaylistRefresh = false;
+        const item = createPlaylistMeta({
+            _id: 'playlist-m3u-1',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            filePath: undefined,
+            url: 'https://example.com/test.m3u',
+        });
+
+        component.refreshPlaylist(item);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(PLAYLIST_UPDATE, {
+            id: item._id,
+            title: item.title,
+            url: item.url,
+        });
+    });
+
+    it('does not use legacy IPC refresh for file-backed playlists without the refresh bridge', () => {
+        (
+            component as unknown as {
+                supportsPlaylistRefresh: boolean;
+            }
+        ).supportsPlaylistRefresh = false;
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-1',
             serverUrl: undefined,
@@ -468,10 +511,7 @@ describe('RecentPlaylistsComponent busy state', () => {
 
         component.refreshPlaylist(item);
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(PLAYLIST_UPDATE, {
-            id: item._id,
-            title: item.title,
-            filePath: item.filePath,
-        });
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
     });
 });
