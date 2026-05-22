@@ -49,6 +49,12 @@ pnpm nx build web --configuration=pwa
 pnpm nx build web-backend
 ```
 
+Those Nx builds generate platform-independent JS and static assets. In
+multi-architecture CI builds, the Dockerfile runs this build stage on the native
+BuildKit builder platform, then copies the generated output into each target
+runtime image. That avoids running the Angular/Nx build through QEMU when
+publishing `linux/amd64` and `linux/arm64` images.
+
 ## Published Docker Tags
 
 Pull request builds validate the Dockerfile without pushing an image. Docker
