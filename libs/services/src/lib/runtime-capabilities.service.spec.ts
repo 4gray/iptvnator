@@ -258,6 +258,24 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsDownloads).toBe(true);
     });
 
+    it('requires both desktop file-save preload methods', () => {
+        testWindow.electron = {
+            saveFileDialog: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsDesktopFileSave).toBe(false);
+
+        testWindow.electron = {
+            saveFileDialog: jest.fn(),
+            writeFile: jest.fn(),
+        };
+
+        expect(service.supportsDesktopFileSave).toBe(true);
+    });
+
     it('requires the complete playlist refresh preload surface', () => {
         testWindow.electron = {
             refreshPlaylist: jest.fn(),

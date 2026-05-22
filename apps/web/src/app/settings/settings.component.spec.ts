@@ -911,6 +911,65 @@ describe('SettingsComponent', () => {
         expect(component.isExportingData()).toBe(false);
     });
 
+    it('falls back to browser backup download when desktop file-save preload is incomplete', async () => {
+        fixture.destroy();
+        const saveFileDialog = jest.fn().mockResolvedValue('/tmp/backup.json');
+        window.electron = {
+            platform: 'linux',
+            saveFileDialog,
+        } as unknown as typeof window.electron;
+
+        const createObjectURL = jest.fn().mockReturnValue('blob:backup');
+        const revokeObjectURL = jest.fn();
+        const originalCreateObjectURL = window.URL.createObjectURL;
+        const originalRevokeObjectURL = window.URL.revokeObjectURL;
+        Object.defineProperty(window.URL, 'createObjectURL', {
+            configurable: true,
+            value: createObjectURL,
+        });
+        Object.defineProperty(window.URL, 'revokeObjectURL', {
+            configurable: true,
+            value: revokeObjectURL,
+        });
+        const clickSpy = jest
+            .spyOn(HTMLAnchorElement.prototype, 'click')
+            .mockImplementation();
+
+        try {
+            const partialFileSaveFixture =
+                TestBed.createComponent(SettingsComponent);
+            const partialFileSaveComponent =
+                partialFileSaveFixture.componentInstance;
+            partialFileSaveComponent.checkAppVersion = jest.fn();
+            partialFileSaveComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            partialFileSaveFixture.detectChanges();
+
+            expect(partialFileSaveComponent.isDesktop).toBe(true);
+            expect(partialFileSaveComponent.supportsDesktopFileSave).toBe(
+                false
+            );
+
+            await partialFileSaveComponent.exportData();
+
+            expect(saveFileDialog).not.toHaveBeenCalled();
+            expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+            expect(clickSpy).toHaveBeenCalled();
+            expect(revokeObjectURL).toHaveBeenCalledWith('blob:backup');
+        } finally {
+            clickSpy.mockRestore();
+            Object.defineProperty(window.URL, 'createObjectURL', {
+                configurable: true,
+                value: originalCreateObjectURL,
+            });
+            Object.defineProperty(window.URL, 'revokeObjectURL', {
+                configurable: true,
+                value: originalRevokeObjectURL,
+            });
+        }
+    });
+
     it('shows a failure snackbar and skips refresh when clearing EPG data rejects', async () => {
         (window.electron.clearEpgData as jest.Mock).mockRejectedValueOnce(
             new Error('boom')

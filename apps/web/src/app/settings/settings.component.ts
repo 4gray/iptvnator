@@ -137,6 +137,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
+    readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly supportsExternalPlayerPathSettings =
         this.runtime.supportsExternalPlayerPathSettings;
@@ -699,7 +700,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         try {
             const backup = await this.playlistBackupService.exportBackup();
 
-            if (this.isDesktop && window.electron?.saveFileDialog) {
+            if (this.supportsDesktopFileSave && window.electron) {
                 const savePath = await window.electron.saveFileDialog(
                     backup.defaultFileName,
                     [
