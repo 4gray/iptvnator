@@ -29,6 +29,7 @@ import {
     EpgChannelWithPrograms,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
@@ -181,6 +182,7 @@ export class MultiEpgContainerComponent
 
     private readonly dialog = inject(MatDialog);
     private readonly overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
 
     ngOnInit() {
         // Update current time line every minute
@@ -267,8 +269,8 @@ export class MultiEpgContainerComponent
     }
 
     async requestPrograms(): Promise<void> {
-        if (!window.electron) {
-            console.warn('Multi-EPG not available: Electron not detected');
+        if (!this.runtime.supportsEpg) {
+            console.warn('Multi-EPG not available in this runtime');
             return;
         }
 
@@ -455,6 +457,12 @@ export class MultiEpgContainerComponent
         }
 
         if (query.length < 2) {
+            this.programSearchResults.set([]);
+            this.isSearchingPrograms.set(false);
+            return;
+        }
+
+        if (!this.runtime.supportsEpg) {
             this.programSearchResults.set([]);
             this.isSearchingPrograms.set(false);
             return;
