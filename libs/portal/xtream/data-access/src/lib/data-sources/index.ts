@@ -23,7 +23,7 @@ export { PwaXtreamDataSource } from './pwa-xtream-data-source';
 export function xtreamDataSourceFactory(): IXtreamDataSource {
     const runtime = inject(RuntimeCapabilitiesService);
 
-    if (runtime.isElectron) {
+    if (runtime.supportsXtreamSqliteDataSource) {
         return inject(ElectronXtreamDataSource);
     }
 
@@ -50,7 +50,7 @@ export function provideXtreamDataSource(): Provider[] {
                 const runtime = inject(RuntimeCapabilitiesService);
 
                 return (playlistId: string) => {
-                    if (runtime.isElectron) {
+                    if (runtime.supportsXtreamSqliteDataSource) {
                         // Electron playlist deletion must use DatabaseService so
                         // SQLite content and sidecars are cleaned together; do
                         // not invoke this cleanup path through PlaylistsService.

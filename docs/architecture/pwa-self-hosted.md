@@ -68,8 +68,9 @@ Renderer code that needs to branch by runtime should use
 `RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new
 direct `window.electron` or `DataService.getAppEnvironment()` checks. Keep
 feature decisions expressed as capabilities such as `supportsEpg`,
-`supportsSqlite`, `supportsDownloads`, or `supportsManagedExternalPlayers` so
-PWA and Electron behavior stays auditable from one shared boundary.
+`supportsSqlite`, `supportsXtreamSqliteDataSource`, `supportsDownloads`, or
+`supportsManagedExternalPlayers` so PWA and Electron behavior stays auditable
+from one shared boundary.
 
 ## Runtime Limitations
 
@@ -109,8 +110,12 @@ certificate authorities, configure Node with `NODE_EXTRA_CA_CERTS`.
 ## PWA Portal User Data
 
 Xtream favorites and recently viewed items use the browser-side
-`PwaXtreamDataSource` when Electron DB preload APIs are unavailable. The PWA
-stores this user activity and sidecar state in localStorage:
+`PwaXtreamDataSource` when Electron DB preload APIs are unavailable. The
+`XTREAM_DATA_SOURCE` provider chooses the Electron SQLite-backed source only
+when `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` is true; a
+browser PWA or partial preload bridge must fall back to the PWA source and run
+the browser cleanup hook on playlist deletion. The PWA stores this user activity
+and sidecar state in localStorage:
 
 - `xtream-collection-items`
 - `xtream-favorites`

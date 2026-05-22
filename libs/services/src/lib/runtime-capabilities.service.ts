@@ -44,6 +44,44 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    get supportsXtreamSqliteDataSource(): boolean {
+        return [
+            'dbGetPlaylist',
+            'dbCreatePlaylist',
+            'dbUpdatePlaylist',
+            'dbDeletePlaylist',
+            'dbHasCategories',
+            'dbGetCategories',
+            'dbSaveCategories',
+            'dbGetAllCategories',
+            'dbUpdateCategoryVisibility',
+            'dbHasContent',
+            'dbGetContent',
+            'dbSaveContent',
+            'dbGetAppState',
+            'dbSetAppState',
+            'dbSearchContent',
+            'dbGetFavorites',
+            'dbAddFavorite',
+            'dbRemoveFavorite',
+            'dbIsFavorite',
+            'dbGetRecentItems',
+            'dbAddRecentItem',
+            'dbRemoveRecentItem',
+            'dbClearPlaylistRecentItems',
+            'dbGetContentByXtreamId',
+            'dbSavePlaybackPosition',
+            'dbGetPlaybackPosition',
+            'dbGetSeriesPlaybackPositions',
+            'dbGetRecentPlaybackPositions',
+            'dbGetAllPlaybackPositions',
+            'dbClearAllPlaybackPositions',
+            'dbClearPlaybackPosition',
+            'dbDeleteXtreamContent',
+            'dbRestoreXtreamUserData',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsDownloads(): boolean {
         return this.hasElectronMethod('downloadsGetList');
     }
