@@ -77,9 +77,10 @@ requires the complete downloads preload API surface used by `DownloadsService`,
 bridge, `supportsXtreamSectionNavigation` is available in PWA and in Electron
 when either the SQLite Xtream data source or the Xtream API transport is
 available, and
-`supportsManagedExternalPlayers` requires the MPV and VLC preload launch methods
-(`openInMpv` and `openInVlc`); a partial Electron bridge must not expose
-desktop-only actions in the PWA/shared UI.
+`supportsManagedExternalPlayers` requires the MPV and VLC preload launch and
+path-setting methods (`openInMpv`, `openInVlc`, `setMpvPlayerPath`, and
+`setVlcPlayerPath`); a partial Electron bridge must not expose desktop-only
+actions in the PWA/shared UI.
 
 ## Runtime Limitations
 

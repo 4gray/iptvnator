@@ -137,6 +137,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
+    readonly supportsExternalPlayerPathSettings =
+        this.runtime.supportsExternalPlayerPathSettings;
     readonly embeddedMpvSupport = signal<EmbeddedMpvSupport | null>(null);
     readonly supportsEmbeddedMpv = computed(
         () => this.isDesktop && !!this.embeddedMpvSupport()?.supported
@@ -156,13 +158,15 @@ export class SettingsComponent implements OnInit, OnDestroy {
                   },
               ]
             : []),
-        ...SETTINGS_OS_PLAYER_OPTIONS,
+        ...(this.supportsExternalPlayerPathSettings
+            ? SETTINGS_OS_PLAYER_OPTIONS
+            : []),
     ]);
 
     /** Player options */
     readonly players = computed(() => [
         ...SETTINGS_EMBEDDED_PLAYER_OPTIONS,
-        ...(this.isDesktop ? this.osPlayers() : []),
+        ...this.osPlayers(),
     ]);
 
     /** Current version of the app */
@@ -481,7 +485,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
             if (window.electron) {
                 window.electron.updateSettings(settings);
+            }
 
+            if (this.supportsExternalPlayerPathSettings && window.electron) {
                 window.electron.setMpvPlayerPath(settings.mpvPlayerPath);
                 window.electron.setVlcPlayerPath(settings.vlcPlayerPath);
             }

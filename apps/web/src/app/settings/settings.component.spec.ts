@@ -253,6 +253,8 @@ describe('SettingsComponent', () => {
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
             getLocalIpAddresses: jest.fn().mockResolvedValue([]),
+            openInMpv: jest.fn(),
+            openInVlc: jest.fn(),
             platform: 'linux',
             saveFileDialog: jest.fn().mockResolvedValue('/tmp/backup.json'),
             setMpvPlayerPath: jest.fn().mockResolvedValue(undefined),
@@ -472,8 +474,44 @@ describe('SettingsComponent', () => {
             ).toBe(true);
         });
 
+        it('hides external player path settings when the Electron bridge is incomplete', async () => {
+            fixture.destroy();
+            window.electron = {
+                getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+                platform: 'linux',
+                updateSettings: jest.fn().mockResolvedValue(undefined),
+            } as unknown as typeof window.electron;
+
+            const partialBridgeFixture =
+                TestBed.createComponent(SettingsComponent);
+            const partialBridgeComponent =
+                partialBridgeFixture.componentInstance;
+            partialBridgeComponent.checkAppVersion = jest.fn();
+            partialBridgeComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            partialBridgeFixture.detectChanges();
+
+            expect(partialBridgeComponent.isDesktop).toBe(true);
+            expect(
+                partialBridgeComponent.supportsExternalPlayerPathSettings
+            ).toBe(false);
+            expect(
+                partialBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.MPV)
+            ).toBe(false);
+            expect(
+                partialBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.VLC)
+            ).toBe(false);
+        });
+
         it('does not block settings initialization while embedded mpv support is pending', async () => {
-            let resolveSupport: (value: EmbeddedMpvSupport) => void;
+            let resolveSupport:
+                | ((value: EmbeddedMpvSupport) => void)
+                | undefined;
             window.electron = {
                 ...window.electron,
                 getEmbeddedMpvSupport: jest.fn(
@@ -495,8 +533,11 @@ describe('SettingsComponent', () => {
             ).toBe(false);
 
             if (!resolveSupport) {
-                throw new Error('Expected embedded MPV support resolver');
+                throw new Error(
+                    'Expected embedded MPV support probe to start'
+                );
             }
+
             resolveSupport({
                 supported: true,
                 platform: 'darwin',

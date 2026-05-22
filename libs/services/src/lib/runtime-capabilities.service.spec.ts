@@ -27,6 +27,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsPlaylistRefresh).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
+        expect(service.supportsExternalPlayerPathSettings).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
@@ -97,6 +98,8 @@ describe('RuntimeCapabilitiesService', () => {
             onPlaylistRefreshEvent: jest.fn(),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
+            setMpvPlayerPath: jest.fn(),
+            setVlcPlayerPath: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
             saveFileDialog: jest.fn(),
             writeFile: jest.fn(),
@@ -120,6 +123,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsPortalActivityStorage).toBe(true);
         expect(service.supportsPlaylistRefresh).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
+        expect(service.supportsExternalPlayerPathSettings).toBe(true);
         expect(service.supportsEmbeddedMpv).toBe(true);
         expect(service.supportsDesktopFileSave).toBe(true);
         expect(service.supportsRemoteControl).toBe(true);
@@ -143,6 +147,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsPlaylistRefresh).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
+        expect(service.supportsExternalPlayerPathSettings).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
@@ -170,22 +175,27 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
     });
 
-    it('requires both managed external player launch methods', () => {
-        testWindow.electron = {
-            openInMpv: jest.fn(),
-        };
-
-        const service = new RuntimeCapabilitiesService();
-
-        expect(service.isElectron).toBe(true);
-        expect(service.supportsManagedExternalPlayers).toBe(false);
-
+    it('decouples external player launch support from path-setting support', () => {
         testWindow.electron = {
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
         };
 
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
+        expect(service.supportsExternalPlayerPathSettings).toBe(false);
+
+        testWindow.electron = {
+            openInMpv: jest.fn(),
+            openInVlc: jest.fn(),
+            setMpvPlayerPath: jest.fn(),
+            setVlcPlayerPath: jest.fn(),
+        };
+
+        expect(service.supportsManagedExternalPlayers).toBe(true);
+        expect(service.supportsExternalPlayerPathSettings).toBe(true);
     });
 
     it('requires the complete downloads preload surface', () => {

@@ -136,6 +136,12 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    get supportsExternalPlayerPathSettings(): boolean {
+        return ['setMpvPlayerPath', 'setVlcPlayerPath'].every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
+    }
+
     get supportsEmbeddedMpv(): boolean {
         return this.hasElectronMethod('prepareEmbeddedMpv');
     }
