@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { signalStore, withState } from '@ngrx/signals';
-import { DataService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import { EpgItem, Playlist } from '@iptvnator/shared/interfaces';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { withStalkerEpg } from './with-stalker-epg.feature';
@@ -36,18 +36,16 @@ const TestStalkerEpgStore = signalStore(
 describe('withStalkerEpg', () => {
     let store: InstanceType<typeof TestStalkerEpgStore>;
     let dataService: {
-        getAppEnvironment: jest.Mock<string, []>;
-        supportsEpg: boolean;
         sendIpcEvent: jest.Mock<Promise<unknown>, unknown[]>;
     };
+    let runtimeSupportsEpg: boolean;
     let stalkerSessionService: {
         makeAuthenticatedRequest: jest.Mock<Promise<unknown>, unknown[]>;
     };
 
     beforeEach(() => {
+        runtimeSupportsEpg = true;
         dataService = {
-            getAppEnvironment: jest.fn(() => 'electron'),
-            supportsEpg: true,
             sendIpcEvent: jest.fn(),
         };
         stalkerSessionService = {
@@ -58,6 +56,14 @@ describe('withStalkerEpg', () => {
             providers: [
                 TestStalkerEpgStore,
                 { provide: DataService, useValue: dataService },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: {
+                        get supportsEpg() {
+                            return runtimeSupportsEpg;
+                        },
+                    },
+                },
                 {
                     provide: StalkerSessionService,
                     useValue: stalkerSessionService,
@@ -98,8 +104,7 @@ describe('withStalkerEpg', () => {
     });
 
     it('does not request short EPG in browser/PWA mode', async () => {
-        dataService.getAppEnvironment.mockReturnValue('pwa');
-        dataService.supportsEpg = false;
+        runtimeSupportsEpg = false;
 
         const result = await store.fetchChannelEpg('10001');
 

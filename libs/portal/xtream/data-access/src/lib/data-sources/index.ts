@@ -1,5 +1,8 @@
 import { inject, Provider } from '@angular/core';
-import { PLAYLIST_DELETE_CLEANUP } from '@iptvnator/services';
+import {
+    PLAYLIST_DELETE_CLEANUP,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { ElectronXtreamDataSource } from './electron-xtream-data-source';
 import { PwaXtreamDataSource } from './pwa-xtream-data-source';
 import {
@@ -18,12 +21,12 @@ export { PwaXtreamDataSource } from './pwa-xtream-data-source';
  * - PWA: Uses API-only with in-memory caching and localStorage for user data
  */
 export function xtreamDataSourceFactory(): IXtreamDataSource {
-    // Check if we're in Electron environment
-    if (typeof window !== 'undefined' && window.electron) {
+    const runtime = inject(RuntimeCapabilitiesService);
+
+    if (runtime.isElectron) {
         return inject(ElectronXtreamDataSource);
     }
 
-    // Default to PWA implementation
     return inject(PwaXtreamDataSource);
 }
 
@@ -44,9 +47,10 @@ export function provideXtreamDataSource(): Provider[] {
             multi: true,
             useFactory: () => {
                 const dataSource = inject(XTREAM_DATA_SOURCE);
+                const runtime = inject(RuntimeCapabilitiesService);
 
                 return (playlistId: string) => {
-                    if (typeof window !== 'undefined' && window.electron) {
+                    if (runtime.isElectron) {
                         // Electron playlist deletion must use DatabaseService so
                         // SQLite content and sidecars are cleaned together; do
                         // not invoke this cleanup path through PlaylistsService.

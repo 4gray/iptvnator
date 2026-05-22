@@ -36,6 +36,20 @@ describe('PlaylistsService', () => {
             translateService: {
                 instant: jest.fn((key: string) => key),
             },
+            runtime: {
+                get supportsSqlite() {
+                    const electron = testWindow.electron as
+                        | Record<string, unknown>
+                        | undefined;
+                    return (
+                        !!electron &&
+                        typeof electron['dbGetAppPlaylists'] === 'function' &&
+                        typeof electron['dbUpsertAppPlaylist'] === 'function' &&
+                        typeof electron['dbGetAppState'] === 'function' &&
+                        typeof electron['dbSetAppState'] === 'function'
+                    );
+                },
+            },
             electronMigrationPromise: null,
             indexedDbMigrationPromise: null,
             playlistDeleteCleanups: [],

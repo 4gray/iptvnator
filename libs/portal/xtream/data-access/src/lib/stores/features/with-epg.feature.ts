@@ -7,7 +7,11 @@ import {
     withState,
 } from '@ngrx/signals';
 import { EpgItem } from '@iptvnator/shared/interfaces';
-import { DataService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -82,7 +86,10 @@ export function withEpg() {
             const apiService = inject(XtreamApiService);
             const dataService = inject(DataService);
             const fallbackService = inject(XtreamXmltvFallbackService);
+            const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
+
+            const supportsEpg = (): boolean => runtime.supportsEpg;
 
             /**
              * Helper to get credentials from parent store
@@ -126,7 +133,7 @@ export function withEpg() {
                  * sets `preferUploadedEpgOverXtream`.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
-                    if (!dataService.supportsEpg) {
+                    if (!supportsEpg()) {
                         patchState(store, {
                             epgItems: [],
                             isLoadingEpg: false,
@@ -182,7 +189,7 @@ export function withEpg() {
                     streamId: number,
                     epgChannelId?: string | null
                 ): Promise<EpgItem[]> {
-                    if (!dataService.supportsEpg) {
+                    if (!supportsEpg()) {
                         return [];
                     }
 
