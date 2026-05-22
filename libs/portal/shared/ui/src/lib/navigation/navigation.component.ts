@@ -50,7 +50,7 @@ export class NavigationComponent {
         () => !!(this.currentPlaylist() as Playlist | undefined)?.macAddress
     );
 
-    readonly isElectron = this.runtime.isElectron;
+    readonly supportsDownloads = this.runtime.supportsDownloads;
 
     readonly railLinks = computed(() => {
         const playlistId =
@@ -63,7 +63,7 @@ export class NavigationComponent {
         return buildPortalRailLinks({
             provider: this.isStalkerPlaylist() ? 'stalker' : 'xtreams',
             playlistId,
-            isElectron: this.isElectron,
+            supportsDownloads: this.supportsDownloads,
             workspace: false,
         });
     });

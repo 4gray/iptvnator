@@ -1,11 +1,11 @@
 import { buildPortalRailLinks } from './portal-rail-links';
 
 describe('buildPortalRailLinks', () => {
-    it('builds Xtream links with scoped tooltip labels on Electron', () => {
+    it('builds Xtream links with scoped tooltip labels when downloads are supported', () => {
         const links = buildPortalRailLinks({
             provider: 'xtreams',
             playlistId: 'xtream-1',
-            isElectron: true,
+            supportsDownloads: true,
             workspace: false,
         });
 
@@ -28,7 +28,7 @@ describe('buildPortalRailLinks', () => {
         const links = buildPortalRailLinks({
             provider: 'xtreams',
             playlistId: 'xtream-web',
-            isElectron: false,
+            supportsDownloads: false,
             workspace: true,
         });
 
@@ -50,7 +50,7 @@ describe('buildPortalRailLinks', () => {
         const links = buildPortalRailLinks({
             provider: 'stalker',
             playlistId: 'portal-1',
-            isElectron: false,
+            supportsDownloads: false,
             workspace: true,
         });
 
@@ -74,7 +74,7 @@ describe('buildPortalRailLinks', () => {
         const links = buildPortalRailLinks({
             provider: 'playlists',
             playlistId: 'm3u-1',
-            isElectron: true,
+            supportsDownloads: true,
             workspace: true,
         });
 

@@ -11,7 +11,7 @@ import { NavigationComponent } from './navigation.component';
 describe('NavigationComponent', () => {
     let playlist: ReturnType<typeof signal<Partial<Playlist> | undefined>>;
     let runtime: {
-        isElectron: boolean;
+        supportsDownloads: boolean;
     };
 
     beforeEach(async () => {
@@ -19,7 +19,7 @@ describe('NavigationComponent', () => {
             _id: 'xtream-1',
         });
         runtime = {
-            isElectron: true,
+            supportsDownloads: true,
         };
 
         await TestBed.configureTestingModule({
@@ -61,8 +61,8 @@ describe('NavigationComponent', () => {
         return TestBed.createComponent(NavigationComponent).componentInstance;
     }
 
-    it('includes downloads in portal rail links when Electron is available', () => {
-        runtime.isElectron = true;
+    it('includes downloads in portal rail links when downloads are supported', () => {
+        runtime.supportsDownloads = true;
 
         const component = createComponent();
 
@@ -73,8 +73,8 @@ describe('NavigationComponent', () => {
         ]);
     });
 
-    it('hides downloads in portal rail links when Electron is unavailable', () => {
-        runtime.isElectron = false;
+    it('hides downloads in portal rail links when downloads are unsupported', () => {
+        runtime.supportsDownloads = false;
 
         const component = createComponent();
 
