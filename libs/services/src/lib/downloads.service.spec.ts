@@ -1,5 +1,12 @@
-import { signal, Signal, WritableSignal } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import {
+    EnvironmentInjector,
+    Injector,
+    Signal,
+    WritableSignal,
+    createEnvironmentInjector,
+    runInInjectionContext,
+    signal,
+} from '@angular/core';
 import {
     DownloadItem,
     DownloadsService,
@@ -30,7 +37,6 @@ describe('DownloadsService', () => {
 
     afterEach(() => {
         testWindow.electron = originalElectron;
-        TestBed.resetTestingModule();
         jest.restoreAllMocks();
     });
 
@@ -79,8 +85,8 @@ describe('DownloadsService', () => {
     }
 
     it('reports availability through the runtime capability', () => {
-        TestBed.configureTestingModule({
-            providers: [
+        const injector = createEnvironmentInjector(
+            [
                 DownloadsService,
                 { provide: SettingsStore, useValue: {} },
                 {
@@ -88,11 +94,19 @@ describe('DownloadsService', () => {
                     useValue: { supportsDownloads: false },
                 },
             ],
-        });
+            Injector.NULL as unknown as EnvironmentInjector
+        );
 
-        const service = TestBed.inject(DownloadsService);
+        try {
+            const service = runInInjectionContext(
+                injector,
+                () => new DownloadsService()
+            );
 
-        expect(service.isAvailable()).toBe(false);
+            expect(service.isAvailable()).toBe(false);
+        } finally {
+            injector.destroy();
+        }
     });
 
     it('tracks loading and loaded state around a successful download list request', async () => {
