@@ -18,7 +18,11 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import { PortalStatus, PortalStatusService } from '@iptvnator/services';
+import {
+    PortalStatus,
+    PortalStatusService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Component({
@@ -56,13 +60,14 @@ export class PlaylistItemComponent implements OnInit {
 
     portalStatus: PortalStatus = 'unavailable';
     private readonly portalStatusService = inject(PortalStatusService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
     );
 
-    readonly isElectron = !!window.electron;
+    readonly isElectron = this.runtime.isElectron;
     readonly currentLocale = computed(() => {
         this.languageTick();
         return normalizeDateLocale(
