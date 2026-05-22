@@ -45,7 +45,7 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { SettingsStore } from '@iptvnator/services';
+import { DataService, SettingsStore } from '@iptvnator/services';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
     EpgViewComponent,
@@ -92,11 +92,13 @@ export class UnifiedLiveTabComponent {
 
     private readonly streamResolver = inject(StreamResolverService);
     private readonly recentData = inject(UnifiedRecentDataService);
+    private readonly dataService = inject(DataService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly destroyRef = inject(DestroyRef);
 
     readonly player = this.settingsStore.player;
+    readonly supportsEpg = this.dataService.supportsEpg;
     readonly isEmbeddedPlayer = computed(() =>
         this.portalPlayer.isEmbeddedPlayer()
     );
@@ -186,7 +188,11 @@ export class UnifiedLiveTabComponent {
     constructor() {
         effect(() => {
             const items = this.items();
-            void this.loadEpgMap(items);
+            if (this.supportsEpg) {
+                void this.loadEpgMap(items);
+            } else {
+                this.epgMap.set(new Map());
+            }
 
             const activeUid = this.activeUid();
             if (activeUid && !items.some((item) => item.uid === activeUid)) {
@@ -326,7 +332,9 @@ export class UnifiedLiveTabComponent {
                 startPlayback &&
                 this.shouldOpenExternalPlayback(activeDetail, true)
             ) {
-                void this.portalPlayer.openResolvedPlayback(activeDetail.playback);
+                void this.portalPlayer.openResolvedPlayback(
+                    activeDetail.playback
+                );
             }
             if (isAutoOpen) {
                 this.autoOpenHandled.emit();
@@ -350,7 +358,7 @@ export class UnifiedLiveTabComponent {
 
             this.activeDetail.set(detail);
 
-            if (detail.epgMode === 'm3u') {
+            if (this.supportsEpg && detail.epgMode === 'm3u') {
                 void this.hydrateSelectedM3uPrograms(item, detail, requestId);
             }
 

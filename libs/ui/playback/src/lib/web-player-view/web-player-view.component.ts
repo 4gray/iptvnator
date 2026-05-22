@@ -222,6 +222,13 @@ export class WebPlayerViewComponent {
     }
 
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
+        if (
+            issue.code === PlaybackDiagnosticCode.BrowserAccessError &&
+            !this.isDesktop()
+        ) {
+            return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION';
+        }
+
         return `${this.getDiagnosticTranslationBase(issue)}.DESCRIPTION`;
     }
 

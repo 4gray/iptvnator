@@ -25,7 +25,11 @@ import {
     ChannelListSkeletonComponent,
     ResizableDirective,
 } from '@iptvnator/ui/components';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -96,6 +100,7 @@ type StalkerPlayableChannel = StalkerPortalItem & {
 })
 export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
+    private readonly dataService = inject(DataService);
     private readonly playlistService = inject(PlaylistsService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
@@ -144,6 +149,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
 
     readonly selectedChannelId = this.stalkerStore.selectedItvId;
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
+    readonly isElectron = Boolean(window.electron);
+    readonly supportsEpg = this.dataService.supportsEpg;
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -297,7 +304,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 }
             }
 
-            if (this.isRadioMode()) {
+            if (this.isRadioMode() || !this.supportsEpg) {
                 this.clearEpgPreviewMaps();
                 this.cdr.markForCheck();
                 return;
@@ -422,7 +429,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                 return;
             }
 
-            void this.loadEpgForChannel(item);
+            if (this.supportsEpg) {
+                void this.loadEpgForChannel(item);
+            }
 
             if (this.usesEmbeddedPlayer()) {
                 this.activePlayback.set(playback);
@@ -534,6 +543,13 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     }
 
     private async loadEpgForChannel(item: StalkerItvChannel) {
+        if (!this.supportsEpg) {
+            this.fallbackEpgPrograms.set([]);
+            this.isLoadingFallbackEpg.set(false);
+            this.clearEpgPreviewMaps();
+            return;
+        }
+
         const requestId = ++this.epgLoadRequestId;
         const normalizedChannelId = normalizeStalkerEntityId(item.id);
         const playlistId = this.stalkerStore.currentPlaylist()?._id ?? null;

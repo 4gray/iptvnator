@@ -64,8 +64,26 @@ The PWA continues to use `PwaService`; only the backend base URL is resolved at
 runtime. Electron routes remain owned by the Electron backend and preload
 bridge.
 
-EPG/XMLTV is not a supported self-hosted PWA capability yet. Do not document it
-as part of the Docker user flow or use it as the readiness signal for this path.
+## Runtime Limitations
+
+The self-hosted build is the browser PWA, not the Electron desktop app. Keep
+these limitations explicit in UI, troubleshooting, and release notes:
+
+- EPG/XMLTV is not supported in the PWA yet. Do not render live EPG panels,
+  multi-EPG shortcuts, or EPG-fetching flows in browser/PWA mode, and do not use
+  EPG as the readiness signal for Docker.
+- The PWA does not use the Electron SQLite database or DB worker. Playlist
+  metadata uses `PlaylistsService` with IndexedDB; Xtream favorites, recently
+  viewed items, playback positions, and cached collection snapshots use
+  `PwaXtreamDataSource` browser storage.
+- Browser playlist deletion must go through `PlaylistsService`, not
+  `DatabaseService`. `PlaylistsService.deletePlaylist()` runs registered
+  cleanup hooks such as the PWA Xtream cleanup so localStorage sidecar data does
+  not survive after the source is removed.
+- The Docker/PWA runtime cannot launch MPV, VLC, IINA, Embedded MPV, download
+  manager flows, or Electron remote-control features. If inline browser
+  playback fails, the supported browser fallback is copying the stream URL and
+  opening it manually in an external player.
 
 Provider URLs are registered before proxy calls so the proxy endpoints do not
 accept raw target URLs in query strings. Registration validates the target URL
@@ -85,21 +103,25 @@ certificate authorities, configure Node with `NODE_EXTRA_CA_CERTS`.
 
 Xtream favorites and recently viewed items use the browser-side
 `PwaXtreamDataSource` when Electron DB preload APIs are unavailable. The PWA
-stores this user activity in localStorage:
+stores this user activity and sidecar state in localStorage:
 
+- `xtream-collection-items`
 - `xtream-favorites`
 - `xtream-recent-items`
+- `xtream-playlists`
+- `xtream-playback-positions`
 
 Entries should include a content snapshot when the item is added. Global
 collection routes and the dashboard can then restore titles, posters, content
 type, and category IDs after navigation or a page reload without relying on the
 Electron SQLite content table.
 
-Shared collection services must not import `@iptvnator/portal/xtream/data-access`
-directly. Use `XTREAM_COLLECTION_DATA_SOURCE` from
-`@iptvnator/portal/shared/util` and bind it to `XTREAM_DATA_SOURCE` at the app
-provider boundary (`apps/web/src/app/app.config.ts`). This keeps
-`portal-shared-util` provider-neutral and avoids adding new Nx boundary cycles.
+Shared collection services that need Xtream favorites or recent data should use
+`XTREAM_DATA_SOURCE` from `@iptvnator/portal/xtream/data-access` from a
+`type:data-access` or `type:feature` boundary. UI libraries in the M3U domain
+must not import Xtream data-access directly; use `PlaylistsService` for source
+metadata changes and let app-level cleanup providers handle portal-specific
+browser sidecar data.
 
 ## Docker Runtime
 

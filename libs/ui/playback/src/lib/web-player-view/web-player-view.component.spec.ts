@@ -236,7 +236,10 @@ describe('WebPlayerViewComponent', () => {
 
     it('preserves playback HTTP metadata for channel-based players', () => {
         const streamUrl = 'https://example.com/live/channel.m3u8';
-        fixture.componentRef.setInput('playerOverride', VideoPlayer.Html5Player);
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.Html5Player
+        );
         fixture.componentRef.setInput('playback', {
             streamUrl,
             title: 'Header Locked Channel',
@@ -270,7 +273,10 @@ describe('WebPlayerViewComponent', () => {
 
     it('falls back to playback headers when explicit HTTP metadata is absent', () => {
         const streamUrl = 'https://example.com/live/channel.m3u8';
-        fixture.componentRef.setInput('playerOverride', VideoPlayer.Html5Player);
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.Html5Player
+        );
         fixture.componentRef.setInput('playback', {
             streamUrl,
             title: 'Header Fallback Channel',
@@ -297,12 +303,28 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('uses browser access diagnostic translation keys', () => {
+    it('uses the PWA browser access diagnostic description key outside desktop', () => {
         const issue = createBrowserAccessDiagnostic();
 
         expect(component.getDiagnosticTitleKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.TITLE'
         );
+        expect(component.getDiagnosticDescriptionKey(issue)).toBe(
+            'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION'
+        );
+    });
+
+    it('keeps the desktop browser access diagnostic description key', () => {
+        fixture.destroy();
+        window.electron = {} as typeof window.electron;
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/archive/movie.mkv'
+        );
+        const issue = createBrowserAccessDiagnostic();
+
         expect(component.getDiagnosticDescriptionKey(issue)).toBe(
             'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.DESCRIPTION'
         );

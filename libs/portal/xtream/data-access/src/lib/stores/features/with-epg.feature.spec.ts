@@ -43,6 +43,8 @@ function buildProgram(
 }
 
 interface TestStoreSetup {
+    appEnvironment?: 'electron' | 'pwa';
+    isElectron?: boolean;
     selectedItem: { xtream_id: number; epg_channel_id?: string | null };
     preferUploaded?: boolean;
 }
@@ -76,7 +78,18 @@ function configureStore(setup: TestStoreSetup) {
     TestBed.configureTestingModule({
         providers: [
             TestEpgStore,
-            { provide: DataService, useValue: { isElectron: true } },
+            {
+                provide: DataService,
+                useValue: {
+                    getAppEnvironment: jest.fn(
+                        () => setup.appEnvironment ?? 'electron'
+                    ),
+                    isElectron: setup.isElectron ?? true,
+                    supportsEpg:
+                        setup.appEnvironment !== 'pwa' &&
+                        (setup.isElectron ?? true),
+                },
+            },
             { provide: XtreamApiService, useValue: xtreamApiService },
             {
                 provide: XtreamXmltvFallbackService,
@@ -152,6 +165,23 @@ describe('withEpg', () => {
         const result = await store.loadEpg();
 
         expect(result).toEqual([]);
+        expect(fallbackService.getProgramsForChannel).not.toHaveBeenCalled();
+    });
+
+    it('does not load Xtream or XMLTV EPG in browser/PWA mode', async () => {
+        const { store, xtreamApiService, fallbackService } = configureStore({
+            appEnvironment: 'pwa',
+            isElectron: false,
+            selectedItem: { xtream_id: 101, epg_channel_id: 'rtl.de' },
+        });
+
+        const result = await store.loadEpg();
+
+        expect(result).toEqual([]);
+        expect(store.epgItems()).toEqual([]);
+        expect(store.isLoadingEpg()).toBe(false);
+        expect(xtreamApiService.getFullEpg).not.toHaveBeenCalled();
+        expect(xtreamApiService.getShortEpg).not.toHaveBeenCalled();
         expect(fallbackService.getProgramsForChannel).not.toHaveBeenCalled();
     });
 

@@ -57,7 +57,7 @@ export function resolveStalkerPlaybackUrl(
     originalCmd: string,
     responseCmd: string
 ): string {
-    let url = normalizeStalkerPlaybackCommand(responseCmd);
+    const url = normalizeStalkerPlaybackCommand(responseCmd);
     if (!url) {
         return '';
     }

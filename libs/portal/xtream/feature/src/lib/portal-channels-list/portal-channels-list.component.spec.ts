@@ -10,7 +10,7 @@ import {
     FavoritesService,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
-import { SettingsStore } from '@iptvnator/services';
+import { DataService, SettingsStore } from '@iptvnator/services';
 import { PortalChannelsListComponent } from './portal-channels-list.component';
 
 function buildEpgItem(params: {
@@ -37,6 +37,8 @@ function buildEpgItem(params: {
 }
 
 describe('PortalChannelsListComponent', () => {
+    const testWindow = window as unknown as { electron?: unknown };
+    const originalElectron = testWindow.electron;
     let fixture: ComponentFixture<PortalChannelsListComponent>;
     const selectedChannels = signal<unknown[]>([]);
     const selectedItem = signal<unknown>(null);
@@ -60,8 +62,18 @@ describe('PortalChannelsListComponent', () => {
     const favoritesService = {
         getFavorites: jest.fn().mockReturnValue(of([] as FavoriteItem[])),
     };
+    const epgQueueService = {
+        epgResult$: epgResults$,
+        getCached: jest.fn().mockReturnValue(null),
+        enqueue: jest.fn(),
+    };
 
     beforeEach(async () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: { platform: 'darwin' },
+        });
         storeSignals.setSelectedCategory.mockClear();
         storeSignals.toggleFavorite.mockClear();
         selectedChannels.set([]);
@@ -72,6 +84,8 @@ describe('PortalChannelsListComponent', () => {
         currentPlaylist.set(null);
         selectedCategoryId.set(1);
         favoritesService.getFavorites.mockReturnValue(of([] as FavoriteItem[]));
+        epgQueueService.getCached.mockReturnValue(null);
+        epgQueueService.enqueue.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [PortalChannelsListComponent, NoopAnimationsModule],
@@ -112,10 +126,14 @@ describe('PortalChannelsListComponent', () => {
                 },
                 {
                     provide: EpgQueueService,
+                    useValue: epgQueueService,
+                },
+                {
+                    provide: DataService,
                     useValue: {
-                        epgResult$: epgResults$,
-                        getCached: jest.fn().mockReturnValue(null),
-                        enqueue: jest.fn(),
+                        get supportsEpg() {
+                            return Boolean(window.electron);
+                        },
                     },
                 },
                 {
@@ -140,6 +158,11 @@ describe('PortalChannelsListComponent', () => {
 
     afterEach(() => {
         jest.useRealTimers();
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: originalElectron,
+        });
     });
 
     it('renders a loading placeholder instead of the empty state while xtream live content is still loading', () => {
@@ -234,6 +257,55 @@ describe('PortalChannelsListComponent', () => {
         expect(component.currentProgramsProgress.get(50)).toBeCloseTo(50, 1);
     });
 
+    it('does not derive or subscribe to row EPG previews in browser/PWA mode', () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: undefined,
+        });
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set([
+            {
+                title: 'Cartoon Network',
+                xtream_id: 50,
+            },
+        ]);
+        selectedItem.set({ xtream_id: 50 });
+        epgItems.set([
+            buildEpgItem({
+                id: 'current',
+                title: 'Current Show',
+                start: new Date(Date.now() - 60_000).toISOString(),
+                stop: new Date(Date.now() + 60_000).toISOString(),
+                startTimestamp: Math.floor((Date.now() - 60_000) / 1000),
+                stopTimestamp: Math.floor((Date.now() + 60_000) / 1000),
+            }),
+        ]);
+
+        fixture.destroy();
+        fixture = TestBed.createComponent(PortalChannelsListComponent);
+        fixture.detectChanges();
+
+        epgResults$.next({
+            streamId: 50,
+            items: [
+                buildEpgItem({
+                    id: 'queued-current',
+                    title: 'Queued Current Show',
+                    start: new Date(Date.now() - 60_000).toISOString(),
+                    stop: new Date(Date.now() + 60_000).toISOString(),
+                    startTimestamp: Math.floor((Date.now() - 60_000) / 1000),
+                    stopTimestamp: Math.floor((Date.now() + 60_000) / 1000),
+                }),
+            ],
+        });
+
+        const pwaComponent = fixture.componentInstance;
+        expect(pwaComponent.supportsEpg).toBe(false);
+        expect(pwaComponent.epgPrograms.size).toBe(0);
+        expect(pwaComponent.currentProgramsProgress.size).toBe(0);
+    });
+
     it('does not mark a live item as favorite when only a colliding movie ID is favorited', () => {
         favoritesService.getFavorites.mockReturnValue(
             of([
@@ -287,13 +359,10 @@ describe('PortalChannelsListComponent', () => {
 
         fixture.detectChanges();
 
-        fixture.componentInstance.toggleFavorite(
-            new MouseEvent('click'),
-            {
-                title: 'Cartoon Network',
-                xtream_id: 253,
-            }
-        );
+        fixture.componentInstance.toggleFavorite(new MouseEvent('click'), {
+            title: 'Cartoon Network',
+            xtream_id: 253,
+        });
         await Promise.resolve();
 
         expect(storeSignals.toggleFavorite).toHaveBeenCalledWith(

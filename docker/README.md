@@ -8,6 +8,21 @@ The self-hosted image contains both pieces required for the browser PWA:
 The historical standalone `4gray/iptvnator-backend` image is no longer needed
 for the default Docker deployment.
 
+## PWA Limitations And Playback Troubleshooting
+
+The Docker image runs the browser PWA, not the Electron desktop application.
+That means:
+
+- EPG/XMLTV panels and multi-EPG views are not available in the self-hosted PWA.
+- Playlist metadata is stored in the browser through IndexedDB, and Xtream user
+  data is stored by the PWA data source in localStorage. The PWA does not use
+  the Electron SQLite database or DB worker.
+- Docker cannot launch local desktop players or Embedded MPV. If a stream does
+  not play inline in the browser, use the in-app copy URL action and open the
+  stream manually in an external player such as MPV, VLC, or IINA.
+- Electron-only features such as the download manager, external-player process
+  control, and remote-control integrations are outside this runtime.
+
 ## Run With Docker Compose
 
 From the repository root:

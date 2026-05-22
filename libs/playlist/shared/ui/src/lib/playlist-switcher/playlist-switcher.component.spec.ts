@@ -11,12 +11,18 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
+import { of } from 'rxjs';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     PlaylistContextFacade,
     PlaylistRefreshActionService,
 } from '@iptvnator/playlist/shared/util';
 import { DialogService } from '@iptvnator/ui/components';
-import { DatabaseService, PortalStatusService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    PortalStatusService,
+} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistSwitcherComponent } from './playlist-switcher.component';
 
@@ -32,13 +38,16 @@ function createPlaylist(
         filename: overrides.filename,
         count: overrides.count ?? 0,
         importDate:
-            overrides.importDate ?? new Date('2026-04-05T10:00:00.000Z').toISOString(),
+            overrides.importDate ??
+            new Date('2026-04-05T10:00:00.000Z').toISOString(),
         autoRefresh: overrides.autoRefresh ?? false,
         ...overrides,
     } as PlaylistMeta;
 }
 
 describe('PlaylistSwitcherComponent', () => {
+    const testWindow = window as unknown as { electron?: unknown };
+    const originalElectron = testWindow.electron;
     let fixture: ComponentFixture<PlaylistSwitcherComponent>;
     let component: PlaylistSwitcherComponent;
     let playlistsSignal: ReturnType<typeof signal<PlaylistMeta[]>>;
@@ -68,6 +77,9 @@ describe('PlaylistSwitcherComponent', () => {
     };
     let databaseService: {
         createOperationId: jest.Mock;
+        deletePlaylist: jest.Mock;
+    };
+    let playlistsService: {
         deletePlaylist: jest.Mock;
     };
     let snackBar: {
@@ -134,6 +146,10 @@ describe('PlaylistSwitcherComponent', () => {
                     useValue: databaseService,
                 },
                 {
+                    provide: PlaylistsService,
+                    useValue: playlistsService,
+                },
+                {
                     provide: MatSnackBar,
                     useValue: snackBar,
                 },
@@ -154,7 +170,11 @@ describe('PlaylistSwitcherComponent', () => {
     beforeEach(() => {
         localStorage.clear();
 
-        playlistsSignal = signal([m3uPlaylist, stalkerPlaylist, xtreamPlaylist]);
+        playlistsSignal = signal([
+            m3uPlaylist,
+            stalkerPlaylist,
+            xtreamPlaylist,
+        ]);
         resolvedPlaylistIdSignal = signal<string | null>(xtreamPlaylist._id);
         activePlaylistSignal = signal<PlaylistMeta | null>(xtreamPlaylist);
 
@@ -177,11 +197,8 @@ describe('PlaylistSwitcherComponent', () => {
             getStatusClass: jest.fn((status: string) => `status-${status}`),
         };
         refreshActionService = {
-            canRefresh: jest.fn(
-                (playlist: PlaylistMeta) =>
-                    Boolean(
-                        playlist.serverUrl || playlist.url || playlist.filePath
-                    )
+            canRefresh: jest.fn((playlist: PlaylistMeta) =>
+                Boolean(playlist.serverUrl || playlist.url || playlist.filePath)
             ),
             refresh: jest.fn(),
         };
@@ -195,6 +212,9 @@ describe('PlaylistSwitcherComponent', () => {
             createOperationId: jest.fn(),
             deletePlaylist: jest.fn(),
         };
+        playlistsService = {
+            deletePlaylist: jest.fn(() => of({ success: true })),
+        };
         snackBar = {
             open: jest.fn(),
         };
@@ -205,6 +225,11 @@ describe('PlaylistSwitcherComponent', () => {
 
     afterEach(() => {
         localStorage.clear();
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: originalElectron,
+        });
         jest.restoreAllMocks();
     });
 
@@ -229,11 +254,9 @@ describe('PlaylistSwitcherComponent', () => {
     it('sorts playlists by import date descending and prevents clearing the last enabled type filter', async () => {
         await createComponent();
 
-        expect(component.filteredPlaylists().map((playlist) => playlist._id)).toEqual([
-            xtreamPlaylist._id,
-            stalkerPlaylist._id,
-            m3uPlaylist._id,
-        ]);
+        expect(
+            component.filteredPlaylists().map((playlist) => playlist._id)
+        ).toEqual([xtreamPlaylist._id, stalkerPlaylist._id, m3uPlaylist._id]);
 
         component.togglePlaylistTypeFilter('m3u');
         component.togglePlaylistTypeFilter('stalker');
@@ -320,8 +343,12 @@ describe('PlaylistSwitcherComponent', () => {
             xtreamPlaylist.username,
             xtreamPlaylist.password
         );
-        expect(component.portalStatuses().get(xtreamPlaylist._id)).toBe('active');
-        expect(component.getStatusClass(xtreamPlaylist._id)).toBe('status-active');
+        expect(component.portalStatuses().get(xtreamPlaylist._id)).toBe(
+            'active'
+        );
+        expect(component.getStatusClass(xtreamPlaylist._id)).toBe(
+            'status-active'
+        );
 
         component.onMenuClosed();
         expect(component.isMenuOpen()).toBe(false);
@@ -342,5 +369,29 @@ describe('PlaylistSwitcherComponent', () => {
         fixture.detectChanges();
 
         expect(component.displayTitle()).toBe('Select playlist');
+    });
+
+    it('deletes browser/PWA playlists through PlaylistsService instead of the Electron database service', async () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: undefined,
+        });
+        await createComponent();
+
+        component.removePlaylistFor(xtreamPlaylist);
+        const confirm = dialogService.openConfirmDialog.mock.calls[0][0]
+            .onConfirm as () => Promise<void>;
+        await confirm();
+
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
+            xtreamPlaylist._id
+        );
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.removePlaylist({
+                playlistId: xtreamPlaylist._id,
+            })
+        );
     });
 });

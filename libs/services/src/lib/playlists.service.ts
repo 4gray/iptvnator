@@ -30,6 +30,7 @@ import {
     StalkerPortalItem,
     normalizeStalkerDate,
 } from '@iptvnator/shared/interfaces';
+import { PLAYLIST_DELETE_CLEANUP } from './playlist-delete-cleanup.token';
 
 const SQLITE_PLAYLIST_MIGRATION_FLAG = 'm3u-playlists-indexeddb-to-sqlite-v1';
 const STALKER_PLAYLIST_METADATA_MIGRATION_FLAG =
@@ -81,6 +82,8 @@ export class PlaylistsService {
     private readonly dbService = inject(NgxIndexedDBService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly playlistDeleteCleanups =
+        inject(PLAYLIST_DELETE_CLEANUP, { optional: true }) ?? [];
     private electronMigrationPromise: Promise<void> | null = null;
     private indexedDbMigrationPromise: Promise<void> | null = null;
 
@@ -406,21 +409,48 @@ export class PlaylistsService {
     }
 
     deletePlaylist(playlistId: string): Observable<{ success: boolean }> {
-        if (this.isElectronStorageAvailable) {
-            return this.runOnSqlite(async () => {
-                const electron = this.electronApi;
-                if (!electron) {
-                    return undefined;
-                }
+        const delete$: Observable<unknown> = this.isElectronStorageAvailable
+            ? this.runOnSqlite(async () => {
+                  const electron = this.electronApi;
+                  if (!electron) {
+                      return undefined;
+                  }
 
-                await electron.dbDeletePlaylist(playlistId);
-                return undefined;
-            }).pipe(map(() => ({ success: true })));
+                  await electron.dbDeletePlaylist(playlistId);
+                  return undefined;
+              })
+            : this.dbService.delete(DbStores.Playlists, playlistId);
+
+        return delete$.pipe(
+            switchMap(() => from(this.runPlaylistDeleteCleanups(playlistId))),
+            map(() => ({ success: true }))
+        );
+    }
+
+    private async runPlaylistDeleteCleanups(playlistId: string): Promise<void> {
+        if (this.playlistDeleteCleanups.length === 0) {
+            return;
         }
 
-        return this.dbService
-            .delete(DbStores.Playlists, playlistId)
-            .pipe(map(() => ({ success: true })));
+        const failures = (
+            await Promise.all(
+                this.playlistDeleteCleanups.map(async (cleanup) => {
+                    try {
+                        await cleanup(playlistId);
+                        return null;
+                    } catch (error) {
+                        return error;
+                    }
+                })
+            )
+        ).filter((error) => error !== null);
+
+        for (const failure of failures) {
+            console.warn(
+                'Playlist cleanup failed after playlist deletion:',
+                failure
+            );
+        }
     }
 
     updatePlaylist(playlistId: string, updatedPlaylist: Playlist) {

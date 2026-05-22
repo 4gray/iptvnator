@@ -58,14 +58,8 @@ export function withEpg() {
                 const now = Date.now();
                 const items = [...store.epgItems()].sort(
                     (left, right) =>
-                        getEpgTimestampMs(
-                            left.start,
-                            left.start_timestamp
-                        ) -
-                        getEpgTimestampMs(
-                            right.start,
-                            right.start_timestamp
-                        )
+                        getEpgTimestampMs(left.start, left.start_timestamp) -
+                        getEpgTimestampMs(right.start, right.start_timestamp)
                 );
 
                 return (
@@ -132,6 +126,14 @@ export function withEpg() {
                  * sets `preferUploadedEpgOverXtream`.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
+                    if (!dataService.supportsEpg) {
+                        patchState(store, {
+                            epgItems: [],
+                            isLoadingEpg: false,
+                        });
+                        return [];
+                    }
+
                     const credentials = getCredentialsFromStore();
                     if (!credentials) {
                         patchState(store, { epgItems: [] });
@@ -180,6 +182,10 @@ export function withEpg() {
                     streamId: number,
                     epgChannelId?: string | null
                 ): Promise<EpgItem[]> {
+                    if (!dataService.supportsEpg) {
+                        return [];
+                    }
+
                     const credentials = getCredentialsFromStore();
                     if (!credentials) return [];
 

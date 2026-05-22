@@ -114,7 +114,13 @@ docker compose -f docker/docker-compose.yml up --build -d
 The application is available at <http://localhost:4333>. See
 [`docker/docker-compose.yml`](./docker/docker-compose.yml) for the ready-to-run
 compose file and [`docker/README.md`](./docker/README.md) for environment
-variables, reverse proxy notes, and build details.
+variables, reverse proxy notes, PWA limitations, and build details.
+
+The self-hosted image runs the browser PWA rather than the Electron desktop app:
+EPG/XMLTV panels, Embedded MPV, managed MPV/VLC launching, the download manager,
+and Electron remote-control features are not available there. If browser
+playback fails, copy the stream URL and open it manually in an external player
+such as MPV, VLC, or IINA.
 
 ## Download
 

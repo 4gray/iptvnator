@@ -72,9 +72,16 @@ import {
     SidebarComponent,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
-import { LiveEpgPanelComponent, LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
+import {
+    LiveEpgPanelComponent,
+    LiveEpgPanelSummary,
+} from '@iptvnator/ui/shared-portals';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
-import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     Channel,
     EpgProgram,
@@ -244,6 +251,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     };
 
     readonly isDesktop = !!window['electron'];
+    readonly supportsEpg = this.dataService.supportsEpg;
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
 
     /** EPG overlay reference */
@@ -635,6 +643,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      * Opens the overlay with multi EPG view
      */
     openMultiEpgView(): void {
+        if (!this.supportsEpg) {
+            return;
+        }
+
         const positionStrategy = this.overlay
             .position()
             .global()
@@ -862,7 +874,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     }
 
     private registerHeaderShortcut(): void {
-        if (!this.isWorkspaceLayout) {
+        if (!this.isWorkspaceLayout || !this.supportsEpg) {
             return;
         }
 

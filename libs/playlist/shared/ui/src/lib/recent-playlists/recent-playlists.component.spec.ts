@@ -18,6 +18,7 @@ import {
     DatabaseService,
     DataService,
     PlaybackPositionService,
+    PlaylistsService,
     SortBy,
     SortOrder,
     SortService,
@@ -76,6 +77,9 @@ describe('RecentPlaylistsComponent busy state', () => {
     let playbackPositionService: {
         getAllPlaybackPositions: jest.Mock;
     };
+    let playlistsService: {
+        deletePlaylist: jest.Mock;
+    };
     let router: {
         navigate: jest.Mock;
     };
@@ -83,8 +87,13 @@ describe('RecentPlaylistsComponent busy state', () => {
         open: jest.Mock;
     };
     let store: MockStore;
+    const originalElectron = window.electron;
 
     beforeEach(async () => {
+        window.electron = {
+            platform: 'darwin',
+        } as typeof window.electron;
+
         databaseService = {
             cancelOperation: jest.fn().mockResolvedValue(true),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
@@ -100,6 +109,9 @@ describe('RecentPlaylistsComponent busy state', () => {
         };
         playbackPositionService = {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
+        };
+        playlistsService = {
+            deletePlaylist: jest.fn(),
         };
         router = {
             navigate: jest.fn(),
@@ -138,6 +150,10 @@ describe('RecentPlaylistsComponent busy state', () => {
                 {
                     provide: PlaybackPositionService,
                     useValue: playbackPositionService,
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: playlistsService,
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -192,6 +208,7 @@ describe('RecentPlaylistsComponent busy state', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         localStorage.clear();
+        window.electron = originalElectron;
     });
 
     it('tracks delete progress and clears the busy row after completion', async () => {
@@ -237,6 +254,36 @@ describe('RecentPlaylistsComponent busy state', () => {
 
         expect(component.isDeletePending(item._id)).toBe(false);
         expect(component.getBusyProgress(item._id)).toBeNull();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.removePlaylist({ playlistId: item._id })
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.REMOVE_DIALOG.SUCCESS',
+            undefined,
+            { duration: 2000 }
+        );
+    });
+
+    it('deletes browser/PWA playlists through PlaylistsService instead of the Electron database service', async () => {
+        const item = createPlaylistMeta({
+            _id: 'pwa-playlist-1',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://example.com/playlist.m3u',
+        });
+        window.electron = undefined as unknown as typeof window.electron;
+        (
+            component as unknown as {
+                isElectron: boolean;
+            }
+        ).isElectron = false;
+        playlistsService.deletePlaylist.mockReturnValue(of({ success: true }));
+
+        await component.removePlaylist(item);
+
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(item._id);
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.removePlaylist({ playlistId: item._id })
         );
@@ -406,6 +453,12 @@ describe('RecentPlaylistsComponent busy state', () => {
     });
 
     it('uses the legacy IPC refresh flow for non-Xtream playlists', () => {
+        window.electron = undefined as unknown as typeof window.electron;
+        (
+            component as unknown as {
+                isElectron: boolean;
+            }
+        ).isElectron = false;
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-1',
             serverUrl: undefined,

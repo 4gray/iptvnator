@@ -2,7 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
-import type { WorkspacePlaylistType } from '@iptvnator/workspace/shell/util';
+import type { PlaylistType } from '../../add-playlist-menu/playlist-type';
 
 export type EmptyStateType =
     | 'welcome-dashboard'
@@ -18,7 +18,7 @@ interface FeatureCard {
 }
 
 interface SourceCard {
-    type: WorkspacePlaylistType;
+    type: PlaylistType;
     icon: string;
     nameKey: string;
     needsKey: string;
@@ -113,14 +113,14 @@ export class EmptyStateComponent {
 
     readonly showElectronOnlyValueProps = input<boolean>(false);
 
-    readonly addPlaylistClicked = output<WorkspacePlaylistType | undefined>();
+    readonly addPlaylistClicked = output<PlaylistType | undefined>();
     readonly primaryActionClicked = output<void>();
     readonly secondaryActionClicked = output<void>();
 
     readonly featureCards = FEATURE_CARDS;
     readonly sourceCards = SOURCE_CARDS;
 
-    onAddPlaylist(type?: WorkspacePlaylistType): void {
+    onAddPlaylist(type?: PlaylistType): void {
         this.addPlaylistClicked.emit(type);
     }
 
