@@ -8,20 +8,20 @@ import {
 } from '@ngrx/signals';
 import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { toStalkerSessionPlaylist } from '../utils';
 
 type StalkerPortalWindow = Window & {
     electron?: {
-        dbCreatePlaylist: (playlist: {
+        dbCreatePlaylist?: (playlist: {
             id: string;
             name: string;
             macAddress: string;
             url: string;
             type: 'stalker';
         }) => Promise<unknown>;
-        dbGetPlaylist: (playlistId: string) => Promise<unknown>;
+        dbGetPlaylist?: (playlistId: string) => Promise<unknown>;
     };
 };
 
@@ -81,8 +81,8 @@ export function withStalkerPortal() {
         withMethods(
             (
                 store,
-                dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                runtime = inject(RuntimeCapabilitiesService)
             ) => ({
                 async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
                     stalkerSession.setActiveWatchdogPlaylist(
@@ -96,7 +96,8 @@ export function withStalkerPortal() {
                     // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
                     if (
                         playlist &&
-                        dataService.isElectron &&
+                        runtime.hasElectronMethod('dbGetPlaylist') &&
+                        runtime.hasElectronMethod('dbCreatePlaylist') &&
                         playlist._id &&
                         playlist.macAddress &&
                         playlist.portalUrl
@@ -104,7 +105,10 @@ export function withStalkerPortal() {
                         try {
                             const electronApi = (window as StalkerPortalWindow)
                                 .electron;
-                            if (!electronApi) {
+                            if (
+                                !electronApi?.dbGetPlaylist ||
+                                !electronApi.dbCreatePlaylist
+                            ) {
                                 return;
                             }
 
