@@ -58,9 +58,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('streamFormatEnum', StreamFormat);
     });
 
-    it('hides the external-player double-click option outside desktop builds', () => {
+    it('hides the external-player double-click option when managed external players are unsupported', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
-        fixture.componentRef.setInput('isDesktop', false);
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
         fixture.detectChanges();
 
         expect(
@@ -75,6 +76,7 @@ describe('SettingsPlaybackSectionComponent', () => {
 
     it('hides the external-player double-click option for embedded players', () => {
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(
@@ -85,10 +87,11 @@ describe('SettingsPlaybackSectionComponent', () => {
     });
 
     it.each([VideoPlayer.MPV, VideoPlayer.VLC])(
-        'labels the double-click option as external-player behavior on desktop for %s',
+        'labels the double-click option as external-player behavior when managed players are supported for %s',
         (player) => {
             fixture.componentRef.setInput('form', createForm(player));
             fixture.componentRef.setInput('isDesktop', true);
+            fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
             fixture.detectChanges();
 
             expect(
@@ -106,6 +109,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         const form = createForm();
         fixture.componentRef.setInput('form', form);
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(
@@ -147,6 +151,7 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows MPV bundle guidance and the IINA executable tip for desktop MPV playback', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain(
@@ -162,9 +167,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
     });
 
-    it('hides MPV path guidance and the IINA executable tip outside desktop builds', () => {
+    it('hides MPV path guidance and the IINA executable tip when managed external players are unsupported', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
-        fixture.componentRef.setInput('isDesktop', false);
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).not.toContain(
@@ -183,6 +189,7 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows VLC bundle guidance without the IINA tip for desktop VLC playback', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain(
@@ -198,9 +205,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
     });
 
-    it('hides VLC path guidance outside desktop builds', () => {
+    it('hides VLC path guidance when managed external players are unsupported', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
-        fixture.componentRef.setInput('isDesktop', false);
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', false);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).not.toContain(
@@ -215,6 +223,7 @@ describe('SettingsPlaybackSectionComponent', () => {
 
     it('does not show external-player path guidance for embedded players', () => {
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).not.toContain(
@@ -233,6 +242,7 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows MPV command-line arguments only when MPV is selected', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(
@@ -258,6 +268,7 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows VLC command-line arguments only when VLC is selected', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
         fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
         fixture.detectChanges();
 
         expect(

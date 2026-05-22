@@ -131,9 +131,12 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsManagedExternalPlayers(): boolean {
-        return ['openInMpv', 'openInVlc'].every((methodName) =>
-            this.hasElectronMethod(methodName)
-        );
+        return [
+            'openInMpv',
+            'openInVlc',
+            'setMpvPlayerPath',
+            'setVlcPlayerPath',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsEmbeddedMpv(): boolean {

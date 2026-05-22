@@ -97,6 +97,8 @@ describe('RuntimeCapabilitiesService', () => {
             onPlaylistRefreshEvent: jest.fn(),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
+            setMpvPlayerPath: jest.fn(),
+            setVlcPlayerPath: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
             saveFileDialog: jest.fn(),
             writeFile: jest.fn(),
@@ -170,9 +172,10 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
     });
 
-    it('requires both managed external player launch methods', () => {
+    it('requires the complete managed external player preload surface', () => {
         testWindow.electron = {
             openInMpv: jest.fn(),
+            openInVlc: jest.fn(),
         };
 
         const service = new RuntimeCapabilitiesService();
@@ -183,6 +186,8 @@ describe('RuntimeCapabilitiesService', () => {
         testWindow.electron = {
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
+            setMpvPlayerPath: jest.fn(),
+            setVlcPlayerPath: jest.fn(),
         };
 
         expect(service.supportsManagedExternalPlayers).toBe(true);
