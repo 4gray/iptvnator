@@ -4,6 +4,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import type { XtreamImportPhaseTone } from './helpers/workspace-shell-constants';
 import {
     buildXtreamImportDetailLabel,
@@ -23,8 +24,9 @@ export class WorkspaceShellXtreamImportService {
     private readonly playlistRefreshAction = inject(
         PlaylistRefreshActionService
     );
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
-    private readonly isElectron = !!window.electron;
+    private readonly isElectron = this.runtime.isElectron;
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
