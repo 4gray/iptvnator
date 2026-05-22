@@ -705,6 +705,10 @@ describe('SettingsComponent', () => {
             .mockResolvedValue(undefined);
         browserFixture.detectChanges();
 
+        expect(browserComponent.isDesktop).toBe(false);
+        expect(browserComponent.isPwa).toBe(true);
+        expect(browserComponent.settingsForm.get('epgUrl')).toBeNull();
+
         mockStore.overrideSelector(selectAllPlaylistsMeta, [
             createPlaylistMeta({ _id: 'browser-m3u' }),
         ]);
