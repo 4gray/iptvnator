@@ -156,7 +156,11 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsXtreamSectionNavigation(): boolean {
-        return this.isElectron;
+        return (
+            this.isPwa ||
+            this.supportsXtreamSqliteDataSource ||
+            this.hasElectronMethod('xtreamRequest')
+        );
     }
 
     private hasElectronMethod(methodName: string): boolean {
