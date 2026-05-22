@@ -1,4 +1,5 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { SettingsStore } from './settings-store.service';
 
 export type DownloadStatus =
@@ -31,6 +32,7 @@ export interface DownloadItem {
 
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private unsubscribe?: () => void;
     private loadDownloadsRequestId = 0;
@@ -48,7 +50,7 @@ export class DownloadsService implements OnDestroy {
     readonly hasLoadedDownloads = this._hasLoadedDownloads.asReadonly();
 
     /** Whether the download feature is available (Electron only) */
-    readonly isAvailable = computed(() => !!window.electron?.downloadsGetList);
+    readonly isAvailable = computed(() => this.runtime.supportsDownloads);
 
     /** Whether there are any downloads */
     readonly hasDownloads = computed(() => this.downloads().length > 0);

@@ -1,4 +1,9 @@
-import { TestBed } from '@angular/core/testing';
+import {
+    EnvironmentInjector,
+    Injector,
+    createEnvironmentInjector,
+    runInInjectionContext,
+} from '@angular/core';
 import { of } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DatabaseService } from './database-electron.service';
@@ -23,6 +28,7 @@ describe('PlaylistDeleteActionService', () => {
     let runtime: {
         isElectron: boolean;
     };
+    let injector: EnvironmentInjector;
 
     beforeEach(() => {
         databaseService = {
@@ -38,18 +44,29 @@ describe('PlaylistDeleteActionService', () => {
             isElectron: false,
         };
 
-        TestBed.configureTestingModule({
-            providers: [
-                PlaylistDeleteActionService,
+        injector = createEnvironmentInjector(
+            [
                 { provide: DatabaseService, useValue: databaseService },
                 { provide: PlaylistsService, useValue: playlistsService },
                 { provide: RuntimeCapabilitiesService, useValue: runtime },
             ],
-        });
+            Injector.NULL as unknown as EnvironmentInjector
+        );
     });
 
+    afterEach(() => {
+        injector.destroy();
+    });
+
+    function createService(): PlaylistDeleteActionService {
+        return runInInjectionContext(
+            injector,
+            () => new PlaylistDeleteActionService()
+        );
+    }
+
     it('deletes browser playlists through PlaylistsService', async () => {
-        const service = TestBed.inject(PlaylistDeleteActionService);
+        const service = createService();
 
         await expect(service.deletePlaylist(playlist)).resolves.toBe(true);
 
@@ -62,7 +79,7 @@ describe('PlaylistDeleteActionService', () => {
     it('deletes Electron Xtream playlists through DatabaseService with progress options', async () => {
         runtime.isElectron = true;
         const onEvent = jest.fn();
-        const service = TestBed.inject(PlaylistDeleteActionService);
+        const service = createService();
 
         await expect(
             service.deletePlaylist(playlist, { onEvent })
@@ -83,7 +100,7 @@ describe('PlaylistDeleteActionService', () => {
 
     it('deletes Electron non-Xtream playlists without progress options', async () => {
         runtime.isElectron = true;
-        const service = TestBed.inject(PlaylistDeleteActionService);
+        const service = createService();
 
         await expect(
             service.deletePlaylist({

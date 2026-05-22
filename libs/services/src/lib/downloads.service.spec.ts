@@ -1,8 +1,18 @@
-import { signal, Signal, WritableSignal } from '@angular/core';
+import {
+    EnvironmentInjector,
+    Injector,
+    Signal,
+    WritableSignal,
+    createEnvironmentInjector,
+    runInInjectionContext,
+    signal,
+} from '@angular/core';
 import {
     DownloadItem,
     DownloadsService,
 } from './downloads.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
+import { SettingsStore } from './settings-store.service';
 
 type TestDownloadsService = {
     downloads: WritableSignal<DownloadItem[]>;
@@ -73,6 +83,31 @@ describe('DownloadsService', () => {
 
         return service;
     }
+
+    it('reports availability through the runtime capability', () => {
+        const injector = createEnvironmentInjector(
+            [
+                DownloadsService,
+                { provide: SettingsStore, useValue: {} },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsDownloads: false },
+                },
+            ],
+            Injector.NULL as unknown as EnvironmentInjector
+        );
+
+        try {
+            const service = runInInjectionContext(
+                injector,
+                () => new DownloadsService()
+            );
+
+            expect(service.isAvailable()).toBe(false);
+        } finally {
+            injector.destroy();
+        }
+    });
 
     it('tracks loading and loaded state around a successful download list request', async () => {
         const item = createDownload(1);
