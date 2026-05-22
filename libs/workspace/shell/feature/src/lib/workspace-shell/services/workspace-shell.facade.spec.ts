@@ -697,8 +697,7 @@ describe('WorkspaceShellFacade', () => {
     });
 
     it('hides the downloads command when downloads are unsupported', () => {
-        (facade as unknown as { supportsDownloads: boolean }).supportsDownloads =
-            false;
+        runtime.supportsDownloads = false;
         activePlaylistSignal.set(null);
         playlistsSignal.set([]);
         facade.currentUrl.set('/workspace/dashboard');

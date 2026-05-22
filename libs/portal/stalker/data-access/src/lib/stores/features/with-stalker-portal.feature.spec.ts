@@ -32,7 +32,7 @@ describe('withStalkerPortal', () => {
     let dbCreatePlaylist: jest.Mock;
     let dbGetPlaylist: jest.Mock;
     let runtime: {
-        hasElectronMethod: jest.Mock<boolean, [string]>;
+        supportsStalkerPlaylistSqliteSync: boolean;
     };
     let stalkerSession: {
         ensureToken: jest.Mock;
@@ -51,7 +51,7 @@ describe('withStalkerPortal', () => {
         });
 
         runtime = {
-            hasElectronMethod: jest.fn(() => true),
+            supportsStalkerPlaylistSqliteSync: true,
         };
         stalkerSession = {
             ensureToken: jest.fn(),
@@ -101,9 +101,7 @@ describe('withStalkerPortal', () => {
     });
 
     it('does not touch SQLite when the Electron bridge is partial', async () => {
-        runtime.hasElectronMethod.mockImplementation(
-            (methodName) => methodName === 'dbGetPlaylist'
-        );
+        runtime.supportsStalkerPlaylistSqliteSync = false;
 
         await store.setCurrentPlaylist(PLAYLIST);
 

@@ -934,10 +934,11 @@ describe('SettingsComponent', () => {
         const clickSpy = jest
             .spyOn(HTMLAnchorElement.prototype, 'click')
             .mockImplementation();
+        let partialFileSaveFixture: ComponentFixture<SettingsComponent> | null =
+            null;
 
         try {
-            const partialFileSaveFixture =
-                TestBed.createComponent(SettingsComponent);
+            partialFileSaveFixture = TestBed.createComponent(SettingsComponent);
             const partialFileSaveComponent =
                 partialFileSaveFixture.componentInstance;
             partialFileSaveComponent.checkAppVersion = jest.fn();
@@ -958,6 +959,7 @@ describe('SettingsComponent', () => {
             expect(clickSpy).toHaveBeenCalled();
             expect(revokeObjectURL).toHaveBeenCalledWith('blob:backup');
         } finally {
+            partialFileSaveFixture?.destroy();
             clickSpy.mockRestore();
             Object.defineProperty(window.URL, 'createObjectURL', {
                 configurable: true,

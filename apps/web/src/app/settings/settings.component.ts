@@ -612,7 +612,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.supportsEpg || !url) {
             return;
         }
-        void window.electron!.forceFetchEpg!(url);
+        void window.electron.forceFetchEpg(url);
     }
 
     /**
@@ -625,7 +625,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         const urls = (this.epgUrl.value as string[])
             .map((url) => url?.trim())
             .filter((url): url is string => Boolean(url));
-        urls.forEach((url) => void window.electron!.forceFetchEpg!(url));
+        urls.forEach((url) => void window.electron.forceFetchEpg(url));
     }
 
     /**
@@ -666,7 +666,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
                 this.isClearingEpgData.set(true);
                 try {
-                    const result = await window.electron!.clearEpgData!();
+                    const result = await window.electron.clearEpgData();
                     if (result && result.success === false) {
                         throw new Error('Clear EPG returned success=false');
                     }

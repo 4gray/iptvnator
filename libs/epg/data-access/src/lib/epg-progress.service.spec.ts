@@ -58,6 +58,22 @@ describe('EpgProgressService', () => {
         expect(forceFetchEpg).not.toHaveBeenCalled();
     });
 
+    it('forces retry through the Electron bridge when runtime EPG support is enabled', () => {
+        const forceFetchEpg = jest.fn();
+        window.electron = {
+            ...window.electron,
+            forceFetchEpg,
+        } as unknown as typeof window.electron;
+        runtimeCapabilities.supportsEpg = true;
+        const service = configureService();
+
+        service.retry('https://example.com/epg.xml');
+
+        expect(forceFetchEpg).toHaveBeenCalledWith(
+            'https://example.com/epg.xml'
+        );
+    });
+
     it('updates imports from Electron progress events when runtime EPG support is enabled', () => {
         let listener: ((progress: EpgImportProgress) => void) | undefined;
         window.electron = {

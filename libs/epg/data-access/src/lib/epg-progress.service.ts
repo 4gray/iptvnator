@@ -53,7 +53,7 @@ export class EpgProgressService {
         if (!this.runtime.supportsEpg) {
             return;
         }
-        void window.electron?.forceFetchEpg?.(url);
+        void window.electron.forceFetchEpg(url);
     }
 
     private initializeListener(): void {

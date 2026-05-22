@@ -80,7 +80,7 @@ export class EpgSourceStatusComponent implements OnInit {
     }
 
     async ngOnInit(): Promise<void> {
-        if (!this.runtime.supportsEpg || !window.electron?.checkEpgFreshness) {
+        if (!this.runtime.supportsEpg) {
             return;
         }
         const url = this.url();

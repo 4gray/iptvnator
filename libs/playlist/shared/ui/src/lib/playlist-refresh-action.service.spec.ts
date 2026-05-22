@@ -6,6 +6,7 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
 import {
+    DataService,
     DatabaseService,
     DbOperationEvent,
     PlaybackPositionService,
@@ -13,7 +14,11 @@ import {
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
-import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    PLAYLIST_UPDATE,
+    Playlist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
 
@@ -57,6 +62,9 @@ describe('PlaylistRefreshActionService', () => {
         createOperationId: jest.Mock;
         deleteXtreamPlaylistContent: jest.Mock;
         updateXtreamPlaylistDetails: jest.Mock;
+    };
+    let dataService: {
+        sendIpcEvent: jest.Mock;
     };
     let dialogService: {
         openConfirmDialog: jest.Mock;
@@ -113,6 +121,9 @@ describe('PlaylistRefreshActionService', () => {
             }),
             updateXtreamPlaylistDetails: jest.fn().mockResolvedValue(true),
         };
+        dataService = {
+            sendIpcEvent: jest.fn(),
+        };
         dialogService = {
             openConfirmDialog: jest.fn(),
         };
@@ -166,6 +177,10 @@ describe('PlaylistRefreshActionService', () => {
                 {
                     provide: DatabaseService,
                     useValue: databaseService,
+                },
+                {
+                    provide: DataService,
+                    useValue: dataService,
                 },
                 {
                     provide: PlaylistRefreshService,
@@ -225,6 +240,45 @@ describe('PlaylistRefreshActionService', () => {
                 })
             )
         ).toBe(false);
+    });
+
+    it('treats URL-backed M3U playlists as refreshable without the refresh bridge', () => {
+        runtime.supportsPlaylistRefresh = false;
+
+        expect(
+            service.canRefresh(
+                createPlaylistMeta({
+                    serverUrl: undefined,
+                    username: undefined,
+                    password: undefined,
+                    url: 'https://example.com/playlist.m3u',
+                })
+            )
+        ).toBe(true);
+    });
+
+    it('uses the browser URL refresh path when the refresh bridge is unavailable', () => {
+        runtime.supportsPlaylistRefresh = false;
+        const playlist = createPlaylistMeta({
+            _id: 'playlist-url',
+            title: 'URL playlist',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://example.com/playlist.m3u',
+        });
+
+        service.refresh(playlist);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            PLAYLIST_UPDATE,
+            {
+                id: 'playlist-url',
+                title: 'URL playlist',
+                url: 'https://example.com/playlist.m3u',
+            }
+        );
+        expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
     });
 
     it('treats Xtream playlists as refreshable only when the SQLite data source is available', () => {

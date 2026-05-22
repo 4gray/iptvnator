@@ -13,15 +13,15 @@ import { StalkerSessionService } from '../../stalker-session.service';
 import { toStalkerSessionPlaylist } from '../utils';
 
 type StalkerPortalWindow = Window & {
-    electron?: {
-        dbCreatePlaylist?: (playlist: {
+    electron: {
+        dbCreatePlaylist: (playlist: {
             id: string;
             name: string;
             macAddress: string;
             url: string;
             type: 'stalker';
         }) => Promise<unknown>;
-        dbGetPlaylist?: (playlistId: string) => Promise<unknown>;
+        dbGetPlaylist: (playlistId: string) => Promise<unknown>;
     };
 };
 
@@ -96,8 +96,7 @@ export function withStalkerPortal() {
                     // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
                     if (
                         playlist &&
-                        runtime.hasElectronMethod('dbGetPlaylist') &&
-                        runtime.hasElectronMethod('dbCreatePlaylist') &&
+                        runtime.supportsStalkerPlaylistSqliteSync &&
                         playlist._id &&
                         playlist.macAddress &&
                         playlist.portalUrl
@@ -105,12 +104,6 @@ export function withStalkerPortal() {
                         try {
                             const electronApi = (window as StalkerPortalWindow)
                                 .electron;
-                            if (
-                                !electronApi?.dbGetPlaylist ||
-                                !electronApi.dbCreatePlaylist
-                            ) {
-                                return;
-                            }
 
                             const playlistId = String(playlist._id);
                             // Check if playlist exists in SQLite

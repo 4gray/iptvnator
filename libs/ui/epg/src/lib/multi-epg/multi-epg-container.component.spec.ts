@@ -85,6 +85,26 @@ describe('MultiEpgContainerComponent runtime gates', () => {
         expect(component.isLoading()).toBe(false);
     });
 
+    it('requests EPG channel ranges when runtime EPG support is enabled', async () => {
+        const getEpgChannelsByRange = jest.fn().mockResolvedValue([
+            {
+                channel_id: 'channel-1',
+                display_name: 'Channel One',
+                programs: [],
+            },
+        ]);
+        window.electron = {
+            ...window.electron,
+            getEpgChannelsByRange,
+        } as unknown as typeof window.electron;
+        runtimeCapabilities.supportsEpg = true;
+
+        await component.requestPrograms();
+
+        expect(getEpgChannelsByRange).toHaveBeenCalledWith(0, 20);
+        expect(component.isLoading()).toBe(false);
+    });
+
     it('does not search EPG programs when runtime EPG support is disabled', () => {
         jest.useFakeTimers();
         const searchEpgPrograms = jest.fn().mockResolvedValue([]);
@@ -101,5 +121,33 @@ describe('MultiEpgContainerComponent runtime gates', () => {
         expect(searchEpgPrograms).not.toHaveBeenCalled();
         expect(component.isSearchingPrograms()).toBe(false);
         expect(component.programSearchResults()).toEqual([]);
+    });
+
+    it('searches EPG programs when runtime EPG support is enabled', async () => {
+        jest.useFakeTimers();
+        const results = [
+            {
+                channelId: 'channel-1',
+                start: '2026-05-22T10:00:00.000Z',
+                stop: '2026-05-22T11:00:00.000Z',
+                title: 'News',
+            },
+        ];
+        const searchEpgPrograms = jest.fn().mockResolvedValue(results);
+        window.electron = {
+            ...window.electron,
+            searchEpgPrograms,
+        } as unknown as typeof window.electron;
+        runtimeCapabilities.supportsEpg = true;
+
+        component.onProgramSearchInput({
+            target: { value: 'news' },
+        } as unknown as Event);
+        jest.advanceTimersByTime(500);
+        await Promise.resolve();
+
+        expect(searchEpgPrograms).toHaveBeenCalledWith('news', 20);
+        expect(component.programSearchResults()).toEqual(results);
+        expect(component.isSearchingPrograms()).toBe(false);
     });
 });

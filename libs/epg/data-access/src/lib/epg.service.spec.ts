@@ -54,6 +54,26 @@ describe('EpgService', () => {
         expect(fetchEpg).not.toHaveBeenCalled();
     });
 
+    it('fetches EPG through the Electron bridge when runtime EPG support is enabled', () => {
+        const fetchEpg = jest.fn().mockResolvedValue({ success: true });
+        window.electron = {
+            ...window.electron,
+            fetchEpg,
+        } as unknown as typeof window.electron;
+        runtimeCapabilities.supportsEpg = true;
+
+        service.fetchEpg([
+            'https://example.com/epg.xml',
+            '',
+            'https://example.com/other.xml',
+        ]);
+
+        expect(fetchEpg).toHaveBeenCalledWith([
+            'https://example.com/epg.xml',
+            'https://example.com/other.xml',
+        ]);
+    });
+
     it('returns an empty batch result when the desktop bridge is unavailable', async () => {
         const result = await firstValueFrom(
             service.getCurrentProgramsForChannels(['channel-1'])

@@ -195,12 +195,26 @@ describe('ChannelListContainerComponent', () => {
 
     it('does not enable EPG rows when runtime EPG support is unavailable', () => {
         runtimeCapabilities.supportsEpg = false;
-        storageGet.mockReturnValue(of({ epgUrl: ['https://example.com/epg.xml'] }));
+        storageGet.mockReturnValue(
+            of({ epgUrl: ['https://example.com/epg.xml'] })
+        );
 
         fixture.detectChanges();
 
         expect(fixture.componentInstance.shouldShowEpg()).toBe(false);
         expect(storageGet).not.toHaveBeenCalled();
+    });
+
+    it('enables EPG rows when runtime EPG support and an EPG URL are available', () => {
+        runtimeCapabilities.supportsEpg = true;
+        storageGet.mockReturnValue(
+            of({ epgUrl: ['https://example.com/epg.xml'] })
+        );
+
+        fixture.detectChanges();
+
+        expect(storageGet).toHaveBeenCalled();
+        expect(fixture.componentInstance.shouldShowEpg()).toBe(true);
     });
 
     it('dispatches playlist meta updates when hidden group titles change', () => {

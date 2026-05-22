@@ -729,7 +729,7 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getSavedOrder(): Promise<string[]> {
-        if (!this.runtime.hasElectronMethod('dbGetAppState')) return [];
+        if (!this.runtime.supportsAppStateStorage) return [];
         try {
             const raw = await window.electron?.dbGetAppState(
                 GLOBAL_FAVORITES_ORDER_KEY
@@ -741,7 +741,7 @@ export class UnifiedFavoritesDataService {
     }
 
     private async saveOrder(uidOrder: string[]): Promise<void> {
-        if (!this.runtime.hasElectronMethod('dbSetAppState')) return;
+        if (!this.runtime.supportsAppStateStorage) return;
         try {
             await window.electron?.dbSetAppState(
                 GLOBAL_FAVORITES_ORDER_KEY,

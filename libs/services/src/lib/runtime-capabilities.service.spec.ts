@@ -25,6 +25,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsAppStateStorage).toBe(false);
+        expect(service.supportsStalkerPlaylistSqliteSync).toBe(false);
         expect(service.supportsPlaylistRefresh).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsExternalPlayerPathSettings).toBe(false);
@@ -128,6 +130,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(true);
         expect(service.supportsDownloads).toBe(true);
         expect(service.supportsPortalActivityStorage).toBe(true);
+        expect(service.supportsAppStateStorage).toBe(true);
+        expect(service.supportsStalkerPlaylistSqliteSync).toBe(true);
         expect(service.supportsPlaylistRefresh).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
         expect(service.supportsExternalPlayerPathSettings).toBe(true);
@@ -152,6 +156,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsAppStateStorage).toBe(false);
+        expect(service.supportsStalkerPlaylistSqliteSync).toBe(false);
         expect(service.supportsPlaylistRefresh).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsExternalPlayerPathSettings).toBe(false);
@@ -179,6 +185,45 @@ describe('RuntimeCapabilitiesService', () => {
         const service = new RuntimeCapabilitiesService();
 
         expect(service.supportsSqlite).toBe(true);
+        expect(service.supportsAppStateStorage).toBe(true);
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
+    });
+
+    it('checks app state storage without requiring full playlist SQLite support', () => {
+        testWindow.electron = {
+            dbGetAppState: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsAppStateStorage).toBe(false);
+
+        testWindow.electron = {
+            dbGetAppState: jest.fn(),
+            dbSetAppState: jest.fn(),
+        };
+
+        expect(service.supportsAppStateStorage).toBe(true);
+        expect(service.supportsSqlite).toBe(false);
+    });
+
+    it('checks Stalker playlist SQLite sync without requiring the full Xtream data source', () => {
+        testWindow.electron = {
+            dbGetPlaylist: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsStalkerPlaylistSqliteSync).toBe(false);
+
+        testWindow.electron = {
+            dbGetPlaylist: jest.fn(),
+            dbCreatePlaylist: jest.fn(),
+        };
+
+        expect(service.supportsStalkerPlaylistSqliteSync).toBe(true);
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
     });
 
@@ -324,6 +369,16 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
+
+    it('supports Xtream section navigation in Electron when only the SQLite data source is available', () => {
+        testWindow.electron = createXtreamSqliteBridge();
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsXtreamSqliteDataSource).toBe(true);
+        expect(service.supportsXtreamSectionNavigation).toBe(true);
+    });
 });
 
 function createPlaylistStorageBridge(): Record<string, jest.Mock> {
@@ -336,5 +391,43 @@ function createPlaylistStorageBridge(): Record<string, jest.Mock> {
         dbSetAppState: jest.fn(),
         dbUpsertAppPlaylist: jest.fn(),
         dbUpsertAppPlaylists: jest.fn(),
+    };
+}
+
+function createXtreamSqliteBridge(): Record<string, jest.Mock> {
+    return {
+        dbAddFavorite: jest.fn(),
+        dbAddRecentItem: jest.fn(),
+        dbClearAllPlaybackPositions: jest.fn(),
+        dbClearPlaybackPosition: jest.fn(),
+        dbClearPlaylistRecentItems: jest.fn(),
+        dbCreatePlaylist: jest.fn(),
+        dbDeletePlaylist: jest.fn(),
+        dbDeleteXtreamContent: jest.fn(),
+        dbGetAllCategories: jest.fn(),
+        dbGetAllPlaybackPositions: jest.fn(),
+        dbGetAppState: jest.fn(),
+        dbGetCategories: jest.fn(),
+        dbGetContent: jest.fn(),
+        dbGetContentByXtreamId: jest.fn(),
+        dbGetFavorites: jest.fn(),
+        dbGetPlaylist: jest.fn(),
+        dbGetPlaybackPosition: jest.fn(),
+        dbGetRecentItems: jest.fn(),
+        dbGetRecentPlaybackPositions: jest.fn(),
+        dbGetSeriesPlaybackPositions: jest.fn(),
+        dbHasCategories: jest.fn(),
+        dbHasContent: jest.fn(),
+        dbIsFavorite: jest.fn(),
+        dbRemoveFavorite: jest.fn(),
+        dbRemoveRecentItem: jest.fn(),
+        dbRestoreXtreamUserData: jest.fn(),
+        dbSaveCategories: jest.fn(),
+        dbSaveContent: jest.fn(),
+        dbSavePlaybackPosition: jest.fn(),
+        dbSearchContent: jest.fn(),
+        dbSetAppState: jest.fn(),
+        dbUpdateCategoryVisibility: jest.fn(),
+        dbUpdatePlaylist: jest.fn(),
     };
 }

@@ -130,6 +130,18 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    get supportsAppStateStorage(): boolean {
+        return ['dbGetAppState', 'dbSetAppState'].every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
+    }
+
+    get supportsStalkerPlaylistSqliteSync(): boolean {
+        return ['dbGetPlaylist', 'dbCreatePlaylist'].every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
+    }
+
     get supportsPlaylistRefresh(): boolean {
         return [
             'refreshPlaylist',
