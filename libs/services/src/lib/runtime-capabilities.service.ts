@@ -49,13 +49,22 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsPortalActivityStorage(): boolean {
-        return (
-            this.hasElectronMethod('dbGetGlobalRecentlyViewed') &&
-            this.hasElectronMethod('dbGetAllGlobalFavorites') &&
-            this.hasElectronMethod('dbGetGlobalRecentlyAdded') &&
-            this.hasElectronMethod('dbRemoveRecentItem') &&
-            this.hasElectronMethod('dbRemoveFavorite')
-        );
+        return [
+            'dbGetRecentlyViewed',
+            'dbClearRecentlyViewed',
+            'dbGetAllGlobalFavorites',
+            'dbGetGlobalRecentlyAdded',
+            'dbAddFavorite',
+            'dbRemoveFavorite',
+            'dbGetFavorites',
+            'dbReorderGlobalFavorites',
+            'dbGetRecentItems',
+            'dbAddRecentItem',
+            'dbClearPlaylistRecentItems',
+            'dbRemoveRecentItem',
+            'dbRemoveRecentItemsBatch',
+            'dbGetContentByXtreamId',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsManagedExternalPlayers(): boolean {

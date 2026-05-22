@@ -17,8 +17,19 @@ describe('UnifiedFavoritesDataService', () => {
     let service: UnifiedFavoritesDataService;
     let electronApi: {
         dbAddFavorite: jest.Mock;
+        dbAddRecentItem: jest.Mock;
+        dbClearPlaylistRecentItems: jest.Mock;
+        dbClearRecentlyViewed: jest.Mock;
         dbGetAllGlobalFavorites: jest.Mock;
+        dbGetContentByXtreamId: jest.Mock;
+        dbGetFavorites: jest.Mock;
+        dbGetGlobalRecentlyAdded: jest.Mock;
+        dbGetRecentItems: jest.Mock;
+        dbGetRecentlyViewed: jest.Mock;
+        dbReorderGlobalFavorites: jest.Mock;
         dbRemoveFavorite: jest.Mock;
+        dbRemoveRecentItem: jest.Mock;
+        dbRemoveRecentItemsBatch: jest.Mock;
     };
     let databaseService: {
         getAllGlobalFavorites: jest.Mock;
@@ -99,8 +110,21 @@ describe('UnifiedFavoritesDataService', () => {
     beforeEach(() => {
         electronApi = {
             dbAddFavorite: jest.fn().mockResolvedValue({ success: true }),
+            dbAddRecentItem: jest.fn(),
+            dbClearPlaylistRecentItems: jest.fn(),
+            dbClearRecentlyViewed: jest.fn(),
             dbGetAllGlobalFavorites: jest.fn(),
+            dbGetContentByXtreamId: jest.fn(),
+            dbGetFavorites: jest.fn(),
+            dbGetGlobalRecentlyAdded: jest.fn(),
+            dbGetRecentItems: jest.fn(),
+            dbGetRecentlyViewed: jest.fn(),
+            dbReorderGlobalFavorites: jest.fn().mockResolvedValue({
+                success: true,
+            }),
             dbRemoveFavorite: jest.fn().mockResolvedValue(undefined),
+            dbRemoveRecentItem: jest.fn(),
+            dbRemoveRecentItemsBatch: jest.fn(),
         };
         Object.defineProperty(window, 'electron', {
             value: electronApi as Window['electron'],
@@ -520,6 +544,31 @@ describe('UnifiedFavoritesDataService', () => {
             'movie.png'
         );
         expect(electronApi.dbAddFavorite).not.toHaveBeenCalled();
+    });
+
+    it('uses the active Xtream data source when the Electron bridge lacks activity storage methods', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
+
+        await service.removeFavorite({
+            uid: 'xtream::xtream-1::movie:101',
+            name: 'Partial Bridge Movie',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            posterUrl: 'movie.png',
+            xtreamId: 101,
+            contentId: 1010,
+        } satisfies UnifiedCollectionItem);
+
+        expect(xtreamDataSource.removeFavorite).toHaveBeenCalledWith(
+            1010,
+            'xtream-1'
+        );
+        expect(electronApi.dbRemoveFavorite).not.toHaveBeenCalled();
     });
 
     it('adds Stalker favorites through portal favorites', async () => {
