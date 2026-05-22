@@ -1,8 +1,11 @@
 import { signal, Signal, WritableSignal } from '@angular/core';
+import { TestBed } from '@angular/core/testing';
 import {
     DownloadItem,
     DownloadsService,
 } from './downloads.service';
+import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
+import { SettingsStore } from './settings-store.service';
 
 type TestDownloadsService = {
     downloads: WritableSignal<DownloadItem[]>;
@@ -27,6 +30,7 @@ describe('DownloadsService', () => {
 
     afterEach(() => {
         testWindow.electron = originalElectron;
+        TestBed.resetTestingModule();
         jest.restoreAllMocks();
     });
 
@@ -73,6 +77,23 @@ describe('DownloadsService', () => {
 
         return service;
     }
+
+    it('reports availability through the runtime capability', () => {
+        TestBed.configureTestingModule({
+            providers: [
+                DownloadsService,
+                { provide: SettingsStore, useValue: {} },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsDownloads: false },
+                },
+            ],
+        });
+
+        const service = TestBed.inject(DownloadsService);
+
+        expect(service.isAvailable()).toBe(false);
+    });
 
     it('tracks loading and loaded state around a successful download list request', async () => {
         const item = createDownload(1);
