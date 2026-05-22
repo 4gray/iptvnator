@@ -30,7 +30,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
-        expect(service.supportsXtreamSectionNavigation).toBe(false);
+        expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
     it('reports Electron capabilities from the available preload bridge methods', () => {
@@ -103,6 +103,7 @@ describe('RuntimeCapabilitiesService', () => {
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(),
             onRemoteControlCommand: jest.fn(),
+            xtreamRequest: jest.fn(),
         };
 
         const service = new RuntimeCapabilitiesService();
@@ -145,6 +146,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
+        expect(service.supportsXtreamSectionNavigation).toBe(false);
     });
 
     it('reads the bridge dynamically so tests and late preload setup stay accurate', () => {
@@ -249,6 +251,18 @@ describe('RuntimeCapabilitiesService', () => {
         testWindow.electron = createPlaylistStorageBridge();
 
         expect(service.supportsSqlite).toBe(true);
+    });
+
+    it('supports Xtream section navigation in Electron when Xtream API transport is available', () => {
+        testWindow.electron = {
+            xtreamRequest: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
+        expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 });
 

@@ -74,7 +74,9 @@ from one shared boundary. `supportsSqlite` requires the complete playlist
 storage preload API surface used by `PlaylistsService`, `supportsDownloads`
 requires the complete downloads preload API surface used by `DownloadsService`,
 `supportsPlaylistRefresh` requires the native playlist refresh/cancel/progress
-bridge, and
+bridge, `supportsXtreamSectionNavigation` is available in PWA and in Electron
+when either the SQLite Xtream data source or the Xtream API transport is
+available, and
 `supportsManagedExternalPlayers` requires the MPV and VLC preload launch methods
 (`openInMpv` and `openInVlc`); a partial Electron bridge must not expose
 desktop-only actions in the PWA/shared UI.
