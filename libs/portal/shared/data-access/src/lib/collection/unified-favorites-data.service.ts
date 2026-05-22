@@ -729,9 +729,10 @@ export class UnifiedFavoritesDataService {
     }
 
     private async getSavedOrder(): Promise<string[]> {
-        if (!this.runtime.supportsAppStateStorage) return [];
+        const electron = window.electron;
+        if (!this.runtime.supportsAppStateStorage || !electron) return [];
         try {
-            const raw = await window.electron?.dbGetAppState(
+            const raw = await electron.dbGetAppState(
                 GLOBAL_FAVORITES_ORDER_KEY
             );
             return raw ? (JSON.parse(raw) as string[]) : [];
@@ -741,9 +742,10 @@ export class UnifiedFavoritesDataService {
     }
 
     private async saveOrder(uidOrder: string[]): Promise<void> {
-        if (!this.runtime.supportsAppStateStorage) return;
+        const electron = window.electron;
+        if (!this.runtime.supportsAppStateStorage || !electron) return;
         try {
-            await window.electron?.dbSetAppState(
+            await electron.dbSetAppState(
                 GLOBAL_FAVORITES_ORDER_KEY,
                 JSON.stringify(uidOrder)
             );

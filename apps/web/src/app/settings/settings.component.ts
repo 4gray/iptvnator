@@ -139,6 +139,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
     readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsManagedExternalPlayers =
+        this.runtime.supportsManagedExternalPlayers;
     readonly supportsExternalPlayerPathSettings =
         this.runtime.supportsExternalPlayerPathSettings;
     readonly supportsRemoteControl = this.runtime.supportsRemoteControl;
