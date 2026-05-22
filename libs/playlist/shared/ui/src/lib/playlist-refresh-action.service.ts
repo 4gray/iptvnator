@@ -48,11 +48,18 @@ export class PlaylistRefreshActionService {
     readonly refreshPreparation = this.refreshPreparationState.asReadonly();
 
     canRefresh(playlist: PlaylistMeta | null): boolean {
-        if (!playlist || !this.runtime.isElectron) {
+        if (!playlist) {
             return false;
         }
 
-        return Boolean(playlist.serverUrl || playlist.url || playlist.filePath);
+        if (playlist.serverUrl) {
+            return this.runtime.supportsXtreamSqliteDataSource;
+        }
+
+        return (
+            this.runtime.supportsPlaylistRefresh &&
+            Boolean(playlist.url || playlist.filePath)
+        );
     }
 
     refresh(playlist: PlaylistMeta): void {
@@ -60,9 +67,12 @@ export class PlaylistRefreshActionService {
             return;
         }
 
-        if (playlist.serverUrl) {
+        if (playlist.serverUrl && this.runtime.supportsXtreamSqliteDataSource) {
             this.refreshXtream(playlist);
-        } else if (playlist.url || playlist.filePath) {
+        } else if (
+            this.runtime.supportsPlaylistRefresh &&
+            (playlist.url || playlist.filePath)
+        ) {
             void this.refreshM3u(playlist);
         }
     }

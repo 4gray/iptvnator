@@ -77,7 +77,8 @@ describe('PlaylistRefreshActionService', () => {
         getAllPlaybackPositions: jest.Mock;
     };
     let runtime: {
-        isElectron: boolean;
+        supportsPlaylistRefresh: boolean;
+        supportsXtreamSqliteDataSource: boolean;
     };
     let routeProvider: ReturnType<
         typeof signal<'playlists' | 'xtreams' | null>
@@ -131,7 +132,8 @@ describe('PlaylistRefreshActionService', () => {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
         };
         runtime = {
-            isElectron: true,
+            supportsPlaylistRefresh: true,
+            supportsXtreamSqliteDataSource: true,
         };
         routeProvider = signal<'playlists' | 'xtreams' | null>('xtreams');
         resolvedPlaylistId = signal<string | null>(null);
@@ -195,8 +197,8 @@ describe('PlaylistRefreshActionService', () => {
         localStorage.clear();
     });
 
-    it('treats file-backed M3U playlists as refreshable in Electron', () => {
-        runtime.isElectron = true;
+    it('treats file-backed M3U playlists as refreshable when the refresh bridge is available', () => {
+        runtime.supportsPlaylistRefresh = true;
 
         expect(
             service.canRefresh(
@@ -210,8 +212,8 @@ describe('PlaylistRefreshActionService', () => {
         ).toBe(true);
     });
 
-    it('does not expose filesystem refresh outside Electron', () => {
-        runtime.isElectron = false;
+    it('does not expose file-backed M3U refresh without the refresh bridge', () => {
+        runtime.supportsPlaylistRefresh = false;
 
         expect(
             service.canRefresh(
@@ -223,6 +225,16 @@ describe('PlaylistRefreshActionService', () => {
                 })
             )
         ).toBe(false);
+    });
+
+    it('treats Xtream playlists as refreshable only when the SQLite data source is available', () => {
+        runtime.supportsXtreamSqliteDataSource = true;
+
+        expect(service.canRefresh(createPlaylistMeta())).toBe(true);
+
+        runtime.supportsXtreamSqliteDataSource = false;
+
+        expect(service.canRefresh(createPlaylistMeta())).toBe(false);
     });
 
     it('stores Xtream restore data before updating playlist meta and navigating', async () => {

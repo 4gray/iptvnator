@@ -25,6 +25,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsPlaylistRefresh).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
@@ -88,6 +89,9 @@ describe('RuntimeCapabilitiesService', () => {
             downloadsPlayFile: jest.fn(),
             downloadsClearCompleted: jest.fn(),
             onDownloadsUpdate: jest.fn(),
+            refreshPlaylist: jest.fn(),
+            cancelPlaylistRefresh: jest.fn(),
+            onPlaylistRefreshEvent: jest.fn(),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
             prepareEmbeddedMpv: jest.fn(),
@@ -110,6 +114,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(true);
         expect(service.supportsDownloads).toBe(true);
         expect(service.supportsPortalActivityStorage).toBe(true);
+        expect(service.supportsPlaylistRefresh).toBe(true);
         expect(service.supportsManagedExternalPlayers).toBe(true);
         expect(service.supportsEmbeddedMpv).toBe(true);
         expect(service.supportsDesktopFileSave).toBe(true);
@@ -132,6 +137,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsPlaylistRefresh).toBe(false);
         expect(service.supportsManagedExternalPlayers).toBe(false);
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
@@ -209,5 +215,24 @@ describe('RuntimeCapabilitiesService', () => {
         };
 
         expect(service.supportsDownloads).toBe(true);
+    });
+
+    it('requires the complete playlist refresh preload surface', () => {
+        testWindow.electron = {
+            refreshPlaylist: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.isElectron).toBe(true);
+        expect(service.supportsPlaylistRefresh).toBe(false);
+
+        testWindow.electron = {
+            refreshPlaylist: jest.fn(),
+            cancelPlaylistRefresh: jest.fn(),
+            onPlaylistRefreshEvent: jest.fn(),
+        };
+
+        expect(service.supportsPlaylistRefresh).toBe(true);
     });
 });
