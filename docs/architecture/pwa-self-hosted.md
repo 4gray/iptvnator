@@ -70,9 +70,11 @@ direct `window.electron` or `DataService.getAppEnvironment()` checks. Keep
 feature decisions expressed as capabilities such as `supportsEpg`,
 `supportsSqlite`, `supportsXtreamSqliteDataSource`, `supportsDownloads`, or
 `supportsManagedExternalPlayers` so PWA and Electron behavior stays auditable
-from one shared boundary. `supportsDownloads` requires the complete downloads
-preload API surface used by `DownloadsService`, `supportsPlaylistRefresh`
-requires the native playlist refresh/cancel/progress bridge, and
+from one shared boundary. `supportsSqlite` requires the complete playlist
+storage preload API surface used by `PlaylistsService`, `supportsDownloads`
+requires the complete downloads preload API surface used by `DownloadsService`,
+`supportsPlaylistRefresh` requires the native playlist refresh/cancel/progress
+bridge, and
 `supportsManagedExternalPlayers` requires the MPV and VLC preload launch methods
 (`openInMpv` and `openInVlc`); a partial Electron bridge must not expose
 desktop-only actions in the PWA/shared UI.

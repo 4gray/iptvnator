@@ -26,7 +26,8 @@ describe('PlaylistDeleteActionService', () => {
         deletePlaylist: jest.Mock;
     };
     let runtime: {
-        isElectron: boolean;
+        supportsSqlite: boolean;
+        supportsXtreamSqliteDataSource: boolean;
     };
     let injector: EnvironmentInjector;
 
@@ -41,7 +42,8 @@ describe('PlaylistDeleteActionService', () => {
             deletePlaylist: jest.fn(() => of({ success: true })),
         };
         runtime = {
-            isElectron: false,
+            supportsSqlite: false,
+            supportsXtreamSqliteDataSource: false,
         };
 
         injector = createEnvironmentInjector(
@@ -76,8 +78,8 @@ describe('PlaylistDeleteActionService', () => {
         expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 
-    it('deletes Electron Xtream playlists through DatabaseService with progress options', async () => {
-        runtime.isElectron = true;
+    it('deletes SQLite-backed Xtream playlists through DatabaseService with progress options', async () => {
+        runtime.supportsXtreamSqliteDataSource = true;
         const onEvent = jest.fn();
         const service = createService();
 
@@ -98,8 +100,8 @@ describe('PlaylistDeleteActionService', () => {
         expect(playlistsService.deletePlaylist).not.toHaveBeenCalled();
     });
 
-    it('deletes Electron non-Xtream playlists without progress options', async () => {
-        runtime.isElectron = true;
+    it('deletes SQLite-backed non-Xtream playlists without progress options', async () => {
+        runtime.supportsSqlite = true;
         const service = createService();
 
         await expect(
@@ -114,5 +116,18 @@ describe('PlaylistDeleteActionService', () => {
             'playlist-1',
             undefined
         );
+    });
+
+    it('uses browser playlist storage when an Xtream playlist lacks Xtream SQLite support', async () => {
+        runtime.supportsSqlite = true;
+        runtime.supportsXtreamSqliteDataSource = false;
+        const service = createService();
+
+        await expect(service.deletePlaylist(playlist)).resolves.toBe(true);
+
+        expect(playlistsService.deletePlaylist).toHaveBeenCalledWith(
+            'playlist-1'
+        );
+        expect(databaseService.deletePlaylist).not.toHaveBeenCalled();
     });
 });
