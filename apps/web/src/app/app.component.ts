@@ -9,7 +9,11 @@ import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
-import { DataService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     Language,
@@ -30,9 +34,7 @@ const debugAppComponent = createDevLogger('AppComponent');
 })
 export class AppComponent implements OnInit {
     @HostBinding('class.macos-platform') get isMacOS() {
-        return (
-            window.electron && navigator.platform.toLowerCase().includes('mac')
-        );
+        return this.runtime.isMacOS;
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
@@ -43,6 +45,7 @@ export class AppComponent implements OnInit {
     private translate = inject(TranslateService);
     private settingsService = inject(SettingsService);
     private settingsStore = inject(SettingsStore);
+    private runtime = inject(RuntimeCapabilitiesService);
     private readonly workspaceShellActions = inject(WORKSPACE_SHELL_ACTIONS);
 
     /** Default language as fallback */
@@ -75,7 +78,7 @@ export class AppComponent implements OnInit {
             document.documentElement.dataset.coverSize = size;
         });
 
-        if (window.electron) {
+        if (this.runtime.isElectron) {
             document.addEventListener('keydown', (event) => {
                 if (event.ctrlKey || event.metaKey) {
                     if (event.key === 'f') {
@@ -128,7 +131,7 @@ export class AppComponent implements OnInit {
 
                     // Fetch EPG if URLs are configured (only fetch stale data)
                     if (
-                        window.electron &&
+                        this.runtime.supportsEpg &&
                         settings.epgUrl?.length > 0 &&
                         settings.epgUrl?.some((u) => u !== '')
                     ) {
