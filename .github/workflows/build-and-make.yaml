@@ -88,10 +88,67 @@ jobs:
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
 
+            - name: Resolve embedded MPV runtime cache key
+              # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
+              # after the macOS Embedded MPV artifacts are built and manually tested.
+              if: matrix.os == 'macos' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
+              id: embedded-mpv-runtime-cache-key
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  deployment_target="${MACOSX_DEPLOYMENT_TARGET:-11.0}"
+                  safe_deployment_target="$(printf '%s' "${deployment_target}" | tr -c 'A-Za-z0-9_.-' '-')"
+                  xcode_version="$(xcodebuild -version | tr '\n' ' ' | sed 's/[[:space:]]*$//')"
+                  xcode_hash="$(printf '%s' "${xcode_version}" | shasum -a 256 | awk '{print $1}')"
+                  # Runtime source pins, source URLs, git tags, and build flags
+                  # live in build-macos-runtime.mjs; staging layout and manifest
+                  # normalization live in stage-macos-runtime.mjs.
+                  source_hash="$(
+                      shasum -a 256 \
+                          tools/embedded-mpv/build-macos-runtime.mjs \
+                          tools/embedded-mpv/stage-macos-runtime.mjs |
+                          shasum -a 256 |
+                          awk '{print $1}'
+                  )"
+                  cache_key="embedded-mpv-runtime-v1-${RUNNER_OS}-${{ matrix.arch }}-macos${safe_deployment_target}-xcode${xcode_hash}-${source_hash}"
+
+                  echo "deployment-target=${deployment_target}" >> "${GITHUB_OUTPUT}"
+                  echo "xcode-version=${xcode_version}" >> "${GITHUB_OUTPUT}"
+                  echo "key=${cache_key}" >> "${GITHUB_OUTPUT}"
+                  echo "Embedded MPV runtime cache key: ${cache_key}"
+                  echo "Xcode version: ${xcode_version}"
+
+            - name: Restore embedded MPV runtime cache
+              # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
+              # after the macOS Embedded MPV artifacts are built and manually tested.
+              if: matrix.os == 'macos' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
+              id: embedded-mpv-runtime-cache
+              uses: actions/cache/restore@v4
+              with:
+                  path: |
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/include
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/lib
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json
+                  key: ${{ steps.embedded-mpv-runtime-cache-key.outputs.key }}
+
+            - name: Clear stale embedded MPV runtime files
+              # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
+              # after the macOS Embedded MPV artifacts are built and manually tested.
+              if: matrix.os == 'macos' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  rm -rf \
+                      "vendor/embedded-mpv/darwin-${{ matrix.arch }}/include" \
+                      "vendor/embedded-mpv/darwin-${{ matrix.arch }}/lib" \
+                      "vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json"
+
             - name: Build embedded MPV runtime (macOS release)
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
+              if: matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
               shell: bash
               run: |
                   set -euo pipefail
@@ -321,6 +378,18 @@ jobs:
                   # after the macOS Embedded MPV artifacts are built and manually tested.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && '1' || '0' }}
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
+
+            - name: Save embedded MPV runtime cache
+              # TEMPORARY ARTIFACT TEST: remove `|| github.ref == 'refs/heads/master'`
+              # after the macOS Embedded MPV artifacts are built and manually tested.
+              if: matrix.os == 'macos' && !startsWith(github.ref, 'refs/tags/v') && github.repository == '4gray/iptvnator' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
+              uses: actions/cache/save@v4
+              with:
+                  path: |
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/include
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/lib
+                      vendor/embedded-mpv/darwin-${{ matrix.arch }}/runtime-manifest.json
+                  key: ${{ steps.embedded-mpv-runtime-cache-key.outputs.key }}
 
             - name: Smoke test packaged Flatpak launcher
               if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
