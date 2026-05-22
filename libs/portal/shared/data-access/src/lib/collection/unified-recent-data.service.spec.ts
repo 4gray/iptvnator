@@ -94,9 +94,27 @@ describe('UnifiedRecentDataService', () => {
         },
     ];
 
+    const createPortalActivityElectronApi = (): Window['electron'] =>
+        ({
+            dbGetRecentlyViewed: jest.fn(),
+            dbClearRecentlyViewed: jest.fn(),
+            dbGetAllGlobalFavorites: jest.fn(),
+            dbGetGlobalRecentlyAdded: jest.fn(),
+            dbAddFavorite: jest.fn(),
+            dbRemoveFavorite: jest.fn(),
+            dbGetFavorites: jest.fn(),
+            dbReorderGlobalFavorites: jest.fn(),
+            dbGetRecentItems: jest.fn(),
+            dbAddRecentItem: jest.fn(),
+            dbClearPlaylistRecentItems: jest.fn(),
+            dbRemoveRecentItem: jest.fn(),
+            dbRemoveRecentItemsBatch: jest.fn(),
+            dbGetContentByXtreamId: jest.fn(),
+        }) as unknown as Window['electron'];
+
     beforeEach(() => {
         Object.defineProperty(window, 'electron', {
-            value: {} as Window['electron'],
+            value: createPortalActivityElectronApi(),
             configurable: true,
         });
         store = {
@@ -293,6 +311,30 @@ describe('UnifiedRecentDataService', () => {
                 viewedAt: expect.any(String),
             })
         );
+    });
+
+    it('uses the active Xtream data source when the Electron bridge lacks activity storage methods', async () => {
+        Object.defineProperty(window, 'electron', {
+            value: {} as Window['electron'],
+            configurable: true,
+        });
+
+        await service.removeRecentItem({
+            uid: 'xtream::xtream-1::movie:290',
+            name: 'Partial Bridge Movie',
+            contentType: 'movie',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 290,
+            contentId: 444,
+        } satisfies UnifiedCollectionItem);
+
+        expect(xtreamDataSource.removeRecentItem).toHaveBeenCalledWith(
+            444,
+            'xtream-1'
+        );
+        expect(dbService.removeRecentItem).not.toHaveBeenCalled();
     });
 
     it('builds distinct Xtream recent UIDs when live and series share an xtream id', async () => {
