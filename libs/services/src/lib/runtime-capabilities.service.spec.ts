@@ -28,6 +28,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
+        expect(service.supportsXtreamSectionNavigation).toBe(false);
     });
 
     it('reports Electron capabilities from the available preload bridge methods', () => {
@@ -66,6 +67,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(true);
         expect(service.supportsDesktopFileSave).toBe(true);
         expect(service.supportsRemoteControl).toBe(true);
+        expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
     it('keeps feature-specific capabilities false when an Electron bridge is partial', () => {
@@ -85,6 +87,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
+        expect(service.supportsXtreamSectionNavigation).toBe(true);
     });
 
     it('reads the bridge dynamically so tests and late preload setup stay accurate', () => {

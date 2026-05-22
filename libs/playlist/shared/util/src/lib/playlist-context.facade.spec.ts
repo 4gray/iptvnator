@@ -10,6 +10,7 @@ import {
 } from '@iptvnator/m3u-state';
 import { Subject } from 'rxjs';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     PlaylistContextFacade,
     PlaylistRouteContext,
@@ -43,7 +44,7 @@ describe('PlaylistContextFacade', () => {
     let playlistsSignal: ReturnType<typeof signal<PlaylistMeta[]>>;
     let loadedSignal: ReturnType<typeof signal<boolean>>;
     let activePlaylistIdSignal: ReturnType<typeof signal<string | null>>;
-    let originalElectron: unknown;
+    let runtimeCapabilities: { supportsXtreamSectionNavigation: boolean };
 
     const xtreamA = createPlaylist({
         _id: 'xtream-a',
@@ -82,13 +83,6 @@ describe('PlaylistContextFacade', () => {
         url: 'http://example.test/b.m3u',
     });
 
-    function setElectronAvailability(enabled: boolean): void {
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            value: enabled ? {} : undefined,
-        });
-    }
-
     function instantiateFacade(): PlaylistContextFacade {
         facade = TestBed.inject(PlaylistContextFacade);
         dispatch.mockClear();
@@ -98,7 +92,6 @@ describe('PlaylistContextFacade', () => {
 
     beforeEach(() => {
         localStorage.clear();
-        originalElectron = (window as Window & { electron?: unknown }).electron;
 
         routerEvents = new Subject<NavigationEnd>();
         router = {
@@ -117,7 +110,7 @@ describe('PlaylistContextFacade', () => {
         ]);
         loadedSignal = signal(true);
         activePlaylistIdSignal = signal<string | null>(xtreamA._id);
-        setElectronAvailability(true);
+        runtimeCapabilities = { supportsXtreamSectionNavigation: true };
 
         TestBed.configureTestingModule({
             providers: [
@@ -147,16 +140,16 @@ describe('PlaylistContextFacade', () => {
                         }),
                     },
                 },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtimeCapabilities,
+                },
             ],
         });
     });
 
     afterEach(() => {
         localStorage.clear();
-        Object.defineProperty(window, 'electron', {
-            configurable: true,
-            value: originalElectron,
-        });
         routerEvents.complete();
         jest.restoreAllMocks();
     });
@@ -353,8 +346,8 @@ describe('PlaylistContextFacade', () => {
         ).toEqual(['workspace', 'stalker', stalkerB._id, 'search']);
     });
 
-    it('omits Xtream sections outside Electron where section navigation is unsupported', () => {
-        setElectronAvailability(false);
+    it('omits Xtream sections when runtime section navigation is unsupported', () => {
+        runtimeCapabilities.supportsXtreamSectionNavigation = false;
         const service = instantiateFacade();
 
         expect(
