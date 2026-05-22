@@ -22,6 +22,15 @@ export class RuntimeCapabilitiesService {
         return !this.isElectron;
     }
 
+    get platform(): string | undefined {
+        const platform = this.electronBridge?.['platform'];
+        return typeof platform === 'string' ? platform : undefined;
+    }
+
+    get isMacOS(): boolean {
+        return this.platform === 'darwin';
+    }
+
     get supportsEpg(): boolean {
         return this.isElectron;
     }
