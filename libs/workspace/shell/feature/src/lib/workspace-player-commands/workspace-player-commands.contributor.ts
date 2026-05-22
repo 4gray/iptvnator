@@ -5,7 +5,7 @@ import {
     WorkspaceCommandContribution,
     WorkspaceViewCommandService,
 } from '@iptvnator/portal/shared/util';
-import { SettingsStore } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 
 interface PlayerCommandDefinition {
@@ -73,8 +73,7 @@ export class WorkspacePlayerCommandsContributor {
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly destroyRef = inject(DestroyRef);
-
-    private readonly isDesktop = !!window.electron;
+    private readonly runtime = inject(RuntimeCapabilitiesService);
 
     constructor() {
         const unregisters = PLAYER_COMMAND_DEFS.map((def) =>
@@ -106,7 +105,8 @@ export class WorkspacePlayerCommandsContributor {
                 this.translate.instant(def.nameKey).toLowerCase(),
             ],
             priority: def.priority,
-            visible: () => !def.desktopOnly || this.isDesktop,
+            visible: () =>
+                !def.desktopOnly || this.runtime.supportsManagedExternalPlayers,
             enabled: () => this.settingsStore.player() !== def.player,
             run: () => this.activate(def),
         };
