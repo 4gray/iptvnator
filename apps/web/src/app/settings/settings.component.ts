@@ -42,6 +42,7 @@ import {
     PlaylistBackupImportSummary,
     PlaylistBackupService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
@@ -119,6 +120,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private matDialog = inject(MatDialog);
     private playlistBackupService = inject(PlaylistBackupService);
     private readonly databaseService = inject(DatabaseService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly dialogData = inject<{ isDialog: boolean } | null>(
         MAT_DIALOG_DATA,
         { optional: true }
@@ -132,13 +134,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly streamFormatEnum = StreamFormat;
 
     /** Flag that indicates whether the app runs in electron environment */
-    readonly isDesktop = !!window.electron;
+    readonly isDesktop = this.runtime.isElectron;
     readonly embeddedMpvSupport = signal<EmbeddedMpvSupport | null>(null);
     readonly supportsEmbeddedMpv = computed(
         () => this.isDesktop && !!this.embeddedMpvSupport()?.supported
     );
 
-    isPwa = this.dataService.getAppEnvironment() === 'pwa';
+    readonly isPwa = this.runtime.isPwa;
 
     private readonly settingsCtx = inject(SettingsContextService);
     readonly activeSection = this.settingsCtx.activeSection;
