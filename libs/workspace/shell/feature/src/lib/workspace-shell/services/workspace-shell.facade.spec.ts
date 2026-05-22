@@ -18,6 +18,7 @@ import {
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
+    DownloadsService,
     PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
@@ -129,6 +130,7 @@ describe('WorkspaceShellFacade', () => {
         typeof signal<PlaylistSignalMeta | null>
     >;
     let playlistsSignal: ReturnType<typeof signal<PlaylistSignalMeta[]>>;
+    let downloadsActiveCountSignal: ReturnType<typeof signal<number>>;
     let refreshPreparationSignal: ReturnType<
         typeof signal<XtreamRefreshPreparationState | null>
     >;
@@ -142,6 +144,7 @@ describe('WorkspaceShellFacade', () => {
     let runtime: {
         isElectron: boolean;
         isMacOS: boolean;
+        supportsDownloads: boolean;
     };
 
     beforeEach(() => {
@@ -149,6 +152,7 @@ describe('WorkspaceShellFacade', () => {
         runtime = {
             isElectron: true,
             isMacOS: true,
+            supportsDownloads: true,
         };
 
         activePlaylistSignal = signal({
@@ -161,6 +165,7 @@ describe('WorkspaceShellFacade', () => {
             { _id: 'pl-1', serverUrl: 'http://example.com' },
             { _id: 'pl-2', macAddress: '00:11:22:33' },
         ]);
+        downloadsActiveCountSignal = signal(0);
         refreshPreparationSignal = signal<XtreamRefreshPreparationState | null>(
             null
         );
@@ -272,6 +277,12 @@ describe('WorkspaceShellFacade', () => {
                 {
                     provide: PlaylistsService,
                     useValue: playlistsService,
+                },
+                {
+                    provide: DownloadsService,
+                    useValue: {
+                        activeCount: downloadsActiveCountSignal,
+                    },
                 },
                 {
                     provide: MatDialog,
@@ -683,6 +694,20 @@ describe('WorkspaceShellFacade', () => {
             true
         );
         expect(commands.every((command) => command.enabled)).toBe(true);
+    });
+
+    it('hides the downloads command when downloads are unsupported', () => {
+        (facade as unknown as { supportsDownloads: boolean }).supportsDownloads =
+            false;
+        activePlaylistSignal.set(null);
+        playlistsSignal.set([]);
+        facade.currentUrl.set('/workspace/dashboard');
+
+        const commands = facade.commandPaletteCommands();
+
+        expect(commands.map((command) => command.id)).not.toContain(
+            'open-downloads'
+        );
     });
 
     it('includes M3U navigation, playlist actions, and Multi-EPG on playlist routes', () => {

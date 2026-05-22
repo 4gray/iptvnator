@@ -1,7 +1,7 @@
 import { buildPortalRailLinks } from './portal-rail-links';
 
 describe('buildPortalRailLinks', () => {
-    it('builds Xtream links with scoped tooltip labels on Electron', () => {
+    it('builds Xtream links with scoped tooltip labels when downloads are supported', () => {
         const links = buildPortalRailLinks({
             provider: 'xtreams',
             playlistId: 'xtream-1',

@@ -29,7 +29,7 @@ export interface CommandBuilderContext {
     hasActivePlaylist: boolean;
     hasXtreamPlaylists: boolean;
     canRefreshPlaylist: boolean;
-    isElectron: boolean;
+    supportsDownloads: boolean;
     showDashboard: boolean;
     translate: TranslateFn;
     router: Router;
@@ -139,8 +139,13 @@ export function getPlaylistCommandDefinitions(
 export function getGlobalCommandDefinitions(
     ctx: CommandBuilderContext
 ): WorkspaceCommandContribution[] {
-    const { route, hasXtreamPlaylists, isElectron, showDashboard, actions } =
-        ctx;
+    const {
+        route,
+        hasXtreamPlaylists,
+        supportsDownloads,
+        showDashboard,
+        actions,
+    } = ctx;
 
     return [
         {
@@ -185,7 +190,7 @@ export function getGlobalCommandDefinitions(
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.OPEN_DOWNLOADS_DESCRIPTION',
             priority: 40,
-            visible: isElectron && route.kind !== 'downloads',
+            visible: supportsDownloads && route.kind !== 'downloads',
             run: () => actions.openDownloadsShortcut(),
         },
         {
