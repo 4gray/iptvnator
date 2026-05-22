@@ -14,7 +14,7 @@ import {
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { PlaylistContextFacade } from './playlist-context.facade';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 
 export interface XtreamRefreshPreparationState {
     playlistId: string;

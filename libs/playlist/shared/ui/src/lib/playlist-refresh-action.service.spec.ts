@@ -7,12 +7,13 @@ import { TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DatabaseService,
+    DbOperationEvent,
     PlaybackPositionService,
     PlaylistRefreshService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
-import { PlaylistContextFacade } from './playlist-context.facade';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
 
 function createDeferred<T>() {
@@ -343,7 +344,7 @@ describe('PlaylistRefreshActionService', () => {
                 _playlistId: string,
                 options?: {
                     operationId?: string;
-                    onEvent?: (event: any) => void;
+                    onEvent?: (event: DbOperationEvent) => void;
                 }
             ) => {
                 options?.onEvent?.({

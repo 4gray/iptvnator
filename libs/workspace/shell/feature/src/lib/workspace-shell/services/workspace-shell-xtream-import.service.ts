@@ -2,7 +2,7 @@ import { computed, inject, Injectable } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
-import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/util';
+import { PlaylistRefreshActionService } from '@iptvnator/playlist/shared/ui';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import type { XtreamImportPhaseTone } from './helpers/workspace-shell-constants';
 import {

@@ -6,10 +6,10 @@ import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import {
-    PlaylistContextFacade,
     PlaylistRefreshActionService,
     type XtreamRefreshPreparationState,
-} from '@iptvnator/playlist/shared/util';
+} from '@iptvnator/playlist/shared/ui';
+import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     WorkspaceHeaderContextService,
