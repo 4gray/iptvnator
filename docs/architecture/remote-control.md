@@ -97,6 +97,13 @@ Type definitions:
 
 ## Renderer Integrations
 
+All renderer integrations resolve the Electron remote-control bridge through
+`RuntimeCapabilitiesService.supportsRemoteControl`. A partial Electron bridge
+is treated as unsupported unless it exposes all remote-control methods:
+`updateRemoteControlStatus`, `onChannelChange`, and
+`onRemoteControlCommand`. This keeps PWA/self-hosted builds and partial test
+bridges from accidentally activating desktop-only remote-control behavior.
+
 ## Shared helpers
 
 - File: `libs/portal/shared/util/src/lib/remote-channel-navigation.ts`
