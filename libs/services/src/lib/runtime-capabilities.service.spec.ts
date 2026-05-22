@@ -18,6 +18,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.environment).toBe('pwa');
         expect(service.isPwa).toBe(true);
         expect(service.isElectron).toBe(false);
+        expect(service.platform).toBeUndefined();
+        expect(service.isMacOS).toBe(false);
         expect(service.supportsEpg).toBe(false);
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsDownloads).toBe(false);
@@ -29,6 +31,7 @@ describe('RuntimeCapabilitiesService', () => {
 
     it('reports Electron capabilities from the available preload bridge methods', () => {
         testWindow.electron = {
+            platform: 'darwin',
             dbGetAppPlaylists: jest.fn(),
             dbUpsertAppPlaylist: jest.fn(),
             dbGetAppState: jest.fn(),
@@ -47,6 +50,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.environment).toBe('electron');
         expect(service.isElectron).toBe(true);
         expect(service.isPwa).toBe(false);
+        expect(service.platform).toBe('darwin');
+        expect(service.isMacOS).toBe(true);
         expect(service.supportsEpg).toBe(true);
         expect(service.supportsSqlite).toBe(true);
         expect(service.supportsDownloads).toBe(true);
@@ -64,6 +69,8 @@ describe('RuntimeCapabilitiesService', () => {
         const service = new RuntimeCapabilitiesService();
 
         expect(service.environment).toBe('electron');
+        expect(service.platform).toBeUndefined();
+        expect(service.isMacOS).toBe(false);
         expect(service.supportsEpg).toBe(true);
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsDownloads).toBe(false);

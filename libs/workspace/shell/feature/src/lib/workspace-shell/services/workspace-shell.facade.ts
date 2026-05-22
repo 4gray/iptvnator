@@ -36,6 +36,7 @@ import {
 import {
     DownloadsService,
     PlaylistsService,
+    RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -96,6 +97,7 @@ export class WorkspaceShellFacade {
     private readonly playlistRefreshAction = inject(
         PlaylistRefreshActionService
     );
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly downloadsService = inject(DownloadsService);
     readonly hasActiveDownloads = computed(
         () => this.isElectron && this.downloadsService.activeCount() > 0
@@ -137,8 +139,13 @@ export class WorkspaceShellFacade {
 
     readonly searchQuery = signal('');
     readonly appliedSearchQuery = signal('');
-    readonly isElectron = !!window.electron;
-    readonly isMacOS = window.electron?.platform === 'darwin';
+    get isElectron(): boolean {
+        return this.runtime.isElectron;
+    }
+
+    get isMacOS(): boolean {
+        return this.runtime.isMacOS;
+    }
     readonly currentUrl = signal(this.router.url);
     readonly currentRoute = computed(() =>
         parseWorkspaceShellRoute(this.currentUrl())

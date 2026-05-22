@@ -17,7 +17,11 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
-import { PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+    SettingsStore,
+} from '@iptvnator/services';
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
     WorkspaceStartupPreferencesService,
@@ -135,10 +139,17 @@ describe('WorkspaceShellFacade', () => {
         persistLastRestorablePath: jest.Mock;
         showDashboard: jest.Mock;
     };
+    let runtime: {
+        isElectron: boolean;
+        isMacOS: boolean;
+    };
 
     beforeEach(() => {
-        window.electron = { platform: 'darwin' } as typeof window.electron;
         showDashboardSignal = signal(true);
+        runtime = {
+            isElectron: true,
+            isMacOS: true,
+        };
 
         activePlaylistSignal = signal({
             _id: 'pl-1',
@@ -255,6 +266,10 @@ describe('WorkspaceShellFacade', () => {
                     },
                 },
                 {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtime,
+                },
+                {
                     provide: PlaylistsService,
                     useValue: playlistsService,
                 },
@@ -320,6 +335,17 @@ describe('WorkspaceShellFacade', () => {
         });
 
         facade = TestBed.inject(WorkspaceShellFacade);
+    });
+
+    it('derives desktop shell flags from runtime capabilities', () => {
+        expect(facade.isElectron).toBe(true);
+        expect(facade.isMacOS).toBe(true);
+
+        runtime.isElectron = false;
+        runtime.isMacOS = false;
+
+        expect(facade.isElectron).toBe(false);
+        expect(facade.isMacOS).toBe(false);
     });
 
     it('routes dashboard search Enter into the active Xtream playlist search', () => {
