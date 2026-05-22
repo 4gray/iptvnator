@@ -12,6 +12,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgProgressService } from '@iptvnator/epg/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 
 type BadgeStatus =
     | 'loading'
@@ -37,6 +38,7 @@ export class EpgSourceStatusComponent implements OnInit {
     readonly url = input.required<string>();
 
     private readonly epgProgress = inject(EpgProgressService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
 
     private readonly freshnessLoaded = signal(false);
     private readonly isFresh = signal(false);
@@ -78,7 +80,7 @@ export class EpgSourceStatusComponent implements OnInit {
     }
 
     async ngOnInit(): Promise<void> {
-        if (!window.electron?.checkEpgFreshness) {
+        if (!this.runtime.supportsEpg) {
             return;
         }
         const url = this.url();

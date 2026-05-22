@@ -250,10 +250,16 @@ describe('SettingsComponent', () => {
                 staleUrls: [],
             }),
             clearEpgData: jest.fn().mockResolvedValue({ success: true }),
+            fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+            getChannelPrograms: jest.fn().mockResolvedValue([]),
+            getEpgChannelsByRange: jest.fn().mockResolvedValue([]),
             getLocalIpAddresses: jest.fn().mockResolvedValue([]),
+            openInMpv: jest.fn(),
+            openInVlc: jest.fn(),
             platform: 'linux',
+            searchEpgPrograms: jest.fn().mockResolvedValue([]),
             saveFileDialog: jest.fn().mockResolvedValue('/tmp/backup.json'),
             setMpvPlayerPath: jest.fn().mockResolvedValue(undefined),
             setVlcPlayerPath: jest.fn().mockResolvedValue(undefined),
@@ -472,8 +478,100 @@ describe('SettingsComponent', () => {
             ).toBe(true);
         });
 
+        it('hides external player path settings when the Electron bridge is incomplete', async () => {
+            fixture.destroy();
+            window.electron = {
+                getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+                platform: 'linux',
+                updateSettings: jest.fn().mockResolvedValue(undefined),
+            } as unknown as typeof window.electron;
+
+            const partialBridgeFixture =
+                TestBed.createComponent(SettingsComponent);
+            const partialBridgeComponent =
+                partialBridgeFixture.componentInstance;
+            partialBridgeComponent.checkAppVersion = jest.fn();
+            partialBridgeComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            partialBridgeFixture.detectChanges();
+
+            expect(partialBridgeComponent.isDesktop).toBe(true);
+            expect(
+                partialBridgeComponent.supportsManagedExternalPlayers
+            ).toBe(false);
+            expect(
+                partialBridgeComponent.supportsExternalPlayerPathSettings
+            ).toBe(false);
+            expect(partialBridgeComponent.supportsEpg).toBe(false);
+            expect(partialBridgeComponent.supportsRemoteControl).toBe(false);
+            expect(
+                partialBridgeComponent.settingsForm.get('epgUrl')
+            ).toBeNull();
+            expect(
+                partialBridgeComponent.sectionNav.find(
+                    (section) => section.id === 'epg'
+                )
+            ).toBeUndefined();
+            expect(
+                partialBridgeComponent.sectionNav.find(
+                    (section) => section.id === 'remote-control'
+                )
+            ).toBeUndefined();
+            expect(
+                partialBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.MPV)
+            ).toBe(false);
+            expect(
+                partialBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.VLC)
+            ).toBe(false);
+        });
+
+        it('keeps external player choices when launch support exists without path settings', () => {
+            fixture.destroy();
+            window.electron = {
+                getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+                openInMpv: jest.fn(),
+                openInVlc: jest.fn(),
+                platform: 'linux',
+                updateSettings: jest.fn().mockResolvedValue(undefined),
+            } as unknown as typeof window.electron;
+
+            const launchOnlyBridgeFixture =
+                TestBed.createComponent(SettingsComponent);
+            const launchOnlyBridgeComponent =
+                launchOnlyBridgeFixture.componentInstance;
+            launchOnlyBridgeComponent.checkAppVersion = jest.fn();
+            launchOnlyBridgeComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            launchOnlyBridgeFixture.detectChanges();
+
+            expect(
+                launchOnlyBridgeComponent.supportsManagedExternalPlayers
+            ).toBe(true);
+            expect(
+                launchOnlyBridgeComponent.supportsExternalPlayerPathSettings
+            ).toBe(false);
+            expect(
+                launchOnlyBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.MPV)
+            ).toBe(true);
+            expect(
+                launchOnlyBridgeComponent
+                    .players()
+                    .some((player) => player.id === VideoPlayer.VLC)
+            ).toBe(true);
+        });
+
         it('does not block settings initialization while embedded mpv support is pending', async () => {
-            let resolveSupport: (value: EmbeddedMpvSupport) => void;
+            let resolveSupport:
+                | ((value: EmbeddedMpvSupport) => void)
+                | undefined;
             window.electron = {
                 ...window.electron,
                 getEmbeddedMpvSupport: jest.fn(
@@ -495,8 +593,11 @@ describe('SettingsComponent', () => {
             ).toBe(false);
 
             if (!resolveSupport) {
-                throw new Error('Expected embedded MPV support resolver');
+                throw new Error(
+                    'Expected embedded MPV support probe to start'
+                );
             }
+
             resolveSupport({
                 supported: true,
                 platform: 'darwin',
@@ -705,6 +806,12 @@ describe('SettingsComponent', () => {
             .mockResolvedValue(undefined);
         browserFixture.detectChanges();
 
+        expect(browserComponent.isDesktop).toBe(false);
+        expect(browserComponent.isPwa).toBe(true);
+        expect(browserComponent.supportsEpg).toBe(false);
+        expect(browserComponent.supportsRemoteControl).toBe(false);
+        expect(browserComponent.settingsForm.get('epgUrl')).toBeNull();
+
         mockStore.overrideSelector(selectAllPlaylistsMeta, [
             createPlaylistMeta({ _id: 'browser-m3u' }),
         ]);
@@ -843,6 +950,67 @@ describe('SettingsComponent', () => {
             '{}'
         );
         expect(component.isExportingData()).toBe(false);
+    });
+
+    it('falls back to browser backup download when desktop file-save preload is incomplete', async () => {
+        fixture.destroy();
+        const saveFileDialog = jest.fn().mockResolvedValue('/tmp/backup.json');
+        window.electron = {
+            platform: 'linux',
+            saveFileDialog,
+        } as unknown as typeof window.electron;
+
+        const createObjectURL = jest.fn().mockReturnValue('blob:backup');
+        const revokeObjectURL = jest.fn();
+        const originalCreateObjectURL = window.URL.createObjectURL;
+        const originalRevokeObjectURL = window.URL.revokeObjectURL;
+        Object.defineProperty(window.URL, 'createObjectURL', {
+            configurable: true,
+            value: createObjectURL,
+        });
+        Object.defineProperty(window.URL, 'revokeObjectURL', {
+            configurable: true,
+            value: revokeObjectURL,
+        });
+        const clickSpy = jest
+            .spyOn(HTMLAnchorElement.prototype, 'click')
+            .mockImplementation();
+        let partialFileSaveFixture: ComponentFixture<SettingsComponent> | null =
+            null;
+
+        try {
+            partialFileSaveFixture = TestBed.createComponent(SettingsComponent);
+            const partialFileSaveComponent =
+                partialFileSaveFixture.componentInstance;
+            partialFileSaveComponent.checkAppVersion = jest.fn();
+            partialFileSaveComponent.fetchLocalIpAddresses = jest
+                .fn()
+                .mockResolvedValue(undefined);
+            partialFileSaveFixture.detectChanges();
+
+            expect(partialFileSaveComponent.isDesktop).toBe(true);
+            expect(partialFileSaveComponent.supportsDesktopFileSave).toBe(
+                false
+            );
+
+            await partialFileSaveComponent.exportData();
+
+            expect(saveFileDialog).not.toHaveBeenCalled();
+            expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+            expect(clickSpy).toHaveBeenCalled();
+            expect(revokeObjectURL).toHaveBeenCalledWith('blob:backup');
+        } finally {
+            partialFileSaveFixture?.destroy();
+            clickSpy.mockRestore();
+            Object.defineProperty(window.URL, 'createObjectURL', {
+                configurable: true,
+                value: originalCreateObjectURL,
+            });
+            Object.defineProperty(window.URL, 'revokeObjectURL', {
+                configurable: true,
+                value: originalRevokeObjectURL,
+            });
+        }
     });
 
     it('shows a failure snackbar and skips refresh when clearing EPG data rejects', async () => {

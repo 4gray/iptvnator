@@ -100,7 +100,7 @@ export class WorkspaceShellFacade {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly downloadsService = inject(DownloadsService);
     readonly hasActiveDownloads = computed(
-        () => this.isElectron && this.downloadsService.activeCount() > 0
+        () => this.supportsDownloads && this.downloadsService.activeCount() > 0
     );
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -146,6 +146,11 @@ export class WorkspaceShellFacade {
     get isMacOS(): boolean {
         return this.runtime.isMacOS;
     }
+
+    get supportsDownloads(): boolean {
+        return this.runtime.supportsDownloads;
+    }
+
     readonly currentUrl = signal(this.router.url);
     readonly currentRoute = computed(() =>
         parseWorkspaceShellRoute(this.currentUrl())
@@ -437,7 +442,7 @@ export class WorkspaceShellFacade {
             buildPortalRailLinks({
                 provider: context.provider,
                 playlistId: context.playlistId,
-                supportsDownloads: this.isElectron,
+                supportsDownloads: this.supportsDownloads,
                 workspace: true,
             }).primary,
             context.provider,
@@ -456,7 +461,7 @@ export class WorkspaceShellFacade {
             buildPortalRailLinks({
                 provider: context.provider,
                 playlistId: context.playlistId,
-                supportsDownloads: this.isElectron,
+                supportsDownloads: this.supportsDownloads,
                 workspace: true,
             }).secondary.filter((link) => link.section !== 'downloads'),
             context.provider,
@@ -801,7 +806,7 @@ export class WorkspaceShellFacade {
                 (playlist) => !!playlist.serverUrl
             ),
             canRefreshPlaylist: this.canRefreshPlaylist(),
-            isElectron: this.isElectron,
+            supportsDownloads: this.supportsDownloads,
             showDashboard: this.showDashboard(),
             translate: (key, params) => this.translateText(key, params),
             router: this.router,

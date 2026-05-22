@@ -87,7 +87,11 @@ describe('RecentPlaylistsComponent busy state', () => {
         cancelRefresh: jest.Mock;
         refreshPlaylist: jest.Mock;
     };
-    let runtimeIsElectron: boolean;
+    let runtime: {
+        isElectron: boolean;
+        supportsPlaylistRefresh: boolean;
+        supportsXtreamSqliteDataSource: boolean;
+    };
     let router: {
         navigate: jest.Mock;
     };
@@ -95,13 +99,8 @@ describe('RecentPlaylistsComponent busy state', () => {
         open: jest.Mock;
     };
     let store: MockStore;
-    const originalElectron = window.electron;
 
     beforeEach(async () => {
-        window.electron = {
-            platform: 'darwin',
-        } as typeof window.electron;
-
         databaseService = {
             cancelOperation: jest.fn().mockResolvedValue(true),
             createOperationId: jest.fn((prefix: string) => `${prefix}-op`),
@@ -128,7 +127,11 @@ describe('RecentPlaylistsComponent busy state', () => {
                 items: [],
             }),
         };
-        runtimeIsElectron = true;
+        runtime = {
+            isElectron: true,
+            supportsPlaylistRefresh: true,
+            supportsXtreamSqliteDataSource: true,
+        };
         router = {
             navigate: jest.fn(),
         };
@@ -177,11 +180,7 @@ describe('RecentPlaylistsComponent busy state', () => {
                 },
                 {
                     provide: RuntimeCapabilitiesService,
-                    useValue: {
-                        get isElectron() {
-                            return runtimeIsElectron;
-                        },
-                    },
+                    useValue: runtime,
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -236,7 +235,6 @@ describe('RecentPlaylistsComponent busy state', () => {
     afterEach(() => {
         jest.restoreAllMocks();
         localStorage.clear();
-        window.electron = originalElectron;
     });
 
     it('tracks delete progress and clears the busy row after completion', async () => {
@@ -479,7 +477,27 @@ describe('RecentPlaylistsComponent busy state', () => {
     });
 
     it('uses the legacy IPC refresh flow for non-Xtream playlists', () => {
-        runtimeIsElectron = false;
+        runtime.supportsPlaylistRefresh = false;
+        const item = createPlaylistMeta({
+            _id: 'playlist-m3u-1',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            filePath: undefined,
+            url: 'https://example.com/test.m3u',
+        });
+
+        component.refreshPlaylist(item);
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(PLAYLIST_UPDATE, {
+            id: item._id,
+            title: item.title,
+            url: item.url,
+        });
+    });
+
+    it('does not use legacy IPC refresh for file-backed playlists without the refresh bridge', () => {
+        runtime.supportsPlaylistRefresh = false;
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-1',
             serverUrl: undefined,
@@ -490,19 +508,16 @@ describe('RecentPlaylistsComponent busy state', () => {
 
         component.refreshPlaylist(item);
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(PLAYLIST_UPDATE, {
-            id: item._id,
-            title: item.title,
-            filePath: item.filePath,
-        });
+        expect(dataService.sendIpcEvent).not.toHaveBeenCalled();
+        expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
     });
 
-    it('re-evaluates Electron availability when refreshing local M3U playlists', async () => {
-        runtimeIsElectron = false;
+    it('re-evaluates refresh bridge availability when refreshing local M3U playlists', async () => {
+        runtime.supportsPlaylistRefresh = false;
         const lateComponent = TestBed.createComponent(
             RecentPlaylistsComponent
         ).componentInstance;
-        runtimeIsElectron = true;
+        runtime.supportsPlaylistRefresh = true;
         const item = createPlaylistMeta({
             _id: 'playlist-m3u-2',
             serverUrl: undefined,

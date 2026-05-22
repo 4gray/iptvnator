@@ -48,10 +48,12 @@
                 [players]="players()"
                 [streamFormatEnum]="streamFormatEnum"
                 [isDesktop]="isDesktop"
+                [supportsManagedExternalPlayers]="supportsManagedExternalPlayers"
+                [supportsExternalPlayerPathSettings]="supportsExternalPlayerPathSettings"
                 (selectRecordingFolder)="selectRecordingFolder()"
             />
 
-            @if (isDesktop) {
+            @if (supportsEpg) {
                 <app-settings-epg-section
                     [form]="settingsForm"
                     [activeSection]="activeSection()"
@@ -63,7 +65,9 @@
                     (refreshAllEpg)="refreshAllEpg()"
                     (clearEpgData)="clearEpgData()"
                 />
+            }
 
+            @if (supportsRemoteControl) {
                 <app-settings-remote-control-section
                     [form]="settingsForm"
                     [activeSection]="activeSection()"

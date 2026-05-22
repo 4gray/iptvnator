@@ -8,7 +8,6 @@ import {
 } from '@ngrx/signals';
 import { EpgItem } from '@iptvnator/shared/interfaces';
 import {
-    DataService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -84,7 +83,6 @@ export function withEpg() {
 
         withMethods((store) => {
             const apiService = inject(XtreamApiService);
-            const dataService = inject(DataService);
             const fallbackService = inject(XtreamXmltvFallbackService);
             const runtime = inject(RuntimeCapabilitiesService);
             const settingsStore = inject(SettingsStore);
@@ -116,13 +114,9 @@ export function withEpg() {
                 credentials: XtreamCredentials,
                 xtreamId: number
             ): Promise<EpgItem[]> =>
-                dataService.isElectron
-                    ? apiService.getFullEpg(credentials, xtreamId, {
-                          suppressErrorLog: true,
-                      })
-                    : apiService.getShortEpg(credentials, xtreamId, 10, {
-                          suppressErrorLog: true,
-                      });
+                apiService.getFullEpg(credentials, xtreamId, {
+                    suppressErrorLog: true,
+                });
 
             return {
                 /**

@@ -286,6 +286,9 @@ describe('VideoPlayerComponent', () => {
     beforeEach(async () => {
         window.electron = {
             platform: 'darwin',
+            updateRemoteControlStatus: jest.fn(),
+            onChannelChange: jest.fn(() => jest.fn()),
+            onRemoteControlCommand: jest.fn(() => jest.fn()),
         } as typeof window.electron;
 
         syncStoreState(null);
@@ -462,6 +465,21 @@ describe('VideoPlayerComponent', () => {
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
         expect(headerContext.action()).toBeNull();
+    });
+
+    it('does not publish remote-control status when the bridge is incomplete', () => {
+        fixture.destroy();
+        const updateRemoteControlStatus = jest.fn();
+        window.electron = {
+            updateRemoteControlStatus,
+        } as typeof window.electron;
+
+        fixture = TestBed.createComponent(VideoPlayerComponent);
+        component = fixture.componentInstance;
+        syncStoreState(sampleChannel);
+        fixture.detectChanges();
+
+        expect(updateRemoteControlStatus).not.toHaveBeenCalled();
     });
 
     it('opens MPV fallback with the active channel headers preserved', () => {

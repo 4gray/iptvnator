@@ -45,6 +45,8 @@ export class SettingsPlaybackSectionComponent {
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
+    readonly supportsManagedExternalPlayers = input(false);
+    readonly supportsExternalPlayerPathSettings = input(false);
     readonly selectRecordingFolder = output<void>();
 
     isExternalPlayerSelected(): boolean {

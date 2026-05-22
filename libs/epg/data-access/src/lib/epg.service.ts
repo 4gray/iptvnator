@@ -8,6 +8,7 @@ import {
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 interface CachedProgram {
@@ -29,6 +30,7 @@ const debugEpgService = createDevLogger('EpgService');
 export class EpgService {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -37,8 +39,6 @@ export class EpgService {
     private programCache = new Map<string, CachedProgram>();
     private readonly CACHE_TTL = 60000; // 60 seconds
 
-    private readonly isDesktop = !!window.electron;
-
     readonly epgAvailable$ = this.epgAvailable.asObservable();
     readonly currentEpgPrograms$ = this.currentEpgPrograms.asObservable();
 
@@ -46,7 +46,7 @@ export class EpgService {
      * Fetches EPG from the given URLs
      */
     fetchEpg(urls: string[]): void {
-        if (!this.isDesktop) return;
+        if (!this.runtime.supportsEpg) return;
 
         // Filter out empty URLs and send all URLs at once
         const validUrls = urls.filter((url) => url?.trim());
@@ -76,7 +76,7 @@ export class EpgService {
      * Gets EPG programs for a specific channel
      */
     getChannelPrograms(channelId: string): void {
-        if (!this.isDesktop) return;
+        if (!this.runtime.supportsEpg) return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
 
         from(window.electron.getChannelPrograms(channelId))
@@ -116,7 +116,7 @@ export class EpgService {
     getCurrentProgramForChannel(
         channelId: string
     ): Observable<EpgProgram | null> {
-        if (!this.isDesktop || !channelId) {
+        if (!this.runtime.supportsEpg || !channelId) {
             return of(null);
         }
 
@@ -184,7 +184,7 @@ export class EpgService {
     getCurrentProgramsForChannels(
         channelIds: string[]
     ): Observable<Map<string, EpgProgram | null>> {
-        if (!this.isDesktop) {
+        if (!this.runtime.supportsEpg) {
             return of(new Map());
         }
 
@@ -263,7 +263,7 @@ export class EpgService {
     getChannelMetadataForChannels(
         channelIds: string[]
     ): Observable<Map<string, EpgChannelMetadata | null>> {
-        if (!this.isDesktop) {
+        if (!this.runtime.supportsEpg) {
             return of(new Map());
         }
 

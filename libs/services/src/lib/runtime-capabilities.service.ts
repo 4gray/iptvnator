@@ -32,34 +32,134 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsEpg(): boolean {
-        return this.isElectron;
+        return [
+            'fetchEpg',
+            'getChannelPrograms',
+            'checkEpgFreshness',
+            'forceFetchEpg',
+            'clearEpgData',
+            'getEpgChannelsByRange',
+            'searchEpgPrograms',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsSqlite(): boolean {
-        return (
-            this.hasElectronMethod('dbGetAppPlaylists') &&
-            this.hasElectronMethod('dbUpsertAppPlaylist') &&
-            this.hasElectronMethod('dbGetAppState') &&
-            this.hasElectronMethod('dbSetAppState')
-        );
+        return [
+            'dbDeleteAllPlaylists',
+            'dbDeletePlaylist',
+            'dbGetAppPlaylist',
+            'dbGetAppPlaylists',
+            'dbGetAppState',
+            'dbSetAppState',
+            'dbUpsertAppPlaylist',
+            'dbUpsertAppPlaylists',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
+    get supportsXtreamSqliteDataSource(): boolean {
+        return [
+            'dbGetPlaylist',
+            'dbCreatePlaylist',
+            'dbUpdatePlaylist',
+            'dbDeletePlaylist',
+            'dbHasCategories',
+            'dbGetCategories',
+            'dbSaveCategories',
+            'dbGetAllCategories',
+            'dbUpdateCategoryVisibility',
+            'dbHasContent',
+            'dbGetContent',
+            'dbSaveContent',
+            'dbGetAppState',
+            'dbSetAppState',
+            'dbSearchContent',
+            'dbGetFavorites',
+            'dbAddFavorite',
+            'dbRemoveFavorite',
+            'dbIsFavorite',
+            'dbGetRecentItems',
+            'dbAddRecentItem',
+            'dbRemoveRecentItem',
+            'dbClearPlaylistRecentItems',
+            'dbGetContentByXtreamId',
+            'dbSavePlaybackPosition',
+            'dbGetPlaybackPosition',
+            'dbGetSeriesPlaybackPositions',
+            'dbGetRecentPlaybackPositions',
+            'dbGetAllPlaybackPositions',
+            'dbClearAllPlaybackPositions',
+            'dbClearPlaybackPosition',
+            'dbDeleteXtreamContent',
+            'dbRestoreXtreamUserData',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsDownloads(): boolean {
-        return this.hasElectronMethod('downloadsGetList');
+        return [
+            'downloadsStart',
+            'downloadsCancel',
+            'downloadsRetry',
+            'downloadsRemove',
+            'downloadsGetList',
+            'downloadsGet',
+            'downloadsGetDefaultFolder',
+            'downloadsSelectFolder',
+            'downloadsRevealFile',
+            'downloadsPlayFile',
+            'downloadsClearCompleted',
+            'onDownloadsUpdate',
+        ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
     get supportsPortalActivityStorage(): boolean {
-        return (
-            this.hasElectronMethod('dbGetRecentlyViewed') &&
-            this.hasElectronMethod('dbGetAllGlobalFavorites') &&
-            this.hasElectronMethod('dbGetGlobalRecentlyAdded') &&
-            this.hasElectronMethod('dbRemoveRecentItem') &&
-            this.hasElectronMethod('dbRemoveFavorite')
+        return [
+            'dbGetRecentlyViewed',
+            'dbClearRecentlyViewed',
+            'dbGetAllGlobalFavorites',
+            'dbGetGlobalRecentlyAdded',
+            'dbAddFavorite',
+            'dbRemoveFavorite',
+            'dbGetFavorites',
+            'dbReorderGlobalFavorites',
+            'dbGetRecentItems',
+            'dbAddRecentItem',
+            'dbClearPlaylistRecentItems',
+            'dbRemoveRecentItem',
+            'dbRemoveRecentItemsBatch',
+            'dbGetContentByXtreamId',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
+    get supportsAppStateStorage(): boolean {
+        return ['dbGetAppState', 'dbSetAppState'].every((methodName) =>
+            this.hasElectronMethod(methodName)
         );
     }
 
+    get supportsStalkerPlaylistSqliteSync(): boolean {
+        return ['dbGetPlaylist', 'dbCreatePlaylist'].every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
+    }
+
+    get supportsPlaylistRefresh(): boolean {
+        return [
+            'refreshPlaylist',
+            'cancelPlaylistRefresh',
+            'onPlaylistRefreshEvent',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsManagedExternalPlayers(): boolean {
-        return this.isElectron;
+        return ['openInMpv', 'openInVlc'].every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
+    }
+
+    get supportsExternalPlayerPathSettings(): boolean {
+        return ['setMpvPlayerPath', 'setVlcPlayerPath'].every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
     }
 
     get supportsEmbeddedMpv(): boolean {
@@ -82,7 +182,11 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsXtreamSectionNavigation(): boolean {
-        return this.isElectron;
+        return (
+            this.isPwa ||
+            this.supportsXtreamSqliteDataSource ||
+            this.hasElectronMethod('xtreamRequest')
+        );
     }
 
     private hasElectronMethod(methodName: string): boolean {

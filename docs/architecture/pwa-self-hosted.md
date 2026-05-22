@@ -68,8 +68,23 @@ Renderer code that needs to branch by runtime should use
 `RuntimeCapabilitiesService` from `@iptvnator/services` instead of adding new
 direct `window.electron` or `DataService.getAppEnvironment()` checks. Keep
 feature decisions expressed as capabilities such as `supportsEpg`,
-`supportsSqlite`, `supportsDownloads`, or `supportsManagedExternalPlayers` so
-PWA and Electron behavior stays auditable from one shared boundary.
+`supportsSqlite`, `supportsXtreamSqliteDataSource`, `supportsDownloads`, or
+`supportsManagedExternalPlayers` so PWA and Electron behavior stays auditable
+from one shared boundary. `supportsSqlite` requires the complete playlist
+storage preload API surface used by `PlaylistsService`, `supportsDownloads`
+requires the complete downloads preload API surface used by `DownloadsService`,
+`supportsEpg` requires the Electron EPG preload methods used by the shared EPG
+panels (`fetchEpg`, `getChannelPrograms`, `checkEpgFreshness`,
+`forceFetchEpg`, `clearEpgData`, `getEpgChannelsByRange`, and
+`searchEpgPrograms`), `supportsPlaylistRefresh` requires the native playlist
+refresh/cancel/progress bridge, `supportsXtreamSectionNavigation` is available
+in PWA and in Electron when either the SQLite Xtream data source or the Xtream
+API transport is available, `supportsDesktopFileSave` requires both
+`saveFileDialog` and `writeFile`, and
+`supportsManagedExternalPlayers` requires the MPV and VLC preload launch and
+path-setting methods (`openInMpv`, `openInVlc`, `setMpvPlayerPath`, and
+`setVlcPlayerPath`); a partial Electron bridge must not expose desktop-only
+actions in the PWA/shared UI.
 
 ## Runtime Limitations
 
@@ -109,8 +124,12 @@ certificate authorities, configure Node with `NODE_EXTRA_CA_CERTS`.
 ## PWA Portal User Data
 
 Xtream favorites and recently viewed items use the browser-side
-`PwaXtreamDataSource` when Electron DB preload APIs are unavailable. The PWA
-stores this user activity and sidecar state in localStorage:
+`PwaXtreamDataSource` when Electron DB preload APIs are unavailable. The
+`XTREAM_DATA_SOURCE` provider chooses the Electron SQLite-backed source only
+when `RuntimeCapabilitiesService.supportsXtreamSqliteDataSource` is true; a
+browser PWA or partial preload bridge must fall back to the PWA source and run
+the browser cleanup hook on playlist deletion. The PWA stores this user activity
+and sidecar state in localStorage:
 
 - `xtream-collection-items`
 - `xtream-favorites`

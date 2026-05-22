@@ -67,7 +67,9 @@ export class PlaylistItemComponent implements OnInit {
         { initialValue: null }
     );
 
-    readonly isElectron = this.runtime.isElectron;
+    readonly supportsPlaylistRefresh = this.runtime.supportsPlaylistRefresh;
+    readonly supportsXtreamSqliteDataSource =
+        this.runtime.supportsXtreamSqliteDataSource;
     readonly currentLocale = computed(() => {
         this.languageTick();
         return normalizeDateLocale(

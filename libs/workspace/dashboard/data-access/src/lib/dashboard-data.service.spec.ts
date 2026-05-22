@@ -159,10 +159,19 @@ describe('DashboardDataService', () => {
         Object.defineProperty(window, 'electron', {
             value: {
                 dbGetRecentlyViewed: jest.fn(),
+                dbClearRecentlyViewed: jest.fn(),
                 dbGetAllGlobalFavorites: jest.fn(),
                 dbGetGlobalRecentlyAdded: jest.fn(),
+                dbAddFavorite: jest.fn(),
                 dbRemoveRecentItem: jest.fn(),
                 dbRemoveFavorite: jest.fn(),
+                dbGetFavorites: jest.fn(),
+                dbReorderGlobalFavorites: jest.fn(),
+                dbGetRecentItems: jest.fn(),
+                dbAddRecentItem: jest.fn(),
+                dbClearPlaylistRecentItems: jest.fn(),
+                dbRemoveRecentItemsBatch: jest.fn(),
+                dbGetContentByXtreamId: jest.fn(),
             } as unknown as Window['electron'],
             configurable: true,
         });

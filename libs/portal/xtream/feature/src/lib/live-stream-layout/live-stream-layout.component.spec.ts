@@ -182,6 +182,8 @@ describe('LiveStreamLayoutComponent', () => {
 
         window.electron = {
             updateRemoteControlStatus: jest.fn(),
+            onChannelChange: jest.fn(() => jest.fn()),
+            onRemoteControlCommand: jest.fn(() => jest.fn()),
         } as typeof window.electron;
 
         xtreamStore.constructStreamUrl.mockClear();
@@ -235,6 +237,13 @@ describe('LiveStreamLayoutComponent', () => {
                         },
                         get isElectron() {
                             return Boolean(window.electron);
+                        },
+                        get supportsRemoteControl() {
+                            return Boolean(
+                                window.electron?.updateRemoteControlStatus &&
+                                    window.electron.onChannelChange &&
+                                    window.electron.onRemoteControlCommand
+                            );
                         },
                     },
                 },
@@ -485,6 +494,20 @@ describe('LiveStreamLayoutComponent', () => {
                 epgTitle: 'Current Show',
             })
         );
+    });
+
+    it('does not publish remote-control status when the bridge is incomplete', () => {
+        fixture.destroy();
+        const updateRemoteControlStatus = jest.fn();
+        window.electron = {
+            updateRemoteControlStatus,
+        } as typeof window.electron;
+
+        fixture = TestBed.createComponent(LiveStreamLayoutComponent);
+        component = fixture.componentInstance;
+        fixture.detectChanges();
+
+        expect(updateRemoteControlStatus).not.toHaveBeenCalled();
     });
 
     it('resolves a catchup url for archived program activation', async () => {

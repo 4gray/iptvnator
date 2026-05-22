@@ -8,12 +8,12 @@ import {
 } from '@ngrx/signals';
 import { PlaylistMeta, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import { DataService } from '@iptvnator/services';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import { StalkerSessionService } from '../../stalker-session.service';
 import { toStalkerSessionPlaylist } from '../utils';
 
 type StalkerPortalWindow = Window & {
-    electron?: {
+    electron: {
         dbCreatePlaylist: (playlist: {
             id: string;
             name: string;
@@ -81,8 +81,8 @@ export function withStalkerPortal() {
         withMethods(
             (
                 store,
-                dataService = inject(DataService),
-                stalkerSession = inject(StalkerSessionService)
+                stalkerSession = inject(StalkerSessionService),
+                runtime = inject(RuntimeCapabilitiesService)
             ) => ({
                 async setCurrentPlaylist(playlist: PlaylistMeta | undefined) {
                     stalkerSession.setActiveWatchdogPlaylist(
@@ -96,7 +96,7 @@ export function withStalkerPortal() {
                     // Only sync if this is actually a Stalker playlist (has macAddress and portalUrl)
                     if (
                         playlist &&
-                        dataService.isElectron &&
+                        runtime.supportsStalkerPlaylistSqliteSync &&
                         playlist._id &&
                         playlist.macAddress &&
                         playlist.portalUrl
@@ -104,9 +104,6 @@ export function withStalkerPortal() {
                         try {
                             const electronApi = (window as StalkerPortalWindow)
                                 .electron;
-                            if (!electronApi) {
-                                return;
-                            }
 
                             const playlistId = String(playlist._id);
                             // Check if playlist exists in SQLite

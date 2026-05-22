@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, inject, signal } from '@angular/core';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 
 export interface EpgImportProgress {
     url: string;
@@ -10,6 +11,7 @@ export interface EpgImportProgress {
 
 @Injectable({ providedIn: 'root' })
 export class EpgProgressService {
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly importsMap = signal<Map<string, EpgImportProgress>>(
         new Map()
     );
@@ -48,7 +50,10 @@ export class EpgProgressService {
         // Clear the errored row so the backend's subsequent 'queued' event
         // reappears cleanly rather than updating an existing error row.
         this.removeImport(url);
-        void window.electron?.forceFetchEpg?.(url);
+        if (!this.runtime.supportsEpg) {
+            return;
+        }
+        void window.electron.forceFetchEpg(url);
     }
 
     private initializeListener(): void {
@@ -57,7 +62,7 @@ export class EpgProgressService {
         }
         this.initialized = true;
 
-        if (window.electron?.onEpgProgress) {
+        if (this.runtime.supportsEpg && window.electron?.onEpgProgress) {
             window.electron.onEpgProgress((data) => {
                 this.updateProgress(data);
             });

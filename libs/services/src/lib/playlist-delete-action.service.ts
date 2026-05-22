@@ -27,7 +27,11 @@ export class PlaylistDeleteActionService {
         playlist: PlaylistMeta,
         options: PlaylistDeleteActionOptions = {}
     ): Promise<boolean> {
-        if (this.runtime.isElectron) {
+        const supportsElectronDelete = playlist.serverUrl
+            ? this.runtime.supportsXtreamSqliteDataSource
+            : this.runtime.supportsSqlite;
+
+        if (supportsElectronDelete) {
             return this.deletePlaylistInElectron(playlist, options);
         }
 

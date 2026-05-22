@@ -69,7 +69,7 @@
         </div>
     </div>
 
-    @if (isDesktop() && isExternalPlayerSelected()) {
+    @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {
         <div
             class="setting-item"
             data-test-id="external-player-double-click-setting"
@@ -148,7 +148,7 @@
         </div>
     }
 
-    @if (isDesktop() && form().value.player === 'mpv') {
+    @if (supportsExternalPlayerPathSettings() && form().value.player === 'mpv') {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
@@ -220,7 +220,7 @@
         </div>
     }
 
-    @if (isDesktop() && form().value.player === 'vlc') {
+    @if (supportsExternalPlayerPathSettings() && form().value.player === 'vlc') {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>

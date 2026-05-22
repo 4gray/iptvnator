@@ -2,7 +2,11 @@ import { inject, Injectable } from '@angular/core';
 import { Store } from '@ngrx/store';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { firstValueFrom, map } from 'rxjs';
-import { DatabaseService, PlaylistsService } from '@iptvnator/services';
+import {
+    DatabaseService,
+    PlaylistsService,
+    RuntimeCapabilitiesService,
+} from '@iptvnator/services';
 import {
     Channel,
     extractStalkerItemId,
@@ -40,6 +44,7 @@ export class UnifiedRecentDataService {
     private readonly store = inject(Store);
     private readonly dbService = inject(DatabaseService);
     private readonly playlistsService = inject(PlaylistsService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly xtreamDataSource = inject(XTREAM_DATA_SOURCE);
 
     async getRecentItems(
@@ -60,15 +65,15 @@ export class UnifiedRecentDataService {
                 return;
             }
 
-            if (!window.electron) {
-                await this.xtreamDataSource.removeRecentItem(
+            if (this.hasPortalActivityStorage) {
+                await this.dbService.removeRecentItem(
                     item.contentId,
                     item.playlistId
                 );
                 return;
             }
 
-            await this.dbService.removeRecentItem(
+            await this.xtreamDataSource.removeRecentItem(
                 item.contentId,
                 item.playlistId
             );
@@ -139,7 +144,7 @@ export class UnifiedRecentDataService {
         const tasks: Promise<unknown>[] = [];
 
         if (xtreamBatch.length > 0) {
-            if (window.electron) {
+            if (this.hasPortalActivityStorage) {
                 tasks.push(this.dbService.removeRecentItemsBatch(xtreamBatch));
             } else {
                 tasks.push(
@@ -177,7 +182,7 @@ export class UnifiedRecentDataService {
         playlistId?: string
     ): Promise<void> {
         if (scope === 'playlist' && playlistId) {
-            if (window.electron) {
+            if (this.hasPortalActivityStorage) {
                 await this.dbService.clearPlaylistRecentItems(playlistId);
             } else {
                 await this.xtreamDataSource.clearRecentItems(playlistId);
@@ -189,7 +194,7 @@ export class UnifiedRecentDataService {
             return;
         }
 
-        if (window.electron) {
+        if (this.hasPortalActivityStorage) {
             await this.dbService.clearGlobalRecentlyViewed();
         } else {
             const allMeta = await this.getAllMeta();
@@ -264,7 +269,7 @@ export class UnifiedRecentDataService {
                     : null);
 
             if (contentId != null) {
-                if (window.electron) {
+                if (this.hasPortalActivityStorage) {
                     await this.dbService.addRecentItem(
                         contentId,
                         item.playlistId
@@ -349,8 +354,12 @@ export class UnifiedRecentDataService {
         return this.getM3uPlaylistRecent(playlistId);
     }
 
+    private get hasPortalActivityStorage(): boolean {
+        return this.runtime.supportsPortalActivityStorage;
+    }
+
     private async getXtreamGlobalRecent(): Promise<UnifiedCollectionItem[]> {
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             const allMeta = await this.getAllMeta();
             const results: UnifiedCollectionItem[] = [];
             for (const meta of allMeta.filter(
@@ -393,7 +402,7 @@ export class UnifiedRecentDataService {
     ): Promise<UnifiedCollectionItem[]> {
         try {
             const meta = await this.getPlaylistMeta(playlistId);
-            if (!window.electron) {
+            if (!this.hasPortalActivityStorage) {
                 const rows =
                     await this.xtreamDataSource.getRecentItems(playlistId);
                 return rows.map((row) =>
@@ -434,7 +443,7 @@ export class UnifiedRecentDataService {
             return null;
         }
 
-        if (!window.electron) {
+        if (!this.hasPortalActivityStorage) {
             const content = await this.xtreamDataSource.getContentByXtreamId(
                 item.xtreamId,
                 item.playlistId,
