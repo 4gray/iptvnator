@@ -9,7 +9,6 @@ import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
-    RuntimeCapabilitiesService,
 } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
@@ -26,7 +25,6 @@ describe('StreamResolverService', () => {
     let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: { makeAuthenticatedRequest: jest.Mock };
     let epgBridge: Partial<EpgRuntimeBridgeService>;
-    let runtimeCapabilities: { supportsEpg: boolean };
 
     beforeEach(() => {
         playlistsService = {
@@ -48,7 +46,6 @@ describe('StreamResolverService', () => {
             getChannelPrograms: jest.fn(),
             supportsProgramLookup: true,
         };
-        runtimeCapabilities = { supportsEpg: true };
 
         TestBed.configureTestingModule({
             providers: [
@@ -60,10 +57,6 @@ describe('StreamResolverService', () => {
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,
-                },
-                {
-                    provide: RuntimeCapabilitiesService,
-                    useValue: runtimeCapabilities,
                 },
                 { provide: StalkerSessionService, useValue: stalkerSession },
             ],
@@ -283,7 +276,7 @@ describe('StreamResolverService', () => {
 
     it('skips portal EPG lookups in browser/PWA mode', async () => {
         window.electron = undefined as unknown as typeof window.electron;
-        runtimeCapabilities.supportsEpg = false;
+        epgBridge.supportsProgramLookup = false;
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'xtream-1',

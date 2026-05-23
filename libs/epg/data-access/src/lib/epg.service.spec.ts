@@ -8,6 +8,7 @@ import { EpgService } from './epg.service';
 describe('EpgService', () => {
     let service: EpgService;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let snackBar: { open: jest.Mock };
 
     beforeEach(() => {
         epgBridge = {
@@ -17,6 +18,9 @@ describe('EpgService', () => {
             supportsCurrentProgramBatch: false,
             supportsImport: false,
             supportsProgramLookup: false,
+        };
+        snackBar = {
+            open: jest.fn(),
         };
 
         TestBed.configureTestingModule({
@@ -28,9 +32,7 @@ describe('EpgService', () => {
                 },
                 {
                     provide: MatSnackBar,
-                    useValue: {
-                        open: jest.fn(),
-                    },
+                    useValue: snackBar,
                 },
                 {
                     provide: TranslateService,
@@ -63,6 +65,16 @@ describe('EpgService', () => {
             'https://example.com/epg.xml',
             'https://example.com/other.xml',
         ]);
+    });
+
+    it('does not show a fetch error when the bridge returns no result', async () => {
+        epgBridge.supportsImport = true;
+        (epgBridge.fetchEpg as jest.Mock).mockResolvedValue(null);
+
+        service.fetchEpg(['https://example.com/epg.xml']);
+        await Promise.resolve();
+
+        expect(snackBar.open).not.toHaveBeenCalled();
     });
 
     it('returns an empty batch result when the desktop bridge is unavailable', async () => {

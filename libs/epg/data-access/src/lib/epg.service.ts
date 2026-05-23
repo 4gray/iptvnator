@@ -49,11 +49,13 @@ export class EpgService {
         from(this.epgBridge.fetchEpg(validUrls))
             .pipe(
                 tap((result) => {
-                    if (result?.success) {
+                    if (result === null) return;
+
+                    if (result.success) {
                         this.epgAvailable.next(true);
                     } else {
                         this.epgAvailable.next(false);
-                        this.showErrorSnackbar(result?.message);
+                        this.showErrorSnackbar(result.message);
                     }
                 }),
                 catchError((err) => {

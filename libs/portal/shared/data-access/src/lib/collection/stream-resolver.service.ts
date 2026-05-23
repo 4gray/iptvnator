@@ -1,10 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import {
-    DataService,
-    PlaylistsService,
-    RuntimeCapabilitiesService,
-} from '@iptvnator/services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     Channel,
@@ -64,7 +60,6 @@ export class StreamResolverService {
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
@@ -74,8 +69,8 @@ export class StreamResolverService {
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
     private readonly xtreamEpgFailureCooldownMs = 60 * 1000;
 
-    private get supportsEpg(): boolean {
-        return this.runtime.supportsEpg;
+    private get supportsProgramLookup(): boolean {
+        return this.epgBridge.supportsProgramLookup;
     }
 
     private async getElectronPlaylist(
@@ -148,7 +143,7 @@ export class StreamResolverService {
         items: UnifiedCollectionItem[]
     ): Promise<Map<string, EpgProgram | null>> {
         const epgMap = new Map<string, EpgProgram | null>();
-        if (!this.supportsEpg) {
+        if (!this.supportsProgramLookup) {
             return epgMap;
         }
 
@@ -214,7 +209,7 @@ export class StreamResolverService {
         item: UnifiedCollectionItem
     ): Promise<ResolvedLiveCollectionDetail> {
         const playback = await this.resolveXtream(item);
-        if (!this.supportsEpg) {
+        if (!this.supportsProgramLookup) {
             return {
                 playback,
                 epgMode: 'portal',
@@ -248,7 +243,7 @@ export class StreamResolverService {
             };
         }
 
-        if (!this.supportsEpg) {
+        if (!this.supportsProgramLookup) {
             return {
                 playback,
                 epgMode: 'portal',
@@ -491,7 +486,7 @@ export class StreamResolverService {
             this.findM3uChannel(playlist?.playlist?.items ?? [], item) ??
             this.buildFallbackM3uChannel(item);
         const epgPrograms =
-            includePrograms && this.supportsEpg
+            includePrograms && this.supportsProgramLookup
                 ? await this.fetchM3uPrograms(
                       this.getM3uEpgLookupKey(channel, item)
                   )
@@ -666,7 +661,7 @@ export class StreamResolverService {
         streamId: number,
         limit: number
     ): Promise<EpgItem[]> {
-        if (!this.supportsEpg) {
+        if (!this.supportsProgramLookup) {
             return [];
         }
 
@@ -750,7 +745,7 @@ export class StreamResolverService {
         channelId: string,
         size: number
     ): Promise<EpgItem[]> {
-        if (!this.supportsEpg) {
+        if (!this.supportsProgramLookup) {
             return [];
         }
 
