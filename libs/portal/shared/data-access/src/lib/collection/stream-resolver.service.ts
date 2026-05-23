@@ -5,6 +5,7 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     Channel,
     EpgItem,
@@ -64,6 +65,7 @@ export class StreamResolverService {
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
     private readonly portalEpgTimeoutMs = 3000;
@@ -519,12 +521,14 @@ export class StreamResolverService {
     private async fetchM3uPrograms(
         epgLookupKey?: string | null
     ): Promise<EpgProgram[]> {
-        if (!window.electron?.getChannelPrograms || !epgLookupKey) {
+        if (!this.epgBridge.supportsProgramLookup || !epgLookupKey) {
             return [];
         }
 
         return this.withFallbackTimeout(
-            window.electron.getChannelPrograms(epgLookupKey),
+            this.epgBridge
+                .getChannelPrograms(epgLookupKey)
+                .then((programs) => programs ?? []),
             this.m3uEpgTimeoutMs,
             []
         );

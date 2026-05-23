@@ -29,7 +29,7 @@ import {
     EpgChannelWithPrograms,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
@@ -182,7 +182,7 @@ export class MultiEpgContainerComponent
 
     private readonly dialog = inject(MatDialog);
     private readonly overlayRef = inject<OverlayRef>(COMPONENT_OVERLAY_REF);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
 
     ngOnInit() {
         // Update current time line every minute
@@ -269,7 +269,7 @@ export class MultiEpgContainerComponent
     }
 
     async requestPrograms(): Promise<void> {
-        if (!this.runtime.supportsEpg) {
+        if (!this.epgBridge.supportsChannelBrowser) {
             console.warn('Multi-EPG not available in this runtime');
             return;
         }
@@ -281,7 +281,7 @@ export class MultiEpgContainerComponent
         this.isLoading.set(true);
 
         try {
-            const response = await window.electron.getEpgChannelsByRange(
+            const response = await this.epgBridge.getChannelsByRange(
                 this.channelsLowerRange,
                 this.visibleChannels
             );
@@ -462,7 +462,7 @@ export class MultiEpgContainerComponent
             return;
         }
 
-        if (!this.runtime.supportsEpg) {
+        if (!this.epgBridge.supportsProgramSearch) {
             this.programSearchResults.set([]);
             this.isSearchingPrograms.set(false);
             return;
@@ -472,7 +472,7 @@ export class MultiEpgContainerComponent
         this.searchDebounceTimer = setTimeout(async () => {
             this.isSearchingPrograms.set(true);
             try {
-                const results = await window.electron.searchEpgPrograms(
+                const results = await this.epgBridge.searchPrograms(
                     query,
                     20
                 );

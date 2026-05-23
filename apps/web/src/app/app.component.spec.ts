@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
@@ -65,13 +65,20 @@ describe('AppComponent', () => {
     let store: MockStore;
     let translateService: TranslateService;
     let runtimeCapabilities: Partial<RuntimeCapabilitiesService>;
-    const originalElectron = window.electron;
+    let epgBridge: Partial<EpgRuntimeBridgeService>;
 
     beforeEach(waitForAsync(() => {
         runtimeCapabilities = {
             isElectron: true,
             isMacOS: false,
-            supportsEpg: true,
+        };
+        epgBridge = {
+            checkFreshness: jest.fn().mockResolvedValue({
+                freshUrls: [],
+                staleUrls: [],
+            }),
+            supportsImport: true,
+            supportsSourceFreshness: true,
         };
 
         TestBed.configureTestingModule({
@@ -97,6 +104,10 @@ describe('AppComponent', () => {
                 MockProvider(EpgService, {
                     fetchEpg: jest.fn(),
                 }),
+                {
+                    provide: EpgRuntimeBridgeService,
+                    useValue: epgBridge,
+                },
                 MockProvider(Router, {
                     navigateByUrl: jest.fn(),
                 }),
@@ -128,13 +139,6 @@ describe('AppComponent', () => {
     }));
 
     beforeEach(() => {
-        window.electron = {
-            checkEpgFreshness: jest.fn().mockResolvedValue({
-                freshUrls: [],
-                staleUrls: [],
-            }),
-        } as unknown as typeof window.electron;
-
         fixture = TestBed.createComponent(AppComponent);
         epgService = TestBed.inject(EpgService);
         router = TestBed.inject(Router);
@@ -145,10 +149,6 @@ describe('AppComponent', () => {
         store = TestBed.inject(MockStore);
         translateService = TestBed.inject(TranslateService);
         component = fixture.componentInstance;
-    });
-
-    afterEach(() => {
-        window.electron = originalElectron;
     });
 
     it('should create the component', () => {
@@ -199,15 +199,10 @@ describe('AppComponent', () => {
             language: Language.SPANISH,
             theme: Theme.DarkTheme,
         };
-        const checkEpgFreshness = jest.fn().mockResolvedValue({
+        epgBridge.checkFreshness = jest.fn().mockResolvedValue({
             freshUrls: [],
             staleUrls: settings.epgUrl,
         });
-
-        window.electron = {
-            ...window.electron,
-            checkEpgFreshness,
-        } as unknown as typeof window.electron;
         settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
         jest.spyOn(settingsService, 'changeTheme');
         jest.spyOn(translateService, 'use');
@@ -219,23 +214,26 @@ describe('AppComponent', () => {
         expect(settingsService.changeTheme).toHaveBeenCalledWith(
             Theme.DarkTheme
         );
-        expect(checkEpgFreshness).toHaveBeenCalledWith(settings.epgUrl, 12);
+        expect(epgBridge.checkFreshness).toHaveBeenCalledWith(
+            settings.epgUrl,
+            12
+        );
         expect(epgService.fetchEpg).toHaveBeenCalledWith(settings.epgUrl);
         expect(snackBar.open).not.toHaveBeenCalled();
     });
 
-    it('does not fetch EPG settings when runtime does not support EPG', async () => {
+    it('does not fetch EPG settings when the EPG bridge cannot import EPG', async () => {
         const settings: Settings = {
             ...DEFAULT_SETTINGS,
             epgUrl: ['https://example.com/epg.xml'],
         };
-        Object.assign(runtimeCapabilities, { supportsEpg: false });
+        epgBridge.supportsImport = false;
         settingsService.getValueFromLocalStorage.mockReturnValue(of(settings));
 
         component.initSettings();
         await fixture.whenStable();
 
-        expect(window.electron?.checkEpgFreshness).not.toHaveBeenCalled();
+        expect(epgBridge.checkFreshness).not.toHaveBeenCalled();
         expect(epgService.fetchEpg).not.toHaveBeenCalled();
     });
 });

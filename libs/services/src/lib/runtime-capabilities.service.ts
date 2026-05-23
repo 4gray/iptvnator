@@ -32,15 +32,53 @@ export class RuntimeCapabilitiesService {
     }
 
     get supportsEpg(): boolean {
-        return [
-            'fetchEpg',
-            'getChannelPrograms',
-            'checkEpgFreshness',
-            'forceFetchEpg',
-            'clearEpgData',
-            'getEpgChannelsByRange',
-            'searchEpgPrograms',
-        ].every((methodName) => this.hasElectronMethod(methodName));
+        return (
+            this.supportsEpgImport &&
+            this.supportsEpgProgramLookup &&
+            this.supportsEpgSourceFreshness &&
+            this.supportsEpgDataManagement &&
+            this.supportsEpgChannelBrowser &&
+            this.supportsEpgProgramSearch
+        );
+    }
+
+    get supportsEpgImport(): boolean {
+        return this.hasElectronMethod('fetchEpg');
+    }
+
+    get supportsEpgProgress(): boolean {
+        return this.hasElectronMethod('onEpgProgress');
+    }
+
+    get supportsEpgProgramLookup(): boolean {
+        return this.hasElectronMethod('getChannelPrograms');
+    }
+
+    get supportsEpgCurrentProgramBatch(): boolean {
+        return this.hasElectronMethod('getCurrentProgramsBatch');
+    }
+
+    get supportsEpgChannelMetadata(): boolean {
+        return this.hasElectronMethod('getEpgChannelMetadata');
+    }
+
+    get supportsEpgSourceFreshness(): boolean {
+        return this.hasElectronMethod('checkEpgFreshness');
+    }
+
+    get supportsEpgDataManagement(): boolean {
+        return (
+            this.hasElectronMethod('forceFetchEpg') &&
+            this.hasElectronMethod('clearEpgData')
+        );
+    }
+
+    get supportsEpgChannelBrowser(): boolean {
+        return this.hasElectronMethod('getEpgChannelsByRange');
+    }
+
+    get supportsEpgProgramSearch(): boolean {
+        return this.hasElectronMethod('searchEpgPrograms');
     }
 
     get supportsSqlite(): boolean {

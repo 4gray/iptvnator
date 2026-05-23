@@ -5,6 +5,7 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DataService,
     PlaylistsService,
@@ -24,6 +25,8 @@ describe('StreamResolverService', () => {
     let xtreamUrl: { constructLiveUrl: jest.Mock };
     let dataService: { sendIpcEvent: jest.Mock };
     let stalkerSession: { makeAuthenticatedRequest: jest.Mock };
+    let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let runtimeCapabilities: { supportsEpg: boolean };
 
     beforeEach(() => {
         playlistsService = {
@@ -41,11 +44,11 @@ describe('StreamResolverService', () => {
         stalkerSession = {
             makeAuthenticatedRequest: jest.fn(),
         };
-
-        window.electron = {
-            ...window.electron,
+        epgBridge = {
             getChannelPrograms: jest.fn(),
-        } as typeof window.electron;
+            supportsProgramLookup: true,
+        };
+        runtimeCapabilities = { supportsEpg: true };
 
         TestBed.configureTestingModule({
             providers: [
@@ -55,12 +58,12 @@ describe('StreamResolverService', () => {
                 { provide: XtreamUrlService, useValue: xtreamUrl },
                 { provide: DataService, useValue: dataService },
                 {
+                    provide: EpgRuntimeBridgeService,
+                    useValue: epgBridge,
+                },
+                {
                     provide: RuntimeCapabilitiesService,
-                    useValue: {
-                        get supportsEpg() {
-                            return Boolean(window.electron);
-                        },
-                    },
+                    useValue: runtimeCapabilities,
                 },
                 { provide: StalkerSessionService, useValue: stalkerSession },
             ],
@@ -99,7 +102,7 @@ describe('StreamResolverService', () => {
                 },
             } satisfies Partial<Playlist>)
         );
-        (window.electron.getChannelPrograms as jest.Mock).mockResolvedValue([
+        (epgBridge.getChannelPrograms as jest.Mock).mockResolvedValue([
             {
                 start: '2026-03-26T11:00:00.000Z',
                 stop: '2026-03-26T12:00:00.000Z',
@@ -137,6 +140,7 @@ describe('StreamResolverService', () => {
             }),
         });
         expect(detail.epgPrograms).toHaveLength(1);
+        expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('news-id');
     });
 
     it('resolves M3U playback detail without blocking on channel-program lookup', async () => {
@@ -185,7 +189,7 @@ describe('StreamResolverService', () => {
 
         expect(detail.playback.streamUrl).toBe('https://example.com/live.m3u8');
         expect(detail.epgPrograms).toEqual([]);
-        expect(window.electron.getChannelPrograms).not.toHaveBeenCalled();
+        expect(epgBridge.getChannelPrograms).not.toHaveBeenCalled();
     });
 
     it('preserves the radio flag when M3U playback falls back to item metadata', async () => {
@@ -279,6 +283,7 @@ describe('StreamResolverService', () => {
 
     it('skips portal EPG lookups in browser/PWA mode', async () => {
         window.electron = undefined as unknown as typeof window.electron;
+        runtimeCapabilities.supportsEpg = false;
         playlistsService.getPlaylistById.mockReturnValue(
             of({
                 _id: 'xtream-1',

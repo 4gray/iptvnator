@@ -73,18 +73,21 @@ feature decisions expressed as capabilities such as `supportsEpg`,
 from one shared boundary. `supportsSqlite` requires the complete playlist
 storage preload API surface used by `PlaylistsService`, `supportsDownloads`
 requires the complete downloads preload API surface used by `DownloadsService`,
-`supportsEpg` requires the Electron EPG preload methods used by the shared EPG
-panels (`fetchEpg`, `getChannelPrograms`, `checkEpgFreshness`,
-`forceFetchEpg`, `clearEpgData`, `getEpgChannelsByRange`, and
-`searchEpgPrograms`), `supportsPlaylistRefresh` requires the native playlist
+and EPG renderer code should use `EpgRuntimeBridgeService` from
+`@iptvnator/epg/data-access` instead of calling `window.electron` directly.
+`supportsEpg` remains the aggregate full EPG capability, while narrower runtime
+capabilities cover individual EPG surfaces: import/progress, current-program
+lookup, optional current-program batch reads, optional channel metadata,
+freshness checks, clear/force-fetch management, channel browsing, and program
+search. `supportsPlaylistRefresh` requires the native playlist
 refresh/cancel/progress bridge, `supportsXtreamSectionNavigation` is available
 in PWA and in Electron when either the SQLite Xtream data source or the Xtream
 API transport is available, `supportsDesktopFileSave` requires both
-`saveFileDialog` and `writeFile`, and
-`supportsManagedExternalPlayers` requires the MPV and VLC preload launch and
-path-setting methods (`openInMpv`, `openInVlc`, `setMpvPlayerPath`, and
-`setVlcPlayerPath`); a partial Electron bridge must not expose desktop-only
-actions in the PWA/shared UI.
+`saveFileDialog` and `writeFile`, `supportsManagedExternalPlayers` requires the
+MPV and VLC preload launch methods (`openInMpv` and `openInVlc`), and
+`supportsExternalPlayerPathSettings` requires the path-setting methods
+(`setMpvPlayerPath` and `setVlcPlayerPath`); a partial Electron bridge must not
+expose desktop-only actions in the PWA/shared UI.
 
 ## Runtime Limitations
 

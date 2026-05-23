@@ -25,7 +25,7 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -123,6 +123,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private playlistBackupService = inject(PlaylistBackupService);
     private readonly databaseService = inject(DatabaseService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly dialogData = inject<{ isDialog: boolean } | null>(
         MAT_DIALOG_DATA,
         { optional: true }
@@ -138,7 +139,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
     /** Flag that indicates whether the app runs in electron environment */
     readonly isDesktop = this.runtime.isElectron;
     readonly supportsDesktopFileSave = this.runtime.supportsDesktopFileSave;
-    readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsEpg =
+        this.epgBridge.supportsImport && this.epgBridge.supportsDataManagement;
     readonly supportsManagedExternalPlayers =
         this.runtime.supportsManagedExternalPlayers;
     readonly supportsExternalPlayerPathSettings =
@@ -611,10 +613,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * intends when clicking "Refresh".
      */
     refreshEpg(url: string): void {
-        if (!this.supportsEpg || !url) {
+        if (!this.epgBridge.supportsDataManagement || !url) {
             return;
         }
-        void window.electron.forceFetchEpg(url);
+        void this.epgBridge.forceFetchEpg(url);
     }
 
     /**
@@ -623,11 +625,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * gets visible per-URL feedback.
      */
     refreshAllEpg(): void {
-        if (!this.supportsEpg) return;
+        if (!this.epgBridge.supportsDataManagement) return;
         const urls = (this.epgUrl.value as string[])
             .map((url) => url?.trim())
             .filter((url): url is string => Boolean(url));
-        urls.forEach((url) => void window.electron.forceFetchEpg(url));
+        urls.forEach((url) => void this.epgBridge.forceFetchEpg(url));
     }
 
     /**
@@ -660,7 +662,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
             ),
             onConfirm: async (): Promise<void> => {
                 if (
-                    !this.supportsEpg ||
+                    !this.epgBridge.supportsDataManagement ||
                     this.isClearingEpgData()
                 ) {
                     return;
@@ -668,7 +670,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
                 this.isClearingEpgData.set(true);
                 try {
-                    const result = await window.electron.clearEpgData();
+                    const result = await this.epgBridge.clearEpgData();
                     if (result && result.success === false) {
                         throw new Error('Clear EPG returned success=false');
                     }
