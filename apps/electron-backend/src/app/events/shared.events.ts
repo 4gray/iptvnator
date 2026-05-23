@@ -1,8 +1,5 @@
 import { ipcMain } from 'electron';
-import {
-    clearRequestHeaderOverride,
-    configureRequestHeaderOverride,
-} from '../services/request-header-overrides.service';
+import { configureRequestHeaderOverride } from '../services/request-header-overrides.service';
 
 export default class SharedEvents {
     static bootstrapSharedEvents(): Electron.IpcMain {
@@ -26,10 +23,5 @@ export function setUserAgent(
     referer?: string | null,
     scopeUrl?: string | null
 ): void {
-    if (!userAgent?.trim() && !referer?.trim()) {
-        clearRequestHeaderOverride();
-        return;
-    }
-
     configureRequestHeaderOverride(userAgent, referer, scopeUrl);
 }

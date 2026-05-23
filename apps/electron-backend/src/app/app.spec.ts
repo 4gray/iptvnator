@@ -58,6 +58,9 @@ describe('Electron app security helpers', () => {
             isTrustedRendererNavigationUrl('http://127.0.0.1:4200/home', true)
         ).toBe(true);
         expect(
+            isTrustedRendererNavigationUrl('http://[::1]:4200/home', true)
+        ).toBe(true);
+        expect(
             isTrustedRendererNavigationUrl('http://localhost:4300/home', true)
         ).toBe(false);
         expect(

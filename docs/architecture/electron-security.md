@@ -58,12 +58,14 @@ scopeUrl)`.
 The Electron backend handles that IPC in `apps/electron-backend/src/app/events/shared.events.ts`
 and delegates to `apps/electron-backend/src/app/services/request-header-overrides.service.ts`.
 The service registers one `session.defaultSession.webRequest.onBeforeSendHeaders`
-listener and updates the active override in memory instead of stacking a new
+listener and updates layered in-memory overrides instead of stacking a new
 listener for every channel change.
 
 Rules:
 
-- empty `userAgent` and empty `referer` clear the active override
+- empty playlist-level `userAgent` and `referer` clear all active overrides
+- empty channel-level `userAgent` and `referer` with a `scopeUrl` clear only
+  the scoped channel override, preserving playlist-level defaults
 - channel playback should pass the stream URL as `scopeUrl`
 - scoped overrides apply only to the active stream origin and referer origin
 - playlist-level user agents and referrers may call the bridge without a

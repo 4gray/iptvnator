@@ -161,8 +161,8 @@ export class PlaylistEffects {
                 }
 
                 window.electron?.setUserAgent(
-                    channel.http['user-agent'],
-                    channel.http.referrer,
+                    channel.http?.['user-agent'],
+                    channel.http?.referrer,
                     channel.url
                 );
 

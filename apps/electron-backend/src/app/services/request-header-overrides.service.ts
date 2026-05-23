@@ -3,7 +3,7 @@ import { session } from 'electron';
 type HeaderOverride = {
     origin?: string;
     referer?: string;
-    scopeOrigins: Set<string>;
+    scopeOrigins?: Set<string>;
     userAgent?: string;
 };
 
@@ -12,6 +12,7 @@ const headerOverrideUrlFilter = {
 };
 
 let activeHeaderOverride: HeaderOverride | null = null;
+let activeScopedHeaderOverride: HeaderOverride | null = null;
 let listenerRegistered = false;
 
 function normalizeHeaderValue(value?: string | null): string | undefined {
@@ -34,7 +35,7 @@ function getOrigin(value?: string | null): string | undefined {
 }
 
 function shouldApplyOverride(url: string, override: HeaderOverride): boolean {
-    if (override.scopeOrigins.size === 0) {
+    if (!override.scopeOrigins) {
         return true;
     }
 
@@ -64,23 +65,28 @@ function handleBeforeSendHeaders(
     callback: (beforeSendResponse: Electron.BeforeSendResponse) => void
 ): void {
     const requestHeaders = { ...details.requestHeaders };
-    const override = activeHeaderOverride;
+    const overrides = [activeHeaderOverride, activeScopedHeaderOverride].filter(
+        (override): override is HeaderOverride =>
+            Boolean(override && shouldApplyOverride(details.url, override))
+    );
 
-    if (!override || !shouldApplyOverride(details.url, override)) {
+    if (overrides.length === 0) {
         callback({ requestHeaders });
         return;
     }
 
-    if (override.userAgent) {
-        setRequestHeader(requestHeaders, 'User-Agent', override.userAgent);
-    }
+    for (const override of overrides) {
+        if (override.userAgent) {
+            setRequestHeader(requestHeaders, 'User-Agent', override.userAgent);
+        }
 
-    if (override.referer) {
-        setRequestHeader(requestHeaders, 'Referer', override.referer);
-    }
+        if (override.referer) {
+            setRequestHeader(requestHeaders, 'Referer', override.referer);
+        }
 
-    if (override.origin) {
-        setRequestHeader(requestHeaders, 'Origin', override.origin);
+        if (override.origin) {
+            setRequestHeader(requestHeaders, 'Origin', override.origin);
+        }
     }
 
     callback({ requestHeaders });
@@ -105,29 +111,44 @@ export function configureRequestHeaderOverride(
 ): void {
     const normalizedUserAgent = normalizeHeaderValue(userAgent);
     const normalizedReferer = normalizeHeaderValue(referer);
+    const isScopedOverride = scopeUrl !== undefined && scopeUrl !== null;
 
     if (!normalizedUserAgent && !normalizedReferer) {
-        clearRequestHeaderOverride();
+        if (isScopedOverride) {
+            clearScopedRequestHeaderOverride();
+        } else {
+            clearRequestHeaderOverride();
+        }
         return;
     }
 
     const refererOrigin = getOrigin(normalizedReferer);
     const scopeOrigin = getOrigin(scopeUrl);
-    const scopeOrigins = new Set(
-        [scopeOrigin, refererOrigin].filter((origin): origin is string =>
-            Boolean(origin)
-        )
-    );
-
-    activeHeaderOverride = {
+    const override: HeaderOverride = {
         origin: refererOrigin,
         referer: normalizedReferer,
-        scopeOrigins,
         userAgent: normalizedUserAgent,
     };
+
+    if (isScopedOverride) {
+        override.scopeOrigins = new Set(
+            [scopeOrigin, refererOrigin].filter((origin): origin is string =>
+                Boolean(origin)
+            )
+        );
+        activeScopedHeaderOverride = override;
+    } else {
+        activeHeaderOverride = override;
+    }
+
     ensureHeaderOverrideListener();
 }
 
 export function clearRequestHeaderOverride(): void {
     activeHeaderOverride = null;
+    activeScopedHeaderOverride = null;
+}
+
+function clearScopedRequestHeaderOverride(): void {
+    activeScopedHeaderOverride = null;
 }

@@ -9,6 +9,12 @@ import {
 import { store, WINDOW_BOUNDS } from './services/store.service';
 
 const externalBrowserProtocols = new Set(['http:', 'https:']);
+const trustedDevRendererHosts = new Set([
+    'localhost',
+    '127.0.0.1',
+    '[::1]',
+    '::1',
+]);
 
 function parseUrl(url: string): URL | null {
     try {
@@ -45,7 +51,7 @@ export function isTrustedRendererNavigationUrl(
 
     return (
         parsedUrl.protocol === 'http:' &&
-        ['localhost', '127.0.0.1', '[::1]'].includes(parsedUrl.hostname) &&
+        trustedDevRendererHosts.has(parsedUrl.hostname) &&
         parsedUrl.port === String(rendererAppPort)
     );
 }

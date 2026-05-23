@@ -111,10 +111,97 @@ describe('request header overrides', () => {
         expect(headers).toEqual({ Accept: '*/*' });
     });
 
+    it('applies playlist-level headers broadly when no stream scope is provided', async () => {
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
+
+        configureRequestHeaderOverride(
+            'PlaylistAgent/1.0',
+            'https://portal.example/referrer'
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://cdn.example/segment.ts'
+        );
+
+        expect(headers).toEqual({
+            Origin: 'https://portal.example',
+            Referer: 'https://portal.example/referrer',
+            'User-Agent': 'PlaylistAgent/1.0',
+        });
+    });
+
+    it('keeps playlist headers when a channel without headers clears scoped overrides', async () => {
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
+
+        configureRequestHeaderOverride(
+            'PlaylistAgent/1.0',
+            'https://portal.example/referrer'
+        );
+        configureRequestHeaderOverride(
+            'ChannelAgent/2.0',
+            'https://channel.example/referrer',
+            'https://stream.example/live.m3u8'
+        );
+        configureRequestHeaderOverride(
+            null,
+            null,
+            'https://stream.example/next.m3u8'
+        );
+
+        expect(mockOnBeforeSendHeaders).toHaveBeenCalledTimes(1);
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://stream.example/segment.ts'
+        );
+
+        expect(headers).toEqual({
+            Origin: 'https://portal.example',
+            Referer: 'https://portal.example/referrer',
+            'User-Agent': 'PlaylistAgent/1.0',
+        });
+    });
+
+    it('layers scoped channel headers over playlist defaults', async () => {
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
+
+        configureRequestHeaderOverride(
+            'PlaylistAgent/1.0',
+            'https://portal.example/referrer'
+        );
+        configureRequestHeaderOverride(
+            'ChannelAgent/2.0',
+            null,
+            'https://stream.example/live.m3u8'
+        );
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://stream.example/segment.ts'
+        );
+
+        expect(headers).toEqual({
+            Origin: 'https://portal.example',
+            Referer: 'https://portal.example/referrer',
+            'User-Agent': 'ChannelAgent/2.0',
+        });
+    });
+
     it('clears active header overrides without registering another listener', async () => {
         const { clearRequestHeaderOverride, configureRequestHeaderOverride } =
             await import('./request-header-overrides.service');
 
+        configureRequestHeaderOverride(
+            'PlaylistAgent/1.0',
+            'https://portal.example/referrer'
+        );
         configureRequestHeaderOverride(
             'ScopedAgent/1.0',
             'https://portal.example/referrer',
