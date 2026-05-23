@@ -133,6 +133,23 @@ describe('request header overrides', () => {
         });
     });
 
+    it('applies playlist-level user agents broadly without a referrer', async () => {
+        const { configureRequestHeaderOverride } =
+            await import('./request-header-overrides.service');
+
+        configureRequestHeaderOverride('PlaylistAgent/1.0');
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://cdn.example/segment.ts'
+        );
+
+        expect(headers).toEqual({
+            'User-Agent': 'PlaylistAgent/1.0',
+        });
+    });
+
     it('keeps playlist headers when a channel without headers clears scoped overrides', async () => {
         const { configureRequestHeaderOverride } =
             await import('./request-header-overrides.service');
