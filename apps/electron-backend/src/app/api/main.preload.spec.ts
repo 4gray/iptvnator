@@ -84,6 +84,23 @@ describe('main preload DB IPC contract', () => {
         }
     );
 
+    it('forwards scoped user-agent override arguments', async () => {
+        const api = getExposedApi();
+
+        await api.setUserAgent(
+            'ChannelAgent/1.0',
+            'https://portal.example/referrer',
+            'https://stream.example/live.m3u8'
+        );
+
+        expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+            'set-user-agent',
+            'ChannelAgent/1.0',
+            'https://portal.example/referrer',
+            'https://stream.example/live.m3u8'
+        );
+    });
+
     it('forwards request-scoped DB operation events and unregisters the listener', () => {
         const api = getExposedApi();
         const callback = jest.fn();

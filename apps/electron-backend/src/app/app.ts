@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron';
-import { join } from 'path';
+import { join, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
     isRendererConsoleTraceEnabled,
@@ -7,6 +8,84 @@ import {
     trace,
 } from './services/debug-trace';
 import { store, WINDOW_BOUNDS } from './services/store.service';
+
+const externalBrowserProtocols = new Set(['http:', 'https:']);
+const trustedDevRendererHosts = new Set([
+    'localhost',
+    '127.0.0.1',
+    '[::1]',
+    '::1',
+]);
+
+function parseUrl(url: string): URL | null {
+    try {
+        return new URL(url);
+    } catch {
+        return null;
+    }
+}
+
+function getPackagedRendererIndexPath(): string {
+    return resolve(__dirname, '..', rendererAppName, 'index.html');
+}
+
+function getFilePathFromUrl(url: URL): string | null {
+    try {
+        return fileURLToPath(url);
+    } catch {
+        return null;
+    }
+}
+
+export function isExternalBrowserUrl(url: string): boolean {
+    const parsedUrl = parseUrl(url);
+    return Boolean(
+        parsedUrl && externalBrowserProtocols.has(parsedUrl.protocol)
+    );
+}
+
+export function isTrustedRendererNavigationUrl(
+    url: string,
+    isDevelopmentMode: boolean,
+    packagedRendererIndexPath = getPackagedRendererIndexPath()
+): boolean {
+    const parsedUrl = parseUrl(url);
+
+    if (!parsedUrl) {
+        return false;
+    }
+
+    if (parsedUrl.protocol === 'file:') {
+        const filePath = getFilePathFromUrl(parsedUrl);
+
+        if (isDevelopmentMode || !filePath) {
+            return false;
+        }
+
+        return resolve(filePath) === resolve(packagedRendererIndexPath);
+    }
+
+    if (!isDevelopmentMode) {
+        return false;
+    }
+
+    return (
+        parsedUrl.protocol === 'http:' &&
+        trustedDevRendererHosts.has(parsedUrl.hostname) &&
+        parsedUrl.port === String(rendererAppPort)
+    );
+}
+
+export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructorOptions['webPreferences'] {
+    return {
+        contextIsolation: true,
+        nodeIntegration: false,
+        sandbox: true,
+        webSecurity: true,
+        backgroundThrottling: false,
+        preload: join(__dirname, 'main.preload.js'),
+    };
+}
 
 function attachWindowTrace(mainWindow: Electron.BrowserWindow): void {
     if (!isWindowTraceEnabled()) {
@@ -125,14 +204,6 @@ export default class App {
         App.mainWindow = null;
     }
 
-    private static onRedirect(event: any, url: string) {
-        if (url !== App.mainWindow.webContents.getURL()) {
-            // this is a normal external redirect, open it in a new browser window
-            event.preventDefault();
-            shell.openExternal(url);
-        }
-    }
-
     private static onReady() {
         // This method will be called when Electron has finished
         // initialization and is ready to create browser windows.
@@ -151,6 +222,21 @@ export default class App {
         }
     }
 
+    private static handleRendererNavigation(
+        event: Electron.Event,
+        url: string
+    ): void {
+        if (isTrustedRendererNavigationUrl(url, App.isDevelopmentMode())) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (isExternalBrowserUrl(url)) {
+            shell.openExternal(url);
+        }
+    }
+
     private static initMainWindow() {
         const workAreaSize = screen.getPrimaryDisplay().workAreaSize;
         const width = Math.min(1280, workAreaSize.width || 1280);
@@ -164,11 +250,7 @@ export default class App {
             width: width,
             height: height,
             show: false,
-            webPreferences: {
-                contextIsolation: true,
-                backgroundThrottling: false,
-                preload: join(__dirname, 'main.preload.js'),
-            },
+            webPreferences: getMainWindowWebPreferences(),
             ...savedWindowBounds,
             minHeight: 600,
             minWidth: 900,
@@ -193,11 +275,20 @@ export default class App {
 
         // Route target="_blank" / window.open() to the OS default browser
         App.mainWindow.webContents.setWindowOpenHandler(({ url }) => {
-            if (/^https?:\/\//.test(url)) {
+            if (isExternalBrowserUrl(url)) {
                 shell.openExternal(url);
             }
             return { action: 'deny' };
         });
+
+        App.mainWindow.webContents.on(
+            'will-navigate',
+            App.handleRendererNavigation
+        );
+        App.mainWindow.webContents.on(
+            'will-redirect',
+            App.handleRendererNavigation
+        );
 
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {
@@ -259,9 +350,7 @@ export default class App {
                 App.mainWindow.webContents.openDevTools();
             }
         } else {
-            App.mainWindow.loadFile(
-                join(__dirname, '..', rendererAppName, 'index.html')
-            );
+            App.mainWindow.loadFile(getPackagedRendererIndexPath());
         }
     }
 

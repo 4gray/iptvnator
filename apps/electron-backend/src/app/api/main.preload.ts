@@ -299,8 +299,11 @@ const electronApi = {
     ) => ipcRenderer.invoke('save-file-dialog', defaultPath, filters),
     writeFile: (filePath: string, content: string) =>
         ipcRenderer.invoke('write-file', filePath, content),
-    setUserAgent: (userAgent: string, referer?: string) =>
-        ipcRenderer.invoke('set-user-agent', userAgent, referer),
+    setUserAgent: (
+        userAgent?: string | null,
+        referer?: string | null,
+        scopeUrl?: string | null
+    ) => ipcRenderer.invoke('set-user-agent', userAgent, referer, scopeUrl),
     openInMpv: (
         url: string,
         title: string,

@@ -160,13 +160,18 @@ export class PlaylistEffects {
                     this.epgService.getChannelPrograms(channelId);
                 }
 
-                // Set user agent if specified on channel
-                if (channel.http['user-agent']) {
-                    window.electron?.setUserAgent(
-                        channel.http['user-agent'],
-                        channel.http.referrer
-                    );
-                }
+                void window.electron
+                    ?.setUserAgent(
+                        channel.http?.['user-agent'],
+                        channel.http?.referrer,
+                        channel.url
+                    )
+                    .catch((error: unknown) => {
+                        console.warn(
+                            '[PlaylistEffects] Failed to configure Electron request headers:',
+                            error
+                        );
+                    });
 
                 firstValueFrom(this.storage.get(STORE_KEY.Settings)).then(
                     (settings: any) => {

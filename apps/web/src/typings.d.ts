@@ -67,7 +67,11 @@ declare global {
                 filePath: string,
                 content: string
             ) => Promise<{ success: boolean }>;
-            setUserAgent: (userAgent: string, referer?: string) => void;
+            setUserAgent: (
+                userAgent?: string | null,
+                referer?: string | null,
+                scopeUrl?: string | null
+            ) => Promise<boolean>;
             openInMpv: (
                 url: string,
                 title: string,

@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { ChannelActions, FavoritesActions } from '@iptvnator/m3u-state';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistsService } from '@iptvnator/services';
@@ -79,6 +79,9 @@ describe('M3uWorkspaceRouteSession', () => {
     const store = {
         dispatch: jest.fn(),
     };
+    const electronApi = {
+        setUserAgent: jest.fn().mockResolvedValue(true),
+    };
     const router = {
         url: `/workspace/playlists/${PLAYLIST_ID}/all`,
         events: routerEvents.asObservable(),
@@ -89,6 +92,11 @@ describe('M3uWorkspaceRouteSession', () => {
         playlistContext.syncFromUrl.mockImplementation((url: string) =>
             getM3uRouteContext(url)
         );
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            value: electronApi,
+        });
+        electronApi.setUserAgent.mockClear();
         playlistsService.getPlaylist.mockReset();
         store.dispatch.mockClear();
 
@@ -115,6 +123,10 @@ describe('M3uWorkspaceRouteSession', () => {
         });
     });
 
+    afterEach(() => {
+        delete (window as unknown as { electron?: unknown }).electron;
+    });
+
     it('does not start channel loading for collection routes like favorites', async () => {
         router.url = `/workspace/playlists/${PLAYLIST_ID}/favorites`;
 
@@ -130,15 +142,55 @@ describe('M3uWorkspaceRouteSession', () => {
         expect(playlistsService.getPlaylist).not.toHaveBeenCalled();
     });
 
+    it('configures playlist-level user agent overrides when loading channels', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                playlist: {
+                    items: [PRIMARY_CHANNEL],
+                },
+                referrer: 'https://portal.example/referrer',
+                userAgent: 'PlaylistAgent/1.0',
+            } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(electronApi.setUserAgent).toHaveBeenCalledWith(
+            'PlaylistAgent/1.0',
+            'https://portal.example/referrer'
+        );
+    });
+
+    it('clears stale playlist-level user agent overrides when the playlist has none', async () => {
+        playlistsService.getPlaylist.mockReturnValue(
+            of({
+                playlist: {
+                    items: [PRIMARY_CHANNEL],
+                },
+            } as Playlist)
+        );
+
+        TestBed.inject(M3uWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(electronApi.setUserAgent).toHaveBeenCalledWith(
+            undefined,
+            undefined
+        );
+    });
+
     it('ignores stale playlist responses after a newer route request wins', async () => {
         const firstResponse = new Subject<Playlist>();
         const secondResponse = new Subject<Playlist>();
 
-        playlistsService.getPlaylist.mockImplementation((playlistId: string) => {
-            return playlistId === PLAYLIST_ID
-                ? firstResponse.asObservable()
-                : secondResponse.asObservable();
-        });
+        playlistsService.getPlaylist.mockImplementation(
+            (playlistId: string) => {
+                return playlistId === PLAYLIST_ID
+                    ? firstResponse.asObservable()
+                    : secondResponse.asObservable();
+            }
+        );
 
         TestBed.inject(M3uWorkspaceRouteSession);
         await flushEffects();

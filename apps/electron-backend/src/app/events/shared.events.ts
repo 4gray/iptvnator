@@ -1,4 +1,5 @@
-import { ipcMain, session } from 'electron';
+import { ipcMain } from 'electron';
+import { configureRequestHeaderOverride } from '../services/request-header-overrides.service';
 
 export default class SharedEvents {
     static bootstrapSharedEvents(): Electron.IpcMain {
@@ -6,34 +7,21 @@ export default class SharedEvents {
     }
 }
 
-ipcMain.handle('set-user-agent', (event, userAgent, referer) => {
-    setUserAgent(userAgent, referer); // TODO: test if defaults needed
+ipcMain.handle('set-user-agent', (_event, userAgent, referer, scopeUrl) => {
+    setUserAgent(userAgent, referer, scopeUrl);
     return true;
 });
 
 /**
- * Sets the user agent header for all http requests
+ * Sets scoped request headers for the currently selected stream.
  * @param userAgent user agent to use
  * @param referer referer to use
+ * @param scopeUrl stream URL used to limit the override to the active origin
  */
-export function setUserAgent(userAgent: string, referer?: string): void {
-    if (userAgent === undefined || userAgent === null || userAgent === '') {
-        userAgent = this.defaultUserAgent;
-    }
-
-    // Remove trailing slash from referer if it exists
-    let originURL: string;
-    if (referer?.endsWith('/')) {
-        originURL = referer.slice(0, -1);
-    }
-
-    session.defaultSession.webRequest.onBeforeSendHeaders(
-        (details, callback) => {
-            details.requestHeaders['User-Agent'] = userAgent;
-            details.requestHeaders['Referer'] = referer as string;
-            details.requestHeaders['Origin'] = originURL as string;
-            callback({ requestHeaders: details.requestHeaders });
-        }
-    );
-    console.log(`Success: Set "${userAgent}" as user agent header`);
+export function setUserAgent(
+    userAgent?: string | null,
+    referer?: string | null,
+    scopeUrl?: string | null
+): void {
+    configureRequestHeaderOverride(userAgent, referer, scopeUrl);
 }

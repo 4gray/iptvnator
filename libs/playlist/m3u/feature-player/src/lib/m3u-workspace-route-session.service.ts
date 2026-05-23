@@ -85,7 +85,9 @@ export class M3uWorkspaceRouteSession {
         }
 
         const requestId = ++this.loadRequestId;
-        this.store.dispatch(ChannelActions.setChannelsLoading({ loading: true }));
+        this.store.dispatch(
+            ChannelActions.setChannelsLoading({ loading: true })
+        );
 
         try {
             const playlist = await firstValueFrom(
@@ -96,9 +98,14 @@ export class M3uWorkspaceRouteSession {
                 return;
             }
 
-            if (playlist.userAgent) {
-                window.electron?.setUserAgent(playlist.userAgent, 'localhost');
-            }
+            void window.electron
+                ?.setUserAgent(playlist.userAgent, playlist.referrer)
+                .catch((error: unknown) => {
+                    console.warn(
+                        '[M3uWorkspaceRouteSession] Failed to configure Electron request headers:',
+                        error
+                    );
+                });
 
             this.store.dispatch(
                 ChannelActions.setChannels({
@@ -126,7 +133,9 @@ export class M3uWorkspaceRouteSession {
         }
     }
 
-    private isLoadedSection(section: string | null): section is M3uLoadedSection {
+    private isLoadedSection(
+        section: string | null
+    ): section is M3uLoadedSection {
         return section === 'all' || section === 'groups';
     }
 
