@@ -20,15 +20,18 @@ owner in the Electron backend.
 
 ## Navigation And External URLs
 
-The main window owns two navigation gates:
+The main window owns three navigation gates:
 
 - `setWindowOpenHandler` denies every new window. `http:` and `https:` targets
   are opened in the operating system browser through `shell.openExternal`.
 - `will-navigate` allows only the trusted renderer URL. Development mode allows
   `http://localhost:4200`, `http://127.0.0.1:4200`, and `http://[::1]:4200`.
-  Packaged mode allows the app's file-backed renderer. External web
-  navigations are denied in the app window and opened in the operating system
-  browser.
+- `will-redirect` applies the same allow/deny rules so server-side redirects
+  cannot move the app window to an untrusted origin.
+
+Packaged mode allows only the app's resolved `index.html` renderer file, not
+arbitrary `file:` URLs. External web navigations are denied in the app window
+and opened in the operating system browser.
 
 Do not add broad protocol allow-lists for renderer navigation. If a new
 desktop-only flow needs to open a URL outside IPTVnator, route it through the

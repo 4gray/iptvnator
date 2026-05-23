@@ -98,10 +98,14 @@ export class M3uWorkspaceRouteSession {
                 return;
             }
 
-            window.electron?.setUserAgent(
-                playlist.userAgent,
-                playlist.referrer
-            );
+            void window.electron
+                ?.setUserAgent(playlist.userAgent, playlist.referrer)
+                .catch((error: unknown) => {
+                    console.warn(
+                        '[M3uWorkspaceRouteSession] Failed to configure Electron request headers:',
+                        error
+                    );
+                });
 
             this.store.dispatch(
                 ChannelActions.setChannels({

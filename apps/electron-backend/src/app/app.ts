@@ -1,5 +1,6 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron';
-import { join } from 'path';
+import { join, resolve } from 'path';
+import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
     isRendererConsoleTraceEnabled,
@@ -24,6 +25,18 @@ function parseUrl(url: string): URL | null {
     }
 }
 
+function getPackagedRendererIndexPath(): string {
+    return resolve(__dirname, '..', rendererAppName, 'index.html');
+}
+
+function getFilePathFromUrl(url: URL): string | null {
+    try {
+        return fileURLToPath(url);
+    } catch {
+        return null;
+    }
+}
+
 export function isExternalBrowserUrl(url: string): boolean {
     const parsedUrl = parseUrl(url);
     return Boolean(
@@ -33,7 +46,8 @@ export function isExternalBrowserUrl(url: string): boolean {
 
 export function isTrustedRendererNavigationUrl(
     url: string,
-    isDevelopmentMode: boolean
+    isDevelopmentMode: boolean,
+    packagedRendererIndexPath = getPackagedRendererIndexPath()
 ): boolean {
     const parsedUrl = parseUrl(url);
 
@@ -42,7 +56,13 @@ export function isTrustedRendererNavigationUrl(
     }
 
     if (parsedUrl.protocol === 'file:') {
-        return !isDevelopmentMode;
+        const filePath = getFilePathFromUrl(parsedUrl);
+
+        if (isDevelopmentMode || !filePath) {
+            return false;
+        }
+
+        return resolve(filePath) === resolve(packagedRendererIndexPath);
     }
 
     if (!isDevelopmentMode) {
@@ -202,6 +222,21 @@ export default class App {
         }
     }
 
+    private static handleRendererNavigation(
+        event: Electron.Event,
+        url: string
+    ): void {
+        if (isTrustedRendererNavigationUrl(url, App.isDevelopmentMode())) {
+            return;
+        }
+
+        event.preventDefault();
+
+        if (isExternalBrowserUrl(url)) {
+            shell.openExternal(url);
+        }
+    }
+
     private static initMainWindow() {
         const workAreaSize = screen.getPrimaryDisplay().workAreaSize;
         const width = Math.min(1280, workAreaSize.width || 1280);
@@ -246,17 +281,14 @@ export default class App {
             return { action: 'deny' };
         });
 
-        App.mainWindow.webContents.on('will-navigate', (event, url) => {
-            if (isTrustedRendererNavigationUrl(url, App.isDevelopmentMode())) {
-                return;
-            }
-
-            event.preventDefault();
-
-            if (isExternalBrowserUrl(url)) {
-                shell.openExternal(url);
-            }
-        });
+        App.mainWindow.webContents.on(
+            'will-navigate',
+            App.handleRendererNavigation
+        );
+        App.mainWindow.webContents.on(
+            'will-redirect',
+            App.handleRendererNavigation
+        );
 
         // Emitted when the window is closed.
         App.mainWindow.on('closed', () => {
@@ -318,9 +350,7 @@ export default class App {
                 App.mainWindow.webContents.openDevTools();
             }
         } else {
-            App.mainWindow.loadFile(
-                join(__dirname, '..', rendererAppName, 'index.html')
-            );
+            App.mainWindow.loadFile(getPackagedRendererIndexPath());
         }
     }
 

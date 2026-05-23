@@ -71,10 +71,21 @@ describe('Electron app security helpers', () => {
         ).toBe(false);
     });
 
-    it('allows packaged file navigation but rejects external web navigation', () => {
+    it('allows only the packaged renderer file in packaged navigation', () => {
         expect(
-            isTrustedRendererNavigationUrl('file:///tmp/index.html', false)
+            isTrustedRendererNavigationUrl(
+                'file:///tmp/iptvnator/index.html',
+                false,
+                '/tmp/iptvnator/index.html'
+            )
         ).toBe(true);
+        expect(
+            isTrustedRendererNavigationUrl(
+                'file:///tmp/other/index.html',
+                false,
+                '/tmp/iptvnator/index.html'
+            )
+        ).toBe(false);
         expect(
             isTrustedRendererNavigationUrl('https://example.com', false)
         ).toBe(false);
