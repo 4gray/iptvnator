@@ -47,6 +47,12 @@ sources through `media-src` and `connect-src` for `http:`, `https:`, `blob:`,
 and `data:`. The policy keeps `script-src` self-hosted and currently keeps
 `unsafe-inline` for existing inline styles.
 
+Angular production builds must not rely on inline event handlers for stylesheet
+activation. Keep `web:build:production` and `web:build:pwa` configured without
+critical CSS stylesheet deferral (`optimization.styles.inlineCritical: false`)
+unless the CSP is intentionally changed and runtime-validated in both Electron
+and the self-hosted PWA.
+
 Before tightening either value, validate both Electron development startup and
 the PWA/electron build configurations. Playback-heavy changes should also check
 that HLS, MPEG-TS, thumbnails, and local file playback are still allowed by the

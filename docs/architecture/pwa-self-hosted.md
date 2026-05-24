@@ -40,6 +40,10 @@ The build must emit these files in `dist/apps/web`:
 - `safety-worker.js`
 - `worker-basic.min.js`
 
+Angular also emits hashed font and media assets under `dist/apps/web/media/`.
+Keep `/media/**` in `ngsw-config.json` so the PWA service worker can cache
+bundled fonts, including Material Icons.
+
 `web:serve-static` serves `dist/apps/web` and builds with `web:build:pwa`, so it
 exercises the same output layout as Docker. If Nx daemon state returns stale
 service worker outputs while changing build options, run:

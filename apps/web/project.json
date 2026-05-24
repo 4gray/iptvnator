@@ -66,6 +66,15 @@
                             "maximumError": "15kb"
                         }
                     ],
+                    "optimization": {
+                        "scripts": true,
+                        "styles": {
+                            "minify": true,
+                            "inlineCritical": false,
+                            "removeSpecialComments": true
+                        },
+                        "fonts": true
+                    },
                     "outputHashing": "all",
                     "fileReplacements": [
                         {
@@ -89,7 +98,15 @@
                         }
                     ],
                     "outputHashing": "all",
-                    "optimization": true,
+                    "optimization": {
+                        "scripts": true,
+                        "styles": {
+                            "minify": true,
+                            "inlineCritical": false,
+                            "removeSpecialComments": true
+                        },
+                        "fonts": true
+                    },
                     "extractLicenses": true,
                     "sourceMap": false,
                     "fileReplacements": [

@@ -2,8 +2,19 @@ import { defineConfig, devices } from '@playwright/test';
 import { nxE2EPreset } from '@nx/playwright/preset';
 import { workspaceRoot } from '@nx/devkit';
 
+const isStaticPwaE2E = process.env['IPTVNATOR_E2E_STATIC_PWA'] === '1';
+const staticPwaPort = process.env['IPTVNATOR_E2E_STATIC_PORT'] ?? '4300';
 // For CI, you may want to set BASE_URL to the deployed application.
-const baseURL = process.env['BASE_URL'] || 'http://localhost:4200';
+const baseURL =
+    process.env['BASE_URL'] ||
+    (isStaticPwaE2E
+        ? `http://localhost:${staticPwaPort}`
+        : 'http://localhost:4200');
+const webServerCommand =
+    isStaticPwaE2E
+        ? `pnpm nx run web:serve-static --port=${staticPwaPort}`
+        : 'pnpm nx run web:serve';
+const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
 
 /**
  * Read environment variables from file.
@@ -29,9 +40,9 @@ export default defineConfig({
      */
     webServer: [
         {
-            command: 'pnpm nx run web:serve',
-            url: 'http://localhost:4200',
-            reuseExistingServer: !process.env['CI'],
+            command: webServerCommand,
+            url: baseURL,
+            reuseExistingServer: reuseExistingWebServer,
             cwd: workspaceRoot,
         },
         {
