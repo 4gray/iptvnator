@@ -7,6 +7,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     XTREAM_DATA_SOURCE,
@@ -95,10 +96,8 @@ export function withPlaybackPositions() {
                     contentType: 'vod' | 'episode'
                 ): boolean {
                     return (
-                        this.getProgressPercent(
-                            contentXtreamId,
-                            contentType
-                        ) >= 90
+                        this.getProgressPercent(contentXtreamId, contentType) >=
+                        90
                     );
                 },
 
@@ -126,11 +125,13 @@ export function withPlaybackPositions() {
                  * Load all playback positions for the playlist (for grid view)
                  */
                 async loadAllPositions(playlistId: string): Promise<void> {
-                    const positions = await dataSource.getAllPlaybackPositions(
-                        playlistId
-                    );
+                    const positions =
+                        await dataSource.getAllPlaybackPositions(playlistId);
 
-                    const positionsMap = new Map<string, PlaybackPositionData>();
+                    const positionsMap = new Map<
+                        string,
+                        PlaybackPositionData
+                    >();
                     const seriesMap = new Map<number, PlaybackPositionData[]>();
 
                     positions.forEach((pos) => {
@@ -195,10 +196,11 @@ export function withPlaybackPositions() {
                     playlistId: string,
                     seriesXtreamId: number
                 ): Promise<void> {
-                    const positions = await dataSource.getSeriesPlaybackPositions(
-                        playlistId,
-                        seriesXtreamId
-                    );
+                    const positions =
+                        await dataSource.getSeriesPlaybackPositions(
+                            playlistId,
+                            seriesXtreamId
+                        );
 
                     const updated = new Map(store.seriesPositions());
                     updated.set(seriesXtreamId, positions);
@@ -336,19 +338,23 @@ export function withPlaybackPositions() {
         }),
 
         withHooks((store) => {
+            const playbackPositionBridge = inject(
+                PlaybackPositionRuntimeBridgeService
+            );
             let unsubscribe: (() => void) | undefined;
 
             return {
                 onInit() {
-                    if (window.electron?.onPlaybackPositionUpdate) {
-                        unsubscribe = window.electron.onPlaybackPositionUpdate(
+                    unsubscribe =
+                        playbackPositionBridge.onPlaybackPositionUpdate(
                             (data: PlaybackPositionData) => {
-                                if (data.playlistId) {
-                                    store.savePosition(data.playlistId, data);
+                                if (!data.playlistId) {
+                                    return;
                                 }
+
+                                store.savePosition(data.playlistId, data);
                             }
                         );
-                    }
                 },
                 onDestroy() {
                     unsubscribe?.();

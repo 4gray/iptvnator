@@ -29,7 +29,11 @@ import {
     type PlaybackFallbackRequest,
     VodDetailsComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService, PlaylistsService } from '@iptvnator/services';
+import {
+    DownloadsService,
+    PlaybackPositionRuntimeBridgeService,
+    PlaylistsService,
+} from '@iptvnator/services';
 import {
     createStalkerVodItem,
     PlaybackPositionData,
@@ -68,6 +72,9 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
     private readonly catalog = inject(StalkerCatalogFacadeService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly playbackPositionBridge = inject(
+        PlaybackPositionRuntimeBridgeService
+    );
     private readonly router = inject(Router);
     readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly snackBar = inject(MatSnackBar);
@@ -153,23 +160,21 @@ export class StalkerCatalogDetailComponent implements OnDestroy {
             this.closeInlinePlayer();
         });
 
-        if (window.electron?.onPlaybackPositionUpdate) {
-            this.unsubscribePositionUpdates =
-                window.electron.onPlaybackPositionUpdate(
-                    (data: PlaybackPositionData) => {
-                        const currentItem = this.selectedItem();
-                        if (
-                            data.contentType !== 'vod' ||
-                            data.playlistId !== this.catalog.playlist()?.id ||
-                            data.contentXtreamId !== Number(currentItem?.id)
-                        ) {
-                            return;
-                        }
-
-                        this.selectedVodPosition.set(data);
+        this.unsubscribePositionUpdates =
+            this.playbackPositionBridge.onPlaybackPositionUpdate(
+                (data: PlaybackPositionData) => {
+                    const currentItem = this.selectedItem();
+                    if (
+                        data.contentType !== 'vod' ||
+                        data.playlistId !== this.catalog.playlist()?.id ||
+                        data.contentXtreamId !== Number(currentItem?.id)
+                    ) {
+                        return;
                     }
-                );
-        }
+
+                    this.selectedVodPosition.set(data);
+                }
+            ) ?? null;
     }
 
     onVodPlay(item: VodDetailsItem): void {

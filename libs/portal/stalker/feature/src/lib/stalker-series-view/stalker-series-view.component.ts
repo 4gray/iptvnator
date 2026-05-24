@@ -49,7 +49,10 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService } from '@iptvnator/services';
+import {
+    DownloadsService,
+    PlaybackPositionRuntimeBridgeService,
+} from '@iptvnator/services';
 import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,
@@ -81,6 +84,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly router = inject(Router);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly playbackPositionBridge = inject(
+        PlaybackPositionRuntimeBridgeService
+    );
     private readonly downloadsService = inject(DownloadsService);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
@@ -199,27 +205,24 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             this.activeEpisodeId.set(null);
         });
 
-        if (window.electron?.onPlaybackPositionUpdate) {
-            this.unsubscribePositionUpdates =
-                window.electron.onPlaybackPositionUpdate(
-                    (data: PlaybackPositionData) => {
-                        const playlistId =
-                            this.stalkerStore.currentPlaylist()?._id;
-                        const item = this.displayItem();
-                        const seriesId = item ? this.toSeriesId(item.id) : 0;
+        this.unsubscribePositionUpdates =
+            this.playbackPositionBridge.onPlaybackPositionUpdate(
+                (data: PlaybackPositionData) => {
+                    const playlistId = this.stalkerStore.currentPlaylist()?._id;
+                    const item = this.displayItem();
+                    const seriesId = item ? this.toSeriesId(item.id) : 0;
 
-                        if (
-                            data.contentType !== 'episode' ||
-                            data.playlistId !== playlistId ||
-                            data.seriesXtreamId !== seriesId
-                        ) {
-                            return;
-                        }
-
-                        this.updateEpisodePlaybackPosition(data);
+                    if (
+                        data.contentType !== 'episode' ||
+                        data.playlistId !== playlistId ||
+                        data.seriesXtreamId !== seriesId
+                    ) {
+                        return;
                     }
-                );
-        }
+
+                    this.updateEpisodePlaybackPosition(data);
+                }
+            ) ?? null;
     }
 
     /**

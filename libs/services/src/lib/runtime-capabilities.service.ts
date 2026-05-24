@@ -8,6 +8,16 @@ type RuntimeWindow = Window & {
     electron?: RuntimeElectronBridge;
 };
 
+const playbackPositionStorageMethods = [
+    'dbSavePlaybackPosition',
+    'dbGetPlaybackPosition',
+    'dbGetSeriesPlaybackPositions',
+    'dbGetRecentPlaybackPositions',
+    'dbGetAllPlaybackPositions',
+    'dbClearAllPlaybackPositions',
+    'dbClearPlaybackPosition',
+];
+
 @Injectable({ providedIn: 'root' })
 export class RuntimeCapabilitiesService {
     get environment(): RuntimeEnvironment {
@@ -120,16 +130,20 @@ export class RuntimeCapabilitiesService {
             'dbRemoveRecentItem',
             'dbClearPlaylistRecentItems',
             'dbGetContentByXtreamId',
-            'dbSavePlaybackPosition',
-            'dbGetPlaybackPosition',
-            'dbGetSeriesPlaybackPositions',
-            'dbGetRecentPlaybackPositions',
-            'dbGetAllPlaybackPositions',
-            'dbClearAllPlaybackPositions',
-            'dbClearPlaybackPosition',
+            ...playbackPositionStorageMethods,
             'dbDeleteXtreamContent',
             'dbRestoreXtreamUserData',
         ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
+    get supportsPlaybackPositionStorage(): boolean {
+        return playbackPositionStorageMethods.every((methodName) =>
+            this.hasElectronMethod(methodName)
+        );
+    }
+
+    get supportsPlaybackPositionUpdates(): boolean {
+        return this.hasElectronMethod('onPlaybackPositionUpdate');
     }
 
     get supportsDownloads(): boolean {

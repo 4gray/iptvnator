@@ -1,16 +1,24 @@
-import { Injectable } from '@angular/core';
+import { inject, Injectable } from '@angular/core';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import { PlaybackPositionRuntimeBridgeService } from './playback-position-runtime-bridge.service';
 
 @Injectable({
     providedIn: 'root',
 })
 export class PlaybackPositionService {
+    private readonly playbackPositionBridge = inject(
+        PlaybackPositionRuntimeBridgeService
+    );
+
     async savePlaybackPosition(
         playlistId: string,
         data: PlaybackPositionData
     ): Promise<void> {
         try {
-            await window.electron.dbSavePlaybackPosition(playlistId, data);
+            await this.playbackPositionBridge.savePlaybackPosition(
+                playlistId,
+                data
+            );
         } catch (error) {
             console.error('Error saving playback position:', error);
         }
@@ -22,7 +30,7 @@ export class PlaybackPositionService {
         contentType: 'vod' | 'episode'
     ): Promise<PlaybackPositionData | null> {
         try {
-            return await window.electron.dbGetPlaybackPosition(
+            return await this.playbackPositionBridge.getPlaybackPosition(
                 playlistId,
                 contentXtreamId,
                 contentType
@@ -38,7 +46,7 @@ export class PlaybackPositionService {
         seriesXtreamId: number
     ): Promise<PlaybackPositionData[]> {
         try {
-            return await window.electron.dbGetSeriesPlaybackPositions(
+            return await this.playbackPositionBridge.getSeriesPlaybackPositions(
                 playlistId,
                 seriesXtreamId
             );
@@ -53,7 +61,7 @@ export class PlaybackPositionService {
         limit?: number
     ): Promise<PlaybackPositionData[]> {
         try {
-            return await window.electron.dbGetRecentPlaybackPositions(
+            return await this.playbackPositionBridge.getRecentPlaybackPositions(
                 playlistId,
                 limit
             );
@@ -67,7 +75,9 @@ export class PlaybackPositionService {
         playlistId: string
     ): Promise<PlaybackPositionData[]> {
         try {
-            return await window.electron.dbGetAllPlaybackPositions(playlistId);
+            return await this.playbackPositionBridge.getAllPlaybackPositions(
+                playlistId
+            );
         } catch (error) {
             console.error('Error getting all playback positions:', error);
             return [];
@@ -76,7 +86,9 @@ export class PlaybackPositionService {
 
     async clearAllPlaybackPositions(playlistId: string): Promise<void> {
         try {
-            await window.electron.dbClearAllPlaybackPositions(playlistId);
+            await this.playbackPositionBridge.clearAllPlaybackPositions(
+                playlistId
+            );
         } catch (error) {
             console.error('Error clearing all playback positions:', error);
         }
@@ -88,7 +100,7 @@ export class PlaybackPositionService {
         contentType: 'vod' | 'episode'
     ): Promise<void> {
         try {
-            await window.electron.dbClearPlaybackPosition(
+            await this.playbackPositionBridge.clearPlaybackPosition(
                 playlistId,
                 contentXtreamId,
                 contentType
