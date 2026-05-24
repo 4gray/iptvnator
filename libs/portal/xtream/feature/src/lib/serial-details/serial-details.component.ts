@@ -29,6 +29,7 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -71,6 +72,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly playbackPositionBridge = inject(
+        PlaybackPositionRuntimeBridgeService
+    );
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly snackBar = inject(MatSnackBar);
@@ -212,25 +216,23 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             this.activeEpisodeId.set(null);
         });
 
-        if (window.electron?.onPlaybackPositionUpdate) {
-            this.unsubscribePositionUpdates =
-                window.electron.onPlaybackPositionUpdate(
-                    (data: PlaybackPositionData) => {
-                        const selectedItem = this.selectedItem();
+        this.unsubscribePositionUpdates =
+            this.playbackPositionBridge.onPlaybackPositionUpdate(
+                (data: PlaybackPositionData) => {
+                    const selectedItem = this.selectedItem();
 
-                        if (
-                            data.contentType !== 'episode' ||
-                            data.playlistId !== this.currentPlaylistId() ||
-                            data.seriesXtreamId !==
-                                Number(selectedItem?.series_id ?? 0)
-                        ) {
-                            return;
-                        }
-
-                        this.updateEpisodePlaybackPosition(data);
+                    if (
+                        data.contentType !== 'episode' ||
+                        data.playlistId !== this.currentPlaylistId() ||
+                        data.seriesXtreamId !==
+                            Number(selectedItem?.series_id ?? 0)
+                    ) {
+                        return;
                     }
-                );
-        }
+
+                    this.updateEpisodePlaybackPosition(data);
+                }
+            ) ?? null;
     }
 
     ngOnInit(): void {

@@ -25,6 +25,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsPlaybackPositionStorage).toBe(false);
+        expect(service.supportsPlaybackPositionUpdates).toBe(false);
         expect(service.supportsAppStateStorage).toBe(false);
         expect(service.supportsStalkerPlaylistSqliteSync).toBe(false);
         expect(service.supportsPlaylistRefresh).toBe(false);
@@ -90,6 +92,7 @@ describe('RuntimeCapabilitiesService', () => {
             dbGetAllPlaybackPositions: jest.fn(),
             dbClearAllPlaybackPositions: jest.fn(),
             dbClearPlaybackPosition: jest.fn(),
+            onPlaybackPositionUpdate: jest.fn(),
             dbDeleteXtreamContent: jest.fn(),
             dbRestoreXtreamUserData: jest.fn(),
             downloadsStart: jest.fn(),
@@ -142,6 +145,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(true);
         expect(service.supportsDownloads).toBe(true);
         expect(service.supportsPortalActivityStorage).toBe(true);
+        expect(service.supportsPlaybackPositionStorage).toBe(true);
+        expect(service.supportsPlaybackPositionUpdates).toBe(true);
         expect(service.supportsAppStateStorage).toBe(true);
         expect(service.supportsStalkerPlaylistSqliteSync).toBe(true);
         expect(service.supportsPlaylistRefresh).toBe(true);
@@ -177,6 +182,8 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
+        expect(service.supportsPlaybackPositionStorage).toBe(false);
+        expect(service.supportsPlaybackPositionUpdates).toBe(false);
         expect(service.supportsAppStateStorage).toBe(false);
         expect(service.supportsStalkerPlaylistSqliteSync).toBe(false);
         expect(service.supportsPlaylistRefresh).toBe(false);
@@ -424,6 +431,39 @@ describe('RuntimeCapabilitiesService', () => {
         testWindow.electron = createPlaylistStorageBridge();
 
         expect(service.supportsSqlite).toBe(true);
+    });
+
+    it('checks playback-position storage and update bridge capabilities independently', () => {
+        testWindow.electron = {
+            dbSavePlaybackPosition: jest.fn(),
+            dbGetPlaybackPosition: jest.fn(),
+            dbGetSeriesPlaybackPositions: jest.fn(),
+            dbGetRecentPlaybackPositions: jest.fn(),
+            dbGetAllPlaybackPositions: jest.fn(),
+            dbClearAllPlaybackPositions: jest.fn(),
+        };
+
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.supportsPlaybackPositionStorage).toBe(false);
+        expect(service.supportsPlaybackPositionUpdates).toBe(false);
+
+        testWindow.electron = {
+            ...testWindow.electron,
+            dbClearPlaybackPosition: jest.fn(),
+        };
+
+        expect(service.supportsPlaybackPositionStorage).toBe(true);
+        expect(service.supportsPlaybackPositionUpdates).toBe(false);
+
+        testWindow.electron = {
+            ...testWindow.electron,
+            onPlaybackPositionUpdate: jest.fn(),
+        };
+
+        expect(service.supportsPlaybackPositionStorage).toBe(true);
+        expect(service.supportsPlaybackPositionUpdates).toBe(true);
+        expect(service.supportsXtreamSqliteDataSource).toBe(false);
     });
 
     it('supports Xtream section navigation in Electron when Xtream API transport is available', () => {

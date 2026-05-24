@@ -2,6 +2,7 @@ import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PORTAL_PLAYBACK_POSITIONS } from '@iptvnator/portal/shared/util';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { StalkerCatalogFacadeService } from './stalker-catalog-facade.service';
 
@@ -19,13 +20,34 @@ describe('StalkerCatalogFacadeService', () => {
     let playbackUpdateHandler:
         | ((data: PlaybackPositionData) => void)
         | undefined;
+    let playbackPositionBridge: {
+        onPlaybackPositionUpdate: jest.Mock<
+            (() => void) | undefined,
+            [(data: PlaybackPositionData) => void]
+        >;
+    };
     let playbackPositions: {
-        savePlaybackPosition: jest.Mock<Promise<void>, [string, PlaybackPositionData]>;
-        getPlaybackPosition: jest.Mock<Promise<PlaybackPositionData | null>, [string, number, 'vod' | 'episode']>;
-        getSeriesPlaybackPositions: jest.Mock<Promise<PlaybackPositionData[]>, [string, number]>;
+        savePlaybackPosition: jest.Mock<
+            Promise<void>,
+            [string, PlaybackPositionData]
+        >;
+        getPlaybackPosition: jest.Mock<
+            Promise<PlaybackPositionData | null>,
+            [string, number, 'vod' | 'episode']
+        >;
+        getSeriesPlaybackPositions: jest.Mock<
+            Promise<PlaybackPositionData[]>,
+            [string, number]
+        >;
         getRecentPlaybackPositions?: jest.Mock;
-        getAllPlaybackPositions: jest.Mock<Promise<PlaybackPositionData[]>, [string]>;
-        clearPlaybackPosition: jest.Mock<Promise<void>, [string, number, 'vod' | 'episode']>;
+        getAllPlaybackPositions: jest.Mock<
+            Promise<PlaybackPositionData[]>,
+            [string]
+        >;
+        clearPlaybackPosition: jest.Mock<
+            Promise<void>,
+            [string, number, 'vod' | 'episode']
+        >;
     };
 
     beforeEach(() => {
@@ -38,9 +60,7 @@ describe('StalkerCatalogFacadeService', () => {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
         };
-
-        (window as Window & { electron?: typeof window.electron }).electron = {
-            ...(window.electron ?? {}),
+        playbackPositionBridge = {
             onPlaybackPositionUpdate: jest.fn(
                 (handler: (data: PlaybackPositionData) => void) => {
                     playbackUpdateHandler = handler;
@@ -55,7 +75,9 @@ describe('StalkerCatalogFacadeService', () => {
                 {
                     provide: StalkerStore,
                     useValue: {
-                        selectedContentType: signal<'vod' | 'series' | 'itv'>('vod'),
+                        selectedContentType: signal<'vod' | 'series' | 'itv'>(
+                            'vod'
+                        ),
                         limit: signal(14),
                         page: signal(0),
                         getSelectedCategory: signal(null),
@@ -82,6 +104,10 @@ describe('StalkerCatalogFacadeService', () => {
                 {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: playbackPositions,
+                },
+                {
+                    provide: PlaybackPositionRuntimeBridgeService,
+                    useValue: playbackPositionBridge,
                 },
             ],
         });

@@ -79,6 +79,11 @@ storage preload API surface used by `PlaylistsService`, `supportsDownloads`
 requires the complete downloads preload API surface used by `DownloadsService`,
 and EPG renderer code should use `EpgRuntimeBridgeService` from
 `@iptvnator/epg/data-access` instead of calling `window.electron` directly.
+Playback-position renderer code should use `PlaybackPositionRuntimeBridgeService`
+from `@iptvnator/services` for Electron SQLite persistence and external-player
+position update events; `supportsPlaybackPositionStorage` and
+`supportsPlaybackPositionUpdates` describe those surfaces independently so PWA
+and partial Electron bridges can degrade without direct preload checks.
 `supportsEpg` remains the aggregate full EPG capability, while narrower runtime
 capabilities cover individual EPG surfaces: import/progress, current-program
 lookup, optional current-program batch reads, optional channel metadata,

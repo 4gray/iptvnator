@@ -27,7 +27,11 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
+import {
+    DownloadsService,
+    PlaybackPositionRuntimeBridgeService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     PlaybackPositionData,
     PlayerContentInfo,
@@ -64,6 +68,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly route = inject(ActivatedRoute);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly playbackPositionBridge = inject(
+        PlaybackPositionRuntimeBridgeService
+    );
     private readonly downloadsService = inject(DownloadsService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
@@ -93,23 +100,21 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
 
         return (
-            this.xtreamStore
-                .vodCategories()
-                .find(
-                    (category) =>
-                        String(
+            this.xtreamStore.vodCategories().find(
+                (category) =>
+                    String(
+                        (
+                            category as XtreamCategory & {
+                                id?: string | number;
+                            }
+                        ).category_id ??
                             (
                                 category as XtreamCategory & {
                                     id?: string | number;
                                 }
-                            ).category_id ??
-                                (
-                                    category as XtreamCategory & {
-                                        id?: string | number;
-                                    }
-                                ).id
-                        ) === String(categoryId)
-                ) ?? null
+                            ).id
+                    ) === String(categoryId)
+            ) ?? null
         );
     });
     readonly selectedCatalogItem = computed<
@@ -309,26 +314,23 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             });
         });
 
-        if (window.electron?.onPlaybackPositionUpdate) {
-            this.unsubscribePositionUpdates =
-                window.electron.onPlaybackPositionUpdate(
-                    (data: PlaybackPositionData) => {
-                        const playlistId =
-                            this.xtreamStore.currentPlaylist()?.id;
-                        const vodId = Number(this.route.snapshot.params.vodId);
+        this.unsubscribePositionUpdates =
+            this.playbackPositionBridge.onPlaybackPositionUpdate(
+                (data: PlaybackPositionData) => {
+                    const playlistId = this.xtreamStore.currentPlaylist()?.id;
+                    const vodId = Number(this.route.snapshot.params.vodId);
 
-                        if (
-                            data.contentType !== 'vod' ||
-                            data.playlistId !== playlistId ||
-                            data.contentXtreamId !== vodId
-                        ) {
-                            return;
-                        }
-
-                        this.vodPlaybackPosition.set(data);
+                    if (
+                        data.contentType !== 'vod' ||
+                        data.playlistId !== playlistId ||
+                        data.contentXtreamId !== vodId
+                    ) {
+                        return;
                     }
-                );
-        }
+
+                    this.vodPlaybackPosition.set(data);
+                }
+            ) ?? null;
     }
 
     ngOnInit(): void {

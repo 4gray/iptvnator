@@ -12,6 +12,7 @@ import {
     StalkerStore,
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
+import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
     PortalCatalogItemProgress,
     PortalCatalogPlaylistMeta,
@@ -44,6 +45,9 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
 > {
     private readonly stalkerStore = inject(StalkerStore);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
+    private readonly playbackPositionBridge = inject(
+        PlaybackPositionRuntimeBridgeService
+    );
     private readonly destroyRef = inject(DestroyRef);
     private readonly stalkerPositions = signal<
         Map<string, PlaybackPositionData>
@@ -118,8 +122,8 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
             void this.loadStalkerPositions(playlistId);
         });
 
-        if (window.electron?.onPlaybackPositionUpdate) {
-            const unsubscribe = window.electron.onPlaybackPositionUpdate(
+        const unsubscribe =
+            this.playbackPositionBridge.onPlaybackPositionUpdate(
                 (data: PlaybackPositionData) => {
                     if (
                         !data.playlistId ||
@@ -143,9 +147,8 @@ export class StalkerCatalogFacadeService implements StalkerPortalCatalogFacade<
                 }
             );
 
-            if (typeof unsubscribe === 'function') {
-                this.destroyRef.onDestroy(unsubscribe);
-            }
+        if (unsubscribe) {
+            this.destroyRef.onDestroy(unsubscribe);
         }
     }
 
