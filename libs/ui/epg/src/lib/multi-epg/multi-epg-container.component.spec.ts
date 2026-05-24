@@ -3,7 +3,7 @@ import { OverlayRef } from '@angular/cdk/overlay';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     MultiEpgContainerComponent,
     isSelectedEpgDayToday,
@@ -23,11 +23,15 @@ describe('isSelectedEpgDayToday', () => {
 describe('MultiEpgContainerComponent runtime gates', () => {
     let fixture: ComponentFixture<MultiEpgContainerComponent>;
     let component: MultiEpgContainerComponent;
-    let runtimeCapabilities: { supportsEpg: boolean };
-    const originalElectron = window.electron;
+    let epgBridge: Partial<EpgRuntimeBridgeService>;
 
     beforeEach(async () => {
-        runtimeCapabilities = { supportsEpg: false };
+        epgBridge = {
+            getChannelsByRange: jest.fn().mockResolvedValue([]),
+            searchPrograms: jest.fn().mockResolvedValue([]),
+            supportsChannelBrowser: false,
+            supportsProgramSearch: false,
+        };
 
         await TestBed.configureTestingModule({
             imports: [MultiEpgContainerComponent],
@@ -42,8 +46,8 @@ describe('MultiEpgContainerComponent runtime gates', () => {
                     useValue: { detach: jest.fn() },
                 },
                 {
-                    provide: RuntimeCapabilitiesService,
-                    useValue: runtimeCapabilities,
+                    provide: EpgRuntimeBridgeService,
+                    useValue: epgBridge,
                 },
                 {
                     provide: TranslateService,
@@ -65,65 +69,50 @@ describe('MultiEpgContainerComponent runtime gates', () => {
     });
 
     afterEach(() => {
-        window.electron = originalElectron;
         fixture.destroy();
         jest.restoreAllMocks();
         jest.useRealTimers();
     });
 
-    it('does not request EPG channel ranges when runtime EPG support is disabled', async () => {
-        const getEpgChannelsByRange = jest.fn().mockResolvedValue([]);
-        window.electron = {
-            ...window.electron,
-            getEpgChannelsByRange,
-        } as unknown as typeof window.electron;
+    it('does not request EPG channel ranges when the EPG bridge cannot browse channels', async () => {
         jest.spyOn(console, 'warn').mockImplementation(() => undefined);
 
         await component.requestPrograms();
 
-        expect(getEpgChannelsByRange).not.toHaveBeenCalled();
+        expect(epgBridge.getChannelsByRange).not.toHaveBeenCalled();
         expect(component.isLoading()).toBe(false);
     });
 
-    it('requests EPG channel ranges when runtime EPG support is enabled', async () => {
-        const getEpgChannelsByRange = jest.fn().mockResolvedValue([
+    it('requests EPG channel ranges through the EPG runtime bridge', async () => {
+        epgBridge.getChannelsByRange = jest.fn().mockResolvedValue([
             {
                 channel_id: 'channel-1',
                 display_name: 'Channel One',
                 programs: [],
             },
         ]);
-        window.electron = {
-            ...window.electron,
-            getEpgChannelsByRange,
-        } as unknown as typeof window.electron;
-        runtimeCapabilities.supportsEpg = true;
+        epgBridge.supportsChannelBrowser = true;
 
         await component.requestPrograms();
 
-        expect(getEpgChannelsByRange).toHaveBeenCalledWith(0, 20);
+        expect(epgBridge.getChannelsByRange).toHaveBeenCalledWith(0, 20);
         expect(component.isLoading()).toBe(false);
     });
 
-    it('does not search EPG programs when runtime EPG support is disabled', () => {
+    it('does not search EPG programs when the EPG bridge cannot search programs', () => {
         jest.useFakeTimers();
-        const searchEpgPrograms = jest.fn().mockResolvedValue([]);
-        window.electron = {
-            ...window.electron,
-            searchEpgPrograms,
-        } as unknown as typeof window.electron;
 
         component.onProgramSearchInput({
             target: { value: 'news' },
         } as unknown as Event);
         jest.advanceTimersByTime(600);
 
-        expect(searchEpgPrograms).not.toHaveBeenCalled();
+        expect(epgBridge.searchPrograms).not.toHaveBeenCalled();
         expect(component.isSearchingPrograms()).toBe(false);
         expect(component.programSearchResults()).toEqual([]);
     });
 
-    it('searches EPG programs when runtime EPG support is enabled', async () => {
+    it('searches EPG programs through the EPG runtime bridge', async () => {
         jest.useFakeTimers();
         const results = [
             {
@@ -133,12 +122,8 @@ describe('MultiEpgContainerComponent runtime gates', () => {
                 title: 'News',
             },
         ];
-        const searchEpgPrograms = jest.fn().mockResolvedValue(results);
-        window.electron = {
-            ...window.electron,
-            searchEpgPrograms,
-        } as unknown as typeof window.electron;
-        runtimeCapabilities.supportsEpg = true;
+        epgBridge.searchPrograms = jest.fn().mockResolvedValue(results);
+        epgBridge.supportsProgramSearch = true;
 
         component.onProgramSearchInput({
             target: { value: 'news' },
@@ -146,7 +131,7 @@ describe('MultiEpgContainerComponent runtime gates', () => {
         jest.advanceTimersByTime(500);
         await Promise.resolve();
 
-        expect(searchEpgPrograms).toHaveBeenCalledWith('news', 20);
+        expect(epgBridge.searchPrograms).toHaveBeenCalledWith('news', 20);
         expect(component.programSearchResults()).toEqual(results);
         expect(component.isSearchingPrograms()).toBe(false);
     });

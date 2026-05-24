@@ -1,17 +1,12 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
-
-export interface EpgImportProgress {
-    url: string;
-    status: 'queued' | 'loading' | 'complete' | 'error';
-    stats?: { totalChannels: number; totalPrograms: number };
-    error?: string;
-    queuePosition?: number;
-}
+import {
+    EpgImportProgress,
+    EpgRuntimeBridgeService,
+} from './epg-runtime-bridge.service';
 
 @Injectable({ providedIn: 'root' })
 export class EpgProgressService {
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly importsMap = signal<Map<string, EpgImportProgress>>(
         new Map()
     );
@@ -50,10 +45,10 @@ export class EpgProgressService {
         // Clear the errored row so the backend's subsequent 'queued' event
         // reappears cleanly rather than updating an existing error row.
         this.removeImport(url);
-        if (!this.runtime.supportsEpg) {
+        if (!this.epgBridge.supportsDataManagement) {
             return;
         }
-        void window.electron.forceFetchEpg(url);
+        void this.epgBridge.forceFetchEpg(url);
     }
 
     private initializeListener(): void {
@@ -62,8 +57,8 @@ export class EpgProgressService {
         }
         this.initialized = true;
 
-        if (this.runtime.supportsEpg && window.electron?.onEpgProgress) {
-            window.electron.onEpgProgress((data) => {
+        if (this.epgBridge.supportsProgress) {
+            this.epgBridge.onProgress((data) => {
                 this.updateProgress(data);
             });
         }

@@ -4,7 +4,7 @@ import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
@@ -38,6 +38,7 @@ export class AppComponent implements OnInit {
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
+    private epgBridge = inject(EpgRuntimeBridgeService);
     private epgService = inject(EpgService);
     private snackBar = inject(MatSnackBar);
     private router = inject(Router);
@@ -131,7 +132,7 @@ export class AppComponent implements OnInit {
 
                     // Fetch EPG if URLs are configured (only fetch stale data)
                     if (
-                        this.runtime.supportsEpg &&
+                        this.epgBridge.supportsImport &&
                         settings.epgUrl?.length > 0 &&
                         settings.epgUrl?.some((u) => u !== '')
                     ) {
@@ -169,8 +170,18 @@ export class AppComponent implements OnInit {
      * Data is considered fresh if updated within the last 12 hours.
      */
     private async fetchStaleEpgData(urls: string[]): Promise<void> {
+        if (!this.epgBridge.supportsSourceFreshness) {
+            this.epgService.fetchEpg(urls);
+            return;
+        }
+
         try {
-            const result = await window.electron.checkEpgFreshness(urls, 12);
+            const result = await this.epgBridge.checkFreshness(urls, 12);
+
+            if (!result) {
+                this.epgService.fetchEpg(urls);
+                return;
+            }
 
             if (result.freshUrls.length > 0) {
                 debugAppComponent(

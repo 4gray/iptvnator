@@ -18,7 +18,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { EpgService } from '@iptvnator/epg/data-access';
+import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
 import { Store } from '@ngrx/store';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -142,6 +142,7 @@ describe('SettingsComponent', () => {
     let mockStore: MockStore;
     let databaseService: DatabaseService;
     let snackBar: MatSnackBarStub;
+    let epgBridge: Partial<EpgRuntimeBridgeService>;
     const originalElectron = window.electron;
     const importDate = '2026-04-21T00:00:00.000Z';
 
@@ -162,6 +163,13 @@ describe('SettingsComponent', () => {
         }) as unknown as ReturnType<MatDialog['open']>;
 
     beforeEach(waitForAsync(() => {
+        epgBridge = {
+            clearEpgData: jest.fn().mockResolvedValue({ success: true }),
+            forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
+            supportsDataManagement: true,
+            supportsImport: true,
+        };
+
         TestBed.configureTestingModule({
             providers: [
                 UntypedFormBuilder,
@@ -169,6 +177,10 @@ describe('SettingsComponent', () => {
                 MockProvider(EpgService, {
                     fetchEpg: jest.fn(),
                 }),
+                {
+                    provide: EpgRuntimeBridgeService,
+                    useValue: epgBridge,
+                },
                 MockProvider(DialogService, {
                     openConfirmDialog: jest.fn(),
                 }),
@@ -480,6 +492,7 @@ describe('SettingsComponent', () => {
 
         it('hides external player path settings when the Electron bridge is incomplete', async () => {
             fixture.destroy();
+            epgBridge.supportsImport = false;
             window.electron = {
                 getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
                 platform: 'linux',
@@ -797,6 +810,7 @@ describe('SettingsComponent', () => {
     it('falls back to PlaylistsService.removeAll outside Electron', async () => {
         fixture.destroy();
         window.electron = undefined as unknown as typeof window.electron;
+        epgBridge.supportsImport = false;
 
         const browserFixture = TestBed.createComponent(SettingsComponent);
         const browserComponent = browserFixture.componentInstance;
@@ -863,7 +877,7 @@ describe('SettingsComponent', () => {
     it('should force-fetch EPG for a single URL (bypassing freshness cache)', () => {
         const url = 'http://epg-url-here/data.xml';
         component.refreshEpg(url);
-        expect(window.electron.forceFetchEpg).toHaveBeenCalledWith(url);
+        expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(url);
     });
 
     it('clears EPG data with a busy state and refreshes all sources on success', async () => {
@@ -871,9 +885,7 @@ describe('SettingsComponent', () => {
         const clearPromise = new Promise<{ success: boolean }>((resolve) => {
             resolveClear = () => resolve({ success: true });
         });
-        (window.electron.clearEpgData as jest.Mock).mockReturnValue(
-            clearPromise
-        );
+        (epgBridge.clearEpgData as jest.Mock).mockReturnValue(clearPromise);
         (dialogService.openConfirmDialog as jest.Mock).mockImplementation(
             ({ onConfirm }: { onConfirm: () => Promise<void> }) => {
                 void onConfirm();
@@ -1014,7 +1026,7 @@ describe('SettingsComponent', () => {
     });
 
     it('shows a failure snackbar and skips refresh when clearing EPG data rejects', async () => {
-        (window.electron.clearEpgData as jest.Mock).mockRejectedValueOnce(
+        (epgBridge.clearEpgData as jest.Mock).mockRejectedValueOnce(
             new Error('boom')
         );
         (dialogService.openConfirmDialog as jest.Mock).mockImplementation(

@@ -1,19 +1,26 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { signal } from '@angular/core';
 import { TranslateModule } from '@ngx-translate/core';
-import { EpgProgressService } from '@iptvnator/epg/data-access';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import {
+    EpgProgressService,
+    EpgRuntimeBridgeService,
+} from '@iptvnator/epg/data-access';
 import { EpgSourceStatusComponent } from './epg-source-status.component';
 
 describe('EpgSourceStatusComponent', () => {
     let fixture: ComponentFixture<EpgSourceStatusComponent>;
     let component: EpgSourceStatusComponent;
-    let runtimeCapabilities: { supportsEpg: boolean };
+    let epgBridge: Partial<EpgRuntimeBridgeService>;
     const imports = signal([]);
-    const originalElectron = window.electron;
 
     beforeEach(async () => {
-        runtimeCapabilities = { supportsEpg: false };
+        epgBridge = {
+            checkFreshness: jest.fn().mockResolvedValue({
+                freshUrls: ['https://example.com/epg.xml'],
+                staleUrls: [],
+            }),
+            supportsSourceFreshness: false,
+        };
         imports.set([]);
 
         await TestBed.configureTestingModule({
@@ -24,15 +31,14 @@ describe('EpgSourceStatusComponent', () => {
                     useValue: { imports },
                 },
                 {
-                    provide: RuntimeCapabilitiesService,
-                    useValue: runtimeCapabilities,
+                    provide: EpgRuntimeBridgeService,
+                    useValue: epgBridge,
                 },
             ],
         }).compileComponents();
     });
 
     afterEach(() => {
-        window.electron = originalElectron;
         fixture?.destroy();
     });
 
@@ -42,41 +48,25 @@ describe('EpgSourceStatusComponent', () => {
         fixture.componentRef.setInput('url', url);
     }
 
-    it('does not check source freshness when runtime EPG support is disabled', async () => {
-        const checkEpgFreshness = jest.fn().mockResolvedValue({
-            freshUrls: ['https://example.com/epg.xml'],
-            staleUrls: [],
-        });
-        window.electron = {
-            ...window.electron,
-            checkEpgFreshness,
-        } as unknown as typeof window.electron;
+    it('does not check source freshness when the EPG bridge cannot check freshness', async () => {
         createComponent();
 
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(checkEpgFreshness).not.toHaveBeenCalled();
+        expect(epgBridge.checkFreshness).not.toHaveBeenCalled();
         expect(component.status()).toBe('unknown');
     });
 
-    it('loads source freshness when runtime EPG support is enabled', async () => {
+    it('loads source freshness through the EPG runtime bridge', async () => {
         const url = 'https://example.com/epg.xml';
-        const checkEpgFreshness = jest.fn().mockResolvedValue({
-            freshUrls: [url],
-            staleUrls: [],
-        });
-        window.electron = {
-            ...window.electron,
-            checkEpgFreshness,
-        } as unknown as typeof window.electron;
-        runtimeCapabilities.supportsEpg = true;
+        epgBridge.supportsSourceFreshness = true;
         createComponent(url);
 
         fixture.detectChanges();
         await fixture.whenStable();
 
-        expect(checkEpgFreshness).toHaveBeenCalledWith([url], 12);
+        expect(epgBridge.checkFreshness).toHaveBeenCalledWith([url], 12);
         expect(component.status()).toBe('fresh');
     });
 });

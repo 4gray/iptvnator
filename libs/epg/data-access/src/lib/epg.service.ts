@@ -8,19 +8,13 @@ import {
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
 interface CachedProgram {
     program: EpgProgram | null;
     timestamp: number;
 }
-
-type EpgChannelMetadataApi = {
-    getEpgChannelMetadata?: (
-        channelIds: string[]
-    ) => Promise<Record<string, EpgChannelMetadata | null>>;
-};
 
 const debugEpgService = createDevLogger('EpgService');
 
@@ -30,7 +24,7 @@ const debugEpgService = createDevLogger('EpgService');
 export class EpgService {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
-    private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -46,15 +40,17 @@ export class EpgService {
      * Fetches EPG from the given URLs
      */
     fetchEpg(urls: string[]): void {
-        if (!this.runtime.supportsEpg) return;
+        if (!this.epgBridge.supportsImport) return;
 
         // Filter out empty URLs and send all URLs at once
         const validUrls = urls.filter((url) => url?.trim());
         if (validUrls.length === 0) return;
 
-        from(window.electron.fetchEpg(validUrls))
+        from(this.epgBridge.fetchEpg(validUrls))
             .pipe(
                 tap((result) => {
+                    if (result === null) return;
+
                     if (result.success) {
                         this.epgAvailable.next(true);
                     } else {
@@ -76,13 +72,13 @@ export class EpgService {
      * Gets EPG programs for a specific channel
      */
     getChannelPrograms(channelId: string): void {
-        if (!this.runtime.supportsEpg) return;
+        if (!this.epgBridge.supportsProgramLookup) return;
         debugEpgService('Fetching EPG for channel ID:', channelId);
 
-        from(window.electron.getChannelPrograms(channelId))
+        from(this.epgBridge.getChannelPrograms(channelId))
             .pipe(
                 timeout(3000),
-                map((programs: EpgProgram[]) => normalizeEpgPrograms(programs)),
+                map((programs) => normalizeEpgPrograms(programs ?? [])),
                 catchError((err) => {
                     console.error('EPG get programs error:', err);
                     this.showErrorSnackbar();
@@ -116,7 +112,7 @@ export class EpgService {
     getCurrentProgramForChannel(
         channelId: string
     ): Observable<EpgProgram | null> {
-        if (!this.runtime.supportsEpg || !channelId) {
+        if (!this.epgBridge.supportsProgramLookup || !channelId) {
             return of(null);
         }
 
@@ -129,8 +125,8 @@ export class EpgService {
         }
 
         // Fetch from backend
-        return from(window.electron.getChannelPrograms(channelId)).pipe(
-            map((programs: EpgProgram[]) => normalizeEpgPrograms(programs)),
+        return from(this.epgBridge.getChannelPrograms(channelId)).pipe(
+            map((programs) => normalizeEpgPrograms(programs ?? [])),
             map((programs: EpgProgram[]) => {
                 if (!programs.length) {
                     this.programCache.set(channelId, {
@@ -184,7 +180,7 @@ export class EpgService {
     getCurrentProgramsForChannels(
         channelIds: string[]
     ): Observable<Map<string, EpgProgram | null>> {
-        if (!this.runtime.supportsEpg) {
+        if (!this.epgBridge.supportsProgramLookup) {
             return of(new Map());
         }
 
@@ -214,13 +210,10 @@ export class EpgService {
         // Single batched IPC + SQL query when the backend supports it.
         // Replaces the legacy N+1 forkJoin where each channel fired its own
         // GET_CHANNEL_PROGRAMS round-trip.
-        const batchApi = window.electron as Window['electron'] & {
-            getCurrentProgramsBatch?: (
-                channelIds: string[]
-            ) => Promise<Record<string, EpgProgram | null>>;
-        };
-        if (typeof batchApi?.getCurrentProgramsBatch === 'function') {
-            return from(batchApi.getCurrentProgramsBatch(channelsToFetch)).pipe(
+        if (this.epgBridge.supportsCurrentProgramBatch) {
+            return from(
+                this.epgBridge.getCurrentProgramsBatch(channelsToFetch)
+            ).pipe(
                 timeout(5000),
                 map((batchResult) => {
                     const cacheTimestamp = Date.now();
@@ -263,7 +256,7 @@ export class EpgService {
     getChannelMetadataForChannels(
         channelIds: string[]
     ): Observable<Map<string, EpgChannelMetadata | null>> {
-        if (!this.runtime.supportsEpg) {
+        if (!this.epgBridge.supportsChannelMetadata) {
             return of(new Map());
         }
 
@@ -279,20 +272,12 @@ export class EpgService {
             return of(new Map());
         }
 
-        const getEpgChannelMetadata = (
-            window.electron as EpgChannelMetadataApi | undefined
-        )?.getEpgChannelMetadata;
-
-        if (typeof getEpgChannelMetadata !== 'function') {
-            return of(new Map());
-        }
-
-        return from(getEpgChannelMetadata(normalizedChannelIds)).pipe(
+        return from(this.epgBridge.getChannelMetadata(normalizedChannelIds)).pipe(
             map((metadataByChannelId) => {
                 return new Map<string, EpgChannelMetadata | null>(
                     normalizedChannelIds.map((channelId) => [
                         channelId,
-                        metadataByChannelId[channelId] ?? null,
+                        metadataByChannelId?.[channelId] ?? null,
                     ])
                 );
             }),
