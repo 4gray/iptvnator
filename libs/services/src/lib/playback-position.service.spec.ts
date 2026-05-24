@@ -1,10 +1,15 @@
-import { TestBed } from '@angular/core/testing';
+import {
+    DestroyableInjector,
+    Injector,
+    runInInjectionContext,
+} from '@angular/core';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PlaybackPositionRuntimeBridgeService } from './playback-position-runtime-bridge.service';
 import { PlaybackPositionService } from './playback-position.service';
 
 describe('PlaybackPositionService', () => {
     let service: PlaybackPositionService;
+    let injector: DestroyableInjector;
     let bridge: jest.Mocked<
         Pick<
             PlaybackPositionRuntimeBridgeService,
@@ -29,7 +34,7 @@ describe('PlaybackPositionService', () => {
             clearPlaybackPosition: jest.fn().mockResolvedValue(undefined),
         };
 
-        TestBed.configureTestingModule({
+        injector = Injector.create({
             providers: [
                 PlaybackPositionService,
                 {
@@ -39,11 +44,13 @@ describe('PlaybackPositionService', () => {
             ],
         });
 
-        service = TestBed.inject(PlaybackPositionService);
+        service = runInInjectionContext(injector, () =>
+            injector.get(PlaybackPositionService)
+        );
     });
 
     afterEach(() => {
-        TestBed.resetTestingModule();
+        injector.destroy();
         jest.restoreAllMocks();
     });
 

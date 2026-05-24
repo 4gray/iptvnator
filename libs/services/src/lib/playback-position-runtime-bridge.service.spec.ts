@@ -1,10 +1,15 @@
-import { TestBed } from '@angular/core/testing';
+import {
+    DestroyableInjector,
+    Injector,
+    runInInjectionContext,
+} from '@angular/core';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 import { PlaybackPositionRuntimeBridgeService } from './playback-position-runtime-bridge.service';
 
 describe('PlaybackPositionRuntimeBridgeService', () => {
     let service: PlaybackPositionRuntimeBridgeService;
+    let injector: DestroyableInjector;
     let runtimeCapabilities: {
         supportsPlaybackPositionStorage: boolean;
         supportsPlaybackPositionUpdates: boolean;
@@ -17,7 +22,7 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
             supportsPlaybackPositionUpdates: false,
         };
 
-        TestBed.configureTestingModule({
+        injector = Injector.create({
             providers: [
                 PlaybackPositionRuntimeBridgeService,
                 {
@@ -27,12 +32,14 @@ describe('PlaybackPositionRuntimeBridgeService', () => {
             ],
         });
 
-        service = TestBed.inject(PlaybackPositionRuntimeBridgeService);
+        service = runInInjectionContext(injector, () =>
+            injector.get(PlaybackPositionRuntimeBridgeService)
+        );
     });
 
     afterEach(() => {
         window.electron = originalElectron;
-        TestBed.resetTestingModule();
+        injector.destroy();
         jest.restoreAllMocks();
     });
 
