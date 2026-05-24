@@ -1,5 +1,11 @@
 import { expect, test } from '@playwright/test';
 
+// eslint-disable-next-line playwright/no-skipped-test -- Static PWA assertions require the built service worker artifact.
+test.skip(
+    process.env['IPTVNATOR_E2E_STATIC_PWA'] !== '1',
+    'Static PWA stylesheet regression test only runs against the built PWA output.'
+);
+
 test('@pwa-static PWA build applies the full stylesheet under CSP', async ({
     page,
 }) => {
@@ -28,7 +34,7 @@ test('@pwa-static PWA build applies the full stylesheet under CSP', async ({
     );
 
     const appStylesheet = stylesheetMedia.find((link) =>
-        /^styles-.*\.css$/.test(link.href ?? '')
+        /(?:^|\/)styles-.*\.css$/.test(link.href ?? '')
     );
     expect(appStylesheet).toBeDefined();
     expect(appStylesheet?.media).not.toBe('print');
