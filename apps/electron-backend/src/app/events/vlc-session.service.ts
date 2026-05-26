@@ -471,6 +471,26 @@ export async function openVlcPlayer({
         let lastVlcSnapshot: ExternalPlaybackSnapshot | null = null;
 
         await new Promise<void>((resolve, reject) => {
+            let settled = false;
+
+            const resolveSpawn = () => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                resolve();
+            };
+
+            const rejectSpawn = (error: Error) => {
+                if (settled) {
+                    return;
+                }
+
+                settled = true;
+                reject(error);
+            };
+
             const spawnVlc = (playerArgs: string[], isRetry = false) => {
                 const spawnSpec = buildExternalPlayerSpawnSpec(
                     vlcLaunchContext,
@@ -485,6 +505,8 @@ export async function openVlcPlayer({
                     detached: !trackProcess,
                     stdio: trackProcess ? ['ignore', 'pipe', 'pipe'] : 'ignore',
                 });
+
+                proc.once('spawn', resolveSpawn);
 
                 if (trackProcess && rcPort > 0) {
                     vlcProcess = proc;
@@ -594,7 +616,7 @@ export async function openVlcPlayer({
                             session.id,
                             `Failed to start VLC player: ${err.message}`
                         );
-                        reject(
+                        rejectSpawn(
                             buildPlayerStartError('VLC', err, vlcLaunchContext)
                         );
                     }
@@ -660,7 +682,6 @@ export async function openVlcPlayer({
             };
 
             spawnVlc(args);
-            resolve();
         });
 
         return externalPlayerSessions.markOpened(session.id) ?? session;
