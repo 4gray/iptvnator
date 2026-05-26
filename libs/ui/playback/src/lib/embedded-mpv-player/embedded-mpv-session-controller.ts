@@ -21,6 +21,8 @@ export type EmbeddedMpvBoundsProvider = (
 
 const STALLED_TIMEOUT_MS = 30_000;
 
+type ElectronBridge = Window['electron'];
+
 @Injectable()
 export class EmbeddedMpvSessionController {
     readonly support = signal<EmbeddedMpvSupport | null>(null);
@@ -144,7 +146,14 @@ export class EmbeddedMpvSessionController {
                 return;
             }
 
-            const prepared = await window.electron!.prepareEmbeddedMpv?.();
+            const electron = this.getElectronBridge();
+            if (!electron) {
+                throw new Error(
+                    'Embedded MPV requires the Electron desktop build.'
+                );
+            }
+
+            const prepared = await electron.prepareEmbeddedMpv?.();
             if (disposed) {
                 return;
             }
@@ -158,24 +167,21 @@ export class EmbeddedMpvSessionController {
                 this.support.set(prepared);
             }
 
-            const created = await window.electron!.createEmbeddedMpvSession(
+            const created = await electron.createEmbeddedMpvSession(
                 measureBounds(host),
                 playback.title,
                 initialVolume
             );
 
             if (disposed) {
-                await window.electron!.disposeEmbeddedMpvSession(created.id);
+                await electron.disposeEmbeddedMpvSession(created.id);
                 return;
             }
 
             activeSessionId = created.id;
             this.sessionId.set(created.id);
             this.session.set(created);
-            await window.electron!.loadEmbeddedMpvPlayback(
-                created.id,
-                playback
-            );
+            await electron.loadEmbeddedMpvPlayback(created.id, playback);
             scheduleBoundsSync();
         };
 
@@ -213,14 +219,12 @@ export class EmbeddedMpvSessionController {
     async togglePaused(): Promise<void> {
         const id = this.sessionId();
         const session = this.session();
-        if (!id || !session || !window.electron?.setEmbeddedMpvPaused) {
+        const electron = this.getElectronBridge();
+        if (!id || !session || !electron?.setEmbeddedMpvPaused) {
             return;
         }
         const updated = await this.guardIpc(() =>
-            window.electron!.setEmbeddedMpvPaused(
-                id,
-                session.status !== 'paused'
-            )
+            electron.setEmbeddedMpvPaused(id, session.status !== 'paused')
         );
         if (updated) {
             this.session.set(updated);
@@ -230,12 +234,13 @@ export class EmbeddedMpvSessionController {
     async seekBy(deltaSeconds: number): Promise<boolean> {
         const id = this.sessionId();
         const session = this.session();
-        if (!id || !session || !window.electron?.seekEmbeddedMpv) {
+        const electron = this.getElectronBridge();
+        if (!id || !session || !electron?.seekEmbeddedMpv) {
             return false;
         }
         const next = Math.max(0, session.positionSeconds + deltaSeconds);
         const updated = await this.guardIpc(() =>
-            window.electron!.seekEmbeddedMpv(id, next)
+            electron.seekEmbeddedMpv(id, next)
         );
         if (updated) {
             this.session.set(updated);
@@ -245,11 +250,12 @@ export class EmbeddedMpvSessionController {
 
     async seekTo(seconds: number): Promise<void> {
         const id = this.sessionId();
-        if (!id || !window.electron?.seekEmbeddedMpv) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.seekEmbeddedMpv) {
             return;
         }
         const updated = await this.guardIpc(() =>
-            window.electron!.seekEmbeddedMpv(id, seconds)
+            electron.seekEmbeddedMpv(id, seconds)
         );
         if (updated) {
             this.session.set(updated);
@@ -258,11 +264,12 @@ export class EmbeddedMpvSessionController {
 
     async applyVolume(value: number): Promise<void> {
         const id = this.sessionId();
-        if (!id || !window.electron?.setEmbeddedMpvVolume) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.setEmbeddedMpvVolume) {
             return;
         }
         const updated = await this.guardIpc(() =>
-            window.electron!.setEmbeddedMpvVolume(id, value)
+            electron.setEmbeddedMpvVolume(id, value)
         );
         if (updated) {
             this.session.set(updated);
@@ -271,11 +278,12 @@ export class EmbeddedMpvSessionController {
 
     async setAudioTrack(trackId: number): Promise<void> {
         const id = this.sessionId();
-        if (!id || !window.electron?.setEmbeddedMpvAudioTrack) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.setEmbeddedMpvAudioTrack) {
             return;
         }
         const updated = await this.guardIpc(() =>
-            window.electron!.setEmbeddedMpvAudioTrack(id, trackId)
+            electron.setEmbeddedMpvAudioTrack(id, trackId)
         );
         if (updated) {
             this.session.set(updated);
@@ -284,11 +292,13 @@ export class EmbeddedMpvSessionController {
 
     async setSubtitleTrack(trackId: number): Promise<void> {
         const id = this.sessionId();
-        if (!id || !window.electron?.setEmbeddedMpvSubtitleTrack) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.setEmbeddedMpvSubtitleTrack) {
             return;
         }
+        const setSubtitleTrack = electron.setEmbeddedMpvSubtitleTrack;
         const updated = await this.guardIpc(() =>
-            window.electron!.setEmbeddedMpvSubtitleTrack!(id, trackId)
+            setSubtitleTrack(id, trackId)
         );
         if (updated) {
             this.session.set(updated);
@@ -297,12 +307,12 @@ export class EmbeddedMpvSessionController {
 
     async setSpeed(speed: number): Promise<void> {
         const id = this.sessionId();
-        if (!id || !window.electron?.setEmbeddedMpvSpeed) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.setEmbeddedMpvSpeed) {
             return;
         }
-        const updated = await this.guardIpc(() =>
-            window.electron!.setEmbeddedMpvSpeed!(id, speed)
-        );
+        const setSpeed = electron.setEmbeddedMpvSpeed;
+        const updated = await this.guardIpc(() => setSpeed(id, speed));
         if (updated) {
             this.session.set(updated);
         }
@@ -310,12 +320,12 @@ export class EmbeddedMpvSessionController {
 
     async setAspect(aspect: string): Promise<void> {
         const id = this.sessionId();
-        if (!id || !window.electron?.setEmbeddedMpvAspect) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.setEmbeddedMpvAspect) {
             return;
         }
-        const updated = await this.guardIpc(() =>
-            window.electron!.setEmbeddedMpvAspect!(id, aspect)
-        );
+        const setAspect = electron.setEmbeddedMpvAspect;
+        const updated = await this.guardIpc(() => setAspect(id, aspect));
         if (updated) {
             this.session.set(updated);
         }
@@ -326,15 +336,17 @@ export class EmbeddedMpvSessionController {
         title: string
     ): Promise<EmbeddedMpvSession['recording'] | null> {
         const id = this.sessionId();
-        if (!id || !window.electron?.startEmbeddedMpvRecording) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.startEmbeddedMpvRecording) {
             return null;
         }
 
+        const startEmbeddedMpvRecording = electron.startEmbeddedMpvRecording;
         const resolvedDirectory =
             directory?.trim() ||
-            (await window.electron.getEmbeddedMpvDefaultRecordingFolder?.());
+            (await electron.getEmbeddedMpvDefaultRecordingFolder?.());
         const updated = await this.guardIpc(() =>
-            window.electron!.startEmbeddedMpvRecording!(id, {
+            startEmbeddedMpvRecording(id, {
                 directory: resolvedDirectory,
                 title,
             })
@@ -348,12 +360,12 @@ export class EmbeddedMpvSessionController {
 
     async stopRecording(): Promise<EmbeddedMpvSession['recording'] | null> {
         const id = this.sessionId();
-        if (!id || !window.electron?.stopEmbeddedMpvRecording) {
+        const electron = this.getElectronBridge();
+        if (!id || !electron?.stopEmbeddedMpvRecording) {
             return null;
         }
-        const updated = await this.guardIpc(() =>
-            window.electron!.stopEmbeddedMpvRecording!(id)
-        );
+        const stopEmbeddedMpvRecording = electron.stopEmbeddedMpvRecording;
+        const updated = await this.guardIpc(() => stopEmbeddedMpvRecording(id));
         if (updated) {
             this.session.set(updated);
             return updated.recording ?? null;
@@ -373,7 +385,13 @@ export class EmbeddedMpvSessionController {
 
     private async loadSupport(): Promise<void> {
         try {
-            this.support.set(await window.electron!.getEmbeddedMpvSupport());
+            const electron = this.getElectronBridge();
+            if (!electron?.getEmbeddedMpvSupport) {
+                throw new Error(
+                    'Embedded MPV requires the Electron desktop build.'
+                );
+            }
+            this.support.set(await electron.getEmbeddedMpvSupport());
         } catch (error) {
             this.support.set({
                 supported: false,
@@ -381,6 +399,10 @@ export class EmbeddedMpvSessionController {
                 reason: error instanceof Error ? error.message : String(error),
             });
         }
+    }
+
+    private getElectronBridge(): ElectronBridge | undefined {
+        return window.electron;
     }
 
     private handleStalledTracking(
