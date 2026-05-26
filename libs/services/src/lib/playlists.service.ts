@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
@@ -139,6 +138,20 @@ export class PlaylistsService {
         }
 
         return this.indexedDbMigrationPromise;
+    }
+
+    private toPlaylistMeta(playlist: Playlist): Playlist {
+        const playlistMeta = { ...playlist };
+        delete playlistMeta.playlist;
+        delete playlistMeta.items;
+        delete playlistMeta.header;
+        return playlistMeta;
+    }
+
+    private toAutoUpdatePlaylistMeta(playlist: Playlist): Playlist {
+        const playlistMeta = this.toPlaylistMeta(playlist);
+        delete playlistMeta.favorites;
+        return playlistMeta;
     }
 
     private async migrateIndexedDbPlaylistsToSqlite(): Promise<void> {
@@ -366,10 +379,8 @@ export class PlaylistsService {
                 const playlists = electron
                     ? await electron.dbGetAppPlaylists()
                     : [];
-                return (playlists as Playlist[]).map(
-                    ({ playlist, items, header, ...rest }) => ({
-                        ...(rest as Playlist),
-                    })
+                return (playlists as Playlist[]).map((playlist) =>
+                    this.toPlaylistMeta(playlist)
                 );
             });
         }
@@ -377,11 +388,7 @@ export class PlaylistsService {
         return this.runOnIndexedDb(() =>
             firstValueFrom(this.dbService.getAll<Playlist>(DbStores.Playlists))
         ).pipe(
-            map((data) =>
-                data.map(({ playlist, items, header, ...rest }) => ({
-                    ...(rest as Playlist),
-                }))
-            )
+            map((data) => data.map((playlist) => this.toPlaylistMeta(playlist)))
         );
     }
 
@@ -855,15 +862,7 @@ export class PlaylistsService {
             map((playlists: Playlist[]) => {
                 return playlists
                     .filter((item) => item.autoRefresh)
-                    .map(
-                        ({
-                            playlist,
-                            header,
-                            items,
-                            favorites,
-                            ...rest
-                        }: Playlist) => rest
-                    );
+                    .map((playlist) => this.toAutoUpdatePlaylistMeta(playlist));
             })
         );
     }

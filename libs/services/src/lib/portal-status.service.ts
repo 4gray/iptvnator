@@ -182,7 +182,7 @@ export class PortalStatusService {
             } else {
                 return 'inactive';
             }
-        } catch (error) {
+        } catch {
             return 'unavailable';
         }
     }

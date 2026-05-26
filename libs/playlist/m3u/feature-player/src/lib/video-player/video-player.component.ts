@@ -85,6 +85,7 @@ import {
 } from '@iptvnator/services';
 import {
     Channel,
+    createDevLogger,
     EpgProgram,
     ExternalPlayerSession,
     OPEN_MPV_PLAYER,
@@ -142,6 +143,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService
     );
+    private readonly debugLog = createDevLogger('VideoPlayerComponent');
 
     /** Active selected channel */
     readonly activeChannel = this.store.selectSignal(selectActive);
@@ -442,7 +444,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
      * Handle remote control channel change
      */
     handleRemoteChannelChange(direction: 'up' | 'down'): void {
-        console.log(`Remote control: changing channel ${direction}`);
+        this.debugLog('Remote control channel change:', direction);
 
         // Use combineLatest to get both values and take only the first emission
         combineLatest([this.channels$, this.store.select(selectActive)])

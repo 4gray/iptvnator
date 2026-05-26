@@ -6,6 +6,7 @@ import { PlaylistActions } from '@iptvnator/m3u-state';
 import { DataService } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
+    createDevLogger,
     ERROR,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
@@ -46,6 +47,7 @@ export class ElectronService extends DataService {
     private readonly snackBar = inject(MatSnackBar);
     private readonly store = inject(Store);
     private readonly translateService = inject(TranslateService);
+    private readonly debugLog = createDevLogger('ElectronService');
     private readonly silentXtreamActions = new Set<string>([
         XtreamCodeActions.GetAccountInfo,
         XtreamCodeActions.GetLiveCategories,
@@ -58,7 +60,7 @@ export class ElectronService extends DataService {
 
     constructor() {
         super();
-        console.log('Electron service initialized...');
+        this.debugLog('Electron service initialized...');
         this.setupPlayerErrorListener();
         this.setupPortalDebugListener();
     }
@@ -225,7 +227,7 @@ export class ElectronService extends DataService {
             return playlists as T;
         }
 
-        console.log('Unknown type', type);
+        this.debugLog('Unknown IPC event type:', type);
         return undefined as T;
     }
 
@@ -476,7 +478,7 @@ export class ElectronService extends DataService {
 
             // Log error to console
             if (isSilentAction) {
-                console.log(
+                this.debugLog(
                     `Background Xtream action failed (${action ?? 'unknown'}):`,
                     normalizedMessage
                 );
