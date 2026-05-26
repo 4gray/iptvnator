@@ -2,12 +2,12 @@
     <div class="channel-dialog__hero-copy">
         <div class="channel-dialog__eyebrow">
             <span class="channel-dialog__eyebrow-mark"></span>
-            {{ channel.group?.title || 'M3U' }}
+            {{ channel.group.title || 'M3U' }}
         </div>
 
         <div class="channel-dialog__headline-row">
             <div class="channel-dialog__headline-text">
-                @if (channel.tvg?.logo) {
+                @if (channel.tvg.logo) {
                     <img
                         class="channel-dialog__logo"
                         [src]="channel.tvg.logo"
