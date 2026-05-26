@@ -23,8 +23,8 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 describe('VodDetailsRouteComponent', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
-    let consoleDebugSpy: jest.SpyInstance;
-    let consoleWarnSpy: jest.SpyInstance;
+    let consoleDebugSpy: jest.SpyInstance | undefined;
+    let consoleWarnSpy: jest.SpyInstance | undefined;
     const selectedItem = signal<XtreamVodDetails | null>(null);
     const isLoadingDetails = signal(false);
     const detailsError = signal<string | null>(null);
@@ -193,8 +193,8 @@ describe('VodDetailsRouteComponent', () => {
     });
 
     afterEach(() => {
-        consoleDebugSpy.mockRestore();
-        consoleWarnSpy.mockRestore();
+        consoleDebugSpy?.mockRestore();
+        consoleWarnSpy?.mockRestore();
     });
 
     it('renders an informational fallback without playback controls when Xtream returns empty metadata', () => {

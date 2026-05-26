@@ -1,4 +1,5 @@
 import { setupZoneTestEnv } from 'jest-preset-angular/setup-env/zone/index.mjs';
+import { installDuplicateVideoJsQualityLevelsWarnFilter } from '@iptvnator/shared/testing';
 
 Object.defineProperty(globalThis, 'jest', {
     configurable: true,
@@ -22,22 +23,7 @@ if (!Element.prototype.animate) {
         }) as unknown as Animation;
 }
 
-const originalConsoleWarn = console.warn.bind(console);
-console.warn = (...args: unknown[]) => {
-    const message = args
-        .filter((arg): arg is string => typeof arg === 'string')
-        .join(' ');
-
-    if (isDuplicateVideoJsQualityLevelsWarning(message)) {
-        return;
-    }
-
-    originalConsoleWarn(...args);
-};
-
-function isDuplicateVideoJsQualityLevelsWarning(message: string): boolean {
-    return message.includes('A plugin named "qualityLevels" already exists.');
-}
+installDuplicateVideoJsQualityLevelsWarnFilter();
 
 setupZoneTestEnv({
     errorOnUnknownElements: true,
