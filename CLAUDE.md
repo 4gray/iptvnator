@@ -549,7 +549,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `epg.events.ts` - EPG fetch and parsing (uses worker)
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Stalker portal API
-    - `player.events.ts` - External player (MPV, VLC) integration
+    - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
 
