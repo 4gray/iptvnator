@@ -25,12 +25,13 @@ Core implementation:
 4. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts`
 5. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-route-state.service.ts`
 6. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-search.service.ts`
-7. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-header.service.ts`
-8. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-command-palette.service.ts`
-9. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-xtream-import.service.ts`
-10. `libs/portal/shared/util/src/lib/navigation/portal-route.utils.ts`
-11. `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts`
-12. `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
+7. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-search-sync.service.ts`
+8. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-header.service.ts`
+9. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-command-palette.service.ts`
+10. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-xtream-import.service.ts`
+11. `libs/portal/shared/util/src/lib/navigation/portal-route.utils.ts`
+12. `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts`
+13. `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
 
 ## Route Contract
 
@@ -95,13 +96,15 @@ services:
 1. `WorkspaceShellRouteStateService` owns current route parsing, rail links,
    context-panel state, dashboard startup preference, and playlist source
    signals.
-2. `WorkspaceShellSearchService` owns the route-aware header search state,
-   debounced application, provider-store synchronization, and query-param sync.
-3. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
+2. `WorkspaceShellSearchService` owns the route-aware header search capability
+   and public search actions.
+3. `WorkspaceShellSearchSyncService` owns the search query signals, debounced
+   application, provider-store synchronization, and query-param sync.
+4. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
    actions, refresh action state, and recent-items bulk cleanup.
-4. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
+5. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
    and recent-command recording.
-5. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
+6. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
    state and labels.
 
 When adding shell behavior, prefer placing it in the service that owns the

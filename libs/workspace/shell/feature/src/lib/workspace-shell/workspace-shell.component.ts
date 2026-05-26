@@ -14,6 +14,7 @@ import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xt
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
+import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
 import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
@@ -34,6 +35,7 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
     providers: [
         WorkspaceShellFacade,
         WorkspaceShellRouteStateService,
+        WorkspaceShellSearchSyncService,
         WorkspaceShellSearchService,
         WorkspaceShellHeaderService,
         WorkspaceShellXtreamImportService,

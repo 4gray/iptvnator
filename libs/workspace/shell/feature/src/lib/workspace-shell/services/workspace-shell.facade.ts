@@ -213,10 +213,6 @@ export class WorkspaceShellFacade {
         this.header.refreshCurrentPlaylist();
     }
 
-    private syncSearchFromRoute(): void {
-        this.search.syncSearchFromRoute();
-    }
-
     private makeCommandBuilderContext(): CommandBuilderContext {
         return {
             route: this.currentRoute(),

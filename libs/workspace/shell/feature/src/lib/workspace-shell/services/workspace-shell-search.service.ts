@@ -1,54 +1,38 @@
-import {
-    computed,
-    DestroyRef,
-    effect,
-    inject,
-    Injectable,
-    signal,
-} from '@angular/core';
-import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
-import { NavigationEnd, Router } from '@angular/router';
+import { computed, inject, Injectable } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
+import { Router } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
-import { filter, startWith } from 'rxjs';
+import { startWith } from 'rxjs';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { WorkspaceSearchCapability } from '@iptvnator/workspace/shell/util';
 import {
-    parseWorkspaceShellRoute,
-    WorkspaceSearchCapability,
-} from '@iptvnator/workspace/shell/util';
-import {
-    SEARCH_INPUT_DEBOUNCE_MS,
     SEARCH_LOADED_ONLY_STATUS,
     SEARCH_PLAYLIST_PLACEHOLDER,
 } from './helpers/workspace-shell-constants';
-import {
-    getRouteQueryParam,
-    syncSearchQueryParam,
-} from './helpers/workspace-shell-route-utils';
 import {
     resolveSearchPlaceholderKey,
     resolveSearchScopeLabel,
 } from './helpers/workspace-shell-search-labels';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
+import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
 
 @Injectable()
 export class WorkspaceShellSearchService {
     private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
-    private readonly destroyRef = inject(DestroyRef);
     private readonly translate = inject(TranslateService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
+    private readonly searchSync = inject(WorkspaceShellSearchSyncService);
 
-    private searchDebounceTimeoutId: ReturnType<typeof setTimeout> | null =
-        null;
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
     );
 
-    readonly searchQuery = signal('');
-    readonly appliedSearchQuery = signal('');
+    readonly searchQuery = this.searchSync.searchQuery;
+    readonly appliedSearchQuery = this.searchSync.appliedSearchQuery;
     readonly searchCapability = computed<WorkspaceSearchCapability>(() => {
         this.languageTick();
 
@@ -159,86 +143,8 @@ export class WorkspaceShellSearchService {
         () => this.searchCapability().statusLabel
     );
 
-    constructor() {
-        this.destroyRef.onDestroy(() => {
-            if (this.searchDebounceTimeoutId !== null) {
-                clearTimeout(this.searchDebounceTimeoutId);
-                this.searchDebounceTimeoutId = null;
-            }
-        });
-
-        this.router.events
-            .pipe(
-                filter(
-                    (event): event is NavigationEnd =>
-                        event instanceof NavigationEnd
-                ),
-                takeUntilDestroyed(this.destroyRef)
-            )
-            .subscribe((event) =>
-                this.syncSearchFromUrl(event.urlAfterRedirects)
-            );
-
-        this.syncSearchFromRoute();
-
-        effect(() => {
-            const context = this.routeState.currentContext();
-            const section = this.routeState.currentSection();
-            const term = this.appliedSearchQuery();
-
-            if (!context || context.provider !== 'xtreams') {
-                return;
-            }
-
-            if (section === 'search') {
-                this.xtreamStore.setSearchTerm(term);
-                return;
-            }
-
-            if (
-                section === 'vod' ||
-                section === 'series' ||
-                section === 'live'
-            ) {
-                this.xtreamStore.setCategorySearchTerm(term);
-            }
-        });
-
-        effect(() => {
-            const context = this.routeState.currentContext();
-            const section = this.routeState.currentSection();
-            const term = this.appliedSearchQuery();
-
-            if (
-                context?.provider !== 'stalker' ||
-                !section ||
-                (section !== 'vod' &&
-                    section !== 'series' &&
-                    section !== 'itv' &&
-                    section !== 'radio')
-            ) {
-                return;
-            }
-
-            this.stalkerStore.setSearchPhrase(term);
-        });
-
-        effect(() => {
-            if (!this.routeState.currentRoute().usesQuerySearch) {
-                return;
-            }
-
-            syncSearchQueryParam(
-                this.router,
-                this.routeState.currentUrl(),
-                this.appliedSearchQuery()
-            );
-        });
-    }
-
     onSearchInput(value: string): void {
-        this.searchQuery.set(value);
-        this.scheduleSearchApply(value);
+        this.searchSync.onSearchInput(value);
     }
 
     onSearchEnter(value: string): void {
@@ -249,19 +155,19 @@ export class WorkspaceShellSearchService {
             const advancedRouteTarget =
                 this.searchCapability().advancedRouteTarget;
             if (!advancedRouteTarget) {
-                this.applySearchQuery(trimmedValue);
+                this.searchSync.applySearchQuery(trimmedValue);
                 return;
             }
 
             this.xtreamStore.setSearchTerm(trimmedValue);
-            this.applySearchQuery(trimmedValue);
+            this.searchSync.applySearchQuery(trimmedValue);
             void this.router.navigate(advancedRouteTarget, {
                 queryParams: trimmedValue ? { q: trimmedValue } : {},
             });
             return;
         }
 
-        this.applySearchQuery(trimmedValue);
+        this.searchSync.applySearchQuery(trimmedValue);
     }
 
     openPlaylistSearchFromPalette(query: string): void {
@@ -273,8 +179,7 @@ export class WorkspaceShellSearchService {
             return;
         }
 
-        this.searchQuery.set(query);
-        this.appliedSearchQuery.set(query);
+        this.searchSync.setSearchState(query);
 
         if (effectiveContext.provider === 'xtreams') {
             this.xtreamStore.setSearchTerm(query);
@@ -305,44 +210,6 @@ export class WorkspaceShellSearchService {
                 }
             );
         }
-    }
-
-    syncSearchFromRoute(): void {
-        this.syncSearchFromUrl(this.routeState.currentUrl());
-    }
-
-    private syncSearchFromUrl(url: string): void {
-        if (parseWorkspaceShellRoute(url).usesQuerySearch) {
-            this.setSearchState(getRouteQueryParam(this.router, url, 'q'));
-            return;
-        }
-
-        this.setSearchState('');
-    }
-
-    private setSearchState(value: string): void {
-        if (this.searchDebounceTimeoutId !== null) {
-            clearTimeout(this.searchDebounceTimeoutId);
-            this.searchDebounceTimeoutId = null;
-        }
-
-        this.searchQuery.set(value);
-        this.appliedSearchQuery.set(value);
-    }
-
-    private scheduleSearchApply(value: string): void {
-        if (this.searchDebounceTimeoutId !== null) {
-            clearTimeout(this.searchDebounceTimeoutId);
-        }
-
-        this.searchDebounceTimeoutId = setTimeout(() => {
-            this.searchDebounceTimeoutId = null;
-            this.applySearchQuery(value);
-        }, SEARCH_INPUT_DEBOUNCE_MS);
-    }
-
-    private applySearchQuery(value: string): void {
-        this.appliedSearchQuery.set(value);
     }
 
     private translateText(
