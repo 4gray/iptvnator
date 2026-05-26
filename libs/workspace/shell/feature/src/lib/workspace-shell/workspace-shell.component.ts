@@ -12,6 +12,10 @@ import { WorkspaceShellRailComponent } from './components/workspace-shell-rail/w
 import { WorkspaceShellFacade } from './services/workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './services/workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './services/workspace-shell-command-palette.service';
+import { WorkspaceShellHeaderService } from './services/workspace-shell-header.service';
+import { WorkspaceShellRouteStateService } from './services/workspace-shell-route-state.service';
+import { WorkspaceShellSearchSyncService } from './services/workspace-shell-search-sync.service';
+import { WorkspaceShellSearchService } from './services/workspace-shell-search.service';
 import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcuts/workspace-keyboard-shortcuts.service';
 
 @Component({
@@ -30,6 +34,10 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
     styleUrl: './workspace-shell.component.scss',
     providers: [
         WorkspaceShellFacade,
+        WorkspaceShellRouteStateService,
+        WorkspaceShellSearchSyncService,
+        WorkspaceShellSearchService,
+        WorkspaceShellHeaderService,
         WorkspaceShellXtreamImportService,
         WorkspaceShellCommandPaletteService,
         WorkspaceKeyboardShortcutsService,

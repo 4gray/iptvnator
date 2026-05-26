@@ -33,6 +33,10 @@ import { WorkspacePlayerCommandsContributor } from '../../workspace-player-comma
 import { WorkspaceShellFacade } from './workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
+import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
+import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
+import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
+import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 
 class MockXtreamStore {
     readonly recentItems = signal<unknown[]>([]);
@@ -101,6 +105,7 @@ describe('WorkspaceShellFacade', () => {
     };
 
     let facade: WorkspaceShellFacade;
+    let searchSync: WorkspaceShellSearchSyncService;
     let recentCommands: {
         entries: jest.Mock;
         record: jest.Mock;
@@ -219,6 +224,10 @@ describe('WorkspaceShellFacade', () => {
         TestBed.configureTestingModule({
             providers: [
                 WorkspaceShellFacade,
+                WorkspaceShellRouteStateService,
+                WorkspaceShellSearchSyncService,
+                WorkspaceShellSearchService,
+                WorkspaceShellHeaderService,
                 WorkspaceShellXtreamImportService,
                 WorkspaceShellCommandPaletteService,
                 {
@@ -346,6 +355,7 @@ describe('WorkspaceShellFacade', () => {
         });
 
         facade = TestBed.inject(WorkspaceShellFacade);
+        searchSync = TestBed.inject(WorkspaceShellSearchSyncService);
     });
 
     it('derives desktop shell flags from runtime capabilities', () => {
@@ -568,7 +578,7 @@ describe('WorkspaceShellFacade', () => {
 
     it('exposes loaded-only status for stalker itv searches', () => {
         facade.currentUrl.set('/workspace/stalker/pl-1/itv?q=cnn');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
         TestBed.flushEffects();
 
         expect(stalkerStore.setSearchPhrase).toHaveBeenCalledWith('cnn');
@@ -580,7 +590,7 @@ describe('WorkspaceShellFacade', () => {
 
     it('treats stalker radio search as a remote section search', () => {
         facade.currentUrl.set('/workspace/stalker/pl-1/radio?q=jazz');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
         TestBed.flushEffects();
 
         expect(stalkerStore.setSearchPhrase).toHaveBeenCalledWith('jazz');
@@ -597,7 +607,7 @@ describe('WorkspaceShellFacade', () => {
         ) as unknown as MockXtreamStore;
 
         facade.currentUrl.set('/workspace/xtreams/pl-1/vod?q=neo');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
         TestBed.flushEffects();
 
         expect(xtreamStore.setCategorySearchTerm).toHaveBeenCalledWith('neo');
@@ -610,7 +620,7 @@ describe('WorkspaceShellFacade', () => {
         ) as unknown as MockXtreamStore;
 
         facade.currentUrl.set('/workspace/xtreams/pl-1/live?q=world');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
         TestBed.flushEffects();
 
         expect(xtreamStore.setCategorySearchTerm).toHaveBeenCalledWith('world');
@@ -619,7 +629,7 @@ describe('WorkspaceShellFacade', () => {
 
     it('enables local-filter search on playlist favorites routes', () => {
         facade.currentUrl.set('/workspace/playlists/pl-1/favorites?q=news');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
 
         expect(facade.canUseSearch()).toBe(true);
         expect(facade.searchQuery()).toBe('news');
@@ -627,7 +637,7 @@ describe('WorkspaceShellFacade', () => {
 
     it('uses the translated global favorites scope label on the global favorites route', () => {
         facade.currentUrl.set('/workspace/global-favorites?q=news');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
 
         expect(facade.searchScopeLabel()).toBe(
             'HOME.PLAYLISTS.GLOBAL_FAVORITES'
@@ -667,7 +677,7 @@ describe('WorkspaceShellFacade', () => {
 
     it('uses the translated recent scope label on the global recent route', () => {
         facade.currentUrl.set('/workspace/global-recent?q=news');
-        (facade as { syncSearchFromRoute: () => void }).syncSearchFromRoute();
+        searchSync.syncSearchFromRoute();
 
         expect(facade.searchScopeLabel()).toBe('PORTALS.RECENTLY_VIEWED');
     });
