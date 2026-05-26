@@ -135,7 +135,9 @@ export const SettingsStore = signalStore(
                 showCaptions: store.showCaptions(),
                 showDashboard: store.showDashboard(),
                 startupBehavior: store.startupBehavior(),
-                showExternalPlaybackBar: store.showExternalPlaybackBar!(),
+                showExternalPlaybackBar:
+                    store.showExternalPlaybackBar?.() ??
+                    DEFAULT_SETTINGS.showExternalPlaybackBar,
                 theme: store.theme(),
                 mpvPlayerPath: store.mpvPlayerPath(),
                 mpvPlayerArguments: store.mpvPlayerArguments(),
@@ -146,20 +148,26 @@ export const SettingsStore = signalStore(
                 remoteControl: store.remoteControl(),
                 remoteControlPort: store.remoteControlPort(),
                 epgUrl: store.epgUrl(),
-                downloadFolder: store.downloadFolder!(),
-                recordingFolder: store.recordingFolder!(),
-                coverSize: store.coverSize!(),
+                downloadFolder:
+                    store.downloadFolder?.() ?? DEFAULT_SETTINGS.downloadFolder,
+                recordingFolder:
+                    store.recordingFolder?.() ??
+                    DEFAULT_SETTINGS.recordingFolder,
+                coverSize: store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                 preferUploadedEpgOverXtream:
-                    store.preferUploadedEpgOverXtream!(),
+                    store.preferUploadedEpgOverXtream?.() ??
+                    DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
             };
         },
 
         getDownloadFolder() {
-            return store.downloadFolder!();
+            return store.downloadFolder?.() ?? DEFAULT_SETTINGS.downloadFolder;
         },
 
         getRecordingFolder() {
-            return store.recordingFolder!();
+            return (
+                store.recordingFolder?.() ?? DEFAULT_SETTINGS.recordingFolder
+            );
         },
 
         getPlayer() {

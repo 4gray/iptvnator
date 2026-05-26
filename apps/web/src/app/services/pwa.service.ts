@@ -15,6 +15,7 @@ import {
 } from 'rxjs';
 import { DataService } from '@iptvnator/services';
 import {
+    createDevLogger,
     ERROR,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
@@ -70,6 +71,7 @@ export class PwaService extends DataService {
     private readonly store = inject(Store);
     private readonly swUpdate = inject(SwUpdate);
     private readonly translateService = inject(TranslateService);
+    private readonly debugLog = createDevLogger('PwaService');
     private readonly providerTargetIds = new Map<string, Promise<string>>();
     private readonly silentXtreamActions = new Set<string>([
         XtreamCodeActions.GetAccountInfo,
@@ -86,7 +88,7 @@ export class PwaService extends DataService {
 
     constructor() {
         super();
-        console.log('PWA service initialized...');
+        this.debugLog('PWA service initialized...');
     }
 
     /** Uses service worker mechanism to check for available application updates */
@@ -355,7 +357,7 @@ export class PwaService extends DataService {
                 );
 
                 if (isSilentAction) {
-                    console.log(
+                    this.debugLog(
                         `Background Xtream action failed (${action ?? 'unknown'}):`,
                         normalizedMessage
                     );
@@ -395,7 +397,7 @@ export class PwaService extends DataService {
 
             // Log error to console
             if (isSilentAction) {
-                console.log(
+                this.debugLog(
                     `Background Xtream action failed (${action ?? 'unknown'}):`,
                     normalizedMessage
                 );

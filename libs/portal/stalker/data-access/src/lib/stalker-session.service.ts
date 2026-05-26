@@ -1,5 +1,9 @@
 import { Injectable, inject } from '@angular/core';
-import { Playlist, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import {
+    createDevLogger,
+    Playlist,
+    STALKER_REQUEST,
+} from '@iptvnator/shared/interfaces';
 import { DataService } from '@iptvnator/services';
 import {
     getStalkerPortalIdentityFromPlaylist,
@@ -87,6 +91,7 @@ interface StalkerAuthConfirmationResponse {
 })
 export class StalkerSessionService {
     private dataService = inject(DataService);
+    private readonly debugLog = createDevLogger('StalkerSession');
 
     // In-memory token cache for current session (keyed by playlist ID)
     private tokenCache = new Map<string, string>();
@@ -482,9 +487,7 @@ export class StalkerSessionService {
         // This prevents race conditions when multiple resources request a token simultaneously
         const pendingPromise = this.pendingAuth.get(playlist._id);
         if (pendingPromise) {
-            console.log(
-                '[StalkerSession] Waiting for pending authentication...'
-            );
+            this.debugLog('Waiting for pending authentication...');
             return pendingPromise;
         }
 
