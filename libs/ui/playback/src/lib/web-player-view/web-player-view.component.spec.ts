@@ -7,7 +7,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslateModule } from '@ngx-translate/core';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { VideoPlayer } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
@@ -301,6 +301,31 @@ describe('WebPlayerViewComponent', () => {
                 },
             })
         );
+    });
+
+    it('renders embedded MPV before settings storage emits', () => {
+        fixture.destroy();
+
+        const pendingSettings = new Subject<unknown>();
+        storageMap.get.mockReturnValue(pendingSettings.asObservable());
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/archive/movie.mkv'
+        );
+        fixture.componentRef.setInput('title', 'Example Movie');
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.EmbeddedMpv
+        );
+
+        expect(() => fixture.detectChanges()).not.toThrow();
+
+        const player = fixture.debugElement.query(
+            By.directive(StubEmbeddedMpvPlayerComponent)
+        ).componentInstance as StubEmbeddedMpvPlayerComponent;
+        expect(player.recordingFolder()).toBe('');
     });
 
     it('uses the PWA browser access diagnostic description key outside desktop', () => {

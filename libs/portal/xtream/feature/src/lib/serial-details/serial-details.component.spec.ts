@@ -278,6 +278,26 @@ describe('SerialDetailsComponent', () => {
         });
     });
 
+    it('renders series metadata when backdrop_path is absent at runtime', () => {
+        selectedItem.set({
+            series_id: 103,
+            info: {
+                name: 'Series Without Backdrop',
+                plot: 'Series plot',
+                cover: 'cover.jpg',
+                genre: 'Drama',
+            },
+            episodes: {},
+        });
+
+        expect(() => fixture.detectChanges()).not.toThrow();
+
+        const hero = fixture.debugElement.query(
+            By.directive(StubContentHeroComponent)
+        ).componentInstance as StubContentHeroComponent;
+        expect(hero.backdropUrl()).toBeUndefined();
+    });
+
     it('renders quick start as the first episode action and opens that episode', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
@@ -292,9 +312,7 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain(
             'XTREAM.PLAY_FIRST_EPISODE'
         );
-        expect(quickStartButton?.textContent).toContain(
-            'S01E01 · Episode 1'
-        );
+        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
 
@@ -349,9 +367,7 @@ describe('SerialDetailsComponent', () => {
         expect(quickStartButton?.textContent).toContain(
             'XTREAM.RESUME_EPISODE'
         );
-        expect(quickStartButton?.textContent).toContain(
-            'S01E01 · Episode 1'
-        );
+        expect(quickStartButton?.textContent).toContain('S01E01 · Episode 1');
 
         quickStartButton?.click();
 

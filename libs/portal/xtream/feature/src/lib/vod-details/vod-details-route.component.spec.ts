@@ -1,9 +1,11 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute } from '@angular/router';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
 import { Location } from '@angular/common';
+import { ContentHeroComponent } from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -37,9 +39,9 @@ describe('VodDetailsRouteComponent', () => {
     const checkFavoriteStatus = jest.fn();
     const setSelectedItem = jest.fn();
     const toggleFavorite = jest.fn();
-    const constructVodStreamUrl = jest.fn().mockReturnValue(
-        'http://example.com/movie/650020.mp4'
-    );
+    const constructVodStreamUrl = jest
+        .fn()
+        .mockReturnValue('http://example.com/movie/650020.mp4');
     const addRecentItem = jest.fn();
     const downloads = signal([]);
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
@@ -134,7 +136,9 @@ describe('VodDetailsRouteComponent', () => {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
                         getPlaybackPosition,
-                        savePlaybackPosition: jest.fn().mockResolvedValue(undefined),
+                        savePlaybackPosition: jest
+                            .fn()
+                            .mockResolvedValue(undefined),
                     },
                 },
                 {
@@ -190,7 +194,8 @@ describe('VodDetailsRouteComponent', () => {
         const host = fixture.nativeElement as HTMLElement;
         expect(host.textContent).toContain('Die Kühe sind Los! (2004) DE');
         expect(
-            host.querySelector('[data-testid="xtream-vod-fallback"]')?.textContent
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+                ?.textContent
         ).toContain('XTREAM.DETAIL_FALLBACK.NOTE');
         expect(
             host.querySelector('[data-testid="xtream-vod-fallback-status"]')
@@ -248,7 +253,35 @@ describe('VodDetailsRouteComponent', () => {
 
         const host = fixture.nativeElement as HTMLElement;
         expect(host.textContent).toContain('City of McFarland (2015)');
-        expect(host.querySelector('[data-testid="xtream-vod-fallback"]')).toBeNull();
+        expect(
+            host.querySelector('[data-testid="xtream-vod-fallback"]')
+        ).toBeNull();
         expect(host.querySelector('button.play-btn')).not.toBeNull();
+    });
+
+    it('renders usable metadata when backdrop_path is absent at runtime', () => {
+        selectedItem.set({
+            info: {
+                name: 'Metadata Without Backdrop',
+                description: 'A populated description',
+                movie_image: 'https://example.com/poster.jpg',
+            },
+            movie_data: {
+                stream_id: 678140,
+                name: 'Metadata Without Backdrop',
+                added: '1750671180',
+                category_id: '235',
+                container_extension: 'mkv',
+                custom_sid: null,
+                direct_source: '',
+            },
+        } as unknown as XtreamVodDetails);
+
+        expect(() => fixture.detectChanges()).not.toThrow();
+
+        const hero = fixture.debugElement.query(
+            By.directive(ContentHeroComponent)
+        ).componentInstance as ContentHeroComponent;
+        expect(hero.backdropUrl()).toBeUndefined();
     });
 });

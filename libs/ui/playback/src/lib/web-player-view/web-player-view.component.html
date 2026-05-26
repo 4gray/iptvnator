@@ -27,7 +27,7 @@
 } @else if (player === 'embedded-mpv') {
     <app-embedded-mpv-player
         [playback]="resolvedPlayback()"
-        [recordingFolder]="settings()?.recordingFolder ?? ''"
+        [recordingFolder]="recordingFolder()"
         (timeUpdate)="timeUpdate.emit($event)"
     />
 } @else {

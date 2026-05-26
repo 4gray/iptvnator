@@ -10,14 +10,14 @@
                     i +
                     1 +
                     '. ' +
-                    (item.channel?.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
+                    (item.channel.name || 'CHANNELS.UNNAMED_CHANNEL' | translate)
                 "
                 [logo]="item.logo"
                 [showEpg]="shouldShowEpg()"
-                [isRadio]="item.channel?.radio === 'true'"
+                [isRadio]="item.channel.radio === 'true'"
                 [epgProgram]="item.epgProgram"
                 [progressPercentage]="item.progressPercentage"
-                [selected]="activeChannelUrl() === item.channel?.url"
+                [selected]="activeChannelUrl() === item.channel.url"
                 [showDetailsContextMenu]="true"
                 [showAuxActionButton]="true"
                 [auxActionIcon]="'delete'"

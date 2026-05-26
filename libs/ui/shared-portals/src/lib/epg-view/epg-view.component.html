@@ -2,11 +2,14 @@
 
 <div class="epg-list">
     @for (item of epgItems; track $index) {
-        <article class="epg-item" [class.current-program]="isCurrentProgram(item)">
+        <article
+            class="epg-item"
+            [class.current-program]="isCurrentProgram(item)"
+        >
             <div class="epg-item__meta">
                 <div class="epg-item__time">
                     {{ item.start | date: 'HH:mm' }} -
-                    {{ item.stop ?? item.end | date: 'HH:mm' }}
+                    {{ getProgramEnd(item) | date: 'HH:mm' }}
                 </div>
                 @if (isCurrentProgram(item)) {
                     <span class="epg-item__badge">Live</span>
@@ -41,7 +44,7 @@
         </article>
     }
 
-    @if (epgItems?.length === 0) {
+    @if (epgItems.length === 0) {
         <div class="epg-empty">
             {{ 'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate }}
         </div>

@@ -5,7 +5,7 @@
         [title]="info.name"
         [description]="info.plot"
         [posterUrl]="info.cover"
-        [backdropUrl]="info.backdrop_path?.[0]"
+        [backdropUrl]="getBackdropUrl(info)"
         (backClicked)="goBack()"
     >
         <ng-container hero-tags>
@@ -101,7 +101,7 @@
             [seasons]="item.episodes"
             [seriesId]="item.series_id"
             [playlistId]="currentPlaylistId()"
-            [seriesTitle]="info.name ?? ''"
+            [seriesTitle]="info.name"
             [playbackPositions]="episodePlaybackPositions()"
             [xtreamDownloadContext]="xtreamDownloadContext()"
             [openingEpisodeId]="openingEpisodeId()"

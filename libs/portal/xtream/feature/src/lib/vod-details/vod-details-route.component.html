@@ -4,7 +4,7 @@
         [title]="info.name || item?.movie_data?.name"
         [description]="info.description || info.plot"
         [posterUrl]="info.movie_image || info.cover_big"
-        [backdropUrl]="info.backdrop_path?.[0]"
+        [backdropUrl]="getBackdropUrl(info)"
         (backClicked)="goBack()"
     >
         <ng-container hero-tags>

@@ -53,11 +53,11 @@
                     <button
                         class="season-card"
                         (click)="selectSeason(season.key)"
-                        [class.season-card--has-episodes]="season.value?.length"
+                        [class.season-card--has-episodes]="season.value.length"
                     >
                         <div class="season-card__number">{{ season.key }}</div>
                         <div class="season-card__label">Season</div>
-                        @if (season.value?.length) {
+                        @if (season.value.length) {
                             <div class="season-card__episodes">
                                 {{ season.value.length }}
                                 {{
