@@ -23,6 +23,8 @@ import { VodDetailsRouteComponent } from './vod-details-route.component';
 
 describe('VodDetailsRouteComponent', () => {
     let fixture: ComponentFixture<VodDetailsRouteComponent>;
+    let consoleDebugSpy: jest.SpyInstance | undefined;
+    let consoleWarnSpy: jest.SpyInstance | undefined;
     const selectedItem = signal<XtreamVodDetails | null>(null);
     const isLoadingDetails = signal(false);
     const detailsError = signal<string | null>(null);
@@ -47,6 +49,30 @@ describe('VodDetailsRouteComponent', () => {
     const getPlaybackPosition = jest.fn().mockResolvedValue(null);
 
     beforeEach(async () => {
+        const consoleDebug = console.debug.bind(console);
+        const consoleWarn = console.warn.bind(console);
+        consoleDebugSpy = jest
+            .spyOn(console, 'debug')
+            .mockImplementation((...args: unknown[]) => {
+                if (args[0] === '[VodDetailsRoute]') {
+                    return;
+                }
+
+                consoleDebug(...args);
+            });
+        consoleWarnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation((...args: unknown[]) => {
+                if (
+                    args[0] === '[VodDetailsRoute]' &&
+                    args[1] === 'Deferring VOD details init: playlist not ready'
+                ) {
+                    return;
+                }
+
+                consoleWarn(...args);
+            });
+
         selectedItem.set(null);
         isLoadingDetails.set(false);
         detailsError.set(null);
@@ -164,6 +190,11 @@ describe('VodDetailsRouteComponent', () => {
         }).compileComponents();
 
         fixture = TestBed.createComponent(VodDetailsRouteComponent);
+    });
+
+    afterEach(() => {
+        consoleDebugSpy?.mockRestore();
+        consoleWarnSpy?.mockRestore();
     });
 
     it('renders an informational fallback without playback controls when Xtream returns empty metadata', () => {
