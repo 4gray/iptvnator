@@ -33,6 +33,9 @@ import { WorkspacePlayerCommandsContributor } from '../../workspace-player-comma
 import { WorkspaceShellFacade } from './workspace-shell.facade';
 import { WorkspaceShellXtreamImportService } from './workspace-shell-xtream-import.service';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
+import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
+import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
+import { WorkspaceShellSearchService } from './workspace-shell-search.service';
 
 class MockXtreamStore {
     readonly recentItems = signal<unknown[]>([]);
@@ -219,6 +222,9 @@ describe('WorkspaceShellFacade', () => {
         TestBed.configureTestingModule({
             providers: [
                 WorkspaceShellFacade,
+                WorkspaceShellRouteStateService,
+                WorkspaceShellSearchService,
+                WorkspaceShellHeaderService,
                 WorkspaceShellXtreamImportService,
                 WorkspaceShellCommandPaletteService,
                 {

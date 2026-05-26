@@ -17,6 +17,7 @@ import {
     buildXtreamRefreshPreparationProgressLabel,
     formatLocalizedNumber,
 } from './helpers/workspace-shell-import-labels';
+import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 
 @Injectable()
 export class WorkspaceShellXtreamImportService {
@@ -26,6 +27,7 @@ export class WorkspaceShellXtreamImportService {
     );
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly translate = inject(TranslateService);
+    private readonly routeState = inject(WorkspaceShellRouteStateService);
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -69,6 +71,32 @@ export class WorkspaceShellXtreamImportService {
             Boolean(this.xtreamStore.activeImportSessionId()) &&
             !this.xtreamStore.isCancellingImport()
     );
+    readonly showXtreamImportOverlay = computed(() => {
+        const route = this.routeState.currentRoute();
+        const context = this.routeState.currentContext();
+        const section = this.routeState.currentSection();
+        const hasRefreshPreparation = Boolean(this.refreshPreparation());
+
+        if (route.kind === 'dashboard') {
+            return hasRefreshPreparation;
+        }
+
+        if (context?.provider !== 'xtreams') {
+            return false;
+        }
+
+        const isPreparingCurrentPlaylist =
+            this.isRefreshPreparationRunningForPlaylist(context.playlistId);
+
+        return (
+            (this.isImportRunning() || isPreparingCurrentPlaylist) &&
+            (section === 'vod' ||
+                section === 'live' ||
+                section === 'series' ||
+                section === 'search' ||
+                section === 'recently-added')
+        );
+    });
 
     readonly xtreamImportTitleLabel = computed(() => {
         if (this.activeRefreshPreparation()) {

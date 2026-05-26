@@ -22,9 +22,15 @@ Core implementation:
 1. `apps/web/src/app/app.routes.ts`
 2. `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.ts`
 3. `libs/workspace/shell/feature/src/lib/workspace-shell/workspace-shell.component.html`
-4. `libs/portal/shared/util/src/lib/navigation/portal-route.utils.ts`
-5. `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts`
-6. `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
+4. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell.facade.ts`
+5. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-route-state.service.ts`
+6. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-search.service.ts`
+7. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-header.service.ts`
+8. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-command-palette.service.ts`
+9. `libs/workspace/shell/feature/src/lib/workspace-shell/services/workspace-shell-xtream-import.service.ts`
+10. `libs/portal/shared/util/src/lib/navigation/portal-route.utils.ts`
+11. `libs/portal/shared/util/src/lib/navigation/portal-rail-links.ts`
+12. `libs/portal/shared/ui/src/lib/navigation/portal-rail-links.component.ts`
 
 ## Route Contract
 
@@ -81,6 +87,26 @@ The shell is intentionally split into four persistent regions:
    2. Main router outlet content.
 4. Optional footer:
    1. External playback session bar when a docked session is visible.
+
+`WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
+kept as a thin template-facing API and delegates ownership to component-scoped
+services:
+
+1. `WorkspaceShellRouteStateService` owns current route parsing, rail links,
+   context-panel state, dashboard startup preference, and playlist source
+   signals.
+2. `WorkspaceShellSearchService` owns the route-aware header search state,
+   debounced application, provider-store synchronization, and query-param sync.
+3. `WorkspaceShellHeaderService` owns playlist title/subtitle, account/info
+   actions, refresh action state, and recent-items bulk cleanup.
+4. `WorkspaceShellCommandPaletteService` owns command-palette dialog lifecycle
+   and recent-command recording.
+5. `WorkspaceShellXtreamImportService` owns Xtream import/refresh overlay
+   state and labels.
+
+When adding shell behavior, prefer placing it in the service that owns the
+nearest existing state. Keep `WorkspaceShellFacade` as a stable re-export layer
+for the template unless the template contract itself intentionally changes.
 
 ## Context Panel Rules
 
