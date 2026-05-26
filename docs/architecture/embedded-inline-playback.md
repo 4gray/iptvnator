@@ -189,6 +189,30 @@ MPV or VLC instance reuse is active and an existing process is reused, subsequen
 streams are loaded through MPV IPC or VLC RC commands and new process arguments
 are not re-applied until a fresh process starts.
 
+## Electron External Player Ownership
+
+External MPV/VLC integration is split across focused main-process modules:
+
+- `apps/electron-backend/src/app/events/player.events.ts` registers IPC handlers
+  and settings updates only.
+- `apps/electron-backend/src/app/events/external-player-launch-context.ts`
+  resolves Flatpak spawning, default executable paths, macOS `.app` bundles,
+  custom argv merging, spawn specs, and reuse decisions.
+- `apps/electron-backend/src/app/events/external-player-playback-request.ts`
+  builds the effective playback request, including Stalker direct-stream fallback
+  metadata and external-player request headers.
+- `apps/electron-backend/src/app/events/external-player-runtime.ts` owns shared
+  session tracking, trace logging, renderer notifications, playback-position
+  forwarding, and user-facing start errors.
+- `apps/electron-backend/src/app/events/mpv-session.service.ts` owns MPV process,
+  socket, reuse, cleanup, and progress polling lifecycle.
+- `apps/electron-backend/src/app/events/vlc-session.service.ts` owns VLC process,
+  RC interface, reuse, cleanup, command parsing, and progress polling lifecycle.
+
+Keep player-specific process state in the MPV/VLC session modules. Shared spawn,
+request-header, session-registry, and notification helpers belong in the
+`external-player-*` modules so IPC registration stays small and reviewable.
+
 ## Flatpak External Players
 
 Flatpak cannot execute host-installed `mpv` or `vlc` binaries directly from the sandbox.
