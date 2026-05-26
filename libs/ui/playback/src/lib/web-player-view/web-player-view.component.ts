@@ -80,9 +80,9 @@ export class WebPlayerViewComponent {
     }>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 
-    settings = toSignal(
-        this.storage.get(STORE_KEY.Settings)
-    ) as Signal<Settings>;
+    settings = toSignal(this.storage.get(STORE_KEY.Settings)) as Signal<
+        Settings | undefined
+    >;
 
     channel!: Channel;
     player!: VideoPlayer;
@@ -121,6 +121,9 @@ export class WebPlayerViewComponent {
             this.playerOverride() ??
             this.settings()?.player ??
             VideoPlayer.VideoJs
+    );
+    readonly recordingFolder = computed(
+        () => this.settings()?.recordingFolder ?? ''
     );
 
     constructor() {

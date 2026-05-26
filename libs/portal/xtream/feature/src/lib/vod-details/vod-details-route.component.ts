@@ -38,6 +38,7 @@ import {
     ResolvedPortalPlayback,
     XtreamCategory,
     XtreamVodDetails,
+    XtreamVodInfo,
     XtreamVodStream,
     getXtreamVodInfo,
 } from '@iptvnator/shared/interfaces';
@@ -468,6 +469,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             'movie',
             this.selectedVodInfo()?.backdrop_path?.[0]
         );
+    }
+
+    getBackdropUrl(info: XtreamVodInfo): string | undefined {
+        return info.backdrop_path?.[0];
     }
 
     goBack(): void {

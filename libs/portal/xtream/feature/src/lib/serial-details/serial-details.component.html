@@ -5,7 +5,7 @@
         [title]="info.name"
         [description]="info.plot"
         [posterUrl]="info.cover"
-        [backdropUrl]="info.backdrop_path[0]"
+        [backdropUrl]="getBackdropUrl(info)"
         (backClicked)="goBack()"
     >
         <ng-container hero-tags>

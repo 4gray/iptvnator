@@ -34,6 +34,7 @@ import {
     PlaybackPositionData,
     PlayerContentInfo,
     ResolvedPortalPlayback,
+    XtreamSerieInfo,
     XtreamSerieEpisode,
     XtreamSerieDetails,
 } from '@iptvnator/shared/interfaces';
@@ -307,6 +308,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             'series',
             this.selectedItem()?.info?.backdrop_path?.[0]
         );
+    }
+
+    getBackdropUrl(info: XtreamSerieInfo): string | undefined {
+        return info.backdrop_path?.[0];
     }
 
     goBack(): void {

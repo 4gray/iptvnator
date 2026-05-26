@@ -20,7 +20,7 @@ export class EpgViewComponent {
     dialog = inject(MatDialog);
 
     isCurrentProgram(item: EpgItem): boolean {
-        const end = item.stop ?? item.end;
+        const end = this.getProgramEnd(item);
         const now = new Date().getTime();
         const start = new Date(item.start).getTime();
         const stop = new Date(end).getTime();
@@ -30,12 +30,16 @@ export class EpgViewComponent {
     getProgress(item: EpgItem): number {
         const now = new Date().getTime();
         const start = new Date(item.start).getTime();
-        const end = new Date(item.stop ?? item.end).getTime();
+        const end = new Date(this.getProgramEnd(item)).getTime();
 
         const total = end - start;
         const current = now - start;
 
         return Math.min(Math.max((current / total) * 100, 0), 100);
+    }
+
+    getProgramEnd(item: EpgItem): string {
+        return item.stop ?? item.end;
     }
 
     showDetails(item: EpgItem) {
