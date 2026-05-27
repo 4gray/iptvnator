@@ -546,7 +546,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - **Event handlers**: `apps/electron-backend/src/app/events/`
     - `database.events.ts` - Database CRUD operations
     - `playlist.events.ts` - Playlist import/update
-    - `epg.events.ts` - EPG fetch and parsing (uses worker)
+    - `epg.events.ts` - EPG IPC registration and freshness/fetch orchestration; worker lifecycle lives in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Stalker portal API
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
@@ -555,7 +555,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 **Workers**:
 
-- EPG parsing runs in worker thread: `apps/electron-backend/src/app/workers/epg-parser.worker.ts`
+- EPG parsing runs in worker thread: `apps/electron-backend/src/app/workers/epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
 
 ### Key Features
 
