@@ -45,6 +45,7 @@ jest.mock('../database/connection', () => ({
 
 describe('EpgEvents', () => {
     let EpgEvents: typeof EpgEventsType;
+    let EpgWorkerService: typeof import('./epg-worker.service').EpgWorkerService;
     let consoleLogSpy: jest.SpyInstance;
     let consoleErrorSpy: jest.SpyInstance;
 
@@ -63,9 +64,11 @@ describe('EpgEvents', () => {
         });
 
         ({ default: EpgEvents } = await import('./epg.events'));
+        ({ EpgWorkerService } = await import('./epg-worker.service'));
     });
 
     afterEach(() => {
+        jest.useRealTimers();
         consoleLogSpy.mockRestore();
         consoleErrorSpy.mockRestore();
         getDatabase.mockReset();
@@ -129,6 +132,32 @@ describe('EpgEvents', () => {
             name: 'WorkerPathResolutionError',
             message: expect.stringContaining('epg-parser.worker.js'),
         });
+    });
+
+    it('rejects when the EPG clear worker exits before completion', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const clearPromise = workerService.clearEpgData();
+        const worker = mockWorkerInstances[0];
+
+        worker.emit('exit', 0);
+
+        await expect(clearPromise).rejects.toThrow(
+            'Clear worker exited unexpectedly (code 0)'
+        );
+    });
+
+    it('rejects when the EPG clear worker never responds', async () => {
+        jest.useFakeTimers();
+
+        const workerService = new EpgWorkerService('[Test EPG]', 25);
+        const clearPromise = workerService.clearEpgData();
+        const worker = mockWorkerInstances[0];
+
+        worker.emit('message', { type: 'READY' });
+        jest.advanceTimersByTime(25);
+
+        await expect(clearPromise).rejects.toThrow('EPG clear timed out after');
+        expect(worker.terminate).toHaveBeenCalled();
     });
 
     it('falls back to case-insensitive channel id lookup for EPG programs', async () => {

@@ -267,6 +267,20 @@ Current sources:
 2. `apps/electron-backend/src/app/workers/database.worker-connection.ts`
 3. `apps/electron-backend/src/app/workers/epg-parser.worker.ts`
 
+Main-process EPG ownership is split across focused event modules:
+
+1. `apps/electron-backend/src/app/events/epg.events.ts` registers EPG IPC
+   handlers and owns freshness/fetch orchestration.
+2. `apps/electron-backend/src/app/events/epg-worker.service.ts` owns EPG
+   worker creation, renderer progress updates, fetch worker lifecycle, and
+   clear-worker lifecycle.
+3. `apps/electron-backend/src/app/events/epg-query.service.ts` owns EPG
+   channel/program database lookups, metadata resolution, and DB row mapping.
+
+Keep worker lifecycle state out of the IPC registration layer. Add new EPG DB
+lookup behavior to `epg-query.service.ts`; add new EPG worker/progress behavior
+to `epg-worker.service.ts`.
+
 ## UI Behavior Changes
 
 ### Search
@@ -291,9 +305,9 @@ Current contract:
 2. Any DB-backed lookup that starts from an Xtream result card, favorite button,
    recent-item update, continue-watching flow, or detail route must resolve
    content by:
-   - `playlist_id`
-   - `xtream_id`
-   - `content.type`
+    - `playlist_id`
+    - `xtream_id`
+    - `content.type`
 3. Mixed Xtream collection identity must key entries by `type + xtream_id`,
    not `xtream_id` alone. This includes favorites maps, recent-item lists,
    dashboard collection payloads, and other UI state keyed off persisted
@@ -427,6 +441,10 @@ covers:
 1. shared worker bootstrap usage for the EPG worker
 2. `nativeModuleSearchPaths` forwarding into workerData
 3. actionable worker-path resolution failures
+4. EPG clear worker rejection on unexpected exit or timeout
+5. case-insensitive EPG program lookup fallbacks
+6. metadata lookup precedence for exact/case-insensitive id and display name
+7. malformed EPG row filtering
 
 `apps/electron-backend/src/app/workers/worker-runtime-paths.spec.ts` covers:
 

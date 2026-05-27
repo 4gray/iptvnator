@@ -1,79 +1,26 @@
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
-import { app, BrowserWindow, ipcMain } from 'electron';
-import * as path from 'path';
+import { eq } from 'drizzle-orm';
+import { ipcMain } from 'electron';
 import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
-import { pathToFileURL } from 'url';
-import { Worker } from 'worker_threads';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
-import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
+import { epgQueryService } from './epg-query.service';
+import { epgWorkerService } from './epg-worker.service';
 
 /**
  * EPG Events Handler
- * Manages EPG data fetching and querying using worker threads.
- * Database operations are performed in the worker thread to avoid blocking the main thread.
+ * Manages EPG IPC registration and delegates worker/query behavior.
  */
 export default class EpgEvents {
-    private static fetchedUrls: Set<string> = new Set();
-    private static workers: Map<string, Worker> = new Map();
     private static readonly loggerLabel = '[EPG Events]';
-    private static readonly FETCH_TIMEOUT_MS = 5 * 60 * 1000;
-
-    private static createEpgWorker(): Worker {
-        const bootstrap = resolveWorkerRuntimeBootstrap({
-            isPackaged: app.isPackaged,
-            workerFilename: 'epg-parser.worker.js',
-            developmentWorkerDir: path.join(__dirname, 'workers'),
-            resourcesPath: (
-                process as NodeJS.Process & { resourcesPath?: string }
-            ).resourcesPath,
-            appPath: app.getAppPath(),
-        });
-
-        const workerURL = pathToFileURL(bootstrap.workerPath);
-        return new Worker(workerURL, {
-            resourceLimits: {
-                maxOldGenerationSizeMb: 4096,
-                maxYoungGenerationSizeMb: 512,
-            },
-            workerData: {
-                nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
-            },
-        });
-    }
-
-    /**
-     * Send EPG progress to all renderer windows
-     */
-    private static sendProgressToRenderer(
-        url: string,
-        status: 'queued' | 'loading' | 'complete' | 'error',
-        stats?: { totalChannels: number; totalPrograms: number },
-        error?: string,
-        queuePosition?: number
-    ): void {
-        const windows = BrowserWindow.getAllWindows();
-        windows.forEach((win) => {
-            win.webContents.send('EPG_PROGRESS_UPDATE', {
-                url,
-                status,
-                stats,
-                error,
-                queuePosition,
-            });
-        });
-    }
 
     /**
      * Bootstrap EPG events
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
-        // Fetch EPG from URLs
         ipcMain.handle('FETCH_EPG', async (_event, args: { url: string[] }) => {
             return await this.handleFetchEpg(args.url);
         });
 
-        // Get programs for a specific channel
         ipcMain.handle(
             'GET_CHANNEL_PROGRAMS',
             async (_event, args: { channelId: string }) => {
@@ -81,7 +28,6 @@ export default class EpgEvents {
             }
         );
 
-        // Get current programs for many channels in a single batched query
         ipcMain.handle(
             'GET_CURRENT_PROGRAMS_BATCH',
             async (_event, args: { channelIds: string[] }) => {
@@ -89,7 +35,6 @@ export default class EpgEvents {
             }
         );
 
-        // Get all channels from database
         ipcMain.handle('EPG_GET_CHANNELS', async () => {
             return this.handleGetAllChannels();
         });
@@ -101,7 +46,6 @@ export default class EpgEvents {
             }
         );
 
-        // Get channels by range (pagination)
         ipcMain.handle(
             'EPG_GET_CHANNELS_BY_RANGE',
             async (_event, args: { skip: number; limit: number }) => {
@@ -109,19 +53,16 @@ export default class EpgEvents {
             }
         );
 
-        // Force fetch (ignore cache)
         ipcMain.handle('EPG_FORCE_FETCH', async (_event, url: string) => {
-            this.fetchedUrls.delete(url);
+            epgWorkerService.deleteFetchedUrl(url);
             return await this.handleFetchEpg([url]);
         });
 
-        // Clear all EPG data
         ipcMain.handle('EPG_CLEAR_ALL', async () => {
             await this.clearEpgData();
             return { success: true };
         });
 
-        // Check if EPG data for URLs is fresh (not stale)
         ipcMain.handle(
             'EPG_CHECK_FRESHNESS',
             async (
@@ -172,7 +113,7 @@ export default class EpgEvents {
 
                 if (isFresh) {
                     freshUrls.push(url);
-                    this.fetchedUrls.add(url);
+                    epgWorkerService.markFetchedUrl(url);
                 } else {
                     staleUrls.push(url);
                 }
@@ -186,7 +127,6 @@ export default class EpgEvents {
             return { staleUrls: urls, freshUrls: [] };
         }
 
-        // Log summary
         if (freshUrls.length > 0) {
             console.log(
                 this.loggerLabel,
@@ -217,7 +157,6 @@ export default class EpgEvents {
             return { success: false, message: 'No valid URLs provided' };
         }
 
-        // Check which URLs have fresh data and can be skipped
         const { staleUrls, freshUrls } = await this.checkEpgFreshness(
             validUrls,
             12
@@ -235,7 +174,7 @@ export default class EpgEvents {
         // a 'queued' status, then fetchEpgFromUrl silently skips the URL and no
         // completion update ever arrives, leaving the UI stuck at "queued".
         const urlsToFetch = staleUrls.filter(
-            (url) => !this.fetchedUrls.has(url)
+            (url) => !epgWorkerService.hasFetchedUrl(url)
         );
 
         if (urlsToFetch.length === 0) {
@@ -246,9 +185,8 @@ export default class EpgEvents {
             return { success: true, skipped: freshUrls };
         }
 
-        // Send queued status for URLs that will actually be fetched
         urlsToFetch.forEach((url, index) => {
-            this.sendProgressToRenderer(
+            epgWorkerService.sendProgressToRenderer(
                 url,
                 'queued',
                 undefined,
@@ -257,10 +195,8 @@ export default class EpgEvents {
             );
         });
 
-        // Process URLs sequentially to avoid database locking
         const errors: string[] = [];
-        for (let i = 0; i < urlsToFetch.length; i++) {
-            const url = urlsToFetch[i];
+        for (const url of urlsToFetch) {
             try {
                 await this.fetchEpgFromUrl(url);
             } catch (error) {
@@ -277,7 +213,7 @@ export default class EpgEvents {
 
         if (errors.length > 0) {
             return {
-                success: errors.length < urlsToFetch.length, // Partial success if some worked
+                success: errors.length < urlsToFetch.length,
                 message: errors.join('; '),
                 skipped: freshUrls,
             };
@@ -286,561 +222,35 @@ export default class EpgEvents {
         return { success: true, skipped: freshUrls };
     }
 
-    /**
-     * Fetch EPG from a single URL using worker thread
-     * The worker handles both parsing AND database operations
-     */
     private static async fetchEpgFromUrl(url: string): Promise<void> {
-        // Skip if already fetched this session
-        if (this.fetchedUrls.has(url)) {
-            console.log(
-                this.loggerLabel,
-                `Skipping already fetched URL: ${url}`
-            );
-            return;
-        }
-
-        return new Promise((resolve, reject) => {
-            let worker: Worker;
-            try {
-                worker = this.createEpgWorker();
-            } catch (error) {
-                console.error(
-                    this.loggerLabel,
-                    'Failed to create worker:',
-                    error
-                );
-                reject(error);
-                return;
-            }
-
-            this.workers.set(url, worker);
-
-            // Guards against double-settling and keeps the outer loop moving
-            // when the worker dies or hangs without sending EPG_COMPLETE/EPG_ERROR.
-            let settled = false;
-            const settle = (fn: () => void) => {
-                if (settled) return;
-                settled = true;
-                clearTimeout(timeoutId);
-                fn();
-            };
-
-            const timeoutId = setTimeout(() => {
-                const errorMessage = `EPG fetch timed out after ${
-                    this.FETCH_TIMEOUT_MS / 1000
-                }s`;
-                console.error(this.loggerLabel, `${errorMessage}: ${url}`);
-                this.sendProgressToRenderer(
-                    url,
-                    'error',
-                    undefined,
-                    errorMessage
-                );
-                worker.terminate();
-                this.workers.delete(url);
-                settle(() => reject(new Error(errorMessage)));
-            }, this.FETCH_TIMEOUT_MS);
-
-            worker.on(
-                'message',
-                async (message: {
-                    type: string;
-                    error?: string;
-                    url?: string;
-                    stats?: { totalChannels: number; totalPrograms: number };
-                }) => {
-                    try {
-                        switch (message.type) {
-                            case 'READY':
-                                // Notify renderer that loading started
-                                this.sendProgressToRenderer(url, 'loading', {
-                                    totalChannels: 0,
-                                    totalPrograms: 0,
-                                });
-                                worker.postMessage({ type: 'FETCH_EPG', url });
-                                break;
-
-                            case 'EPG_PROGRESS':
-                                if (message.stats) {
-                                    // Forward progress to renderer
-                                    this.sendProgressToRenderer(
-                                        url,
-                                        'loading',
-                                        message.stats
-                                    );
-                                }
-                                break;
-
-                            case 'EPG_COMPLETE':
-                                console.log(
-                                    this.loggerLabel,
-                                    `EPG parsing complete for ${url}:`,
-                                    message.stats
-                                );
-                                // Notify renderer of completion
-                                this.sendProgressToRenderer(
-                                    url,
-                                    'complete',
-                                    message.stats
-                                );
-                                this.fetchedUrls.add(url);
-                                worker.terminate();
-                                this.workers.delete(url);
-                                settle(() => resolve());
-                                break;
-
-                            case 'EPG_ERROR':
-                                console.error(
-                                    this.loggerLabel,
-                                    'Worker error:',
-                                    message.error
-                                );
-                                // Notify renderer of error
-                                this.sendProgressToRenderer(
-                                    url,
-                                    'error',
-                                    undefined,
-                                    message.error
-                                );
-                                worker.terminate();
-                                this.workers.delete(url);
-                                settle(() =>
-                                    reject(
-                                        new Error(
-                                            message.error || 'Unknown error'
-                                        )
-                                    )
-                                );
-                                break;
-                        }
-                    } catch (err) {
-                        console.error(
-                            this.loggerLabel,
-                            'Error handling message:',
-                            err
-                        );
-                        this.sendProgressToRenderer(
-                            url,
-                            'error',
-                            undefined,
-                            err instanceof Error ? err.message : String(err)
-                        );
-                        worker.terminate();
-                        this.workers.delete(url);
-                        settle(() => reject(err));
-                    }
-                }
-            );
-
-            worker.on('error', (error) => {
-                console.error(this.loggerLabel, 'Worker error event:', error);
-                this.sendProgressToRenderer(
-                    url,
-                    'error',
-                    undefined,
-                    error.message
-                );
-                worker.terminate();
-                this.workers.delete(url);
-                settle(() => reject(error));
-            });
-
-            worker.on('exit', (code) => {
-                // If the worker exits without emitting EPG_COMPLETE/EPG_ERROR,
-                // settle the promise so the outer sequential loop can advance
-                // instead of hanging forever.
-                if (settled) return;
-                const errorMessage = `Worker exited unexpectedly (code ${code})`;
-                console.error(this.loggerLabel, `${errorMessage}: ${url}`);
-                this.sendProgressToRenderer(
-                    url,
-                    'error',
-                    undefined,
-                    errorMessage
-                );
-                this.workers.delete(url);
-                settle(() => reject(new Error(errorMessage)));
-            });
-        });
+        return epgWorkerService.fetchEpgFromUrl(url);
     }
 
-    private static normalizeChannelLookupKeys(channelIds: string[]): string[] {
-        return Array.from(
-            new Set(
-                channelIds
-                    .map((channelId) => channelId.trim())
-                    .filter((channelId) => channelId.length > 0)
-            )
-        );
-    }
-
-    private static resolveChannelMetadataCandidate(
-        channelId: string,
-        candidates: EpgChannelMetadata[]
-    ): EpgChannelMetadata | null {
-        const lowerChannelId = channelId.toLowerCase();
-
-        const exactIdMatch =
-            candidates.find((candidate) => candidate.id === channelId) ?? null;
-        if (exactIdMatch) {
-            return exactIdMatch;
-        }
-
-        const caseInsensitiveIdMatch =
-            candidates.find(
-                (candidate) => candidate.id.toLowerCase() === lowerChannelId
-            ) ?? null;
-        if (caseInsensitiveIdMatch) {
-            return caseInsensitiveIdMatch;
-        }
-
-        const exactDisplayNameMatch =
-            candidates.find(
-                (candidate) => candidate.displayName === channelId
-            ) ?? null;
-        if (exactDisplayNameMatch) {
-            return exactDisplayNameMatch;
-        }
-
-        return (
-            candidates.find(
-                (candidate) =>
-                    candidate.displayName.toLowerCase() === lowerChannelId
-            ) ?? null
-        );
-    }
-
-    /**
-     * Transform database row to flat EpgProgram interface
-     */
-    private static transformDbRowToEpgProgram(row: {
-        id: number;
-        channelId: string;
-        start: string;
-        stop: string;
-        title: string;
-        description: string | null;
-        category: string | null;
-        iconUrl: string | null;
-        rating: string | null;
-        episodeNum: string | null;
-    }) {
-        return {
-            start: row.start,
-            stop: row.stop,
-            channel: row.channelId,
-            title: row.title,
-            desc: row.description,
-            category: row.category,
-            iconUrl: row.iconUrl,
-            rating: row.rating,
-            episodeNum: row.episodeNum,
-        };
-    }
-
-    private static isValidEpgProgram(program: EpgProgram): boolean {
-        return Boolean(
-            program.start &&
-                program.stop &&
-                !Number.isNaN(new Date(program.start).getTime()) &&
-                !Number.isNaN(new Date(program.stop).getTime())
-        );
-    }
-
-    /**
-     * Get programs for a specific channel from database
-     */
     private static async handleGetChannelPrograms(
         channelId: string
     ): Promise<EpgProgram[]> {
-        try {
-            const db = await getDatabase();
-            const trimmedChannelId = channelId.trim();
-
-            if (!trimmedChannelId) {
-                return [];
-            }
-
-            // Try exact channel ID match first
-            let results = await db
-                .select()
-                .from(schema.epgPrograms)
-                .where(eq(schema.epgPrograms.channelId, trimmedChannelId))
-                .orderBy(schema.epgPrograms.start)
-                .limit(500);
-
-            if (results.length > 0) {
-                return results
-                    .map(this.transformDbRowToEpgProgram)
-                    .filter(this.isValidEpgProgram);
-            }
-
-            // Some playlists provide the right tvg-id with different casing than
-            // the XMLTV feed. Resolve the canonical channel row before giving up.
-            let channel = await db
-                .select()
-                .from(schema.epgChannels)
-                .where(
-                    sql`${schema.epgChannels.id} = ${trimmedChannelId} COLLATE NOCASE`
-                )
-                .limit(1);
-
-            if (channel.length > 0) {
-                results = await db
-                    .select()
-                    .from(schema.epgPrograms)
-                    .where(eq(schema.epgPrograms.channelId, channel[0].id))
-                    .orderBy(schema.epgPrograms.start)
-                    .limit(500);
-
-                if (results.length > 0) {
-                    return results
-                        .map(this.transformDbRowToEpgProgram)
-                        .filter(this.isValidEpgProgram);
-                }
-            }
-
-            // Try exact display name match before giving up. Using wildcard LIKE
-            // here can scan the whole table on the Electron main process.
-            channel = await db
-                .select()
-                .from(schema.epgChannels)
-                .where(eq(schema.epgChannels.displayName, trimmedChannelId))
-                .limit(1);
-
-            if (channel.length === 0) {
-                channel = await db
-                    .select()
-                    .from(schema.epgChannels)
-                    .where(
-                        sql`${schema.epgChannels.displayName} = ${trimmedChannelId} COLLATE NOCASE`
-                    )
-                    .limit(1);
-            }
-
-            if (channel.length > 0) {
-                results = await db
-                    .select()
-                    .from(schema.epgPrograms)
-                    .where(eq(schema.epgPrograms.channelId, channel[0].id))
-                    .orderBy(schema.epgPrograms.start)
-                    .limit(500);
-
-                return results
-                    .map(this.transformDbRowToEpgProgram)
-                    .filter(this.isValidEpgProgram);
-            }
-
-            return [];
-        } catch (error) {
-            console.error(
-                this.loggerLabel,
-                'Error getting channel programs:',
-                error
-            );
-            return [];
-        }
+        return epgQueryService.getChannelPrograms(channelId);
     }
 
-    /**
-     * Batch lookup of "currently playing" programs for many channels in a
-     * single SQL query. Replaces the N+1 pattern where the channel list
-     * fired one IPC + query per visible channel.
-     */
     private static async handleGetCurrentProgramsBatch(
         channelIds: string[]
     ): Promise<Record<string, EpgProgram | null>> {
-        const result: Record<string, EpgProgram | null> = {};
-        if (!Array.isArray(channelIds) || channelIds.length === 0) {
-            return result;
-        }
-
-        const validIds = Array.from(
-            new Set(
-                channelIds
-                    .map((id) => id?.trim())
-                    .filter((id): id is string => Boolean(id))
-            )
-        );
-        if (validIds.length === 0) {
-            return result;
-        }
-
-        try {
-            const db = await getDatabase();
-            const now = new Date().toISOString();
-
-            const rows = await db
-                .select()
-                .from(schema.epgPrograms)
-                .where(
-                    and(
-                        inArray(schema.epgPrograms.channelId, validIds),
-                        lte(schema.epgPrograms.start, now),
-                        gte(schema.epgPrograms.stop, now)
-                    )
-                );
-
-            for (const row of rows) {
-                if (!result[row.channelId]) {
-                    const program = this.transformDbRowToEpgProgram(row);
-                    if (this.isValidEpgProgram(program)) {
-                        result[row.channelId] = program;
-                    }
-                }
-            }
-
-            // Per-channel fallback for IDs that didn't match by exact channel_id.
-            // Mirrors handleGetChannelPrograms's NOCASE-id and display-name resolution.
-            const unmatchedIds = validIds.filter((id) => !(id in result));
-            for (const channelId of unmatchedIds) {
-                result[channelId] = null;
-
-                let channel = await db
-                    .select()
-                    .from(schema.epgChannels)
-                    .where(
-                        sql`${schema.epgChannels.id} = ${channelId} COLLATE NOCASE`
-                    )
-                    .limit(1);
-
-                if (channel.length === 0) {
-                    channel = await db
-                        .select()
-                        .from(schema.epgChannels)
-                        .where(
-                            sql`${schema.epgChannels.displayName} = ${channelId} COLLATE NOCASE`
-                        )
-                        .limit(1);
-                }
-
-                if (channel.length === 0) {
-                    continue;
-                }
-
-                const programRows = await db
-                    .select()
-                    .from(schema.epgPrograms)
-                    .where(
-                        and(
-                            eq(schema.epgPrograms.channelId, channel[0].id),
-                            lte(schema.epgPrograms.start, now),
-                            gte(schema.epgPrograms.stop, now)
-                        )
-                    )
-                    .limit(1);
-
-                if (programRows.length > 0) {
-                    const program = this.transformDbRowToEpgProgram(
-                        programRows[0]
-                    );
-                    if (this.isValidEpgProgram(program)) {
-                        result[channelId] = program;
-                    }
-                }
-            }
-
-            return result;
-        } catch (error) {
-            console.error(
-                this.loggerLabel,
-                'Error getting batch current programs:',
-                error
-            );
-            return result;
-        }
+        return epgQueryService.getCurrentProgramsBatch(channelIds);
     }
 
-    /**
-     * Get all channels from database
-     */
     private static async handleGetAllChannels(): Promise<{
         channels: Array<{ id: string; displayName: string }>;
         programs: never[];
     }> {
-        try {
-            const db = await getDatabase();
-            const channels = await db
-                .select({
-                    id: schema.epgChannels.id,
-                    displayName: schema.epgChannels.displayName,
-                })
-                .from(schema.epgChannels)
-                .orderBy(schema.epgChannels.displayName);
-
-            return { channels, programs: [] };
-        } catch (error) {
-            console.error(
-                this.loggerLabel,
-                'Error getting all channels:',
-                error
-            );
-            return { channels: [], programs: [] };
-        }
+        return epgQueryService.getAllChannels();
     }
 
-    /**
-     * Resolve EPG channel metadata for a batch of lookup keys.
-     *
-     * Lookup precedence per key:
-     * 1. exact channel id
-     * 2. case-insensitive channel id
-     * 3. exact display name
-     * 4. case-insensitive display name
-     */
     private static async handleGetChannelMetadata(
         channelIds: string[]
     ): Promise<Record<string, EpgChannelMetadata | null>> {
-        try {
-            const normalizedChannelIds =
-                this.normalizeChannelLookupKeys(channelIds);
-
-            if (normalizedChannelIds.length === 0) {
-                return {};
-            }
-
-            const db = await getDatabase();
-            const lowerKeys = Array.from(
-                new Set(
-                    normalizedChannelIds.map((channelId) =>
-                        channelId.toLowerCase()
-                    )
-                )
-            );
-            const lowerKeyValues = lowerKeys.map((key) => sql`${key}`);
-
-            const candidates = await db
-                .select({
-                    id: schema.epgChannels.id,
-                    displayName: schema.epgChannels.displayName,
-                    iconUrl: schema.epgChannels.iconUrl,
-                })
-                .from(schema.epgChannels)
-                .where(sql`
-                    LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerKeyValues, sql`, `)})
-                    OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerKeyValues, sql`, `)})
-                `);
-
-            return Object.fromEntries(
-                normalizedChannelIds.map((channelId) => [
-                    channelId,
-                    this.resolveChannelMetadataCandidate(channelId, candidates),
-                ])
-            );
-        } catch (error) {
-            console.error(
-                this.loggerLabel,
-                'Error getting channel metadata:',
-                error
-            );
-            return {};
-        }
+        return epgQueryService.getChannelMetadata(channelIds);
     }
 
-    /**
-     * Get channels by range (for pagination) with their programs
-     */
     private static async handleGetChannelsByRange(
         skip: number,
         limit: number
@@ -852,101 +262,10 @@ export default class EpgEvents {
             programs: EpgProgram[];
         }>
     > {
-        try {
-            const db = await getDatabase();
-            const channels = await db
-                .select({
-                    id: schema.epgChannels.id,
-                    displayName: schema.epgChannels.displayName,
-                    iconUrl: schema.epgChannels.iconUrl,
-                })
-                .from(schema.epgChannels)
-                .orderBy(schema.epgChannels.displayName)
-                .offset(skip)
-                .limit(limit);
-
-            // Fetch programs for each channel
-            const channelsWithPrograms = await Promise.all(
-                channels.map(async (channel) => {
-                    const programs = await db
-                        .select()
-                        .from(schema.epgPrograms)
-                        .where(eq(schema.epgPrograms.channelId, channel.id))
-                        .orderBy(schema.epgPrograms.start);
-
-                    return {
-                        ...channel,
-                        programs: programs.map(this.transformDbRowToEpgProgram),
-                    };
-                })
-            );
-
-            return channelsWithPrograms;
-        } catch (error) {
-            console.error(
-                this.loggerLabel,
-                'Error getting channels by range:',
-                error
-            );
-            return [];
-        }
+        return epgQueryService.getChannelsByRange(skip, limit);
     }
 
-    /**
-     * Clear all EPG data using worker thread to avoid blocking main thread
-     */
     static async clearEpgData(): Promise<void> {
-        return new Promise((resolve, reject) => {
-            let worker: Worker;
-            try {
-                worker = this.createEpgWorker();
-            } catch (error) {
-                console.error(
-                    this.loggerLabel,
-                    'Failed to create worker for clear:',
-                    error
-                );
-                reject(error);
-                return;
-            }
-
-            worker.on(
-                'message',
-                (message: { type: string; error?: string }) => {
-                    if (message.type === 'READY') {
-                        worker.postMessage({ type: 'CLEAR_EPG' });
-                    } else if (message.type === 'CLEAR_COMPLETE') {
-                        console.log(
-                            this.loggerLabel,
-                            'EPG data cleared via worker'
-                        );
-                        this.fetchedUrls.clear();
-                        // Terminate any running fetch workers
-                        this.workers.forEach((w) => w.terminate());
-                        this.workers.clear();
-                        worker.terminate();
-                        resolve();
-                    } else if (message.type === 'EPG_ERROR') {
-                        console.error(
-                            this.loggerLabel,
-                            'Worker clear error:',
-                            message.error
-                        );
-                        worker.terminate();
-                        reject(new Error(message.error || 'Clear failed'));
-                    }
-                }
-            );
-
-            worker.on('error', (error) => {
-                console.error(
-                    this.loggerLabel,
-                    'Worker error during clear:',
-                    error
-                );
-                worker.terminate();
-                reject(error);
-            });
-        });
+        return epgWorkerService.clearEpgData();
     }
 }
