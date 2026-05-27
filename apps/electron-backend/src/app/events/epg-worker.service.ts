@@ -230,31 +230,54 @@ export class EpgWorkerService {
                 return;
             }
 
+            let settled = false;
+            const settle = (fn: () => void) => {
+                if (settled) return;
+                settled = true;
+                clearTimeout(timeoutId);
+                fn();
+            };
+
+            const timeoutId = setTimeout(() => {
+                const errorMessage = `EPG clear timed out after ${
+                    this.fetchTimeoutMs / 1000
+                }s`;
+                console.error(this.loggerLabel, errorMessage);
+                settle(() => {
+                    worker.terminate();
+                    reject(new Error(errorMessage));
+                });
+            }, this.fetchTimeoutMs);
+
             worker.on(
                 'message',
                 (message: { type: string; error?: string }) => {
                     if (message.type === 'READY') {
                         worker.postMessage({ type: 'CLEAR_EPG' });
                     } else if (message.type === 'CLEAR_COMPLETE') {
-                        console.log(
-                            this.loggerLabel,
-                            'EPG data cleared via worker'
-                        );
-                        this.fetchedUrls.clear();
-                        this.workers.forEach((runningWorker) =>
-                            runningWorker.terminate()
-                        );
-                        this.workers.clear();
-                        worker.terminate();
-                        resolve();
+                        settle(() => {
+                            console.log(
+                                this.loggerLabel,
+                                'EPG data cleared via worker'
+                            );
+                            this.fetchedUrls.clear();
+                            this.workers.forEach((runningWorker) =>
+                                runningWorker.terminate()
+                            );
+                            this.workers.clear();
+                            worker.terminate();
+                            resolve();
+                        });
                     } else if (message.type === 'EPG_ERROR') {
                         console.error(
                             this.loggerLabel,
                             'Worker clear error:',
                             message.error
                         );
-                        worker.terminate();
-                        reject(new Error(message.error || 'Clear failed'));
+                        settle(() => {
+                            worker.terminate();
+                            reject(new Error(message.error || 'Clear failed'));
+                        });
                     }
                 }
             );
@@ -265,8 +288,17 @@ export class EpgWorkerService {
                     'Worker error during clear:',
                     error
                 );
-                worker.terminate();
-                reject(error);
+                settle(() => {
+                    worker.terminate();
+                    reject(error);
+                });
+            });
+
+            worker.on('exit', (code) => {
+                if (settled) return;
+                const errorMessage = `Clear worker exited unexpectedly (code ${code})`;
+                console.error(this.loggerLabel, errorMessage);
+                settle(() => reject(new Error(errorMessage)));
             });
         });
     }

@@ -441,9 +441,10 @@ covers:
 1. shared worker bootstrap usage for the EPG worker
 2. `nativeModuleSearchPaths` forwarding into workerData
 3. actionable worker-path resolution failures
-4. case-insensitive EPG program lookup fallbacks
-5. metadata lookup precedence for exact/case-insensitive id and display name
-6. malformed EPG row filtering
+4. EPG clear worker rejection on unexpected exit or timeout
+5. case-insensitive EPG program lookup fallbacks
+6. metadata lookup precedence for exact/case-insensitive id and display name
+7. malformed EPG row filtering
 
 `apps/electron-backend/src/app/workers/worker-runtime-paths.spec.ts` covers:
 
