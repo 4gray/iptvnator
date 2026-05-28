@@ -1,7 +1,10 @@
 import { inject, Injectable } from '@angular/core';
 import {
     ElectronBridgeApi,
+    ElectronBridgeEpgFetchResult,
     ElectronBridgeEpgChannelWithPrograms,
+    ElectronBridgeEpgFreshnessResult,
+    ElectronBridgeResult,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -30,20 +33,9 @@ export interface EpgImportProgress {
     queuePosition?: number;
 }
 
-export interface EpgFetchResult {
-    success: boolean;
-    message?: string;
-    skipped?: string[];
-}
-
-export interface EpgFreshnessResult {
-    staleUrls: string[];
-    freshUrls: string[];
-}
-
-export interface EpgClearResult {
-    success: boolean;
-}
+export type EpgFetchResult = ElectronBridgeEpgFetchResult;
+export type EpgFreshnessResult = ElectronBridgeEpgFreshnessResult;
+export type EpgClearResult = ElectronBridgeResult;
 
 type EpgElectronBridge = Pick<
     Partial<ElectronBridgeApi>,

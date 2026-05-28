@@ -202,7 +202,8 @@ export interface ElectronBridgeEpgChannelSummary {
 
 export interface ElectronBridgeEpgChannelListResult {
     channels: ElectronBridgeEpgChannelSummary[];
-    programs: never[];
+    /** Always empty for this endpoint; retained for wire-format compatibility. */
+    programs: [];
 }
 
 export interface ElectronBridgeEpgChannelWithPrograms extends ElectronBridgeEpgChannelSummary {
@@ -358,19 +359,11 @@ export interface ElectronBridgePlayerError {
     originalError: string;
 }
 
-export interface ElectronBridgePlaybackPositionInput {
-    contentXtreamId: number;
-    contentType: ElectronBridgePlaybackContentType;
-    seriesXtreamId?: number;
-    seasonNumber?: number;
-    episodeNumber?: number;
-    position?: number;
-    positionSeconds?: number;
-    duration?: number;
-    durationSeconds?: number;
-    title?: string;
-    posterUrl?: string;
-    sessionId?: string;
+export interface ElectronBridgePlaybackPositionInput extends Omit<
+    PlaybackPositionData,
+    'playlistId' | 'updatedAt'
+> {
+    playlistType?: ElectronBridgePlaylistType;
 }
 
 export interface ElectronBridgeDownloadHeaders {
