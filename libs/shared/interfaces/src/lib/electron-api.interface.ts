@@ -518,12 +518,10 @@ export interface ElectronBridgeApi {
     dbGetPlaylist: (
         playlistId: string
     ) => Promise<ElectronBridgePlaylistRow | null>;
-    dbUpsertAppPlaylist: (
-        playlist: Playlist
-    ) => Promise<ElectronBridgeResult | void>;
+    dbUpsertAppPlaylist: (playlist: Playlist) => Promise<ElectronBridgeResult>;
     dbUpsertAppPlaylists: (
         playlists: Playlist[]
-    ) => Promise<ElectronBridgeCountResult | ElectronBridgeResult | void>;
+    ) => Promise<ElectronBridgeCountResult>;
     dbGetAppPlaylists: () => Promise<Playlist[]>;
     dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
     dbUpdatePlaylist: (
