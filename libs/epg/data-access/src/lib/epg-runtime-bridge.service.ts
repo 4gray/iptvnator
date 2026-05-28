@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import {
-    EpgChannel,
+    ElectronBridgeApi,
+    ElectronBridgeEpgChannelWithPrograms,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -44,37 +45,19 @@ export interface EpgClearResult {
     success: boolean;
 }
 
-type EpgElectronBridge = Partial<
-    {
-        checkEpgFreshness: (
-            urls: string[],
-            maxAgeHours?: number
-        ) => Promise<EpgFreshnessResult>;
-        clearEpgData: () => Promise<EpgClearResult>;
-        fetchEpg: (urls: string[]) => Promise<EpgFetchResult>;
-        forceFetchEpg: (url: string) => Promise<EpgFetchResult>;
-        getChannelPrograms: (channelId: string) => Promise<EpgProgram[]>;
-        getCurrentProgramsBatch: (
-            channelIds: string[]
-        ) => Promise<Record<string, EpgProgram | null>>;
-        getEpgChannelMetadata: (
-            channelIds: string[]
-        ) => Promise<Record<string, EpgChannelMetadata | null>>;
-        getEpgChannelsByRange: (
-            skip: number,
-            limit: number
-        ) => Promise<EpgChannel[]>;
-        onEpgProgress: (callback: (data: EpgImportProgress) => void) => void;
-        searchEpgPrograms: (
-            searchTerm: string,
-            limit?: number
-        ) => Promise<EpgProgram[]>;
-    }
+type EpgElectronBridge = Pick<
+    Partial<ElectronBridgeApi>,
+    | 'checkEpgFreshness'
+    | 'clearEpgData'
+    | 'fetchEpg'
+    | 'forceFetchEpg'
+    | 'getChannelPrograms'
+    | 'getCurrentProgramsBatch'
+    | 'getEpgChannelMetadata'
+    | 'getEpgChannelsByRange'
+    | 'onEpgProgress'
+    | 'searchEpgPrograms'
 >;
-
-type EpgRuntimeWindow = Window & {
-    electron?: EpgElectronBridge;
-};
 
 @Injectable({ providedIn: 'root' })
 export class EpgRuntimeBridgeService {
@@ -145,8 +128,10 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.getChannelPrograms?.(channelId) ??
-            Promise.resolve(null);
+        return (
+            this.bridge?.getChannelPrograms?.(channelId) ??
+            Promise.resolve(null)
+        );
     }
 
     getCurrentProgramsBatch(
@@ -156,8 +141,10 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.getCurrentProgramsBatch?.(channelIds) ??
-            Promise.resolve(null);
+        return (
+            this.bridge?.getCurrentProgramsBatch?.(channelIds) ??
+            Promise.resolve(null)
+        );
     }
 
     getChannelMetadata(
@@ -167,8 +154,10 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.getEpgChannelMetadata?.(channelIds) ??
-            Promise.resolve(null);
+        return (
+            this.bridge?.getEpgChannelMetadata?.(channelIds) ??
+            Promise.resolve(null)
+        );
     }
 
     checkFreshness(
@@ -179,20 +168,24 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.checkEpgFreshness?.(urls, maxAgeHours) ??
-            Promise.resolve(null);
+        return (
+            this.bridge?.checkEpgFreshness?.(urls, maxAgeHours) ??
+            Promise.resolve(null)
+        );
     }
 
     getChannelsByRange(
         skip: number,
         limit: number
-    ): Promise<EpgChannel[] | null> {
+    ): Promise<ElectronBridgeEpgChannelWithPrograms[] | null> {
         if (!this.supportsChannelBrowser) {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.getEpgChannelsByRange?.(skip, limit) ??
-            Promise.resolve(null);
+        return (
+            this.bridge?.getEpgChannelsByRange?.(skip, limit) ??
+            Promise.resolve(null)
+        );
     }
 
     searchPrograms(
@@ -203,8 +196,10 @@ export class EpgRuntimeBridgeService {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.searchEpgPrograms?.(searchTerm, limit) ??
-            Promise.resolve(null);
+        return (
+            this.bridge?.searchEpgPrograms?.(searchTerm, limit) ??
+            Promise.resolve(null)
+        );
     }
 
     onProgress(callback: (data: EpgImportProgress) => void): void {
@@ -220,6 +215,6 @@ export class EpgRuntimeBridgeService {
             return undefined;
         }
 
-        return (window as EpgRuntimeWindow).electron;
+        return window.electron;
     }
 }

@@ -1,5 +1,18 @@
+import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
+
+type ElectronBridgeMethodName = Extract<
+    {
+        [K in keyof ElectronBridgeApi]: ElectronBridgeApi[K] extends (
+            ...args: never[]
+        ) => unknown
+            ? K
+            : never;
+    }[keyof ElectronBridgeApi],
+    string
+>;
+
 type PreloadInvokeCase = {
-    method: string;
+    method: ElectronBridgeMethodName;
     args: unknown[];
     channel: string;
     forwardedArgs: unknown[];
@@ -7,6 +20,8 @@ type PreloadInvokeCase = {
 
 const playlistId = 'playlist-1';
 export const operationId = 'operation-1';
+const epgUrls = ['https://example.com/guide.xml'];
+const channelIds = ['channel-1', 'channel-2'];
 const playlist = { id: playlistId, name: 'Playlist', type: 'xtream' };
 const playlists = [playlist];
 const playlistUpdates = { name: 'Updated playlist' };
@@ -317,5 +332,68 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, 42, 'vod'],
         channel: 'DB_CLEAR_PLAYBACK_POSITION',
         forwardedArgs: [playlistId, 42, 'vod'],
+    },
+];
+
+export const epgPreloadCases: PreloadInvokeCase[] = [
+    {
+        method: 'fetchEpg',
+        args: [epgUrls],
+        channel: 'FETCH_EPG',
+        forwardedArgs: [{ url: epgUrls }],
+    },
+    {
+        method: 'getChannelPrograms',
+        args: ['channel-1'],
+        channel: 'GET_CHANNEL_PROGRAMS',
+        forwardedArgs: [{ channelId: 'channel-1' }],
+    },
+    {
+        method: 'getCurrentProgramsBatch',
+        args: [channelIds],
+        channel: 'GET_CURRENT_PROGRAMS_BATCH',
+        forwardedArgs: [{ channelIds }],
+    },
+    {
+        method: 'getEpgChannelMetadata',
+        args: [channelIds],
+        channel: 'EPG_GET_CHANNEL_METADATA',
+        forwardedArgs: [{ channelIds }],
+    },
+    {
+        method: 'getEpgChannels',
+        args: [],
+        channel: 'EPG_GET_CHANNELS',
+        forwardedArgs: [],
+    },
+    {
+        method: 'getEpgChannelsByRange',
+        args: [10, 20],
+        channel: 'EPG_GET_CHANNELS_BY_RANGE',
+        forwardedArgs: [{ skip: 10, limit: 20 }],
+    },
+    {
+        method: 'forceFetchEpg',
+        args: ['https://example.com/guide.xml'],
+        channel: 'EPG_FORCE_FETCH',
+        forwardedArgs: ['https://example.com/guide.xml'],
+    },
+    {
+        method: 'clearEpgData',
+        args: [],
+        channel: 'EPG_CLEAR_ALL',
+        forwardedArgs: [],
+    },
+    {
+        method: 'checkEpgFreshness',
+        args: [epgUrls, 24],
+        channel: 'EPG_CHECK_FRESHNESS',
+        forwardedArgs: [{ urls: epgUrls, maxAgeHours: 24 }],
+    },
+    {
+        method: 'searchEpgPrograms',
+        args: ['news', 50],
+        channel: 'EPG_DB_SEARCH_PROGRAMS',
+        forwardedArgs: ['news', 50],
     },
 ];

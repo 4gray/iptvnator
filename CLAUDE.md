@@ -543,6 +543,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - **Preload script**: `apps/electron-backend/src/app/api/main.preload.ts`
     - Exposes `window.electron` API via `contextBridge`
     - All IPC channels defined here (playlist operations, EPG, database CRUD, external players, etc.)
+    - The canonical TypeScript contract is `ElectronBridgeApi` in `libs/shared/interfaces/src/lib/electron-api.interface.ts`; `global.d.ts`, `apps/web/src/typings.d.ts`, and `main.preload.ts` must reference this shared type instead of maintaining separate method lists.
 - **Event handlers**: `apps/electron-backend/src/app/events/`
     - `database.events.ts` - Database CRUD operations
     - `playlist.events.ts` - Playlist import/update
