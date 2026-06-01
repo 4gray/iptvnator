@@ -7,6 +7,7 @@ import type {
     ElectronBridgeApi,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
     ElectronBridgePlaylistInput,
     ElectronBridgePlaylistUpsertInput,
@@ -199,14 +200,7 @@ const electronApi: ElectronBridgeApi = {
         return () => ipcRenderer.off(PORTAL_DEBUG_EVENT, handler);
     },
     // EPG progress listener
-    onEpgProgress: (
-        callback: (data: {
-            url: string;
-            status: 'loading' | 'complete' | 'error';
-            stats?: { totalChannels: number; totalPrograms: number };
-            error?: string;
-        }) => void
-    ) => {
+    onEpgProgress: (callback: (data: ElectronBridgeEpgProgress) => void) => {
         ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
     },
     // Playback position update listener - returns unsubscribe function
