@@ -2,6 +2,7 @@ export * from './lib/channel.interface';
 export * from './lib/channel.model';
 export * from './lib/dev-logger.util';
 export * from './lib/embedded-mpv-session.interface';
+export * from './lib/electron-api.interface';
 export * from './lib/epg-channel-metadata.model';
 export * from './lib/epg-channel-with-programs.interface';
 export * from './lib/epg-channel.model';

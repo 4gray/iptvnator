@@ -8,6 +8,7 @@ import {
     AUTO_UPDATE_PLAYLISTS,
     createDevLogger,
     ERROR,
+    PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
     PLAYLIST_UPDATE,
@@ -30,7 +31,7 @@ interface PlayerLaunchPayload {
     readonly title?: string;
     readonly url: string;
     readonly ['user-agent']?: string;
-    readonly contentInfo?: unknown;
+    readonly contentInfo?: PlayerContentInfo;
 }
 
 interface ErrorStatus {

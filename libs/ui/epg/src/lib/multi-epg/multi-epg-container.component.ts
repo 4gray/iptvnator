@@ -25,17 +25,15 @@ import { addDays, differenceInMinutes, format, parse, subDays } from 'date-fns';
 import { Observable, Subscription, startWith } from 'rxjs';
 import {
     Channel,
+    ElectronBridgeEpgChannelWithPrograms,
     EpgChannel,
-    EpgChannelWithPrograms,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
-interface MultiEpgChannel extends EpgChannelWithPrograms {
-    iconUrl?: string | null;
-}
+type MultiEpgChannel = ElectronBridgeEpgChannelWithPrograms;
 
 interface EnrichedProgram extends EpgProgram {
     startDate: Date;
@@ -63,13 +61,7 @@ export function isSelectedEpgDayToday(
 }
 
 @Component({
-    imports: [
-        DatePipe,
-        MatButtonModule,
-        MatIcon,
-        MatTooltip,
-        TranslatePipe,
-    ],
+    imports: [DatePipe, MatButtonModule, MatIcon, MatTooltip, TranslatePipe],
     selector: 'app-multi-epg-container',
     templateUrl: './multi-epg-container.component.html',
     styleUrls: ['./multi-epg-container.component.scss'],
@@ -288,10 +280,7 @@ export class MultiEpgContainerComponent
 
             if (response && Array.isArray(response)) {
                 // Append new data to existing data
-                this.originalEpgData.update((data) => [
-                    ...data,
-                    ...(response as MultiEpgChannel[]),
-                ]);
+                this.originalEpgData.update((data) => [...data, ...response]);
 
                 // Update isLastPage based on the number of channels received
                 this.isLastPage.set(response.length < this.visibleChannels);
@@ -369,7 +358,7 @@ export class MultiEpgContainerComponent
     /**
      * Get display name from EpgChannel
      */
-    getChannelName(channel: EpgChannel): string {
+    getChannelName(channel: EpgChannel | MultiEpgChannel): string {
         if (typeof channel.displayName === 'string') {
             return channel.displayName;
         }
@@ -389,7 +378,11 @@ export class MultiEpgContainerComponent
         if ('iconUrl' in channel && channel.iconUrl) {
             return channel.iconUrl;
         }
-        if (channel.icon && channel.icon.length > 0) {
+        if (
+            'icon' in channel &&
+            Array.isArray(channel.icon) &&
+            channel.icon.length > 0
+        ) {
             return channel.icon[0].src;
         }
         return '';
@@ -472,10 +465,7 @@ export class MultiEpgContainerComponent
         this.searchDebounceTimer = setTimeout(async () => {
             this.isSearchingPrograms.set(true);
             try {
-                const results = await this.epgBridge.searchPrograms(
-                    query,
-                    20
-                );
+                const results = await this.epgBridge.searchPrograms(query, 20);
                 this.programSearchResults.set(
                     (results as ProgramSearchResult[]) || []
                 );

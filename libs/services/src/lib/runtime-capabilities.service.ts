@@ -1,12 +1,9 @@
 import { Injectable } from '@angular/core';
+import { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
 
 export type RuntimeEnvironment = 'electron' | 'pwa';
 
-type RuntimeElectronBridge = Record<string, unknown>;
-
-type RuntimeWindow = Window & {
-    electron?: RuntimeElectronBridge;
-};
+type RuntimeElectronBridge = Partial<ElectronBridgeApi>;
 
 const playbackPositionStorageMethods = [
     'dbSavePlaybackPosition',
@@ -242,7 +239,10 @@ export class RuntimeCapabilitiesService {
     }
 
     private hasElectronMethod(methodName: string): boolean {
-        return typeof this.electronBridge?.[methodName] === 'function';
+        const bridge = this.electronBridge as
+            | Record<string, unknown>
+            | undefined;
+        return typeof bridge?.[methodName] === 'function';
     }
 
     private get electronBridge(): RuntimeElectronBridge | undefined {
@@ -250,6 +250,6 @@ export class RuntimeCapabilitiesService {
             return undefined;
         }
 
-        return (window as RuntimeWindow).electron;
+        return window.electron;
     }
 }

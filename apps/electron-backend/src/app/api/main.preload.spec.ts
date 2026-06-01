@@ -2,9 +2,15 @@ import {
     DB_WORKER_OPERATIONS,
     DbWorkerOperation,
 } from '../workers/database-worker.types';
-import { dbPreloadCases, operationId } from './main.preload.spec-data';
+import type { ElectronBridgeApi } from '@iptvnator/shared/interfaces';
+import {
+    dbPreloadCases,
+    epgPreloadCases,
+    operationId,
+} from './main.preload.spec-data';
 
-type ExposedElectronApi = Record<string, (...args: unknown[]) => unknown>;
+type ExposedElectronApi = ElectronBridgeApi &
+    Record<string, (...args: unknown[]) => unknown>;
 
 type MockIpcRenderer = {
     invoke: jest.Mock;
@@ -23,6 +29,15 @@ function getExposedApi(): ExposedElectronApi {
     }
 
     return mockExposedApi;
+}
+
+function callExposedApiMethod(
+    api: ExposedElectronApi,
+    method: string,
+    args: unknown[]
+): unknown {
+    const callableApi = api as Record<string, (...args: unknown[]) => unknown>;
+    return callableApi[method](...args);
 }
 
 describe('main preload DB IPC contract', () => {
@@ -75,7 +90,21 @@ describe('main preload DB IPC contract', () => {
         async ({ method, args, channel, forwardedArgs }) => {
             const api = getExposedApi();
 
-            await api[method](...args);
+            await callExposedApiMethod(api, method, args);
+
+            expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
+                channel,
+                ...forwardedArgs
+            );
+        }
+    );
+
+    it.each(epgPreloadCases)(
+        '$method invokes $channel with the expected arguments',
+        async ({ method, args, channel, forwardedArgs }) => {
+            const api = getExposedApi();
+
+            await callExposedApiMethod(api, method, args);
 
             expect(mockIpcRenderer.invoke).toHaveBeenLastCalledWith(
                 channel,

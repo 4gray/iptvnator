@@ -4,10 +4,25 @@ import type {
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
+    ElectronBridgeApi,
+    ElectronBridgeDbOperationEvent,
+    ElectronBridgeDownloadStartPayload,
+    ElectronBridgeEpgProgress,
+    ElectronBridgePlaybackPositionInput,
+    ElectronBridgePlaylistInput,
+    ElectronBridgePlaylistUpsertInput,
+    ElectronBridgeRemoteControlCommand,
+    ElectronBridgeRemoteControlStatus,
+    ElectronBridgeXtreamContentStream,
     ExternalPlayerSession,
+    PlaybackPositionData,
+    PlayerContentInfo,
+    Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
+    PortalDebugEvent,
     ResolvedPortalPlayback,
+    Settings,
     XtreamCategory,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -23,33 +38,11 @@ const EMBEDDED_MPV_SESSION_UPDATE = 'EMBEDDED_MPV_SESSION_UPDATE';
 const DB_OPERATION_EVENT = 'DB_OPERATION_EVENT';
 const PLAYLIST_REFRESH_EVENT = 'PLAYLIST:REFRESH_EVENT';
 
-type PortalDebugEvent = {
-    requestId: string;
-    provider: 'xtream' | 'stalker';
-    operation: string;
-    transport: 'electron-main' | 'electron-renderer' | 'pwa-http';
-    startedAt: string;
-    durationMs: number;
-    status: 'success' | 'error';
-    request: unknown;
-    response?: unknown;
-    error?: unknown;
-};
-
-type DbOperationEvent = {
-    operationId?: string;
-    operation: string;
-    playlistId?: string;
-    status: 'started' | 'progress' | 'completed' | 'cancelled' | 'error';
-    phase?: string;
-    current?: number;
-    total?: number;
-    increment?: number;
-    error?: string;
-};
-
 const dbSaveContentProgressListeners = new Set<
-    (event: Electron.IpcRendererEvent, data: DbOperationEvent) => void
+    (
+        event: Electron.IpcRendererEvent,
+        data: ElectronBridgeDbOperationEvent
+    ) => void
 >();
 
 const shouldTraceRendererApi = isRendererApiTraceEnabled();
@@ -69,7 +62,7 @@ function emitRendererTrace(payload: {
     ipcRenderer.send(DEBUG_TRACE_EVENT_CHANNEL, payload);
 }
 
-function wrapElectronApi<T extends Record<string, unknown>>(api: T): T {
+function wrapElectronApi<T extends object>(api: T): T {
     if (!shouldTraceRendererApi) {
         return api;
     }
@@ -163,32 +156,29 @@ function wrapElectronApi<T extends Record<string, unknown>>(api: T): T {
     ) as T;
 }
 
-const electronApi = {
+const electronApi: ElectronBridgeApi = {
     // Remote control channel change listener
     onChannelChange: (
         callback: (data: { direction: 'up' | 'down' }) => void
     ) => {
-        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
-            callback(data);
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: { direction: 'up' | 'down' }
+        ) => callback(data);
         ipcRenderer.on('CHANNEL_CHANGE', handler);
         return () => ipcRenderer.off('CHANNEL_CHANGE', handler);
     },
     onRemoteControlCommand: (
-        callback: (data: {
-            type:
-                | 'channel-select-number'
-                | 'volume-up'
-                | 'volume-down'
-                | 'volume-toggle-mute';
-            number?: number;
-        }) => void
+        callback: (data: ElectronBridgeRemoteControlCommand) => void
     ) => {
-        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
-            callback(data);
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: ElectronBridgeRemoteControlCommand
+        ) => callback(data);
         ipcRenderer.on('REMOTE_CONTROL_COMMAND', handler);
         return () => ipcRenderer.off('REMOTE_CONTROL_COMMAND', handler);
     },
-    updateRemoteControlStatus: (status: any) => {
+    updateRemoteControlStatus: (status: ElectronBridgeRemoteControlStatus) => {
         ipcRenderer.send('REMOTE_CONTROL_STATUS_UPDATE', status);
     },
     // Player error listener
@@ -202,26 +192,25 @@ const electronApi = {
         ipcRenderer.on('player-error', (_event, data) => callback(data));
     },
     onPortalDebugEvent: (callback: (data: PortalDebugEvent) => void) => {
-        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
-            callback(data as PortalDebugEvent);
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: PortalDebugEvent
+        ) => callback(data);
         ipcRenderer.on(PORTAL_DEBUG_EVENT, handler);
         return () => ipcRenderer.off(PORTAL_DEBUG_EVENT, handler);
     },
     // EPG progress listener
-    onEpgProgress: (
-        callback: (data: {
-            url: string;
-            status: 'loading' | 'complete' | 'error';
-            stats?: { totalChannels: number; totalPrograms: number };
-            error?: string;
-        }) => void
-    ) => {
+    onEpgProgress: (callback: (data: ElectronBridgeEpgProgress) => void) => {
         ipcRenderer.on('EPG_PROGRESS_UPDATE', (_event, data) => callback(data));
     },
     // Playback position update listener - returns unsubscribe function
-    onPlaybackPositionUpdate: (callback: (data: any) => void) => {
-        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
-            callback(data);
+    onPlaybackPositionUpdate: (
+        callback: (data: PlaybackPositionData) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: PlaybackPositionData
+        ) => callback(data);
         ipcRenderer.on('playback-position-update', handler);
         return () => ipcRenderer.off('playback-position-update', handler);
     },
@@ -245,17 +234,23 @@ const electronApi = {
         ipcRenderer.on(EMBEDDED_MPV_SESSION_UPDATE, handler);
         return () => ipcRenderer.off(EMBEDDED_MPV_SESSION_UPDATE, handler);
     },
-    onDbOperationEvent: (callback: (data: DbOperationEvent) => void) => {
-        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
-            callback(data as DbOperationEvent);
+    onDbOperationEvent: (
+        callback: (data: ElectronBridgeDbOperationEvent) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: ElectronBridgeDbOperationEvent
+        ) => callback(data);
         ipcRenderer.on(DB_OPERATION_EVENT, handler);
         return () => ipcRenderer.off(DB_OPERATION_EVENT, handler);
     },
     onPlaylistRefreshEvent: (
         callback: (data: PlaylistRefreshEvent) => void
     ) => {
-        const handler = (_event: Electron.IpcRendererEvent, data: any) =>
-            callback(data as PlaylistRefreshEvent);
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            data: PlaylistRefreshEvent
+        ) => callback(data);
         ipcRenderer.on(PLAYLIST_REFRESH_EVENT, handler);
         return () => ipcRenderer.off(PLAYLIST_REFRESH_EVENT, handler);
     },
@@ -263,7 +258,7 @@ const electronApi = {
     onDbSaveContentProgress: (callback: (count: number) => void) => {
         const handler = (
             _event: Electron.IpcRendererEvent,
-            data: DbOperationEvent
+            data: ElectronBridgeDbOperationEvent
         ) => {
             if (
                 data.operation !== 'save-content' ||
@@ -311,7 +306,7 @@ const electronApi = {
         userAgent: string | undefined,
         referer?: string,
         origin?: string,
-        contentInfo?: any,
+        contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
     ): Promise<ExternalPlayerSession> =>
@@ -334,7 +329,7 @@ const electronApi = {
         userAgent: string | undefined,
         referer?: string,
         origin?: string,
-        contentInfo?: any,
+        contentInfo?: PlayerContentInfo,
         startTime?: number,
         headers?: Record<string, string>
     ): Promise<ExternalPlayerSession> =>
@@ -456,7 +451,7 @@ const electronApi = {
         ipcRenderer.invoke('SET_MPV_PLAYER_PATH', mpvPlayerPath),
     setVlcPlayerPath: (vlcPlayerPath: string) =>
         ipcRenderer.invoke('SET_VLC_PLAYER_PATH', vlcPlayerPath),
-    updateSettings: (settings: any) =>
+    updateSettings: (settings: Partial<Settings>) =>
         ipcRenderer.invoke('SETTINGS_UPDATE', settings),
     getAiSettings: () => ipcRenderer.invoke('GET_AI_SETTINGS'),
     stalkerRequest: (payload: {
@@ -483,19 +478,21 @@ const electronApi = {
     cancelPlaylistRefresh: (operationId: string) =>
         ipcRenderer.invoke('PLAYLIST:CANCEL_REFRESH', operationId),
     // Database operations
-    dbCreatePlaylist: (playlist: any) =>
+    dbCreatePlaylist: (playlist: ElectronBridgePlaylistUpsertInput) =>
         ipcRenderer.invoke('DB_CREATE_PLAYLIST', playlist),
     dbGetPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_PLAYLIST', playlistId),
-    dbUpsertAppPlaylist: (playlist: any) =>
+    dbUpsertAppPlaylist: (playlist: Playlist) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLIST', playlist),
-    dbUpsertAppPlaylists: (playlists: any[]) =>
+    dbUpsertAppPlaylists: (playlists: Playlist[]) =>
         ipcRenderer.invoke('DB_UPSERT_APP_PLAYLISTS', playlists),
     dbGetAppPlaylists: () => ipcRenderer.invoke('DB_GET_APP_PLAYLISTS'),
     dbGetAppPlaylist: (playlistId: string) =>
         ipcRenderer.invoke('DB_GET_APP_PLAYLIST', playlistId),
-    dbUpdatePlaylist: (playlistId: string, updates: any) =>
-        ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
+    dbUpdatePlaylist: (
+        playlistId: string,
+        updates: Partial<Playlist> | ElectronBridgePlaylistInput
+    ) => ipcRenderer.invoke('DB_UPDATE_PLAYLIST', playlistId, updates),
     dbDeletePlaylist: (playlistId: string, operationId?: string) =>
         ipcRenderer.invoke('DB_DELETE_PLAYLIST', playlistId, operationId),
     dbDeleteXtreamContent: (playlistId: string, operationId?: string) =>
@@ -544,7 +541,7 @@ const electronApi = {
         ipcRenderer.invoke('DB_GET_CONTENT', playlistId, type),
     dbSaveContent: (
         playlistId: string,
-        streams: any[],
+        streams: ElectronBridgeXtreamContentStream[],
         type: string,
         operationId?: string
     ) =>
@@ -671,8 +668,10 @@ const electronApi = {
     dbSetAppState: (key: string, value: string) =>
         ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
     // Playback Positions
-    dbSavePlaybackPosition: (playlistId: string, data: any) =>
-        ipcRenderer.invoke('DB_SAVE_PLAYBACK_POSITION', playlistId, data),
+    dbSavePlaybackPosition: (
+        playlistId: string,
+        data: ElectronBridgePlaybackPositionInput
+    ) => ipcRenderer.invoke('DB_SAVE_PLAYBACK_POSITION', playlistId, data),
     dbGetPlaybackPosition: (
         playlistId: string,
         contentXtreamId: number,
@@ -716,30 +715,8 @@ const electronApi = {
         ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
     // Downloads
-    downloadsStart: (data: {
-        playlistId: string;
-        xtreamId: number;
-        contentType: 'vod' | 'episode';
-        title: string;
-        url: string;
-        posterUrl?: string;
-        downloadFolder: string;
-        headers?: { userAgent?: string; referer?: string; origin?: string };
-        seriesXtreamId?: number;
-        seasonNumber?: number;
-        episodeNumber?: number;
-        // Playlist info for auto-creation if needed
-        playlistName?: string;
-        playlistType?:
-            | 'xtream'
-            | 'stalker'
-            | 'm3u-file'
-            | 'm3u-text'
-            | 'm3u-url';
-        serverUrl?: string;
-        portalUrl?: string;
-        macAddress?: string;
-    }) => ipcRenderer.invoke('DOWNLOADS_START', data),
+    downloadsStart: (data: ElectronBridgeDownloadStartPayload) =>
+        ipcRenderer.invoke('DOWNLOADS_START', data),
     downloadsCancel: (downloadId: number) =>
         ipcRenderer.invoke('DOWNLOADS_CANCEL', downloadId),
     downloadsRetry: (downloadId: number, downloadFolder: string) =>

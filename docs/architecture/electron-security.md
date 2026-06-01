@@ -18,6 +18,23 @@ Do not re-enable direct Node.js access from Angular code. New desktop-only APIs
 should be added to the preload bridge and backed by an `ipcMain.handle(...)`
 owner in the Electron backend.
 
+## Preload API Type Contract
+
+The canonical renderer bridge type is
+`libs/shared/interfaces/src/lib/electron-api.interface.ts`.
+
+Keep these surfaces in sync when adding or changing a preload method:
+
+1. `ElectronBridgeApi` in `@iptvnator/shared/interfaces`
+2. `apps/electron-backend/src/app/api/main.preload.ts`
+3. the owning `ipcMain.handle(...)` event module
+4. renderer capability checks or runtime bridge services that consume the method
+
+`global.d.ts` and `apps/web/src/typings.d.ts` should reference
+`ElectronBridgeApi` instead of redeclaring `window.electron` method lists.
+`main.preload.ts` is typed as `ElectronBridgeApi`, so missing or extra preload
+methods fail typecheck instead of silently drifting from renderer typings.
+
 ## Navigation And External URLs
 
 The main window owns three navigation gates:

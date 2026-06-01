@@ -24,7 +24,7 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 ## Global API surface
 
 - **Preload + types**  
-  `apps/electron-backend/src/app/api/main.preload.ts` wires every download IPC command plus the `onDownloadsUpdate` listener to `window.electron`. `global.d.ts` now mirrors those methods, adds playback-position helpers, and exposes `onPlaybackPositionUpdate` / `removePlaybackPositionListener` so Angular can type-check the new APIs. This keeps the renderer typing in sync with the backend implementation.
+  `apps/electron-backend/src/app/api/main.preload.ts` wires every download IPC command plus the `onDownloadsUpdate` listener to `window.electron`. The shared `ElectronBridgeApi` contract in `libs/shared/interfaces/src/lib/electron-api.interface.ts` owns the download and playback-position method types; `global.d.ts` and `apps/web/src/typings.d.ts` reference that contract instead of redeclaring the bridge.
 
 ## Routing and navigation
 
