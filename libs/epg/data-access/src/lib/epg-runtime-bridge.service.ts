@@ -2,37 +2,22 @@ import { inject, Injectable } from '@angular/core';
 import {
     ElectronBridgeApi,
     ElectronBridgeEpgFetchResult,
+    ElectronBridgeEpgProgress,
+    ElectronBridgeEpgProgressStats,
+    ElectronBridgeEpgProgressStatus,
     ElectronBridgeEpgChannelWithPrograms,
     ElectronBridgeEpgFreshnessResult,
+    ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES,
     ElectronBridgeResult,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 
-export const EPG_IMPORT_STATUS = {
-    Complete: 'complete',
-    Error: 'error',
-    Loading: 'loading',
-    Queued: 'queued',
-} as const;
-
-export type EpgImportStatus =
-    (typeof EPG_IMPORT_STATUS)[keyof typeof EPG_IMPORT_STATUS];
-
-export interface EpgImportStats {
-    totalChannels: number;
-    totalPrograms: number;
-}
-
-export interface EpgImportProgress {
-    url: string;
-    status: EpgImportStatus;
-    stats?: EpgImportStats;
-    error?: string;
-    queuePosition?: number;
-}
-
+export const EPG_IMPORT_STATUS = ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES;
+export type EpgImportStatus = ElectronBridgeEpgProgressStatus;
+export type EpgImportStats = ElectronBridgeEpgProgressStats;
+export type EpgImportProgress = ElectronBridgeEpgProgress;
 export type EpgFetchResult = ElectronBridgeEpgFetchResult;
 export type EpgFreshnessResult = ElectronBridgeEpgFreshnessResult;
 export type EpgClearResult = ElectronBridgeResult;
