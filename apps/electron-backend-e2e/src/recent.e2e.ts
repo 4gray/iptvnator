@@ -89,7 +89,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('tracks M3U recent channels in newest-first order, supports all-playlists scope, and persists favorites after restart', async ({
+    test('@persistence @m3u @electron tracks M3U recent channels in newest-first order, supports all-playlists scope, and persists favorites after restart', async ({
         dataDir,
     }) => {
         const playlistTitle = 'm3u-recent-source.m3u';
@@ -219,7 +219,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('tracks Xtream live, movie, and series history across playlist and all-playlists scope, persists after restart, and supports clearing', async ({
+    test('@persistence @xtream @electron tracks Xtream live, movie, and series history across playlist and all-playlists scope, persists after restart, and supports clearing', async ({
         dataDir,
         request,
     }) => {
@@ -425,7 +425,7 @@ test.describe('Electron Recently Viewed', () => {
         }
     });
 
-    test('tracks Stalker live, movie, and series history across playlist and all-playlists scope, and preserves it after restart', async ({
+    test('@persistence @stalker @electron tracks Stalker live, movie, and series history across playlist and all-playlists scope, and preserves it after restart', async ({
         dataDir,
         request,
     }) => {

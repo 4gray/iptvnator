@@ -383,6 +383,15 @@ importers:
       globals:
         specifier: 15.9.0
         version: 15.9.0
+      istanbul-lib-coverage:
+        specifier: 3.2.2
+        version: 3.2.2
+      istanbul-lib-report:
+        specifier: 3.0.1
+        version: 3.0.1
+      istanbul-reports:
+        specifier: 3.2.0
+        version: 3.2.0
       jest:
         specifier: ^30.0.2
         version: 30.2.0(@types/node@20.19.9)(babel-plugin-macros@3.1.0)(esbuild-register@3.6.0(esbuild@0.27.0))(ts-node@10.9.2(@swc/core@1.15.8(@swc/helpers@0.5.18))(@types/node@20.19.9)(typescript@5.9.3))

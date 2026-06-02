@@ -6,6 +6,8 @@ const angularEsmPreset = createEsmPreset({
     tsconfig: '<rootDir>/apps/web/tsconfig.spec.json',
 });
 
+const coverageReporters = ['json', 'json-summary', 'lcovonly', 'text-summary'];
+
 export default {
     ...nxPreset,
     ...angularEsmPreset,
@@ -37,5 +39,5 @@ export default {
     extensionsToTreatAsEsm: angularEsmPreset.extensionsToTreatAsEsm,
     modulePathIgnorePatterns: ['<rootDir>/dist/', '<rootDir>/.nx/'],
     watchPathIgnorePatterns: ['<rootDir>/dist/', '<rootDir>/.nx/'],
-    coverageReporters: [...(nxPreset.coverageReporters ?? [])],
+    coverageReporters,
 };

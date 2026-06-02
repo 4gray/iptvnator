@@ -6,7 +6,7 @@ import {
 } from './electron-test-fixtures';
 
 test.describe('Electron App Smoke Test', () => {
-    test('app should start and display the dashboard', async ({ dataDir }) => {
+    test('@critical @electron app should start and display the dashboard', async ({ dataDir }) => {
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -27,7 +27,7 @@ test.describe('Electron App Smoke Test', () => {
         }
     });
 
-    test('app should expose the expected main window properties', async ({
+    test('@critical @electron app should expose the expected main window properties', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);
@@ -57,7 +57,7 @@ test.describe('Electron App Smoke Test', () => {
         }
     });
 
-    test('app should render workspace content', async ({ dataDir }) => {
+    test('@critical @electron app should render workspace content', async ({ dataDir }) => {
         const app = await launchElectronApp(dataDir);
 
         try {

@@ -43,7 +43,7 @@ import {
 } from './portal-mock-fixtures';
 
 test.describe('Electron Favorites', () => {
-    test('shows M3U favorites in playlist and all-playlists scope, and preserves them after restart', async ({
+    test('@persistence @m3u @electron shows M3U favorites in playlist and all-playlists scope, and preserves them after restart', async ({
         dataDir,
     }) => {
         const playlistTitle = 'm3u-favorites-source.m3u';
@@ -172,7 +172,7 @@ test.describe('Electron Favorites', () => {
         }
     });
 
-    test('shows Xtream live, movie, and series favorites in playlist and all-playlists scope, and preserves them after restart', async ({
+    test('@persistence @xtream @electron shows Xtream live, movie, and series favorites in playlist and all-playlists scope, and preserves them after restart', async ({
         dataDir,
         request,
     }) => {
@@ -374,7 +374,7 @@ test.describe('Electron Favorites', () => {
         }
     });
 
-    test('shows Stalker live, movie, and series favorites in playlist and all-playlists scope, and preserves them after restart', async ({
+    test('@persistence @stalker @electron shows Stalker live, movie, and series favorites in playlist and all-playlists scope, and preserves them after restart', async ({
         dataDir,
         request,
     }) => {

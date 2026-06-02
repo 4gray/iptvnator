@@ -1,4 +1,5 @@
-import { expect, type Locator, type Page, test } from '@playwright/test';
+import type { Locator, Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 const WEB_BACKEND_URL = 'http://localhost:3333';
 const XTREAM_MOCK_PORT = process.env['XTREAM_MOCK_PORT'] ?? '3211';

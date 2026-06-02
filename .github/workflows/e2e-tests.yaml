@@ -52,12 +52,19 @@ jobs:
               env:
                   CI: true
 
+            - name: Summarize Electron E2E semantic coverage
+              if: always()
+              run: pnpm run coverage:e2e:summary -- --project=electron-backend-e2e
+
             - name: Upload Electron Test Results
-              if: failure()
+              if: always()
               uses: actions/upload-artifact@v4
               with:
                   name: playwright-report-electron-${{ matrix.os }}
-                  path: dist/playwright-report/electron-backend-e2e/
+                  path: |
+                      dist/playwright-report/electron-backend-e2e/
+                      dist/test-results/electron-backend-e2e/
+                      coverage/e2e/
                   retention-days: 7
 
     web-e2e-tests:
@@ -89,10 +96,17 @@ jobs:
               env:
                   CI: true
 
+            - name: Summarize Web E2E semantic coverage
+              if: always()
+              run: pnpm run coverage:e2e:summary -- --project=web-e2e
+
             - name: Upload Web Test Results
-              if: failure()
+              if: always()
               uses: actions/upload-artifact@v4
               with:
                   name: playwright-report-web-ubuntu
-                  path: dist/.playwright/apps/web-e2e/playwright-report/
+                  path: |
+                      dist/playwright-report/web-e2e/
+                      dist/test-results/web-e2e/
+                      coverage/e2e/
                   retention-days: 7

@@ -1,4 +1,5 @@
-import { APIRequestContext, test, expect, Page } from '@playwright/test';
+import type { APIRequestContext, Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,

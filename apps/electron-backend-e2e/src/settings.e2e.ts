@@ -41,7 +41,7 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 test.describe('Electron Settings', () => {
-    test('gates external MPV playback behind double-click when enabled', async ({
+    test('@settings @electron gates external MPV playback behind double-click when enabled', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);
@@ -121,7 +121,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('persists changed desktop settings across app restart', async ({
+    test('@settings @persistence @electron persists changed desktop settings across app restart', async ({
         dataDir,
     }) => {
         const epgServer = await createMutableTextServer(epgFixtureXml, {
@@ -207,7 +207,7 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('starts on sources when dashboard is disabled', async ({ dataDir }) => {
+    test('@settings @electron starts on sources when dashboard is disabled', async ({ dataDir }) => {
         const firstLaunch = await launchElectronApp(dataDir);
 
         try {

@@ -1,9 +1,9 @@
-import { expect, test } from '@playwright/test';
 import { join } from 'path';
+import { expect, test } from './fixtures';
 
 const fixturePath = join(__dirname, 'fixtures/test.m3u');
 
-test('basic test', async ({ page }) => {
+test('@web @m3u basic playlist import flow', async ({ page }) => {
     await page.goto('/');
 
     // Basic checks
@@ -31,7 +31,7 @@ test('basic test', async ({ page }) => {
     await expect(page.getByText('4. HappyKids TV')).toBeVisible();
 });
 
-test('keyboard shortcuts help opens from question mark', async ({ page }) => {
+test('@web keyboard shortcuts help opens from question mark', async ({ page }) => {
     await page.goto('/');
 
     await page.getByRole('button', { name: 'Open keyboard shortcuts' }).focus();

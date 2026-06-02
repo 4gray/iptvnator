@@ -27,6 +27,13 @@ export default defineConfig({
                     '../../dist/playwright-report/electron-backend-e2e',
             },
         ],
+        [
+            'json',
+            {
+                outputFile:
+                    '../../dist/test-results/electron-backend-e2e/results.json',
+            },
+        ],
     ],
     /* Shared settings for all the projects below */
     use: {

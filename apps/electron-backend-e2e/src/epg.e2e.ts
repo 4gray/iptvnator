@@ -29,7 +29,7 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 test.describe('Electron EPG', () => {
-    test('adds an EPG source, fetches guide data, removes the source row, and clears stored EPG data', async ({
+    test('@epg @electron adds an EPG source, fetches guide data, removes the source row, and clears stored EPG data', async ({
         dataDir,
     }) => {
         const epgServer = await createMutableTextServer(epgFixtureXml, {
@@ -85,7 +85,7 @@ test.describe('Electron EPG', () => {
         }
     });
 
-    test('uses the XMLTV channel icon as a fallback when the playlist has no tvg-logo', async ({
+    test('@epg @electron uses the XMLTV channel icon as a fallback when the playlist has no tvg-logo', async ({
         dataDir,
     }) => {
         const playlistServer = await createMutableTextServer(

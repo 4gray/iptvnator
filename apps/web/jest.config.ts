@@ -6,6 +6,18 @@ const angularEsmPreset = createEsmPreset({
   tsconfig: '<rootDir>/tsconfig.spec.json',
 });
 
+const coverageReporters = ['json', 'json-summary', 'lcovonly', 'text-summary'];
+
+const collectCoverageFrom = [
+  'src/**/*.{ts,js,mjs,html}',
+  '!src/**/*.{spec,test}.ts',
+  '!src/**/test-setup.ts',
+  '!src/**/test-stubs/**',
+  '!src/**/*.generated.*',
+  '!src/**/environments/**',
+  '!src/**/index.ts',
+];
+
 export default {
   ...nxPreset,
   ...angularEsmPreset,
@@ -33,7 +45,6 @@ export default {
   transform: angularEsmPreset.transform,
   transformIgnorePatterns: [],
   extensionsToTreatAsEsm: angularEsmPreset.extensionsToTreatAsEsm,
-  coverageReporters: [
-    ...(nxPreset.coverageReporters ?? []),
-  ],
+  coverageReporters,
+  collectCoverageFrom,
 };
