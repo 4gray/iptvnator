@@ -12,6 +12,7 @@
                 "name": "web",
                 "root": "apps/web",
                 "sourceRoot": "apps/web/src",
+                "jestRootMode": "project",
                 "validationCommand": "pnpm nx test web",
                 "e2eTags": ["@web", "@m3u", "@pwa", "@settings"]
             },

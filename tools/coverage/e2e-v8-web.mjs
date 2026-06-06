@@ -90,7 +90,8 @@ function summarizeJsEntry(entry) {
     };
 }
 
-const rawFiles = listFiles(path.join(workspaceRoot, 'dist'), (file) =>
+const rawCoverageRoot = path.join(workspaceRoot, 'apps/web-e2e/test-results');
+const rawFiles = listFiles(rawCoverageRoot, (file) =>
     file.endsWith('.json') && file.includes(`${path.sep}v8-coverage${path.sep}`)
 );
 const entriesByUrl = new Map();
@@ -116,11 +117,21 @@ const outputDir = path.join(workspaceRoot, 'coverage/e2e-v8/web');
 mkdirSync(outputDir, { recursive: true });
 writeFileSync(
     path.join(outputDir, 'summary.json'),
-    `${JSON.stringify({ rawFiles: rawFiles.length, scripts: summaries }, null, 4)}\n`
+    `${JSON.stringify(
+        {
+            rawCoverageRoot: path.relative(workspaceRoot, rawCoverageRoot),
+            rawFiles: rawFiles.length,
+            scripts: summaries,
+        },
+        null,
+        4
+    )}\n`
 );
 writeFileSync(
     path.join(outputDir, 'summary.md'),
     `# Web E2E V8 Coverage
+
+Raw coverage root: ${path.relative(workspaceRoot, rawCoverageRoot)}
 
 Raw coverage files: ${rawFiles.length}
 

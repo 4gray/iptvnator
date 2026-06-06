@@ -72,6 +72,17 @@ function collectCoverageArgs(project, jestRootMode) {
     ];
 }
 
+function jestRootModeFor(project) {
+    const mode = project.jestRootMode ?? 'workspace';
+    if (mode !== 'workspace' && mode !== 'project') {
+        throw new Error(
+            `Tier A project ${project.name} has unsupported jestRootMode: ${mode}`
+        );
+    }
+
+    return mode;
+}
+
 function buildNxArgs(project) {
     const projectJson = readProjectJson(project);
     const testTarget = projectJson.targets?.test;
@@ -80,16 +91,19 @@ function buildNxArgs(project) {
     }
 
     if (testTarget.executor === '@nx/jest:jest') {
-        return ['nx', 'run', `${project.name}:test`, '--configuration=ci', '--output-style=static'];
+        return [
+            'nx',
+            'run',
+            `${project.name}:test`,
+            '--configuration=ci',
+            '--codeCoverage',
+            `--coverageDirectory=${coverageDirFor(project, 'workspace')}`,
+            '--output-style=static',
+        ];
     }
 
     if (testTarget.executor === 'nx:run-commands') {
-        const command = Array.isArray(testTarget.options?.command)
-            ? testTarget.options.command.join(' ')
-            : String(testTarget.options?.command ?? '');
-        const jestRootMode = command.includes('apps/web/jest.config.ts')
-            ? 'project'
-            : 'workspace';
+        const jestRootMode = jestRootModeFor(project);
 
         return [
             'nx',
