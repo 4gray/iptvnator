@@ -218,6 +218,39 @@ describe('playlist IPC events', () => {
         expect(mockParse).not.toHaveBeenCalled();
     });
 
+    it('opens a playlist file, derives its title, parses it, and returns the created playlist', async () => {
+        const parsedPlaylist = { items: [{ name: 'Local news' }] };
+        const playlist = createPlaylist({
+            filePath: '/playlists/local-news.m3u8',
+            title: 'local-news',
+        });
+
+        mockShowOpenDialog.mockResolvedValue({
+            canceled: false,
+            filePaths: ['/playlists/local-news.m3u8'],
+        });
+        mockReadFile.mockResolvedValue('#EXTM3U local');
+        mockParse.mockReturnValue(parsedPlaylist);
+        mockCreatePlaylistObject.mockReturnValue(playlist);
+
+        const result = await getHandler('open-playlist-from-file')(
+            createIpcEvent()
+        );
+
+        expect(mockReadFile).toHaveBeenCalledWith(
+            '/playlists/local-news.m3u8',
+            'utf-8'
+        );
+        expect(mockParse).toHaveBeenCalledWith('#EXTM3U local');
+        expect(mockCreatePlaylistObject).toHaveBeenCalledWith(
+            'local-news',
+            parsedPlaylist,
+            '/playlists/local-news.m3u8',
+            'FILE'
+        );
+        expect(result).toEqual(playlist);
+    });
+
     it('auto-updates URL and file playlists while preserving user fields and skipping unusable entries', async () => {
         const sourcePlaylists: Playlist[] = [
             createPlaylist({
@@ -356,6 +389,59 @@ describe('playlist IPC events', () => {
         expect(worker.terminate).toHaveBeenCalled();
     });
 
+    it('rejects playlist refreshes when the worker emits an error and cleans up the worker', async () => {
+        const payload: PlaylistRefreshPayload = {
+            operationId: 'refresh-worker-error',
+            playlistId: 'playlist-error',
+            title: 'Playlist error',
+            url: 'https://example.test/error.m3u',
+        };
+        const refreshPromise = getHandler(PLAYLIST_REFRESH)(
+            createIpcEvent(),
+            payload
+        );
+        const worker = mockWorkerInstances[0];
+
+        const rejectedRefresh =
+            expect(refreshPromise).rejects.toThrow('worker exploded');
+
+        worker.emit('error', new Error('worker exploded'));
+
+        await rejectedRefresh;
+        expect(worker.removeAllListeners).toHaveBeenCalled();
+        expect(worker.terminate).toHaveBeenCalled();
+        expect(
+            await getHandler(PLAYLIST_CANCEL_REFRESH)(
+                createIpcEvent(),
+                'refresh-worker-error'
+            )
+        ).toEqual({ success: false });
+    });
+
+    it('rejects playlist refreshes when the worker exits before responding', async () => {
+        const payload: PlaylistRefreshPayload = {
+            operationId: 'refresh-worker-exit',
+            playlistId: 'playlist-exit',
+            title: 'Playlist exit',
+            filePath: '/playlists/exit.m3u',
+        };
+        const refreshPromise = getHandler(PLAYLIST_REFRESH)(
+            createIpcEvent(),
+            payload
+        );
+        const worker = mockWorkerInstances[0];
+
+        const rejectedRefresh = expect(refreshPromise).rejects.toThrow(
+            'Playlist refresh worker stopped with exit code 7'
+        );
+
+        worker.emit('exit', 7);
+
+        await rejectedRefresh;
+        expect(worker.removeAllListeners).toHaveBeenCalled();
+        expect(worker.terminate).toHaveBeenCalled();
+    });
+
     it('routes refresh cancellation to the active worker and converts worker error responses to Error instances', async () => {
         const payload: PlaylistRefreshPayload = {
             operationId: 'refresh-error',
@@ -404,5 +490,40 @@ describe('playlist IPC events', () => {
                 'refresh-error'
             )
         ).toEqual({ success: false });
+    });
+
+    it('returns save dialog paths and writes files through the filesystem handler', async () => {
+        const filters = [{ name: 'Playlists', extensions: ['m3u'] }];
+
+        mockShowSaveDialog.mockResolvedValue({
+            canceled: false,
+            filePath: '/exports/list.m3u',
+        });
+        mockWriteFile.mockResolvedValue(undefined);
+
+        await expect(
+            getHandler('save-file-dialog')(
+                createIpcEvent(),
+                '/exports/default.m3u',
+                filters
+            )
+        ).resolves.toBe('/exports/list.m3u');
+        expect(mockShowSaveDialog).toHaveBeenCalledWith({
+            defaultPath: '/exports/default.m3u',
+            filters,
+        });
+
+        await expect(
+            getHandler('write-file')(
+                createIpcEvent(),
+                '/exports/list.m3u',
+                '#EXTM3U'
+            )
+        ).resolves.toEqual({ success: true });
+        expect(mockWriteFile).toHaveBeenCalledWith(
+            '/exports/list.m3u',
+            '#EXTM3U',
+            'utf-8'
+        );
     });
 });
