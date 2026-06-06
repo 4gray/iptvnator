@@ -1,0 +1,346 @@
+{
+    "version": 1,
+    "reporting": {
+        "mergedCoverageDir": "coverage/merged",
+        "e2eSummaryDir": "coverage/e2e",
+        "unitCodecovFlag": "unit"
+    },
+    "unitCoverage": {
+        "description": "Tier A projects collect and trend source coverage. Tier B projects are validated without percentage coverage. Tier C projects are excluded from the source coverage baseline.",
+        "tierA": [
+            {
+                "name": "web",
+                "root": "apps/web",
+                "sourceRoot": "apps/web/src",
+                "jestRootMode": "project",
+                "validationCommand": "pnpm nx test web",
+                "e2eTags": ["@web", "@m3u", "@pwa", "@settings"]
+            },
+            {
+                "name": "electron-backend",
+                "root": "apps/electron-backend",
+                "sourceRoot": "apps/electron-backend/src",
+                "validationCommand": "pnpm nx test electron-backend",
+                "e2eTags": ["@electron", "@critical", "@persistence"]
+            },
+            {
+                "name": "web-backend",
+                "root": "apps/web-backend",
+                "sourceRoot": "apps/web-backend/src",
+                "validationCommand": "pnpm nx test web-backend",
+                "e2eTags": ["@self-hosted", "@web"]
+            },
+            {
+                "name": "services",
+                "root": "libs/services",
+                "sourceRoot": "libs/services/src",
+                "validationCommand": "pnpm nx test services",
+                "e2eTags": ["@m3u", "@persistence", "@settings"]
+            },
+            {
+                "name": "epg-data-access",
+                "root": "libs/epg/data-access",
+                "sourceRoot": "libs/epg/data-access/src",
+                "validationCommand": "pnpm nx test epg-data-access",
+                "e2eTags": ["@epg"]
+            },
+            {
+                "name": "m3u-state",
+                "root": "libs/m3u-state",
+                "sourceRoot": "libs/m3u-state/src",
+                "validationCommand": "pnpm nx test m3u-state",
+                "e2eTags": ["@m3u", "@persistence"]
+            },
+            {
+                "name": "playlist-import-feature",
+                "root": "libs/playlist/import/feature",
+                "sourceRoot": "libs/playlist/import/feature/src",
+                "validationCommand": "pnpm nx test playlist-import-feature",
+                "e2eTags": ["@m3u", "@file-import"]
+            },
+            {
+                "name": "playlist-m3u-feature-player",
+                "root": "libs/playlist/m3u/feature-player",
+                "sourceRoot": "libs/playlist/m3u/feature-player/src",
+                "validationCommand": "pnpm nx test playlist-m3u-feature-player",
+                "e2eTags": ["@m3u", "@playback"]
+            },
+            {
+                "name": "playlist-shared-ui",
+                "root": "libs/playlist/shared/ui",
+                "sourceRoot": "libs/playlist/shared/ui/src",
+                "validationCommand": "pnpm nx test playlist-shared-ui",
+                "e2eTags": ["@m3u"]
+            },
+            {
+                "name": "playlist-shared-util",
+                "root": "libs/playlist/shared/util",
+                "sourceRoot": "libs/playlist/shared/util/src",
+                "validationCommand": "pnpm nx test playlist-shared-util",
+                "e2eTags": ["@m3u"]
+            },
+            {
+                "name": "portal-catalog-feature",
+                "root": "libs/portal/catalog/feature",
+                "sourceRoot": "libs/portal/catalog/feature/src",
+                "validationCommand": "pnpm nx test portal-catalog-feature",
+                "e2eTags": ["@xtream", "@stalker"]
+            },
+            {
+                "name": "portal-shared-data-access",
+                "root": "libs/portal/shared/data-access",
+                "sourceRoot": "libs/portal/shared/data-access/src",
+                "validationCommand": "pnpm nx test portal-shared-data-access",
+                "e2eTags": ["@xtream", "@stalker", "@persistence"]
+            },
+            {
+                "name": "portal-shared-ui",
+                "root": "libs/portal/shared/ui",
+                "sourceRoot": "libs/portal/shared/ui/src",
+                "validationCommand": "pnpm nx test portal-shared-ui",
+                "e2eTags": ["@xtream", "@stalker"]
+            },
+            {
+                "name": "portal-shared-util",
+                "root": "libs/portal/shared/util",
+                "sourceRoot": "libs/portal/shared/util/src",
+                "validationCommand": "pnpm nx test portal-shared-util",
+                "e2eTags": ["@xtream", "@stalker"]
+            },
+            {
+                "name": "portal-stalker-data-access",
+                "root": "libs/portal/stalker/data-access",
+                "sourceRoot": "libs/portal/stalker/data-access/src",
+                "validationCommand": "pnpm nx test portal-stalker-data-access",
+                "e2eTags": ["@stalker"]
+            },
+            {
+                "name": "portal-stalker-feature",
+                "root": "libs/portal/stalker/feature",
+                "sourceRoot": "libs/portal/stalker/feature/src",
+                "validationCommand": "pnpm nx test portal-stalker-feature",
+                "e2eTags": ["@stalker"]
+            },
+            {
+                "name": "portal-xtream-data-access",
+                "root": "libs/portal/xtream/data-access",
+                "sourceRoot": "libs/portal/xtream/data-access/src",
+                "validationCommand": "pnpm nx test portal-xtream-data-access",
+                "e2eTags": ["@xtream"]
+            },
+            {
+                "name": "portal-xtream-feature",
+                "root": "libs/portal/xtream/feature",
+                "sourceRoot": "libs/portal/xtream/feature/src",
+                "validationCommand": "pnpm nx test portal-xtream-feature",
+                "e2eTags": ["@xtream"]
+            },
+            {
+                "name": "database",
+                "root": "libs/shared/database",
+                "sourceRoot": "libs/shared/database/src",
+                "validationCommand": "pnpm nx test database",
+                "e2eTags": ["@electron", "@persistence"]
+            },
+            {
+                "name": "shared-interfaces",
+                "root": "libs/shared/interfaces",
+                "sourceRoot": "libs/shared/interfaces/src",
+                "validationCommand": "pnpm nx test shared-interfaces",
+                "e2eTags": ["@m3u", "@xtream", "@stalker"]
+            },
+            {
+                "name": "m3u-utils",
+                "root": "libs/shared/m3u-utils",
+                "sourceRoot": "libs/shared/m3u-utils/src",
+                "validationCommand": "pnpm nx test m3u-utils",
+                "e2eTags": ["@m3u"]
+            },
+            {
+                "name": "components",
+                "root": "libs/ui/components",
+                "sourceRoot": "libs/ui/components/src",
+                "validationCommand": "pnpm nx test components",
+                "e2eTags": ["@m3u", "@search", "@persistence"]
+            },
+            {
+                "name": "ui-epg",
+                "root": "libs/ui/epg",
+                "sourceRoot": "libs/ui/epg/src",
+                "validationCommand": "pnpm nx test ui-epg",
+                "e2eTags": ["@epg"]
+            },
+            {
+                "name": "@iptvnator/pipes",
+                "root": "libs/ui/pipes",
+                "sourceRoot": "libs/ui/pipes/src",
+                "validationCommand": "pnpm nx test @iptvnator/pipes",
+                "e2eTags": ["@epg", "@settings"]
+            },
+            {
+                "name": "ui-playback",
+                "root": "libs/ui/playback",
+                "sourceRoot": "libs/ui/playback/src",
+                "validationCommand": "pnpm nx test ui-playback",
+                "e2eTags": ["@playback", "@m3u"]
+            },
+            {
+                "name": "shared-portals",
+                "root": "libs/ui/shared-portals",
+                "sourceRoot": "libs/ui/shared-portals/src",
+                "validationCommand": "pnpm nx test shared-portals",
+                "e2eTags": ["@xtream", "@stalker"]
+            },
+            {
+                "name": "workspace-dashboard-data-access",
+                "root": "libs/workspace/dashboard/data-access",
+                "sourceRoot": "libs/workspace/dashboard/data-access/src",
+                "validationCommand": "pnpm nx test workspace-dashboard-data-access",
+                "e2eTags": ["@dashboard", "@persistence"]
+            },
+            {
+                "name": "workspace-dashboard-feature",
+                "root": "libs/workspace/dashboard/feature",
+                "sourceRoot": "libs/workspace/dashboard/feature/src",
+                "validationCommand": "pnpm nx test workspace-dashboard-feature",
+                "e2eTags": ["@dashboard", "@persistence"]
+            },
+            {
+                "name": "workspace-shell-feature",
+                "root": "libs/workspace/shell/feature",
+                "sourceRoot": "libs/workspace/shell/feature/src",
+                "validationCommand": "pnpm nx test workspace-shell-feature",
+                "e2eTags": ["@search", "@settings", "@persistence"]
+            },
+            {
+                "name": "workspace-shell-util",
+                "root": "libs/workspace/shell/util",
+                "sourceRoot": "libs/workspace/shell/util/src",
+                "validationCommand": "pnpm nx test workspace-shell-util",
+                "e2eTags": ["@search", "@settings"]
+            }
+        ],
+        "tierB": [
+            {
+                "name": "website",
+                "root": "apps/website",
+                "validationCommand": "pnpm nx test website",
+                "reason": "Astro marketing site; build output and targeted static checks are more meaningful than source percentage coverage."
+            },
+            {
+                "name": "packaging",
+                "root": "tools/packaging",
+                "validationCommand": "pnpm nx test packaging",
+                "reason": "Node package identity checks validate generated packaging metadata."
+            },
+            {
+                "name": "remote-control-web",
+                "root": "apps/remote-control-web",
+                "validationCommand": "pnpm nx build remote-control-web",
+                "reason": "Product surface without unit specs today; validate build output and add focused tests when behavior changes."
+            },
+            {
+                "name": "web-e2e",
+                "root": "apps/web-e2e",
+                "validationCommand": "pnpm nx run web-e2e:e2e -- --project=chromium",
+                "reason": "Playwright semantic flow coverage is reported separately."
+            },
+            {
+                "name": "electron-backend-e2e",
+                "root": "apps/electron-backend-e2e",
+                "validationCommand": "pnpm nx run electron-backend-e2e:e2e",
+                "reason": "Playwright semantic flow coverage is reported separately."
+            }
+        ],
+        "tierC": [
+            {
+                "name": "xtream-mock-server",
+                "root": "apps/xtream-mock-server",
+                "reason": "Validated through Playwright API and user-flow tests unless mock behavior changes directly."
+            },
+            {
+                "name": "stalker-mock-server",
+                "root": "apps/stalker-mock-server",
+                "reason": "Validated through Playwright API and user-flow tests unless mock behavior changes directly."
+            },
+            {
+                "name": "shared-testing",
+                "root": "libs/shared/testing",
+                "reason": "Test helper library."
+            },
+            {
+                "name": "portal-downloads-feature",
+                "root": "libs/portal/downloads/feature",
+                "reason": "No test target yet; add focused tests when feature work changes this area."
+            },
+            {
+                "name": "remote-control",
+                "root": "libs/ui/remote-control",
+                "reason": "No unit specs yet; validate through remote-control flows or add focused tests when behavior changes directly."
+            }
+        ]
+    },
+    "e2eSemanticCoverage": {
+        "trackedTags": [
+            "@critical",
+            "@electron",
+            "@web",
+            "@xtream",
+            "@stalker",
+            "@m3u",
+            "@search",
+            "@epg",
+            "@persistence",
+            "@settings",
+            "@pwa",
+            "@self-hosted"
+        ],
+        "criticalJourneys": [
+            {
+                "name": "Electron app starts and renders workspace",
+                "projects": ["electron-backend-e2e"],
+                "matchAnyTags": ["@critical"]
+            },
+            {
+                "name": "Xtream portal import, browse, and cached access",
+                "projects": ["web-e2e", "electron-backend-e2e"],
+                "matchAnyTags": ["@xtream"]
+            },
+            {
+                "name": "Stalker portal import and browse",
+                "projects": ["web-e2e", "electron-backend-e2e"],
+                "matchAnyTags": ["@stalker"]
+            },
+            {
+                "name": "M3U import, playback, and playlist state",
+                "projects": ["web-e2e", "electron-backend-e2e"],
+                "matchAnyTags": ["@m3u"]
+            },
+            {
+                "name": "Workspace search across providers",
+                "projects": ["electron-backend-e2e"],
+                "matchAnyTags": ["@search"]
+            },
+            {
+                "name": "EPG rendering and source management",
+                "projects": ["electron-backend-e2e"],
+                "matchAnyTags": ["@epg"]
+            },
+            {
+                "name": "Favorites, recent items, and restart persistence",
+                "projects": ["electron-backend-e2e"],
+                "matchAnyTags": ["@persistence"]
+            },
+            {
+                "name": "Settings persistence and playback options",
+                "projects": ["web-e2e", "electron-backend-e2e"],
+                "matchAnyTags": ["@settings"]
+            },
+            {
+                "name": "Self-hosted PWA/backend integration",
+                "projects": ["web-e2e"],
+                "matchAnyTags": ["@self-hosted", "@pwa"]
+            }
+        ]
+    }
+}

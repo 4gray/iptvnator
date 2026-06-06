@@ -13,7 +13,7 @@ jobs:
     unit-and-typecheck:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
-        timeout-minutes: 30
+        timeout-minutes: 45
 
         steps:
             - name: Checkout code
@@ -37,8 +37,29 @@ jobs:
             - name: Check i18n drift
               run: pnpm run i18n:check
 
-            - name: Run curated Nx unit test suite
-              run: pnpm run test:unit:ci
+            - name: Run Tier A unit coverage suite
+              run: pnpm run coverage:ci
               env:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            - name: Upload unit coverage artifact
+              if: always()
+              uses: actions/upload-artifact@v4
+              with:
+                  name: unit-coverage
+                  path: |
+                      coverage/merged/
+                  retention-days: 14
+
+            - name: Upload unit coverage to Codecov
+              if: always()
+              uses: codecov/codecov-action@v6
+              with:
+                  files: ./coverage/merged/lcov.info,./coverage/merged/cobertura-coverage.xml
+                  flags: unit
+                  name: iptvnator-unit
+                  fail_ci_if_error: false
+                  handle_no_reports_found: true
+                  disable_search: true
+                  token: ${{ secrets.CODECOV_TOKEN }}

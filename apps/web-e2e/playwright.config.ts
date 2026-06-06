@@ -28,6 +28,21 @@ const reuseExistingWebServer = isStaticPwaE2E ? false : !process.env['CI'];
 export default defineConfig({
     ...nxE2EPreset(__filename, { testDir: './src' }),
     testMatch: ['**/*.e2e.ts'],
+    reporter: [
+        ['list'],
+        [
+            'html',
+            {
+                outputFolder: '../../dist/playwright-report/web-e2e',
+            },
+        ],
+        [
+            'json',
+            {
+                outputFile: '../../dist/test-results/web-e2e/results.json',
+            },
+        ],
+    ],
     /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
     use: {
         baseURL,

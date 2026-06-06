@@ -19,7 +19,7 @@ import {
 } from './electron-test-fixtures';
 
 test.describe('Electron Provider Smoke Tests', () => {
-    test('loads Xtream content through the Electron IPC path', async ({
+    test('@xtream @electron loads Xtream content through the Electron IPC path', async ({
         dataDir,
         request,
     }) => {
@@ -42,7 +42,7 @@ test.describe('Electron Provider Smoke Tests', () => {
         }
     });
 
-    test('loads Stalker content through the Electron IPC path', async ({
+    test('@stalker @electron loads Stalker content through the Electron IPC path', async ({
         dataDir,
         request,
     }) => {
@@ -67,7 +67,7 @@ test.describe('Electron Provider Smoke Tests', () => {
         }
     });
 
-    test('shows refresh overlay immediately from the dashboard Xtream source menu', async ({
+    test('@xtream @electron shows refresh overlay immediately from the dashboard Xtream source menu', async ({
         dataDir,
         request,
     }) => {

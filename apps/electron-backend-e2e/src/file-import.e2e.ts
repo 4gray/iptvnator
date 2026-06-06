@@ -8,7 +8,7 @@ import {
 } from './electron-test-fixtures';
 
 test.describe('Electron Native Playlist Import', () => {
-    test('imports an M3U playlist via the native file picker path', async ({
+    test('@m3u @electron imports an M3U playlist via the native file picker path', async ({
         dataDir,
     }) => {
         const app = await launchElectronApp(dataDir);

@@ -22,7 +22,7 @@ const epgCredentials = {
 };
 
 for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
-    test(`renders Xtream EPG previews and selected-channel schedule in ${timeZone}`, async ({
+    test(`@epg @xtream @electron renders Xtream EPG previews and selected-channel schedule in ${timeZone}`, async ({
         dataDir,
         request,
     }) => {

@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test } from './fixtures';
 
 // eslint-disable-next-line playwright/no-skipped-test -- Static PWA assertions require the built service worker artifact.
 test.skip(
@@ -6,7 +6,7 @@ test.skip(
     'Static PWA stylesheet regression test only runs against the built PWA output.'
 );
 
-test('@pwa-static PWA build applies the full stylesheet under CSP', async ({
+test('@pwa @pwa-static PWA build applies the full stylesheet under CSP', async ({
     page,
 }) => {
     const cspConsoleErrors: string[] = [];
