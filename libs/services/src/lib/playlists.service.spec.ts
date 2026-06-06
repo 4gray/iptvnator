@@ -1,4 +1,4 @@
-import { firstValueFrom, Observable, of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { DbStores, Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistsService, resolvePlaylistParser } from './playlists.service';
 
@@ -26,6 +26,8 @@ describe('PlaylistsService', () => {
             dbService: {
                 clear: jest.fn(() => of(undefined)),
                 delete: jest.fn(() => of(undefined)),
+                // IndexedDB operations always run the Stalker metadata migration first,
+                // and that migration reads all playlists before the requested operation.
                 getAll: jest.fn(() => of([])),
                 getByID: jest.fn(() => of(undefined)),
                 update: jest.fn(() => of(undefined)),
@@ -182,10 +184,13 @@ describe('PlaylistsService', () => {
 
         const service = createService(dbService);
 
-        await expect(firstValueFrom(service.addPlaylist(playlist))).resolves.toBe(
+        await expect(
+            firstValueFrom(service.addPlaylist(playlist))
+        ).resolves.toBe(playlist);
+        expect(dbService.add).toHaveBeenCalledWith(
+            DbStores.Playlists,
             playlist
         );
-        expect(dbService.add).toHaveBeenCalledWith(DbStores.Playlists, playlist);
     });
 
     it('migrates legacy Stalker portal flags in SQLite before returning playlists', async () => {
@@ -704,7 +709,9 @@ describe('PlaylistsService', () => {
 
         const service = createService(dbService);
 
-        await expect(firstValueFrom(service.removeAll())).resolves.toBeUndefined();
+        await expect(
+            firstValueFrom(service.removeAll())
+        ).resolves.toBeUndefined();
         expect(dbService.clear).toHaveBeenCalledWith(DbStores.Playlists);
     });
 
@@ -727,9 +734,7 @@ describe('PlaylistsService', () => {
         const service = createService(dbService);
 
         await expect(
-            firstValueFrom(
-                service.addManyPlaylists(playlists) as Observable<unknown>
-            )
+            firstValueFrom(service.addManyPlaylists(playlists))
         ).resolves.toEqual(['bulk-a']);
         expect(dbService.bulkAdd).toHaveBeenCalledWith(
             DbStores.Playlists,

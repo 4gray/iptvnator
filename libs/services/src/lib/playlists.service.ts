@@ -61,6 +61,8 @@ type PlaylistStorageWindow = Window & {
     electron?: PlaylistStorageElectronApi;
 };
 
+type AddManyPlaylistsResult = Playlist[] | IDBValidKey[];
+
 type PlaylistParserModule = Partial<typeof import('iptv-playlist-parser')> & {
     default?: Partial<typeof import('iptv-playlist-parser')>;
 };
@@ -846,7 +848,9 @@ export class PlaylistsService {
         );
     }
 
-    addManyPlaylists(playlists: Playlist[]) {
+    addManyPlaylists(
+        playlists: Playlist[]
+    ): Observable<AddManyPlaylistsResult> {
         if (this.isElectronStorageAvailable) {
             return this.upsertManySqlitePlaylists(playlists);
         }
