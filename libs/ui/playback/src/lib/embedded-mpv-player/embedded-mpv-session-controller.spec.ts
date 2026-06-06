@@ -21,8 +21,10 @@ describe('EmbeddedMpvSessionController', () => {
     };
     let sessionUpdate: ((session: EmbeddedMpvSession) => void) | null;
     let unsubscribeSessionUpdate: jest.Mock;
+    let testingModuleDestroyed: boolean;
 
     beforeEach(() => {
+        testingModuleDestroyed = false;
         sessionUpdate = null;
         unsubscribeSessionUpdate = jest.fn();
         electron = {
@@ -92,15 +94,22 @@ describe('EmbeddedMpvSessionController', () => {
     });
 
     afterEach(() => {
-        TestBed.resetTestingModule();
+        if (!testingModuleDestroyed) {
+            TestBed.resetTestingModule();
+        }
         delete (window as unknown as { electron?: unknown }).electron;
         jest.restoreAllMocks();
     });
 
+    function destroyTestingModule(): void {
+        TestBed.resetTestingModule();
+        testingModuleDestroyed = true;
+    }
+
     it('loads support and unsubscribes from session updates on destroy', async () => {
         const controller = TestBed.inject(EmbeddedMpvSessionController);
 
-        await flushPromises();
+        await waitFor(() => controller.support() !== null, 'support to load');
 
         expect(electron.getEmbeddedMpvSupport).toHaveBeenCalled();
         expect(controller.support()).toEqual({
@@ -108,7 +117,7 @@ describe('EmbeddedMpvSessionController', () => {
             platform: 'darwin',
         });
 
-        TestBed.resetTestingModule();
+        destroyTestingModule();
         expect(unsubscribeSessionUpdate).toHaveBeenCalled();
     });
 
@@ -126,7 +135,10 @@ describe('EmbeddedMpvSessionController', () => {
             })
         );
 
-        await flushPromises();
+        await waitFor(
+            () => controller.sessionId() === 'mpv-1',
+            'session to start'
+        );
 
         expect(electron.prepareEmbeddedMpv).toHaveBeenCalled();
         expect(electron.createEmbeddedMpvSession).toHaveBeenCalledWith(
@@ -162,7 +174,10 @@ describe('EmbeddedMpvSessionController', () => {
         const controller = TestBed.inject(EmbeddedMpvSessionController);
 
         controller.startSession(createHost(), createPlayback(), 0.5);
-        await flushPromises();
+        await waitFor(
+            () => controller.session()?.status === 'error',
+            'error session to be set'
+        );
 
         expect(controller.session()).toEqual(
             expect.objectContaining({
@@ -261,9 +276,19 @@ function createSession(
     };
 }
 
-async function flushPromises(): Promise<void> {
-    for (let index = 0; index < 6; index += 1) {
+async function waitFor(
+    condition: () => boolean,
+    description: string
+): Promise<void> {
+    const deadline = Date.now() + 1_000;
+
+    while (Date.now() < deadline) {
+        if (condition()) {
+            return;
+        }
         await Promise.resolve();
         await new Promise((resolve) => window.setTimeout(resolve, 0));
     }
+
+    throw new Error(`Timed out waiting for ${description}`);
 }
