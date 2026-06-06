@@ -52,7 +52,7 @@ const activePlaylistRefreshes = new Map<string, ActivePlaylistRefresh>();
 async function fetchPlaylistFromUrl(
     url: string,
     title?: string
-): Promise<any> {
+): Promise<Playlist> {
     const agent = new https.Agent({
         rejectUnauthorized: false,
     });
@@ -85,7 +85,7 @@ async function fetchPlaylistFromUrl(
 async function fetchPlaylistFromFile(
     filePath: string,
     title: string
-): Promise<any> {
+): Promise<Playlist> {
     const fileContent = await readFile(filePath, 'utf-8');
     const parsedPlaylist = parse(fileContent);
     const playlistObject = createPlaylistObject(
@@ -137,6 +137,24 @@ function createPlaylistRefreshError(error: {
     return workerError;
 }
 
+function derivePlaylistTitleFromFilePath(filePath: string): string {
+    const filename = basename(filePath);
+    return filename.replace(/\.(m3u8?|pls|txt)$/i, '') || 'from file';
+}
+
+function preserveAutoUpdatedPlaylistFields(
+    playlistObject: Playlist,
+    playlist: Playlist
+): Playlist {
+    return {
+        ...playlistObject,
+        _id: playlist._id,
+        autoRefresh: playlist.autoRefresh,
+        favorites: playlist.favorites || [],
+        userAgent: playlist.userAgent,
+    };
+}
+
 ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
     try {
         return await fetchPlaylistFromUrl(url, title);
@@ -175,9 +193,7 @@ ipcMain.handle('open-playlist-from-file', async () => {
     const filePath = filePaths[0];
 
     try {
-        // Extract filename from path and remove extension for a clean title
-        const filename = basename(filePath);
-        const title = filename.replace(/\.(m3u8?|pls|txt)$/i, '') || 'from file';
+        const title = derivePlaylistTitleFromFilePath(filePath);
 
         return await fetchPlaylistFromFile(filePath, title);
     } catch (error) {
@@ -189,7 +205,7 @@ ipcMain.handle('open-playlist-from-file', async () => {
 ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
     console.log(`Auto-updating ${playlists.length} playlist(s)...`);
 
-    const updatedPlaylists = [];
+    const updatedPlaylists: Playlist[] = [];
 
     for (const playlist of playlists) {
         try {
@@ -220,14 +236,9 @@ ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
                 continue;
             }
 
-            // Preserve user data when updating playlist
-            updatedPlaylists.push({
-                ...playlistObject,
-                _id: playlist._id,
-                autoRefresh: playlist.autoRefresh,
-                favorites: playlist.favorites || [], // Preserve favorites
-                userAgent: playlist.userAgent, // Preserve custom user agent
-            });
+            updatedPlaylists.push(
+                preserveAutoUpdatedPlaylistFields(playlistObject, playlist)
+            );
 
             console.log(`Successfully updated playlist "${playlist.title}"`);
         } catch (error) {
