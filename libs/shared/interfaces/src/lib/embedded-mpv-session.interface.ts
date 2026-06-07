@@ -3,6 +3,7 @@ export type EmbeddedMpvSessionStatus =
     | 'loading'
     | 'playing'
     | 'paused'
+    | 'ended'
     | 'error'
     | 'closed';
 

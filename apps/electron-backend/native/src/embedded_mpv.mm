@@ -70,6 +70,7 @@ enum class SessionStatus {
     Loading,
     Playing,
     Paused,
+    Ended,
     Error,
     Closed,
 };
@@ -157,6 +158,8 @@ std::string toStatusString(SessionStatus status)
             return "playing";
         case SessionStatus::Paused:
             return "paused";
+        case SessionStatus::Ended:
+            return "ended";
         case SessionStatus::Error:
             return "error";
         case SessionStatus::Closed:
@@ -1128,6 +1131,11 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                         endFile->error < 0
                             ? mpv_error_string(endFile->error)
                             : "Playback failed.";
+                } else if (
+                    endFile &&
+                    endFile->reason == MPV_END_FILE_REASON_EOF &&
+                    session->running.load()) {
+                    session->snapshot.status = SessionStatus::Ended;
                 } else if (session->running.load()) {
                     session->snapshot.status = SessionStatus::Idle;
                 }
@@ -1163,6 +1171,7 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     property->data) {
                     session->paused = *static_cast<int*>(property->data) != 0;
                     if (session->snapshot.status != SessionStatus::Loading &&
+                        session->snapshot.status != SessionStatus::Ended &&
                         session->snapshot.status != SessionStatus::Error &&
                         session->loadedPath) {
                         session->snapshot.status = session->paused
@@ -1912,6 +1921,7 @@ Napi::Value SetPaused(const Napi::CallbackInfo& info)
         std::lock_guard<std::mutex> lock(session->mutex);
         session->paused = paused != 0;
         if (session->loadedPath &&
+            session->snapshot.status != SessionStatus::Ended &&
             session->snapshot.status != SessionStatus::Error) {
             session->snapshot.status = session->paused
                 ? SessionStatus::Paused

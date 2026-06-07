@@ -28,7 +28,11 @@
     <app-embedded-mpv-player
         [playback]="resolvedPlayback()"
         [recordingFolder]="recordingFolder()"
+        [seriesNavigation]="seriesNavigation()"
         (timeUpdate)="timeUpdate.emit($event)"
+        (playbackEnded)="playbackEnded.emit()"
+        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
     />
 } @else {
     <app-vjs-player

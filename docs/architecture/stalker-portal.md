@@ -180,6 +180,15 @@ Stalker has multiple real-world data shapes. The current implementation supports
   metadata and rendered as `SxxE01` until episode details are loaded.
 - Uses unique generated tracking IDs for episode playback position compatibility.
 
+Series inline playback behavior is shared across all three modes:
+
+- `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and derives the currently playing episode from `inlinePlayback.contentInfo.contentXtreamId`.
+- The inline player header shows the current episode metadata below the title, for example `S01E03 - Episode title`.
+- When experimental embedded MPV is active, the player receives previous/next episode state for the current season only.
+- Embedded MPV autoplay is enabled by default. On MPV EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
+- Autoplay and Next stop at the last episode of the current season. They do not jump to the next season and do not lazy-load an unloaded `is_series=1` season. Quick start remains the only flow that may load another VOD-series season before playback.
+- Previous is disabled on the first episode of the current season and otherwise switches directly to the previous episode.
+
 Core decision logic and normalization are centralized in:
 
 - `/Users/4gray/Code/iptvnator/libs/portal/stalker/data-access/src/lib/stalker-vod.utils.ts`

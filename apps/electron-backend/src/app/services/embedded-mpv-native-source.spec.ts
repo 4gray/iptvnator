@@ -45,4 +45,26 @@ describe('Embedded MPV native source recording invariants', () => {
         );
         expect(body).toContain('stopRecordingRequestId,');
     });
+
+    it('maps successful MPV end-file events to an ended session status', () => {
+        expect(nativeSource).toContain('Ended,');
+        expect(nativeSource).toContain('case SessionStatus::Ended:');
+
+        const eventLoopBodyStart = nativeSource.indexOf('void runEventLoop(');
+        expect(eventLoopBodyStart).toBeGreaterThanOrEqual(0);
+        const endFileCaseStart = nativeSource.indexOf(
+            'case MPV_EVENT_END_FILE',
+            eventLoopBodyStart
+        );
+        expect(endFileCaseStart).toBeGreaterThanOrEqual(0);
+        const nextCaseStart = nativeSource.indexOf(
+            'case MPV_EVENT_PROPERTY_CHANGE',
+            endFileCaseStart
+        );
+        expect(nextCaseStart).toBeGreaterThan(endFileCaseStart);
+
+        const endFileCase = nativeSource.slice(endFileCaseStart, nextCaseStart);
+        expect(endFileCase).toContain('SessionStatus::Ended');
+        expect(endFileCase).toContain('MPV_END_FILE_REASON_EOF');
+    });
 });

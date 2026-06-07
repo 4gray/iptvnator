@@ -73,6 +73,21 @@ Subtitle tracks mirror the audio-track contract: same `track-list` source, same 
 
 The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. After a native rebuild, the new buttons light up automatically without renderer changes.
 
+## Session End And Series Navigation
+
+`EmbeddedMpvSessionStatus` includes `ended` for successful EOF only. The native addon maps `MPV_EVENT_END_FILE` to:
+
+- `ended` when the end-file reason is `MPV_END_FILE_REASON_EOF`
+- `error` when MPV reports an end-file error
+- `idle` for other successful end-file reasons such as replacement/stop
+- `closed` only for dispose/manual teardown
+
+Renderer autoplay must use `ended` only. It must not treat `closed`, `idle`, or `error` as a request to continue to the next episode.
+
+Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only as part of the embedded player control surface. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
+
+Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
+
 ## Live Stream Recording
 
 Embedded MPV can record live streams through mpv's `stream-record` option. IPTVnator exposes this only for `ResolvedPortalPlayback.isLive === true`; VOD, episodes, catchup playback, radio audio playback, and non-embedded players do not show the recording control.
@@ -135,7 +150,7 @@ Every IPC call goes through a `guardIpc` helper that swallows addon-side throws 
 
 ### Power management
 
-The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-display-sleep` whenever any embedded MPV session has status `playing`. Released on pause, dispose, or shutdown. Necessary because libmpv-rendered video does not own the windowing surface, so MPV's own screensaver inhibition does not apply. See `EmbeddedMpvNativeService.updatePowerBlocker()` for the implementation.
+The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-display-sleep` whenever any embedded MPV session has status `playing`. Released on pause, EOF (`ended`), dispose, or shutdown. Necessary because libmpv-rendered video does not own the windowing surface, so MPV's own screensaver inhibition does not apply. See `EmbeddedMpvNativeService.updatePowerBlocker()` for the implementation.
 
 ## Packaging State
 
@@ -257,6 +272,7 @@ Do not expose embedded MPV broadly until these pass on both Apple Silicon and In
 - packaged `.app` starts without Homebrew installed
 - bundled `libmpv` and dependent dylibs pass code signing and notarization
 - VOD resume starts near the saved offset
+- series EOF emits `ended` and embedded MPV auto-continues only inside the current season
 - live HLS, MPEG-TS, MP4/VOD, headers, referrer, volume, seek, fullscreen, route changes, and cleanup work
 - audio-track switching works on a stream with multiple audio tracks
 - live stream recording starts, stops, writes a `.ts` file in Downloads/custom recording folder, and stops on route/playback changes

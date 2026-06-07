@@ -61,10 +61,15 @@ class StubSeasonContainerComponent {
 })
 class StubPortalInlinePlayerComponent {
     readonly playback = input<unknown>(null);
+    readonly episodeMetadata = input<unknown>(null);
+    readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly streamUrlCopied = output<void>();
     readonly externalFallbackRequested = output<unknown>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 }
 
 @Component({
@@ -92,6 +97,7 @@ describe('SerialDetailsComponent', () => {
     const constructEpisodeStreamUrl = jest.fn();
     const addRecentItem = jest.fn();
     const openResolvedPlayback = jest.fn();
+    const isEmbeddedPlayer = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
 
     beforeEach(async () => {
@@ -112,6 +118,20 @@ describe('SerialDetailsComponent', () => {
                         title: 'Episode 1',
                         season: 1,
                     },
+                    {
+                        id: '1002',
+                        episode_num: 2,
+                        title: 'Episode 2',
+                        season: 1,
+                    },
+                ],
+                '2': [
+                    {
+                        id: '2001',
+                        episode_num: 1,
+                        title: 'Season 2 Episode 1',
+                        season: 2,
+                    },
                 ],
             },
         });
@@ -121,11 +141,14 @@ describe('SerialDetailsComponent', () => {
         fetchSerialDetailsWithMetadata.mockClear();
         checkFavoriteStatus.mockClear();
         constructEpisodeStreamUrl.mockReset();
-        constructEpisodeStreamUrl.mockReturnValue(
-            'http://xtream.example/series/1001.mp4'
+        constructEpisodeStreamUrl.mockImplementation(
+            (episode: { id: string | number }) =>
+                `http://xtream.example/series/${episode.id}.mp4`
         );
         addRecentItem.mockClear();
         openResolvedPlayback.mockClear();
+        isEmbeddedPlayer.mockReset();
+        isEmbeddedPlayer.mockReturnValue(false);
         getSeriesPlaybackPositions.mockClear();
         getSeriesPlaybackPositions.mockResolvedValue([]);
 
@@ -180,7 +203,7 @@ describe('SerialDetailsComponent', () => {
                 {
                     provide: PORTAL_PLAYER,
                     useValue: {
-                        isEmbeddedPlayer: jest.fn().mockReturnValue(false),
+                        isEmbeddedPlayer,
                         openResolvedPlayback,
                     },
                 },
@@ -273,6 +296,20 @@ describe('SerialDetailsComponent', () => {
                     episode_num: 1,
                     title: 'Episode 1',
                     season: 1,
+                },
+                {
+                    id: '1002',
+                    episode_num: 2,
+                    title: 'Episode 2',
+                    season: 1,
+                },
+            ],
+            '2': [
+                {
+                    id: '2001',
+                    episode_num: 1,
+                    title: 'Season 2 Episode 1',
+                    season: 2,
                 },
             ],
         });
@@ -379,6 +416,67 @@ describe('SerialDetailsComponent', () => {
                 }),
             }),
             true
+        );
+    });
+
+    it('passes inline episode metadata and autoplays only inside the current season', async () => {
+        isEmbeddedPlayer.mockReturnValue(true);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const episodes = (fixture.componentInstance.selectedItem()?.episodes ??
+            {}) as Record<string, Array<{ id: string; title: string }>>;
+        fixture.componentInstance.playEpisode(episodes['1'][0] as never);
+        fixture.detectChanges();
+
+        let inlinePlayer = fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        ).componentInstance as StubPortalInlinePlayerComponent;
+        expect(inlinePlayer.episodeMetadata()).toEqual({
+            label: 'S01E01',
+            title: 'Episode 1',
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        expect(inlinePlayer.seriesNavigation()).toEqual({
+            canPrevious: false,
+            canNext: true,
+            autoplayEnabled: true,
+        });
+
+        inlinePlayer.playbackEnded.emit();
+        fixture.detectChanges();
+
+        inlinePlayer = fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        ).componentInstance as StubPortalInlinePlayerComponent;
+        expect(inlinePlayer.playback()).toEqual(
+            expect.objectContaining({
+                streamUrl: 'http://xtream.example/series/1002.mp4',
+                title: 'Episode 2',
+                contentInfo: expect.objectContaining({
+                    contentXtreamId: 1002,
+                    seasonNumber: 1,
+                    episodeNumber: 2,
+                }),
+            })
+        );
+        expect(inlinePlayer.seriesNavigation()).toEqual({
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+
+        inlinePlayer.playbackEnded.emit();
+        fixture.detectChanges();
+
+        expect(inlinePlayer.playback()).toEqual(
+            expect.objectContaining({
+                streamUrl: 'http://xtream.example/series/1002.mp4',
+            })
+        );
+        expect(constructEpisodeStreamUrl).not.toHaveBeenCalledWith(
+            expect.objectContaining({ id: '2001' })
         );
     });
 });

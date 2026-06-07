@@ -70,7 +70,11 @@ class StubArtPlayerComponent {
 class StubEmbeddedMpvPlayerComponent {
     readonly playback = input.required<unknown>();
     readonly recordingFolder = input('');
+    readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 }
 
 describe('WebPlayerViewComponent', () => {
@@ -326,6 +330,47 @@ describe('WebPlayerViewComponent', () => {
             By.directive(StubEmbeddedMpvPlayerComponent)
         ).componentInstance as StubEmbeddedMpvPlayerComponent;
         expect(player.recordingFolder()).toBe('');
+    });
+
+    it('passes series navigation to embedded MPV and forwards episode navigation events', () => {
+        const events: string[] = [];
+        const seriesNavigation = {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        };
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.EmbeddedMpv);
+        fixture.componentRef.setInput('seriesNavigation', seriesNavigation);
+        (
+            component as unknown as {
+                playbackEnded: { subscribe: (fn: () => void) => void };
+                previousEpisodeRequested: { subscribe: (fn: () => void) => void };
+                nextEpisodeRequested: { subscribe: (fn: () => void) => void };
+            }
+        ).playbackEnded.subscribe(() => events.push('ended'));
+        (
+            component as unknown as {
+                previousEpisodeRequested: { subscribe: (fn: () => void) => void };
+            }
+        ).previousEpisodeRequested.subscribe(() => events.push('previous'));
+        (
+            component as unknown as {
+                nextEpisodeRequested: { subscribe: (fn: () => void) => void };
+            }
+        ).nextEpisodeRequested.subscribe(() => events.push('next'));
+
+        fixture.detectChanges();
+
+        const player = fixture.debugElement.query(
+            By.directive(StubEmbeddedMpvPlayerComponent)
+        ).componentInstance as StubEmbeddedMpvPlayerComponent;
+        expect(player.seriesNavigation()).toBe(seriesNavigation);
+
+        player.playbackEnded.emit();
+        player.previousEpisodeRequested.emit();
+        player.nextEpisodeRequested.emit();
+
+        expect(events).toEqual(['ended', 'previous', 'next']);
     });
 
     it('uses the PWA browser access diagnostic description key outside desktop', () => {
