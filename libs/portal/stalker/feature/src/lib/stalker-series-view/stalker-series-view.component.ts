@@ -46,12 +46,12 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
-    formatSeriesEpisodeLabel,
+    getSeriesEpisodeMetadata,
+    getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
-    type SeriesEpisodeMetadata,
+    resolveSeriesPlaybackEpisodeState,
     type SeriesPlaybackEpisodeState,
-    type SeriesPlaybackNavigation,
 } from '@iptvnator/ui/playback';
 import {
     DownloadsService,
@@ -280,35 +280,12 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() =>
             this.getInlineEpisodeState()
         );
-    readonly inlineEpisodeMetadata = computed<SeriesEpisodeMetadata | null>(() => {
-        const state = this.inlineEpisodeState();
-        if (!state) {
-            return null;
-        }
-
-        return {
-            label: formatSeriesEpisodeLabel(
-                state.seasonNumber,
-                state.episodeNumber
-            ),
-            seasonNumber: state.seasonNumber,
-            episodeNumber: state.episodeNumber,
-            title: state.episode.title,
-        };
-    });
-    readonly inlineSeriesNavigation =
-        computed<SeriesPlaybackNavigation | null>(() => {
-            const state = this.inlineEpisodeState();
-            if (!state) {
-                return null;
-            }
-
-            return {
-                canPrevious: Boolean(state.previous),
-                canNext: Boolean(state.next),
-                autoplayEnabled: true,
-            };
-        });
+    readonly inlineEpisodeMetadata = computed(() =>
+        getSeriesEpisodeMetadata(this.inlineEpisodeState())
+    );
+    readonly inlineSeriesNavigation = computed(() =>
+        getSeriesPlaybackNavigation(this.inlineEpisodeState())
+    );
 
     /**
      * Handles season selection from the container.
@@ -628,31 +605,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             return null;
         }
 
-        for (const [seasonKey, episodes] of Object.entries(this.mappedSeasons())) {
-            const episodeIndex = episodes.findIndex(
-                (episode) => Number(episode.id) === Number(currentEpisodeId)
-            );
-            if (episodeIndex < 0) {
-                continue;
-            }
-
-            const episode = episodes[episodeIndex];
-            const seasonNumber =
-                Number(episode.season) || Number(seasonKey) || 0;
-            const episodeNumber =
-                Number(episode.episode_num) || episodeIndex + 1;
-
-            return {
-                seasonKey,
-                seasonNumber,
-                episodeNumber,
-                episode,
-                previous: episodes[episodeIndex - 1] ?? null,
-                next: episodes[episodeIndex + 1] ?? null,
-            };
-        }
-
-        return null;
+        return resolveSeriesPlaybackEpisodeState({
+            episodesBySeason: this.mappedSeasons(),
+            currentEpisodeId,
+        });
     }
 
     ngOnDestroy(): void {

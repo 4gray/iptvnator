@@ -9,6 +9,7 @@ import {
     effect,
     inject,
     input,
+    output,
     signal,
     untracked,
     viewChild,
@@ -76,9 +77,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         currentTime: number;
         duration: number;
     }>();
-    @Output() playbackEnded = new EventEmitter<void>();
-    @Output() previousEpisodeRequested = new EventEmitter<void>();
-    @Output() nextEpisodeRequested = new EventEmitter<void>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 
     private readonly overlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
