@@ -1,5 +1,6 @@
 import { Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
@@ -61,10 +62,15 @@ class StubSeasonContainerComponent {
 })
 class StubPortalInlinePlayerComponent {
     readonly playback = input<unknown>(null);
+    readonly episodeMetadata = input<unknown>(null);
+    readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<unknown>();
     readonly closed = output<void>();
     readonly streamUrlCopied = output<void>();
     readonly externalFallbackRequested = output<unknown>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 }
 
 @Component({
@@ -87,6 +93,7 @@ describe('StalkerSeriesViewComponent', () => {
     const resolveVodPlayback = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
     const openResolvedPlayback = jest.fn();
+    const isEmbeddedPlayer = jest.fn();
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -110,14 +117,35 @@ describe('StalkerSeriesViewComponent', () => {
         vodSeriesSeasonsResource.set([]);
         fetchVodSeriesEpisodes.mockReset();
         resolveVodPlayback.mockReset();
-        resolveVodPlayback.mockResolvedValue({
+        resolveVodPlayback.mockImplementation(
+            async (
+                _cmd?: string,
+                title?: string,
+                thumbnail?: string,
+                _episodeNum?: number,
+                episodeId?: number,
+                startTime?: number
+            ) => ({
             streamUrl: 'http://stalker.example/episode.mpg',
-            title: 'Regular Series',
-            thumbnail: 'poster.jpg',
-        });
+                title: title ?? 'Regular Series',
+                thumbnail: thumbnail ?? 'poster.jpg',
+                startTime,
+                contentInfo: {
+                    playlistId: 'stalker-1',
+                    contentXtreamId:
+                        episodeId ?? Number(selectedItem()?.id ?? 0),
+                    contentType: episodeId ? 'episode' : 'vod',
+                    seriesXtreamId: episodeId
+                        ? Number(selectedItem()?.id ?? 0)
+                        : undefined,
+                },
+            })
+        );
         getSeriesPlaybackPositions.mockClear();
         getSeriesPlaybackPositions.mockResolvedValue([]);
         openResolvedPlayback.mockClear();
+        isEmbeddedPlayer.mockReset();
+        isEmbeddedPlayer.mockReturnValue(false);
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -156,7 +184,7 @@ describe('StalkerSeriesViewComponent', () => {
                 {
                     provide: PORTAL_PLAYER,
                     useValue: {
-                        isEmbeddedPlayer: jest.fn().mockReturnValue(false),
+                        isEmbeddedPlayer,
                         openResolvedPlayback,
                     },
                 },
@@ -422,6 +450,139 @@ describe('StalkerSeriesViewComponent', () => {
             'vod-series.jpg',
             1,
             expect.any(Number),
+            undefined
+        );
+    });
+
+    it('passes inline episode metadata and autoplays only loaded current-season episodes for VOD is_series playback', async () => {
+        selectedContentType.set('vod');
+        selectedItem.set({
+            id: '50001',
+            is_series: true,
+            info: {
+                name: 'VOD Flagged Series',
+                description: 'Lazy seasons',
+                movie_image: 'vod-series.jpg',
+            },
+        });
+        serialSeasonsResource.set([]);
+        vodSeriesSeasonsResource.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+            },
+        ]);
+        isEmbeddedPlayer.mockReturnValue(true);
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.vodSeriesSeasons.set([
+            {
+                id: 'season-1',
+                video_id: '50001',
+                season_number: '1',
+                name: 'Season 1',
+                episodes: [
+                    {
+                        id: 'episode-1',
+                        series_number: 1,
+                        name: 'Pilot',
+                    },
+                    {
+                        id: 'episode-2',
+                        series_number: 2,
+                        name: 'Second',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+            {
+                id: 'season-2',
+                video_id: '50001',
+                season_number: '2',
+                name: 'Season 2',
+                episodes: [
+                    {
+                        id: 'episode-3',
+                        series_number: 1,
+                        name: 'Next Season',
+                    },
+                ],
+                isLoading: false,
+                isExpanded: false,
+            },
+        ]);
+        fetchVodSeriesEpisodes.mockClear();
+
+        const seasonOneEpisodes = fixture.componentInstance.mappedSeasons()['1'];
+        const firstEpisode = seasonOneEpisodes[0];
+        const secondEpisode = seasonOneEpisodes[1];
+        const seasonTwoEpisode = fixture.componentInstance.mappedSeasons()['2'][0];
+
+        fixture.componentInstance.onEpisodeClicked(firstEpisode);
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const inlinePlayer = fixture.debugElement.query(
+            By.directive(StubPortalInlinePlayerComponent)
+        ).componentInstance as StubPortalInlinePlayerComponent;
+
+        expect(inlinePlayer.episodeMetadata()).toEqual({
+            label: 'S01E01',
+            title: 'Pilot',
+            seasonNumber: 1,
+            episodeNumber: 1,
+        });
+        expect(inlinePlayer.seriesNavigation()).toEqual({
+            canPrevious: false,
+            canNext: true,
+            autoplayEnabled: true,
+        });
+
+        inlinePlayer.playbackEnded.emit();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(resolveVodPlayback).toHaveBeenLastCalledWith(
+            '/media/file_episode-2.mpg',
+            'VOD Flagged Series - Second',
+            'vod-series.jpg',
+            2,
+            Number(secondEpisode.id),
+            undefined
+        );
+        expect(inlinePlayer.episodeMetadata()).toEqual({
+            label: 'S01E02',
+            title: 'Second',
+            seasonNumber: 1,
+            episodeNumber: 2,
+        });
+        expect(inlinePlayer.seriesNavigation()).toEqual({
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+
+        inlinePlayer.playbackEnded.emit();
+        await fixture.whenStable();
+
+        expect(fetchVodSeriesEpisodes).not.toHaveBeenCalled();
+        expect(resolveVodPlayback).not.toHaveBeenCalledWith(
+            '/media/file_episode-3.mpg',
+            'VOD Flagged Series - Next Season',
+            'vod-series.jpg',
+            1,
+            Number(seasonTwoEpisode.id),
             undefined
         );
     });

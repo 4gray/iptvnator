@@ -3,9 +3,16 @@
         <header class="player-shell__header">
             <div class="player-shell__eyebrow">Now Playing</div>
             <div class="player-shell__title-row">
-                <h3 class="player-shell__title" [matTooltip]="title()">
-                    {{ title() }}
-                </h3>
+                <div class="player-shell__heading">
+                    <h3 class="player-shell__title" [matTooltip]="title()">
+                        {{ title() }}
+                    </h3>
+                    @if (episodeMetadataText(); as episodeText) {
+                        <div class="player-shell__episode-meta">
+                            {{ episodeText }}
+                        </div>
+                    }
+                </div>
                 <div class="player-shell__actions">
                     <button
                         mat-button
@@ -35,7 +42,11 @@
                 [title]="title()"
                 [playback]="playback()"
                 [startTime]="startTime()"
+                [seriesNavigation]="seriesNavigation()"
                 (timeUpdate)="onTimeUpdate($event)"
+                (playbackEnded)="onPlaybackEnded()"
+                (previousEpisodeRequested)="onPreviousEpisodeRequested()"
+                (nextEpisodeRequested)="onNextEpisodeRequested()"
                 (externalFallbackRequested)="
                     onExternalFallbackRequested($event)
                 "

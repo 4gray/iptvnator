@@ -26,8 +26,12 @@ import {
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
+    getSeriesEpisodeMetadata,
+    getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    resolveSeriesPlaybackEpisodeState,
+    type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
 import { PlaybackPositionRuntimeBridgeService } from '@iptvnator/services';
 import {
@@ -110,6 +114,16 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             playbackPositions: this.episodePlaybackPositions(),
         });
     });
+    readonly inlineEpisodeState =
+        computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() =>
+            this.getInlineEpisodeState()
+        );
+    readonly inlineEpisodeMetadata = computed(() =>
+        getSeriesEpisodeMetadata(this.inlineEpisodeState())
+    );
+    readonly inlineSeriesNavigation = computed(() =>
+        getSeriesPlaybackNavigation(this.inlineEpisodeState())
+    );
 
     constructor() {
         effect(() => {
@@ -364,6 +378,30 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
         );
     }
 
+    playPreviousEpisode(): void {
+        const previous = this.inlineEpisodeState()?.previous;
+        if (!previous) {
+            return;
+        }
+        this.playEpisode(previous);
+    }
+
+    playNextEpisode(): void {
+        const next = this.inlineEpisodeState()?.next;
+        if (!next) {
+            return;
+        }
+        this.playEpisode(next);
+    }
+
+    handleInlinePlaybackEnded(): void {
+        const navigation = this.inlineSeriesNavigation();
+        if (!navigation?.autoplayEnabled || !navigation.canNext) {
+            return;
+        }
+        this.playNextEpisode();
+    }
+
     private addToRecentlyViewed(xtreamId: number): void {
         this.xtreamStore.addRecentItem({
             xtreamId,
@@ -382,6 +420,27 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
 
         this.closeInlinePlayer();
         void this.portalPlayer.openResolvedPlayback(playback, true);
+    }
+
+    private getInlineEpisodeState(): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
+        const playback = this.inlinePlayback();
+        const episodesBySeason = this.selectedItem()?.episodes;
+        const currentEpisodeId = playback?.contentInfo?.contentXtreamId;
+
+        if (
+            !episodesBySeason ||
+            playback?.contentInfo?.contentType !== 'episode' ||
+            currentEpisodeId === undefined
+        ) {
+            return null;
+        }
+
+        return resolveSeriesPlaybackEpisodeState({
+            episodesBySeason,
+            currentEpisodeId,
+            fallbackSeasonNumber: playback.contentInfo.seasonNumber,
+            fallbackEpisodeNumber: playback.contentInfo.episodeNumber,
+        });
     }
 
     async handlePlaybackToggleRequested(

@@ -75,9 +75,14 @@
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
                 [playback]="playback"
+                [episodeMetadata]="inlineEpisodeMetadata()"
+                [seriesNavigation]="inlineSeriesNavigation()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
                 (streamUrlCopied)="showCopyNotification()"
+                (playbackEnded)="handleInlinePlaybackEnded()"
+                (previousEpisodeRequested)="playPreviousEpisode()"
+                (nextEpisodeRequested)="playNextEpisode()"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)
                 "

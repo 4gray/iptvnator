@@ -104,6 +104,34 @@
                     mat-icon-button
                     type="button"
                     class="embedded-mpv-player__control-button"
+                    data-test-id="embedded-mpv-previous-episode"
+                    [disabled]="isLoading() || !canPreviousEpisode()"
+                    (click)="requestPreviousEpisode()"
+                    aria-label="Previous episode"
+                    matTooltip="Previous episode"
+                    matTooltipPosition="above"
+                >
+                    <mat-icon>skip_previous</mat-icon>
+                </button>
+
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="embedded-mpv-player__control-button"
+                    data-test-id="embedded-mpv-next-episode"
+                    [disabled]="isLoading() || !canNextEpisode()"
+                    (click)="requestNextEpisode()"
+                    aria-label="Next episode"
+                    matTooltip="Next episode"
+                    matTooltipPosition="above"
+                >
+                    <mat-icon>skip_next</mat-icon>
+                </button>
+
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="embedded-mpv-player__control-button"
                     [disabled]="!canSeek()"
                     (click)="seekBy(-10)"
                     aria-label="Back 10 seconds"

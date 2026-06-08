@@ -9,6 +9,7 @@ import {
     effect,
     inject,
     input,
+    output,
     signal,
     untracked,
     viewChild,
@@ -21,6 +22,7 @@ import {
     EmbeddedMpvAudioTrack,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';
@@ -69,11 +71,15 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
     readonly recordingFolder = input('');
+    readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
 
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
         duration: number;
     }>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 
     private readonly overlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
@@ -117,7 +123,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isPaused = computed(
         () =>
             this.session()?.status === 'paused' ||
-            this.session()?.status === 'idle'
+            this.session()?.status === 'idle' ||
+            this.session()?.status === 'ended'
     );
     readonly isPlaying = computed(() => this.session()?.status === 'playing');
     readonly isErrored = computed(() => this.session()?.status === 'error');
@@ -198,6 +205,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly isRecording = computed(
         () => this.session()?.recording?.active === true
     );
+    readonly canPreviousEpisode = computed(
+        () => this.seriesNavigation()?.canPrevious === true
+    );
+    readonly canNextEpisode = computed(
+        () => this.seriesNavigation()?.canNext === true
+    );
     readonly recordingElapsed = computed(() => {
         const startedAt = this.session()?.recording?.startedAt;
         this.recordingTick();
@@ -221,6 +234,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private controlsHideTimer: number | null = null;
     private volumeCloseTimer: number | null = null;
     private recordingMessageTimer: number | null = null;
+    private lastEndedSessionId: string | null = null;
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
 
@@ -331,6 +345,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         effect(() => {
             const session = this.session();
             if (!session) {
+                this.lastEndedSessionId = null;
                 return;
             }
             // Side effects must not pull in transitive signal deps via
@@ -345,6 +360,19 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 });
                 this.scheduleControlsHide();
             });
+        });
+
+        effect(() => {
+            const session = this.session();
+            if (!session || session.status !== 'ended') {
+                return;
+            }
+            if (this.lastEndedSessionId === session.id) {
+                return;
+            }
+
+            this.lastEndedSessionId = session.id;
+            this.playbackEnded.emit();
         });
 
         effect((onCleanup) => {
@@ -430,6 +458,22 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
             );
         }
+    }
+
+    requestPreviousEpisode(): void {
+        this.revealControls();
+        if (!this.canPreviousEpisode()) {
+            return;
+        }
+        this.previousEpisodeRequested.emit();
+    }
+
+    requestNextEpisode(): void {
+        this.revealControls();
+        if (!this.canNextEpisode()) {
+            return;
+        }
+        this.nextEpisodeRequested.emit();
     }
 
     async onTimelineInput(event: Event): Promise<void> {

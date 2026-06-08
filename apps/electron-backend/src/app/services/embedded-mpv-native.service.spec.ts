@@ -197,6 +197,17 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(powerSaveBlockerMock.stop).toHaveBeenCalledWith(1);
     });
 
+    it('releases the blocker when MPV reports playback ended', () => {
+        startSession('s1', snapshot('playing'));
+        expect(powerSaveBlockerMock.start).toHaveBeenCalledTimes(1);
+
+        addon.getSessionSnapshot.mockReturnValueOnce(snapshot('ended'));
+        service.setPaused('s1', false);
+
+        expect(powerSaveBlockerMock.stop).toHaveBeenCalledTimes(1);
+        expect(powerSaveBlockerMock.stop).toHaveBeenCalledWith(1);
+    });
+
     it('keeps the blocker held while any other session is still playing', () => {
         startSession('s1', snapshot('playing'));
         startSession('s2', snapshot('playing'));

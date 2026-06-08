@@ -7,6 +7,7 @@ export * from './lib/external-player-info-dialog/external-player-info-dialog.com
 export * from './lib/html-video-player/html-video-player.component';
 export * from './lib/playback-diagnostics/playback-diagnostics.util';
 export * from './lib/portal-inline-player/portal-inline-player.component';
+export * from './lib/portal-inline-player/series-playback-navigation';
 export * from './lib/vjs-player/vjs-player.component';
 export * from './lib/video-player/sidebar/sidebar.component';
 export * from './lib/video-player/toolbar/toolbar.component';

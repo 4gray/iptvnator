@@ -46,8 +46,12 @@ import {
     StalkerVodSource,
 } from '@iptvnator/portal/stalker/data-access';
 import {
+    getSeriesEpisodeMetadata,
+    getSeriesPlaybackNavigation,
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
+    resolveSeriesPlaybackEpisodeState,
+    type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
 import {
     DownloadsService,
@@ -272,6 +276,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             vodSeriesSeasons: this.vodSeriesSeasons(),
         });
     });
+    readonly inlineEpisodeState =
+        computed<SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null>(() =>
+            this.getInlineEpisodeState()
+        );
+    readonly inlineEpisodeMetadata = computed(() =>
+        getSeriesEpisodeMetadata(this.inlineEpisodeState())
+    );
+    readonly inlineSeriesNavigation = computed(() =>
+        getSeriesPlaybackNavigation(this.inlineEpisodeState())
+    );
 
     /**
      * Handles season selection from the container.
@@ -516,6 +530,30 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         );
     }
 
+    playPreviousEpisode(): void {
+        const previous = this.inlineEpisodeState()?.previous;
+        if (!previous) {
+            return;
+        }
+        this.onEpisodeClicked(previous);
+    }
+
+    playNextEpisode(): void {
+        const next = this.inlineEpisodeState()?.next;
+        if (!next) {
+            return;
+        }
+        this.onEpisodeClicked(next);
+    }
+
+    handleInlinePlaybackEnded(): void {
+        const navigation = this.inlineSeriesNavigation();
+        if (!navigation?.autoplayEnabled || !navigation.canNext) {
+            return;
+        }
+        this.playNextEpisode();
+    }
+
     private async startPlayback(
         cmd?: string,
         title?: string,
@@ -554,6 +592,23 @@ export class StalkerSeriesViewComponent implements OnDestroy {
                 duration: 3000,
             });
         }
+    }
+
+    private getInlineEpisodeState(): SeriesPlaybackEpisodeState<XtreamSerieEpisode> | null {
+        const playback = this.inlinePlayback();
+        const currentEpisodeId = playback?.contentInfo?.contentXtreamId;
+
+        if (
+            playback?.contentInfo?.contentType !== 'episode' ||
+            currentEpisodeId === undefined
+        ) {
+            return null;
+        }
+
+        return resolveSeriesPlaybackEpisodeState({
+            episodesBySeason: this.mappedSeasons(),
+            currentEpisodeId,
+        });
     }
 
     ngOnDestroy(): void {

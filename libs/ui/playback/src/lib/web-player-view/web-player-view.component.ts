@@ -36,6 +36,7 @@ import {
     getLikelyBrowserUnsupportedCodecLabels,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
+import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
 
 type PlaybackDiagnosticDetail = {
@@ -74,11 +75,15 @@ export class WebPlayerViewComponent {
     volume = input<number>(1);
     showCaptions = input<boolean>(false);
     playerOverride = input<VideoPlayer | null>(null);
+    seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 
     settings = toSignal(this.storage.get(STORE_KEY.Settings)) as Signal<
         Settings | undefined

@@ -39,12 +39,27 @@
     justify-content: space-between;
 }
 
+.player-shell__heading {
+    min-width: 0;
+}
+
 .player-shell__title {
     margin: 0;
     font-size: clamp(1.05rem, 1vw + 0.9rem, 1.4rem);
     font-weight: 700;
     line-height: 1.2;
     color: #161616;
+}
+
+.player-shell__episode-meta {
+    margin-top: 4px;
+    overflow: hidden;
+    color: rgba(26, 26, 26, 0.64);
+    font-size: 0.9rem;
+    font-weight: 600;
+    line-height: 1.35;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .player-shell__actions {
@@ -85,6 +100,10 @@
 
 :host-context(.dark-theme) .player-shell__title {
     color: #fff;
+}
+
+:host-context(.dark-theme) .player-shell__episode-meta {
+    color: rgba(255, 255, 255, 0.68);
 }
 
 @media (max-width: 900px) {
