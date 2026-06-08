@@ -67,6 +67,31 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(component).toBeTruthy();
     });
 
+    it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
+        const el = component.videoPlayer.nativeElement;
+        const removeSpy = jest.spyOn(el, 'removeEventListener');
+        const handlers = component as unknown as {
+            handleVolumeChange: EventListener;
+            handleLoadedMetadata: EventListener;
+            handleTimeUpdate: EventListener;
+        };
+
+        fixture.destroy();
+
+        expect(removeSpy).toHaveBeenCalledWith(
+            'volumechange',
+            handlers.handleVolumeChange
+        );
+        expect(removeSpy).toHaveBeenCalledWith(
+            'loadedmetadata',
+            handlers.handleLoadedMetadata
+        );
+        expect(removeSpy).toHaveBeenCalledWith(
+            'timeupdate',
+            handlers.handleTimeUpdate
+        );
+    });
+
     it('should call play channel function after input changes', () => {
         jest.spyOn(component, 'playChannel');
         jest.spyOn(global.console, 'error').mockImplementation(() => {
