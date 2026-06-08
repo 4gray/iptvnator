@@ -10,6 +10,7 @@ import {
     StreamingEpgParser,
 } from './epg-streaming-parser';
 import { shouldGunzipEpgResponse } from './epg-response-utils';
+import { assertRemoteUrlAllowed } from '../events/url-safety';
 import {
     getNativeModuleSearchPaths,
     getWorkerDataNativeModuleSearchPaths,
@@ -22,9 +23,8 @@ let Database: typeof BetterSqlite3;
 const nativeModuleSearchPaths = [
     ...getWorkerDataNativeModuleSearchPaths(workerData),
     ...getNativeModuleSearchPaths({
-        resourcesPath: (
-            process as NodeJS.Process & { resourcesPath?: string }
-        ).resourcesPath,
+        resourcesPath: (process as NodeJS.Process & { resourcesPath?: string })
+            .resourcesPath,
     }),
 ];
 
@@ -230,6 +230,13 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
     let hasClearedSource = false;
 
     try {
+        // SSRF/LFI guard: the EPG URL can originate from a malicious M3U
+        // `url-tvg` attribute. Block non-http(s)/credentialed URLs (e.g.
+        // file://); private and LAN targets remain allowed since users
+        // legitimately self-host EPG sources.
+        await assertRemoteUrlAllowed(url.trim(), {
+            allowPrivateNetworks: true,
+        });
         const response = await fetch(url.trim());
         const isGzipped = shouldGunzipEpgResponse(url, response);
 

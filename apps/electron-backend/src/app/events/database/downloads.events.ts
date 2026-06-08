@@ -11,7 +11,12 @@ import { basename, extname, join } from 'path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 
-type DownloadStatus = 'queued' | 'downloading' | 'completed' | 'failed' | 'canceled';
+type DownloadStatus =
+    | 'queued'
+    | 'downloading'
+    | 'completed'
+    | 'failed'
+    | 'canceled';
 
 interface DownloadTask {
     id: number;
@@ -26,6 +31,29 @@ interface DownloadTask {
 const downloadQueue: DownloadTask[] = [];
 let activeDownload: DownloadTask | null = null;
 let mainWindow: BrowserWindow | null = null;
+
+/**
+ * Returns true only when `filePath` matches a download IPTVnator itself
+ * recorded. The reveal/open handlers use this so a compromised renderer cannot
+ * ask the OS to open or reveal an arbitrary host path it supplies directly.
+ */
+async function isManagedDownloadFile(filePath: string): Promise<boolean> {
+    if (!filePath) {
+        return false;
+    }
+    try {
+        const db = await getDatabase();
+        const rows = await db
+            .select({ id: schema.downloads.id })
+            .from(schema.downloads)
+            .where(eq(schema.downloads.filePath, filePath))
+            .limit(1);
+        return rows.length > 0;
+    } catch (error) {
+        console.error('Error verifying managed download path:', error);
+        return false;
+    }
+}
 
 /**
  * Set the main window reference for sending updates
@@ -168,7 +196,10 @@ async function startDownload(task: DownloadTask) {
                     try {
                         unlinkSync(partialPath);
                     } catch (e) {
-                        console.error('[Downloads] Failed to delete partial file:', e);
+                        console.error(
+                            '[Downloads] Failed to delete partial file:',
+                            e
+                        );
                     }
                 }
 
@@ -209,7 +240,8 @@ async function startDownload(task: DownloadTask) {
             .update(schema.downloads)
             .set({
                 status: 'failed',
-                errorMessage: error instanceof Error ? error.message : String(error),
+                errorMessage:
+                    error instanceof Error ? error.message : String(error),
                 updatedAt: sql`CURRENT_TIMESTAMP`,
             })
             .where(eq(schema.downloads.id, task.id));
@@ -241,7 +273,12 @@ ipcMain.handle(
             episodeNumber?: number;
             // Playlist info for auto-creation if needed
             playlistName?: string;
-            playlistType?: 'xtream' | 'stalker' | 'm3u-file' | 'm3u-text' | 'm3u-url';
+            playlistType?:
+                | 'xtream'
+                | 'stalker'
+                | 'm3u-file'
+                | 'm3u-text'
+                | 'm3u-url';
             serverUrl?: string;
             portalUrl?: string;
             macAddress?: string;
@@ -261,7 +298,10 @@ ipcMain.handle(
 
                 if (existingPlaylist.length === 0) {
                     // Create playlist entry for downloads to work
-                    console.log('[Downloads] Creating playlist entry for:', data.playlistId);
+                    console.log(
+                        '[Downloads] Creating playlist entry for:',
+                        data.playlistId
+                    );
                     await db.insert(schema.playlists).values({
                         id: data.playlistId,
                         name: data.playlistName || 'Unknown Playlist',
@@ -327,7 +367,11 @@ ipcMain.handle(
                 }
 
                 // Already queued or downloading
-                return { success: false, error: 'Download already in progress', id: item.id };
+                return {
+                    success: false,
+                    error: 'Download already in progress',
+                    id: item.id,
+                };
             }
 
             // Create new download entry
@@ -436,7 +480,10 @@ ipcMain.handle(
 
             const item = existing[0];
             if (!['failed', 'canceled'].includes(item.status)) {
-                return { success: false, error: 'Can only retry failed or canceled downloads' };
+                return {
+                    success: false,
+                    error: 'Can only retry failed or canceled downloads',
+                };
             }
 
             await db
@@ -493,7 +540,9 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
         }
 
         // Delete from database
-        await db.delete(schema.downloads).where(eq(schema.downloads.id, downloadId));
+        await db
+            .delete(schema.downloads)
+            .where(eq(schema.downloads.id, downloadId));
 
         broadcastUpdate();
         return { success: true };
@@ -576,6 +625,9 @@ ipcMain.handle('DOWNLOADS_SELECT_FOLDER', async () => {
  * Reveal file in system file manager
  */
 ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
+    if (!(await isManagedDownloadFile(filePath))) {
+        return { success: false, error: 'File not found' };
+    }
     if (existsSync(filePath)) {
         shell.showItemInFolder(filePath);
         return { success: true };
@@ -587,6 +639,9 @@ ipcMain.handle('DOWNLOADS_REVEAL_FILE', async (_event, filePath: string) => {
  * Play downloaded file
  */
 ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
+    if (!(await isManagedDownloadFile(filePath))) {
+        return { success: false, error: 'File not found' };
+    }
     if (existsSync(filePath)) {
         await shell.openPath(filePath);
         return { success: true };
@@ -597,34 +652,45 @@ ipcMain.handle('DOWNLOADS_PLAY_FILE', async (_event, filePath: string) => {
 /**
  * Clear all completed downloads
  */
-ipcMain.handle('DOWNLOADS_CLEAR_COMPLETED', async (_event, playlistId?: string) => {
-    try {
-        const db = await getDatabase();
+ipcMain.handle(
+    'DOWNLOADS_CLEAR_COMPLETED',
+    async (_event, playlistId?: string) => {
+        try {
+            const db = await getDatabase();
 
-        if (playlistId) {
-            await db
-                .delete(schema.downloads)
-                .where(
-                    and(
-                        eq(schema.downloads.playlistId, playlistId),
-                        inArray(schema.downloads.status, ['completed', 'failed', 'canceled'])
-                    )
-                );
-        } else {
-            await db
-                .delete(schema.downloads)
-                .where(
-                    inArray(schema.downloads.status, ['completed', 'failed', 'canceled'])
-                );
+            if (playlistId) {
+                await db
+                    .delete(schema.downloads)
+                    .where(
+                        and(
+                            eq(schema.downloads.playlistId, playlistId),
+                            inArray(schema.downloads.status, [
+                                'completed',
+                                'failed',
+                                'canceled',
+                            ])
+                        )
+                    );
+            } else {
+                await db
+                    .delete(schema.downloads)
+                    .where(
+                        inArray(schema.downloads.status, [
+                            'completed',
+                            'failed',
+                            'canceled',
+                        ])
+                    );
+            }
+
+            broadcastUpdate();
+            return { success: true };
+        } catch (error) {
+            console.error('[Downloads] Error clearing completed:', error);
+            throw error;
         }
-
-        broadcastUpdate();
-        return { success: true };
-    } catch (error) {
-        console.error('[Downloads] Error clearing completed:', error);
-        throw error;
     }
-});
+);
 
 /**
  * Reset stale downloads on startup (downloading -> failed)
@@ -639,9 +705,7 @@ export async function resetStaleDownloads() {
                 errorMessage: 'Download interrupted by application restart',
                 updatedAt: sql`CURRENT_TIMESTAMP`,
             })
-            .where(
-                inArray(schema.downloads.status, ['queued', 'downloading'])
-            );
+            .where(inArray(schema.downloads.status, ['queued', 'downloading']));
         console.log('[Downloads] Reset stale downloads');
     } catch (error) {
         console.error('[Downloads] Error resetting stale downloads:', error);

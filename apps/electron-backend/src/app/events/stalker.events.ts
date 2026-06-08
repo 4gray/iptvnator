@@ -5,10 +5,14 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
-import { PortalDebugEvent, STALKER_REQUEST } from '@iptvnator/shared/interfaces';
+import {
+    PortalDebugEvent,
+    STALKER_REQUEST,
+} from '@iptvnator/shared/interfaces';
 import { rememberStalkerPlaybackContext } from '../services/stalker-playback-context.service';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { buildStalkerIdentityRequestContext } from './stalker-identity';
+import { assertRemoteUrlAllowed } from './url-safety';
 
 export default class StalkerEvents {
     static bootstrapStalkerEvents(): Electron.IpcMain {
@@ -48,14 +52,24 @@ ipcMain.handle(
             // Build URL with query parameters
             // Note: For 'cmd' parameter, we need to use encodeURI (not encodeURIComponent)
             // to preserve forward slashes, matching stalker-to-m3u implementation
+            // SSRF/LFI guard: block non-http(s)/credentialed portal URLs.
+            // Private/LAN targets remain allowed (users run local Stalker servers).
+            await assertRemoteUrlAllowed(url, { allowPrivateNetworks: true });
             const urlObject = new URL(url);
             const queryParts: string[] = [];
 
             Object.entries(requestParams).forEach(([key, value]) => {
                 if (key === 'cmd') {
-                    // Don't encode cmd - it's already a path like /media/12345.mpg
-                    // Encoding would break the path format expected by the server
-                    queryParts.push(`${key}=${String(value)}`);
+                    // Encode cmd but preserve forward slashes so the path format
+                    // (e.g. /media/12345.mpg) the server expects still survives.
+                    // Encoding the remaining characters prevents a malicious portal
+                    // from injecting extra query parameters (&, =, #) into the URL.
+                    queryParts.push(
+                        `${key}=${encodeURIComponent(String(value)).replace(
+                            /%2F/gi,
+                            '/'
+                        )}`
+                    );
                 } else {
                     // Use encodeURIComponent for other params
                     queryParts.push(

@@ -2,7 +2,11 @@ import axios from 'axios';
 import { parentPort } from 'worker_threads';
 import { parse } from 'iptv-playlist-parser';
 import { readFile } from 'node:fs/promises';
-import { createPlaylistObject, getFilenameFromUrl } from '@iptvnator/shared/m3u-utils';
+import {
+    createPlaylistObject,
+    getFilenameFromUrl,
+} from '@iptvnator/shared/m3u-utils';
+import { createPlaylistHttpsAgent } from '../util/secure-https';
 import type {
     Playlist,
     PlaylistRefreshEvent,
@@ -13,8 +17,6 @@ import type {
     PlaylistRefreshWorkerMessage,
 } from './playlist-refresh.worker.types';
 
-const https = require('https');
-
 type ActiveRefreshState = {
     cancelled: boolean;
     controller: AbortController;
@@ -23,7 +25,9 @@ type ActiveRefreshState = {
 const activeRefreshes = new Map<string, ActiveRefreshState>();
 
 if (!parentPort) {
-    throw new Error('Playlist refresh worker must be started with a parent port');
+    throw new Error(
+        'Playlist refresh worker must be started with a parent port'
+    );
 }
 
 function postMessage(message: PlaylistRefreshWorkerMessage<Playlist>): void {
@@ -78,9 +82,7 @@ async function fetchPlaylistFromUrl(
     emitEvent(payload, { status: 'started', phase: 'fetching' });
     checkpoint(payload);
 
-    const agent = new https.Agent({
-        rejectUnauthorized: false,
-    });
+    const agent = createPlaylistHttpsAgent();
     const result = await axios.get(payload.url!, {
         httpsAgent: agent,
         signal: controller.signal,
@@ -129,7 +131,9 @@ async function fetchPlaylistFromFile(
     );
 }
 
-async function executeRefresh(payload: PlaylistRefreshPayload): Promise<Playlist> {
+async function executeRefresh(
+    payload: PlaylistRefreshPayload
+): Promise<Playlist> {
     const controller = new AbortController();
     activeRefreshes.set(payload.operationId, {
         cancelled: false,
@@ -148,41 +152,45 @@ async function executeRefresh(payload: PlaylistRefreshPayload): Promise<Playlist
     }
 }
 
-parentPort.on('message', async (message: PlaylistRefreshWorkerIncomingMessage) => {
-    if (message.type === 'cancel') {
-        const active = activeRefreshes.get(message.operationId);
-        if (active) {
-            active.cancelled = true;
-            active.controller.abort();
+parentPort.on(
+    'message',
+    async (message: PlaylistRefreshWorkerIncomingMessage) => {
+        if (message.type === 'cancel') {
+            const active = activeRefreshes.get(message.operationId);
+            if (active) {
+                active.cancelled = true;
+                active.controller.abort();
+            }
+            return;
         }
-        return;
-    }
 
-    try {
-        const result = await executeRefresh(message.payload);
-        postMessage({
-            type: 'response',
-            success: true,
-            result,
-        });
-    } catch (error) {
-        const payload = message.payload;
-        if (error instanceof Error && error.name === 'AbortError') {
-            emitEvent(payload, { status: 'cancelled', phase: 'parsing' });
-        } else {
-            emitEvent(payload, {
-                status: 'error',
-                phase: payload.url ? 'fetching' : 'reading-file',
-                error: error instanceof Error ? error.message : String(error),
+        try {
+            const result = await executeRefresh(message.payload);
+            postMessage({
+                type: 'response',
+                success: true,
+                result,
+            });
+        } catch (error) {
+            const payload = message.payload;
+            if (error instanceof Error && error.name === 'AbortError') {
+                emitEvent(payload, { status: 'cancelled', phase: 'parsing' });
+            } else {
+                emitEvent(payload, {
+                    status: 'error',
+                    phase: payload.url ? 'fetching' : 'reading-file',
+                    error:
+                        error instanceof Error ? error.message : String(error),
+                });
+            }
+
+            postMessage({
+                type: 'response',
+                success: false,
+                error: serializeError(error),
             });
         }
-
-        postMessage({
-            type: 'response',
-            success: false,
-            error: serializeError(error),
-        });
     }
-});
+);
 
 postMessage({ type: 'ready' });

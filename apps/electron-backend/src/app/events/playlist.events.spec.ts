@@ -9,6 +9,7 @@ import {
     PLAYLIST_REFRESH,
     PLAYLIST_REFRESH_EVENT,
 } from '@iptvnator/shared/interfaces';
+import { resolve } from 'node:path';
 
 type IpcHandler = (event: MockIpcEvent, ...args: unknown[]) => Promise<unknown>;
 
@@ -521,9 +522,22 @@ describe('playlist IPC events', () => {
             )
         ).resolves.toEqual({ success: true });
         expect(mockWriteFile).toHaveBeenCalledWith(
-            '/exports/list.m3u',
+            resolve('/exports/list.m3u'),
             '#EXTM3U',
             'utf-8'
         );
+    });
+
+    it('rejects write-file for a path not authorized by a save dialog', async () => {
+        mockWriteFile.mockClear();
+
+        await expect(
+            getHandler('write-file')(
+                createIpcEvent(),
+                '/unauthorized/evil.sh',
+                'payload'
+            )
+        ).rejects.toThrow(/not authorized/i);
+        expect(mockWriteFile).not.toHaveBeenCalled();
     });
 });
