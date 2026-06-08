@@ -68,3 +68,23 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(endFileCase).toContain('MPV_END_FILE_REASON_EOF');
     });
 });
+
+describe('Embedded MPV native build configuration', () => {
+    const bindingGyp = JSON.parse(
+        readFileSync(
+            path.resolve(__dirname, '../../../native/binding.gyp'),
+            'utf8'
+        )
+    );
+    const target = bindingGyp.targets.find(
+        (candidate: { target_name?: string }) =>
+            candidate.target_name === 'embedded_mpv'
+    );
+
+    it('declares platform-specific native sources for macOS, Windows, and Linux', () => {
+        expect(target).toBeDefined();
+        expect(JSON.stringify(target)).toContain('src/embedded_mpv.mm');
+        expect(JSON.stringify(target)).toContain('src/embedded_mpv_win32.cc');
+        expect(JSON.stringify(target)).toContain('src/embedded_mpv_linux.cc');
+    });
+});

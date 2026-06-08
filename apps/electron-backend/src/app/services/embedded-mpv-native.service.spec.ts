@@ -3,7 +3,7 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { existsSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
@@ -258,6 +258,66 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     it('reports recording support when the addon exposes recording methods', () => {
         expect(service.getSupport().capabilities?.recording).toBe(true);
     });
+
+    it.each<NodeJS.Platform>(['darwin', 'win32', 'linux'])(
+        'reports embedded MPV support on %s when the addon is already loaded',
+        (platform) => {
+            Object.defineProperty(process, 'platform', {
+                value: platform,
+            });
+
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: true,
+                    platform,
+                })
+            );
+        }
+    );
+
+    it.each([
+        {
+            platform: 'darwin' as NodeJS.Platform,
+            runtimeFile: path.join('lib', 'libmpv.2.dylib'),
+        },
+        {
+            platform: 'win32' as NodeJS.Platform,
+            runtimeFile: path.join('lib', 'mpv-2.dll'),
+        },
+        {
+            platform: 'linux' as NodeJS.Platform,
+            runtimeFile: path.join('lib', 'libmpv.so.2'),
+        },
+    ])(
+        'loads the addon after validating the $platform runtime file exists',
+        ({ platform, runtimeFile }) => {
+            Object.defineProperty(process, 'platform', {
+                value: platform,
+            });
+            const nativeDir = createTempDir();
+            const addonPath = path.join(nativeDir, 'embedded_mpv.node');
+            const runtimePath = path.join(nativeDir, runtimeFile);
+            mkdirSync(path.dirname(runtimePath), { recursive: true });
+            writeFileSync(addonPath, '');
+            writeFileSync(runtimePath, '');
+            const loadAddonModule = jest.fn().mockReturnValue(addon);
+
+            Object.assign(service as unknown as Record<string, unknown>, {
+                addon: null,
+                addonLoadError: null,
+                loadAddonModule,
+                getAddonCandidatePaths: () => [addonPath],
+            });
+
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: true,
+                    platform,
+                })
+            );
+            expect(loadAddonModule).toHaveBeenCalledWith(addonPath);
+        }
+    );
 
     it('loads the addon before reporting support capabilities', () => {
         const loadAddonModule = jest.fn().mockReturnValue(addon);

@@ -566,13 +566,12 @@ function verifyResourceDir(resourceDir) {
         verifyLinuxLauncher(resourceDir, errors);
     }
 
-    if (platform === 'macos') {
-        errors.push(
-            ...validatePackagedEmbeddedMpv(resourceDir, {
-                required: embeddedMpvRequired,
-            })
-        );
-    }
+    errors.push(
+        ...validatePackagedEmbeddedMpv(resourceDir, {
+            platform,
+            required: embeddedMpvRequired,
+        })
+    );
 
     return {
         resourceDir,

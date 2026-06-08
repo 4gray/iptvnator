@@ -5,7 +5,7 @@ This document records the current contract for embedded playback in portal detai
 ## Summary
 
 - Embedded web players are `videojs`, `html5`, and `artplayer`.
-- `embedded-mpv` exists as a hidden macOS-only feasibility harness backed by a native `libmpv` addon.
+- `embedded-mpv` exists as a hidden desktop experimental harness backed by a native `libmpv` addon.
 - Controlled external players are `mpv` and `vlc`.
 - macOS `.app` bundle paths are resolved only for real MPV/VLC apps. IINA may
   launch through the MPV path field when the user supplies an executable path
@@ -50,12 +50,13 @@ The repository now contains a first-pass native embedded MPV harness for Electro
 
 Current contract:
 
-- macOS only
+- desktop only: macOS, Windows x64, and Linux x64 under X11/Xwayland
 - experimental opt-in
 - enabled in local development only when `IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT=1`
-- enabled in packaged macOS builds only when the bundled native addon and `vendored-lgpl` libmpv runtime load successfully
+- enabled in packaged desktop builds only when the bundled native addon and `vendored-lgpl` libmpv runtime load successfully
 - uses IPTVnator-owned controls and `ResolvedPortalPlayback` payloads
 - uses the libmpv render API on macOS and renders through an IPTVnator-owned native `NSView`
+- uses mpv `wid` embedding on Windows and Linux through IPTVnator-owned native child windows
 - defaults to libmpv's OpenGL render backend with `hwdec=auto-safe`
 - keeps the previous software renderer as a debug fallback via `IPTVNATOR_EMBEDDED_MPV_RENDERER=sw`
 - emits lightweight render diagnostics when `IPTVNATOR_TRACE_EMBEDDED_MPV=1` is set
@@ -68,8 +69,10 @@ Current contract:
 
 Current limitation:
 
-- the current feasibility harness is still experimental and macOS-specific
+- the current feasibility harness is still experimental and platform-specific
 - the original macOS `wid` embedding path produced audio with a black video surface inside Electron, so the harness now avoids foreign-window embedding on macOS
+- Windows and Linux use the mpv `wid` path, require staged LGPL runtime files, and still need OS-native smoke coverage before public exposure
+- Linux native Wayland is not supported in this implementation; the Electron process must have `DISPLAY` through X11 or Xwayland
 - the OpenGL render path avoids the old per-frame `CGImage` copy path, but it still needs broader interaction, resize, and packaging coverage
 - startup deadlocks seen during early macOS playback bring-up are mitigated, but the feature is still kept behind the explicit experiment flag until more interaction and packaging coverage is proven
 - because of that, the setting is auto-sanitized back to the default inline player unless support detection reports that the experimental runtime is available
@@ -145,7 +148,7 @@ The diagnostics remain client-only:
 - no ffprobe or server-side probing
 - no extra manifest fetch beyond the active player
 - no automatic failover to an external player
-- no embedded MPV macOS diagnostics
+- no embedded MPV diagnostics
 
 Supported diagnostic codes are:
 
