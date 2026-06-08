@@ -399,7 +399,7 @@ function validateNoForbiddenRuntimeLinks(binaryPaths) {
     return errors;
 }
 
-function getPackagedRuntimeCandidates(libDir, platform) {
+function getPackagedRuntimeCandidates(libDir, platform, nativeDir) {
     switch (platform) {
         case 'darwin':
             return [
@@ -407,11 +407,12 @@ function getPackagedRuntimeCandidates(libDir, platform) {
                 path.join(libDir, 'libmpv.dylib'),
             ];
         case 'win32':
-        case 'windows':
             return [
+                nativeDir ? path.join(nativeDir, 'mpv-2.dll') : null,
+                nativeDir ? path.join(nativeDir, 'mpv.dll') : null,
                 path.join(libDir, 'mpv-2.dll'),
                 path.join(libDir, 'mpv.dll'),
-            ];
+            ].filter(Boolean);
         case 'linux':
             return [
                 path.join(libDir, 'libmpv.so.2'),
@@ -467,7 +468,11 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         }
     }
 
-    const runtimeCandidates = getPackagedRuntimeCandidates(libDir, platform);
+    const runtimeCandidates = getPackagedRuntimeCandidates(
+        libDir,
+        platform,
+        unpackedNativeDir
+    );
     if (
         runtimeCandidates.length > 0 &&
         !runtimeCandidates.some((candidate) => fs.existsSync(candidate))

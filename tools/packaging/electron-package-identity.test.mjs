@@ -190,7 +190,8 @@ test('embedded MPV package validation accepts Windows and Linux runtime files', 
 
     try {
         for (const [platform, runtimeFile] of [
-            ['windows', join('lib', 'mpv-2.dll')],
+            ['windows', 'mpv-2.dll'],
+            ['windows', join('lib', 'mpv.dll')],
             ['linux', join('lib', 'libmpv.so.2')],
         ]) {
             const resourceDir = join(tempDir, platform);

@@ -76,6 +76,7 @@ struct Session {
     std::string pendingRecordingTargetPath;
     std::string pendingRecordingStartedAt;
     std::string pendingRecordingStopStartedAt;
+    uint64_t pendingPlaybackLoadRequestId = 0;
 };
 
 std::atomic<uint64_t> gNextSessionId{1};
@@ -468,6 +469,26 @@ bool reconcileRecordingPropertyReply(
     return false;
 }
 
+bool reconcilePlaybackLoadReply(
+    const std::shared_ptr<Session>& session,
+    uint64_t requestId,
+    int error)
+{
+    if (
+        requestId == 0 ||
+        requestId != session->pendingPlaybackLoadRequestId
+    ) {
+        return false;
+    }
+
+    session->pendingPlaybackLoadRequestId = 0;
+    if (error < 0) {
+        session->snapshot.status = SessionStatus::Error;
+        session->snapshot.error = mpv_error_string(error);
+    }
+    return true;
+}
+
 void runEventLoop(std::shared_ptr<Session> session)
 {
     while (session->running.load()) {
@@ -563,6 +584,13 @@ void runEventLoop(std::shared_ptr<Session> session)
             }
             case MPV_EVENT_COMMAND_REPLY:
             case MPV_EVENT_SET_PROPERTY_REPLY:
+                if (reconcilePlaybackLoadReply(
+                        session,
+                        event->reply_userdata,
+                        event->error
+                    )) {
+                    break;
+                }
                 if (reconcileRecordingPropertyReply(
                         session,
                         event->reply_userdata,
@@ -571,7 +599,6 @@ void runEventLoop(std::shared_ptr<Session> session)
                     break;
                 }
                 if (event->error < 0) {
-                    session->snapshot.status = SessionStatus::Error;
                     session->snapshot.error = mpv_error_string(event->error);
                 }
                 break;
@@ -844,20 +871,7 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
     command.format = MPV_FORMAT_NODE_ARRAY;
     command.u.list = &commandList;
 
-    const int commandResult = mpv_command_node_async(
-        session->handle,
-        nextAsyncRequestId(),
-        &command
-    );
-    if (commandResult < 0) {
-        updateSessionError(session, mpv_error_string(commandResult));
-        throw Napi::Error::New(
-            env,
-            std::string("Failed to load playback: ") +
-                mpv_error_string(commandResult)
-        );
-    }
-
+    const uint64_t loadPlaybackRequestId = nextAsyncRequestId();
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         session->snapshot.streamUrl = streamUrl;
@@ -867,6 +881,25 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
         session->snapshot.recordingTargetPath.clear();
         session->snapshot.recordingStartedAt.clear();
         session->snapshot.recordingError.clear();
+        session->pendingPlaybackLoadRequestId = loadPlaybackRequestId;
+    }
+
+    const int commandResult = mpv_command_node_async(
+        session->handle,
+        loadPlaybackRequestId,
+        &command
+    );
+    if (commandResult < 0) {
+        {
+            std::lock_guard<std::mutex> lock(session->mutex);
+            session->pendingPlaybackLoadRequestId = 0;
+        }
+        updateSessionError(session, mpv_error_string(commandResult));
+        throw Napi::Error::New(
+            env,
+            std::string("Failed to load playback: ") +
+                mpv_error_string(commandResult)
+        );
     }
 
     return env.Undefined();

@@ -6,6 +6,25 @@ describe('Embedded MPV native source recording invariants', () => {
         path.resolve(__dirname, '../../../native/src/embedded_mpv.mm'),
         'utf8'
     );
+    const widCommonSource = readFileSync(
+        path.resolve(
+            __dirname,
+            '../../../native/src/embedded_mpv_wid_common.h'
+        ),
+        'utf8'
+    );
+    const win32Source = readFileSync(
+        path.resolve(__dirname, '../../../native/src/embedded_mpv_win32.cc'),
+        'utf8'
+    );
+    const linuxSource = readFileSync(
+        path.resolve(__dirname, '../../../native/src/embedded_mpv_linux.cc'),
+        'utf8'
+    );
+    const buildScriptSource = readFileSync(
+        path.resolve(__dirname, '../../../build-embedded-mpv.js'),
+        'utf8'
+    );
 
     function functionBody(name: string): string {
         const start = nativeSource.indexOf(`Napi::Value ${name}(`);
@@ -66,6 +85,44 @@ describe('Embedded MPV native source recording invariants', () => {
         const endFileCase = nativeSource.slice(endFileCaseStart, nextCaseStart);
         expect(endFileCase).toContain('SessionStatus::Ended');
         expect(endFileCase).toContain('MPV_END_FILE_REASON_EOF');
+    });
+
+    it('keeps Windows/Linux non-load async MPV command failures non-fatal', () => {
+        expect(widCommonSource).toContain('pendingPlaybackLoadRequestId');
+        expect(widCommonSource).toContain('reconcilePlaybackLoadReply');
+        expect(widCommonSource).toContain(
+            'session->snapshot.error = mpv_error_string(event->error);'
+        );
+        expect(widCommonSource).not.toContain(
+            'if (event->error < 0) {\n' +
+                '                    session->snapshot.status = SessionStatus::Error;'
+        );
+    });
+
+    it('copies Windows runtime DLLs next to the addon for Windows loader lookup', () => {
+        expect(buildScriptSource).toContain(
+            "for (const windowsDllName of ['mpv-2.dll', 'mpv.dll'])"
+        );
+        expect(buildScriptSource).toContain(
+            'path.join(outputDir, windowsDllName)'
+        );
+        expect(buildScriptSource).toContain("fileName.endsWith('.dll')");
+        expect(buildScriptSource).toContain('path.join(outputDir, fileName)');
+    });
+
+    it('checks Win32 window class registration failures explicitly', () => {
+        expect(win32Source).toContain('const ATOM classAtom = RegisterClassExW');
+        expect(win32Source).toContain('ERROR_CLASS_ALREADY_EXISTS');
+        expect(win32Source).toContain(
+            'Failed to register embedded MPV child window class.'
+        );
+    });
+
+    it('drains Linux X11 events after resizing the embedded window', () => {
+        expect(linuxSource).toContain('void drainEvents()');
+        expect(linuxSource).toContain('XPending(display_)');
+        expect(linuxSource).toContain('XNextEvent(display_, &event)');
+        expect(linuxSource).toContain('drainEvents();');
     });
 });
 

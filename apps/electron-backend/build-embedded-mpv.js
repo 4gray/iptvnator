@@ -51,6 +51,9 @@ function log(message) {
 function cleanOutput() {
     fs.rmSync(outputFile, { force: true });
     fs.rmSync(outputLibDir, { recursive: true, force: true });
+    for (const windowsDllName of ['mpv-2.dll', 'mpv.dll']) {
+        fs.rmSync(path.join(outputDir, windowsDllName), { force: true });
+    }
     fs.rmSync(path.join(outputDir, '.deps'), { recursive: true, force: true });
     fs.rmSync(path.join(outputDir, 'obj.target'), {
         recursive: true,
@@ -231,6 +234,17 @@ function copyGenericRuntimeToNativeBuild(runtime) {
         }
         copyFile(runtimeFile, path.join(outputLibDir, fileName));
         copiedFiles.add(fileName);
+    }
+
+    if (targetPlatform === 'win32') {
+        for (const fileName of copiedFiles) {
+            if (fileName.endsWith('.dll')) {
+                copyFile(
+                    path.join(outputLibDir, fileName),
+                    path.join(outputDir, fileName)
+                );
+            }
+        }
     }
 
     if (targetPlatform === 'linux') {

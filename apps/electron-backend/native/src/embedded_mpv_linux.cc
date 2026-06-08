@@ -94,6 +94,7 @@ public:
         XMoveResizeWindow(display_, window_, x, y, width, height);
         XRaiseWindow(display_, window_);
         XFlush(display_);
+        drainEvents();
     }
 
     std::string wid() const
@@ -117,6 +118,18 @@ public:
     }
 
 private:
+    void drainEvents()
+    {
+        if (!display_) {
+            return;
+        }
+
+        while (XPending(display_) > 0) {
+            XEvent event{};
+            XNextEvent(display_, &event);
+        }
+    }
+
     void clearInputShape()
     {
         if (!display_ || !window_) {

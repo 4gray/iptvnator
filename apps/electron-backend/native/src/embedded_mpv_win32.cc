@@ -19,9 +19,20 @@ public:
 
     static std::string lastError()
     {
+        if (!lastErrorMessage_.empty()) {
+            return lastErrorMessage_;
+        }
+
+        return formatLastError(
+            "Failed to create embedded MPV child window."
+        );
+    }
+
+    static std::string formatLastError(const char* fallbackMessage)
+    {
         DWORD error = GetLastError();
         if (error == 0) {
-            return "Failed to create embedded MPV child window.";
+            return fallbackMessage;
         }
 
         LPSTR messageBuffer = nullptr;
@@ -37,7 +48,7 @@ public:
             nullptr
         );
 
-        std::string message = "Failed to create embedded MPV child window.";
+        std::string message = fallbackMessage;
         if (length > 0 && messageBuffer) {
             message += " ";
             message += messageBuffer;
@@ -50,12 +61,17 @@ public:
 
     bool create(uintptr_t parentHandle, const Bounds& bounds)
     {
+        lastErrorMessage_.clear();
         parentWindow_ = reinterpret_cast<HWND>(parentHandle);
         if (!parentWindow_ || !IsWindow(parentWindow_)) {
+            lastErrorMessage_ =
+                "Unable to resolve Electron native window handle.";
             return false;
         }
 
-        registerWindowClass();
+        if (!registerWindowClass()) {
+            return false;
+        }
         window_ = CreateWindowExW(
             WS_EX_TRANSPARENT,
             windowClassName(),
@@ -71,6 +87,9 @@ public:
             nullptr
         );
         if (!window_) {
+            lastErrorMessage_ = formatLastError(
+                "Failed to create embedded MPV child window."
+            );
             return false;
         }
 
@@ -127,11 +146,11 @@ private:
         return L"IPTVnatorEmbeddedMpvHostWindow";
     }
 
-    static void registerWindowClass()
+    static bool registerWindowClass()
     {
         static bool registered = false;
         if (registered) {
-            return;
+            return true;
         }
 
         WNDCLASSEXW windowClass{};
@@ -142,8 +161,19 @@ private:
         windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
         windowClass.hbrBackground =
             reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
-        RegisterClassExW(&windowClass);
+        const ATOM classAtom = RegisterClassExW(&windowClass);
+        if (classAtom == 0) {
+            const DWORD error = GetLastError();
+            if (error != ERROR_CLASS_ALREADY_EXISTS) {
+                lastErrorMessage_ = formatLastError(
+                    "Failed to register embedded MPV child window class."
+                );
+                return false;
+            }
+        }
+
         registered = true;
+        return true;
     }
 
     static LRESULT CALLBACK windowProc(
@@ -165,6 +195,7 @@ private:
 
     HWND parentWindow_ = nullptr;
     HWND window_ = nullptr;
+    static inline std::string lastErrorMessage_;
 };
 
 } // namespace
