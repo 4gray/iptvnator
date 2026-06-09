@@ -239,10 +239,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             onCleanup(() => clearInterval(intervalId));
         });
 
-        // Read pending auto-open from navigation state on first load
-        this.checkPendingAutoOpenFromState();
-
-        // Re-read on subsequent navigations to the same route (component is reused)
+        // Read pending auto-open state on every NavigationEnd — covers both the
+        // initial navigation (Angular fires NavigationEnd after component creation)
+        // and re-navigation to the same /live route when the component is reused.
         this.router.events
             .pipe(
                 filter((e) => e instanceof NavigationEnd),
@@ -279,6 +278,11 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             }
 
             this.playLive(item);
+            // Ensure selectedItem is set so EPG loading and remote-control
+            // status reflect the channel (constructStreamUrl also does this
+            // internally, but an explicit call makes the intent clear and
+            // keeps the auto-open path testable in isolation).
+            this.xtreamStore.setSelectedItem(item as unknown as Record<string, unknown>);
             // Navigate to the channel's category so the sidebar shows it highlighted
             const categoryId = Number(item.category_id);
             if (Number.isFinite(categoryId) && categoryId > 0) {
