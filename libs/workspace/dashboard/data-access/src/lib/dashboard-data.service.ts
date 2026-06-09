@@ -47,17 +47,23 @@ import {
     toTimestamp,
 } from './dashboard-mappers';
 import {
-    buildStalkerDetailNavigationTarget,
-    buildStalkerStateItem,
-    buildXtreamNavigationTarget,
-    getGlobalFavoriteNavigation,
-    getRecentItemNavigation,
     PORTAL_PLAYBACK_POSITIONS,
     WorkspaceNavigationTarget,
 } from '@iptvnator/portal/shared/util';
 import type { PlaybackPositionData } from '@iptvnator/shared/interfaces';
+import {
+    getGlobalFavoriteLink as getGlobalFavoriteLinkUtil,
+    getGlobalFavoriteNavigationState as getGlobalFavoriteNavigationStateUtil,
+    getPlaylistLink as getPlaylistLinkUtil,
+    getRecentItemLink as getRecentItemLinkUtil,
+    getRecentItemNavigationState as getRecentItemNavigationStateUtil,
+    getRecentlyAddedLink as getRecentlyAddedLinkUtil,
+    getRecentlyAddedNavigationState as getRecentlyAddedNavigationStateUtil,
+    isTypeInKind as isTypeInKindUtil,
+    type DashboardContentKind,
+} from './dashboard-navigation.util';
 
-export type DashboardContentKind = 'all' | 'channels' | 'vod' | 'series';
+export type { DashboardContentKind };
 
 // Compound key for looking up a playback position by recent item — a single
 // playlist can contain the same xtream-id for a VOD and an episode (rare,
@@ -799,28 +805,11 @@ export class DashboardDataService {
         type: PortalActivityType,
         kind: DashboardContentKind
     ): boolean {
-        if (kind === 'all') {
-            return true;
-        }
-        if (kind === 'channels') {
-            return type === 'live';
-        }
-        if (kind === 'vod') {
-            return type === 'movie';
-        }
-        return type === 'series';
+        return isTypeInKindUtil(type, kind);
     }
 
     getPlaylistLink(playlist: PlaylistMeta): string[] {
-        if (playlist.serverUrl) {
-            return ['/workspace', 'xtreams', playlist._id, 'vod'];
-        }
-
-        if (playlist.macAddress) {
-            return ['/workspace', 'stalker', playlist._id, 'vod'];
-        }
-
-        return ['/workspace', 'playlists', playlist._id];
+        return getPlaylistLinkUtil(playlist);
     }
 
     getPlaylistProvider(playlist: PlaylistMeta): string {
@@ -858,13 +847,13 @@ export class DashboardDataService {
     }
 
     getRecentItemLink(item: GlobalRecentItem): string[] {
-        return getRecentItemNavigation(item).link;
+        return getRecentItemLinkUtil(item);
     }
 
     getRecentItemNavigationState(
         item: GlobalRecentItem
     ): WorkspaceNavigationTarget['state'] {
-        return getRecentItemNavigation(item).state;
+        return getRecentItemNavigationStateUtil(item);
     }
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {
@@ -965,67 +954,23 @@ export class DashboardDataService {
     }
 
     getGlobalFavoriteLink(item: DashboardFavoriteItem): string[] {
-        return getGlobalFavoriteNavigation(item).link;
+        return getGlobalFavoriteLinkUtil(item);
     }
 
     getGlobalFavoriteNavigationState(
         item: DashboardFavoriteItem
     ): WorkspaceNavigationTarget['state'] {
-        return getGlobalFavoriteNavigation(item).state;
+        return getGlobalFavoriteNavigationStateUtil(item);
     }
 
     getRecentlyAddedLink(item: DashboardRecentlyAddedItem): string[] {
-        if (item.source === 'stalker' && item.type !== 'live') {
-            return buildStalkerDetailNavigationTarget({
-                playlistId: item.playlist_id,
-                type: item.type,
-                categoryId: item.category_id,
-                item: buildStalkerStateItem(item.stalker_item, {
-                    id: item.id,
-                    title: item.title,
-                    type: item.type,
-                    category_id: item.category_id,
-                    poster_url: item.poster_url,
-                }),
-            }).link;
-        }
-
-        return buildXtreamNavigationTarget({
-            playlistId: item.playlist_id,
-            type: item.type,
-            categoryId: item.category_id,
-            itemId: item.xtream_id,
-            title: item.title,
-            imageUrl: item.poster_url,
-        }).link;
+        return getRecentlyAddedLinkUtil(item);
     }
 
     getRecentlyAddedNavigationState(
         item: DashboardRecentlyAddedItem
     ): WorkspaceNavigationTarget['state'] {
-        if (item.source === 'stalker' && item.type !== 'live') {
-            return buildStalkerDetailNavigationTarget({
-                playlistId: item.playlist_id,
-                type: item.type,
-                categoryId: item.category_id,
-                item: buildStalkerStateItem(item.stalker_item, {
-                    id: item.id,
-                    title: item.title,
-                    type: item.type,
-                    category_id: item.category_id,
-                    poster_url: item.poster_url,
-                }),
-            }).state;
-        }
-
-        return buildXtreamNavigationTarget({
-            playlistId: item.playlist_id,
-            type: item.type,
-            categoryId: item.category_id,
-            itemId: item.xtream_id,
-            title: item.title,
-            imageUrl: item.poster_url,
-        }).state;
+        return getRecentlyAddedNavigationStateUtil(item);
     }
 
     async removeGlobalFavorite(item: DashboardFavoriteItem): Promise<void> {
