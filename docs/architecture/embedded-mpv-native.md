@@ -6,9 +6,12 @@ This document explains how IPTVnator embeds MPV inside the Electron app, which f
 
 Source files for the embedded MPV integration:
 
-- `apps/electron-backend/build-embedded-mpv.js` builds the native addon for the current Electron runtime.
+- `apps/electron-backend/build-embedded-mpv.js` builds the native addon for the target Electron runtime.
 - `apps/electron-backend/native/binding.gyp` defines the native addon build.
 - `apps/electron-backend/native/src/embedded_mpv.mm` owns the macOS `libmpv` render integration.
+- `apps/electron-backend/native/src/embedded_mpv_win32.cc` owns the Windows `HWND` + mpv `wid` backend.
+- `apps/electron-backend/native/src/embedded_mpv_linux.cc` owns the Linux X11/Xwayland `Window` + mpv `wid` backend.
+- `apps/electron-backend/native/src/embedded_mpv_wid_common.h` owns the shared Windows/Linux libmpv session surface.
 - `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts` owns Electron main-process session lifecycle and support detection.
 - `apps/electron-backend/src/app/events/embedded-mpv.events.ts` registers the IPC contract.
 - `apps/electron-backend/src/app/api/main.preload.ts` exposes the preload bridge to the renderer.
@@ -23,19 +26,19 @@ The build directory contains files such as `Makefile`, `binding.Makefile`, `conf
 
 ## How It Is Embedded
 
-The embedded player does not spawn the normal `mpv` application and does not use `--wid` window reparenting. IPTVnator loads `libmpv` through a native Node addon and renders MPV frames into an app-owned native macOS view.
+The embedded player does not spawn the normal `mpv` application. IPTVnator loads `libmpv` through a native Node addon and renders MPV frames into an app-owned native video surface. macOS uses the libmpv render API in an `NSOpenGLView` because the mpv `wid` path produced a black video surface inside Electron. Windows and Linux use mpv's `wid` option against IPTVnator-owned child windows (`HWND` on Windows, X11 `Window` on Linux/Xwayland).
 
 The flow is:
 
 1. Angular receives a `ResolvedPortalPlayback` payload and renders `EmbeddedMpvPlayerComponent`.
 2. The component paints a loading state before requesting native startup work.
-3. If available, the preload API asks the main process to prepare the embedded MPV addon. This loads `embedded_mpv.node` and its dylibs, but does not create a native view or MPV playback session.
+3. If available, the preload API asks the main process to prepare the embedded MPV addon. This loads `embedded_mpv.node` and its platform runtime files, but does not create a native view or MPV playback session.
 4. The component asks the preload API to create an embedded MPV session with the current viewport bounds and initial volume.
 5. The Electron preload forwards calls through IPC to the main process.
 6. `EmbeddedMpvNativeService` owns sessions, polls snapshots, and emits session updates to the renderer.
-7. The native addon creates an `mpv_handle`, configures `vo=libmpv`, disables MPV's own OSC/input handling, and creates an app-owned `NSOpenGLView` inside the Electron window content view.
-8. The addon creates a `mpv_render_context` and uses MPV's render API to draw frames into the OpenGL surface.
-9. Resize, scroll, and fullscreen changes are measured in Angular and sent back to the addon as native bounds so the `NSView` stays aligned with the Angular layout.
+7. The native addon creates an `mpv_handle`, disables MPV's own OSC/input handling, and creates an app-owned platform video host inside the Electron window.
+8. On macOS the addon configures `vo=libmpv`, creates a `mpv_render_context`, and draws into the OpenGL surface. On Windows/Linux it passes the child-window id to mpv through `wid` and uses `vo=gpu`.
+9. Resize, scroll, and fullscreen changes are measured in Angular and sent back to the addon as native bounds so the platform video host stays aligned with the Angular layout.
 10. Playback controls remain IPTVnator-owned Angular UI. MPV receives commands only through the controlled IPC surface.
 
 The renderer never gets direct native-module access. It can only call the preload contract:
@@ -53,11 +56,11 @@ The renderer never gets direct native-module access. It can only call the preloa
 - dispose session
 - subscribe to session updates
 
-Settings uses the preload support API only as a lightweight availability check. That check verifies platform, experiment gating, addon presence, and bundled `libmpv.2.dylib` presence without `require()`-loading `embedded_mpv.node`. This avoids blocking Settings navigation on macOS `dlopen` and code-signing work.
+Settings uses the preload support API only as a lightweight availability check. That check verifies platform, experiment gating, addon presence, and bundled platform runtime presence without `require()`-loading `embedded_mpv.node`. This avoids blocking Settings navigation on synchronous native-addon loading and code-signing or dynamic-linker work.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
-The MPV video surface is a native AppKit/OpenGL view, not a normal DOM element. Do not place critical Angular overlays on top of the video viewport and expect CSS `z-index` to win. The embedded MPV controls use a compositor-safe control dock below the native viewport instead of a true overlay on top of the OpenGL surface.
+The MPV video surface is a native platform view/window, not a normal DOM element. Do not place critical Angular overlays on top of the video viewport and expect CSS `z-index` to win. The embedded MPV controls use a compositor-safe control dock below the native viewport instead of a true overlay on top of the native video surface.
 
 The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
 
@@ -110,16 +113,16 @@ The Angular side of the embedded MPV player is intentionally split so the player
 
 - `embedded-mpv-format.utils.ts` — pure helpers (`formatTime`, `audioTrackLabel`, `subtitleTrackLabel`, `speedLabel`, `aspectLabel`, `volumeIcon`, `volumeLabel`, `readStoredVolume`, `persistVolume`, `measureBounds`) and preset constants (`SPEED_PRESETS`, `ASPECT_PRESETS`, `HIDDEN_BOUNDS`, `MENU_OPEN_BOTTOM_CUTOUT_PX`).
 - `embedded-mpv-shortcuts.ts` — `EmbeddedMpvShortcuts` class with `attach(handlers)` / `detach()`. Owns the document keydown listener and routes through a callback interface; the component supplies the callbacks. Listens for Space/K (toggle), F (fullscreen), arrow keys (seek/volume), M (mute), Escape (close popovers).
-- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/`afterAllClosed` for dialog-shaped overlays and falls back to a `MutationObserver` on the CDK overlay container for any remaining backdrop-bearing CDK overlays. The MPV NSView is hidden off-screen while a modal is open so DOM dialogs can paint above it.
+- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/`afterAllClosed` for dialog-shaped overlays and falls back to a `MutationObserver` on the CDK overlay container for any remaining backdrop-bearing CDK overlays. The native MPV video host is hidden off-screen while a modal is open so DOM dialogs can paint above it.
 - `embedded-mpv-ui-state.ts` — `EmbeddedMpvMenuState` (single-open popover state machine with `volumeOpen`, `audioOpen`, `subtitleOpen`, `speedOpen`, `aspectOpen` signals plus `anyOpen` computed; `toggle`/`open`/`close`/`closeAll` helpers) and `EmbeddedMpvFeedback` (transient overlay that auto-clears after a configurable delay; used for keypress feedback).
 - `embedded-mpv-session-controller.ts` — component-scoped `Injectable` service that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns bounds-sync (resize, scroll, overlay state), and exposes the imperative IPC surface (`startSession`, `togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `startRecording`, `stopRecording`, `retry`).
 - `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and three `effect()`s.
 
 ### Bounds compositing strategy
 
-The native NSView paints over the WebContents layer, so any DOM region it covers cannot receive pointer events and any CSS `z-index` competition is unwinnable. The component compensates with a single `boundsProvider(host)` closure on the controller that returns one of three bound shapes, evaluated each time the active bounds-sync runs:
+The native video host paints outside the normal DOM stacking model, so any DOM region it covers cannot reliably receive pointer events and any CSS `z-index` competition is unwinnable. The component compensates with a single `boundsProvider(host)` closure on the controller that returns one of three bound shapes, evaluated each time the active bounds-sync runs:
 
-- **Modal overlay open** (any MatDialog, including the command palette) → `HIDDEN_BOUNDS`. The MPV view moves off-screen so the dialog has the full window.
+- **Modal overlay open** (any MatDialog, including the command palette) → `HIDDEN_BOUNDS`. The MPV video host moves off-screen so the dialog has the full window.
 - **Control popover open** (any of the menu states above) → host bounds with `MENU_OPEN_BOTTOM_CUTOUT_PX` (300 px) removed from the bottom. The popover region becomes DOM-receiving while video keeps playing in the upper region.
 - **Idle** → full host bounds.
 
@@ -156,26 +159,28 @@ The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-
 
 Current development behavior:
 
-- The addon build is macOS-only.
-- The build script first looks for a staged runtime at `vendor/embedded-mpv/darwin-<arch>/`.
-- The staged runtime must contain `include/mpv/client.h`, `lib/*.dylib`, and `runtime-manifest.json`.
+- The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
+- The build script first looks for a staged runtime at `vendor/embedded-mpv/<platform>-<arch>/`.
+- The staged runtime must contain `include/mpv/client.h`, platform runtime files, and `runtime-manifest.json`.
 - The compiled `.node` addon is copied into `dist/apps/electron-backend/native/embedded_mpv.node`.
-- Bundled runtime files are copied into `dist/apps/electron-backend/native/lib/`. Most are `.dylib` files, but some Homebrew-linked runtimes expose non-`.dylib` Mach-O files such as a framework `Python` binary.
-- macOS `afterPack` copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` so the addon, manifest, dylibs, and non-`.dylib` Mach-O runtime files are filesystem-addressable.
-- Linux and Windows packaging do not include the Embedded MPV native directory.
+- Bundled runtime files are copied into `dist/apps/electron-backend/native/lib/`. macOS copies `.dylib` and non-`.dylib` Mach-O dependencies, Windows copies `mpv-2.dll`/`mpv.dll` and import libraries, and Linux copies `libmpv.so*`.
+- `afterPack` copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` on macOS, Windows, and Linux so the addon, manifest, and runtime libraries are filesystem-addressable.
 
 Current release caveat:
 
 - Release packaging requires a `vendored-lgpl` runtime manifest.
-- Release packaging rejects embedded MPV binaries linked to `/opt/homebrew` or `/usr/local`.
+- macOS release packaging rejects embedded MPV binaries linked to `/opt/homebrew` or `/usr/local`.
+- Windows and Linux release packaging verifies that the platform runtime file is present when Embedded MPV is required.
 - Local development can opt into Homebrew `libmpv` only by setting `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`; packaged release validation rejects that runtime origin.
 
 Before public release, packaging must:
 
-- stage an LGPL-compatible `libmpv` and required dylibs for `darwin-arm64` and `darwin-x64`
-- collect indirect dependencies expressed as absolute paths, `@loader_path`, or `@rpath`
-- rewrite install names and dependency paths to app-relative paths such as `@loader_path`
-- code-sign and notarize the full dependency set
+- stage an LGPL-compatible `libmpv` runtime for each release platform/architecture
+- collect indirect macOS dependencies expressed as absolute paths, `@loader_path`, or `@rpath`
+- rewrite macOS install names and dependency paths to app-relative paths such as `@loader_path`
+- code-sign and notarize the full macOS dependency set
+- ensure Windows runtime staging includes both the DLL and the import library used by `node-gyp`
+- ensure Linux runtime staging includes a runtime SONAME (`libmpv.so.2`, `libmpv.so.1`, or `libmpv.so`) and an unversioned `libmpv.so` linker name for local native builds
 - publish the corresponding FFmpeg/libmpv source and build metadata
 
 Users do not need the MPV GUI application for this architecture. IPTVnator bundles `libmpv` for release builds. If the bundled runtime is missing or fails to load, embedded MPV is hidden/unsupported and the existing inline/external players remain available.
@@ -193,25 +198,27 @@ Release runtime policy:
 - mpv must be built with `-Dlibmpv=true` and `-Dgpl=false`.
 - The runtime must be dynamically linked and shipped with license/source-distribution notices.
 
-After building an LGPL-compatible prefix for an architecture:
+After building an LGPL-compatible prefix for a platform/architecture:
 
 ```bash
-node tools/embedded-mpv/stage-macos-runtime.mjs arm64 /path/to/lgpl-prefix
-node tools/embedded-mpv/stage-macos-runtime.mjs x64 /path/to/lgpl-prefix
+pnpm embedded-mpv:stage-runtime -- darwin arm64 /path/to/lgpl-prefix
+pnpm embedded-mpv:stage-runtime -- darwin x64 /path/to/lgpl-prefix
+pnpm embedded-mpv:stage-runtime -- win32 x64 /path/to/lgpl-prefix
+pnpm embedded-mpv:stage-runtime -- linux x64 /path/to/lgpl-prefix
 ```
 
 Tagged macOS release CI builds that prefix from pinned source archives first. The workflow can temporarily run the same path for macOS PR artifacts while the bundled runtime is being tested:
 
 ```bash
 pnpm embedded-mpv:build-runtime -- arm64 /tmp/embedded-mpv-prefix
-pnpm embedded-mpv:stage-runtime -- arm64 /tmp/embedded-mpv-prefix
+pnpm embedded-mpv:stage-runtime -- darwin arm64 /tmp/embedded-mpv-prefix
 ```
 
-During temporary PR and `master` artifact testing, CI can restore an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/darwin-<arch>/` runtime and skip the expensive source build. The cache only contains `include/`, `lib/`, and `runtime-manifest.json`; it never contains the compiled `embedded_mpv.node` addon because that target depends on Electron headers, ABI, architecture, and build environment. Runtime cache entries are saved only from trusted repository refs, and tagged public release builds continue to rebuild from pinned sources until a dedicated signed and attested runtime artifact flow exists.
+During temporary PR and `master` artifact testing, CI can restore an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/<platform>-<arch>/` runtime and skip the expensive source build where a source builder exists. The cache only contains `include/`, `lib/`, and `runtime-manifest.json`; it never contains the compiled `embedded_mpv.node` addon because that target depends on Electron headers, ABI, architecture, and build environment. Runtime cache entries are saved only from trusted repository refs, and tagged public macOS release builds continue to rebuild from pinned sources until a dedicated signed and attested runtime artifact flow exists. Windows and Linux currently use staged runtime cache inputs only; adding pinned source builders for those platforms is a separate release-hardening task.
 
 The CI builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`, libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `8.5.0`. FFmpeg disables autodetected external libraries so Homebrew libraries cannot silently enter the runtime. Libplacebo is checked out from git with the submodules required by its Meson build because the generated GitHub archive does not include submodule contents. Even with Vulkan disabled, libplacebo still compiles Vulkan stubs and needs `3rdparty/Vulkan-Headers`. The generated manifest records source URLs, archive SHA-256 values where applicable, libplacebo git commit/submodule metadata, FFmpeg configure flags, and mpv Meson flags. The staging step normalizes that manifest to `origin: vendored-lgpl`, which release package validation requires.
 
-The Electron backend build consumes the staged runtime, copies Mach-O runtime files into the native build output, and rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
+The Electron backend build consumes the staged runtime and copies platform runtime files into the native build output. macOS additionally rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
 
 For local development before the vendored runtime exists, Homebrew can be used explicitly:
 
@@ -219,9 +226,9 @@ For local development before the vendored runtime exists, Homebrew can be used e
 pnpm run serve:backend:embedded-mpv
 ```
 
-That script first runs the local native build with `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`, then starts Electron with `IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT=1`. This path is intentionally development-only. Packaged macOS builds reject `homebrew-dev` manifests and any `/opt/homebrew` or `/usr/local` embedded MPV links.
+That script first runs the local native build with `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`, then starts Electron with `IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT=1`. This path is intentionally macOS development-only. Packaged builds reject `homebrew-dev` manifests and macOS packages reject any `/opt/homebrew` or `/usr/local` embedded MPV links.
 
-If the settings page does not show `Embedded MPV (Experimental, macOS)` after starting with those flags, check the native build output:
+If the settings page does not show `Embedded MPV (Experimental)` after starting with those flags, check the native build output:
 
 ```bash
 ls apps/electron-backend/native/build/Release/embedded_mpv.node
@@ -237,40 +244,46 @@ codesign --verify --verbose=2 apps/electron-backend/native/build/Release/embedde
 codesign --verify --verbose=2 apps/electron-backend/native/build/Release/lib/libmpv.2.dylib
 ```
 
-If support detection reports a missing `@rpath/...` dependency, the dependency collector missed an indirect runtime file. The packaging helper must copy that file into `native/lib/`, rewrite the dependency to `@loader_path/<name>`, and include non-`.dylib` Mach-O files in the asset copy glob.
+If macOS support detection reports a missing `@rpath/...` dependency, the dependency collector missed an indirect runtime file. The packaging helper must copy that file into `native/lib/`, rewrite the dependency to `@loader_path/<name>`, and include non-`.dylib` Mach-O files in the asset copy glob.
 
-## Same-Version macOS Release Gate
+## Same-Version Desktop Release Gate
 
-The normal release tag can produce Linux, Windows, and macOS artifacts from the same source version while only macOS carries the bundled Embedded MPV runtime.
+The normal release tag can produce Linux, Windows, and macOS artifacts from the same source version. Embedded MPV is required only for jobs where `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1`; otherwise package validators still reject a present but invalid runtime while allowing the addon to be absent.
 
 For tagged macOS builds, CI must:
 
 - build the pinned LGPL-compatible runtime for the matrix architecture
 - stage it into `vendor/embedded-mpv/darwin-${arch}` before `pnpm run build:backend`
+- set `IPTVNATOR_EMBEDDED_MPV_PLATFORM=darwin`
 - set `IPTVNATOR_EMBEDDED_MPV_ARCH=${arch}` for backend build and packaging
 - set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for packaging and package-layout verification
 
-During the temporary macOS artifact tests, CI also sets `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for macOS PR and `master` push backend build, packaging, and package-layout verification. After the artifacts are manually validated, remove the workflow's temporary `pull_request` and `refs/heads/master` conditions so PR, development, Linux, and Windows packaging leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. In that normal mode the package validators still reject a present but invalid Embedded MPV runtime, but they do not require the addon to exist. This keeps the native feature in-tree without making non-macOS or non-release builds depend on macOS runtime artifacts.
+For Windows and Linux builds, CI must set `IPTVNATOR_EMBEDDED_MPV_PLATFORM`/`IPTVNATOR_EMBEDDED_MPV_ARCH` for native build and package verification. When an exact-keyed staged runtime cache is restored, the job can set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` and verify the packaged `.dll` or `.so` runtime. Without a staged runtime, the build script writes an unavailable marker and Settings hides Embedded MPV.
+
+During temporary artifact tests, CI may also set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for PR and `master` push jobs where a runtime is known to exist. After the artifacts are manually validated, remove temporary conditions so ordinary development builds leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. This keeps the native feature in-tree without making every non-release build depend on runtime artifacts.
 
 ## Release Safety
 
 The feature is still experimental. The largest risks are native-process risks, not normal Angular UI risks:
 
 - a bad native addon or `libmpv` crash can crash the Electron main process
-- packaging can fail if `libmpv` or one of its dylib dependencies is missing, unsigned, or linked to the wrong runtime path
+- packaging can fail if `libmpv` or one of its platform runtime dependencies is missing, unsigned where signing applies, or linked to the wrong runtime path
 - macOS graphics behavior can vary across Intel, Apple Silicon, external displays, fullscreen transitions, and hardware decoding paths
+- Windows `HWND` and Linux X11/Xwayland embedding need packaged-app smoke coverage for focus, resize, and fullscreen behavior
+- Linux native Wayland is unsupported until a dedicated Wayland embedding path exists
 - Homebrew `libmpv` builds can target a newer macOS version than IPTVnator's declared deployment target
 
-It is reasonable to ship the code in-tree behind the current experiment flag. It is not yet safe to make it the default player. It can be exposed as macOS-only experimental if support detection is strict, the UI clearly labels it experimental, and fallback to Video.js or external MPV/VLC stays available.
+It is reasonable to ship the code in-tree behind the current experiment flag. It is not yet safe to make it the default player. It can be exposed as desktop experimental if support detection is strict, the UI clearly labels it experimental, and fallback to Video.js or external MPV/VLC stays available.
 
-If an embedded session fails to initialize, the app should keep the user in control by preserving the normal player setting choices. If a native crash occurs, normal settings fallback cannot intercept that crash, so broader macOS smoke testing and packaged-app testing are required before broad release.
+If an embedded session fails to initialize, the app should keep the user in control by preserving the normal player setting choices. If a native crash occurs, normal settings fallback cannot intercept that crash, so broader OS-specific smoke testing and packaged-app testing are required before broad release.
 
 ## Suggested Release Gate
 
-Do not expose embedded MPV broadly until these pass on both Apple Silicon and Intel macOS:
+Do not expose embedded MPV broadly until these pass on every supported target:
 
-- packaged `.app` starts without Homebrew installed
-- bundled `libmpv` and dependent dylibs pass code signing and notarization
+- packaged app starts without system `mpv` installed
+- bundled `libmpv` and dependent runtime files pass platform package validation
+- macOS bundled `libmpv` and dependent dylibs pass code signing and notarization
 - VOD resume starts near the saved offset
 - series EOF emits `ended` and embedded MPV auto-continues only inside the current season
 - live HLS, MPEG-TS, MP4/VOD, headers, referrer, volume, seek, fullscreen, route changes, and cleanup work

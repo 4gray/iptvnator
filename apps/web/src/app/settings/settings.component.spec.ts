@@ -471,24 +471,29 @@ describe('SettingsComponent', () => {
             ).toBe(false);
         });
 
-        it('shows the embedded mpv option when the desktop support probe reports supported', async () => {
-            window.electron = {
-                ...window.electron,
-                getEmbeddedMpvSupport: jest.fn().mockResolvedValue({
-                    supported: true,
-                    platform: 'darwin',
-                }),
-            } as unknown as typeof window.electron;
+        it.each(['darwin', 'win32', 'linux'] as const)(
+            'shows the embedded mpv option when the %s desktop support probe reports supported',
+            async (platform) => {
+                window.electron = {
+                    ...window.electron,
+                    getEmbeddedMpvSupport: jest.fn().mockResolvedValue({
+                        supported: true,
+                        platform,
+                    }),
+                } as unknown as typeof window.electron;
 
-            await component.ngOnInit();
-            await fixture.whenStable();
+                await component.ngOnInit();
+                await fixture.whenStable();
 
-            expect(
-                component
-                    .players()
-                    .some((player) => player.id === VideoPlayer.EmbeddedMpv)
-            ).toBe(true);
-        });
+                expect(
+                    component
+                        .players()
+                        .some(
+                            (player) => player.id === VideoPlayer.EmbeddedMpv
+                        )
+                ).toBe(true);
+            }
+        );
 
         it('hides external player path settings when the Electron bridge is incomplete', async () => {
             fixture.destroy();

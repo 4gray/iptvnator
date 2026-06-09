@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import { createRequire } from 'node:module';
+import os from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
@@ -44,6 +45,13 @@ const packageLayoutVerifier = fs.readFileSync(
     join(currentDir, 'verify-electron-package-layout.mjs'),
     'utf8'
 );
+const electronAfterPackSource = fs.readFileSync(
+    join(currentDir, 'electron-after-pack.cjs'),
+    'utf8'
+);
+const {
+    validatePackagedEmbeddedMpv,
+} = require('./embedded-mpv-packaging.cjs');
 
 test('Linux package identity does not expose the internal Electron backend project name', () => {
     assert.equal(electronBuilderConfig.productName, 'IPTVnator');
@@ -161,4 +169,98 @@ test('nx-electron packaging does not copy duplicate root package metadata', () =
         nxElectronExecutor,
         /filter:\s*\[['"]index\.js['"],\s*['"]package\.json['"]\]/
     );
+});
+
+test('embedded MPV runtime binaries are unpacked on every supported desktop platform', () => {
+    const asarUnpack = electronBuilderConfig.asarUnpack ?? [];
+
+    for (const requiredPattern of [
+        '**/*.node',
+        '**/*.dylib',
+        '**/*.dll',
+        '**/*.so',
+        '**/*.so.*',
+        '**/embedded-mpv-runtime.json',
+    ]) {
+        assert.ok(
+            asarUnpack.includes(requiredPattern),
+            `electron-builder asarUnpack must include ${requiredPattern}`
+        );
+    }
+});
+
+test('embedded MPV package validation accepts Windows and Linux runtime files', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        for (const [platform, runtimeFile] of [
+            ['windows', 'mpv-2.dll'],
+            ['windows', join('lib', 'mpv.dll')],
+            ['linux', join('lib', 'libmpv.so.2')],
+        ]) {
+            const resourceDir = join(tempDir, platform);
+            const nativeDir = join(
+                resourceDir,
+                'app.asar.unpacked',
+                'electron-backend',
+                'native'
+            );
+            fs.mkdirSync(join(nativeDir, 'lib'), { recursive: true });
+            fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+            fs.writeFileSync(
+                join(nativeDir, 'embedded-mpv-runtime.json'),
+                JSON.stringify({ origin: 'vendored-lgpl' })
+            );
+            fs.writeFileSync(join(nativeDir, runtimeFile), '');
+
+            assert.deepEqual(
+                validatePackagedEmbeddedMpv(resourceDir, {
+                    platform,
+                    required: true,
+                }),
+                []
+            );
+        }
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('embedded MPV packaging helpers use a cross-platform module name', () => {
+    assert.match(
+        electronAfterPackSource,
+        /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
+    );
+});
+
+test('embedded MPV package validation rejects missing required Windows runtime', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        const nativeDir = join(
+            tempDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(join(nativeDir, 'lib'), { recursive: true });
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(nativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'vendored-lgpl' })
+        );
+
+        const errors = validatePackagedEmbeddedMpv(tempDir, {
+            platform: 'windows',
+            required: true,
+        });
+
+        assert.match(errors.join('\n'), /Missing bundled embedded MPV runtime/);
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
 });

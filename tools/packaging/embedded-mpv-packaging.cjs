@@ -399,15 +399,43 @@ function validateNoForbiddenRuntimeLinks(binaryPaths) {
     return errors;
 }
 
+function getPackagedRuntimeCandidates(libDir, platform, nativeDir) {
+    switch (platform) {
+        case 'darwin':
+            return [
+                path.join(libDir, 'libmpv.2.dylib'),
+                path.join(libDir, 'libmpv.dylib'),
+            ];
+        case 'win32':
+            return [
+                nativeDir ? path.join(nativeDir, 'mpv-2.dll') : null,
+                nativeDir ? path.join(nativeDir, 'mpv.dll') : null,
+                path.join(libDir, 'mpv-2.dll'),
+                path.join(libDir, 'mpv.dll'),
+            ].filter(Boolean);
+        case 'linux':
+            return [
+                path.join(libDir, 'libmpv.so.2'),
+                path.join(libDir, 'libmpv.so.1'),
+                path.join(libDir, 'libmpv.so'),
+            ];
+        default:
+            return [];
+    }
+}
+
+function normalizeEmbeddedMpvPlatform(value) {
+    if (value === 'macos') {
+        return 'darwin';
+    }
+    if (value === 'windows') {
+        return 'win32';
+    }
+    return value ?? process.platform;
+}
+
 function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
-    if (process.platform !== 'darwin') {
-        return [];
-    }
-
-    if (!commandExists('otool')) {
-        return ['otool is required to validate embedded MPV macOS packaging.'];
-    }
-
+    const platform = normalizeEmbeddedMpvPlatform(options.platform);
     const unpackedNativeDir = path.join(
         resourceDir,
         'app.asar.unpacked',
@@ -440,12 +468,38 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         }
     }
 
-    if (!fs.existsSync(path.join(libDir, 'libmpv.2.dylib'))) {
-        errors.push(`Missing bundled libmpv.2.dylib in ${libDir}`);
+    const runtimeCandidates = getPackagedRuntimeCandidates(
+        libDir,
+        platform,
+        unpackedNativeDir
+    );
+    if (
+        runtimeCandidates.length > 0 &&
+        !runtimeCandidates.some((candidate) => fs.existsSync(candidate))
+    ) {
+        errors.push(
+            [
+                `Missing bundled embedded MPV runtime for ${platform} in ${libDir}.`,
+                'Expected one of:',
+                ...runtimeCandidates.map((candidate) => `- ${candidate}`),
+            ].join('\n')
+        );
     }
 
-    const binaries = [addonPath, ...listRuntimeFiles(libDir)];
-    errors.push(...validateNoForbiddenRuntimeLinks(binaries));
+    if (platform === 'darwin') {
+        if (process.platform !== 'darwin') {
+            errors.push(
+                'macOS embedded MPV link validation must run on a macOS host.'
+            );
+        } else if (!commandExists('otool')) {
+            errors.push(
+                'otool is required to validate embedded MPV macOS packaging.'
+            );
+        } else {
+            const binaries = [addonPath, ...listRuntimeFiles(libDir)];
+            errors.push(...validateNoForbiddenRuntimeLinks(binaries));
+        }
+    }
 
     return errors;
 }
@@ -461,5 +515,6 @@ module.exports = {
     parseOtoolRpaths,
     patchAddonForBundledRuntime,
     validateNoForbiddenRuntimeLinks,
+    getPackagedRuntimeCandidates,
     validatePackagedEmbeddedMpv,
 };

@@ -6,7 +6,7 @@ import { buildElectronBuilderMetadata } from './generate-electron-builder-metada
 
 const require = createRequire(import.meta.url);
 const { extractFile } = require('@electron/asar');
-const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-macos.cjs');
+const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -566,13 +566,12 @@ function verifyResourceDir(resourceDir) {
         verifyLinuxLauncher(resourceDir, errors);
     }
 
-    if (platform === 'macos') {
-        errors.push(
-            ...validatePackagedEmbeddedMpv(resourceDir, {
-                required: embeddedMpvRequired,
-            })
-        );
-    }
+    errors.push(
+        ...validatePackagedEmbeddedMpv(resourceDir, {
+            platform,
+            required: embeddedMpvRequired,
+        })
+    );
 
     return {
         resourceDir,

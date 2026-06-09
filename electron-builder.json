@@ -21,7 +21,11 @@
         "**/bindings/**",
         "**/file-uri-to-path/**",
         "**/*.node",
-        "**/*.dylib"
+        "**/*.dylib",
+        "**/*.dll",
+        "**/*.so",
+        "**/*.so.*",
+        "**/embedded-mpv-runtime.json"
     ],
     "extraMetadata": {
         "name": "iptvnator",

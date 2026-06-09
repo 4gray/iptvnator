@@ -6,7 +6,7 @@ const {
     findLibMpv,
     patchAddonForBundledRuntime,
     validateNoForbiddenRuntimeLinks,
-} = require('../../tools/packaging/embedded-mpv-macos.cjs');
+} = require('../../tools/packaging/embedded-mpv-packaging.cjs');
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(workspaceRoot, 'apps', 'electron-backend', 'native');
@@ -23,6 +23,8 @@ const distNativeDir = path.join(
 const unavailableMarkerFile = path.join(outputDir, 'embedded-mpv-unavailable.txt');
 const homebrewIncludeDir = '/opt/homebrew/include';
 const homebrewLibDir = '/opt/homebrew/lib';
+const targetPlatform =
+    process.env.IPTVNATOR_EMBEDDED_MPV_PLATFORM || process.platform;
 const targetArch =
     process.env.IPTVNATOR_EMBEDDED_MPV_ARCH ||
     process.env.npm_config_arch ||
@@ -31,10 +33,11 @@ const vendoredRuntimeRoot = path.join(
     workspaceRoot,
     'vendor',
     'embedded-mpv',
-    `darwin-${targetArch}`
+    `${targetPlatform}-${targetArch}`
 );
 const vendoredIncludeDir = path.join(vendoredRuntimeRoot, 'include');
 const vendoredLibDir = path.join(vendoredRuntimeRoot, 'lib');
+const vendoredBinDir = path.join(vendoredRuntimeRoot, 'bin');
 const homebrewFallbackEnabled =
     process.env.IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW === '1';
 const embeddedMpvRequired = ['1', 'true', 'yes', 'on'].includes(
@@ -48,6 +51,9 @@ function log(message) {
 function cleanOutput() {
     fs.rmSync(outputFile, { force: true });
     fs.rmSync(outputLibDir, { recursive: true, force: true });
+    for (const windowsDllName of ['mpv-2.dll', 'mpv.dll']) {
+        fs.rmSync(path.join(outputDir, windowsDllName), { force: true });
+    }
     fs.rmSync(path.join(outputDir, '.deps'), { recursive: true, force: true });
     fs.rmSync(path.join(outputDir, 'obj.target'), {
         recursive: true,
@@ -75,20 +81,113 @@ function readRuntimeManifest(runtimeRoot) {
     return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 }
 
+function fileExists(filePath) {
+    return fs.existsSync(filePath) && fs.statSync(filePath).isFile();
+}
+
+function listRuntimeFiles(runtimeDir, predicate) {
+    if (!runtimeDir || !fs.existsSync(runtimeDir)) {
+        return [];
+    }
+
+    return fs
+        .readdirSync(runtimeDir, { withFileTypes: true })
+        .filter((entry) => entry.isFile() || entry.isSymbolicLink())
+        .map((entry) => path.join(runtimeDir, entry.name))
+        .filter((filePath) => {
+            try {
+                return fs.statSync(filePath).isFile();
+            } catch {
+                return false;
+            }
+        })
+        .filter(predicate)
+        .sort();
+}
+
+function runtimeFilePredicate(filePath) {
+    const fileName = path.basename(filePath);
+
+    switch (targetPlatform) {
+        case 'darwin':
+            return fileName.endsWith('.dylib');
+        case 'win32':
+            return fileName.endsWith('.dll') || fileName.endsWith('.lib');
+        case 'linux':
+            return /\.so(?:\.\d+)*$/.test(fileName);
+        default:
+            return false;
+    }
+}
+
+function findWindowsImportLib(libDir) {
+    for (const candidate of ['mpv.lib', 'mpv-2.lib', 'libmpv.dll.a']) {
+        const candidatePath = path.join(libDir, candidate);
+        if (fileExists(candidatePath)) {
+            return candidatePath;
+        }
+    }
+
+    return null;
+}
+
+function findWindowsLibMpv(runtimeRoot) {
+    for (const candidate of [
+        path.join(runtimeRoot, 'lib', 'mpv-2.dll'),
+        path.join(runtimeRoot, 'bin', 'mpv-2.dll'),
+        path.join(runtimeRoot, 'lib', 'mpv.dll'),
+        path.join(runtimeRoot, 'bin', 'mpv.dll'),
+    ]) {
+        if (fileExists(candidate)) {
+            return candidate;
+        }
+    }
+
+    return null;
+}
+
+function findLinuxLibMpv(libDir) {
+    for (const candidate of ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so']) {
+        const candidatePath = path.join(libDir, candidate);
+        if (fileExists(candidatePath)) {
+            return candidatePath;
+        }
+    }
+
+    return null;
+}
+
 function resolveRuntime() {
-    const vendoredLibMpv = findLibMpv(vendoredLibDir);
+    const vendoredLibMpv =
+        targetPlatform === 'darwin'
+            ? findLibMpv(vendoredLibDir)
+            : targetPlatform === 'win32'
+              ? findWindowsLibMpv(vendoredRuntimeRoot)
+              : targetPlatform === 'linux'
+                ? findLinuxLibMpv(vendoredLibDir)
+                : null;
     const vendoredHeader = path.join(vendoredIncludeDir, 'mpv', 'client.h');
 
     if (vendoredLibMpv && fs.existsSync(vendoredHeader)) {
+        const windowsImportLib =
+            targetPlatform === 'win32'
+                ? findWindowsImportLib(vendoredLibDir)
+                : null;
+        if (targetPlatform === 'win32' && !windowsImportLib) {
+            return null;
+        }
+
         return {
             origin: 'vendored-lgpl',
             includeDir: vendoredIncludeDir,
             libDir: vendoredLibDir,
+            binDir: vendoredBinDir,
             manifest: readRuntimeManifest(vendoredRuntimeRoot),
+            windowsImportLib,
         };
     }
 
-    if (homebrewFallbackEnabled) {
+    if (targetPlatform === 'darwin' && homebrewFallbackEnabled) {
         const homebrewLibMpv = findLibMpv(homebrewLibDir);
         const homebrewHeader = path.join(homebrewIncludeDir, 'mpv', 'client.h');
         if (homebrewLibMpv && fs.existsSync(homebrewHeader)) {
@@ -99,15 +198,79 @@ function resolveRuntime() {
                 origin: 'homebrew-dev',
                 includeDir: homebrewIncludeDir,
                 libDir: homebrewLibDir,
+                binDir: undefined,
                 manifest: {
                     warning:
                         'Development-only runtime. Do not ship this in release artifacts.',
                 },
+                windowsImportLib: null,
             };
         }
     }
 
     return null;
+}
+
+function copyFile(sourcePath, destinationPath) {
+    fs.mkdirSync(path.dirname(destinationPath), { recursive: true });
+    fs.copyFileSync(sourcePath, destinationPath);
+    fs.chmodSync(destinationPath, 0o755);
+}
+
+function copyGenericRuntimeToNativeBuild(runtime) {
+    fs.rmSync(outputLibDir, { recursive: true, force: true });
+    fs.mkdirSync(outputLibDir, { recursive: true });
+
+    const runtimeFiles = [
+        ...listRuntimeFiles(runtime.libDir, runtimeFilePredicate),
+        ...listRuntimeFiles(runtime.binDir, runtimeFilePredicate),
+    ];
+    const copiedFiles = new Set();
+
+    for (const runtimeFile of runtimeFiles) {
+        const fileName = path.basename(runtimeFile);
+        if (copiedFiles.has(fileName)) {
+            continue;
+        }
+        copyFile(runtimeFile, path.join(outputLibDir, fileName));
+        copiedFiles.add(fileName);
+    }
+
+    if (targetPlatform === 'win32') {
+        for (const fileName of copiedFiles) {
+            if (fileName.endsWith('.dll')) {
+                copyFile(
+                    path.join(outputLibDir, fileName),
+                    path.join(outputDir, fileName)
+                );
+            }
+        }
+    }
+
+    if (targetPlatform === 'linux') {
+        const libMpvPath = findLinuxLibMpv(outputLibDir);
+        if (libMpvPath && path.basename(libMpvPath) !== 'libmpv.so') {
+            copyFile(libMpvPath, path.join(outputLibDir, 'libmpv.so'));
+            copiedFiles.add('libmpv.so');
+        }
+    }
+
+    const manifest = {
+        origin: runtime.origin,
+        generatedAt: new Date().toISOString(),
+        libDir: 'lib',
+        runtimeFiles: [...copiedFiles].sort(),
+        ...runtime.manifest,
+        platform: targetPlatform,
+        targetArch,
+    };
+
+    fs.writeFileSync(
+        path.join(outputDir, 'embedded-mpv-runtime.json'),
+        `${JSON.stringify(manifest, null, 2)}\n`
+    );
+
+    return manifest;
 }
 
 function resolveElectronNodeGypBin() {
@@ -167,12 +330,16 @@ function main() {
     fs.mkdirSync(outputDir, { recursive: true });
     cleanDistNativeOutput();
 
-    if (process.platform !== 'darwin') {
+    if (targetPlatform !== process.platform) {
         cleanOutput();
         if (embeddedMpvRequired) {
-            throw new Error('Embedded MPV is required but this host is not macOS.');
+            throw new Error(
+                `Embedded MPV is required for ${targetPlatform}-${targetArch}, but this host is ${process.platform}-${process.arch}.`
+            );
         }
-        log('Skipping build on non-macOS host.');
+        log(
+            `Skipping build for ${targetPlatform}-${targetArch} on ${process.platform}-${process.arch}.`
+        );
         return;
     }
 
@@ -180,9 +347,11 @@ function main() {
     if (!runtime) {
         cleanOutput();
         const message = [
-            `Skipping build because no embedded MPV runtime was found for darwin-${targetArch}.`,
+            `Skipping build because no embedded MPV runtime was found for ${targetPlatform}-${targetArch}.`,
             `Expected vendored runtime at ${vendoredRuntimeRoot}.`,
-            'For local development only, set IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 to use Homebrew libmpv.',
+            targetPlatform === 'darwin'
+                ? 'For local development only, set IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 to use Homebrew libmpv.'
+                : 'Stage a vendored LGPL-compatible runtime before requiring Embedded MPV on this platform.',
         ].join('\n');
         if (embeddedMpvRequired) {
             throw new Error(message);
@@ -192,15 +361,18 @@ function main() {
         return;
     }
 
-    const runtimeManifest = copyRuntimeToNativeBuild({
-        runtimeLibDir: runtime.libDir,
-        outputLibDir,
-        runtimeOrigin: runtime.origin,
-        runtimeManifest: {
-            targetArch,
-            ...runtime.manifest,
-        },
-    });
+    const runtimeManifest =
+        targetPlatform === 'darwin'
+            ? copyRuntimeToNativeBuild({
+                  runtimeLibDir: runtime.libDir,
+                  outputLibDir,
+                  runtimeOrigin: runtime.origin,
+                  runtimeManifest: {
+                      targetArch,
+                      ...runtime.manifest,
+                  },
+              })
+            : copyGenericRuntimeToNativeBuild(runtime);
     fs.rmSync(unavailableMarkerFile, { force: true });
 
     const electronPackageJson = require(path.join(
@@ -220,10 +392,13 @@ function main() {
         npm_config_update_binary: 'false',
         LIBMPV_INCLUDE_DIR: runtime.includeDir,
         LIBMPV_LIBRARY_DIR: outputLibDir,
+        ...(runtime.windowsImportLib
+            ? { LIBMPV_IMPORT_LIB: path.join(outputLibDir, path.basename(runtime.windowsImportLib)) }
+            : {}),
     };
 
     log(
-        `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for darwin-${targetArch}...`
+        `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
     );
     runNodeGyp('configure', env);
     runNodeGyp('build', env);
@@ -232,13 +407,17 @@ function main() {
         throw new Error(`Build finished without producing ${outputFile}.`);
     }
 
-    patchAddonForBundledRuntime(outputFile, outputLibDir);
-    const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
-        outputFile,
-        ...runtimeManifest.dylibs.map((dylib) => path.join(outputLibDir, dylib)),
-    ]);
-    if (runtime.origin === 'vendored-lgpl' && forbiddenLinkErrors.length > 0) {
-        throw new Error(forbiddenLinkErrors.join('\n'));
+    if (targetPlatform === 'darwin') {
+        patchAddonForBundledRuntime(outputFile, outputLibDir);
+        const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
+            outputFile,
+            ...runtimeManifest.dylibs.map((dylib) =>
+                path.join(outputLibDir, dylib)
+            ),
+        ]);
+        if (runtime.origin === 'vendored-lgpl' && forbiddenLinkErrors.length > 0) {
+            throw new Error(forbiddenLinkErrors.join('\n'));
+        }
     }
 
     log(`Built ${path.relative(workspaceRoot, outputFile)}.`);
