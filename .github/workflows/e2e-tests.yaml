@@ -8,6 +8,15 @@ on:
         branches:
             - master
 
+# Least-privilege default token: E2E only needs to read the repo.
+permissions:
+    contents: read
+
+# Cancel superseded multi-OS E2E runs on the same ref.
+concurrency:
+    group: e2e-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     electron-e2e-tests:
         name: Electron E2E on ${{ matrix.os }}
