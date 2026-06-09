@@ -117,33 +117,45 @@ jobs:
                   const crypto = require('crypto');
                   const fs = require('fs');
 
-                  const deploymentTarget = process.env.MACOSX_DEPLOYMENT_TARGET || '11.0';
-                  const safeDeploymentTarget = deploymentTarget.replace(/[^A-Za-z0-9_.-]/g, '-');
-                  let xcodeVersion = 'none';
-                  try {
-                    xcodeVersion = childProcess
-                      .execSync('xcodebuild -version', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
-                      .replace(/\s+$/g, '')
-                      .replace(/\n/g, ' ');
-                  } catch {
-                    xcodeVersion = 'none';
-                  }
                   const hash = (value) => crypto.createHash('sha256').update(value).digest('hex');
-                  const sourceHash = hash([
-                    'tools/embedded-mpv/build-macos-runtime.mjs',
-                    'tools/embedded-mpv/stage-macos-runtime.mjs',
+                  const targetPlatform = '${{ matrix.embedded_mpv_platform }}';
+                  const targetArch = '${{ matrix.embedded_mpv_arch }}';
+                  const sourceHashFiles = [
                     'tools/embedded-mpv/stage-runtime.mjs',
-                  ].map((filePath) => fs.readFileSync(filePath)).join('\n'));
-                  const xcodeHash = hash(xcodeVersion);
-                  const cacheKey = [
+                  ];
+                  const cacheKeyParts = [
                     'embedded-mpv-runtime-v2',
-                    '${{ matrix.embedded_mpv_platform }}',
-                    '${{ matrix.embedded_mpv_arch }}',
+                    targetPlatform,
+                    targetArch,
                     process.env.RUNNER_OS,
-                    `macos${safeDeploymentTarget}`,
-                    `xcode${xcodeHash}`,
-                    sourceHash,
-                  ].join('-');
+                  ];
+                  let deploymentTarget = '';
+                  let xcodeVersion = 'none';
+                  if (targetPlatform === 'darwin') {
+                    deploymentTarget = process.env.MACOSX_DEPLOYMENT_TARGET || '11.0';
+                    const safeDeploymentTarget = deploymentTarget.replace(/[^A-Za-z0-9_.-]/g, '-');
+                    sourceHashFiles.push(
+                      'tools/embedded-mpv/build-macos-runtime.mjs',
+                      'tools/embedded-mpv/stage-macos-runtime.mjs'
+                    );
+                    try {
+                      xcodeVersion = childProcess
+                        .execSync('xcodebuild -version', { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] })
+                        .replace(/\s+$/g, '')
+                        .replace(/\n/g, ' ');
+                    } catch {
+                      xcodeVersion = 'none';
+                    }
+                    cacheKeyParts.push(
+                      `macos${safeDeploymentTarget}`,
+                      `xcode${hash(xcodeVersion)}`
+                    );
+                  }
+                  const sourceHash = hash(
+                    sourceHashFiles.map((filePath) => fs.readFileSync(filePath)).join('\n')
+                  );
+                  cacheKeyParts.push(sourceHash);
+                  const cacheKey = cacheKeyParts.join('-');
 
                   fs.appendFileSync(process.env.GITHUB_OUTPUT, `deployment-target=${deploymentTarget}\n`);
                   fs.appendFileSync(process.env.GITHUB_OUTPUT, `xcode-version=${xcodeVersion}\n`);

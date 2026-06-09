@@ -25,6 +25,10 @@ describe('Embedded MPV native source recording invariants', () => {
         path.resolve(__dirname, '../../../build-embedded-mpv.js'),
         'utf8'
     );
+    const buildAndMakeWorkflowSource = readFileSync(
+        path.resolve(__dirname, '../../../../../.github/workflows/build-and-make.yaml'),
+        'utf8'
+    );
 
     function functionBody(name: string): string {
         const start = nativeSource.indexOf(`Napi::Value ${name}(`);
@@ -99,6 +103,42 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
+    it('clears transient Windows/Linux MPV operation errors after healthy playback states', () => {
+        const fileLoadedCaseStart = widCommonSource.indexOf(
+            'case MPV_EVENT_FILE_LOADED:'
+        );
+        expect(fileLoadedCaseStart).toBeGreaterThanOrEqual(0);
+        const endFileCaseStart = widCommonSource.indexOf(
+            'case MPV_EVENT_END_FILE:',
+            fileLoadedCaseStart
+        );
+        expect(endFileCaseStart).toBeGreaterThan(fileLoadedCaseStart);
+        const fileLoadedCase = widCommonSource.slice(
+            fileLoadedCaseStart,
+            endFileCaseStart
+        );
+
+        expect(fileLoadedCase).toContain('session->snapshot.error.clear();');
+
+        const pausePropertyStart = widCommonSource.indexOf(
+            'const bool paused = *static_cast<int*>(property->data) != 0;'
+        );
+        expect(pausePropertyStart).toBeGreaterThanOrEqual(0);
+        const volumePropertyStart = widCommonSource.indexOf(
+            '} else if (name == "volume"',
+            pausePropertyStart
+        );
+        expect(volumePropertyStart).toBeGreaterThan(pausePropertyStart);
+        const pausePropertyBranch = widCommonSource.slice(
+            pausePropertyStart,
+            volumePropertyStart
+        );
+
+        expect(pausePropertyBranch).toContain(
+            'session->snapshot.error.clear();'
+        );
+    });
+
     it('copies Windows runtime DLLs next to the addon for Windows loader lookup', () => {
         expect(buildScriptSource).toContain(
             "for (const windowsDllName of ['mpv-2.dll', 'mpv.dll'])"
@@ -123,6 +163,25 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(linuxSource).toContain('XPending(display_)');
         expect(linuxSource).toContain('XNextEvent(display_, &event)');
         expect(linuxSource).toContain('drainEvents();');
+    });
+
+    it('uses platform-specific embedded MPV runtime cache key inputs in CI', () => {
+        expect(buildAndMakeWorkflowSource).toContain(
+            "const targetPlatform = '${{ matrix.embedded_mpv_platform }}';"
+        );
+        expect(buildAndMakeWorkflowSource).toContain(
+            "if (targetPlatform === 'darwin')"
+        );
+        expect(buildAndMakeWorkflowSource).toContain(
+            "'tools/embedded-mpv/build-macos-runtime.mjs'"
+        );
+        expect(buildAndMakeWorkflowSource).toContain(
+            "'tools/embedded-mpv/stage-runtime.mjs'"
+        );
+        expect(buildAndMakeWorkflowSource).not.toContain(
+            '`macos${safeDeploymentTarget}`,\n' +
+                '                    `xcode${xcodeHash}`,'
+        );
     });
 });
 

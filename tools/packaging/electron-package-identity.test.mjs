@@ -45,9 +45,13 @@ const packageLayoutVerifier = fs.readFileSync(
     join(currentDir, 'verify-electron-package-layout.mjs'),
     'utf8'
 );
+const electronAfterPackSource = fs.readFileSync(
+    join(currentDir, 'electron-after-pack.cjs'),
+    'utf8'
+);
 const {
     validatePackagedEmbeddedMpv,
-} = require('./embedded-mpv-macos.cjs');
+} = require('./embedded-mpv-packaging.cjs');
 
 test('Linux package identity does not expose the internal Electron backend project name', () => {
     assert.equal(electronBuilderConfig.productName, 'IPTVnator');
@@ -220,6 +224,17 @@ test('embedded MPV package validation accepts Windows and Linux runtime files', 
     } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
     }
+});
+
+test('embedded MPV packaging helpers use a cross-platform module name', () => {
+    assert.match(
+        electronAfterPackSource,
+        /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
+    );
 });
 
 test('embedded MPV package validation rejects missing required Windows runtime', () => {

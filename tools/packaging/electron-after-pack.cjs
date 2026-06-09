@@ -1,7 +1,7 @@
 const linuxAfterPack = require('./linux-after-pack.cjs');
 const {
     validatePackagedEmbeddedMpv,
-} = require('./embedded-mpv-macos.cjs');
+} = require('./embedded-mpv-packaging.cjs');
 const fs = require('fs');
 const path = require('path');
 

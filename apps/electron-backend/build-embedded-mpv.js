@@ -6,7 +6,7 @@ const {
     findLibMpv,
     patchAddonForBundledRuntime,
     validateNoForbiddenRuntimeLinks,
-} = require('../../tools/packaging/embedded-mpv-macos.cjs');
+} = require('../../tools/packaging/embedded-mpv-packaging.cjs');
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(workspaceRoot, 'apps', 'electron-backend', 'native');

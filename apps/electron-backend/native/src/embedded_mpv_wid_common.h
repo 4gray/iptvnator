@@ -508,6 +508,7 @@ void runEventLoop(std::shared_ptr<Session> session)
                     session->snapshot.status == SessionStatus::Paused
                         ? SessionStatus::Paused
                         : SessionStatus::Playing;
+                session->snapshot.error.clear();
                 break;
             case MPV_EVENT_END_FILE: {
                 const auto* endFile =
@@ -538,6 +539,7 @@ void runEventLoop(std::shared_ptr<Session> session)
                     session->snapshot.status = paused
                         ? SessionStatus::Paused
                         : SessionStatus::Playing;
+                    session->snapshot.error.clear();
                 } else if (name == "volume" && property->format == MPV_FORMAT_DOUBLE) {
                     session->snapshot.volumePercent =
                         *static_cast<double*>(property->data);
