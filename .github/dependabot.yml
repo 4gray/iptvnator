@@ -1,0 +1,34 @@
+version: 2
+updates:
+    # Keep GitHub Actions up to date. Dependabot can also raise PRs that pin
+    # actions to commit SHAs, addressing the "unpinned third-party action"
+    # supply-chain risk without hand-maintaining digests.
+    - package-ecosystem: 'github-actions'
+      directory: '/'
+      schedule:
+          interval: 'weekly'
+      labels:
+          - 'dependencies'
+          - 'github-actions'
+
+    # Keep npm dependencies up to date. Dev/tooling updates are grouped to keep
+    # PR noise low; runtime dependencies are raised individually for review.
+    - package-ecosystem: 'npm'
+      directory: '/'
+      schedule:
+          interval: 'weekly'
+      open-pull-requests-limit: 10
+      labels:
+          - 'dependencies'
+      groups:
+          dev-dependencies:
+              dependency-type: 'development'
+
+    # Keep the self-hosted PWA Docker base image patched.
+    - package-ecosystem: 'docker'
+      directory: '/docker'
+      schedule:
+          interval: 'weekly'
+      labels:
+          - 'dependencies'
+          - 'docker'
