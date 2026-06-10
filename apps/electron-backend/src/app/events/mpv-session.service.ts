@@ -181,17 +181,33 @@ function sendMpvCommand(
     });
 }
 
+function killStoredMpvProcess(reason: string): void {
+    if (!mpvProcess || mpvProcess.killed) {
+        return;
+    }
+    traceExternalPlayer(reason);
+    mpvProcess.kill();
+    mpvProcess = null;
+    mpvSocketPath = null;
+    stopPositionPolling();
+}
+
 export function setMpvReuseInstance(reuseInstance: boolean): void {
     traceExternalPlayer('set mpv reuse instance', { reuseInstance });
     store.set(MPV_REUSE_INSTANCE, reuseInstance);
 
-    if (!reuseInstance && mpvProcess && !mpvProcess.killed) {
-        traceExternalPlayer('clean up mpv process after disabling reuse');
-        mpvProcess.kill();
-        mpvProcess = null;
-        mpvSocketPath = null;
-        stopPositionPolling();
+    if (!reuseInstance) {
+        killStoredMpvProcess('clean up mpv process after disabling reuse');
     }
+}
+
+/**
+ * Kill the MPV instance kept alive for reuse. The reused process is spawned
+ * non-detached with piped stdio, so without an explicit kill it outlives the
+ * app and keeps playing after quit.
+ */
+export function shutdownMpvSession(): void {
+    killStoredMpvProcess('kill reused mpv process on app shutdown');
 }
 
 export async function openMpvPlayer({

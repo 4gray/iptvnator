@@ -13,7 +13,9 @@ import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
 } from './app/events/embedded-mpv.events';
 import EpgEvents from './app/events/epg.events';
+import { shutdownMpvSession } from './app/events/mpv-session.service';
 import PlayerEvents from './app/events/player.events';
+import { shutdownVlcSession } from './app/events/vlc-session.service';
 import PlaylistEvents from './app/events/playlist.events';
 import RemoteControlEvents from './app/events/remote-control.events';
 import SettingsEvents from './app/events/settings.events';
@@ -145,5 +147,7 @@ app.whenReady().then(async () => {
 
 app.on('before-quit', () => {
     shutdownEmbeddedMpv();
+    shutdownMpvSession();
+    shutdownVlcSession();
     void databaseWorkerClient.shutdown();
 });
