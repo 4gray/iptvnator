@@ -208,9 +208,8 @@ describe('Embedded MPV native source recording invariants', () => {
     });
 
     it('keeps dynamic libmpv symbol declarations compatible with distro headers', () => {
-        expect(widCommonSource).toContain(
-            '#if defined(IPTVNATOR_DYNAMIC_LIBMPV) && !defined(mpv_command_async)'
-        );
+        expect(widCommonSource).not.toContain('MPV_CPLUGIN_DYNAMIC_SYM');
+        expect(widCommonSource).toContain('#ifdef IPTVNATOR_DYNAMIC_LIBMPV');
         expect(widCommonSource).toContain(
             'IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_async)'
         );

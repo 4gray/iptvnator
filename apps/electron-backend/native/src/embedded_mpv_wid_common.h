@@ -4,13 +4,9 @@
 
 #include <napi.h>
 
-#ifdef IPTVNATOR_DYNAMIC_LIBMPV
-#define MPV_CPLUGIN_DYNAMIC_SYM
-#endif
-
 #include <mpv/client.h>
 
-#if defined(IPTVNATOR_DYNAMIC_LIBMPV) && !defined(mpv_command_async)
+#ifdef IPTVNATOR_DYNAMIC_LIBMPV
 #define IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(name) \
     MPV_SELECTANY decltype(&name) pfn_##name = nullptr;
 
