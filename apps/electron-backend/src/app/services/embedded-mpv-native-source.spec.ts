@@ -207,6 +207,19 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
+    it('keeps dynamic libmpv symbol declarations compatible with distro headers', () => {
+        expect(widCommonSource).toContain(
+            '#if defined(IPTVNATOR_DYNAMIC_LIBMPV) && !defined(mpv_command_async)'
+        );
+        expect(widCommonSource).toContain(
+            'IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_async)'
+        );
+        expect(widCommonSource).toContain(
+            '#define mpv_command_async pfn_mpv_command_async'
+        );
+        expect(buildScriptSource).toContain('cleanNativeBuildIntermediates();');
+    });
+
     it('uses platform-specific embedded MPV runtime cache key inputs in CI', () => {
         expect(buildAndMakeWorkflowSource).toContain(
             "const targetPlatform = '${{ matrix.embedded_mpv_platform }}';"

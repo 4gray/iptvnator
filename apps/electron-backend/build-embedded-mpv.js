@@ -76,6 +76,15 @@ function cleanOutput() {
     );
 }
 
+function cleanNativeBuildIntermediates() {
+    fs.rmSync(outputFile, { force: true });
+    fs.rmSync(path.join(outputDir, '.deps'), { recursive: true, force: true });
+    fs.rmSync(path.join(outputDir, 'obj.target'), {
+        recursive: true,
+        force: true,
+    });
+}
+
 function cleanDistNativeOutput() {
     fs.rmSync(distNativeDir, { recursive: true, force: true });
 }
@@ -441,6 +450,7 @@ function main() {
     log(
         `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
     );
+    cleanNativeBuildIntermediates();
     runNodeGyp('configure', env);
     runNodeGyp('build', env);
 

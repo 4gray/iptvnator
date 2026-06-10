@@ -10,6 +10,41 @@
 
 #include <mpv/client.h>
 
+#if defined(IPTVNATOR_DYNAMIC_LIBMPV) && !defined(mpv_command_async)
+#define IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(name) \
+    MPV_SELECTANY decltype(&name) pfn_##name = nullptr;
+
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_async)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_node_async)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_create)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_error_string)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_initialize)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_observe_property)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_request_log_messages)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_set_option_string)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_set_property)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_set_property_async)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_terminate_destroy)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wait_event)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wakeup)
+
+#undef IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL
+
+#define mpv_command_async pfn_mpv_command_async
+#define mpv_command_node_async pfn_mpv_command_node_async
+#define mpv_create pfn_mpv_create
+#define mpv_error_string pfn_mpv_error_string
+#define mpv_initialize pfn_mpv_initialize
+#define mpv_observe_property pfn_mpv_observe_property
+#define mpv_request_log_messages pfn_mpv_request_log_messages
+#define mpv_set_option_string pfn_mpv_set_option_string
+#define mpv_set_property pfn_mpv_set_property
+#define mpv_set_property_async pfn_mpv_set_property_async
+#define mpv_terminate_destroy pfn_mpv_terminate_destroy
+#define mpv_wait_event pfn_mpv_wait_event
+#define mpv_wakeup pfn_mpv_wakeup
+#endif
+
 #include <algorithm>
 #include <atomic>
 #include <chrono>
