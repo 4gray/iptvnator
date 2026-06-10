@@ -160,6 +160,152 @@ describe('EpgEvents', () => {
         expect(worker.terminate).toHaveBeenCalled();
     });
 
+    it('reuses the in-flight worker when the same EPG URL is fetched concurrently', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const secondPromise = workerService.fetchEpgFromUrl(url);
+
+        expect(mockWorkerInstances).toHaveLength(1);
+
+        const worker = mockWorkerInstances[0];
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+
+        await expect(firstPromise).resolves.toBeUndefined();
+        await expect(secondPromise).resolves.toBeUndefined();
+        expect(mockWorkerInstances).toHaveLength(1);
+    });
+
+    it('starts a fresh worker once a failed fetch for the same URL has settled', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        mockWorkerInstances[0].emit('message', {
+            type: 'EPG_ERROR',
+            error: 'parse failed',
+        });
+        await expect(firstPromise).rejects.toThrow('parse failed');
+
+        const secondPromise = workerService.fetchEpgFromUrl(url);
+        expect(mockWorkerInstances).toHaveLength(2);
+
+        const retryWorker = mockWorkerInstances[1];
+        retryWorker.emit('message', { type: 'READY' });
+        await flushPromises();
+        retryWorker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+
+        await expect(secondPromise).resolves.toBeUndefined();
+    });
+
+    it('shares the in-flight promise while a completed fetch is still terminating', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const url = 'https://example.com/guide.xml';
+
+        const firstPromise = workerService.fetchEpgFromUrl(url);
+        const worker = mockWorkerInstances[0];
+
+        let releaseTerminate!: () => void;
+        worker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                releaseTerminate = resolve;
+            })
+        );
+
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 1, totalPrograms: 2 },
+        });
+        await flushPromises();
+
+        // The URL is already marked as fetched, but the worker is still
+        // terminating: a new request must keep awaiting that window instead
+        // of resolving early via the fetched-URL shortcut.
+        const secondPromise = workerService.fetchEpgFromUrl(url);
+        expect(mockWorkerInstances).toHaveLength(1);
+
+        let secondResolved = false;
+        void secondPromise.then(() => {
+            secondResolved = true;
+        });
+        await flushPromises();
+        expect(secondResolved).toBe(false);
+
+        releaseTerminate();
+        await expect(firstPromise).resolves.toBeUndefined();
+        await flushPromises();
+        expect(secondResolved).toBe(true);
+    });
+
+    it('does not resolve clearEpgData until interrupted fetch workers have terminated', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+
+        void workerService
+            .fetchEpgFromUrl('https://example.com/guide.xml')
+            .catch(() => undefined);
+        const fetchWorker = mockWorkerInstances[0];
+
+        let releaseFetchTerminate!: () => void;
+        fetchWorker.terminate.mockReturnValue(
+            new Promise<void>((resolve) => {
+                releaseFetchTerminate = resolve;
+            })
+        );
+
+        const clearPromise = workerService.clearEpgData();
+        const clearWorker = mockWorkerInstances[1];
+        clearWorker.emit('message', { type: 'READY' });
+        clearWorker.emit('message', { type: 'CLEAR_COMPLETE' });
+
+        let cleared = false;
+        void clearPromise.then(() => {
+            cleared = true;
+        });
+        await flushPromises();
+        expect(fetchWorker.terminate).toHaveBeenCalled();
+        expect(cleared).toBe(false);
+
+        releaseFetchTerminate();
+        await flushPromises();
+        expect(cleared).toBe(true);
+    });
+
+    it('rejects a timed-out fetch with the timeout error after the worker has terminated', async () => {
+        jest.useFakeTimers();
+
+        const workerService = new EpgWorkerService('[Test EPG]', 25);
+        const fetchPromise = workerService.fetchEpgFromUrl(
+            'https://example.com/guide.xml'
+        );
+        const worker = mockWorkerInstances[0];
+
+        let terminated = false;
+        worker.terminate.mockImplementation(() => {
+            terminated = true;
+            // Worker threads emit 'exit' as part of termination; the timeout
+            // rejection must win over the generic exit-handler rejection.
+            worker.emit('exit', 1);
+            return Promise.resolve(0);
+        });
+
+        worker.emit('message', { type: 'READY' });
+        jest.advanceTimersByTime(25);
+
+        await expect(fetchPromise).rejects.toThrow('EPG fetch timed out after');
+        expect(terminated).toBe(true);
+    });
+
     it('falls back to case-insensitive channel id lookup for EPG programs', async () => {
         const select = jest.fn();
         const programLimitExact = jest.fn().mockResolvedValue([]);
