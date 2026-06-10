@@ -21,6 +21,7 @@ interface EpgWorkerMessage {
 export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
     private readonly workers = new Map<string, Worker>();
+    private readonly inFlightFetches = new Map<string, Promise<void>>();
 
     constructor(
         private readonly loggerLabel = '[EPG Events]',
@@ -67,6 +68,27 @@ export class EpgWorkerService {
             return;
         }
 
+        // A second request for an URL that is already being fetched must not
+        // spawn a competing worker: both would parse and write the same EPG
+        // data, and the late one would overwrite the early one's entry in
+        // `workers`, leaking that worker. Share the in-flight promise instead.
+        const inFlight = this.inFlightFetches.get(url);
+        if (inFlight) {
+            console.log(
+                this.loggerLabel,
+                `Reusing in-flight EPG fetch: ${url}`
+            );
+            return inFlight;
+        }
+
+        const fetchPromise = this.startFetch(url).finally(() => {
+            this.inFlightFetches.delete(url);
+        });
+        this.inFlightFetches.set(url, fetchPromise);
+        return fetchPromise;
+    }
+
+    private startFetch(url: string): Promise<void> {
         return new Promise((resolve, reject) => {
             let worker: Worker;
             try {
@@ -104,9 +126,15 @@ export class EpgWorkerService {
                     undefined,
                     errorMessage
                 );
-                worker.terminate();
                 this.workers.delete(url);
-                settle(() => reject(new Error(errorMessage)));
+                // Settle only after the worker thread is really gone: a
+                // terminated-but-still-running worker can keep holding the
+                // SQLite lock and block the next EPG fetch.
+                settle(() => {
+                    void this.terminateWorker(worker, 'timed out fetch').then(
+                        () => reject(new Error(errorMessage))
+                    );
+                });
             }, this.fetchTimeoutMs);
 
             worker.on('message', async (message: EpgWorkerMessage) => {
@@ -142,9 +170,13 @@ export class EpgWorkerService {
                                 message.stats
                             );
                             this.fetchedUrls.add(url);
-                            worker.terminate();
                             this.workers.delete(url);
-                            settle(() => resolve());
+                            settle(() => {
+                                void this.terminateWorker(
+                                    worker,
+                                    'completed fetch'
+                                ).then(() => resolve());
+                            });
                             break;
 
                         case 'EPG_ERROR':
@@ -159,13 +191,19 @@ export class EpgWorkerService {
                                 undefined,
                                 message.error
                             );
-                            worker.terminate();
                             this.workers.delete(url);
-                            settle(() =>
-                                reject(
-                                    new Error(message.error || 'Unknown error')
-                                )
-                            );
+                            settle(() => {
+                                void this.terminateWorker(
+                                    worker,
+                                    'failed fetch'
+                                ).then(() =>
+                                    reject(
+                                        new Error(
+                                            message.error || 'Unknown error'
+                                        )
+                                    )
+                                );
+                            });
                             break;
                     }
                 } catch (err) {
@@ -180,9 +218,13 @@ export class EpgWorkerService {
                         undefined,
                         err instanceof Error ? err.message : String(err)
                     );
-                    worker.terminate();
                     this.workers.delete(url);
-                    settle(() => reject(err));
+                    settle(() => {
+                        void this.terminateWorker(
+                            worker,
+                            'failed message handling'
+                        ).then(() => reject(err));
+                    });
                 }
             });
 
@@ -194,9 +236,12 @@ export class EpgWorkerService {
                     undefined,
                     error.message
                 );
-                worker.terminate();
                 this.workers.delete(url);
-                settle(() => reject(error));
+                settle(() => {
+                    void this.terminateWorker(worker, 'errored fetch').then(
+                        () => reject(error)
+                    );
+                });
             });
 
             worker.on('exit', (code) => {
@@ -244,8 +289,9 @@ export class EpgWorkerService {
                 }s`;
                 console.error(this.loggerLabel, errorMessage);
                 settle(() => {
-                    worker.terminate();
-                    reject(new Error(errorMessage));
+                    void this.terminateWorker(worker, 'timed out clear').then(
+                        () => reject(new Error(errorMessage))
+                    );
                 });
             }, this.fetchTimeoutMs);
 
@@ -261,12 +307,17 @@ export class EpgWorkerService {
                                 'EPG data cleared via worker'
                             );
                             this.fetchedUrls.clear();
-                            this.workers.forEach((runningWorker) =>
-                                runningWorker.terminate()
-                            );
+                            this.workers.forEach((runningWorker) => {
+                                void this.terminateWorker(
+                                    runningWorker,
+                                    'fetch during clear'
+                                );
+                            });
                             this.workers.clear();
-                            worker.terminate();
-                            resolve();
+                            void this.terminateWorker(
+                                worker,
+                                'completed clear'
+                            ).then(() => resolve());
                         });
                     } else if (message.type === 'EPG_ERROR') {
                         console.error(
@@ -275,8 +326,14 @@ export class EpgWorkerService {
                             message.error
                         );
                         settle(() => {
-                            worker.terminate();
-                            reject(new Error(message.error || 'Clear failed'));
+                            void this.terminateWorker(
+                                worker,
+                                'failed clear'
+                            ).then(() =>
+                                reject(
+                                    new Error(message.error || 'Clear failed')
+                                )
+                            );
                         });
                     }
                 }
@@ -289,8 +346,9 @@ export class EpgWorkerService {
                     error
                 );
                 settle(() => {
-                    worker.terminate();
-                    reject(error);
+                    void this.terminateWorker(worker, 'errored clear').then(
+                        () => reject(error)
+                    );
                 });
             });
 
@@ -301,6 +359,26 @@ export class EpgWorkerService {
                 settle(() => reject(new Error(errorMessage)));
             });
         });
+    }
+
+    /**
+     * Awaits worker shutdown so callers can sequence work (e.g. the next DB
+     * access) after the thread has really exited. Termination failures are
+     * logged and swallowed — there is nothing actionable left to do.
+     */
+    private async terminateWorker(
+        worker: Worker,
+        context: string
+    ): Promise<void> {
+        try {
+            await worker.terminate();
+        } catch (error) {
+            console.error(
+                this.loggerLabel,
+                `Failed to terminate ${context} worker:`,
+                error
+            );
+        }
     }
 
     private createEpgWorker(): Worker {
