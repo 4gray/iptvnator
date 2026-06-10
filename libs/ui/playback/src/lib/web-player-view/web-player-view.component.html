@@ -1,4 +1,4 @@
-@if (player === 'videojs') {
+@if (selectedPlayer() === 'videojs') {
     <app-vjs-player
         [options]="vjsOptions"
         [volume]="volume()"
@@ -6,7 +6,7 @@
         (timeUpdate)="timeUpdate.emit($event)"
         (playbackIssue)="handlePlaybackIssue($event)"
     />
-} @else if (player === 'html5') {
+} @else if (selectedPlayer() === 'html5') {
     <app-html-video-player
         [channel]="$any(channel)"
         [volume]="volume()"
@@ -15,7 +15,7 @@
         (timeUpdate)="timeUpdate.emit($event)"
         (playbackIssue)="handlePlaybackIssue($event)"
     />
-} @else if (player === 'artplayer') {
+} @else if (selectedPlayer() === 'artplayer') {
     <app-art-player
         [channel]="$any(channel)"
         [volume]="volume()"
@@ -24,7 +24,7 @@
         (timeUpdate)="timeUpdate.emit($event)"
         (playbackIssue)="handlePlaybackIssue($event)"
     />
-} @else if (player === 'embedded-mpv') {
+} @else if (selectedPlayer() === 'embedded-mpv') {
     <app-embedded-mpv-player
         [playback]="resolvedPlayback()"
         [recordingFolder]="recordingFolder()"
@@ -44,7 +44,7 @@
     />
 }
 
-@if (playbackDiagnostic(); as issue) {
+@if (visiblePlaybackDiagnostic(); as issue) {
     <section
         class="web-player-diagnostic"
         data-test-id="playback-diagnostic-banner"

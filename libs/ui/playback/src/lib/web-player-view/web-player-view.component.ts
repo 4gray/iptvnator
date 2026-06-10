@@ -90,7 +90,6 @@ export class WebPlayerViewComponent {
     >;
 
     channel!: Channel;
-    player!: VideoPlayer;
     vjsOptions!: {
         isLive: boolean;
         reloadToken: number;
@@ -98,10 +97,15 @@ export class WebPlayerViewComponent {
     };
     readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
+    readonly visiblePlaybackDiagnostic = computed(() =>
+        this.selectedPlayer() === VideoPlayer.EmbeddedMpv
+            ? null
+            : this.playbackDiagnostic()
+    );
     readonly canShowExternalFallbackActions = computed(
         () =>
             this.runtime.supportsManagedExternalPlayers &&
-            !!this.playbackDiagnostic()?.externalFallbackRecommended
+            !!this.visiblePlaybackDiagnostic()?.externalFallbackRecommended
     );
     readonly diagnosticHeadlineKey = computed(() =>
         this.canShowExternalFallbackActions()
@@ -133,7 +137,8 @@ export class WebPlayerViewComponent {
 
     constructor() {
         effect(() => {
-            this.player = this.selectedPlayer();
+            // Track player changes so stale browser diagnostics are cleared on switch.
+            this.selectedPlayer();
 
             const playback = this.resolvedPlayback();
             this.playbackDiagnostic.set(null);
@@ -201,11 +206,16 @@ export class WebPlayerViewComponent {
     }
 
     handlePlaybackIssue(issue: PlaybackDiagnostic | null): void {
+        if (this.selectedPlayer() === VideoPlayer.EmbeddedMpv) {
+            this.playbackDiagnostic.set(null);
+            return;
+        }
+
         this.playbackDiagnostic.set(issue);
     }
 
     requestExternalFallback(player: ExternalPlayerName): void {
-        const diagnostic = this.playbackDiagnostic();
+        const diagnostic = this.visiblePlaybackDiagnostic();
         if (!diagnostic) {
             return;
         }
