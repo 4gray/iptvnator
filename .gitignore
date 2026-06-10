@@ -81,6 +81,7 @@ Thumbs.db
 # Native Electron addons
 apps/electron-backend/native/build/
 apps/electron-backend/src/app/options/electron-builder.metadata.generated.json
-vendor/embedded-mpv/darwin-*/include/
-vendor/embedded-mpv/darwin-*/lib/
-vendor/embedded-mpv/darwin-*/runtime-manifest.json
+vendor/embedded-mpv/*/bin/
+vendor/embedded-mpv/*/include/
+vendor/embedded-mpv/*/lib/
+vendor/embedded-mpv/*/runtime-manifest.json

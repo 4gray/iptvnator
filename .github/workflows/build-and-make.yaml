@@ -68,7 +68,7 @@ jobs:
               if: matrix.os == 'linux'
               run: |
                   sudo apt-get update
-                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev
+                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev libmpv-dev mpv pkg-config
 
                   # Configure Flatpak
                   # 1. Add the Flathub repository (source of runtimes)
@@ -204,17 +204,54 @@ jobs:
                   pnpm embedded-mpv:build-runtime -- "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
                   pnpm embedded-mpv:stage-runtime -- "${{ matrix.embedded_mpv_platform }}" "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
 
+            - name: Stage Linux embedded MPV build inputs
+              if: matrix.os == 'linux'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  RUNTIME_PREFIX="${RUNNER_TEMP}/embedded-mpv-runtime/linux-x64/prefix"
+                  rm -rf "${RUNTIME_PREFIX}"
+                  mkdir -p "${RUNTIME_PREFIX}/include"
+
+                  cp -a /usr/include/mpv "${RUNTIME_PREFIX}/include/"
+
+                  LIBMPV_DEV_VERSION="$(dpkg-query -W -f='${Version}' libmpv-dev)"
+                  MPV_VERSION="$(dpkg-query -W -f='${Version}' mpv)"
+                  export RUNTIME_PREFIX LIBMPV_DEV_VERSION MPV_VERSION
+                  node <<'NODE'
+                  const fs = require('fs');
+                  const path = require('path');
+
+                  const manifest = {
+                    linuxBackend: 'process-isolated mpv --wid',
+                    buildInputs: {
+                      libmpvDevPackage: process.env.LIBMPV_DEV_VERSION,
+                      mpvPackage: process.env.MPV_VERSION,
+                    },
+                    sourceDistribution:
+                      'Linux CI build inputs come from Ubuntu runner packages. Runtime playback uses the system mpv executable; IPTVnator does not bundle or load libmpv in the Electron process on Linux.',
+                  };
+
+                  fs.writeFileSync(
+                    path.join(process.env.RUNTIME_PREFIX, 'runtime-manifest.json'),
+                    `${JSON.stringify(manifest, null, 2)}\n`
+                  );
+                  NODE
+
+                  pnpm embedded-mpv:stage-runtime -- linux x64 "${RUNTIME_PREFIX}"
+
             - name: Build backend
               env:
                   IPTVNATOR_EMBEDDED_MPV_PLATFORM: ${{ matrix.embedded_mpv_platform || '' }}
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ ((matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
               run: pnpm run build:backend
 
             - name: Verify embedded MPV build output
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true'
+              if: matrix.os == 'linux' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true'
               shell: bash
               run: |
                   set -euo pipefail
@@ -238,7 +275,17 @@ jobs:
                       test -f dist/apps/electron-backend/native/lib/mpv-2.dll || test -f dist/apps/electron-backend/native/lib/mpv.dll
                       ;;
                     linux)
-                      test -f dist/apps/electron-backend/native/lib/libmpv.so.2 || test -f dist/apps/electron-backend/native/lib/libmpv.so.1 || test -f dist/apps/electron-backend/native/lib/libmpv.so
+                      node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'external-mpv-process') { throw new Error('Linux embedded MPV manifest must use external-mpv-process origin.'); }"
+                      if find dist/apps/electron-backend/native/lib -name 'libmpv.so*' -print -quit 2>/dev/null | grep -q .; then
+                          echo "::error::Linux embedded MPV packages must not bundle libmpv"
+                          find dist/apps/electron-backend/native/lib -name 'libmpv.so*' -print
+                          exit 1
+                      fi
+                      if ldd dist/apps/electron-backend/native/embedded_mpv.node | grep -q 'libmpv'; then
+                          echo "::error::Linux embedded MPV addon must not link directly to libmpv"
+                          ldd dist/apps/electron-backend/native/embedded_mpv.node
+                          exit 1
+                      fi
                       ;;
                   esac
 
@@ -424,7 +471,7 @@ jobs:
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
                   # TEMPORARY PR TEST: change this back to '0' after manually
                   # testing the macOS PR artifact with Embedded MPV included.
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ ((matrix.os == 'macos' && github.event_name == 'pull_request') || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || (matrix.os == 'macos' && github.event_name == 'pull_request') || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
               run: pnpm run make:app
 
             - name: Verify packaged worker layout
@@ -434,7 +481,7 @@ jobs:
                   PACKAGE_ARCH: ${{ matrix.arch || '' }}
                   # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
                   # after the macOS Embedded MPV artifacts are built and manually tested.
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ ((matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
 
             - name: Save embedded MPV runtime cache

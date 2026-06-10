@@ -23,7 +23,7 @@ if (!validTargets.has(`${platform}-${arch}`) || !sourcePrefix) {
             '- win32 x64',
             '- linux x64',
             '',
-            'The prefix must contain include/mpv/client.h and dynamic libmpv runtime files.',
+            'The prefix must contain include/mpv/client.h. macOS and Windows prefixes must also contain dynamic libmpv runtime files.',
         ].join('\n')
     );
     process.exit(1);
@@ -162,11 +162,15 @@ try {
         path.join(sourceIncludeDir, 'mpv', 'client.h'),
         'Missing libmpv header'
     );
-    if (!findRuntimeFile(sourceLibDir)) {
-        throw new Error(`Missing libmpv runtime for ${platform} in ${sourceLibDir}`);
+    if (platform !== 'linux' && !findRuntimeFile(sourceLibDir)) {
+        throw new Error(
+            `Missing libmpv runtime for ${platform} in ${sourceLibDir}`
+        );
     }
     if (platform === 'win32' && !hasWindowsImportLibrary(sourceLibDir)) {
-        throw new Error(`Missing Windows libmpv import library in ${sourceLibDir}`);
+        throw new Error(
+            `Missing Windows libmpv import library in ${sourceLibDir}`
+        );
     }
 
     fs.rmSync(destinationIncludeDir, { recursive: true, force: true });
@@ -183,8 +187,9 @@ try {
     }
 
     const externalManifest =
-        readJsonIfExists(path.join(normalizedPrefix, 'runtime-manifest.json')) ??
-        {};
+        readJsonIfExists(
+            path.join(normalizedPrefix, 'runtime-manifest.json')
+        ) ?? {};
     const manifest = {
         ...externalManifest,
         origin: 'vendored-lgpl',
@@ -193,14 +198,16 @@ try {
         stagedAt: new Date().toISOString(),
         runtimeFiles: listRuntimeFiles(destinationLibDir),
         ffmpeg: {
-            licensePolicy: 'LGPL, built without --enable-gpl and --enable-nonfree',
+            licensePolicy:
+                'LGPL, built without --enable-gpl and --enable-nonfree',
             ...externalManifest.ffmpeg,
             configureFlags:
                 externalManifest.ffmpeg?.configureFlags ??
                 'Record the exact FFmpeg configure flags used to build this runtime.',
         },
         mpv: {
-            licensePolicy: 'LGPL-compatible libmpv, built with -Dlibmpv=true -Dgpl=false',
+            licensePolicy:
+                'LGPL-compatible libmpv, built with -Dlibmpv=true -Dgpl=false',
             ...externalManifest.mpv,
             mesonFlags:
                 externalManifest.mpv?.mesonFlags ??

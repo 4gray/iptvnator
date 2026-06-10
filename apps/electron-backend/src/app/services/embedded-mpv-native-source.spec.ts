@@ -26,7 +26,10 @@ describe('Embedded MPV native source recording invariants', () => {
         'utf8'
     );
     const buildAndMakeWorkflowSource = readFileSync(
-        path.resolve(__dirname, '../../../../../.github/workflows/build-and-make.yaml'),
+        path.resolve(
+            __dirname,
+            '../../../../../.github/workflows/build-and-make.yaml'
+        ),
         'utf8'
     );
 
@@ -151,7 +154,9 @@ describe('Embedded MPV native source recording invariants', () => {
     });
 
     it('checks Win32 window class registration failures explicitly', () => {
-        expect(win32Source).toContain('const ATOM classAtom = RegisterClassExW');
+        expect(win32Source).toContain(
+            'const ATOM classAtom = RegisterClassExW'
+        );
         expect(win32Source).toContain('ERROR_CLASS_ALREADY_EXISTS');
         expect(win32Source).toContain(
             'Failed to register embedded MPV child window class.'
@@ -163,6 +168,43 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(linuxSource).toContain('XPending(display_)');
         expect(linuxSource).toContain('XNextEvent(display_, &event)');
         expect(linuxSource).toContain('drainEvents();');
+    });
+
+    it('keeps Linux mpv child processes isolated from Wayland and inherited Electron descriptors', () => {
+        expect(widCommonSource).toContain(
+            'if (hasEnvPrefix(entry, "WAYLAND_DISPLAY="))'
+        );
+        expect(widCommonSource).toContain(
+            'environment.push_back("XDG_SESSION_TYPE=x11");'
+        );
+        expect(widCommonSource).toContain(
+            'arguments.push_back("--vo=gpu,x11");'
+        );
+        expect(widCommonSource).toContain(
+            'arguments.push_back("--gpu-context=x11egl");'
+        );
+        expect(widCommonSource).toContain('closeInheritedFileDescriptors();');
+        expect(widCommonSource).toContain('flags | FD_CLOEXEC');
+    });
+
+    it('drives Linux out-of-process MPV state and controls over JSON IPC', () => {
+        expect(widCommonSource).toContain('mpvIpcSocketPath');
+        expect(widCommonSource).toContain(
+            'arguments.push_back("--input-ipc-server=" + ipcSocketPath);'
+        );
+        expect(widCommonSource).toContain('refreshLinuxMpvSnapshot(session);');
+        expect(widCommonSource).toContain(
+            'queryLinuxMpvNumber(socketPath, "time-pos")'
+        );
+        expect(widCommonSource).toContain(
+            'queryLinuxMpvNumber(socketPath, "duration")'
+        );
+        expect(widCommonSource).toContain(
+            'std::string("{\\"command\\":[\\"set_property\\",\\"pause\\",")'
+        );
+        expect(widCommonSource).toContain(
+            '"{\\"command\\":[\\"seek\\"," + seconds + ",\\"absolute\\"]}\\n"'
+        );
     });
 
     it('uses platform-specific embedded MPV runtime cache key inputs in CI', () => {
@@ -182,6 +224,25 @@ describe('Embedded MPV native source recording invariants', () => {
             '`macos${safeDeploymentTarget}`,\n' +
                 '                    `xcode${xcodeHash}`,'
         );
+    });
+
+    it('requires Linux embedded MPV build inputs and validates process isolation in CI', () => {
+        expect(buildAndMakeWorkflowSource).toContain(
+            'libmpv-dev mpv pkg-config'
+        );
+        expect(buildAndMakeWorkflowSource).toContain(
+            'Stage Linux embedded MPV build inputs'
+        );
+        expect(buildAndMakeWorkflowSource).toContain(
+            "linuxBackend: 'process-isolated mpv --wid'"
+        );
+        expect(buildAndMakeWorkflowSource).toContain("matrix.os == 'linux'");
+        expect(buildAndMakeWorkflowSource).toContain(
+            'Linux embedded MPV addon must not link directly to libmpv'
+        );
+        expect(buildScriptSource).toContain("origin: 'external-mpv-process'");
+        expect(buildScriptSource).toContain('writeLinuxProcessRuntimeManifest');
+        expect(buildScriptSource).toContain('runtimeFiles: []');
     });
 });
 

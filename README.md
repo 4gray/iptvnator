@@ -61,42 +61,42 @@ The application is a cross-platform, open-source project built with Electron and
 
 Press `?` or `Shift+/` in the workspace to open the in-app shortcuts list.
 
-| Area | Shortcut | Action |
-| --- | --- | --- |
-| Global | `Ctrl/Cmd+K` | Open command palette |
-| Global | `Ctrl/Cmd+F` | Open global search in the desktop app |
-| Global | `Ctrl/Cmd+R` | Open recently viewed in the desktop app |
-| Global | `Enter` in workspace search | Submit the current search |
-| Navigation | `Ctrl/Cmd+B` | Toggle the live sidebar |
-| Navigation | `0-9` | Select an M3U channel by number |
-| Playback | `Space` / `K` | Play or pause embedded MPV playback in the desktop app |
-| Playback | `F` | Toggle embedded MPV fullscreen in the desktop app |
-| Playback | `ArrowLeft` / `ArrowRight` | Seek embedded MPV playback by 5 seconds in the desktop app |
-| Playback | `ArrowUp` / `ArrowDown` | Adjust volume by 5% |
-| Playback | `M` | Mute audio |
-| Dialogs and lists | `ArrowUp` / `ArrowDown` | Move command palette selection |
-| Dialogs and lists | `Enter` | Run the selected command or open a focused item |
-| Dialogs and lists | `Escape` | Close dialogs and dismiss overlays |
+| Area              | Shortcut                    | Action                                                     |
+| ----------------- | --------------------------- | ---------------------------------------------------------- |
+| Global            | `Ctrl/Cmd+K`                | Open command palette                                       |
+| Global            | `Ctrl/Cmd+F`                | Open global search in the desktop app                      |
+| Global            | `Ctrl/Cmd+R`                | Open recently viewed in the desktop app                    |
+| Global            | `Enter` in workspace search | Submit the current search                                  |
+| Navigation        | `Ctrl/Cmd+B`                | Toggle the live sidebar                                    |
+| Navigation        | `0-9`                       | Select an M3U channel by number                            |
+| Playback          | `Space` / `K`               | Play or pause embedded MPV playback in the desktop app     |
+| Playback          | `F`                         | Toggle embedded MPV fullscreen in the desktop app          |
+| Playback          | `ArrowLeft` / `ArrowRight`  | Seek embedded MPV playback by 5 seconds in the desktop app |
+| Playback          | `ArrowUp` / `ArrowDown`     | Adjust volume by 5%                                        |
+| Playback          | `M`                         | Mute audio                                                 |
+| Dialogs and lists | `ArrowUp` / `ArrowDown`     | Move command palette selection                             |
+| Dialogs and lists | `Enter`                     | Run the selected command or open a focused item            |
+| Dialogs and lists | `Escape`                    | Close dialogs and dismiss overlays                         |
 
 ## Screenshots:
 
-| Dashboard with recently watched content | Live channels with inline player and EPG |
-| :-------------------------------------: | :--------------------------------------: |
-| ![Dashboard with recently watched content](./apps/website/public/screenshots/dashboard-with-content.webp) | ![Live channels with inline player and EPG](./apps/website/public/screenshots/screenshot-player.webp) |
-| Add playlist dialog for M3U, Xtream, and Stalker | Live category channel list |
-| ![Add playlist dialog for M3U, Xtream, and Stalker](./apps/website/public/screenshots/add-playlist.webp) | ![Live category channel list](./apps/website/public/screenshots/channels-view.webp) |
-| Global search across live TV, movies, and series | Manage visible live categories |
-| ![Global search across live TV, movies, and series](./apps/website/public/screenshots/global-search.webp) | ![Manage visible live categories](./apps/website/public/screenshots/manage-categories.webp) |
-| Movie category grid with sorting and pagination | Recently added movies and series |
-| ![Movie category grid with sorting and pagination](./apps/website/public/screenshots/xtream-category-view.webp) | ![Recently added movies and series](./apps/website/public/screenshots/xtream-recently-added.webp) |
-| VOD details with playback and download actions | Download manager |
-| ![VOD details with playback and download actions](./apps/website/public/screenshots/vod-details.webp) | ![Download manager](./apps/website/public/screenshots/download-manager.webp) |
-| Multi-channel EPG grid | External MPV player support |
-| ![Multi-channel EPG grid](./apps/website/public/screenshots/multi-epg-view.webp) | ![External MPV player support](./apps/website/public/screenshots/external-player-support-mpv.webp) |
-| Radio playback with dedicated audio player | Light theme |
-| ![Radio playback with dedicated audio player](./apps/website/public/screenshots/radio-feature.webp) | ![Light theme](./apps/website/public/screenshots/light-theme.webp) |
-| Application settings | |
-| ![Application settings](./apps/website/public/screenshots/settings.webp) | |
+|                                     Dashboard with recently watched content                                     |                               Live channels with inline player and EPG                                |
+| :-------------------------------------------------------------------------------------------------------------: | :---------------------------------------------------------------------------------------------------: |
+|    ![Dashboard with recently watched content](./apps/website/public/screenshots/dashboard-with-content.webp)    | ![Live channels with inline player and EPG](./apps/website/public/screenshots/screenshot-player.webp) |
+|                                Add playlist dialog for M3U, Xtream, and Stalker                                 |                                      Live category channel list                                       |
+|    ![Add playlist dialog for M3U, Xtream, and Stalker](./apps/website/public/screenshots/add-playlist.webp)     |          ![Live category channel list](./apps/website/public/screenshots/channels-view.webp)          |
+|                                Global search across live TV, movies, and series                                 |                                    Manage visible live categories                                     |
+|    ![Global search across live TV, movies, and series](./apps/website/public/screenshots/global-search.webp)    |      ![Manage visible live categories](./apps/website/public/screenshots/manage-categories.webp)      |
+|                                 Movie category grid with sorting and pagination                                 |                                   Recently added movies and series                                    |
+| ![Movie category grid with sorting and pagination](./apps/website/public/screenshots/xtream-category-view.webp) |   ![Recently added movies and series](./apps/website/public/screenshots/xtream-recently-added.webp)   |
+|                                 VOD details with playback and download actions                                  |                                           Download manager                                            |
+|      ![VOD details with playback and download actions](./apps/website/public/screenshots/vod-details.webp)      |             ![Download manager](./apps/website/public/screenshots/download-manager.webp)              |
+|                                             Multi-channel EPG grid                                              |                                      External MPV player support                                      |
+|                ![Multi-channel EPG grid](./apps/website/public/screenshots/multi-epg-view.webp)                 |  ![External MPV player support](./apps/website/public/screenshots/external-player-support-mpv.webp)   |
+|                                   Radio playback with dedicated audio player                                    |                                              Light theme                                              |
+|       ![Radio playback with dedicated audio player](./apps/website/public/screenshots/radio-feature.webp)       |                  ![Light theme](./apps/website/public/screenshots/light-theme.webp)                   |
+|                                              Application settings                                               |                                                                                                       |
+|                    ![Application settings](./apps/website/public/screenshots/settings.webp)                     |                                                                                                       |
 
 _Note: First version of the application which was developed as a PWA is available in an extra git branch._
 
@@ -157,6 +157,22 @@ sudo eselect repository enable gentoo-zh
 sudo emerge --sync gentoo-zh
 sudo emerge iptvnator-bin
 ```
+
+### Linux Embedded MPV Support
+
+Embedded MPV on Linux is experimental and currently supports x64 desktop
+sessions where IPTVnator runs under X11 or Xwayland. Native Wayland embedding
+is not supported yet. Linux package launchers request X11 with
+`--ozone-platform=x11`, so Wayland desktops still need Xwayland available.
+
+The Linux backend starts a system `mpv` executable with `--wid`, so `mpv` must
+be installed and available on `PATH`. CI validates the Linux native addon and
+standard packages on Ubuntu 22.04, with Flatpak packaging built on Ubuntu 24.04.
+Expected user targets are Ubuntu/Debian `.deb`, Arch/Manjaro `pacman`, RPM
+distributions, and AppImage on x64 systems with X11/Xwayland plus `mpv`
+installed. Flatpak and Snap builds remain available, but embedded MPV is not
+announced as supported there yet because those sandboxed formats do not expose
+the host `mpv` executable to the embedded backend by default.
 
 [![Get it from the Snap Store](https://snapcraft.io/static/images/badges/en/snap-store-black.svg)](https://snapcraft.io/iptvnator)
 
