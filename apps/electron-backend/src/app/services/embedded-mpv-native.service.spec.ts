@@ -169,6 +169,52 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
     });
 
+    it('keeps the polling timer alive when refreshing a session throws', () => {
+        jest.useFakeTimers();
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation();
+
+        try {
+            startSession('s1', snapshot('playing'));
+            startSession('s2', snapshot('playing'));
+
+            // s1 keeps failing while s2 stays healthy: the healthy session
+            // must not reset the log suppression for the failing one.
+            addon.getSessionSnapshot.mockImplementation(
+                (sessionId: string) => {
+                    if (sessionId === 's1') {
+                        throw new Error('addon crashed');
+                    }
+                    return snapshot('playing');
+                }
+            );
+
+            // Three poll ticks: nothing may escape the interval callback,
+            // and the failure is logged once instead of at poll rate.
+            expect(() => jest.advanceTimersByTime(1500)).not.toThrow();
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(1);
+
+            // Once the addon recovers, session updates flow again.
+            addon.getSessionSnapshot.mockImplementation(() =>
+                snapshot('playing', { positionSeconds: 42 })
+            );
+            mainWindowSendMock.mockClear();
+            jest.advanceTimersByTime(500);
+            expect(mainWindowSendMock).toHaveBeenCalled();
+
+            // A recovered session that fails again logs once more (one line
+            // per session per failure streak, not one per service lifetime).
+            addon.getSessionSnapshot.mockImplementation(() => {
+                throw new Error('addon crashed again');
+            });
+            jest.advanceTimersByTime(1000);
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(3);
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
     it('acquires a single prevent-display-sleep blocker once a session is playing', () => {
         startSession('s1', snapshot('loading'));
 

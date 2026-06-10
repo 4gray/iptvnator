@@ -93,6 +93,7 @@ export class EmbeddedMpvNativeService {
     private addonLoadError: Error | null = null;
     private readonly sessions = new Map<string, EmbeddedMpvRuntimeSession>();
     private pollingTimer: NodeJS.Timeout | null = null;
+    private readonly pollFailuresLogged = new Set<string>();
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
 
@@ -465,6 +466,7 @@ export class EmbeddedMpvNativeService {
             addon.disposeSession(sessionId);
         } finally {
             this.sessions.delete(sessionId);
+            this.pollFailuresLogged.delete(sessionId);
             const payload: EmbeddedMpvSession = {
                 id: session.id,
                 title: session.title,
@@ -507,7 +509,24 @@ export class EmbeddedMpvNativeService {
 
         this.pollingTimer = setInterval(() => {
             [...this.sessions.keys()].forEach((sessionId) => {
-                this.refreshSession(sessionId);
+                // An addon-side throw must not escape the interval callback:
+                // it would surface as an uncaughtException in the main
+                // process every 500 ms while the timer keeps running. Log
+                // each session's first failure only — tracked per session so
+                // a healthy session in the same tick cannot reset the
+                // suppression for a failing one.
+                try {
+                    this.refreshSession(sessionId);
+                    this.pollFailuresLogged.delete(sessionId);
+                } catch (error) {
+                    if (!this.pollFailuresLogged.has(sessionId)) {
+                        this.pollFailuresLogged.add(sessionId);
+                        console.error(
+                            `[Embedded MPV] Polling session "${sessionId}" failed:`,
+                            error
+                        );
+                    }
+                }
             });
         }, 500);
     }
