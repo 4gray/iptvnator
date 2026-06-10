@@ -60,18 +60,13 @@ export class EpgWorkerService {
     }
 
     async fetchEpgFromUrl(url: string): Promise<void> {
-        if (this.fetchedUrls.has(url)) {
-            console.log(
-                this.loggerLabel,
-                `Skipping already fetched URL: ${url}`
-            );
-            return;
-        }
-
         // A second request for an URL that is already being fetched must not
         // spawn a competing worker: both would parse and write the same EPG
         // data, and the late one would overwrite the early one's entry in
         // `workers`, leaking that worker. Share the in-flight promise instead.
+        // Checked before the fetched-URL shortcut: a completed fetch is added
+        // to `fetchedUrls` while its worker is still terminating, and callers
+        // must keep awaiting that termination window.
         const inFlight = this.inFlightFetches.get(url);
         if (inFlight) {
             console.log(
@@ -79,6 +74,14 @@ export class EpgWorkerService {
                 `Reusing in-flight EPG fetch: ${url}`
             );
             return inFlight;
+        }
+
+        if (this.fetchedUrls.has(url)) {
+            console.log(
+                this.loggerLabel,
+                `Skipping already fetched URL: ${url}`
+            );
+            return;
         }
 
         const fetchPromise = this.startFetch(url).finally(() => {
@@ -307,17 +310,24 @@ export class EpgWorkerService {
                                 'EPG data cleared via worker'
                             );
                             this.fetchedUrls.clear();
-                            this.workers.forEach((runningWorker) => {
-                                void this.terminateWorker(
+                            // Resolve only after every interrupted fetch
+                            // worker has exited too — they may still hold the
+                            // SQLite lock the caller expects to be free.
+                            const terminations = [
+                                ...this.workers.values(),
+                            ].map((runningWorker) =>
+                                this.terminateWorker(
                                     runningWorker,
                                     'fetch during clear'
-                                );
-                            });
+                                )
+                            );
                             this.workers.clear();
-                            void this.terminateWorker(
-                                worker,
-                                'completed clear'
-                            ).then(() => resolve());
+                            terminations.push(
+                                this.terminateWorker(worker, 'completed clear')
+                            );
+                            void Promise.all(terminations).then(() =>
+                                resolve()
+                            );
                         });
                     } else if (message.type === 'EPG_ERROR') {
                         console.error(
