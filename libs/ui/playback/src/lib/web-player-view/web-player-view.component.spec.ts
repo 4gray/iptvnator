@@ -332,6 +332,43 @@ describe('WebPlayerViewComponent', () => {
         expect(player.recordingFolder()).toBe('');
     });
 
+    it('suppresses browser diagnostics while embedded MPV is selected', () => {
+        const requests: unknown[] = [];
+        runtimeCapabilities.supportsManagedExternalPlayers = true;
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.EmbeddedMpv);
+        component.externalFallbackRequested.subscribe((request) =>
+            requests.push(request)
+        );
+
+        fixture.detectChanges();
+        component.handlePlaybackIssue(createUnsupportedCodecDiagnostic());
+        fixture.detectChanges();
+        component.requestExternalFallback('mpv');
+
+        expect(component.playbackDiagnostic()).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.directive(StubEmbeddedMpvPlayerComponent)
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-diagnostic-banner"]')
+            )
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-fallback-mpv"]')
+            )
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="playback-fallback-vlc"]')
+            )
+        ).toBeNull();
+        expect(requests).toEqual([]);
+    });
+
     it('passes series navigation to embedded MPV and forwards episode navigation events', () => {
         const events: string[] = [];
         const seriesNavigation = {
