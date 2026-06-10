@@ -54,9 +54,13 @@ export class RuntimeCapabilitiesService {
     get usesCustomWindowControls(): boolean {
         return (
             (this.isWindows || this.isLinux) &&
-            ['minimizeWindow', 'toggleMaximizeWindow', 'closeWindow'].every(
-                (methodName) => this.hasElectronMethod(methodName)
-            )
+            [
+                'minimizeWindow',
+                'toggleMaximizeWindow',
+                'closeWindow',
+                'getWindowState',
+                'onWindowStateChange',
+            ].every((methodName) => this.hasElectronMethod(methodName))
         );
     }
 
