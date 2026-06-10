@@ -36,93 +36,109 @@ function getService(): EmbeddedMpvNativeService {
     return embeddedMpvNativeService;
 }
 
-ipcMain.handle(EMBEDDED_MPV_SUPPORT, () => getService().getSupport());
+/**
+ * Registers an embedded-MPV IPC handler that logs failures in the main
+ * process before rethrowing them to the renderer. The renderer swallows
+ * these rejections (the next session snapshot resyncs its state), so
+ * without main-side logging addon errors would be invisible.
+ */
+function handleEmbeddedMpv<Args extends unknown[]>(
+    channel: string,
+    handler: (...args: Args) => unknown
+): void {
+    ipcMain.handle(channel, async (_event, ...args: unknown[]) => {
+        try {
+            return await handler(...(args as Args));
+        } catch (error) {
+            console.error(
+                `[Embedded MPV] ${channel} handler failed:`,
+                error
+            );
+            throw error;
+        }
+    });
+}
 
-ipcMain.handle(EMBEDDED_MPV_PREPARE, () => getService().prepareAddon());
+handleEmbeddedMpv(EMBEDDED_MPV_SUPPORT, () => getService().getSupport());
 
-ipcMain.handle(
+handleEmbeddedMpv(EMBEDDED_MPV_PREPARE, () => getService().prepareAddon());
+
+handleEmbeddedMpv(
     EMBEDDED_MPV_CREATE_SESSION,
-    (
-        _event,
-        bounds: EmbeddedMpvBounds,
-        title?: string,
-        initialVolume?: number
-    ) => getService().createSession(bounds, title, initialVolume)
+    (bounds: EmbeddedMpvBounds, title?: string, initialVolume?: number) =>
+        getService().createSession(bounds, title, initialVolume)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_LOAD_PLAYBACK,
-    (_event, sessionId: string, playback: ResolvedPortalPlayback) =>
+    (sessionId: string, playback: ResolvedPortalPlayback) =>
         getService().loadPlayback(sessionId, playback)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_BOUNDS,
-    (_event, sessionId: string, bounds: EmbeddedMpvBounds) =>
+    (sessionId: string, bounds: EmbeddedMpvBounds) =>
         getService().setBounds(sessionId, bounds)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_PAUSED,
-    (_event, sessionId: string, paused: boolean) =>
+    (sessionId: string, paused: boolean) =>
         getService().setPaused(sessionId, paused)
 );
 
-ipcMain.handle(
-    EMBEDDED_MPV_SEEK,
-    (_event, sessionId: string, seconds: number) =>
-        getService().seek(sessionId, seconds)
+handleEmbeddedMpv(EMBEDDED_MPV_SEEK, (sessionId: string, seconds: number) =>
+    getService().seek(sessionId, seconds)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_VOLUME,
-    (_event, sessionId: string, volume: number) =>
+    (sessionId: string, volume: number) =>
         getService().setVolume(sessionId, volume)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_AUDIO_TRACK,
-    (_event, sessionId: string, trackId: number) =>
+    (sessionId: string, trackId: number) =>
         getService().setAudioTrack(sessionId, trackId)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
-    (_event, sessionId: string, trackId: number) =>
+    (sessionId: string, trackId: number) =>
         getService().setSubtitleTrack(sessionId, trackId)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_SPEED,
-    (_event, sessionId: string, speed: number) =>
-        getService().setSpeed(sessionId, speed)
+    (sessionId: string, speed: number) => getService().setSpeed(sessionId, speed)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_SET_ASPECT,
-    (_event, sessionId: string, aspect: string) =>
+    (sessionId: string, aspect: string) =>
         getService().setAspect(sessionId, aspect)
 );
 
-ipcMain.handle(
+handleEmbeddedMpv(
     EMBEDDED_MPV_START_RECORDING,
-    (_event, sessionId: string, options: EmbeddedMpvRecordingStartOptions) =>
+    (sessionId: string, options: EmbeddedMpvRecordingStartOptions) =>
         getService().startRecording(sessionId, options)
 );
 
-ipcMain.handle(EMBEDDED_MPV_STOP_RECORDING, (_event, sessionId: string) =>
+handleEmbeddedMpv(EMBEDDED_MPV_STOP_RECORDING, (sessionId: string) =>
     getService().stopRecording(sessionId)
 );
 
-ipcMain.handle(EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER, () =>
+handleEmbeddedMpv(EMBEDDED_MPV_GET_DEFAULT_RECORDING_FOLDER, () =>
     getService().getDefaultRecordingFolder()
 );
 
-ipcMain.handle(EMBEDDED_MPV_SELECT_RECORDING_FOLDER, () =>
+handleEmbeddedMpv(EMBEDDED_MPV_SELECT_RECORDING_FOLDER, () =>
     getService().selectRecordingFolder()
 );
 
-ipcMain.handle(EMBEDDED_MPV_DISPOSE_SESSION, (_event, sessionId: string) =>
+handleEmbeddedMpv(EMBEDDED_MPV_DISPOSE_SESSION, (sessionId: string) =>
     getService().disposeSession(sessionId)
 );
 
