@@ -2,10 +2,15 @@ import { Directive, Component, input, output, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { ActivatedRoute, convertToParamMap } from '@angular/router';
+import {
+    ActivatedRoute,
+    NavigationEnd,
+    Router,
+    convertToParamMap,
+} from '@angular/router';
 import { MockPipe } from 'ng-mocks';
 import { TranslatePipe } from '@ngx-translate/core';
-import { BehaviorSubject, of } from 'rxjs';
+import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     LIVE_SIDEBAR_STATE_STORAGE_KEY,
@@ -139,6 +144,7 @@ describe('LiveStreamLayoutComponent', () => {
     const selectedContentType = signal<'live' | 'vod' | 'series'>('live');
     const selectedItem = signal<unknown>(sampleChannel);
     const currentPlaylist = signal(playlist);
+    const liveStreams = signal<unknown[]>([]);
 
     const xtreamStore = {
         getCategoriesBySelectedType: categories,
@@ -151,10 +157,15 @@ describe('LiveStreamLayoutComponent', () => {
         selectedContentType,
         selectedItem,
         currentPlaylist,
+        liveStreams,
         selectItemsFromSelectedCategory: jest.fn(() => [sampleChannel]),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
+        setSelectedItem: jest.fn(),
+        setSelectedCategory: jest.fn(),
     };
+
+    let routerEvents: Subject<unknown>;
     const favoritesService = {
         getFavorites: jest.fn().mockReturnValue(of([])),
     };
@@ -186,11 +197,15 @@ describe('LiveStreamLayoutComponent', () => {
             onRemoteControlCommand: jest.fn(() => jest.fn()),
         } as typeof window.electron;
 
+        routerEvents = new Subject();
         xtreamStore.constructStreamUrl.mockClear();
         xtreamStore.openPlayer.mockClear();
+        xtreamStore.setSelectedItem.mockClear();
+        xtreamStore.setSelectedCategory.mockClear();
         xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
             sampleChannel,
         ]);
+        liveStreams.set([]);
         favoritesService.getFavorites.mockClear();
         xtreamUrlService.resolveCatchupUrl.mockClear();
         portalPlayer.isEmbeddedPlayer.mockReset();
@@ -225,6 +240,10 @@ describe('LiveStreamLayoutComponent', () => {
                             },
                         ],
                     },
+                },
+                {
+                    provide: Router,
+                    useValue: { events: routerEvents.asObservable() },
                 },
                 { provide: XtreamStore, useValue: xtreamStore },
                 { provide: FavoritesService, useValue: favoritesService },
@@ -646,6 +665,127 @@ describe('LiveStreamLayoutComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.sidebar-restore')
         ).toBeNull();
+    });
+
+    describe('auto-open from Ctrl+F search navigation state', () => {
+        const searchChannel = {
+            xtream_id: 202,
+            name: 'Search Channel',
+            category_id: '7',
+            stream_icon: 'search-channel.png',
+            tv_archive: 0,
+            tv_archive_duration: 0,
+        };
+
+        function triggerNavigationEnd() {
+            routerEvents.next(
+                new NavigationEnd(
+                    1,
+                    '/workspace/xtreams/playlist-1/live',
+                    '/workspace/xtreams/playlist-1/live'
+                )
+            );
+        }
+
+        beforeEach(() => {
+            window.history.replaceState(
+                { openXtreamLiveItemId: searchChannel.xtream_id },
+                ''
+            );
+        });
+
+        afterEach(() => {
+            window.history.replaceState({}, '');
+        });
+
+        it('plays and selects a channel found in liveStreams on NavigationEnd', () => {
+            liveStreams.set([searchChannel]);
+            fixture.detectChanges();
+
+            triggerNavigationEnd();
+            fixture.detectChanges();
+
+            expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
+                searchChannel
+            );
+            expect(xtreamStore.setSelectedItem).toHaveBeenCalledWith(
+                searchChannel
+            );
+        });
+
+        it('sets the channel category so the sidebar highlights the correct entry', () => {
+            liveStreams.set([searchChannel]);
+            fixture.detectChanges();
+
+            triggerNavigationEnd();
+            fixture.detectChanges();
+
+            expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(7);
+        });
+
+        it('does not auto-open while selectedContentType is not live', () => {
+            selectedContentType.set('vod');
+            liveStreams.set([searchChannel]);
+            fixture.detectChanges();
+
+            triggerNavigationEnd();
+            fixture.detectChanges();
+
+            expect(xtreamStore.constructStreamUrl).not.toHaveBeenCalledWith(
+                searchChannel
+            );
+        });
+
+        it('waits for liveStreams to populate before playing', () => {
+            liveStreams.set([]);
+            fixture.detectChanges();
+
+            triggerNavigationEnd();
+            fixture.detectChanges();
+
+            expect(xtreamStore.constructStreamUrl).not.toHaveBeenCalled();
+
+            liveStreams.set([searchChannel]);
+            fixture.detectChanges();
+
+            expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
+                searchChannel
+            );
+        });
+
+        it('clears the pending ID when the channel is not found in liveStreams', () => {
+            liveStreams.set([{ ...searchChannel, xtream_id: 999 }]);
+            fixture.detectChanges();
+
+            triggerNavigationEnd();
+            fixture.detectChanges();
+
+            expect(xtreamStore.constructStreamUrl).not.toHaveBeenCalledWith(
+                searchChannel
+            );
+        });
+
+        it('re-triggers auto-open on re-navigation when component is reused', () => {
+            liveStreams.set([searchChannel]);
+            fixture.detectChanges();
+
+            // First navigation — clears the pending state
+            triggerNavigationEnd();
+            fixture.detectChanges();
+            xtreamStore.constructStreamUrl.mockClear();
+
+            // Simulate navigating away and back with the same state
+            window.history.replaceState(
+                { openXtreamLiveItemId: searchChannel.xtream_id },
+                ''
+            );
+            triggerNavigationEnd();
+            fixture.detectChanges();
+
+            expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
+                searchChannel
+            );
+        });
     });
 
     it('hides the archive-unavailable notice when there are no past programs yet', () => {

@@ -2,6 +2,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
     HostListener,
     computed,
     effect,
@@ -10,6 +11,8 @@ import {
     OnInit,
     signal,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
@@ -62,12 +65,13 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 interface XtreamLiveChannelItem {
+    readonly category_id?: string | number;
     readonly name?: string;
     readonly poster_url?: string;
     readonly stream_icon?: string;
@@ -100,7 +104,9 @@ interface XtreamLiveChannelItem {
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
+    private readonly destroyRef = inject(DestroyRef);
     private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
     private readonly favoritesService = inject(FavoritesService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly xtreamUrlService = inject(XtreamUrlService);
@@ -233,14 +239,15 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             onCleanup(() => clearInterval(intervalId));
         });
 
-        const requestedItemId = Number(
-            (window.history.state as Record<string, unknown> | null)?.[
-                'openXtreamLiveItemId'
-            ]
-        );
-        if (Number.isFinite(requestedItemId) && requestedItemId > 0) {
-            this.pendingAutoOpenLiveItemId.set(requestedItemId);
-        }
+        // Read pending auto-open state on every NavigationEnd — covers both the
+        // initial navigation (Angular fires NavigationEnd after component creation)
+        // and re-navigation to the same /live route when the component is reused.
+        this.router.events
+            .pipe(
+                filter((e) => e instanceof NavigationEnd),
+                takeUntilDestroyed(this.destroyRef)
+            )
+            .subscribe(() => this.checkPendingAutoOpenFromState());
 
         effect(() => {
             const pendingId = this.pendingAutoOpenLiveItemId();
@@ -248,12 +255,21 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 return;
             }
 
-            const channels = this.getVisibleChannels();
-            if (!Array.isArray(channels) || channels.length === 0) {
+            // Guard: only process once the live content view is active; otherwise
+            // the effect may fire while selectedContentType is still 'vod' and
+            // incorrectly conclude the channel isn't found.
+            if (this.xtreamStore.selectedContentType() !== 'live') {
                 return;
             }
 
-            const item = channels.find(
+            // Search across all live streams, not just the category-filtered view,
+            // so a channel from a different category can still be auto-opened.
+            const allChannels = this.getAllLiveStreams();
+            if (!Array.isArray(allChannels) || allChannels.length === 0) {
+                return;
+            }
+
+            const item = allChannels.find(
                 (channel) => Number(channel?.xtream_id) === pendingId
             );
             if (!item) {
@@ -262,6 +278,16 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             }
 
             this.playLive(item);
+            // Ensure selectedItem is set so EPG loading and remote-control
+            // status reflect the channel (constructStreamUrl also does this
+            // internally, but an explicit call makes the intent clear and
+            // keeps the auto-open path testable in isolation).
+            this.xtreamStore.setSelectedItem(item as unknown as Record<string, unknown>);
+            // Navigate to the channel's category so the sidebar shows it highlighted
+            const categoryId = Number(item.category_id);
+            if (Number.isFinite(categoryId) && categoryId > 0) {
+                this.xtreamStore.setSelectedCategory(categoryId);
+            }
             this.pendingAutoOpenLiveItemId.set(null);
             this.clearAutoOpenHistoryState();
         });
@@ -468,6 +494,21 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             request.playback,
             request.player
         );
+    }
+
+    private checkPendingAutoOpenFromState(): void {
+        const requestedItemId = Number(
+            (window.history.state as Record<string, unknown> | null)?.[
+                'openXtreamLiveItemId'
+            ]
+        );
+        if (Number.isFinite(requestedItemId) && requestedItemId > 0) {
+            this.pendingAutoOpenLiveItemId.set(requestedItemId);
+        }
+    }
+
+    private getAllLiveStreams(): XtreamLiveChannelItem[] {
+        return this.xtreamStore.liveStreams() as unknown as XtreamLiveChannelItem[];
     }
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {
