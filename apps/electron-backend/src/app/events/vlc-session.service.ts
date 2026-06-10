@@ -270,17 +270,33 @@ function getFreePort(): Promise<number> {
     });
 }
 
+function killStoredVlcProcess(reason: string): void {
+    if (!vlcProcess || vlcProcess.killed) {
+        return;
+    }
+    traceExternalPlayer(reason);
+    vlcProcess.kill();
+    vlcProcess = null;
+    vlcRcPort = null;
+    stopVlcPositionPolling();
+}
+
 export function setVlcReuseInstance(reuseInstance: boolean): void {
     traceExternalPlayer('set vlc reuse instance', { reuseInstance });
     store.set(VLC_REUSE_INSTANCE, reuseInstance);
 
-    if (!reuseInstance && vlcProcess && !vlcProcess.killed) {
-        traceExternalPlayer('clean up vlc process after disabling reuse');
-        vlcProcess.kill();
-        vlcProcess = null;
-        vlcRcPort = null;
-        stopVlcPositionPolling();
+    if (!reuseInstance) {
+        killStoredVlcProcess('clean up vlc process after disabling reuse');
     }
+}
+
+/**
+ * Kill the VLC instance kept alive for reuse. The reused process is spawned
+ * non-detached, so without an explicit kill it outlives the app and keeps
+ * playing after quit.
+ */
+export function shutdownVlcSession(): void {
+    killStoredVlcProcess('kill reused vlc process on app shutdown');
 }
 
 export async function openVlcPlayer({
