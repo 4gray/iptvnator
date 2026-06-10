@@ -7,6 +7,13 @@ import {
 
 // Custom window controls are only rendered on Windows/Linux; macOS keeps
 // the native traffic lights.
+//
+// Linux CI runs Electron under xvfb, which has no window manager, so
+// maximize/minimize never take effect there — those tests are skipped and
+// rely on Windows CI plus local Linux/macOS runs for coverage.
+const isWindowManagerlessCi =
+    process.platform === 'linux' && !!process.env['CI'];
+
 test.describe('Custom window controls', () => {
     test.skip(
         process.platform === 'darwin',
@@ -39,6 +46,10 @@ test.describe('Custom window controls', () => {
     test('@electron maximize button toggles the native window state', async ({
         dataDir,
     }) => {
+        test.skip(
+            isWindowManagerlessCi,
+            'xvfb on Linux CI has no window manager'
+        );
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -67,6 +78,10 @@ test.describe('Custom window controls', () => {
     test('@electron reflects window state changes triggered from the main process', async ({
         dataDir,
     }) => {
+        test.skip(
+            isWindowManagerlessCi,
+            'xvfb on Linux CI has no window manager'
+        );
         const app = await launchElectronApp(dataDir);
 
         try {
@@ -91,6 +106,10 @@ test.describe('Custom window controls', () => {
     test('@electron minimize button minimizes the window', async ({
         dataDir,
     }) => {
+        test.skip(
+            isWindowManagerlessCi,
+            'xvfb on Linux CI has no window manager'
+        );
         const app = await launchElectronApp(dataDir);
 
         try {

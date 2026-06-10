@@ -45,15 +45,26 @@ ipcMain.handle(WINDOW_MINIMIZE, (event) => {
 ipcMain.handle(WINDOW_TOGGLE_MAXIMIZE, (event): WindowState => {
     const win = getSenderWindow(event);
 
-    if (win) {
-        if (win.isMaximized()) {
-            win.unmaximize();
-        } else {
-            win.maximize();
-        }
+    if (!win) {
+        return getWindowState(win);
     }
 
-    return getWindowState(win);
+    // maximize()/unmaximize() complete asynchronously on Linux window
+    // managers, so re-reading isMaximized() here would race. Report the
+    // requested state instead; the WINDOW:STATE_CHANGED push stays the
+    // authoritative update once the window manager has acted.
+    const shouldMaximize = !win.isMaximized();
+
+    if (shouldMaximize) {
+        win.maximize();
+    } else {
+        win.unmaximize();
+    }
+
+    return {
+        isMaximized: shouldMaximize,
+        isFullScreen: win.isFullScreen(),
+    };
 });
 
 // win.close() (instead of app.quit()) so the window's 'close' handler still

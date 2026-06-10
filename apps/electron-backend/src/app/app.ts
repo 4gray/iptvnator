@@ -258,6 +258,13 @@ export default class App {
     }
 
     private static attachWindowStateEvents(win: Electron.BrowserWindow): void {
+        // Only Windows/Linux render custom window controls that subscribe
+        // to these pushes; macOS keeps the native traffic lights, so
+        // sending state updates there would be dead IPC traffic.
+        if (process.platform === 'darwin') {
+            return;
+        }
+
         const sendWindowState = () => {
             if (win.isDestroyed()) {
                 return;
