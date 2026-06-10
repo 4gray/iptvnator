@@ -137,6 +137,7 @@ export class WebPlayerViewComponent {
 
     constructor() {
         effect(() => {
+            // Track player changes so stale browser diagnostics are cleared on switch.
             this.selectedPlayer();
 
             const playback = this.resolvedPlayback();
