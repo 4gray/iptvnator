@@ -177,10 +177,18 @@ describe('EmbeddedMpvNativeService power blocker', () => {
 
         try {
             startSession('s1', snapshot('playing'));
+            startSession('s2', snapshot('playing'));
 
-            addon.getSessionSnapshot.mockImplementation(() => {
-                throw new Error('addon crashed');
-            });
+            // s1 keeps failing while s2 stays healthy: the healthy session
+            // must not reset the log suppression for the failing one.
+            addon.getSessionSnapshot.mockImplementation(
+                (sessionId: string) => {
+                    if (sessionId === 's1') {
+                        throw new Error('addon crashed');
+                    }
+                    return snapshot('playing');
+                }
+            );
 
             // Three poll ticks: nothing may escape the interval callback,
             // and the failure is logged once instead of at poll rate.
@@ -194,6 +202,14 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             mainWindowSendMock.mockClear();
             jest.advanceTimersByTime(500);
             expect(mainWindowSendMock).toHaveBeenCalled();
+
+            // A recovered session that fails again logs once more (one line
+            // per session per failure streak, not one per service lifetime).
+            addon.getSessionSnapshot.mockImplementation(() => {
+                throw new Error('addon crashed again');
+            });
+            jest.advanceTimersByTime(1000);
+            expect(consoleErrorSpy).toHaveBeenCalledTimes(3);
         } finally {
             consoleErrorSpy.mockRestore();
         }
