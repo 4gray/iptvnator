@@ -1,0 +1,55 @@
+<button
+    type="button"
+    class="window-control"
+    data-test-id="window-minimize"
+    aria-label="Minimize"
+    title="Minimize"
+    (click)="onMinimize()"
+>
+    <svg viewBox="0 0 10 10" class="crisp" aria-hidden="true">
+        <path d="M0 5h10" />
+    </svg>
+</button>
+
+<button
+    type="button"
+    class="window-control"
+    data-test-id="window-maximize"
+    [attr.aria-label]="isMaximized() ? 'Restore' : 'Maximize'"
+    [attr.title]="isMaximized() ? 'Restore' : 'Maximize'"
+    (click)="onToggleMaximize()"
+>
+    @if (isMaximized()) {
+        <svg
+            viewBox="0 0 10 10"
+            class="crisp"
+            data-test-id="window-restore-glyph"
+            aria-hidden="true"
+        >
+            <path d="M0.5 2.5h7v7h-7z" />
+            <path d="M2.5 2.5v-2h7v7h-2" />
+        </svg>
+    } @else {
+        <svg
+            viewBox="0 0 10 10"
+            class="crisp"
+            data-test-id="window-maximize-glyph"
+            aria-hidden="true"
+        >
+            <path d="M0.5 0.5h9v9h-9z" />
+        </svg>
+    }
+</button>
+
+<button
+    type="button"
+    class="window-control close"
+    data-test-id="window-close"
+    aria-label="Close"
+    title="Close"
+    (click)="onClose()"
+>
+    <svg viewBox="0 0 10 10" aria-hidden="true">
+        <path d="M0.5 0.5l9 9m0 -9l-9 9" />
+    </svg>
+</button>

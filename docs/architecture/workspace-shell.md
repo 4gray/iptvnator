@@ -74,20 +74,20 @@ Provider route integration:
 The shell is intentionally split into four persistent regions:
 
 1. Left rail:
-   1. Static workspace links for dashboard, sources, global favorites, and recently viewed.
-   2. Provider-aware context links derived from the active or current playlist.
-   3. Settings remains a persistent footer shortcut in the rail.
+    1. Static workspace links for dashboard, sources, global favorites, and recently viewed.
+    2. Provider-aware context links derived from the active or current playlist.
+    3. Settings remains a persistent footer shortcut in the rail.
 2. Top header:
-   1. Playlist switcher.
-   2. Route-aware search input and command palette trigger.
-   3. Add source action.
-   4. Optional playlist refresh and route-specific shortcut actions.
-   5. Downloads shortcut in Electron.
+    1. Playlist switcher.
+    2. Route-aware search input and command palette trigger.
+    3. Add source action.
+    4. Optional playlist refresh and route-specific shortcut actions.
+    5. Downloads shortcut in Electron.
 3. Main body:
-   1. Optional left context panel.
-   2. Main router outlet content.
+    1. Optional left context panel.
+    2. Main router outlet content.
 4. Optional footer:
-   1. External playback session bar when a docked session is visible.
+    1. External playback session bar when a docked session is visible.
 
 `WorkspaceShellComponent` binds only to `WorkspaceShellFacade`. The facade is
 kept as a thin template-facing API and delegates ownership to component-scoped
@@ -116,15 +116,15 @@ for the template unless the template contract itself intentionally changes.
 The shell decides which secondary panel to show from the current route:
 
 1. `/workspace/sources`
-   1. `WorkspaceSourcesFiltersPanelComponent`
+    1. `WorkspaceSourcesFiltersPanelComponent`
 2. Xtream category sections (`live`, `vod`, `series`)
-   1. `WorkspaceContextPanelComponent`
+    1. `WorkspaceContextPanelComponent`
 3. Stalker category sections (`itv`, `radio`, `vod`, `series`)
-   1. `WorkspaceContextPanelComponent`
+    1. `WorkspaceContextPanelComponent`
 4. `/workspace/settings`
-   1. `WorkspaceSettingsContextPanelComponent`
+    1. `WorkspaceSettingsContextPanelComponent`
 5. Downloads sections
-   1. `WorkspaceCollectionContextPanelComponent`
+    1. `WorkspaceCollectionContextPanelComponent`
 
 The context panel is part of the shell contract. New workspace-level routes
 should explicitly decide whether they need one rather than adding local
@@ -196,6 +196,91 @@ Keyboard shortcut help is shell-owned:
 4. New custom shortcuts should be added to that registry when the handler is
    added. Do not include native browser/editor behavior such as `Tab` or
    platform text editing shortcuts.
+
+## Window Chrome And Custom Title Bar
+
+The Electron window hides the native title bar on all desktop platforms
+(`titleBarStyle: 'hidden'` in `apps/electron-backend/src/app/app.ts`):
+
+1. macOS keeps the native traffic lights (`titleBarOverlay: true`,
+   `trafficLightPosition`); the renderer draws no window buttons.
+2. Windows and Linux use renderer-drawn window controls
+   (`app-window-controls`, `libs/ui/components/src/lib/window-controls/`).
+   `frame` is intentionally left untouched so native resize borders and
+   window snapping keep working.
+
+The controls are mounted once in `app-root` (not inside the workspace
+header) as a `position: fixed` top-right overlay so they stay clickable
+above full-window content such as the multi-EPG cdk overlay and Material
+dialog backdrops — the same behavior as the macOS traffic lights. Because
+CDK overlays render as popovers in the browser top layer (above any
+z-index), the component host is itself a `popover="manual"` element: it
+enters the top layer on init and re-enters it (hide + show) whenever
+another popover opens, so the controls always paint last. The
+`z-index: 10000` remains only as a fallback when the popover API is
+unavailable. They render only when
+`RuntimeCapabilitiesService.usesCustomWindowControls` is true (Windows/Linux
+Electron with the window-control bridge methods available); the PWA and
+macOS never mount them.
+
+IPC contract (constants in `libs/shared/interfaces/src/lib/ipc-commands.ts`,
+handlers in `apps/electron-backend/src/app/events/window.events.ts`):
+
+1. `WINDOW:MINIMIZE`, `WINDOW:TOGGLE_MAXIMIZE`, `WINDOW:CLOSE`,
+   `WINDOW:GET_STATE` are `ipcMain.handle` channels resolved from the sender
+   WebContents. Close goes through `win.close()` so the existing
+   window-bounds persistence in `app.ts` still runs.
+2. `WINDOW:STATE_CHANGED` is pushed main → renderer on
+   maximize/unmaximize/enter-full-screen/leave-full-screen so the
+   maximize/restore glyph stays correct for externally triggered changes
+   (double-click on a drag region, OS snap, F11). The controls hide
+   themselves while the window is fullscreen.
+
+Layout integration:
+
+1. `document.body` gets a `frameless-platform` class (set in
+   `AppComponent`, same mechanism as `dark-theme`) — body-level so rules
+   also reach cdk-overlay content rendered outside `app-root`.
+2. `apps/web/src/styles.scss` reserves `padding-right: 150px` in
+   top-aligned drag regions (`.workspace-header`, multi-EPG
+   `#epg-navigation`) for the 3 × 46px button strip.
+3. Button colors follow the theme via CSS variables (`--app-on-surface`,
+   `--app-hover-overlay`); the close button uses the Windows-style red
+   hover (`#e81123`). No theme IPC is involved.
+
+Window decorations on Linux (shadows, corners):
+
+1. Hiding the title bar removes the window manager's decorations, so the
+   shadow/rounded corners must come from client-side decorations (CSD).
+   Electron only draws CSD on native Wayland, and frameless-window CSD
+   (GTK drop shadow + extended resize boundaries, `hasShadow: true` by
+   default) requires **Electron >= 41** — the reason the dependency was
+   bumped from 39. Electron picks Wayland automatically on Wayland
+   sessions since 38.2.
+2. On X11 sessions frameless windows stay undecorated (square, no
+   shadow) — an upstream platform limitation shared by e.g. VS Code.
+3. Rounded corners for frameless Linux windows are not yet supported by
+   Electron (tracked upstream as planned work); Windows 11 keeps its DWM
+   rounded corners and shadow because the standard frame is retained.
+
+Toolchain notes for the Electron 41 upgrade:
+
+1. `better-sqlite3` is pinned to exactly `12.9.0` — the last release that
+   ships prebuilt binaries for BOTH Node 20 (ABI 115, used by Jest) and
+   Electron 41 (ABI 145, used at runtime). `12.10.0` dropped the Node 20
+   prebuilds, which forces a from-source build that fails on machines
+   without a C++ toolchain.
+2. The pnpm override `node-abi@3.85.0 -> 3.92.0` is required so
+   `@electron/rebuild` (via `electron-builder install-app-deps`) can map
+   Electron 41 to its ABI.
+
+Known caveats:
+
+1. DIY buttons cannot show the Windows 11 Snap Layouts flyout (only native
+   caption buttons or the Window Controls Overlay get that).
+2. Double-click-to-maximize on drag regions is handled natively by
+   Electron/Chromium; on Linux the exact behavior depends on the window
+   manager.
 
 ## Maintenance Guidance
 

@@ -135,6 +135,11 @@ export interface ElectronBridgeDialogFilter {
     extensions: string[];
 }
 
+export interface ElectronBridgeWindowState {
+    isMaximized: boolean;
+    isFullScreen: boolean;
+}
+
 export interface ElectronBridgeAiSettings {
     aiProvider: string;
     aiModelName: string;
@@ -425,6 +430,13 @@ export interface ElectronBridgeApi {
     ) => () => void;
     getAppVersion: () => Promise<string>;
     platform: string;
+    minimizeWindow: () => Promise<void>;
+    toggleMaximizeWindow: () => Promise<ElectronBridgeWindowState>;
+    closeWindow: () => Promise<void>;
+    getWindowState: () => Promise<ElectronBridgeWindowState>;
+    onWindowStateChange: (
+        callback: (state: ElectronBridgeWindowState) => void
+    ) => () => void;
     fetchPlaylistByUrl: (url: string, title?: string) => Promise<Playlist>;
     updatePlaylistFromFilePath: (
         filePath: string,
