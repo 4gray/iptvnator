@@ -7,8 +7,18 @@
 #include <mpv/client.h>
 
 #ifdef IPTVNATOR_DYNAMIC_LIBMPV
+#ifndef IPTVNATOR_MPV_SELECTANY
+#ifdef MPV_SELECTANY
+#define IPTVNATOR_MPV_SELECTANY MPV_SELECTANY
+#elif defined(_WIN32)
+#define IPTVNATOR_MPV_SELECTANY __declspec(selectany)
+#else
+#define IPTVNATOR_MPV_SELECTANY
+#endif
+#endif
+
 #define IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(name) \
-    MPV_SELECTANY decltype(&name) pfn_##name = nullptr;
+    IPTVNATOR_MPV_SELECTANY decltype(&name) pfn_##name = nullptr;
 
 IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_async)
 IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_node_async)
