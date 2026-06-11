@@ -1,4 +1,5 @@
 import { app, BrowserWindow, Menu, screen, shell } from 'electron';
+import { WINDOW_STATE_CHANGED } from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
@@ -237,6 +238,50 @@ export default class App {
         }
     }
 
+    /**
+     * Hide the native title bar on every desktop platform. macOS keeps the
+     * system traffic lights (overlay), while Windows/Linux rely on the
+     * renderer-drawn window controls (`app-window-controls`) wired up via the
+     * WINDOW:* IPC channels. `frame` stays untouched so native resize borders
+     * and snapping keep working.
+     */
+    private static getPlatformTitleBarOptions(): Electron.BrowserWindowConstructorOptions {
+        if (process.platform === 'darwin') {
+            return {
+                titleBarStyle: 'hidden',
+                titleBarOverlay: true,
+                trafficLightPosition: { x: 16, y: 20 },
+            };
+        }
+
+        return { titleBarStyle: 'hidden' };
+    }
+
+    private static attachWindowStateEvents(win: Electron.BrowserWindow): void {
+        // Only Windows/Linux render custom window controls that subscribe
+        // to these pushes; macOS keeps the native traffic lights, so
+        // sending state updates there would be dead IPC traffic.
+        if (process.platform === 'darwin') {
+            return;
+        }
+
+        const sendWindowState = () => {
+            if (win.isDestroyed()) {
+                return;
+            }
+
+            win.webContents.send(WINDOW_STATE_CHANGED, {
+                isMaximized: win.isMaximized(),
+                isFullScreen: win.isFullScreen(),
+            });
+        };
+
+        win.on('maximize', sendWindowState);
+        win.on('unmaximize', sendWindowState);
+        win.on('enter-full-screen', sendWindowState);
+        win.on('leave-full-screen', sendWindowState);
+    }
+
     private static initMainWindow() {
         const workAreaSize = screen.getPrimaryDisplay().workAreaSize;
         const width = Math.min(1280, workAreaSize.width || 1280);
@@ -254,16 +299,11 @@ export default class App {
             ...savedWindowBounds,
             minHeight: 600,
             minWidth: 900,
-            ...(process.platform === 'darwin'
-                ? {
-                      titleBarStyle: 'hidden',
-                      titleBarOverlay: true,
-                      trafficLightPosition: { x: 16, y: 20 },
-                  }
-                : {}),
+            ...App.getPlatformTitleBarOptions(),
         });
         App.mainWindow.setMenu(null);
         attachWindowTrace(App.mainWindow);
+        App.attachWindowStateEvents(App.mainWindow);
         if (!savedWindowBounds) {
             App.mainWindow.center();
         }

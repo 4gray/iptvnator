@@ -24,6 +24,7 @@ import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { databaseWorkerClient } from './app/services/database-worker-client';
+import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
 
 app.setName('iptvnator');
@@ -90,6 +91,7 @@ export default class Main {
         }
 
         ElectronEvents.bootstrapElectronEvents();
+        WindowEvents.bootstrapWindowEvents();
         EmbeddedMpvEvents.bootstrapEmbeddedMpvEvents();
         PlaylistEvents.bootstrapPlaylistEvents();
         SharedEvents.bootstrapSharedEvents();

@@ -13,6 +13,7 @@ import type {
     ElectronBridgePlaylistUpsertInput,
     ElectronBridgeRemoteControlCommand,
     ElectronBridgeRemoteControlStatus,
+    ElectronBridgeWindowState,
     ElectronBridgeXtreamContentStream,
     ExternalPlayerSession,
     PlaybackPositionData,
@@ -37,6 +38,11 @@ const EXTERNAL_PLAYER_SESSION_UPDATE = 'EXTERNAL_PLAYER_SESSION_UPDATE';
 const EMBEDDED_MPV_SESSION_UPDATE = 'EMBEDDED_MPV_SESSION_UPDATE';
 const DB_OPERATION_EVENT = 'DB_OPERATION_EVENT';
 const PLAYLIST_REFRESH_EVENT = 'PLAYLIST:REFRESH_EVENT';
+const WINDOW_MINIMIZE = 'WINDOW:MINIMIZE';
+const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
+const WINDOW_CLOSE = 'WINDOW:CLOSE';
+const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
+const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
 
 const dbSaveContentProgressListeners = new Set<
     (
@@ -282,6 +288,20 @@ const electronApi: ElectronBridgeApi = {
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
+    minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
+    toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
+    closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),
+    getWindowState: () => ipcRenderer.invoke(WINDOW_GET_STATE),
+    onWindowStateChange: (
+        callback: (state: ElectronBridgeWindowState) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            state: ElectronBridgeWindowState
+        ) => callback(state);
+        ipcRenderer.on(WINDOW_STATE_CHANGED, handler);
+        return () => ipcRenderer.off(WINDOW_STATE_CHANGED, handler);
+    },
     fetchPlaylistByUrl: (url: string, title?: string) =>
         ipcRenderer.invoke('fetch-playlist-by-url', url, title),
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
