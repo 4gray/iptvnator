@@ -14,6 +14,8 @@ describe('url-safety', () => {
             '169.254.169.254',
             '::1',
             'fd00::1',
+            'fe80::1',
+            'febf::1',
             '::ffff:127.0.0.1',
         ])('flags %s as private/reserved', (ip) => {
             expect(isPrivateOrReservedIp(ip)).toBe(true);

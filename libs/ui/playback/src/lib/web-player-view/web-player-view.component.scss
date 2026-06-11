@@ -14,6 +14,15 @@ app-html-video-player {
     height: 100%;
 }
 
+// Holds the player's space (black, no layout shift) for the one-frame gap
+// before a @defer (on immediate) player chunk resolves.
+.web-player-defer-placeholder {
+    display: block;
+    width: 100%;
+    height: 100%;
+    background: #000;
+}
+
 .web-player-diagnostic {
     position: absolute;
     inset: 0;

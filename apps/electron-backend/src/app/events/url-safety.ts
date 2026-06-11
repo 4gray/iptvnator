@@ -66,7 +66,8 @@ export function isPrivateOrReservedIpv6(address: string): boolean {
         normalized === '::1' ||
         normalized.startsWith('fc') ||
         normalized.startsWith('fd') ||
-        normalized.startsWith('fe80:')
+        // Link-local fe80::/10 spans fe80:: through febf:: (3rd nibble 8-b).
+        /^fe[89ab]/.test(normalized)
     ) {
         return true;
     }

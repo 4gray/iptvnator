@@ -42,6 +42,10 @@ export default class PlaylistEvents {
  * so a compromised/abusive renderer cannot write to arbitrary host paths.
  */
 const authorizedWritePaths = new Set<string>();
+// Bound the set: a save dialog can be opened without the write ever firing
+// (operation cancelled, renderer error), which would otherwise leak entries
+// until the next app restart. Past this cap, evict oldest-first.
+const MAX_AUTHORIZED_WRITE_PATHS = 32;
 
 type ActivePlaylistRefresh = {
     reject: (reason?: unknown) => void;
@@ -368,6 +372,13 @@ ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
         // Remember this path as user-authorized so the subsequent
         // `write-file` call (e.g. settings/playlist backup export) is allowed.
         authorizedWritePaths.add(resolvePath(filePath));
+        while (authorizedWritePaths.size > MAX_AUTHORIZED_WRITE_PATHS) {
+            const oldest = authorizedWritePaths.values().next().value;
+            if (oldest === undefined) {
+                break;
+            }
+            authorizedWritePaths.delete(oldest);
+        }
         return filePath;
     } catch (error) {
         console.error('Error showing save dialog:', error);

@@ -7,6 +7,8 @@
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
         />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 } @else if (selectedPlayer() === 'html5') {
     @defer (on immediate) {
@@ -18,6 +20,8 @@
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
         />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 } @else if (selectedPlayer() === 'artplayer') {
     @defer (on immediate) {
@@ -29,6 +33,8 @@
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
         />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 } @else if (selectedPlayer() === 'embedded-mpv') {
     <app-embedded-mpv-player
@@ -49,6 +55,8 @@
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
         />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
     }
 }
 
