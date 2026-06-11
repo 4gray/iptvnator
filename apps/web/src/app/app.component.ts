@@ -4,9 +4,13 @@ import { Router, RouterOutlet } from '@angular/router';
 import { Actions, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
+import {
+    EpgRuntimeBridgeService,
+    EpgService,
+} from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { EpgProgressPanelComponent } from '@iptvnator/ui/epg/progress-panel';
+import { WindowControlsComponent } from '@iptvnator/ui/components';
 import { PlaylistActions, selectAllPlaylistsMeta } from '@iptvnator/m3u-state';
 import { filter, take } from 'rxjs';
 import {
@@ -30,11 +34,14 @@ const debugAppComponent = createDevLogger('AppComponent');
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    imports: [EpgProgressPanelComponent, RouterOutlet],
+    imports: [EpgProgressPanelComponent, RouterOutlet, WindowControlsComponent],
 })
 export class AppComponent implements OnInit {
     @HostBinding('class.macos-platform') get isMacOS() {
         return this.runtime.isMacOS;
+    }
+    get usesCustomWindowControls() {
+        return this.runtime.usesCustomWindowControls;
     }
     private actions$ = inject(Actions);
     private dataService = inject(DataService);
@@ -53,6 +60,12 @@ export class AppComponent implements OnInit {
     private readonly DEFAULT_LANG = Language.ENGLISH;
 
     constructor() {
+        // Body-level class (like 'dark-theme') so layout adjustments also
+        // reach content rendered outside app-root, e.g. cdk-overlay content.
+        if (this.runtime.usesCustomWindowControls) {
+            document.body.classList.add('frameless-platform');
+        }
+
         const electronProcess = this.dataService.remote?.process;
         if (
             this.dataService.isElectron &&
