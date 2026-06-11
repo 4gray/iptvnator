@@ -1,3 +1,20 @@
+type HeaderReader =
+    | Record<string, unknown>
+    | {
+          get(name: string): unknown;
+      };
+
+function getHeaderValue(headers: HeaderReader, name: string): string | null {
+    const value =
+        'get' in headers && typeof headers.get === 'function'
+            ? headers.get(name)
+            : Object.entries(headers).find(
+                  ([headerName]) =>
+                      headerName.toLowerCase() === name.toLowerCase()
+              )?.[1];
+    return value === null || value === undefined ? null : String(value);
+}
+
 function hasGzipPath(url: string | null | undefined): boolean {
     if (!url) {
         return false;
@@ -16,13 +33,13 @@ function hasGzipPath(url: string | null | undefined): boolean {
  */
 export function shouldGunzipEpgResponse(
     originalUrl: string,
-    response: { headers: Headers; url?: string }
+    response: { headers: HeaderReader; url?: string }
 ): boolean {
     if (hasGzipPath(originalUrl) || hasGzipPath(response.url)) {
         return true;
     }
 
-    const contentType = response.headers.get('content-type');
+    const contentType = getHeaderValue(response.headers, 'content-type');
     if (
         contentType &&
         /(application\/gzip|application\/x-gzip)/i.test(contentType)
@@ -30,7 +47,10 @@ export function shouldGunzipEpgResponse(
         return true;
     }
 
-    const contentDisposition = response.headers.get('content-disposition');
+    const contentDisposition = getHeaderValue(
+        response.headers,
+        'content-disposition'
+    );
     if (contentDisposition?.toLowerCase().includes('.gz')) {
         return true;
     }

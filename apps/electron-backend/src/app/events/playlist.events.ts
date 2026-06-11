@@ -3,7 +3,6 @@
  * between the frontend to the electron backend.
  */
 
-import axios from 'axios';
 import { app, dialog, ipcMain, WebContents } from 'electron';
 import { parse } from 'iptv-playlist-parser';
 import {
@@ -29,6 +28,7 @@ import type {
     PlaylistRefreshWorkerMessage,
     PlaylistRefreshWorkerResponseMessage,
 } from '../workers/playlist-refresh.worker.types';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 export default class PlaylistEvents {
     static bootstrapPlaylistEvents(): Electron.IpcMain {
@@ -41,7 +41,7 @@ export default class PlaylistEvents {
  * dialog. The `write-file` IPC handler only writes to a path present here,
  * so a compromised/abusive renderer cannot write to arbitrary host paths.
  */
-const authorizedWritePaths = new Set<string>();
+const authorizedWritePaths = new Map<number, Set<string>>();
 // Bound the set: a save dialog can be opened without the write ever firing
 // (operation cancelled, renderer error), which would otherwise leak entries
 // until the next app restart. Past this cap, evict oldest-first.
@@ -67,7 +67,11 @@ async function fetchPlaylistFromUrl(
     title?: string
 ): Promise<Playlist> {
     const agent = createPlaylistHttpsAgent();
-    const result = await axios.get(url, { httpsAgent: agent });
+    const result = await requestWithValidatedRedirects<string>(
+        url,
+        { httpsAgent: agent, method: 'GET' },
+        { allowPrivateNetworks: true }
+    );
     const parsedPlaylist = parse(result.data);
 
     const extractedName = url && url.length > 1 ? getFilenameFromUrl(url) : '';
@@ -371,13 +375,17 @@ ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
 
         // Remember this path as user-authorized so the subsequent
         // `write-file` call (e.g. settings/playlist backup export) is allowed.
-        authorizedWritePaths.add(resolvePath(filePath));
-        while (authorizedWritePaths.size > MAX_AUTHORIZED_WRITE_PATHS) {
-            const oldest = authorizedWritePaths.values().next().value;
+        const senderId = event.sender.id;
+        const senderPaths =
+            authorizedWritePaths.get(senderId) ?? new Set<string>();
+        senderPaths.add(resolvePath(filePath));
+        authorizedWritePaths.set(senderId, senderPaths);
+        while (senderPaths.size > MAX_AUTHORIZED_WRITE_PATHS) {
+            const oldest = senderPaths.values().next().value;
             if (oldest === undefined) {
                 break;
             }
-            authorizedWritePaths.delete(oldest);
+            senderPaths.delete(oldest);
         }
         return filePath;
     } catch (error) {
@@ -388,16 +396,18 @@ ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
     const normalizedPath = resolvePath(String(filePath ?? ''));
-    if (!authorizedWritePaths.has(normalizedPath)) {
+    const senderPaths = authorizedWritePaths.get(event.sender.id);
+    if (!senderPaths?.delete(normalizedPath)) {
         console.error('Blocked unauthorized write-file path:', filePath);
         throw new Error(
             'Refusing to write to a path not authorized by a save dialog'
         );
     }
+    if (senderPaths.size === 0) {
+        authorizedWritePaths.delete(event.sender.id);
+    }
     try {
         await writeFile(normalizedPath, content, 'utf-8');
-        // Single-use authorization: a fresh dialog is required per write.
-        authorizedWritePaths.delete(normalizedPath);
         return { success: true };
     } catch (error) {
         console.error('Error writing file:', error);

@@ -137,14 +137,9 @@ export class DownloadsService implements OnDestroy {
     async loadDownloadFolder(): Promise<string> {
         if (!this.isAvailable()) return '';
 
-        // First check settings
-        const storedFolder = this.settingsStore.getDownloadFolder?.();
-        if (storedFolder) {
-            this.downloadFolder.set(storedFolder);
-            return storedFolder;
-        }
-
-        // Fall back to default
+        // The main process owns folder authorization. It returns either the OS
+        // default or a custom folder previously selected through a native
+        // dialog, rather than trusting renderer-managed settings.
         try {
             const defaultFolder =
                 await window.electron.downloadsGetDefaultFolder();

@@ -1,5 +1,4 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import { existsSync, mkdirSync } from 'fs';
 import { getIptvnatorDatabasePath } from '@iptvnator/shared/database/path-utils';
 import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
@@ -10,15 +9,14 @@ import {
     StreamingEpgParser,
 } from './epg-streaming-parser';
 import { shouldGunzipEpgResponse } from './epg-response-utils';
-import { assertRemoteUrlAllowed } from '../events/url-safety';
+import { isPrivateNetworkUrlAccessAllowed } from '../events/url-safety';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
     getNativeModuleSearchPaths,
     getWorkerDataNativeModuleSearchPaths,
     loadNativeModuleFromSearchPaths,
     registerNativeModuleSearchPaths,
 } from './worker-runtime-paths';
-
-let Database: typeof BetterSqlite3;
 
 const nativeModuleSearchPaths = [
     ...getWorkerDataNativeModuleSearchPaths(workerData),
@@ -36,12 +34,11 @@ function loadBetterSqlite3(): typeof BetterSqlite3 {
         loggerLabel: '[EPG Worker]',
         searchPaths: nativeModuleSearchPaths,
         fallbackRequire: () =>
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
             require('better-sqlite3') as typeof BetterSqlite3,
     });
 }
 
-Database = loadBetterSqlite3();
+const Database = loadBetterSqlite3();
 
 /**
  * Streaming EPG Parser Worker
@@ -195,7 +192,7 @@ class EpgDatabase {
                         episodeNum
                     );
                     insertedCount++;
-                } catch (err) {
+                } catch {
                     // Skip individual failures (e.g., FK constraint)
                 }
             }
@@ -230,20 +227,30 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
     let hasClearedSource = false;
 
     try {
-        // SSRF/LFI guard: the EPG URL can originate from a malicious M3U
-        // `url-tvg` attribute. Block non-http(s)/credentialed URLs (e.g.
-        // file://); private and LAN targets remain allowed since users
-        // legitimately self-host EPG sources.
-        await assertRemoteUrlAllowed(url.trim(), {
-            allowPrivateNetworks: true,
+        // EPG URLs can originate from an untrusted M3U `url-tvg` attribute.
+        // Validate every redirect and require an explicit operator opt-in for
+        // private/LAN sources.
+        const response = await requestWithValidatedRedirects<Readable>(
+            url.trim(),
+            {
+                decompress: false,
+                method: 'GET',
+                responseType: 'stream',
+            },
+            {
+                allowPrivateNetworks: isPrivateNetworkUrlAccessAllowed(),
+            }
+        );
+        const responseUrl = response.config.url;
+        const isGzipped = shouldGunzipEpgResponse(url, {
+            headers: response.headers,
+            url: responseUrl,
         });
-        const response = await fetch(url.trim());
-        const isGzipped = shouldGunzipEpgResponse(url, response);
 
-        if (response.url && response.url !== url) {
+        if (responseUrl && responseUrl !== url) {
             console.log(
                 loggerLabel,
-                `Resolved EPG redirect: ${url} -> ${response.url}`
+                `Resolved EPG redirect: ${url} -> ${responseUrl}`
             );
         }
 
@@ -252,11 +259,11 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
             `EPG response detected as gzipped: ${isGzipped}`
         );
 
-        if (!response.ok) {
+        if (response.status < 200 || response.status >= 300) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
 
-        if (!response.body) {
+        if (!response.data) {
             throw new Error('Response body is null');
         }
 
@@ -283,15 +290,12 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
             PROGRAM_BATCH_SIZE
         );
 
-        // Convert web stream to Node.js stream
-        const nodeStream = Readable.fromWeb(response.body as any);
-
         return new Promise((resolve, reject) => {
-            let dataStream: Readable = nodeStream;
+            let dataStream: Readable = response.data;
 
             if (isGzipped) {
                 const gunzip = createGunzip();
-                dataStream = nodeStream.pipe(gunzip);
+                dataStream = response.data.pipe(gunzip);
 
                 gunzip.on('error', (err) => {
                     console.error(loggerLabel, 'Gunzip error:', err);

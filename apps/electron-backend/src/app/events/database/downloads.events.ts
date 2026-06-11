@@ -4,19 +4,26 @@
  */
 
 import { and, eq, inArray, sql } from 'drizzle-orm';
-import { app, BrowserWindow, dialog, ipcMain, shell } from 'electron';
-import { download, File as ElectronDlFile } from 'electron-dl';
-import { existsSync, unlinkSync } from 'fs';
-import { basename, extname, join } from 'path';
+import {
+    app,
+    BrowserWindow,
+    dialog,
+    DownloadItem,
+    ipcMain,
+    shell,
+} from 'electron';
+import { CancelError, download } from 'electron-dl';
+import { existsSync } from 'fs';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { extname, join } from 'path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
-
-type DownloadStatus =
-    | 'queued'
-    | 'downloading'
-    | 'completed'
-    | 'failed'
-    | 'canceled';
+import { assertRemoteUrlAllowed } from '../url-safety';
+import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
+import {
+    removePartialDownload,
+    reserveAvailableDownloadFile,
+} from './download-file-path';
 
 interface DownloadTask {
     id: number;
@@ -24,13 +31,54 @@ interface DownloadTask {
     fileName: string;
     directory: string;
     headers?: Record<string, string>;
-    downloadItem?: ElectronDlFile;
+    downloadItem?: DownloadItem;
+    reservedPath?: string;
 }
 
 // Download queue management
 const downloadQueue: DownloadTask[] = [];
 let activeDownload: DownloadTask | null = null;
 let mainWindow: BrowserWindow | null = null;
+
+function getDownloadAuthorizationPath(): string {
+    return join(
+        app.getPath('userData'),
+        'download-directory-authorization.json'
+    );
+}
+
+const downloadDirectoryAuthorizer = new DownloadDirectoryAuthorizer({
+    getDefaultDirectory: () => app.getPath('downloads'),
+    loadSelectedDirectory: async () => {
+        try {
+            const stored = JSON.parse(
+                await readFile(getDownloadAuthorizationPath(), 'utf-8')
+            ) as { directory?: unknown };
+            return typeof stored.directory === 'string'
+                ? stored.directory
+                : null;
+        } catch (error) {
+            if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+                console.warn(
+                    '[Downloads] Ignoring invalid folder authorization:',
+                    error
+                );
+            }
+            return null;
+        }
+    },
+    saveSelectedDirectory: async (directory) => {
+        const authorizationPath = getDownloadAuthorizationPath();
+        const temporaryPath = `${authorizationPath}.${process.pid}.tmp`;
+        await mkdir(app.getPath('userData'), { recursive: true });
+        await writeFile(
+            temporaryPath,
+            JSON.stringify({ directory, version: 1 }),
+            'utf-8'
+        );
+        await rename(temporaryPath, authorizationPath);
+    },
+});
 
 /**
  * Returns true only when `filePath` matches a download IPTVnator itself
@@ -144,13 +192,18 @@ async function startDownload(task: DownloadTask) {
     const PROGRESS_THROTTLE_MS = 500;
 
     try {
+        const reservation = reserveAvailableDownloadFile(
+            task.directory,
+            task.fileName
+        );
+        const downloadFilename = reservation.filename;
+        task.reservedPath = reservation.path;
         const downloadOptions: Parameters<typeof download>[2] = {
             directory: task.directory,
-            filename: task.fileName,
-            overwrite: true,
+            filename: downloadFilename,
             onStarted: (item) => {
-                console.log(`[Downloads] Started: ${task.fileName}`);
-                task.downloadItem = item as unknown as ElectronDlFile;
+                console.log(`[Downloads] Started: ${downloadFilename}`);
+                task.downloadItem = item;
             },
             onProgress: async (progress) => {
                 const now = Date.now();
@@ -188,25 +241,22 @@ async function startDownload(task: DownloadTask) {
                 broadcastUpdate();
                 processQueue();
             },
-            onCancel: async () => {
-                console.log(`[Downloads] Canceled: ${task.fileName}`);
-                // Delete partial file if it exists
-                const partialPath = join(task.directory, task.fileName);
-                if (existsSync(partialPath)) {
-                    try {
-                        unlinkSync(partialPath);
-                    } catch (e) {
-                        console.error(
-                            '[Downloads] Failed to delete partial file:',
-                            e
-                        );
-                    }
+            onCancel: async (item) => {
+                console.log(`[Downloads] Canceled: ${downloadFilename}`);
+                try {
+                    removePartialDownload(item);
+                } catch (error) {
+                    console.error(
+                        '[Downloads] Failed to delete partial file:',
+                        error
+                    );
                 }
 
                 await db
                     .update(schema.downloads)
                     .set({
                         status: 'canceled',
+                        errorMessage: null,
                         updatedAt: sql`CURRENT_TIMESTAMP`,
                     })
                     .where(eq(schema.downloads.id, task.id));
@@ -224,16 +274,23 @@ async function startDownload(task: DownloadTask) {
 
         await download(mainWindow, task.url, downloadOptions);
     } catch (error) {
+        if (error instanceof CancelError) {
+            return;
+        }
         console.error(`[Downloads] Error downloading ${task.fileName}:`, error);
-
-        // Delete partial file if it exists
-        const partialPath = join(task.directory, task.fileName);
-        if (existsSync(partialPath)) {
-            try {
-                unlinkSync(partialPath);
-            } catch (e) {
-                console.error('[Downloads] Failed to delete partial file:', e);
-            }
+        const reservedPath = task.reservedPath;
+        try {
+            removePartialDownload(
+                task.downloadItem ??
+                    (reservedPath
+                        ? { getSavePath: () => reservedPath }
+                        : undefined)
+            );
+        } catch (cleanupError) {
+            console.error(
+                '[Downloads] Failed to delete partial file:',
+                cleanupError
+            );
         }
 
         await db
@@ -286,6 +343,13 @@ ipcMain.handle(
     ) => {
         try {
             console.log('[Downloads] Enqueue download:', data.title);
+            const downloadDirectory =
+                await downloadDirectoryAuthorizer.requireAuthorized(
+                    data.downloadFolder
+                );
+            await assertRemoteUrlAllowed(data.url, {
+                allowPrivateNetworks: true,
+            });
             const db = await getDatabase();
 
             // Ensure playlist exists in database (required for foreign key constraint)
@@ -351,7 +415,7 @@ ipcMain.handle(
                         id: item.id,
                         url: data.url,
                         fileName,
-                        directory: data.downloadFolder,
+                        directory: downloadDirectory,
                         headers: data.headers
                             ? {
                                   'User-Agent': data.headers.userAgent || '',
@@ -398,7 +462,7 @@ ipcMain.handle(
                 id: insertedId,
                 url: data.url,
                 fileName,
-                directory: data.downloadFolder,
+                directory: downloadDirectory,
                 headers: data.headers
                     ? {
                           'User-Agent': data.headers.userAgent || '',
@@ -466,6 +530,10 @@ ipcMain.handle(
     async (_event, downloadId: number, downloadFolder: string) => {
         try {
             console.log('[Downloads] Retry download:', downloadId);
+            const downloadDirectory =
+                await downloadDirectoryAuthorizer.requireAuthorized(
+                    downloadFolder
+                );
             const db = await getDatabase();
 
             const existing = await db
@@ -479,6 +547,9 @@ ipcMain.handle(
             }
 
             const item = existing[0];
+            await assertRemoteUrlAllowed(item.url, {
+                allowPrivateNetworks: true,
+            });
             if (!['failed', 'canceled'].includes(item.status)) {
                 return {
                     success: false,
@@ -504,7 +575,7 @@ ipcMain.handle(
                 id: item.id,
                 url: item.url,
                 fileName,
-                directory: downloadFolder,
+                directory: downloadDirectory,
             });
 
             broadcastUpdate();
@@ -601,7 +672,7 @@ ipcMain.handle('DOWNLOADS_GET', async (_event, downloadId: number) => {
  * Get default download folder
  */
 ipcMain.handle('DOWNLOADS_GET_DEFAULT_FOLDER', async () => {
-    return app.getPath('downloads');
+    return downloadDirectoryAuthorizer.getPreferredDirectory();
 });
 
 /**
@@ -618,7 +689,9 @@ ipcMain.handle('DOWNLOADS_SELECT_FOLDER', async () => {
         return null;
     }
 
-    return result.filePaths[0];
+    return downloadDirectoryAuthorizer.authorizeSelectedDirectory(
+        result.filePaths[0]
+    );
 });
 
 /**

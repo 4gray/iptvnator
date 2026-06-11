@@ -11,6 +11,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { assertRemoteUrlAllowed, UnsafeUrlError } from './url-safety';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
@@ -109,7 +110,11 @@ ipcMain.handle(
                 signal: controller.signal,
             };
 
-            const response = await axios(config);
+            const response = await requestWithValidatedRedirects<unknown>(
+                apiUrl.toString(),
+                config,
+                { allowPrivateNetworks: true }
+            );
 
             // Check if response is successful
             if (response.status >= 400) {

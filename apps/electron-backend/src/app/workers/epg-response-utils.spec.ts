@@ -37,11 +37,25 @@ describe('shouldGunzipEpgResponse', () => {
         ).toBe(true);
     });
 
+    it('supports plain Axios response header objects', () => {
+        expect(
+            shouldGunzipEpgResponse('https://example.com/guide', {
+                headers: {
+                    'Content-Type': 'application/gzip',
+                },
+                url: 'https://example.com/guide',
+            })
+        ).toBe(true);
+    });
+
     it('returns true when content-disposition advertises a .gz filename', () => {
         expect(
             shouldGunzipEpgResponse('https://example.com/guide', {
                 headers: new Headers([
-                    ['content-disposition', 'attachment; filename="guide.xml.gz"'],
+                    [
+                        'content-disposition',
+                        'attachment; filename="guide.xml.gz"',
+                    ],
                 ]),
                 url: 'https://example.com/guide',
             })

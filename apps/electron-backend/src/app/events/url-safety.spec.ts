@@ -1,7 +1,9 @@
 import {
     assertRemoteUrlAllowed,
     isPrivateOrReservedIp,
+    isPrivateNetworkUrlAccessAllowed,
     UnsafeUrlError,
+    validateRemoteUrl,
 } from './url-safety';
 
 describe('url-safety', () => {
@@ -75,11 +77,12 @@ describe('url-safety', () => {
         });
 
         it('allows a public URL', async () => {
-            const url = await assertRemoteUrlAllowed(
+            const target = await validateRemoteUrl(
                 'https://example.com/playlist.m3u',
                 { resolveHostname: publicResolver }
             );
-            expect(url.hostname).toBe('example.com');
+            expect(target.url.hostname).toBe('example.com');
+            expect(target.addresses).toEqual(['93.184.216.34']);
         });
 
         it('honors the allowPrivateNetworks override', async () => {
@@ -87,6 +90,27 @@ describe('url-safety', () => {
                 allowPrivateNetworks: true,
             });
             expect(url.hostname).toBe('127.0.0.1');
+        });
+    });
+
+    describe('isPrivateNetworkUrlAccessAllowed', () => {
+        const originalValue = process.env.IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS;
+
+        afterEach(() => {
+            if (originalValue === undefined) {
+                delete process.env.IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS;
+            } else {
+                process.env.IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS =
+                    originalValue;
+            }
+        });
+
+        it('requires an explicit environment opt-in', () => {
+            delete process.env.IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS;
+            expect(isPrivateNetworkUrlAccessAllowed()).toBe(false);
+
+            process.env.IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS = ' TRUE ';
+            expect(isPrivateNetworkUrlAccessAllowed()).toBe(true);
         });
     });
 });

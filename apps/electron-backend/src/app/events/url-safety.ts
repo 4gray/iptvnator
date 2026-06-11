@@ -1,6 +1,8 @@
 import { lookup } from 'node:dns/promises';
 import { isIP } from 'node:net';
 
+const PRIVATE_NETWORK_URLS_ENV = 'IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS';
+
 /**
  * Raised when a renderer-supplied remote URL is rejected by the SSRF guard.
  */
@@ -19,6 +21,22 @@ export interface RemoteUrlPolicy {
     allowPrivateNetworks?: boolean;
     /** Injectable DNS resolver. Defaults to `dns.lookup`; overridable in tests. */
     resolveHostname?: (hostname: string) => Promise<readonly string[]>;
+}
+
+export interface ValidatedRemoteUrl {
+    /** Parsed URL, retaining the original hostname for TLS SNI and Host. */
+    url: URL;
+    /** Validated addresses that socket-level DNS lookup must be pinned to. */
+    addresses?: readonly string[];
+}
+
+function isTruthyEnvironmentOptIn(value: string | undefined): boolean {
+    const normalized = value?.trim().toLowerCase();
+    return normalized === '1' || normalized === 'true';
+}
+
+export function isPrivateNetworkUrlAccessAllowed(): boolean {
+    return isTruthyEnvironmentOptIn(process.env[PRIVATE_NETWORK_URLS_ENV]);
 }
 
 function normalizeHostname(hostname: string): string {
@@ -102,10 +120,10 @@ async function defaultResolveHostname(
  * Returns the parsed {@link URL} when allowed, otherwise throws
  * {@link UnsafeUrlError}.
  */
-export async function assertRemoteUrlAllowed(
+export async function validateRemoteUrl(
     rawUrl: string,
     policy: RemoteUrlPolicy = {}
-): Promise<URL> {
+): Promise<ValidatedRemoteUrl> {
     let url: URL;
     try {
         url = new URL(rawUrl);
@@ -122,7 +140,7 @@ export async function assertRemoteUrlAllowed(
     }
 
     if (policy.allowPrivateNetworks) {
-        return url;
+        return { url };
     }
 
     const hostname = normalizeHostname(url.hostname);
@@ -132,7 +150,11 @@ export async function assertRemoteUrlAllowed(
         );
     }
 
-    if (isIP(hostname) === 0) {
+    if (isIP(hostname) !== 0) {
+        return { url, addresses: [hostname] };
+    }
+
+    {
         const resolveHostname =
             policy.resolveHostname ?? defaultResolveHostname;
         let addresses: readonly string[];
@@ -144,15 +166,32 @@ export async function assertRemoteUrlAllowed(
 
         if (
             addresses.length === 0 ||
-            addresses.some((address) =>
-                isPrivateOrReservedIp(normalizeHostname(address))
-            )
+            addresses.some((address) => {
+                const normalizedAddress = normalizeHostname(address);
+                return (
+                    isIP(normalizedAddress) === 0 ||
+                    isPrivateOrReservedIp(normalizedAddress)
+                );
+            })
         ) {
             throw new UnsafeUrlError(
                 'URL points to a private or local network address'
             );
         }
-    }
 
-    return url;
+        return {
+            url,
+            addresses: addresses.map((address) => normalizeHostname(address)),
+        };
+    }
+}
+
+/**
+ * Validates a URL and returns its parsed representation.
+ */
+export async function assertRemoteUrlAllowed(
+    rawUrl: string,
+    policy: RemoteUrlPolicy = {}
+): Promise<URL> {
+    return (await validateRemoteUrl(rawUrl, policy)).url;
 }

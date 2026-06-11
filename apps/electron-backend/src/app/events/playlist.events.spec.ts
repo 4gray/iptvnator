@@ -15,6 +15,7 @@ type IpcHandler = (event: MockIpcEvent, ...args: unknown[]) => Promise<unknown>;
 
 type MockIpcEvent = {
     sender: {
+        id: number;
         isDestroyed: jest.Mock<boolean, []>;
         send: jest.Mock;
     };
@@ -58,9 +59,7 @@ jest.mock('electron', () => ({
 
 jest.mock('axios', () => ({
     __esModule: true,
-    default: {
-        get: (...args: unknown[]) => mockAxiosGet(...args),
-    },
+    default: (...args: unknown[]) => mockAxiosGet(...args),
 }));
 
 jest.mock('iptv-playlist-parser', () => ({
@@ -119,9 +118,10 @@ function createPlaylist(overrides: Partial<Playlist> = {}): Playlist {
     };
 }
 
-function createIpcEvent(): MockIpcEvent {
+function createIpcEvent(senderId = 1): MockIpcEvent {
     return {
         sender: {
+            id: senderId,
             isDestroyed: jest.fn(() => false),
             send: jest.fn(),
         },
@@ -191,8 +191,12 @@ describe('playlist IPC events', () => {
         );
 
         expect(mockAxiosGet).toHaveBeenCalledWith(
-            'https://example.test/remote.m3u',
-            { httpsAgent: expect.any(Object) }
+            expect.objectContaining({
+                httpsAgent: expect.any(Object),
+                maxRedirects: 0,
+                method: 'GET',
+                url: 'https://example.test/remote.m3u',
+            })
         );
         expect(mockParse).toHaveBeenCalledWith('#EXTM3U');
         expect(mockCreatePlaylistObject).toHaveBeenCalledWith(
@@ -324,8 +328,12 @@ describe('playlist IPC events', () => {
             }),
         ]);
         expect(mockAxiosGet).toHaveBeenCalledWith(
-            'https://example.test/list.m3u',
-            { httpsAgent: expect.any(Object) }
+            expect.objectContaining({
+                httpsAgent: expect.any(Object),
+                maxRedirects: 0,
+                method: 'GET',
+                url: 'https://example.test/list.m3u',
+            })
         );
         expect(mockReadFile).toHaveBeenCalledWith(
             '/playlists/local.m3u',
@@ -539,5 +547,46 @@ describe('playlist IPC events', () => {
             )
         ).rejects.toThrow(/not authorized/i);
         expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+
+    it('scopes save-dialog write authorization to the requesting renderer', async () => {
+        mockShowSaveDialog.mockResolvedValue({
+            canceled: false,
+            filePath: '/exports/private.m3u',
+        });
+
+        await getHandler('save-file-dialog')(
+            createIpcEvent(1),
+            '/exports/private.m3u',
+            []
+        );
+
+        await expect(
+            getHandler('write-file')(
+                createIpcEvent(2),
+                '/exports/private.m3u',
+                '#EXTM3U'
+            )
+        ).rejects.toThrow(/not authorized/i);
+        expect(mockWriteFile).not.toHaveBeenCalled();
+    });
+
+    it('consumes write authorization even when the filesystem write fails', async () => {
+        mockShowSaveDialog.mockResolvedValue({
+            canceled: false,
+            filePath: '/exports/failure.m3u',
+        });
+        mockWriteFile.mockRejectedValueOnce(new Error('disk full'));
+
+        const event = createIpcEvent(3);
+        await getHandler('save-file-dialog')(event, '/exports/failure.m3u', []);
+
+        await expect(
+            getHandler('write-file')(event, '/exports/failure.m3u', '#EXTM3U')
+        ).rejects.toThrow('disk full');
+        await expect(
+            getHandler('write-file')(event, '/exports/failure.m3u', '#EXTM3U')
+        ).rejects.toThrow(/not authorized/i);
+        expect(mockWriteFile).toHaveBeenCalledTimes(1);
     });
 });

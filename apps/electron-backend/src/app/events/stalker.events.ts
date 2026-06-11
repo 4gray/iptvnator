@@ -13,12 +13,20 @@ import { rememberStalkerPlaybackContext } from '../services/stalker-playback-con
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { buildStalkerIdentityRequestContext } from './stalker-identity';
 import { assertRemoteUrlAllowed } from './url-safety';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 export default class StalkerEvents {
     static bootstrapStalkerEvents(): Electron.IpcMain {
         return ipcMain;
     }
 }
+
+type StalkerResponseData = {
+    js?: {
+        cmd?: unknown;
+    };
+    [key: string]: unknown;
+};
 
 /**
  * Handle Stalker API requests with MAC address cookie and optional Bearer token
@@ -107,7 +115,12 @@ ipcMain.handle(
                 params: requestParams,
             };
 
-            const response = await axios(config);
+            const response =
+                await requestWithValidatedRedirects<StalkerResponseData>(
+                    fullUrl,
+                    config,
+                    { allowPrivateNetworks: true }
+                );
 
             // Check if response is successful
             if (response.status >= 400) {

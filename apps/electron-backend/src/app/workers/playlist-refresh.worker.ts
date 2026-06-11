@@ -1,4 +1,3 @@
-import axios from 'axios';
 import { parentPort } from 'worker_threads';
 import { parse } from 'iptv-playlist-parser';
 import { readFile } from 'node:fs/promises';
@@ -16,6 +15,7 @@ import type {
     PlaylistRefreshWorkerIncomingMessage,
     PlaylistRefreshWorkerMessage,
 } from './playlist-refresh.worker.types';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 type ActiveRefreshState = {
     cancelled: boolean;
@@ -83,11 +83,16 @@ async function fetchPlaylistFromUrl(
     checkpoint(payload);
 
     const agent = createPlaylistHttpsAgent();
-    const result = await axios.get(payload.url!, {
-        httpsAgent: agent,
-        signal: controller.signal,
-        timeout: 30000,
-    });
+    const result = await requestWithValidatedRedirects<string>(
+        payload.url!,
+        {
+            httpsAgent: agent,
+            method: 'GET',
+            signal: controller.signal,
+            timeout: 30000,
+        },
+        { allowPrivateNetworks: true }
+    );
 
     checkpoint(payload);
     emitEvent(payload, { status: 'progress', phase: 'parsing' });
