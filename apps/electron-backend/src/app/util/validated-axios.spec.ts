@@ -1,8 +1,13 @@
 import axios from 'axios';
 import type { LookupAddress, LookupOptions } from 'node:dns';
-import type { Agent as HttpsAgent } from 'node:https';
+import { Agent as HttpAgent } from 'node:http';
+import { Agent as HttpsAgent } from 'node:https';
+import type { LookupFunction } from 'node:net';
 import { UnsafeUrlError } from '../events/url-safety';
-import { requestWithValidatedRedirects } from './validated-axios';
+import {
+    requestWithValidatedRedirects,
+    type ValidatedRequestAgentFactory,
+} from './validated-axios';
 
 jest.mock('axios', () => ({
     __esModule: true,
@@ -13,6 +18,21 @@ const axiosMock = axios as unknown as jest.Mock;
 
 describe('requestWithValidatedRedirects', () => {
     const publicResolver = async () => ['93.184.216.34'];
+
+    function createCapturingAgentFactory() {
+        const lookups: LookupFunction[] = [];
+        const factory: ValidatedRequestAgentFactory = {
+            createHttpsAgent: jest.fn((lookup) => {
+                if (!lookup) {
+                    throw new Error('Expected a pinned lookup');
+                }
+                lookups.push(lookup);
+                return new HttpsAgent({ lookup });
+            }),
+        };
+
+        return { factory, lookups };
+    }
 
     beforeEach(() => {
         axiosMock.mockReset();
@@ -42,22 +62,22 @@ describe('requestWithValidatedRedirects', () => {
             headers: {},
             data: '#EXTM3U',
         });
+        const { factory, lookups } = createCapturingAgentFactory();
 
         await requestWithValidatedRedirects(
             'https://epg.example/guide.xml',
-            { method: 'GET' },
+            { agentFactory: factory, method: 'GET' },
             {
                 resolveHostname: async () => ['93.184.216.34'],
             }
         );
 
         const requestConfig = axiosMock.mock.calls[0][0];
-        const lookup = (requestConfig.httpsAgent as HttpsAgent).options.lookup;
         const resolvedAddress = await new Promise<{
             address: string | LookupAddress[];
             family?: number;
         }>((resolve, reject) => {
-            lookup?.(
+            lookups[0](
                 'epg.example',
                 { all: false, family: 0 } as LookupOptions,
                 (error, address, family) => {
@@ -70,12 +90,63 @@ describe('requestWithValidatedRedirects', () => {
             );
         });
 
+        expect(factory.createHttpsAgent).toHaveBeenCalledWith(lookups[0]);
+        expect(requestConfig.httpsAgent).toBeInstanceOf(HttpsAgent);
+        expect(requestConfig).not.toHaveProperty('agentFactory');
         expect(resolvedAddress).toEqual({
             address: '93.184.216.34',
             family: 4,
         });
         expect(requestConfig.proxy).toBe(false);
         expect(requestConfig.url).toBe('https://epg.example/guide.xml');
+    });
+
+    it('supplies the validated lookup to an explicit HTTP agent factory', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 200,
+            headers: {},
+            data: '#EXTM3U',
+        });
+        let pinnedLookup: LookupFunction | undefined;
+        const factory: ValidatedRequestAgentFactory = {
+            createHttpAgent: jest.fn((lookup) => {
+                pinnedLookup = lookup;
+                return new HttpAgent({ lookup });
+            }),
+        };
+
+        await requestWithValidatedRedirects(
+            'http://playlist.example/list.m3u',
+            { agentFactory: factory, method: 'GET' },
+            { resolveHostname: publicResolver }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(factory.createHttpAgent).toHaveBeenCalledWith(pinnedLookup);
+        expect(requestConfig.httpAgent).toBeInstanceOf(HttpAgent);
+        expect(requestConfig).not.toHaveProperty('agentFactory');
+    });
+
+    it('uses a custom HTTPS agent factory when private networks are allowed', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 200,
+            headers: {},
+            data: '#EXTM3U',
+        });
+        const factory: ValidatedRequestAgentFactory = {
+            createHttpsAgent: jest.fn((lookup) => new HttpsAgent({ lookup })),
+        };
+
+        await requestWithValidatedRedirects(
+            'https://192.168.1.10/list.m3u',
+            { agentFactory: factory, method: 'GET' },
+            { allowPrivateNetworks: true }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0];
+        expect(factory.createHttpsAgent).toHaveBeenCalledWith();
+        expect(requestConfig.httpsAgent).toBeInstanceOf(HttpsAgent);
+        expect(requestConfig).not.toHaveProperty('agentFactory');
     });
 
     it('revalidates and repins every redirect hop', async () => {
@@ -89,22 +160,20 @@ describe('requestWithValidatedRedirects', () => {
                 headers: {},
                 data: '<tv />',
             });
+        const { factory, lookups } = createCapturingAgentFactory();
         const resolveHostname = jest.fn(async (hostname: string) =>
             hostname === 'epg.example' ? ['93.184.216.34'] : ['142.250.191.110']
         );
 
         await requestWithValidatedRedirects(
             'https://epg.example/guide.xml',
-            { method: 'GET' },
+            { agentFactory: factory, method: 'GET' },
             { resolveHostname }
         );
 
         const resolvePinnedAddress = async (callIndex: number) => {
-            const requestConfig = axiosMock.mock.calls[callIndex][0];
-            const lookup = (requestConfig.httpsAgent as HttpsAgent).options
-                .lookup;
             return new Promise<string | LookupAddress[]>((resolve, reject) => {
-                lookup?.(
+                lookups[callIndex](
                     'ignored.example',
                     { all: false, family: 0 } as LookupOptions,
                     (error, address) => {
@@ -120,6 +189,7 @@ describe('requestWithValidatedRedirects', () => {
 
         expect(resolveHostname).toHaveBeenNthCalledWith(1, 'epg.example');
         expect(resolveHostname).toHaveBeenNthCalledWith(2, 'cdn.example');
+        expect(factory.createHttpsAgent).toHaveBeenCalledTimes(2);
         await expect(resolvePinnedAddress(0)).resolves.toBe('93.184.216.34');
         await expect(resolvePinnedAddress(1)).resolves.toBe('142.250.191.110');
     });

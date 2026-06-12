@@ -4,16 +4,18 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 
 ## Backend responsibilities
 
-- **Queue control (`apps/electron-backend/src/app/events/database/downloads.events.ts`)**
-  `DownloadTask` mirrors the shared `DownloadItem` table plus transient cancel/progress helpers. `enqueueDownload()` resolves a unique file path, persists a `queued` row in `downloads`, pushes the task onto `downloadQueue`, and triggers `processQueue()`. `processQueue()` keeps one active download, updates the row to `downloading`, and calls `startDownload()`.
-- **electron-dl integration**  
-  `startDownload()` now calls `electron-dl`’s `download()` helper. Headers (user agent, referer, origin) are attached, and the `onStarted`, `onProgress`, `onCompleted`, and `onCancel` callbacks translate the helper’s payload into Drizzle updates. The handler throttles progress broadcast, saves `filePath`/`fileName` from `electron-dl`, and marks failures/cancellations cleanly. Errors and cancellations delete partial files.
+- **Queue control (`apps/electron-backend/src/app/events/database/download-runtime.ts`)**
+  `DownloadTask` mirrors the shared `DownloadItem` table plus transient cancel/progress helpers. Request validation and row creation live in `download-requests.ts`, while `downloads.events.ts` stays focused on IPC registration. `enqueueDownload()` pushes the task onto `downloadQueue` and triggers `processQueue()`. `processQueue()` keeps one active download, updates the row to `downloading`, and calls `startDownload()`.
+- **electron-dl integration**
+  `startDownload()` calls `electron-dl`'s `download()` helper. Headers (user agent, referer, origin) are attached, and the `onStarted`, `onProgress`, `onCompleted`, and `onCancel` callbacks translate the helper's payload into Drizzle updates. A cancellation requested before `onStarted` is remembered and applied as soon as Electron supplies the `DownloadItem`, so the request cannot be lost in the startup race.
 - **Destination collision policy**
   Existing destination files are never overwritten. Before starting Electron's
   download, the backend atomically reserves a free numbered filename with an
   exclusive filesystem create. Electron may overwrite that empty reservation,
-  but cannot overwrite a file that existed before the reservation. Cleanup only
-  removes the actual save path reported by the `DownloadItem`.
+  but cannot overwrite a file that existed before the reservation. The selected
+  `filePath` and `fileName` are persisted before transfer begins. Errors,
+  cancellations, and startup recovery remove that exact partial path and clear
+  it from the row; completed downloads replace it with Electron's final values.
 - **IPC surface**  
   The backend exposes `DOWNLOADS_*` handlers for list retrieval, start/cancel/retry/remove operations, folder selection/reveal, and the `DOWNLOADS_UPDATE_EVENT` emitter that the renderer listens to in order to refresh its signal store.
 
@@ -39,8 +41,8 @@ The download manager is a desktop-only feature that layers a curated queue, prog
 
 ## Queuing, persistence, and UX notes
 
-- Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, and Xtream identifiers. Stale downloads reset to `failed` on startup.
-- Queue cancellation removes the task or calls `downloadItem.cancel()` if the item is active; retries reuse the same database entry, preventing duplicate rows.
+- Every download row writes to the shared `downloads` table with statuses (`queued`, `downloading`, `completed`, `failed`, `canceled`) plus metadata such as `bytesDownloaded`, `totalBytes`, `errorMessage`, and Xtream identifiers. On startup, `download-recovery.ts` deletes persisted partial reservations before stale queued/downloading rows become `failed`.
+- Queue cancellation removes a queued task or records an active cancellation request and calls `downloadItem.cancel()` when the item is available; retries reuse the same database entry, preventing duplicate rows.
 - The OS downloads path is always authorized. A custom folder becomes
   authorized only after native folder selection, and the main process persists
   that selection under Electron `userData`. Renderer settings may display the

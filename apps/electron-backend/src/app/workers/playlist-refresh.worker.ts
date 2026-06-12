@@ -5,7 +5,7 @@ import {
     createPlaylistObject,
     getFilenameFromUrl,
 } from '@iptvnator/shared/m3u-utils';
-import { createPlaylistHttpsAgent } from '../util/secure-https';
+import { createPlaylistAgentFactory } from '../util/secure-https';
 import type {
     Playlist,
     PlaylistRefreshEvent,
@@ -82,11 +82,10 @@ async function fetchPlaylistFromUrl(
     emitEvent(payload, { status: 'started', phase: 'fetching' });
     checkpoint(payload);
 
-    const agent = createPlaylistHttpsAgent();
     const result = await requestWithValidatedRedirects<string>(
         payload.url!,
         {
-            httpsAgent: agent,
+            agentFactory: createPlaylistAgentFactory(),
             method: 'GET',
             signal: controller.signal,
             timeout: 30000,

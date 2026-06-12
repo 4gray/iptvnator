@@ -4,14 +4,7 @@
  */
 
 import { app, dialog, ipcMain, WebContents } from 'electron';
-import { parse } from 'iptv-playlist-parser';
-import {
-    createPlaylistObject,
-    getFilenameFromUrl,
-} from '@iptvnator/shared/m3u-utils';
-import { readFile, writeFile } from 'node:fs/promises';
-import { basename, resolve as resolvePath } from 'node:path';
-import { createPlaylistHttpsAgent } from '../util/secure-https';
+import { writeFile } from 'node:fs/promises';
 import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
 import {
@@ -28,7 +21,13 @@ import type {
     PlaylistRefreshWorkerMessage,
     PlaylistRefreshWorkerResponseMessage,
 } from '../workers/playlist-refresh.worker.types';
-import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    derivePlaylistTitleFromFilePath,
+    fetchPlaylistFromFile,
+    fetchPlaylistFromUrl,
+    preserveAutoUpdatedPlaylistFields,
+} from './playlist-source';
+import { PlaylistWriteAuthorizer } from './playlist-write-authorization';
 
 export default class PlaylistEvents {
     static bootstrapPlaylistEvents(): Electron.IpcMain {
@@ -36,16 +35,7 @@ export default class PlaylistEvents {
     }
 }
 
-/**
- * Paths the user has explicitly authorized for writing via a native save
- * dialog. The `write-file` IPC handler only writes to a path present here,
- * so a compromised/abusive renderer cannot write to arbitrary host paths.
- */
-const authorizedWritePaths = new Map<number, Set<string>>();
-// Bound the set: a save dialog can be opened without the write ever firing
-// (operation cancelled, renderer error), which would otherwise leak entries
-// until the next app restart. Past this cap, evict oldest-first.
-const MAX_AUTHORIZED_WRITE_PATHS = 32;
+const playlistWriteAuthorizer = new PlaylistWriteAuthorizer();
 
 type ActivePlaylistRefresh = {
     reject: (reason?: unknown) => void;
@@ -55,61 +45,6 @@ type ActivePlaylistRefresh = {
 };
 
 const activePlaylistRefreshes = new Map<string, ActivePlaylistRefresh>();
-
-/**
- * Fetches and parses a playlist from a URL
- * @param url - The URL to fetch the playlist from
- * @param title - Optional title for the playlist
- * @returns Parsed playlist object
- */
-async function fetchPlaylistFromUrl(
-    url: string,
-    title?: string
-): Promise<Playlist> {
-    const agent = createPlaylistHttpsAgent();
-    const result = await requestWithValidatedRedirects<string>(
-        url,
-        { httpsAgent: agent, method: 'GET' },
-        { allowPrivateNetworks: true }
-    );
-    const parsedPlaylist = parse(result.data);
-
-    const extractedName = url && url.length > 1 ? getFilenameFromUrl(url) : '';
-    const playlistName =
-        !extractedName || extractedName === 'Untitled playlist'
-            ? 'Imported from URL'
-            : extractedName;
-
-    const playlistObject = createPlaylistObject(
-        title ?? playlistName,
-        parsedPlaylist,
-        url,
-        'URL'
-    );
-
-    return playlistObject;
-}
-
-/**
- * Reads and parses a playlist from a file path
- * @param filePath - The path to the playlist file
- * @param title - Title for the playlist
- * @returns Parsed playlist object
- */
-async function fetchPlaylistFromFile(
-    filePath: string,
-    title: string
-): Promise<Playlist> {
-    const fileContent = await readFile(filePath, 'utf-8');
-    const parsedPlaylist = parse(fileContent);
-    const playlistObject = createPlaylistObject(
-        title,
-        parsedPlaylist,
-        filePath,
-        'FILE'
-    );
-    return playlistObject;
-}
 
 function resolvePlaylistRefreshWorker(): Worker {
     const bootstrap = resolveWorkerRuntimeBootstrap({
@@ -148,24 +83,6 @@ function createPlaylistRefreshError(error: {
     workerError.name = error.name || 'PlaylistRefreshWorkerError';
     workerError.stack = error.stack || workerError.stack;
     return workerError;
-}
-
-function derivePlaylistTitleFromFilePath(filePath: string): string {
-    const filename = basename(filePath);
-    return filename.replace(/\.(m3u8?|pls|txt)$/i, '') || 'from file';
-}
-
-function preserveAutoUpdatedPlaylistFields(
-    playlistObject: Playlist,
-    playlist: Playlist
-): Playlist {
-    return {
-        ...playlistObject,
-        _id: playlist._id,
-        autoRefresh: playlist.autoRefresh,
-        favorites: playlist.favorites || [],
-        userAgent: playlist.userAgent,
-    };
 }
 
 ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
@@ -373,20 +290,7 @@ ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
             return null;
         }
 
-        // Remember this path as user-authorized so the subsequent
-        // `write-file` call (e.g. settings/playlist backup export) is allowed.
-        const senderId = event.sender.id;
-        const senderPaths =
-            authorizedWritePaths.get(senderId) ?? new Set<string>();
-        senderPaths.add(resolvePath(filePath));
-        authorizedWritePaths.set(senderId, senderPaths);
-        while (senderPaths.size > MAX_AUTHORIZED_WRITE_PATHS) {
-            const oldest = senderPaths.values().next().value;
-            if (oldest === undefined) {
-                break;
-            }
-            senderPaths.delete(oldest);
-        }
+        playlistWriteAuthorizer.authorize(event.sender.id, filePath);
         return filePath;
     } catch (error) {
         console.error('Error showing save dialog:', error);
@@ -395,16 +299,15 @@ ipcMain.handle('save-file-dialog', async (event, defaultPath, filters) => {
 });
 
 ipcMain.handle('write-file', async (event, filePath, content) => {
-    const normalizedPath = resolvePath(String(filePath ?? ''));
-    const senderPaths = authorizedWritePaths.get(event.sender.id);
-    if (!senderPaths?.delete(normalizedPath)) {
-        console.error('Blocked unauthorized write-file path:', filePath);
-        throw new Error(
-            'Refusing to write to a path not authorized by a save dialog'
+    let normalizedPath: string;
+    try {
+        normalizedPath = playlistWriteAuthorizer.consume(
+            event.sender.id,
+            filePath
         );
-    }
-    if (senderPaths.size === 0) {
-        authorizedWritePaths.delete(event.sender.id);
+    } catch (error) {
+        console.error('Blocked unauthorized write-file path:', filePath);
+        throw error;
     }
     try {
         await writeFile(normalizedPath, content, 'utf-8');

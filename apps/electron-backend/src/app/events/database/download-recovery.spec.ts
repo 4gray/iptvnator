@@ -1,4 +1,4 @@
-import { cleanupStaleDownloadFiles } from './download-recovery';
+import { cleanupStaleDownloadFiles } from './stale-download-files';
 
 describe('cleanupStaleDownloadFiles', () => {
     it('removes every persisted partial path and ignores empty paths', () => {
@@ -14,14 +14,8 @@ describe('cleanupStaleDownloadFiles', () => {
         );
 
         expect(removeFile).toHaveBeenCalledTimes(2);
-        expect(removeFile).toHaveBeenNthCalledWith(
-            1,
-            '/downloads/one.mp4'
-        );
-        expect(removeFile).toHaveBeenNthCalledWith(
-            2,
-            '/downloads/two.mp4'
-        );
+        expect(removeFile).toHaveBeenNthCalledWith(1, '/downloads/one.mp4');
+        expect(removeFile).toHaveBeenNthCalledWith(2, '/downloads/two.mp4');
     });
 
     it('continues cleaning other stale files after one removal fails', () => {

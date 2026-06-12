@@ -4,14 +4,8 @@ import axios, {
     RawAxiosRequestHeaders,
 } from 'axios';
 import type { LookupAddress } from 'node:dns';
-import {
-    Agent as HttpAgent,
-    type AgentOptions as HttpAgentOptions,
-} from 'node:http';
-import {
-    Agent as HttpsAgent,
-    type AgentOptions as HttpsAgentOptions,
-} from 'node:https';
+import { Agent as HttpAgent } from 'node:http';
+import { Agent as HttpsAgent } from 'node:https';
 import { isIP, LookupFunction } from 'node:net';
 import {
     RemoteUrlPolicy,
@@ -25,6 +19,18 @@ const SENSITIVE_HEADERS = new Set([
     'cookie',
     'proxy-authorization',
 ]);
+
+export interface ValidatedRequestAgentFactory {
+    createHttpAgent?(lookup?: LookupFunction): HttpAgent;
+    createHttpsAgent?(lookup?: LookupFunction): HttpsAgent;
+}
+
+export type ValidatedAxiosRequestConfig = Omit<
+    AxiosRequestConfig,
+    'httpAgent' | 'httpsAgent'
+> & {
+    agentFactory?: ValidatedRequestAgentFactory;
+};
 
 function copyHeadersWithoutSensitiveValues(
     headers: AxiosRequestConfig['headers']
@@ -85,42 +91,43 @@ function createPinnedLookup(addresses: readonly string[]): LookupFunction {
 }
 
 function pinRequestToValidatedAddresses(
-    config: AxiosRequestConfig,
+    config: ValidatedAxiosRequestConfig,
     url: URL,
     addresses: readonly string[] | undefined
 ): AxiosRequestConfig {
+    const { agentFactory, ...axiosConfig } = config;
     if (!addresses) {
-        return config;
+        if (url.protocol === 'https:' && agentFactory?.createHttpsAgent) {
+            return {
+                ...axiosConfig,
+                httpsAgent: agentFactory.createHttpsAgent(),
+            };
+        }
+        if (url.protocol === 'http:' && agentFactory?.createHttpAgent) {
+            return {
+                ...axiosConfig,
+                httpAgent: agentFactory.createHttpAgent(),
+            };
+        }
+        return axiosConfig;
     }
 
     const lookup = createPinnedLookup(addresses);
     if (url.protocol === 'https:') {
-        const options =
-            config.httpsAgent instanceof HttpsAgent
-                ? (
-                      config.httpsAgent as HttpsAgent & {
-                          options: HttpsAgentOptions;
-                      }
-                  ).options
-                : {};
         return {
-            ...config,
-            httpsAgent: new HttpsAgent({ ...options, lookup }),
+            ...axiosConfig,
+            httpsAgent:
+                agentFactory?.createHttpsAgent?.(lookup) ??
+                new HttpsAgent({ lookup }),
             proxy: false,
         };
     }
 
-    const options =
-        config.httpAgent instanceof HttpAgent
-            ? (
-                  config.httpAgent as HttpAgent & {
-                      options: HttpAgentOptions;
-                  }
-              ).options
-            : {};
     return {
-        ...config,
-        httpAgent: new HttpAgent({ ...options, lookup }),
+        ...axiosConfig,
+        httpAgent:
+            agentFactory?.createHttpAgent?.(lookup) ??
+            new HttpAgent({ lookup }),
         proxy: false,
     };
 }
@@ -132,7 +139,7 @@ function pinRequestToValidatedAddresses(
  */
 export async function requestWithValidatedRedirects<T = unknown>(
     rawUrl: string,
-    config: AxiosRequestConfig = {},
+    config: ValidatedAxiosRequestConfig = {},
     policy: RemoteUrlPolicy = {},
     maxRedirects = 5
 ): Promise<AxiosResponse<T>> {

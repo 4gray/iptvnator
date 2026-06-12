@@ -116,7 +116,9 @@ redirect target is checked before the main process follows it. Under the strict
 policy, the helper pins the socket lookup to the IP addresses that passed
 validation while retaining the original hostname for TLS SNI, certificate
 validation, and virtual hosting. This prevents DNS rebinding between validation
-and connection. Cross-origin redirects must not forward `Authorization`,
+and connection. Callers with custom TLS policy provide a typed agent factory;
+the validated request layer supplies the pinned lookup instead of copying
+private Node `Agent.options` state. Cross-origin redirects must not forward `Authorization`,
 `Cookie`, `Proxy-Authorization`, Axios `params`, or request bodies.
 
 EPG URLs are strict by default because an M3U playlist can supply them through

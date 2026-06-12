@@ -3,7 +3,7 @@ import {
     attachDownloadItem,
     requestDownloadCancellation,
     type DownloadTask,
-} from './download-runtime';
+} from './download-task';
 
 function createTask(): DownloadTask {
     return {

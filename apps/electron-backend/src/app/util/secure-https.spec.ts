@@ -1,7 +1,22 @@
-import { createPlaylistHttpsAgent, isInsecureTlsAllowed } from './secure-https';
+import { Agent } from 'node:https';
+import type { LookupFunction } from 'node:net';
+import {
+    createPlaylistAgentFactory,
+    isInsecureTlsAllowed,
+} from './secure-https';
+
+jest.mock('node:https', () => ({
+    Agent: jest.fn(() => ({ protocol: 'https:' })),
+}));
 
 describe('secure-https', () => {
     const originalValue = process.env.IPTVNATOR_ALLOW_INSECURE_TLS;
+    const agentConstructorMock = Agent as unknown as jest.Mock;
+    const lookup = jest.fn() as unknown as LookupFunction;
+
+    beforeEach(() => {
+        agentConstructorMock.mockClear();
+    });
 
     afterEach(() => {
         if (originalValue === undefined) {
@@ -15,9 +30,12 @@ describe('secure-https', () => {
         delete process.env.IPTVNATOR_ALLOW_INSECURE_TLS;
 
         expect(isInsecureTlsAllowed()).toBe(false);
-        expect(createPlaylistHttpsAgent().options.rejectUnauthorized).toBe(
-            true
-        );
+        createPlaylistAgentFactory().createHttpsAgent(lookup);
+
+        expect(agentConstructorMock).toHaveBeenCalledWith({
+            lookup,
+            rejectUnauthorized: true,
+        });
     });
 
     it.each(['1', 'true', ' TRUE '])(
@@ -26,9 +44,12 @@ describe('secure-https', () => {
             process.env.IPTVNATOR_ALLOW_INSECURE_TLS = value;
 
             expect(isInsecureTlsAllowed()).toBe(true);
-            expect(createPlaylistHttpsAgent().options.rejectUnauthorized).toBe(
-                false
-            );
+            createPlaylistAgentFactory().createHttpsAgent(lookup);
+
+            expect(agentConstructorMock).toHaveBeenCalledWith({
+                lookup,
+                rejectUnauthorized: false,
+            });
         }
     );
 
@@ -36,5 +57,15 @@ describe('secure-https', () => {
         process.env.IPTVNATOR_ALLOW_INSECURE_TLS = 'yes';
 
         expect(isInsecureTlsAllowed()).toBe(false);
+    });
+
+    it('preserves TLS policy when no pinned lookup is required', () => {
+        delete process.env.IPTVNATOR_ALLOW_INSECURE_TLS;
+
+        createPlaylistAgentFactory().createHttpsAgent();
+
+        expect(agentConstructorMock).toHaveBeenCalledWith({
+            rejectUnauthorized: true,
+        });
     });
 });

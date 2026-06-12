@@ -1,4 +1,6 @@
 import { Agent } from 'node:https';
+import type { LookupFunction } from 'node:net';
+import type { ValidatedRequestAgentFactory } from './validated-axios';
 
 const INSECURE_TLS_ENV = 'IPTVNATOR_ALLOW_INSECURE_TLS';
 
@@ -17,11 +19,18 @@ export function isInsecureTlsAllowed(): boolean {
 }
 
 /**
- * Builds the `https.Agent` used for remote playlist fetches.
+ * Builds the agent factory used for remote playlist fetches.
  *
  * Certificates are validated unless insecure TLS has been explicitly opted in
- * (see {@link isInsecureTlsAllowed}).
+ * (see {@link isInsecureTlsAllowed}). The validated request layer supplies a
+ * DNS lookup pinned to the addresses approved for each redirect hop.
  */
-export function createPlaylistHttpsAgent(): Agent {
-    return new Agent({ rejectUnauthorized: !isInsecureTlsAllowed() });
+export function createPlaylistAgentFactory(): ValidatedRequestAgentFactory & {
+    createHttpsAgent(lookup?: LookupFunction): Agent;
+} {
+    const rejectUnauthorized = !isInsecureTlsAllowed();
+
+    return {
+        createHttpsAgent: (lookup) => new Agent({ lookup, rejectUnauthorized }),
+    };
 }
