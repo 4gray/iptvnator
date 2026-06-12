@@ -82,6 +82,7 @@ The renderer learns which features the loaded addon binary supports through the 
 
 - `ended` when the end-file reason is `MPV_END_FILE_REASON_EOF`
 - `error` when MPV reports an end-file error
+- `loading` when MPV reports `MPV_END_FILE_REASON_REDIRECT`, because playback continues with the redirected playlist contents
 - `idle` for other successful end-file reasons such as replacement/stop
 - `closed` only for dispose/manual teardown
 

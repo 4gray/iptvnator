@@ -1136,6 +1136,13 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     endFile->reason == MPV_END_FILE_REASON_EOF &&
                     session->running.load()) {
                     session->snapshot.status = SessionStatus::Ended;
+                } else if (
+                    endFile &&
+                    endFile->reason == MPV_END_FILE_REASON_REDIRECT &&
+                    session->running.load()) {
+                    session->snapshot.status = SessionStatus::Loading;
+                    session->snapshot.error.clear();
+                    session->loadedPath = false;
                 } else if (session->running.load()) {
                     session->snapshot.status = SessionStatus::Idle;
                 }

@@ -53,6 +53,27 @@ describe('Embedded MPV native source recording invariants', () => {
         throw new Error(`Unable to read ${name} body.`);
     }
 
+    function eventCase(
+        source: string,
+        eventName: string,
+        nextEventName: string
+    ): string {
+        const eventLoopBodyStart = source.indexOf('void runEventLoop(');
+        expect(eventLoopBodyStart).toBeGreaterThanOrEqual(0);
+        const eventCaseStart = source.indexOf(
+            `case ${eventName}`,
+            eventLoopBodyStart
+        );
+        expect(eventCaseStart).toBeGreaterThanOrEqual(0);
+        const nextCaseStart = source.indexOf(
+            `case ${nextEventName}`,
+            eventCaseStart
+        );
+        expect(nextCaseStart).toBeGreaterThan(eventCaseStart);
+
+        return source.slice(eventCaseStart, nextCaseStart);
+    }
+
     it('tracks LoadPlayback recording auto-stop replies through the reconciler', () => {
         const body = functionBody('LoadPlayback');
 
@@ -75,44 +96,53 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(widCommonSource).toContain('Ended,');
         expect(widCommonSource).toContain('case SessionStatus::Ended:');
 
-        const eventLoopBodyStart = nativeSource.indexOf('void runEventLoop(');
-        expect(eventLoopBodyStart).toBeGreaterThanOrEqual(0);
-        const endFileCaseStart = nativeSource.indexOf(
-            'case MPV_EVENT_END_FILE',
-            eventLoopBodyStart
+        const endFileCase = eventCase(
+            nativeSource,
+            'MPV_EVENT_END_FILE',
+            'MPV_EVENT_PROPERTY_CHANGE'
         );
-        expect(endFileCaseStart).toBeGreaterThanOrEqual(0);
-        const nextCaseStart = nativeSource.indexOf(
-            'case MPV_EVENT_PROPERTY_CHANGE',
-            endFileCaseStart
-        );
-        expect(nextCaseStart).toBeGreaterThan(endFileCaseStart);
-
-        const endFileCase = nativeSource.slice(endFileCaseStart, nextCaseStart);
         expect(endFileCase).toContain('SessionStatus::Ended');
         expect(endFileCase).toContain('MPV_END_FILE_REASON_EOF');
 
-        const widEventLoopBodyStart = widCommonSource.indexOf(
-            'void runEventLoop('
-        );
-        expect(widEventLoopBodyStart).toBeGreaterThanOrEqual(0);
-        const widEndFileCaseStart = widCommonSource.indexOf(
-            'case MPV_EVENT_END_FILE',
-            widEventLoopBodyStart
-        );
-        expect(widEndFileCaseStart).toBeGreaterThanOrEqual(0);
-        const widNextCaseStart = widCommonSource.indexOf(
-            'case MPV_EVENT_PROPERTY_CHANGE',
-            widEndFileCaseStart
-        );
-        expect(widNextCaseStart).toBeGreaterThan(widEndFileCaseStart);
-
-        const widEndFileCase = widCommonSource.slice(
-            widEndFileCaseStart,
-            widNextCaseStart
+        const widEndFileCase = eventCase(
+            widCommonSource,
+            'MPV_EVENT_END_FILE',
+            'MPV_EVENT_PROPERTY_CHANGE'
         );
         expect(widEndFileCase).toContain('SessionStatus::Ended');
         expect(widEndFileCase).toContain('MPV_END_FILE_REASON_EOF');
+    });
+
+    it('keeps MPV redirect end-file events in loading state', () => {
+        for (const endFileCase of [
+            eventCase(
+                nativeSource,
+                'MPV_EVENT_END_FILE',
+                'MPV_EVENT_PROPERTY_CHANGE'
+            ),
+            eventCase(
+                widCommonSource,
+                'MPV_EVENT_END_FILE',
+                'MPV_EVENT_PROPERTY_CHANGE'
+            ),
+        ]) {
+            const redirectBranchStart = endFileCase.indexOf(
+                'MPV_END_FILE_REASON_REDIRECT'
+            );
+            expect(redirectBranchStart).toBeGreaterThanOrEqual(0);
+            const idleFallbackStart = endFileCase.indexOf(
+                'SessionStatus::Idle',
+                redirectBranchStart
+            );
+            expect(idleFallbackStart).toBeGreaterThan(redirectBranchStart);
+
+            const redirectBranch = endFileCase.slice(
+                redirectBranchStart,
+                idleFallbackStart
+            );
+            expect(redirectBranch).toContain('SessionStatus::Loading');
+            expect(redirectBranch).toContain('session->snapshot.error.clear();');
+        }
     });
 
     it('maps keep-open eof-reached property changes to an ended session status', () => {
