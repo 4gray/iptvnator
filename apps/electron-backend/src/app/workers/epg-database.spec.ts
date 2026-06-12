@@ -5,6 +5,7 @@ function createDatabaseMock(exec: jest.Mock) {
     const database = {
         close: jest.fn(),
         exec,
+        pragma: jest.fn(),
     };
     const Database = jest.fn(() => database) as unknown as typeof BetterSqlite3;
 
@@ -14,10 +15,11 @@ function createDatabaseMock(exec: jest.Mock) {
 describe('EpgDatabaseClearOperation', () => {
     it('clears programs and channels in one transaction', () => {
         const exec = jest.fn();
-        const { Database } = createDatabaseMock(exec);
+        const { Database, database } = createDatabaseMock(exec);
 
         new EpgDatabaseClearOperation(Database).run();
 
+        expect(database.pragma).toHaveBeenCalledWith('busy_timeout = 5000');
         expect(exec.mock.calls.map(([statement]) => statement)).toEqual([
             'BEGIN',
             'DELETE FROM epg_programs',

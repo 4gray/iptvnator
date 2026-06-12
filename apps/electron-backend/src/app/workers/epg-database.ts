@@ -126,6 +126,7 @@ export class EpgDatabaseClearOperation {
 
     constructor(Database: typeof BetterSqlite3) {
         this.db = new Database(getIptvnatorDatabasePath());
+        this.db.pragma('busy_timeout = 5000');
     }
 
     run(): void {
