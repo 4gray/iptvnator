@@ -146,6 +146,106 @@ describe('download runtime cancellation', () => {
         consoleError.mockRestore();
     });
 
+    it('continues the queue when completion persistence fails', async () => {
+        jest.resetModules();
+
+        class TestCancelError extends Error {}
+
+        let completionCallback: Promise<void> | undefined;
+        const download = jest
+            .fn()
+            .mockImplementationOnce(
+                async (
+                    _window: unknown,
+                    _url: string,
+                    options: {
+                        onCompleted: (file: {
+                            fileSize: number;
+                            filename: string;
+                            path: string;
+                        }) => Promise<void>;
+                    }
+                ) => {
+                    completionCallback = options.onCompleted({
+                        fileSize: 1,
+                        filename: 'movie.mp4',
+                        path: '/downloads/movie.mp4',
+                    });
+                }
+            )
+            .mockImplementationOnce(
+                async (
+                    _window: unknown,
+                    _url: string,
+                    options: {
+                        onCompleted: (file: {
+                            fileSize: number;
+                            filename: string;
+                            path: string;
+                        }) => Promise<void>;
+                    }
+                ) => {
+                    await options.onCompleted({
+                        fileSize: 1,
+                        filename: 'second.mp4',
+                        path: '/downloads/second.mp4',
+                    });
+                }
+            );
+
+        const where = jest
+            .fn()
+            .mockResolvedValueOnce(undefined)
+            .mockResolvedValueOnce(undefined)
+            .mockRejectedValueOnce(new Error('database is busy'))
+            .mockResolvedValue(undefined);
+        const db = {
+            update: jest.fn(() => ({
+                set: jest.fn(() => ({ where })),
+            })),
+        };
+
+        jest.doMock('electron-dl', () => ({
+            CancelError: TestCancelError,
+            download,
+        }));
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            removePartialDownload: jest.fn(),
+            reserveAvailableDownloadFile: jest.fn(
+                (directory: string, filename: string) => ({
+                    filename,
+                    path: `${directory}/${filename}`,
+                })
+            ),
+        }));
+
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const runtime = await import('./download-runtime');
+            runtime.setMainWindow({
+                isDestroyed: () => false,
+                webContents: { send: jest.fn() },
+            } as never);
+
+            runtime.enqueueDownload(createTask());
+            runtime.enqueueDownload({
+                ...createTask(),
+                fileName: 'second.mp4',
+                id: 43,
+            });
+
+            await waitForCallCount(download, 2);
+            await expect(completionCallback).resolves.toBeUndefined();
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('continues the queue when initial database access fails', async () => {
         jest.resetModules();
 
