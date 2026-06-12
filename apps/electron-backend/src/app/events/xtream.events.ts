@@ -275,9 +275,9 @@ ipcMain.handle(
             method?: 'GET' | 'HEAD';
         }
     ) => {
-        // Guard against SSRF: a malicious portal/playlist could ask the main
-        // process to probe loopback/private/metadata addresses. Only allow
-        // public http(s) targets.
+        // Probe URLs must be http(s), but may target private/LAN Xtream hosts
+        // for self-hosted setups. Redirects stay disabled below so a validated
+        // URL cannot bounce to a different private target.
         try {
             // Private/LAN targets are allowed (users probe self-hosted Xtream
             // servers); maxRedirects:0 below blocks redirect-based SSRF.
