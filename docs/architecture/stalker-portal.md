@@ -184,8 +184,8 @@ Series inline playback behavior is shared across all three modes:
 
 - `StalkerSeriesViewComponent` maps every mode into `mappedSeasons()` and derives the currently playing episode from `inlinePlayback.contentInfo.contentXtreamId`.
 - The inline player header shows the current episode metadata below the title, for example `S01E03 - Episode title`.
-- When experimental embedded MPV is active, the player receives previous/next episode state for the current season only.
-- Embedded MPV autoplay is enabled by default. On MPV EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
+- Embedded players receive previous/next episode state for the current season only.
+- Inline series autoplay is enabled by default. On player EOF (`ended`), Stalker starts the next episode only when it already exists in the current season's mapped episode list.
 - Autoplay and Next stop at the last episode of the current season. They do not jump to the next season and do not lazy-load an unloaded `is_series=1` season. Quick start remains the only flow that may load another VOD-series season before playback.
 - Previous is disabled on the first episode of the current season and otherwise switches directly to the previous episode.
 

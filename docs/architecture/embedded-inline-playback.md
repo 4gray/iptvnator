@@ -139,6 +139,33 @@ The click path must continue through each detail host's normal episode playback
 method so recent-item updates, inline/external player selection, resume offsets,
 and playback-position saving keep the same behavior as manual episode clicks.
 
+## Series Inline Episode Continuation
+
+Xtream and Stalker series detail views own current-episode state and pass a
+`SeriesPlaybackNavigation` payload through `PortalInlinePlayerComponent` and
+`WebPlayerViewComponent` to the active embedded player.
+
+Current contract:
+
+- Video.js, HTML5, ArtPlayer, and embedded MPV emit `playbackEnded` only for
+  real media EOF/`ended` events.
+- Teardown, replacement, manual close, player reload, idle state, and playback
+  errors must not emit `playbackEnded`.
+- Series previous/next controls render only when the series navigation payload is
+  present. Movies, live streams, radio streams, and non-series VOD must not show
+  those buttons.
+- The shared navigation payload contains `canPrevious`, `canNext`, and
+  `autoplayEnabled`. Player controls disable previous on the first episode and
+  next on the last episode of the current season.
+- Autoplay is enabled by default for series playback. On `playbackEnded`, the
+  portal detail host starts the next episode only when `canNext` is true for the
+  current season.
+- Autoplay and Next never cross season boundaries or lazy-load another season.
+  Quick start remains the flow that may choose an episode from another loaded or
+  newly loaded season before playback begins.
+- Previous switches directly to the previous episode in the current season. It
+  does not implement a restart-threshold behavior.
+
 ## Codec And Container Diagnostics
 
 The shared `WebPlayerViewComponent` is the central browser-player viewport for M3U, Xtream, and Stalker inline playback, including live streams opened from favorites and recently viewed collections. Video.js, HTML5, and ArtPlayer report native media errors, HLS.js errors, mpegts.js errors, and HLS manifest codec metadata into the shared diagnostics classifier.
