@@ -12,6 +12,7 @@ import {
     PLAYLIST_CANCEL_REFRESH,
     PLAYLIST_REFRESH,
     PLAYLIST_REFRESH_EVENT,
+    ElectronBridgeTrustOptions,
     Playlist,
     PlaylistRefreshEvent,
     PlaylistRefreshPayload,
@@ -85,14 +86,24 @@ function createPlaylistRefreshError(error: {
     return workerError;
 }
 
-ipcMain.handle('fetch-playlist-by-url', async (event, url, title?: string) => {
-    try {
-        return await fetchPlaylistFromUrl(url, title);
-    } catch (error) {
-        console.error('Error fetching playlist:', error);
-        throw error;
+ipcMain.handle(
+    'fetch-playlist-by-url',
+    async (
+        event,
+        url,
+        title?: string,
+        options?: ElectronBridgeTrustOptions
+    ) => {
+        try {
+            return await fetchPlaylistFromUrl(url, title, {
+                trustedInsecureTlsHosts: options?.trustedInsecureTlsHosts,
+            });
+        } catch (error) {
+            console.error('Error fetching playlist:', error);
+            throw error;
+        }
     }
-});
+);
 
 ipcMain.handle(
     'update-playlist-from-file-path',
@@ -132,57 +143,72 @@ ipcMain.handle('open-playlist-from-file', async () => {
     }
 });
 
-ipcMain.handle(AUTO_UPDATE_PLAYLISTS, async (event, playlists) => {
-    console.log(`Auto-updating ${playlists.length} playlist(s)...`);
+ipcMain.handle(
+    AUTO_UPDATE_PLAYLISTS,
+    async (
+        event,
+        playlists: Playlist[],
+        options?: ElectronBridgeTrustOptions
+    ) => {
+        console.log(`Auto-updating ${playlists.length} playlist(s)...`);
 
-    const updatedPlaylists: Playlist[] = [];
+        const updatedPlaylists: Playlist[] = [];
 
-    for (const playlist of playlists) {
-        try {
-            let playlistObject;
+        for (const playlist of playlists) {
+            try {
+                let playlistObject;
 
-            if (playlist.importDate && playlist.url) {
-                // Update from URL
+                if (playlist.importDate && playlist.url) {
+                    // Update from URL
+                    console.log(
+                        `Updating playlist "${playlist.title}" from URL: ${playlist.url}`
+                    );
+                    playlistObject = await fetchPlaylistFromUrl(
+                        playlist.url,
+                        playlist.title,
+                        {
+                            trustedInsecureTlsHosts:
+                                options?.trustedInsecureTlsHosts,
+                        }
+                    );
+                } else if (playlist.filePath) {
+                    // Update from file path
+                    console.log(
+                        `Updating playlist "${playlist.title}" from file: ${playlist.filePath}`
+                    );
+                    playlistObject = await fetchPlaylistFromFile(
+                        playlist.filePath,
+                        playlist.title
+                    );
+                } else {
+                    console.warn(
+                        `Skipping playlist "${playlist.title}": no URL or file path found`
+                    );
+                    continue;
+                }
+
+                updatedPlaylists.push(
+                    preserveAutoUpdatedPlaylistFields(playlistObject, playlist)
+                );
+
                 console.log(
-                    `Updating playlist "${playlist.title}" from URL: ${playlist.url}`
+                    `Successfully updated playlist "${playlist.title}"`
                 );
-                playlistObject = await fetchPlaylistFromUrl(
-                    playlist.url,
-                    playlist.title
+            } catch (error) {
+                console.error(
+                    `Failed to update playlist "${playlist.title}":`,
+                    error
                 );
-            } else if (playlist.filePath) {
-                // Update from file path
-                console.log(
-                    `Updating playlist "${playlist.title}" from file: ${playlist.filePath}`
-                );
-                playlistObject = await fetchPlaylistFromFile(
-                    playlist.filePath,
-                    playlist.title
-                );
-            } else {
-                console.warn(
-                    `Skipping playlist "${playlist.title}": no URL or file path found`
-                );
-                continue;
+                // Continue with other playlists even if one fails
             }
-
-            updatedPlaylists.push(
-                preserveAutoUpdatedPlaylistFields(playlistObject, playlist)
-            );
-
-            console.log(`Successfully updated playlist "${playlist.title}"`);
-        } catch (error) {
-            console.error(
-                `Failed to update playlist "${playlist.title}":`,
-                error
-            );
-            // Continue with other playlists even if one fails
         }
-    }
 
-    console.log(`Auto-update completed: ${updatedPlaylists.length} updated`);
-    return updatedPlaylists;
-});
+        console.log(
+            `Auto-update completed: ${updatedPlaylists.length} updated`
+        );
+        return updatedPlaylists;
+    }
+);
 
 ipcMain.handle(
     PLAYLIST_REFRESH,

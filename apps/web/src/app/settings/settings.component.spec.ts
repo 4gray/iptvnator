@@ -18,7 +18,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { By } from '@angular/platform-browser';
 import { Router } from '@angular/router';
 import { RouterTestingModule } from '@angular/router/testing';
-import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
+import {
+    EpgRuntimeBridgeService,
+    EpgService,
+} from '@iptvnator/epg/data-access';
 import { Store } from '@ngrx/store';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -93,6 +96,21 @@ class MockSettingsStore {
     private _settings = signal(DEFAULT_SETTINGS);
 
     getSettings = () => this._settings();
+
+    getTrustOptions = () => ({
+        trustedPrivateNetworkEpgUrls:
+            (
+                this._settings() as typeof DEFAULT_SETTINGS & {
+                    trustedPrivateNetworkEpgUrls?: string[];
+                }
+            ).trustedPrivateNetworkEpgUrls ?? [],
+        trustedInsecureTlsHosts:
+            (
+                this._settings() as typeof DEFAULT_SETTINGS & {
+                    trustedInsecureTlsHosts?: string[];
+                }
+            ).trustedInsecureTlsHosts ?? [],
+    });
 
     loadSettings = jest.fn().mockResolvedValue(undefined);
 
@@ -488,9 +506,7 @@ describe('SettingsComponent', () => {
                 expect(
                     component
                         .players()
-                        .some(
-                            (player) => player.id === VideoPlayer.EmbeddedMpv
-                        )
+                        .some((player) => player.id === VideoPlayer.EmbeddedMpv)
                 ).toBe(true);
             }
         );
@@ -515,9 +531,9 @@ describe('SettingsComponent', () => {
             partialBridgeFixture.detectChanges();
 
             expect(partialBridgeComponent.isDesktop).toBe(true);
-            expect(
-                partialBridgeComponent.supportsManagedExternalPlayers
-            ).toBe(false);
+            expect(partialBridgeComponent.supportsManagedExternalPlayers).toBe(
+                false
+            );
             expect(
                 partialBridgeComponent.supportsExternalPlayerPathSettings
             ).toBe(false);
@@ -611,9 +627,7 @@ describe('SettingsComponent', () => {
             ).toBe(false);
 
             if (!resolveSupport) {
-                throw new Error(
-                    'Expected embedded MPV support probe to start'
-                );
+                throw new Error('Expected embedded MPV support probe to start');
             }
 
             resolveSupport({
@@ -882,7 +896,10 @@ describe('SettingsComponent', () => {
     it('should force-fetch EPG for a single URL (bypassing freshness cache)', () => {
         const url = 'http://epg-url-here/data.xml';
         component.refreshEpg(url);
-        expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(url);
+        expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(url, {
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
     });
 
     it('clears EPG data with a busy state and refreshes all sources on success', async () => {
@@ -1112,12 +1129,16 @@ describe('SettingsComponent', () => {
         component.onSubmit();
         await fixture.whenStable();
 
-        expect(mockStore.updateSettings).toHaveBeenCalledWith(
-            component.settingsForm.value
-        );
-        expect(updateSettings).toHaveBeenCalledWith(
-            component.settingsForm.value
-        );
+        expect(mockStore.updateSettings).toHaveBeenCalledWith({
+            ...component.settingsForm.value,
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        expect(updateSettings).toHaveBeenCalledWith({
+            ...component.settingsForm.value,
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
     });
 
     it('clears external player paths in Electron when saved as empty', async () => {

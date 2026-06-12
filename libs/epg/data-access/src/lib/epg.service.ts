@@ -8,6 +8,7 @@ import {
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
 
@@ -25,6 +26,7 @@ export class EpgService {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
 
     private epgAvailable = new BehaviorSubject<boolean>(false);
     private currentEpgPrograms = new BehaviorSubject<EpgProgram[]>([]);
@@ -46,7 +48,12 @@ export class EpgService {
         const validUrls = urls.filter((url) => url?.trim());
         if (validUrls.length === 0) return;
 
-        from(this.epgBridge.fetchEpg(validUrls))
+        from(
+            this.epgBridge.fetchEpg(
+                validUrls,
+                this.settingsStore.getTrustOptions()
+            )
+        )
             .pipe(
                 tap((result) => {
                     if (result === null) return;
@@ -272,7 +279,9 @@ export class EpgService {
             return of(new Map());
         }
 
-        return from(this.epgBridge.getChannelMetadata(normalizedChannelIds)).pipe(
+        return from(
+            this.epgBridge.getChannelMetadata(normalizedChannelIds)
+        ).pipe(
             map((metadataByChannelId) => {
                 return new Map<string, EpgChannelMetadata | null>(
                     normalizedChannelIds.map((channelId) => [

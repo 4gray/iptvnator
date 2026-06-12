@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Playlist konnte nicht abgerufen werden. Bitte überprüfen Sie die URL und versuchen Sie es erneut.",
             "ERROR_403": "Zugriff verweigert (403): Der Server hat die Anfrage abgelehnt. Die URL erfordert möglicherweise eine Authentifizierung oder die Playlist ist eingeschränkt.",
             "ERROR_404": "Playlist nicht gefunden (404): Die URL verweist nicht auf eine gültige Playlist. Bitte überprüfen Sie die URL.",
-            "ERROR_401": "Nicht autorisiert (401): Für den Zugriff auf diese Playlist ist eine Authentifizierung erforderlich."
+            "ERROR_401": "Nicht autorisiert (401): Für den Zugriff auf diese Playlist ist eine Authentifizierung erforderlich.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Füge m3u(8)-Wiedergabeliste hier als Text ein",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Programme insgesamt",
         "UP_TO_DATE": "EPG ist aktuell, keine Synchronisation nötig",
         "RETRY": "Erneut versuchen",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

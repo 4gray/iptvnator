@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "获取播放列表失败。请检查 URL 后重试。",
             "ERROR_403": "拒绝访问 (403)：服务器拒绝了请求。该 URL 可能需要身份验证，或播放列表受到限制。",
             "ERROR_404": "未找到播放列表 (404)：该 URL 不指向有效的播放列表。请检查 URL。",
-            "ERROR_401": "未授权 (401)：访问此播放列表需要进行身份验证。"
+            "ERROR_401": "未授权 (401)：访问此播放列表需要进行身份验证。",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "从文本导入播放列表(m3u, m3u8)",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "节目总数",
         "UP_TO_DATE": "EPG 已为最新，无需同步",
         "RETRY": "重试",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

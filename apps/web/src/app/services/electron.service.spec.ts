@@ -2,7 +2,14 @@ import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
-import { PLAYLIST_PARSE_BY_URL } from '@iptvnator/shared/interfaces';
+import { of } from 'rxjs';
+import { DialogService } from '@iptvnator/ui/components';
+import { SettingsStore } from '@iptvnator/services';
+import {
+    ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    PLAYLIST_PARSE_BY_URL,
+    SECURITY_ERROR_PREFIX,
+} from '@iptvnator/shared/interfaces';
 import { ElectronService } from './electron.service';
 
 describe('ElectronService', () => {
@@ -12,6 +19,7 @@ describe('ElectronService', () => {
         openInMpv: jest.Mock;
         openInVlc: jest.Mock;
     };
+    let snackBar: { open: jest.Mock };
     let service: ElectronService;
 
     beforeEach(() => {
@@ -21,6 +29,11 @@ describe('ElectronService', () => {
             fetchPlaylistByUrl: jest.fn(),
             openInMpv: jest.fn().mockResolvedValue(session),
             openInVlc: jest.fn().mockResolvedValue(session),
+        };
+        snackBar = {
+            open: jest.fn(() => ({
+                onAction: () => of(undefined),
+            })),
         };
 
         Object.defineProperty(window, 'electron', {
@@ -33,8 +46,25 @@ describe('ElectronService', () => {
                 ElectronService,
                 {
                     provide: MatSnackBar,
+                    useValue: snackBar,
+                },
+                {
+                    provide: DialogService,
                     useValue: {
-                        open: jest.fn(),
+                        openConfirmDialog: jest.fn(),
+                    },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: {
+                        getTrustOptions: jest.fn(() => ({
+                            trustedPrivateNetworkEpgUrls: [],
+                            trustedInsecureTlsHosts: [],
+                        })),
+                        getSettings: jest.fn(() => ({
+                            trustedInsecureTlsHosts: [],
+                        })),
+                        updateSettings: jest.fn().mockResolvedValue(undefined),
                     },
                 },
                 {
@@ -67,6 +97,32 @@ describe('ElectronService', () => {
         await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL);
 
         expect(electronBridge.fetchPlaylistByUrl).not.toHaveBeenCalled();
+    });
+
+    it('shows the trust-host action for Electron-wrapped security errors', async () => {
+        const securityPayload = {
+            code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+            host: 'playlist.local',
+            message: 'Certificate for this playlist host is invalid.',
+        };
+        electronBridge.fetchPlaylistByUrl.mockRejectedValue(
+            new Error(
+                `Error invoking remote method 'FETCH_PLAYLIST_BY_URL': Error: ${SECURITY_ERROR_PREFIX}${JSON.stringify(
+                    securityPayload
+                )}`
+            )
+        );
+
+        await service.sendIpcEvent(PLAYLIST_PARSE_BY_URL, {
+            url: 'https://playlist.local/list.m3u',
+        });
+        await Promise.resolve();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'Certificate for this playlist host is invalid.',
+            'Trust host',
+            { duration: 10000 }
+        );
     });
 
     it('preserves an absent MPV user-agent so backend fallback headers can apply', async () => {

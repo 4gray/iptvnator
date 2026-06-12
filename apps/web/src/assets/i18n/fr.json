@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Échec de la récupération de la liste de lecture. Veuillez vérifier l'URL et réessayer.",
             "ERROR_403": "Accès refusé (403) : le serveur a refusé la requête. L'URL peut nécessiter une authentification ou la liste de lecture est restreinte.",
             "ERROR_404": "Liste de lecture introuvable (404) : l'URL ne pointe pas vers une liste de lecture valide. Veuillez vérifier l'URL.",
-            "ERROR_401": "Non autorisé (401) : une authentification est requise pour accéder à cette liste de lecture."
+            "ERROR_401": "Non autorisé (401) : une authentification est requise pour accéder à cette liste de lecture.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Insérer la liste m3u(8) sous forme de texte",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Total des programmes",
         "UP_TO_DATE": "L'EPG est à jour, aucune synchronisation nécessaire",
         "RETRY": "Réessayer",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

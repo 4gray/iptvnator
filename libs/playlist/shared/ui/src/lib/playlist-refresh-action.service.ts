@@ -12,10 +12,17 @@ import {
     PlaybackPositionService,
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
+    SettingsStore,
     XtreamPendingRestoreService,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
-import { PLAYLIST_UPDATE, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    normalizeHost,
+    parseSecurityPolicyError,
+    PLAYLIST_UPDATE,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 
 export interface XtreamRefreshPreparationState {
@@ -38,6 +45,7 @@ export class PlaylistRefreshActionService {
     private readonly playbackPositionService = inject(PlaybackPositionService);
     private readonly playlistRefreshService = inject(PlaylistRefreshService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly pendingRestoreService = inject(
         XtreamPendingRestoreService
@@ -62,7 +70,9 @@ export class PlaylistRefreshActionService {
             return true;
         }
 
-        return this.runtime.supportsPlaylistRefresh && Boolean(playlist.filePath);
+        return (
+            this.runtime.supportsPlaylistRefresh && Boolean(playlist.filePath)
+        );
     }
 
     refresh(playlist: PlaylistMeta): void {
@@ -205,6 +215,9 @@ export class PlaylistRefreshActionService {
                     title: item.title,
                     url: item.url,
                     filePath: item.filePath,
+                    trustedInsecureTlsHosts:
+                        this.settingsStore.getTrustOptions()
+                            .trustedInsecureTlsHosts,
                 });
 
             this.store.dispatch(
@@ -227,19 +240,26 @@ export class PlaylistRefreshActionService {
         } catch (error) {
             if (!isDbAbortError(error)) {
                 console.error('Error refreshing playlist:', error);
+                if (
+                    item.url &&
+                    this.handlePlaylistSecurityError(error, () =>
+                        this.refresh(item)
+                    )
+                ) {
+                    return;
+                }
                 this.snackBar.open(
                     this.getRefreshErrorMessage(error, item),
                     this.translate.instant('CLOSE'),
                     { duration: 5000 }
                 );
             }
-
+        } finally {
             if (isActiveM3uRoute) {
                 this.store.dispatch(
                     ChannelActions.setChannelsLoading({ loading: false })
                 );
             }
-        } finally {
             this.isRefreshing.set(false);
         }
     }
@@ -256,6 +276,90 @@ export class PlaylistRefreshActionService {
         }
 
         return this.translate.instant('HOME.PLAYLISTS.PLAYLIST_UPDATE_ERROR');
+    }
+
+    private handlePlaylistSecurityError(
+        error: unknown,
+        retry: () => void
+    ): boolean {
+        const securityError = parseSecurityPolicyError(error);
+        if (
+            securityError?.code !==
+            ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate
+        ) {
+            return false;
+        }
+
+        const ref = this.snackBar.open(
+            this.translateWithFallback(
+                'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+                'Certificate for this playlist host is invalid.'
+            ),
+            this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                'Trust host'
+            ),
+            { duration: 10000 }
+        );
+        ref.onAction().subscribe(() => {
+            this.confirmTrustPlaylistHost(securityError.host, retry);
+        });
+        return true;
+    }
+
+    private confirmTrustPlaylistHost(
+        host: string | undefined,
+        retry: () => void
+    ): void {
+        if (!host) {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
+                    'Could not determine the playlist host. Please retry manually.'
+                ),
+                this.translate.instant('CLOSE'),
+                { duration: 5000 }
+            );
+            return;
+        }
+
+        this.dialogService.openConfirmDialog({
+            title: this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
+                'Trust invalid certificate?'
+            ),
+            message: this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING',
+                'Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+            ),
+            confirmLabel: this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                'Trust host'
+            ),
+            width: '420px',
+            onConfirm: () => {
+                void this.trustPlaylistHost(host).then(retry);
+            },
+        });
+    }
+
+    private async trustPlaylistHost(host: string): Promise<void> {
+        const settings = this.settingsStore.getSettings();
+        const trustedHosts = new Set(
+            (settings.trustedInsecureTlsHosts ?? []).map((item) =>
+                normalizeHost(item)
+            )
+        );
+        trustedHosts.add(normalizeHost(host));
+
+        await this.settingsStore.updateSettings({
+            trustedInsecureTlsHosts: Array.from(trustedHosts),
+        });
+    }
+
+    private translateWithFallback(key: string, fallback: string): string {
+        const translated = this.translate.instant(key);
+        return translated === key ? fallback : translated;
     }
 
     private updateRefreshPreparationFromEvent(

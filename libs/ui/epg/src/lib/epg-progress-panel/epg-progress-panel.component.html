@@ -22,9 +22,7 @@
                     mat-icon-button
                     class="minimize-btn"
                     (click)="toggleMinimize()"
-                    [attr.aria-label]="
-                        minimized() ? 'Expand' : 'Minimize'
-                    "
+                    [attr.aria-label]="minimized() ? 'Expand' : 'Minimize'"
                 >
                     <mat-icon>
                         {{ minimized() ? 'unfold_more' : 'unfold_less' }}
@@ -50,9 +48,7 @@
                     >
                         <div class="item-header">
                             <mat-icon
-                                [class.spinning]="
-                                    item.status === 'loading'
-                                "
+                                [class.spinning]="item.status === 'loading'"
                             >
                                 {{ getStatusIcon(item.status) }}
                             </mat-icon>
@@ -60,6 +56,16 @@
                                 {{ getDisplayUrl(item.url) }}
                             </span>
                             @if (item.status === 'error') {
+                                @if (isActionableSecurityError(item)) {
+                                    <button
+                                        mat-stroked-button
+                                        class="trust-btn"
+                                        type="button"
+                                        (click)="confirmTrust(item)"
+                                    >
+                                        {{ getActionLabel(item) }}
+                                    </button>
+                                }
                                 <button
                                     mat-icon-button
                                     class="retry-btn"
@@ -105,13 +111,9 @@
                                     {{ item.stats.totalPrograms }}
                                 </span>
                             } @else if (item.error) {
-                                <span class="error-text">{{
-                                    item.error
-                                }}</span>
+                                <span class="error-text">{{ item.error }}</span>
                             } @else if (item.status === 'loading') {
-                                <span
-                                    >{{ 'EPG.LOADING' | translate }}...</span
-                                >
+                                <span>{{ 'EPG.LOADING' | translate }}...</span>
                             }
                         </div>
                     </div>
@@ -137,19 +139,14 @@
                                     <span class="queue-position">{{
                                         i + 1
                                     }}</span>
-                                    <span
-                                        class="queue-url"
-                                        [title]="item.url"
-                                    >
+                                    <span class="queue-url" [title]="item.url">
                                         {{ getDisplayUrl(item.url) }}
                                     </span>
                                     <button
                                         mat-icon-button
                                         class="dismiss-btn"
                                         (click)="dismiss(item.url)"
-                                        [attr.aria-label]="
-                                            'CLOSE' | translate
-                                        "
+                                        [attr.aria-label]="'CLOSE' | translate"
                                     >
                                         <mat-icon>close</mat-icon>
                                     </button>

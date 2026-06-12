@@ -30,7 +30,10 @@ describe('secure-https', () => {
         delete process.env.IPTVNATOR_ALLOW_INSECURE_TLS;
 
         expect(isInsecureTlsAllowed()).toBe(false);
-        createPlaylistAgentFactory().createHttpsAgent(lookup);
+        createPlaylistAgentFactory().createHttpsAgent(
+            lookup,
+            new URL('https://example.com/list.m3u')
+        );
 
         expect(agentConstructorMock).toHaveBeenCalledWith({
             lookup,
@@ -44,7 +47,10 @@ describe('secure-https', () => {
             process.env.IPTVNATOR_ALLOW_INSECURE_TLS = value;
 
             expect(isInsecureTlsAllowed()).toBe(true);
-            createPlaylistAgentFactory().createHttpsAgent(lookup);
+            createPlaylistAgentFactory().createHttpsAgent(
+                lookup,
+                new URL('https://example.com/list.m3u')
+            );
 
             expect(agentConstructorMock).toHaveBeenCalledWith({
                 lookup,
@@ -62,9 +68,38 @@ describe('secure-https', () => {
     it('preserves TLS policy when no pinned lookup is required', () => {
         delete process.env.IPTVNATOR_ALLOW_INSECURE_TLS;
 
-        createPlaylistAgentFactory().createHttpsAgent();
+        createPlaylistAgentFactory().createHttpsAgent(
+            undefined,
+            new URL('https://example.com/list.m3u')
+        );
 
         expect(agentConstructorMock).toHaveBeenCalledWith({
+            rejectUnauthorized: true,
+        });
+    });
+
+    it('allows invalid certificates only for trusted hosts', () => {
+        delete process.env.IPTVNATOR_ALLOW_INSECURE_TLS;
+
+        const factory = createPlaylistAgentFactory({
+            trustedInsecureTlsHosts: ['playlist.local'],
+        });
+
+        factory.createHttpsAgent(
+            lookup,
+            new URL('https://playlist.local/list.m3u')
+        );
+        factory.createHttpsAgent(
+            lookup,
+            new URL('https://other.local/list.m3u')
+        );
+
+        expect(agentConstructorMock).toHaveBeenNthCalledWith(1, {
+            lookup,
+            rejectUnauthorized: false,
+        });
+        expect(agentConstructorMock).toHaveBeenNthCalledWith(2, {
+            lookup,
             rejectUnauthorized: true,
         });
     });

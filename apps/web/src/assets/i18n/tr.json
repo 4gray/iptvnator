@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Oynatma listesi alınamadı. Lütfen URL'yi kontrol edip tekrar deneyin.",
             "ERROR_403": "Erişim reddedildi (403): Sunucu isteği reddetti. URL kimlik doğrulama gerektiriyor olabilir veya oynatma listesi kısıtlanmış olabilir.",
             "ERROR_404": "Oynatma listesi bulunamadı (404): URL geçerli bir oynatma listesine işaret etmiyor. Lütfen URL'yi kontrol edin.",
-            "ERROR_401": "Yetkisiz (401): Bu oynatma listesine erişmek için kimlik doğrulama gerekiyor."
+            "ERROR_401": "Yetkisiz (401): Bu oynatma listesine erişmek için kimlik doğrulama gerekiyor.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "m3u(8) oynatma listesini metin olarak girin",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Toplam program",
         "UP_TO_DATE": "EPG güncel, senkronizasyona gerek yok",
         "RETRY": "Tekrar Dene",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

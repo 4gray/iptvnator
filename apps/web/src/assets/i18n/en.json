@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Failed to fetch the playlist. Please check the URL and try again.",
             "ERROR_403": "Access denied (403): The server refused the request. The URL may require authentication or the playlist is restricted.",
             "ERROR_404": "Playlist not found (404): The URL does not point to a valid playlist. Please check the URL.",
-            "ERROR_401": "Unauthorized (401): Authentication is required to access this playlist."
+            "ERROR_401": "Unauthorized (401): Authentication is required to access this playlist.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Insert m3u(8) playlist as text",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Total programs",
         "UP_TO_DATE": "EPG is up-to-date, no sync needed",
         "RETRY": "Retry",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

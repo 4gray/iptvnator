@@ -90,7 +90,10 @@ describe('requestWithValidatedRedirects', () => {
             );
         });
 
-        expect(factory.createHttpsAgent).toHaveBeenCalledWith(lookups[0]);
+        expect(factory.createHttpsAgent).toHaveBeenCalledWith(
+            lookups[0],
+            new URL('https://epg.example/guide.xml')
+        );
         expect(requestConfig.httpsAgent).toBeInstanceOf(HttpsAgent);
         expect(requestConfig).not.toHaveProperty('agentFactory');
         expect(resolvedAddress).toEqual({
@@ -144,7 +147,10 @@ describe('requestWithValidatedRedirects', () => {
         );
 
         const requestConfig = axiosMock.mock.calls[0][0];
-        expect(factory.createHttpsAgent).toHaveBeenCalledWith();
+        expect(factory.createHttpsAgent).toHaveBeenCalledWith(
+            undefined,
+            new URL('https://192.168.1.10/list.m3u')
+        );
         expect(requestConfig.httpsAgent).toBeInstanceOf(HttpsAgent);
         expect(requestConfig).not.toHaveProperty('agentFactory');
     });

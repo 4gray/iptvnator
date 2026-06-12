@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Αποτυχία λήψης της λίστας αναπαραγωγής. Ελέγξτε τη διεύθυνση URL και δοκιμάστε ξανά.",
             "ERROR_403": "Άρνηση πρόσβασης (403): Ο διακομιστής απέρριψε το αίτημα. Η διεύθυνση URL μπορεί να απαιτεί έλεγχο ταυτότητας ή η λίστα αναπαραγωγής είναι περιορισμένη.",
             "ERROR_404": "Η λίστα αναπαραγωγής δεν βρέθηκε (404): Η διεύθυνση URL δεν δείχνει σε έγκυρη λίστα αναπαραγωγής. Ελέγξτε τη διεύθυνση URL.",
-            "ERROR_401": "Μη εξουσιοδοτημένος (401): Απαιτείται έλεγχος ταυτότητας για πρόσβαση σε αυτή τη λίστα αναπαραγωγής."
+            "ERROR_401": "Μη εξουσιοδοτημένος (401): Απαιτείται έλεγχος ταυτότητας για πρόσβαση σε αυτή τη λίστα αναπαραγωγής.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Προσθήκη m3u(8) λίστας αναπαραγωγής ως κείμενο",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Σύνολο προγραμμάτων",
         "UP_TO_DATE": "Το EPG είναι ενημερωμένο, δεν απαιτείται συγχρονισμός",
         "RETRY": "Επανάληψη",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

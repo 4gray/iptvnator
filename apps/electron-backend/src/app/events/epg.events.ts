@@ -1,6 +1,10 @@
 import { eq } from 'drizzle-orm';
 import { ipcMain } from 'electron';
-import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    ElectronBridgeTrustOptions,
+    EpgChannelMetadata,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
 import { epgQueryService } from './epg-query.service';
@@ -17,9 +21,15 @@ export default class EpgEvents {
      * Bootstrap EPG events
      */
     static bootstrapEpgEvents(): Electron.IpcMain {
-        ipcMain.handle('FETCH_EPG', async (_event, args: { url: string[] }) => {
-            return await this.handleFetchEpg(args.url);
-        });
+        ipcMain.handle(
+            'FETCH_EPG',
+            async (
+                _event,
+                args: { url: string[]; options?: ElectronBridgeTrustOptions }
+            ) => {
+                return await this.handleFetchEpg(args.url, args.options);
+            }
+        );
 
         ipcMain.handle(
             'GET_CHANNEL_PROGRAMS',
@@ -53,10 +63,21 @@ export default class EpgEvents {
             }
         );
 
-        ipcMain.handle('EPG_FORCE_FETCH', async (_event, url: string) => {
-            epgWorkerService.deleteFetchedUrl(url);
-            return await this.handleFetchEpg([url]);
-        });
+        ipcMain.handle(
+            'EPG_FORCE_FETCH',
+            async (
+                _event,
+                args:
+                    | string
+                    | { url: string; options?: ElectronBridgeTrustOptions }
+            ) => {
+                const url = typeof args === 'string' ? args : args.url;
+                const options =
+                    typeof args === 'string' ? undefined : args.options;
+                epgWorkerService.deleteFetchedUrl(url);
+                return await this.handleFetchEpg([url], options);
+            }
+        );
 
         ipcMain.handle('EPG_CLEAR_ALL', async () => {
             await this.clearEpgData();
@@ -149,7 +170,8 @@ export default class EpgEvents {
      * Processes URLs sequentially to avoid SQLite database locking issues
      */
     private static async handleFetchEpg(
-        urls: string[]
+        urls: string[],
+        options: ElectronBridgeTrustOptions = {}
     ): Promise<{ success: boolean; message?: string; skipped?: string[] }> {
         const validUrls = urls.filter((url) => url?.trim());
 
@@ -198,7 +220,7 @@ export default class EpgEvents {
         const errors: string[] = [];
         for (const url of urlsToFetch) {
             try {
-                await this.fetchEpgFromUrl(url);
+                await this.fetchEpgFromUrl(url, options);
             } catch (error) {
                 console.error(
                     this.loggerLabel,
@@ -222,8 +244,11 @@ export default class EpgEvents {
         return { success: true, skipped: freshUrls };
     }
 
-    private static async fetchEpgFromUrl(url: string): Promise<void> {
-        return epgWorkerService.fetchEpgFromUrl(url);
+    private static async fetchEpgFromUrl(
+        url: string,
+        options: ElectronBridgeTrustOptions = {}
+    ): Promise<void> {
+        return epgWorkerService.fetchEpgFromUrl(url, options);
     }
 
     private static async handleGetChannelPrograms(

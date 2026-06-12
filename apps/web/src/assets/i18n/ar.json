@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "فشل جلب قائمة التشغيل. يرجى التحقق من الرابط والمحاولة مرة أخرى.",
             "ERROR_403": "تم رفض الوصول (403): رفض الخادم الطلب. قد يتطلب الرابط مصادقة أو أن قائمة التشغيل مقيدة.",
             "ERROR_404": "قائمة التشغيل غير موجودة (404): الرابط لا يشير إلى قائمة تشغيل صالحة. يرجى التحقق من الرابط.",
-            "ERROR_401": "غير مصرح (401): المصادقة مطلوبة للوصول إلى قائمة التشغيل هذه."
+            "ERROR_401": "غير مصرح (401): المصادقة مطلوبة للوصول إلى قائمة التشغيل هذه.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "إدراج قائمة تشغيل M3U(8) كنص",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "إجمالي البرامج",
         "UP_TO_DATE": "EPG محدث، لا حاجة للمزامنة",
         "RETRY": "إعادة المحاولة",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"
