@@ -77,6 +77,81 @@ export function isPrivateOrReservedIpv4(address: string): boolean {
     );
 }
 
+function parseIpv6Words(address: string): number[] | null {
+    const halves = address.split('::');
+    if (halves.length > 2) {
+        return null;
+    }
+
+    const parseHalf = (half: string): number[] | null => {
+        if (!half) {
+            return [];
+        }
+
+        const words: number[] = [];
+        for (const part of half.split(':')) {
+            if (part.includes('.')) {
+                const octets = part.split('.').map((octet) => Number(octet));
+                if (
+                    octets.length !== 4 ||
+                    octets.some(
+                        (octet) =>
+                            !Number.isInteger(octet) || octet < 0 || octet > 255
+                    )
+                ) {
+                    return null;
+                }
+                words.push(
+                    (octets[0] << 8) | octets[1],
+                    (octets[2] << 8) | octets[3]
+                );
+                continue;
+            }
+
+            if (!/^[0-9a-f]{1,4}$/i.test(part)) {
+                return null;
+            }
+            words.push(Number.parseInt(part, 16));
+        }
+        return words;
+    };
+
+    const left = parseHalf(halves[0]);
+    const right = parseHalf(halves[1] ?? '');
+    if (!left || !right) {
+        return null;
+    }
+
+    if (halves.length === 1) {
+        return left.length === 8 ? left : null;
+    }
+
+    const omittedWordCount = 8 - left.length - right.length;
+    if (omittedWordCount < 1) {
+        return null;
+    }
+
+    return [...left, ...Array<number>(omittedWordCount).fill(0), ...right];
+}
+
+function getMappedIpv4Address(address: string): string | null {
+    const words = parseIpv6Words(address);
+    if (
+        !words ||
+        words.slice(0, 5).some((word) => word !== 0) ||
+        words[5] !== 0xffff
+    ) {
+        return null;
+    }
+
+    return [
+        words[6] >> 8,
+        words[6] & 0xff,
+        words[7] >> 8,
+        words[7] & 0xff,
+    ].join('.');
+}
+
 export function isPrivateOrReservedIpv6(address: string): boolean {
     const normalized = address.toLowerCase();
     if (
@@ -90,7 +165,7 @@ export function isPrivateOrReservedIpv6(address: string): boolean {
         return true;
     }
 
-    const mappedIpv4 = normalized.match(/::ffff:(\d+\.\d+\.\d+\.\d+)$/)?.[1];
+    const mappedIpv4 = getMappedIpv4Address(normalized);
     return mappedIpv4 ? isPrivateOrReservedIpv4(mappedIpv4) : false;
 }
 

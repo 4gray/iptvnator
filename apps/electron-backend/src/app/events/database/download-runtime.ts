@@ -96,6 +96,41 @@ function finishTask(task: DownloadTask): void {
     void processQueue();
 }
 
+function createCancellationHandler(
+    task: DownloadTask,
+    db: Awaited<ReturnType<typeof getDatabase>>,
+    reservation: ReturnType<typeof reserveAvailableDownloadFile>
+): (item: Parameters<typeof removePartialDownload>[0]) => Promise<void> {
+    let cancellationPromise: Promise<void> | undefined;
+
+    return (item) => {
+        cancellationPromise ??= (async () => {
+            console.log(`[Downloads] Canceled: ${reservation.filename}`);
+            removePartialFile(item);
+            try {
+                await db
+                    .update(schema.downloads)
+                    .set({
+                        errorMessage: null,
+                        filePath: null,
+                        status: 'canceled',
+                        updatedAt: sql`CURRENT_TIMESTAMP`,
+                    })
+                    .where(eq(schema.downloads.id, task.id));
+            } catch (error) {
+                console.error(
+                    '[Downloads] Failed to persist cancellation:',
+                    error
+                );
+            } finally {
+                finishTask(task);
+            }
+        })();
+
+        return cancellationPromise;
+    };
+}
+
 async function startDownload(task: DownloadTask): Promise<void> {
     const db = await getDatabase();
     await db
@@ -125,6 +160,9 @@ async function startDownload(task: DownloadTask): Promise<void> {
 
     let lastProgressUpdate = 0;
     const progressThrottleMs = 500;
+    let handleCancellation:
+        | ReturnType<typeof createCancellationHandler>
+        | undefined;
 
     try {
         const reservation = reserveAvailableDownloadFile(
@@ -132,6 +170,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
             task.fileName
         );
         task.reservedPath = reservation.path;
+        handleCancellation = createCancellationHandler(task, db, reservation);
         await db
             .update(schema.downloads)
             .set({
@@ -181,20 +220,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
                     .where(eq(schema.downloads.id, task.id));
                 finishTask(task);
             },
-            onCancel: async (item) => {
-                console.log(`[Downloads] Canceled: ${reservation.filename}`);
-                removePartialFile(item);
-                await db
-                    .update(schema.downloads)
-                    .set({
-                        errorMessage: null,
-                        filePath: null,
-                        status: 'canceled',
-                        updatedAt: sql`CURRENT_TIMESTAMP`,
-                    })
-                    .where(eq(schema.downloads.id, task.id));
-                finishTask(task);
-            },
+            onCancel: handleCancellation,
         };
 
         if (task.headers) {
@@ -208,6 +234,17 @@ async function startDownload(task: DownloadTask): Promise<void> {
         await download(mainWindow, task.url, downloadOptions);
     } catch (error) {
         if (error instanceof CancelError) {
+            const reservedPath = task.reservedPath;
+            if (handleCancellation) {
+                await handleCancellation(
+                    task.downloadItem ??
+                        (reservedPath
+                            ? { getSavePath: () => reservedPath }
+                            : undefined)
+                );
+            } else {
+                finishTask(task);
+            }
             return;
         }
 

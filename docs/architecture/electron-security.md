@@ -109,7 +109,9 @@ the previous override.
 Renderer-triggered HTTP requests must pass through the URL policy in
 `apps/electron-backend/src/app/events/url-safety.ts`. The policy rejects
 non-HTTP(S) URLs and embedded credentials, and strict callers also reject
-loopback, private, reserved, and DNS-resolved private addresses.
+loopback, private, reserved, and DNS-resolved private addresses. IPv4-mapped
+IPv6 literals are decoded before classification, including hexadecimal forms
+such as `::ffff:7f00:1`, so alternate IPv6 spelling cannot bypass IPv4 rules.
 
 Remote request callers must use the validated Axios redirect helper so every
 redirect target is checked before the main process follows it. Under the strict

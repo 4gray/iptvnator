@@ -129,8 +129,15 @@ export class EpgDatabaseClearOperation {
     }
 
     run(): void {
-        this.db.exec('DELETE FROM epg_programs');
-        this.db.exec('DELETE FROM epg_channels');
+        this.db.exec('BEGIN');
+        try {
+            this.db.exec('DELETE FROM epg_programs');
+            this.db.exec('DELETE FROM epg_channels');
+            this.db.exec('COMMIT');
+        } catch (error) {
+            this.db.exec('ROLLBACK');
+            throw error;
+        }
     }
 
     close(): void {
