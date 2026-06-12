@@ -1,5 +1,9 @@
 import { Component, input, output } from '@angular/core';
-import { ComponentFixture, TestBed } from '@angular/core/testing';
+import {
+    ComponentFixture,
+    DeferBlockBehavior,
+    TestBed,
+} from '@angular/core/testing';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -95,6 +99,8 @@ describe('WebPlayerViewComponent', () => {
         runtimeCapabilities = { supportsManagedExternalPlayers: false };
 
         await TestBed.configureTestingModule({
+            // @defer blocks render their main content synchronously in tests.
+            deferBlockBehavior: DeferBlockBehavior.Playthrough,
             imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
             providers: [
                 { provide: StorageMap, useValue: storageMap },
@@ -208,7 +214,7 @@ describe('WebPlayerViewComponent', () => {
         ]);
     });
 
-    it('marks portal VOD playback as non-live for Video.js MPEG-TS playback', () => {
+    it('marks portal VOD playback as non-live for Video.js MPEG-TS playback', async () => {
         const streamUrl = 'https://example.com/movie/123.ts';
         fixture.componentRef.setInput('playback', {
             streamUrl,
@@ -220,6 +226,8 @@ describe('WebPlayerViewComponent', () => {
             },
         });
 
+        fixture.detectChanges();
+        await fixture.whenStable();
         fixture.detectChanges();
 
         const player = fixture.debugElement.query(
@@ -238,7 +246,7 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('preserves playback HTTP metadata for channel-based players', () => {
+    it('preserves playback HTTP metadata for channel-based players', async () => {
         const streamUrl = 'https://example.com/live/channel.m3u8';
         fixture.componentRef.setInput(
             'playerOverride',
@@ -258,6 +266,8 @@ describe('WebPlayerViewComponent', () => {
         });
 
         fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
 
         const player = fixture.debugElement.query(
             By.directive(StubHtmlVideoPlayerComponent)
@@ -275,7 +285,7 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('falls back to playback headers when explicit HTTP metadata is absent', () => {
+    it('falls back to playback headers when explicit HTTP metadata is absent', async () => {
         const streamUrl = 'https://example.com/live/channel.m3u8';
         fixture.componentRef.setInput(
             'playerOverride',
@@ -291,6 +301,8 @@ describe('WebPlayerViewComponent', () => {
             },
         });
 
+        fixture.detectChanges();
+        await fixture.whenStable();
         fixture.detectChanges();
 
         const player = fixture.debugElement.query(
@@ -376,18 +388,25 @@ describe('WebPlayerViewComponent', () => {
             canNext: false,
             autoplayEnabled: true,
         };
-        fixture.componentRef.setInput('playerOverride', VideoPlayer.EmbeddedMpv);
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.EmbeddedMpv
+        );
         fixture.componentRef.setInput('seriesNavigation', seriesNavigation);
         (
             component as unknown as {
                 playbackEnded: { subscribe: (fn: () => void) => void };
-                previousEpisodeRequested: { subscribe: (fn: () => void) => void };
+                previousEpisodeRequested: {
+                    subscribe: (fn: () => void) => void;
+                };
                 nextEpisodeRequested: { subscribe: (fn: () => void) => void };
             }
         ).playbackEnded.subscribe(() => events.push('ended'));
         (
             component as unknown as {
-                previousEpisodeRequested: { subscribe: (fn: () => void) => void };
+                previousEpisodeRequested: {
+                    subscribe: (fn: () => void) => void;
+                };
             }
         ).previousEpisodeRequested.subscribe(() => events.push('previous'));
         (
@@ -494,7 +513,9 @@ describe('WebPlayerViewComponent', () => {
         );
     });
 
-    it('clears playback diagnostics when retrying inline playback', () => {
+    it('clears playback diagnostics when retrying inline playback', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
         fixture.detectChanges();
         const player = fixture.debugElement.query(
             By.directive(StubVjsPlayerComponent)

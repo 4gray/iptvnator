@@ -85,10 +85,7 @@
                                 "
                             />
                         </div>
-                        <div
-                            class="program-title"
-                            [innerHTML]="program.title"
-                        ></div>
+                        <div class="program-title">{{ program.title }}</div>
                         @if (isProgramPlaying(program)) {
                             <div class="program-progress">
                                 <div class="epg-progress-track">

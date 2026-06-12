@@ -1,29 +1,41 @@
 @if (selectedPlayer() === 'videojs') {
-    <app-vjs-player
-        [options]="vjsOptions"
-        [volume]="volume()"
-        [startTime]="startTime()"
-        (timeUpdate)="timeUpdate.emit($event)"
-        (playbackIssue)="handlePlaybackIssue($event)"
-    />
+    @defer (on immediate) {
+        <app-vjs-player
+            [options]="vjsOptions"
+            [volume]="volume()"
+            [startTime]="startTime()"
+            (timeUpdate)="timeUpdate.emit($event)"
+            (playbackIssue)="handlePlaybackIssue($event)"
+        />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
+    }
 } @else if (selectedPlayer() === 'html5') {
-    <app-html-video-player
-        [channel]="$any(channel)"
-        [volume]="volume()"
-        [showCaptions]="showCaptions()"
-        [startTime]="startTime()"
-        (timeUpdate)="timeUpdate.emit($event)"
-        (playbackIssue)="handlePlaybackIssue($event)"
-    />
+    @defer (on immediate) {
+        <app-html-video-player
+            [channel]="$any(channel)"
+            [volume]="volume()"
+            [showCaptions]="showCaptions()"
+            [startTime]="startTime()"
+            (timeUpdate)="timeUpdate.emit($event)"
+            (playbackIssue)="handlePlaybackIssue($event)"
+        />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
+    }
 } @else if (selectedPlayer() === 'artplayer') {
-    <app-art-player
-        [channel]="$any(channel)"
-        [volume]="volume()"
-        [showCaptions]="showCaptions()"
-        [startTime]="startTime()"
-        (timeUpdate)="timeUpdate.emit($event)"
-        (playbackIssue)="handlePlaybackIssue($event)"
-    />
+    @defer (on immediate) {
+        <app-art-player
+            [channel]="$any(channel)"
+            [volume]="volume()"
+            [showCaptions]="showCaptions()"
+            [startTime]="startTime()"
+            (timeUpdate)="timeUpdate.emit($event)"
+            (playbackIssue)="handlePlaybackIssue($event)"
+        />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
+    }
 } @else if (selectedPlayer() === 'embedded-mpv') {
     <app-embedded-mpv-player
         [playback]="resolvedPlayback()"
@@ -35,13 +47,17 @@
         (nextEpisodeRequested)="nextEpisodeRequested.emit()"
     />
 } @else {
-    <app-vjs-player
-        [options]="vjsOptions"
-        [volume]="volume()"
-        [startTime]="startTime()"
-        (timeUpdate)="timeUpdate.emit($event)"
-        (playbackIssue)="handlePlaybackIssue($event)"
-    />
+    @defer (on immediate) {
+        <app-vjs-player
+            [options]="vjsOptions"
+            [volume]="volume()"
+            [startTime]="startTime()"
+            (timeUpdate)="timeUpdate.emit($event)"
+            (playbackIssue)="handlePlaybackIssue($event)"
+        />
+    } @placeholder {
+        <div class="web-player-defer-placeholder" aria-hidden="true"></div>
+    }
 }
 
 @if (visiblePlaybackDiagnostic(); as issue) {

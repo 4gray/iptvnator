@@ -304,6 +304,15 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console messages into
   the Electron terminal output
 
+Security-sensitive network compatibility flags are opt-in:
+
+- `IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS=1` permits EPG URLs that resolve to
+  localhost, LAN, or other private addresses. Leave this unset for playlists
+  you do not fully trust.
+- `IPTVNATOR_ALLOW_INSECURE_TLS=1` disables certificate validation for remote
+  playlist imports and refreshes. Use it only for a trusted provider with a
+  self-signed or otherwise invalid certificate.
+
 If the local Nx daemon gets into a bad state before rerunning Electron, reset it:
 
 ```

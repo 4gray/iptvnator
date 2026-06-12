@@ -79,26 +79,38 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.playbackIssue.emit(null);
     };
 
-    ngOnInit() {
-        this.videoPlayer.nativeElement.addEventListener('volumechange', () => {
-            this.onVolumeChange();
+    private readonly handleVolumeChange = (): void => {
+        this.onVolumeChange();
+    };
+
+    private readonly handleLoadedMetadata = (): void => {
+        if (this.startTime > 0) {
+            this.videoPlayer.nativeElement.currentTime = this.startTime;
+        }
+    };
+
+    private readonly handleTimeUpdate = (): void => {
+        this.timeUpdate.emit({
+            currentTime: this.videoPlayer.nativeElement.currentTime,
+            duration: this.videoPlayer.nativeElement.duration,
         });
+    };
+
+    ngOnInit() {
+        this.videoPlayer.nativeElement.addEventListener(
+            'volumechange',
+            this.handleVolumeChange
+        );
 
         this.videoPlayer.nativeElement.addEventListener(
             'loadedmetadata',
-            () => {
-                if (this.startTime > 0) {
-                    this.videoPlayer.nativeElement.currentTime = this.startTime;
-                }
-            }
+            this.handleLoadedMetadata
         );
 
-        this.videoPlayer.nativeElement.addEventListener('timeupdate', () => {
-            this.timeUpdate.emit({
-                currentTime: this.videoPlayer.nativeElement.currentTime,
-                duration: this.videoPlayer.nativeElement.duration,
-            });
-        });
+        this.videoPlayer.nativeElement.addEventListener(
+            'timeupdate',
+            this.handleTimeUpdate
+        );
 
         this.videoPlayer.nativeElement.addEventListener(
             'error',
@@ -332,7 +344,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ngOnDestroy(): void {
         this.videoPlayer.nativeElement.removeEventListener(
             'volumechange',
-            this.onVolumeChange
+            this.handleVolumeChange
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'loadedmetadata',
+            this.handleLoadedMetadata
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'timeupdate',
+            this.handleTimeUpdate
         );
         this.videoPlayer.nativeElement.removeEventListener(
             'error',

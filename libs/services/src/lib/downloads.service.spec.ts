@@ -16,16 +16,22 @@ import { SettingsStore } from './settings-store.service';
 
 type TestDownloadsService = {
     downloads: WritableSignal<DownloadItem[]>;
+    downloadFolder: WritableSignal<string>;
     isAvailable: () => boolean;
     isLoadingDownloads: Signal<boolean>;
     hasLoadedDownloads: Signal<boolean>;
     loadDownloads: DownloadsService['loadDownloads'];
+    loadDownloadFolder: DownloadsService['loadDownloadFolder'];
     _isLoadingDownloads: WritableSignal<boolean>;
     _hasLoadedDownloads: WritableSignal<boolean>;
     loadDownloadsRequestId: number;
+    settingsStore: {
+        getDownloadFolder: () => string;
+    };
 };
 
 type DownloadsElectronStub = {
+    downloadsGetDefaultFolder?: jest.Mock<Promise<string>, []>;
     downloadsGetList: jest.Mock<Promise<DownloadItem[]>, [string?]>;
 };
 
@@ -67,18 +73,23 @@ describe('DownloadsService', () => {
         const downloads = signal(initialDownloads);
         const isLoadingDownloads = signal(false);
         const hasLoadedDownloads = signal(false);
+        const downloadFolder = signal('');
         const service = Object.create(
             DownloadsService.prototype
         ) as TestDownloadsService;
 
         Object.assign(service, {
             downloads,
+            downloadFolder,
             isAvailable: () => true,
             _isLoadingDownloads: isLoadingDownloads,
             isLoadingDownloads: isLoadingDownloads.asReadonly(),
             _hasLoadedDownloads: hasLoadedDownloads,
             hasLoadedDownloads: hasLoadedDownloads.asReadonly(),
             loadDownloadsRequestId: 0,
+            settingsStore: {
+                getDownloadFolder: () => '/renderer-controlled',
+            },
         });
 
         return service;
@@ -130,6 +141,19 @@ describe('DownloadsService', () => {
         expect(service.downloads()).toEqual([item]);
         expect(service.isLoadingDownloads()).toBe(false);
         expect(service.hasLoadedDownloads()).toBe(true);
+    });
+
+    it('uses the main-process authorized download folder instead of renderer storage', async () => {
+        const electron = {
+            downloadsGetDefaultFolder: jest.fn(async () => '/authorized'),
+            downloadsGetList: jest.fn(async () => []),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(service.loadDownloadFolder()).resolves.toBe('/authorized');
+        expect(service.downloadFolder()).toBe('/authorized');
+        expect(electron.downloadsGetDefaultFolder).toHaveBeenCalledTimes(1);
     });
 
     it('marks downloads as loaded after a failed request while preserving existing data', async () => {
