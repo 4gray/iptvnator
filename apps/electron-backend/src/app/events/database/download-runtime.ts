@@ -85,7 +85,15 @@ async function processQueue(): Promise<void> {
     }
 
     activeDownload = task;
-    await startDownload(task);
+    try {
+        await startDownload(task);
+    } catch (error) {
+        console.error(
+            `[Downloads] Unhandled error for ${task.fileName}:`,
+            error
+        );
+        finishTask(task);
+    }
 }
 
 function finishTask(task: DownloadTask): void {
