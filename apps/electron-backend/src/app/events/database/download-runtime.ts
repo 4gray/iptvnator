@@ -214,19 +214,27 @@ async function startDownload(task: DownloadTask): Promise<void> {
             },
             onCompleted: async (file) => {
                 console.log(`[Downloads] Completed: ${file.filename}`);
-                await db
-                    .update(schema.downloads)
-                    .set({
-                        bytesDownloaded: file.fileSize,
-                        errorMessage: null,
-                        fileName: file.filename,
-                        filePath: file.path,
-                        status: 'completed',
-                        totalBytes: file.fileSize,
-                        updatedAt: sql`CURRENT_TIMESTAMP`,
-                    })
-                    .where(eq(schema.downloads.id, task.id));
-                finishTask(task);
+                try {
+                    await db
+                        .update(schema.downloads)
+                        .set({
+                            bytesDownloaded: file.fileSize,
+                            errorMessage: null,
+                            fileName: file.filename,
+                            filePath: file.path,
+                            status: 'completed',
+                            totalBytes: file.fileSize,
+                            updatedAt: sql`CURRENT_TIMESTAMP`,
+                        })
+                        .where(eq(schema.downloads.id, task.id));
+                } catch (error) {
+                    console.error(
+                        '[Downloads] Failed to persist completion:',
+                        error
+                    );
+                } finally {
+                    finishTask(task);
+                }
             },
             onCancel: handleCancellation,
         };
