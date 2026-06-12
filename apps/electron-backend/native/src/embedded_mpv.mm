@@ -1181,6 +1181,19 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     break;
                 }
 
+                if (propertyName == "eof-reached" &&
+                    property->format == MPV_FORMAT_FLAG &&
+                    property->data) {
+                    const bool eofReached =
+                        *static_cast<int*>(property->data) != 0;
+                    if (eofReached &&
+                        session->running.load() &&
+                        session->loadedPath) {
+                        session->snapshot.status = SessionStatus::Ended;
+                    }
+                    break;
+                }
+
                 if (propertyName == "volume" &&
                     property->format == MPV_FORMAT_DOUBLE &&
                     property->data) {
@@ -1694,6 +1707,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         "video-aspect-override",
         MPV_FORMAT_STRING
     );
+    mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);
 
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);

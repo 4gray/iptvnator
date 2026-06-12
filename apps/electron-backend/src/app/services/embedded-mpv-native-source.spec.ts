@@ -72,6 +72,8 @@ describe('Embedded MPV native source recording invariants', () => {
     it('maps successful MPV end-file events to an ended session status', () => {
         expect(nativeSource).toContain('Ended,');
         expect(nativeSource).toContain('case SessionStatus::Ended:');
+        expect(widCommonSource).toContain('Ended,');
+        expect(widCommonSource).toContain('case SessionStatus::Ended:');
 
         const eventLoopBodyStart = nativeSource.indexOf('void runEventLoop(');
         expect(eventLoopBodyStart).toBeGreaterThanOrEqual(0);
@@ -89,6 +91,68 @@ describe('Embedded MPV native source recording invariants', () => {
         const endFileCase = nativeSource.slice(endFileCaseStart, nextCaseStart);
         expect(endFileCase).toContain('SessionStatus::Ended');
         expect(endFileCase).toContain('MPV_END_FILE_REASON_EOF');
+
+        const widEventLoopBodyStart = widCommonSource.indexOf(
+            'void runEventLoop('
+        );
+        expect(widEventLoopBodyStart).toBeGreaterThanOrEqual(0);
+        const widEndFileCaseStart = widCommonSource.indexOf(
+            'case MPV_EVENT_END_FILE',
+            widEventLoopBodyStart
+        );
+        expect(widEndFileCaseStart).toBeGreaterThanOrEqual(0);
+        const widNextCaseStart = widCommonSource.indexOf(
+            'case MPV_EVENT_PROPERTY_CHANGE',
+            widEndFileCaseStart
+        );
+        expect(widNextCaseStart).toBeGreaterThan(widEndFileCaseStart);
+
+        const widEndFileCase = widCommonSource.slice(
+            widEndFileCaseStart,
+            widNextCaseStart
+        );
+        expect(widEndFileCase).toContain('SessionStatus::Ended');
+        expect(widEndFileCase).toContain('MPV_END_FILE_REASON_EOF');
+    });
+
+    it('maps keep-open eof-reached property changes to an ended session status', () => {
+        expect(nativeSource).toContain(
+            'mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);'
+        );
+        expect(widCommonSource).toContain(
+            'mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);'
+        );
+
+        const nativeEofBranchStart = nativeSource.indexOf(
+            'propertyName == "eof-reached"'
+        );
+        expect(nativeEofBranchStart).toBeGreaterThanOrEqual(0);
+        const nativeVolumeBranchStart = nativeSource.indexOf(
+            'propertyName == "volume"',
+            nativeEofBranchStart
+        );
+        expect(nativeVolumeBranchStart).toBeGreaterThan(nativeEofBranchStart);
+        const nativeEofBranch = nativeSource.slice(
+            nativeEofBranchStart,
+            nativeVolumeBranchStart
+        );
+        expect(nativeEofBranch).toContain('SessionStatus::Ended');
+        expect(nativeEofBranch).toContain('session->loadedPath');
+
+        const widEofBranchStart = widCommonSource.indexOf(
+            'name == "eof-reached"'
+        );
+        expect(widEofBranchStart).toBeGreaterThanOrEqual(0);
+        const widVolumeBranchStart = widCommonSource.indexOf(
+            'name == "volume"',
+            widEofBranchStart
+        );
+        expect(widVolumeBranchStart).toBeGreaterThan(widEofBranchStart);
+        const widEofBranch = widCommonSource.slice(
+            widEofBranchStart,
+            widVolumeBranchStart
+        );
+        expect(widEofBranch).toContain('SessionStatus::Ended');
     });
 
     it('keeps Windows/Linux non-load async MPV command failures non-fatal', () => {

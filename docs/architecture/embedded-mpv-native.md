@@ -87,6 +87,8 @@ The renderer learns which features the loaded addon binary supports through the 
 
 Renderer autoplay must use `ended` only. It must not treat `closed`, `idle`, or `error` as a request to continue to the next episode.
 
+The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
+
 Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only as part of the embedded player control surface. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
