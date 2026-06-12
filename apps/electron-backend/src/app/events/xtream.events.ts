@@ -279,8 +279,6 @@ ipcMain.handle(
         // for self-hosted setups. Redirects stay disabled below so a validated
         // URL cannot bounce to a different private target.
         try {
-            // Private/LAN targets are allowed (users probe self-hosted Xtream
-            // servers); maxRedirects:0 below blocks redirect-based SSRF.
             await assertRemoteUrlAllowed(payload.url, {
                 allowPrivateNetworks: true,
             });
