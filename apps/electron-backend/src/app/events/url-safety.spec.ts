@@ -19,6 +19,8 @@ describe('url-safety', () => {
             'fe80::1',
             'febf::1',
             '::ffff:127.0.0.1',
+            '::ffff:7f00:1',
+            '::ffff:c0a8:101',
         ])('flags %s as private/reserved', (ip) => {
             expect(isPrivateOrReservedIp(ip)).toBe(true);
         });
@@ -65,6 +67,12 @@ describe('url-safety', () => {
                 assertRemoteUrlAllowed(
                     'http://169.254.169.254/latest/meta-data'
                 )
+            ).rejects.toBeInstanceOf(UnsafeUrlError);
+        });
+
+        it('rejects hex-form IPv4-mapped IPv6 loopback literals', async () => {
+            await expect(
+                assertRemoteUrlAllowed('http://[::ffff:7f00:1]/admin')
             ).rejects.toBeInstanceOf(UnsafeUrlError);
         });
 
