@@ -5,7 +5,6 @@ import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
 import { catchError, map, tap, timeout } from 'rxjs/operators';
 import {
     createDevLogger,
-    ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -49,7 +48,12 @@ export class EpgService {
         const validUrls = urls.filter((url) => url?.trim());
         if (validUrls.length === 0) return;
 
-        from(this.epgBridge.fetchEpg(validUrls, this.getTrustOptions()))
+        from(
+            this.epgBridge.fetchEpg(
+                validUrls,
+                this.settingsStore.getTrustOptions()
+            )
+        )
             .pipe(
                 tap((result) => {
                     if (result === null) return;
@@ -105,15 +109,6 @@ export class EpgService {
             duration: 3000,
             horizontalPosition: 'start',
         });
-    }
-
-    private getTrustOptions(): ElectronBridgeTrustOptions {
-        const settings = this.settingsStore.getSettings();
-        return {
-            trustedPrivateNetworkEpgUrls:
-                settings.trustedPrivateNetworkEpgUrls ?? [],
-            trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
-        };
     }
 
     /**

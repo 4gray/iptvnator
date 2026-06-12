@@ -51,7 +51,6 @@ import {
 import {
     EmbeddedMpvSupport,
     CoverSize,
-    ElectronBridgeTrustOptions,
     Language,
     normalizeExternalPlayerArguments,
     Settings,
@@ -620,7 +619,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.epgBridge.supportsDataManagement || !url) {
             return;
         }
-        void this.epgBridge.forceFetchEpg(url, this.getEpgTrustOptions());
+        void this.epgBridge.forceFetchEpg(
+            url,
+            this.settingsStore.getTrustOptions()
+        );
     }
 
     /**
@@ -633,17 +635,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         const urls = (this.epgUrl.value as string[])
             .map((url) => url?.trim())
             .filter((url): url is string => Boolean(url));
-        const options = this.getEpgTrustOptions();
+        const options = this.settingsStore.getTrustOptions();
         urls.forEach((url) => void this.epgBridge.forceFetchEpg(url, options));
-    }
-
-    private getEpgTrustOptions(): ElectronBridgeTrustOptions {
-        const settings = this.settingsStore.getSettings();
-        return {
-            trustedPrivateNetworkEpgUrls:
-                settings.trustedPrivateNetworkEpgUrls ?? [],
-            trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
-        };
     }
 
     /**

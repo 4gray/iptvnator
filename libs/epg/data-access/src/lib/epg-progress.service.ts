@@ -1,7 +1,7 @@
 import { Injectable, computed, inject, signal } from '@angular/core';
 import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
-    ElectronBridgeTrustOptions,
+    normalizeHost,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import {
@@ -52,7 +52,10 @@ export class EpgProgressService {
         if (!this.epgBridge.supportsDataManagement) {
             return;
         }
-        void this.epgBridge.forceFetchEpg(url, this.getTrustOptions());
+        void this.epgBridge.forceFetchEpg(
+            url,
+            this.settingsStore.getTrustOptions()
+        );
     }
 
     async trustPrivateNetworkSourceAndRetry(url: string): Promise<void> {
@@ -80,10 +83,10 @@ export class EpgProgressService {
         const settings = this.settingsStore.getSettings();
         const trustedHosts = new Set(
             (settings.trustedInsecureTlsHosts ?? []).map((item) =>
-                this.normalizeHost(item)
+                normalizeHost(item)
             )
         );
-        trustedHosts.add(this.normalizeHost(trustedHost));
+        trustedHosts.add(normalizeHost(trustedHost));
 
         await this.settingsStore.updateSettings({
             trustedInsecureTlsHosts: Array.from(trustedHosts),
@@ -119,15 +122,6 @@ export class EpgProgressService {
         }
     }
 
-    private getTrustOptions(): ElectronBridgeTrustOptions {
-        const settings = this.settingsStore.getSettings();
-        return {
-            trustedPrivateNetworkEpgUrls:
-                settings.trustedPrivateNetworkEpgUrls ?? [],
-            trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
-        };
-    }
-
     private isActionableError(progress: EpgImportProgress): boolean {
         return (
             progress.errorCode ===
@@ -143,13 +137,6 @@ export class EpgProgressService {
         } catch {
             return undefined;
         }
-    }
-
-    private normalizeHost(host: string): string {
-        return host
-            .trim()
-            .toLowerCase()
-            .replace(/^\[(.*)\]$/, '$1');
     }
 
     private removeImport(url: string): void {

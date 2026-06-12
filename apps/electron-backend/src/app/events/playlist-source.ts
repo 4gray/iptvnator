@@ -9,6 +9,7 @@ import { basename } from 'node:path';
 import { createPlaylistAgentFactory } from '../util/secure-https';
 import {
     createInvalidTlsCertificateError,
+    getHostnameFromErrorUrl,
     isInvalidTlsCertificateError,
 } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
@@ -56,23 +57,6 @@ export async function fetchPlaylistFromUrl(
         url,
         'URL'
     );
-}
-
-function getHostnameFromErrorUrl(
-    error: unknown,
-    fallbackUrl: string
-): string | undefined {
-    const configUrl =
-        error && typeof error === 'object'
-            ? ((error as { config?: { url?: string } }).config?.url ??
-              fallbackUrl)
-            : fallbackUrl;
-
-    try {
-        return new URL(configUrl).hostname.toLowerCase();
-    } catch {
-        return undefined;
-    }
 }
 
 export async function fetchPlaylistFromFile(

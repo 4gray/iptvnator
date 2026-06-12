@@ -1,12 +1,12 @@
-import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
-
-export const SECURITY_ERROR_PREFIX = 'IPTVNATOR_SECURITY_ERROR:';
-
-export interface SerializedSecurityError {
-    code: string;
-    host?: string;
-    message: string;
-}
+import {
+    ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    SECURITY_ERROR_PREFIX,
+} from '@iptvnator/shared/interfaces';
+export {
+    parseSecurityPolicyError,
+    SECURITY_ERROR_PREFIX,
+} from '@iptvnator/shared/interfaces';
+export type { SerializedSecurityError } from '@iptvnator/shared/interfaces';
 
 const TLS_CERTIFICATE_ERROR_CODES = new Set([
     'CERT_HAS_EXPIRED',
@@ -60,40 +60,6 @@ export function isInvalidTlsCertificateError(error: unknown): boolean {
     );
 }
 
-export function parseSecurityPolicyError(
-    error: unknown
-): SerializedSecurityError | null {
-    const message =
-        error instanceof Error
-            ? error.message
-            : typeof error === 'string'
-              ? error
-              : undefined;
-    if (!message?.startsWith(SECURITY_ERROR_PREFIX)) {
-        return null;
-    }
-
-    try {
-        const parsed = JSON.parse(message.slice(SECURITY_ERROR_PREFIX.length));
-        if (
-            parsed &&
-            typeof parsed === 'object' &&
-            typeof parsed.code === 'string' &&
-            typeof parsed.message === 'string'
-        ) {
-            return {
-                code: parsed.code,
-                host: typeof parsed.host === 'string' ? parsed.host : undefined,
-                message: parsed.message,
-            };
-        }
-    } catch {
-        return null;
-    }
-
-    return null;
-}
-
 export function createInvalidTlsCertificateError(
     host: string | undefined,
     message = 'Certificate for this playlist host is invalid.'
@@ -103,4 +69,25 @@ export function createInvalidTlsCertificateError(
         message,
         host
     );
+}
+
+export function getHostnameFromUrl(url: string): string | undefined {
+    try {
+        return new URL(url).hostname.toLowerCase();
+    } catch {
+        return undefined;
+    }
+}
+
+export function getHostnameFromErrorUrl(
+    error: unknown,
+    fallbackUrl: string
+): string | undefined {
+    const configUrl =
+        error && typeof error === 'object'
+            ? ((error as { config?: { url?: string } }).config?.url ??
+              fallbackUrl)
+            : fallbackUrl;
+
+    return getHostnameFromUrl(configUrl);
 }

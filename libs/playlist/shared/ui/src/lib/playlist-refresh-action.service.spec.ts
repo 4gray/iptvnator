@@ -4,6 +4,7 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
+import { of } from 'rxjs';
 import { DialogService } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -16,9 +17,11 @@ import {
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
+    ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     PLAYLIST_UPDATE,
     Playlist,
     PlaylistMeta,
+    SECURITY_ERROR_PREFIX,
 } from '@iptvnator/shared/interfaces';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { PlaylistRefreshActionService } from './playlist-refresh-action.service';
@@ -87,6 +90,7 @@ describe('PlaylistRefreshActionService', () => {
     };
     let settingsStore: {
         getSettings: jest.Mock;
+        getTrustOptions: jest.Mock;
         updateSettings: jest.Mock;
     };
     let runtime: {
@@ -136,7 +140,9 @@ describe('PlaylistRefreshActionService', () => {
             navigate: jest.fn().mockResolvedValue(true),
         };
         snackBar = {
-            open: jest.fn(),
+            open: jest.fn(() => ({
+                onAction: () => of(undefined),
+            })),
         };
         store = {
             dispatch: jest.fn(),
@@ -149,6 +155,10 @@ describe('PlaylistRefreshActionService', () => {
         };
         settingsStore = {
             getSettings: jest.fn(() => ({
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })),
+            getTrustOptions: jest.fn(() => ({
+                trustedPrivateNetworkEpgUrls: [],
                 trustedInsecureTlsHosts: ['playlist.local'],
             })),
             updateSettings: jest.fn().mockResolvedValue(undefined),
@@ -315,6 +325,47 @@ describe('PlaylistRefreshActionService', () => {
                 url: 'https://playlist.local/list.m3u',
                 trustedInsecureTlsHosts: ['playlist.local'],
             })
+        );
+    });
+
+    it('clears active M3U loading before showing a trust-host prompt', async () => {
+        routeProvider.set('playlists');
+        resolvedPlaylistId.set('playlist-url');
+        const playlist = createPlaylistMeta({
+            _id: 'playlist-url',
+            title: 'URL playlist',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://playlist.local/list.m3u',
+        });
+        playlistRefreshService.refreshPlaylist.mockRejectedValue(
+            new Error(
+                `Error invoking remote method 'PLAYLIST_REFRESH': Error: ${SECURITY_ERROR_PREFIX}${JSON.stringify(
+                    {
+                        code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+                        host: 'playlist.local',
+                        message:
+                            'Certificate for this playlist host is invalid.',
+                    }
+                )}`
+            )
+        );
+
+        service.refresh(playlist);
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'Certificate for this playlist host is invalid.',
+            'Trust host',
+            { duration: 10000 }
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannelsLoading({ loading: true })
+        );
+        expect(store.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setChannelsLoading({ loading: false })
         );
     });
 

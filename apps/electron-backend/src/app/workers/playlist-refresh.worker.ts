@@ -17,6 +17,7 @@ import type {
 } from './playlist-refresh.worker.types';
 import {
     createInvalidTlsCertificateError,
+    getHostnameFromErrorUrl,
     isInvalidTlsCertificateError,
 } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
@@ -129,23 +130,6 @@ async function fetchPlaylistFromUrl(
         payload.url,
         'URL'
     );
-}
-
-function getHostnameFromErrorUrl(
-    error: unknown,
-    fallbackUrl: string
-): string | undefined {
-    const configUrl =
-        error && typeof error === 'object'
-            ? ((error as { config?: { url?: string } }).config?.url ??
-              fallbackUrl)
-            : fallbackUrl;
-
-    try {
-        return new URL(configUrl).hostname.toLowerCase();
-    } catch {
-        return undefined;
-    }
 }
 
 async function fetchPlaylistFromFile(

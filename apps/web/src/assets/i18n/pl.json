@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Nie udało się pobrać listy odtwarzania. Sprawdź URL i spróbuj ponownie.",
             "ERROR_403": "Brak dostępu (403): Serwer odrzucił żądanie. URL może wymagać uwierzytelnienia lub lista jest ograniczona.",
             "ERROR_404": "Nie znaleziono listy odtwarzania (404): URL nie wskazuje prawidłowej listy. Sprawdź URL.",
-            "ERROR_401": "Brak autoryzacji (401): Dostęp do tej listy odtwarzania wymaga uwierzytelnienia."
+            "ERROR_401": "Brak autoryzacji (401): Dostęp do tej listy odtwarzania wymaga uwierzytelnienia.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Wklej listę odtwarzania m3u(8) jako tekst",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Wszystkie programy",
         "UP_TO_DATE": "EPG jest aktualne, synchronizacja nie jest potrzebna",
         "RETRY": "Spróbuj ponownie",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

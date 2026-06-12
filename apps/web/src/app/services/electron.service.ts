@@ -9,8 +9,9 @@ import {
     AUTO_UPDATE_PLAYLISTS,
     createDevLogger,
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
-    ElectronBridgeTrustOptions,
     ERROR,
+    normalizeHost,
+    parseSecurityPolicyError,
     PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
@@ -41,14 +42,6 @@ interface ErrorStatus {
     readonly message?: string;
     readonly status?: number;
 }
-
-interface ParsedSecurityError {
-    readonly code: string;
-    readonly host?: string;
-    readonly message: string;
-}
-
-const SECURITY_ERROR_PREFIX = 'IPTVNATOR_SECURITY_ERROR:';
 
 @Injectable({
     providedIn: 'root',
@@ -227,7 +220,7 @@ export class ElectronService extends DataService {
             const data = payload as Playlist[];
             const playlists = await window.electron.autoUpdatePlaylists(
                 data,
-                this.getTrustOptions()
+                this.settingsStore.getTrustOptions()
             );
             this.store.dispatch(
                 PlaylistActions.updateManyPlaylists({
@@ -292,7 +285,11 @@ export class ElectronService extends DataService {
         const title = payload.title?.trim() || undefined;
 
         window.electron
-            .fetchPlaylistByUrl(payload.url, title, this.getTrustOptions())
+            .fetchPlaylistByUrl(
+                payload.url,
+                title,
+                this.settingsStore.getTrustOptions()
+            )
             .then((result) => {
                 this.store.dispatch(
                     PlaylistActions.handleAddingPlaylistByUrl({
@@ -356,7 +353,7 @@ export class ElectronService extends DataService {
                 playlistObject = await window.electron.fetchPlaylistByUrl(
                     data.url,
                     data.title,
-                    this.getTrustOptions()
+                    this.settingsStore.getTrustOptions()
                 );
             } else if (data.filePath && !data.url) {
                 playlistObject =
@@ -458,20 +455,11 @@ export class ElectronService extends DataService {
         return translated === key ? fallback : translated;
     }
 
-    private getTrustOptions(): ElectronBridgeTrustOptions {
-        const settings = this.settingsStore.getSettings();
-        return {
-            trustedPrivateNetworkEpgUrls:
-                settings.trustedPrivateNetworkEpgUrls ?? [],
-            trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
-        };
-    }
-
     private handlePlaylistSecurityError(
         error: unknown,
         retry: () => void
     ): boolean {
-        const securityError = this.parseSecurityPolicyError(error);
+        const securityError = parseSecurityPolicyError(error);
         if (
             securityError?.code !==
             ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate
@@ -502,6 +490,14 @@ export class ElectronService extends DataService {
         retry: () => void
     ): void {
         if (!host) {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
+                    'Could not determine the playlist host. Please retry manually.'
+                ),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
             return;
         }
 
@@ -529,61 +525,14 @@ export class ElectronService extends DataService {
         const settings = this.settingsStore.getSettings();
         const trustedHosts = new Set(
             (settings.trustedInsecureTlsHosts ?? []).map((item) =>
-                this.normalizeHost(item)
+                normalizeHost(item)
             )
         );
-        trustedHosts.add(this.normalizeHost(host));
+        trustedHosts.add(normalizeHost(host));
 
         await this.settingsStore.updateSettings({
             trustedInsecureTlsHosts: Array.from(trustedHosts),
         });
-    }
-
-    private parseSecurityPolicyError(
-        error: unknown
-    ): ParsedSecurityError | null {
-        const message =
-            error instanceof Error
-                ? error.message
-                : typeof error === 'string'
-                  ? error
-                  : this.getErrorDetails(error)?.message;
-
-        if (!message?.startsWith(SECURITY_ERROR_PREFIX)) {
-            return null;
-        }
-
-        try {
-            const parsed = JSON.parse(
-                message.slice(SECURITY_ERROR_PREFIX.length)
-            );
-            if (
-                parsed &&
-                typeof parsed === 'object' &&
-                typeof parsed.code === 'string' &&
-                typeof parsed.message === 'string'
-            ) {
-                return {
-                    code: parsed.code,
-                    host:
-                        typeof parsed.host === 'string'
-                            ? parsed.host
-                            : undefined,
-                    message: parsed.message,
-                };
-            }
-        } catch {
-            return null;
-        }
-
-        return null;
-    }
-
-    private normalizeHost(host: string): string {
-        return host
-            .trim()
-            .toLowerCase()
-            .replace(/^\[(.*)\]$/, '$1');
     }
 
     /* private getErrorMessageByStatusCode(status: number) {

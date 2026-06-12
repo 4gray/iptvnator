@@ -9,6 +9,7 @@ import {
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
+    ElectronBridgeTrustOptions,
     Language,
     Settings,
     StartupBehavior,
@@ -176,6 +177,15 @@ export const SettingsStore = signalStore(
             return (
                 store.recordingFolder?.() ?? DEFAULT_SETTINGS.recordingFolder
             );
+        },
+
+        getTrustOptions(): ElectronBridgeTrustOptions {
+            const settings = this.getSettings();
+            return {
+                trustedPrivateNetworkEpgUrls:
+                    settings.trustedPrivateNetworkEpgUrls ?? [],
+                trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
+            };
         },
 
         getPlayer() {

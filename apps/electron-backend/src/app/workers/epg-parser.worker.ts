@@ -15,7 +15,11 @@ import {
     UnsafeUrlError,
 } from '../events/url-safety';
 import { createPlaylistAgentFactory } from '../util/secure-https';
-import { isInvalidTlsCertificateError } from '../util/security-errors';
+import {
+    getHostnameFromErrorUrl,
+    getHostnameFromUrl,
+    isInvalidTlsCertificateError,
+} from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
     getNativeModuleSearchPaths,
@@ -262,27 +266,6 @@ function isTrustedPrivateNetworkEpgSource(
     );
 }
 
-function getHostname(url: string): string | undefined {
-    try {
-        return new URL(url).hostname.toLowerCase();
-    } catch {
-        return undefined;
-    }
-}
-
-function getHostnameFromErrorUrl(
-    error: unknown,
-    fallbackUrl: string
-): string | undefined {
-    const configUrl =
-        error && typeof error === 'object'
-            ? ((error as { config?: { url?: string } }).config?.url ??
-              fallbackUrl)
-            : fallbackUrl;
-
-    return getHostname(configUrl);
-}
-
 function toEpgFetchError(
     error: unknown,
     url: string
@@ -298,7 +281,7 @@ function toEpgFetchError(
             new Error('EPG source points to private network and was blocked.'),
             {
                 code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.EpgPrivateNetworkBlocked,
-                host: getHostname(url),
+                host: getHostnameFromUrl(url),
             }
         );
     }

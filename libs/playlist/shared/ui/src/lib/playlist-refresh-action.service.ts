@@ -18,6 +18,8 @@ import {
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    normalizeHost,
+    parseSecurityPolicyError,
     PLAYLIST_UPDATE,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
@@ -30,14 +32,6 @@ export interface XtreamRefreshPreparationState {
     current?: number;
     total?: number;
 }
-
-interface ParsedSecurityError {
-    readonly code: string;
-    readonly host?: string;
-    readonly message: string;
-}
-
-const SECURITY_ERROR_PREFIX = 'IPTVNATOR_SECURITY_ERROR:';
 
 @Injectable({ providedIn: 'root' })
 export class PlaylistRefreshActionService {
@@ -222,8 +216,8 @@ export class PlaylistRefreshActionService {
                     url: item.url,
                     filePath: item.filePath,
                     trustedInsecureTlsHosts:
-                        this.settingsStore.getSettings()
-                            .trustedInsecureTlsHosts ?? [],
+                        this.settingsStore.getTrustOptions()
+                            .trustedInsecureTlsHosts,
                 });
 
             this.store.dispatch(
@@ -260,13 +254,12 @@ export class PlaylistRefreshActionService {
                     { duration: 5000 }
                 );
             }
-
+        } finally {
             if (isActiveM3uRoute) {
                 this.store.dispatch(
                     ChannelActions.setChannelsLoading({ loading: false })
                 );
             }
-        } finally {
             this.isRefreshing.set(false);
         }
     }
@@ -289,7 +282,7 @@ export class PlaylistRefreshActionService {
         error: unknown,
         retry: () => void
     ): boolean {
-        const securityError = this.parseSecurityPolicyError(error);
+        const securityError = parseSecurityPolicyError(error);
         if (
             securityError?.code !==
             ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate
@@ -319,6 +312,14 @@ export class PlaylistRefreshActionService {
         retry: () => void
     ): void {
         if (!host) {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
+                    'Could not determine the playlist host. Please retry manually.'
+                ),
+                this.translate.instant('CLOSE'),
+                { duration: 5000 }
+            );
             return;
         }
 
@@ -346,66 +347,19 @@ export class PlaylistRefreshActionService {
         const settings = this.settingsStore.getSettings();
         const trustedHosts = new Set(
             (settings.trustedInsecureTlsHosts ?? []).map((item) =>
-                this.normalizeHost(item)
+                normalizeHost(item)
             )
         );
-        trustedHosts.add(this.normalizeHost(host));
+        trustedHosts.add(normalizeHost(host));
 
         await this.settingsStore.updateSettings({
             trustedInsecureTlsHosts: Array.from(trustedHosts),
         });
     }
 
-    private parseSecurityPolicyError(
-        error: unknown
-    ): ParsedSecurityError | null {
-        const message =
-            error instanceof Error
-                ? error.message
-                : typeof error === 'string'
-                  ? error
-                  : undefined;
-
-        if (!message?.startsWith(SECURITY_ERROR_PREFIX)) {
-            return null;
-        }
-
-        try {
-            const parsed = JSON.parse(
-                message.slice(SECURITY_ERROR_PREFIX.length)
-            );
-            if (
-                parsed &&
-                typeof parsed === 'object' &&
-                typeof parsed.code === 'string' &&
-                typeof parsed.message === 'string'
-            ) {
-                return {
-                    code: parsed.code,
-                    host:
-                        typeof parsed.host === 'string'
-                            ? parsed.host
-                            : undefined,
-                    message: parsed.message,
-                };
-            }
-        } catch {
-            return null;
-        }
-
-        return null;
-    }
-
     private translateWithFallback(key: string, fallback: string): string {
         const translated = this.translate.instant(key);
         return translated === key ? fallback : translated;
-    }
-
-    private normalizeHost(host: string): string {
-        return host
-            .trim()
-            .toLowerCase()
-            .replace(/^\[(.*)\]$/, '$1');
     }
 
     private updateRefreshPreparationFromEvent(

@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Не ўдалося атрымаць плэйліст. Калі ласка, праверце URL і паспрабуйце яшчэ раз.",
             "ERROR_403": "Доступ забаронены (403): сервер адхіліў запыт. URL можа патрабаваць аўтэнтыфікацыі або плэйліст абмежаваны.",
             "ERROR_404": "Плэйліст не знойдзены (404): URL не паказвае на сапраўдны плэйліст. Калі ласка, праверце URL.",
-            "ERROR_401": "Несанкцыянавана (401): для доступу да гэтага плэйліста патрабуецца аўтэнтыфікацыя."
+            "ERROR_401": "Несанкцыянавана (401): для доступу да гэтага плэйліста патрабуецца аўтэнтыфікацыя.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Устаўце плэйліст фармату m3u(8) у гэта поле",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Усяго перадач",
         "UP_TO_DATE": "EPG актуальны, сінхранізацыя не патрэбна",
         "RETRY": "Паўтарыць",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

@@ -97,6 +97,21 @@ class MockSettingsStore {
 
     getSettings = () => this._settings();
 
+    getTrustOptions = () => ({
+        trustedPrivateNetworkEpgUrls:
+            (
+                this._settings() as typeof DEFAULT_SETTINGS & {
+                    trustedPrivateNetworkEpgUrls?: string[];
+                }
+            ).trustedPrivateNetworkEpgUrls ?? [],
+        trustedInsecureTlsHosts:
+            (
+                this._settings() as typeof DEFAULT_SETTINGS & {
+                    trustedInsecureTlsHosts?: string[];
+                }
+            ).trustedInsecureTlsHosts ?? [],
+    });
+
     loadSettings = jest.fn().mockResolvedValue(undefined);
 
     updateSettings = jest.fn().mockResolvedValue(undefined);

@@ -10,6 +10,7 @@ describe('EpgProgressService', () => {
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     let settingsStore: {
         getSettings: jest.Mock;
+        getTrustOptions: jest.Mock;
         updateSettings: jest.Mock;
     };
 
@@ -22,6 +23,10 @@ describe('EpgProgressService', () => {
         };
         settingsStore = {
             getSettings: jest.fn(() => ({
+                trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })),
+            getTrustOptions: jest.fn(() => ({
                 trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
                 trustedInsecureTlsHosts: ['playlist.local'],
             })),

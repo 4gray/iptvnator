@@ -1,5 +1,6 @@
 import { Agent } from 'node:https';
 import type { LookupFunction } from 'node:net';
+import { normalizeHost } from '@iptvnator/shared/interfaces';
 import type { ValidatedRequestAgentFactory } from './validated-axios';
 
 const INSECURE_TLS_ENV = 'IPTVNATOR_ALLOW_INSECURE_TLS';
@@ -16,13 +17,6 @@ const INSECURE_TLS_ENV = 'IPTVNATOR_ALLOW_INSECURE_TLS';
 export function isInsecureTlsAllowed(): boolean {
     const value = process.env[INSECURE_TLS_ENV]?.trim().toLowerCase();
     return value === '1' || value === 'true';
-}
-
-function normalizeHost(host: string): string {
-    return host
-        .trim()
-        .toLowerCase()
-        .replace(/^\[(.*)\]$/, '$1');
 }
 
 function shouldTrustInvalidCertificateForHost(
