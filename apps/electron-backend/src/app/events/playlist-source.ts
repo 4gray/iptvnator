@@ -7,20 +7,42 @@ import { parse } from 'iptv-playlist-parser';
 import { readFile } from 'node:fs/promises';
 import { basename } from 'node:path';
 import { createPlaylistAgentFactory } from '../util/secure-https';
+import {
+    createInvalidTlsCertificateError,
+    isInvalidTlsCertificateError,
+} from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+
+export interface PlaylistFetchOptions {
+    trustedInsecureTlsHosts?: readonly string[];
+}
 
 export async function fetchPlaylistFromUrl(
     url: string,
-    title?: string
+    title?: string,
+    options: PlaylistFetchOptions = {}
 ): Promise<Playlist> {
-    const result = await requestWithValidatedRedirects<string>(
-        url,
-        {
-            agentFactory: createPlaylistAgentFactory(),
-            method: 'GET',
-        },
-        { allowPrivateNetworks: true }
-    );
+    let result;
+    try {
+        result = await requestWithValidatedRedirects<string>(
+            url,
+            {
+                agentFactory: createPlaylistAgentFactory({
+                    trustedInsecureTlsHosts: options.trustedInsecureTlsHosts,
+                }),
+                method: 'GET',
+            },
+            { allowPrivateNetworks: true }
+        );
+    } catch (error) {
+        if (isInvalidTlsCertificateError(error)) {
+            throw createInvalidTlsCertificateError(
+                getHostnameFromErrorUrl(error, url)
+            );
+        }
+        throw error;
+    }
+
     const parsedPlaylist = parse(result.data);
     const extractedName = url && url.length > 1 ? getFilenameFromUrl(url) : '';
     const playlistName =
@@ -34,6 +56,23 @@ export async function fetchPlaylistFromUrl(
         url,
         'URL'
     );
+}
+
+function getHostnameFromErrorUrl(
+    error: unknown,
+    fallbackUrl: string
+): string | undefined {
+    const configUrl =
+        error && typeof error === 'object'
+            ? ((error as { config?: { url?: string } }).config?.url ??
+              fallbackUrl)
+            : fallbackUrl;
+
+    try {
+        return new URL(configUrl).hostname.toLowerCase();
+    } catch {
+        return undefined;
+    }
 }
 
 export async function fetchPlaylistFromFile(

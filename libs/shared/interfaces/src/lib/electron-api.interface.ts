@@ -67,6 +67,14 @@ export const ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES = {
 export type ElectronBridgeEpgProgressStatus =
     (typeof ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES)[keyof typeof ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES];
 
+export const ELECTRON_BRIDGE_SECURITY_ERROR_CODES = {
+    EpgPrivateNetworkBlocked: 'epg-private-network-blocked',
+    InvalidTlsCertificate: 'invalid-tls-certificate',
+} as const;
+
+export type ElectronBridgeSecurityErrorCode =
+    (typeof ELECTRON_BRIDGE_SECURITY_ERROR_CODES)[keyof typeof ELECTRON_BRIDGE_SECURITY_ERROR_CODES];
+
 export const ELECTRON_BRIDGE_DB_OPERATION_STATUSES = {
     Cancelled: 'cancelled',
     Completed: 'completed',
@@ -182,6 +190,11 @@ export interface ElectronBridgeEpgFetchResult extends ElectronBridgeResult {
     skipped?: string[];
 }
 
+export interface ElectronBridgeTrustOptions {
+    trustedPrivateNetworkEpgUrls?: string[];
+    trustedInsecureTlsHosts?: string[];
+}
+
 export interface ElectronBridgeEpgFreshnessResult {
     staleUrls: string[];
     freshUrls: string[];
@@ -197,6 +210,8 @@ export interface ElectronBridgeEpgProgress {
     status: ElectronBridgeEpgProgressStatus;
     stats?: ElectronBridgeEpgProgressStats;
     error?: string;
+    errorCode?: ElectronBridgeSecurityErrorCode;
+    errorHost?: string;
     queuePosition?: number;
 }
 
@@ -437,7 +452,11 @@ export interface ElectronBridgeApi {
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
     ) => () => void;
-    fetchPlaylistByUrl: (url: string, title?: string) => Promise<Playlist>;
+    fetchPlaylistByUrl: (
+        url: string,
+        title?: string,
+        options?: ElectronBridgeTrustOptions
+    ) => Promise<Playlist>;
     updatePlaylistFromFilePath: (
         filePath: string,
         title: string
@@ -479,8 +498,14 @@ export interface ElectronBridgeApi {
         startTime?: number,
         headers?: Record<string, string>
     ) => Promise<ExternalPlayerSession>;
-    autoUpdatePlaylists: (playlists: Playlist[]) => Promise<Playlist[]>;
-    fetchEpg: (urls: string[]) => Promise<ElectronBridgeEpgFetchResult>;
+    autoUpdatePlaylists: (
+        playlists: Playlist[],
+        options?: ElectronBridgeTrustOptions
+    ) => Promise<Playlist[]>;
+    fetchEpg: (
+        urls: string[],
+        options?: ElectronBridgeTrustOptions
+    ) => Promise<ElectronBridgeEpgFetchResult>;
     getChannelPrograms: (channelId: string) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch: (
         channelIds: string[]
@@ -493,7 +518,10 @@ export interface ElectronBridgeApi {
         skip: number,
         limit: number
     ) => Promise<ElectronBridgeEpgChannelWithPrograms[]>;
-    forceFetchEpg: (url: string) => Promise<ElectronBridgeEpgFetchResult>;
+    forceFetchEpg: (
+        url: string,
+        options?: ElectronBridgeTrustOptions
+    ) => Promise<ElectronBridgeEpgFetchResult>;
     clearEpgData: () => Promise<ElectronBridgeResult>;
     checkEpgFreshness: (
         urls: string[],

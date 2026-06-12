@@ -41,6 +41,8 @@ const DEFAULT_SETTINGS: Settings = {
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
+    trustedPrivateNetworkEpgUrls: [],
+    trustedInsecureTlsHosts: [],
 };
 
 let embeddedMpvPrepareScheduled = false;
@@ -157,6 +159,12 @@ export const SettingsStore = signalStore(
                 preferUploadedEpgOverXtream:
                     store.preferUploadedEpgOverXtream?.() ??
                     DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
+                trustedPrivateNetworkEpgUrls:
+                    store.trustedPrivateNetworkEpgUrls?.() ??
+                    DEFAULT_SETTINGS.trustedPrivateNetworkEpgUrls,
+                trustedInsecureTlsHosts:
+                    store.trustedInsecureTlsHosts?.() ??
+                    DEFAULT_SETTINGS.trustedInsecureTlsHosts,
             };
         },
 

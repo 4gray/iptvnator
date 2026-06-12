@@ -85,9 +85,13 @@ describe('EpgRuntimeBridgeService', () => {
             success: true,
         });
 
-        expect(fetchEpg).toHaveBeenCalledWith(['https://example.com/epg.xml']);
+        expect(fetchEpg).toHaveBeenCalledWith(
+            ['https://example.com/epg.xml'],
+            undefined
+        );
         expect(forceFetchEpg).toHaveBeenCalledWith(
-            'https://example.com/epg.xml'
+            'https://example.com/epg.xml',
+            undefined
         );
         expect(clearEpgData).toHaveBeenCalledTimes(1);
     });

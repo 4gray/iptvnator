@@ -3,10 +3,15 @@ import {
     EpgImportProgress,
     EpgRuntimeBridgeService,
 } from './epg-runtime-bridge.service';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgProgressService } from './epg-progress.service';
 
 describe('EpgProgressService', () => {
     let epgBridge: Partial<EpgRuntimeBridgeService>;
+    let settingsStore: {
+        getSettings: jest.Mock;
+        updateSettings: jest.Mock;
+    };
 
     beforeEach(() => {
         epgBridge = {
@@ -14,6 +19,13 @@ describe('EpgProgressService', () => {
             onProgress: jest.fn(),
             supportsDataManagement: false,
             supportsProgress: false,
+        };
+        settingsStore = {
+            getSettings: jest.fn(() => ({
+                trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })),
+            updateSettings: jest.fn().mockResolvedValue(undefined),
         };
     });
 
@@ -29,6 +41,10 @@ describe('EpgProgressService', () => {
                 {
                     provide: EpgRuntimeBridgeService,
                     useValue: epgBridge,
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: settingsStore,
                 },
             ],
         });
@@ -57,7 +73,31 @@ describe('EpgProgressService', () => {
         service.retry('https://example.com/epg.xml');
 
         expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(
-            'https://example.com/epg.xml'
+            'https://example.com/epg.xml',
+            {
+                trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+                trustedInsecureTlsHosts: ['playlist.local'],
+            }
+        );
+    });
+
+    it('trusts a private-network source and retries it', async () => {
+        epgBridge.supportsDataManagement = true;
+        const service = configureService();
+
+        await service.trustPrivateNetworkSourceAndRetry(
+            'http://192.168.1.30/guide.xml'
+        );
+
+        expect(settingsStore.updateSettings).toHaveBeenCalledWith({
+            trustedPrivateNetworkEpgUrls: [
+                'http://192.168.1.20/guide.xml',
+                'http://192.168.1.30/guide.xml',
+            ],
+        });
+        expect(epgBridge.forceFetchEpg).toHaveBeenCalledWith(
+            'http://192.168.1.30/guide.xml',
+            expect.any(Object)
         );
     });
 

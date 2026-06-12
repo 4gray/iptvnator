@@ -66,4 +66,16 @@ export interface Settings {
      * Only meaningful for Xtream playlists in Electron.
      */
     preferUploadedEpgOverXtream?: boolean;
+    /**
+     * Exact EPG source URLs the user has allowed to resolve to private/LAN
+     * network addresses. Kept source-scoped instead of disabling SSRF
+     * protection globally.
+     */
+    trustedPrivateNetworkEpgUrls?: string[];
+    /**
+     * Lowercase hostnames whose invalid TLS certificates the user has chosen
+     * to trust. This is host-scoped and does not disable TLS validation for
+     * unrelated playlist or EPG hosts.
+     */
+    trustedInsecureTlsHosts?: string[];
 }

@@ -9,6 +9,7 @@ import {
     ElectronBridgeEpgFreshnessResult,
     ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES,
     ElectronBridgeResult,
+    ElectronBridgeTrustOptions,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -76,20 +77,28 @@ export class EpgRuntimeBridgeService {
         return this.runtime.supportsEpgProgramSearch;
     }
 
-    fetchEpg(urls: string[]): Promise<EpgFetchResult | null> {
+    fetchEpg(
+        urls: string[],
+        options?: ElectronBridgeTrustOptions
+    ): Promise<EpgFetchResult | null> {
         if (!this.supportsImport) {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.fetchEpg?.(urls) ?? Promise.resolve(null);
+        return this.bridge?.fetchEpg?.(urls, options) ?? Promise.resolve(null);
     }
 
-    forceFetchEpg(url: string): Promise<EpgFetchResult | null> {
+    forceFetchEpg(
+        url: string,
+        options?: ElectronBridgeTrustOptions
+    ): Promise<EpgFetchResult | null> {
         if (!this.supportsDataManagement) {
             return Promise.resolve(null);
         }
 
-        return this.bridge?.forceFetchEpg?.(url) ?? Promise.resolve(null);
+        return (
+            this.bridge?.forceFetchEpg?.(url, options) ?? Promise.resolve(null)
+        );
     }
 
     clearEpgData(): Promise<EpgClearResult | null> {

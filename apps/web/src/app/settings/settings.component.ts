@@ -25,7 +25,10 @@ import {
 import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
-import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
+import {
+    EpgRuntimeBridgeService,
+    EpgService,
+} from '@iptvnator/epg/data-access';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
 import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
@@ -48,6 +51,7 @@ import {
 import {
     EmbeddedMpvSupport,
     CoverSize,
+    ElectronBridgeTrustOptions,
     Language,
     normalizeExternalPlayerArguments,
     Settings,
@@ -222,9 +226,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         ],
         recordingFolder: '',
         coverSize: 'medium' as CoverSize,
-        ...(this.supportsEpg
-            ? { preferUploadedEpgOverXtream: false }
-            : {}),
+        ...(this.supportsEpg ? { preferUploadedEpgOverXtream: false } : {}),
     });
 
     /** Form array with epg sources */
@@ -241,12 +243,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly removeAllProgress = signal<DbOperationEvent | null>(null);
 
     private settingsStore = inject(SettingsStore);
-    readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems(
-        {
-            supportsEpg: this.supportsEpg,
-            supportsRemoteControl: this.supportsRemoteControl,
-        }
-    );
+    readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
+        supportsEpg: this.supportsEpg,
+        supportsRemoteControl: this.supportsRemoteControl,
+    });
 
     readonly playlistDeleteSummary = computed<SettingsPlaylistDeleteSummary>(
         () => {
@@ -560,6 +560,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
                 value.preferUploadedEpgOverXtream ??
                 currentSettings.preferUploadedEpgOverXtream ??
                 false,
+            trustedPrivateNetworkEpgUrls:
+                currentSettings.trustedPrivateNetworkEpgUrls ?? [],
+            trustedInsecureTlsHosts:
+                currentSettings.trustedInsecureTlsHosts ?? [],
         };
     }
 
@@ -616,7 +620,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         if (!this.epgBridge.supportsDataManagement || !url) {
             return;
         }
-        void this.epgBridge.forceFetchEpg(url);
+        void this.epgBridge.forceFetchEpg(url, this.getEpgTrustOptions());
     }
 
     /**
@@ -629,7 +633,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
         const urls = (this.epgUrl.value as string[])
             .map((url) => url?.trim())
             .filter((url): url is string => Boolean(url));
-        urls.forEach((url) => void this.epgBridge.forceFetchEpg(url));
+        const options = this.getEpgTrustOptions();
+        urls.forEach((url) => void this.epgBridge.forceFetchEpg(url, options));
+    }
+
+    private getEpgTrustOptions(): ElectronBridgeTrustOptions {
+        const settings = this.settingsStore.getSettings();
+        return {
+            trustedPrivateNetworkEpgUrls:
+                settings.trustedPrivateNetworkEpgUrls ?? [],
+            trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
+        };
     }
 
     /**

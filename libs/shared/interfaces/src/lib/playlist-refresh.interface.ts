@@ -25,4 +25,5 @@ export interface PlaylistRefreshPayload {
     title: string;
     filePath?: string;
     url?: string;
+    trustedInsecureTlsHosts?: string[];
 }

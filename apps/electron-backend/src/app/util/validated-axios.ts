@@ -22,7 +22,7 @@ const SENSITIVE_HEADERS = new Set([
 
 export interface ValidatedRequestAgentFactory {
     createHttpAgent?(lookup?: LookupFunction): HttpAgent;
-    createHttpsAgent?(lookup?: LookupFunction): HttpsAgent;
+    createHttpsAgent?(lookup?: LookupFunction, url?: URL): HttpsAgent;
 }
 
 export type ValidatedAxiosRequestConfig = Omit<
@@ -100,7 +100,7 @@ function pinRequestToValidatedAddresses(
         if (url.protocol === 'https:' && agentFactory?.createHttpsAgent) {
             return {
                 ...axiosConfig,
-                httpsAgent: agentFactory.createHttpsAgent(),
+                httpsAgent: agentFactory.createHttpsAgent(undefined, url),
             };
         }
         if (url.protocol === 'http:' && agentFactory?.createHttpAgent) {
@@ -117,7 +117,7 @@ function pinRequestToValidatedAddresses(
         return {
             ...axiosConfig,
             httpsAgent:
-                agentFactory?.createHttpsAgent?.(lookup) ??
+                agentFactory?.createHttpsAgent?.(lookup, url) ??
                 new HttpsAgent({ lookup }),
             proxy: false,
         };

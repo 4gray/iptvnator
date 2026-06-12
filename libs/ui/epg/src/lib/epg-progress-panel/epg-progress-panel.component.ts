@@ -1,19 +1,54 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
+import {
+    MAT_DIALOG_DATA,
+    MatDialog,
+    MatDialogModule,
+} from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBar } from '@angular/material/progress-bar';
 import { MatTooltip } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     EpgImportProgress,
     EpgProgressService,
 } from '@iptvnator/epg/data-access';
+import { ELECTRON_BRIDGE_SECURITY_ERROR_CODES } from '@iptvnator/shared/interfaces';
+
+interface EpgTrustConfirmDialogData {
+    confirmLabel: string;
+    message: string;
+    title: string;
+}
+
+@Component({
+    selector: 'app-epg-trust-confirm-dialog',
+    imports: [MatButtonModule, MatDialogModule, TranslatePipe],
+    template: `
+        <h2 mat-dialog-title>{{ data.title }}</h2>
+        <mat-dialog-content class="mat-typography">
+            {{ data.message }}
+        </mat-dialog-content>
+        <mat-dialog-actions align="end">
+            <button mat-button mat-dialog-close cdkFocusInitial>
+                {{ 'CANCEL' | translate }}
+            </button>
+            <button mat-flat-button color="primary" [mat-dialog-close]="true">
+                {{ data.confirmLabel }}
+            </button>
+        </mat-dialog-actions>
+    `,
+})
+class EpgTrustConfirmDialogComponent {
+    readonly data = inject<EpgTrustConfirmDialogData>(MAT_DIALOG_DATA);
+}
 
 @Component({
     selector: 'app-epg-progress-panel',
     standalone: true,
     imports: [
         MatButtonModule,
+        MatDialogModule,
         MatIconModule,
         MatTooltip,
         MatProgressBar,
@@ -24,6 +59,8 @@ import {
 })
 export class EpgProgressPanelComponent {
     private readonly epgProgress = inject(EpgProgressService);
+    private readonly dialog = inject(MatDialog);
+    private readonly translate = inject(TranslateService);
 
     readonly imports = this.epgProgress.imports;
     readonly isVisible = this.epgProgress.isVisible;
@@ -46,9 +83,7 @@ export class EpgProgressPanelComponent {
     get queuedImports() {
         return this.imports()
             .filter((item) => item.status === 'queued')
-            .sort(
-                (a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0)
-            );
+            .sort((a, b) => (a.queuePosition ?? 0) - (b.queuePosition ?? 0));
     }
 
     getStatusIcon(status: EpgImportProgress['status']): string {
@@ -87,5 +122,103 @@ export class EpgProgressPanelComponent {
 
     retry(url: string): void {
         this.epgProgress.retry(url);
+    }
+
+    isActionableSecurityError(item: EpgImportProgress): boolean {
+        return (
+            item.errorCode ===
+                ELECTRON_BRIDGE_SECURITY_ERROR_CODES.EpgPrivateNetworkBlocked ||
+            item.errorCode ===
+                ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate
+        );
+    }
+
+    getActionLabel(item: EpgImportProgress): string {
+        if (
+            item.errorCode ===
+            ELECTRON_BRIDGE_SECURITY_ERROR_CODES.EpgPrivateNetworkBlocked
+        ) {
+            return this.translateWithFallback(
+                'EPG.ALLOW_PRIVATE_SOURCE',
+                'Allow source'
+            );
+        }
+
+        return this.translateWithFallback('EPG.TRUST_TLS_HOST', 'Trust host');
+    }
+
+    confirmTrust(item: EpgImportProgress): void {
+        if (
+            item.errorCode ===
+            ELECTRON_BRIDGE_SECURITY_ERROR_CODES.EpgPrivateNetworkBlocked
+        ) {
+            this.openTrustDialog(
+                {
+                    title: this.translateWithFallback(
+                        'EPG.ALLOW_PRIVATE_SOURCE_TITLE',
+                        'Allow private-network EPG source?'
+                    ),
+                    message: this.translateWithFallback(
+                        'EPG.ALLOW_PRIVATE_SOURCE_WARNING',
+                        'Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.'
+                    ),
+                    confirmLabel: this.translateWithFallback(
+                        'EPG.ALLOW_PRIVATE_SOURCE',
+                        'Allow source'
+                    ),
+                },
+                () => {
+                    void this.epgProgress.trustPrivateNetworkSourceAndRetry(
+                        item.url
+                    );
+                }
+            );
+            return;
+        }
+
+        this.openTrustDialog(
+            {
+                title: this.translateWithFallback(
+                    'EPG.TRUST_TLS_HOST_TITLE',
+                    'Trust invalid certificate?'
+                ),
+                message: this.translateWithFallback(
+                    'EPG.TRUST_TLS_HOST_WARNING',
+                    'Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+                ),
+                confirmLabel: this.translateWithFallback(
+                    'EPG.TRUST_TLS_HOST',
+                    'Trust host'
+                ),
+            },
+            () => {
+                void this.epgProgress.trustInsecureTlsHostAndRetry(
+                    item.url,
+                    item.errorHost
+                );
+            }
+        );
+    }
+
+    private openTrustDialog(
+        data: EpgTrustConfirmDialogData,
+        onConfirm: () => void
+    ): void {
+        this.dialog
+            .open<EpgTrustConfirmDialogComponent, EpgTrustConfirmDialogData>(
+                EpgTrustConfirmDialogComponent,
+                { data, width: '420px' }
+            )
+            .afterClosed()
+            .subscribe((confirmed) => {
+                if (confirmed) {
+                    onConfirm();
+                }
+            });
+    }
+
+    private translateWithFallback(key: string, fallback: string): string {
+        const translated = this.translate.instant(key);
+        return translated === key ? fallback : translated;
     }
 }

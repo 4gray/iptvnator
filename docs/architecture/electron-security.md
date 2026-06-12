@@ -124,14 +124,20 @@ private Node `Agent.options` state. Cross-origin redirects must not forward `Aut
 `Cookie`, `Proxy-Authorization`, Axios `params`, or request bodies.
 
 EPG URLs are strict by default because an M3U playlist can supply them through
-`url-tvg`. Operators who intentionally use a LAN-hosted EPG source can opt in
-for that run with `IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS=1`. Directly configured
-Xtream, Stalker, and playlist providers retain private-network support, but
-still require HTTP(S), reject embedded credentials, and validate redirects.
+`url-tvg`. Operators who intentionally use a LAN-hosted EPG source should prefer
+the renderer's source-scoped “Allow source” action, which persists the exact EPG
+URL in settings and retries that source only. The
+`IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS=1` environment flag remains an
+emergency/development process-wide override for strict EPG fetches. Directly
+configured Xtream, Stalker, and playlist providers retain private-network
+support, but still require HTTP(S), reject embedded credentials, and validate
+redirects.
 
 Remote playlist TLS certificates are validated by default. The
-`IPTVNATOR_ALLOW_INSECURE_TLS=1` escape hatch is only for explicitly trusted
-providers with invalid or self-signed certificates.
+renderer can persist a host-scoped invalid-certificate trust decision for a
+playlist or EPG source host. The `IPTVNATOR_ALLOW_INSECURE_TLS=1` escape hatch
+is only for explicitly trusted providers with invalid or self-signed
+certificates when the host-scoped UI path is not available.
 
 ## Filesystem Capabilities
 

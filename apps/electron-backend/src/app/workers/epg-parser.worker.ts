@@ -1,11 +1,21 @@
 import type BetterSqlite3 from 'better-sqlite3';
+import {
+    ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    ElectronBridgeSecurityErrorCode,
+    ElectronBridgeTrustOptions,
+} from '@iptvnator/shared/interfaces';
 import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
 import { createGunzip } from 'zlib';
 import { EpgDatabase, EpgDatabaseClearOperation } from './epg-database';
 import { StreamingEpgParser } from './epg-streaming-parser';
 import { shouldGunzipEpgResponse } from './epg-response-utils';
-import { isPrivateNetworkUrlAccessAllowed } from '../events/url-safety';
+import {
+    isPrivateNetworkUrlAccessAllowed,
+    UnsafeUrlError,
+} from '../events/url-safety';
+import { createPlaylistAgentFactory } from '../util/secure-https';
+import { isInvalidTlsCertificateError } from '../util/security-errors';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 import {
     getNativeModuleSearchPaths,
@@ -46,6 +56,7 @@ const Database = loadBetterSqlite3();
 interface WorkerMessage {
     type: 'FETCH_EPG' | 'FORCE_FETCH' | 'CLEAR_EPG';
     url?: string;
+    options?: ElectronBridgeTrustOptions;
 }
 
 interface WorkerResponse {
@@ -56,6 +67,8 @@ interface WorkerResponse {
         | 'CLEAR_COMPLETE'
         | 'READY';
     error?: string;
+    errorCode?: ElectronBridgeSecurityErrorCode;
+    errorHost?: string;
     url?: string;
     stats?: {
         totalChannels: number;
@@ -73,7 +86,10 @@ const PROGRAM_BATCH_SIZE = 1000;
  * Fetches and parses EPG data from URL using streaming
  * Inserts directly into SQLite to avoid blocking main thread
  */
-async function fetchAndParseEpgStreaming(url: string): Promise<void> {
+async function fetchAndParseEpgStreaming(
+    url: string,
+    options: ElectronBridgeTrustOptions = {}
+): Promise<void> {
     console.log(loggerLabel, `Fetching EPG from ${url}`);
 
     // Create database connection in worker
@@ -92,12 +108,17 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
         const response = await requestWithValidatedRedirects<Readable>(
             url.trim(),
             {
+                agentFactory: createPlaylistAgentFactory({
+                    trustedInsecureTlsHosts: options.trustedInsecureTlsHosts,
+                }),
                 decompress: false,
                 method: 'GET',
                 responseType: 'stream',
             },
             {
-                allowPrivateNetworks: isPrivateNetworkUrlAccessAllowed(),
+                allowPrivateNetworks:
+                    isPrivateNetworkUrlAccessAllowed() ||
+                    isTrustedPrivateNetworkEpgSource(url, options),
             }
         );
         const responseUrl = response.config.url;
@@ -225,8 +246,74 @@ async function fetchAndParseEpgStreaming(url: string): Promise<void> {
         });
     } catch (error) {
         epgDb.close();
-        throw error;
+        throw toEpgFetchError(error, url);
     }
+}
+
+function isTrustedPrivateNetworkEpgSource(
+    url: string,
+    options: ElectronBridgeTrustOptions
+): boolean {
+    const normalizedUrl = url.trim();
+    return (
+        options.trustedPrivateNetworkEpgUrls?.some(
+            (trustedUrl) => trustedUrl.trim() === normalizedUrl
+        ) ?? false
+    );
+}
+
+function getHostname(url: string): string | undefined {
+    try {
+        return new URL(url).hostname.toLowerCase();
+    } catch {
+        return undefined;
+    }
+}
+
+function getHostnameFromErrorUrl(
+    error: unknown,
+    fallbackUrl: string
+): string | undefined {
+    const configUrl =
+        error && typeof error === 'object'
+            ? ((error as { config?: { url?: string } }).config?.url ??
+              fallbackUrl)
+            : fallbackUrl;
+
+    return getHostname(configUrl);
+}
+
+function toEpgFetchError(
+    error: unknown,
+    url: string
+): Error & {
+    code?: ElectronBridgeSecurityErrorCode;
+    host?: string;
+} {
+    if (
+        error instanceof UnsafeUrlError &&
+        /private|local network/i.test(error.message)
+    ) {
+        return Object.assign(
+            new Error('EPG source points to private network and was blocked.'),
+            {
+                code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.EpgPrivateNetworkBlocked,
+                host: getHostname(url),
+            }
+        );
+    }
+
+    if (isInvalidTlsCertificateError(error)) {
+        return Object.assign(
+            new Error('Certificate for this source host is invalid.'),
+            {
+                code: ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate,
+                host: getHostnameFromErrorUrl(error, url),
+            }
+        );
+    }
+
+    return error instanceof Error ? error : new Error(String(error));
 }
 
 /**
@@ -267,15 +354,21 @@ if (parentPort) {
                 message.type === 'FETCH_EPG' ||
                 message.type === 'FORCE_FETCH'
             ) {
-                await fetchAndParseEpgStreaming(message.url!);
+                await fetchAndParseEpgStreaming(message.url!, message.options);
             } else if (message.type === 'CLEAR_EPG') {
                 clearAllEpgData();
             }
         } catch (error) {
             console.error(loggerLabel, 'Worker error:', error);
+            const typedError = error as {
+                code?: ElectronBridgeSecurityErrorCode;
+                host?: string;
+            };
             const errorResponse: WorkerResponse = {
                 type: 'EPG_ERROR',
                 error: error instanceof Error ? error.message : String(error),
+                errorCode: typedError.code,
+                errorHost: typedError.host,
                 url: message.url,
             };
             parentPort?.postMessage(errorResponse);

@@ -12,6 +12,7 @@ import {
     PlaybackPositionService,
     PlaylistRefreshService,
     RuntimeCapabilitiesService,
+    SettingsStore,
 } from '@iptvnator/services';
 import { ChannelActions, PlaylistActions } from '@iptvnator/m3u-state';
 import {
@@ -84,6 +85,10 @@ describe('PlaylistRefreshActionService', () => {
     let playbackPositionService: {
         getAllPlaybackPositions: jest.Mock;
     };
+    let settingsStore: {
+        getSettings: jest.Mock;
+        updateSettings: jest.Mock;
+    };
     let runtime: {
         supportsPlaylistRefresh: boolean;
         supportsXtreamSqliteDataSource: boolean;
@@ -142,6 +147,12 @@ describe('PlaylistRefreshActionService', () => {
         playbackPositionService = {
             getAllPlaybackPositions: jest.fn().mockResolvedValue([]),
         };
+        settingsStore = {
+            getSettings: jest.fn(() => ({
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })),
+            updateSettings: jest.fn().mockResolvedValue(undefined),
+        };
         runtime = {
             supportsPlaylistRefresh: true,
             supportsXtreamSqliteDataSource: true,
@@ -193,6 +204,10 @@ describe('PlaylistRefreshActionService', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: runtime,
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: settingsStore,
                 },
                 {
                     provide: PlaylistContextFacade,
@@ -270,15 +285,37 @@ describe('PlaylistRefreshActionService', () => {
 
         service.refresh(playlist);
 
-        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
-            PLAYLIST_UPDATE,
-            {
-                id: 'playlist-url',
-                title: 'URL playlist',
-                url: 'https://example.com/playlist.m3u',
-            }
-        );
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(PLAYLIST_UPDATE, {
+            id: 'playlist-url',
+            title: 'URL playlist',
+            url: 'https://example.com/playlist.m3u',
+        });
         expect(playlistRefreshService.refreshPlaylist).not.toHaveBeenCalled();
+    });
+
+    it('passes trusted TLS hosts to URL-backed M3U refreshes', async () => {
+        const playlist = createPlaylistMeta({
+            _id: 'playlist-url',
+            title: 'URL playlist',
+            serverUrl: undefined,
+            username: undefined,
+            password: undefined,
+            url: 'https://playlist.local/list.m3u',
+        });
+        playlistRefreshService.refreshPlaylist.mockResolvedValue({
+            _id: playlist._id,
+            playlist: { items: [] },
+        } as Playlist);
+
+        service.refresh(playlist);
+        await Promise.resolve();
+
+        expect(playlistRefreshService.refreshPlaylist).toHaveBeenCalledWith(
+            expect.objectContaining({
+                url: 'https://playlist.local/list.m3u',
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })
+        );
     });
 
     it('treats Xtream playlists as refreshable only when the SQLite data source is available', () => {

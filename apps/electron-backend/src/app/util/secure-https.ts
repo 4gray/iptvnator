@@ -18,6 +18,27 @@ export function isInsecureTlsAllowed(): boolean {
     return value === '1' || value === 'true';
 }
 
+function normalizeHost(host: string): string {
+    return host
+        .trim()
+        .toLowerCase()
+        .replace(/^\[(.*)\]$/, '$1');
+}
+
+function shouldTrustInvalidCertificateForHost(
+    url: URL | undefined,
+    trustedHosts: readonly string[]
+): boolean {
+    if (!url) {
+        return false;
+    }
+
+    const host = normalizeHost(url.hostname);
+    return trustedHosts.some(
+        (trustedHost) => normalizeHost(trustedHost) === host
+    );
+}
+
 /**
  * Builds the agent factory used for remote playlist fetches.
  *
@@ -25,12 +46,22 @@ export function isInsecureTlsAllowed(): boolean {
  * (see {@link isInsecureTlsAllowed}). The validated request layer supplies a
  * DNS lookup pinned to the addresses approved for each redirect hop.
  */
-export function createPlaylistAgentFactory(): ValidatedRequestAgentFactory & {
-    createHttpsAgent(lookup?: LookupFunction): Agent;
+export function createPlaylistAgentFactory(
+    options: {
+        trustedInsecureTlsHosts?: readonly string[];
+    } = {}
+): ValidatedRequestAgentFactory & {
+    createHttpsAgent(lookup?: LookupFunction, url?: URL): Agent;
 } {
-    const rejectUnauthorized = !isInsecureTlsAllowed();
+    const trustedHosts = options.trustedInsecureTlsHosts ?? [];
 
     return {
-        createHttpsAgent: (lookup) => new Agent({ lookup, rejectUnauthorized }),
+        createHttpsAgent: (lookup, url) =>
+            new Agent({
+                lookup,
+                rejectUnauthorized:
+                    !isInsecureTlsAllowed() &&
+                    !shouldTrustInvalidCertificateForHost(url, trustedHosts),
+            }),
     };
 }

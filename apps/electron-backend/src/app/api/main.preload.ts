@@ -13,6 +13,7 @@ import type {
     ElectronBridgePlaylistUpsertInput,
     ElectronBridgeRemoteControlCommand,
     ElectronBridgeRemoteControlStatus,
+    ElectronBridgeTrustOptions,
     ElectronBridgeWindowState,
     ElectronBridgeXtreamContentStream,
     ExternalPlayerSession,
@@ -302,8 +303,11 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.on(WINDOW_STATE_CHANGED, handler);
         return () => ipcRenderer.off(WINDOW_STATE_CHANGED, handler);
     },
-    fetchPlaylistByUrl: (url: string, title?: string) =>
-        ipcRenderer.invoke('fetch-playlist-by-url', url, title),
+    fetchPlaylistByUrl: (
+        url: string,
+        title?: string,
+        options?: ElectronBridgeTrustOptions
+    ) => ipcRenderer.invoke('fetch-playlist-by-url', url, title, options),
     updatePlaylistFromFilePath: (filePath: string, title: string) =>
         ipcRenderer.invoke('update-playlist-from-file-path', filePath, title),
     openPlaylistFromFile: () => ipcRenderer.invoke('open-playlist-from-file'),
@@ -448,10 +452,12 @@ const electronApi: ElectronBridgeApi = {
         sessionId: string
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_DISPOSE_SESSION', sessionId),
-    autoUpdatePlaylists: (playlists) =>
-        ipcRenderer.invoke('AUTO_UPDATE', playlists),
-    fetchEpg: (urls: string[]) =>
-        ipcRenderer.invoke('FETCH_EPG', { url: urls }),
+    autoUpdatePlaylists: (
+        playlists: Playlist[],
+        options?: ElectronBridgeTrustOptions
+    ) => ipcRenderer.invoke('AUTO_UPDATE', playlists, options),
+    fetchEpg: (urls: string[], options?: ElectronBridgeTrustOptions) =>
+        ipcRenderer.invoke('FETCH_EPG', { url: urls, options }),
     getChannelPrograms: (channelId: string) =>
         ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId }),
     getCurrentProgramsBatch: (channelIds: string[]) =>
@@ -461,7 +467,8 @@ const electronApi: ElectronBridgeApi = {
     getEpgChannels: () => ipcRenderer.invoke('EPG_GET_CHANNELS'),
     getEpgChannelsByRange: (skip: number, limit: number) =>
         ipcRenderer.invoke('EPG_GET_CHANNELS_BY_RANGE', { skip, limit }),
-    forceFetchEpg: (url: string) => ipcRenderer.invoke('EPG_FORCE_FETCH', url),
+    forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
+        ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
         ipcRenderer.invoke('EPG_CHECK_FRESHNESS', { urls, maxAgeHours }),
