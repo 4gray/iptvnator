@@ -370,6 +370,49 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(refreshBody).not.toContain('clampVolumePercent(*volume)');
     });
 
+    it('formats MPV floating-point values independently from the user locale', () => {
+        const formatterBody = sourceFunctionBody(
+            widCommonSource,
+            'std::string formatInvariantDouble(',
+            'formatInvariantDouble'
+        );
+        expect(formatterBody).toContain('std::locale::classic()');
+        expect(formatterBody).toContain('std::setprecision(17)');
+
+        const linuxArgumentsBody = sourceFunctionBody(
+            widCommonSource,
+            'std::vector<std::string> buildLinuxMpvArguments(',
+            'buildLinuxMpvArguments'
+        );
+        expect(linuxArgumentsBody).toContain(
+            '"--volume=" +\n' +
+                '                formatInvariantDouble(session->snapshot.volumePercent)'
+        );
+        expect(linuxArgumentsBody).toContain(
+            'appendLinuxMpvOption(\n' +
+                '            arguments,\n' +
+                '            "start",\n' +
+                '            formatInvariantDouble(startTime)\n' +
+                '        );'
+        );
+
+        const seekBody = sourceFunctionBody(
+            widCommonSource,
+            'Napi::Value Seek(',
+            'Seek'
+        );
+        expect(seekBody).toContain('formatInvariantDouble(');
+        expect(seekBody).not.toContain('std::to_string(info[1]');
+
+        const setVolumeBody = sourceFunctionBody(
+            widCommonSource,
+            'Napi::Value SetVolume(',
+            'SetVolume'
+        );
+        expect(setVolumeBody).toContain('formatInvariantDouble(volume)');
+        expect(setVolumeBody).not.toContain('std::to_string(volume)');
+    });
+
     it('keeps Linux MPV snapshot IPC off the NAPI snapshot read path', () => {
         const getSnapshotBody = sourceFunctionBody(
             widCommonSource,

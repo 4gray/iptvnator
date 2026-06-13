@@ -60,7 +60,9 @@ IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wakeup)
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <iomanip>
 #include <iostream>
+#include <locale>
 #include <memory>
 #include <mutex>
 #include <optional>
@@ -194,6 +196,18 @@ double clampVolumePercent(double value)
         return 100.0;
     }
     return std::max(0.0, std::min(100.0, value * 100.0));
+}
+
+std::string formatInvariantDouble(double value)
+{
+    if (!std::isfinite(value)) {
+        return "0";
+    }
+
+    std::ostringstream output;
+    output.imbue(std::locale::classic());
+    output << std::setprecision(17) << value;
+    return output.str();
 }
 
 std::string nowIsoString()
@@ -547,7 +561,8 @@ std::vector<std::string> buildLinuxMpvArguments(
     {
         std::lock_guard<std::mutex> lock(session->mutex);
         arguments.push_back(
-            "--volume=" + std::to_string(session->snapshot.volumePercent)
+            "--volume=" +
+                formatInvariantDouble(session->snapshot.volumePercent)
         );
     }
 
@@ -562,9 +577,11 @@ std::vector<std::string> buildLinuxMpvArguments(
     appendLinuxMpvOption(arguments, "user-agent", userAgent);
     appendLinuxMpvOption(arguments, "referrer", referer);
     if (std::isfinite(startTime) && startTime >= 0) {
-        std::ostringstream startValue;
-        startValue << startTime;
-        appendLinuxMpvOption(arguments, "start", startValue.str());
+        appendLinuxMpvOption(
+            arguments,
+            "start",
+            formatInvariantDouble(startTime)
+        );
     }
     if (playback.Has("headers") && playback.Get("headers").IsObject()) {
         appendLinuxMpvOption(
@@ -1540,8 +1557,9 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         );
     }
 
-    const auto initialVolume =
-        std::to_string(session->snapshot.volumePercent);
+    const auto initialVolume = formatInvariantDouble(
+        session->snapshot.volumePercent
+    );
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
     mpv_request_log_messages(session->handle, "warn");
 
@@ -1807,8 +1825,9 @@ Napi::Value Seek(const Napi::CallbackInfo& info)
     }
     const auto session =
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
-    const std::string seconds =
-        std::to_string(info[1].As<Napi::Number>().DoubleValue());
+    const std::string seconds = formatInvariantDouble(
+        info[1].As<Napi::Number>().DoubleValue()
+    );
 #ifdef __linux__
     std::string socketPath;
     {
@@ -1857,7 +1876,7 @@ Napi::Value SetVolume(const Napi::CallbackInfo& info)
         sendLinuxMpvCommand(
             socketPath,
             "{\"command\":[\"set_property\",\"volume\"," +
-                std::to_string(volume) + "]}\n"
+                formatInvariantDouble(volume) + "]}\n"
         );
     }
     return env.Undefined();
