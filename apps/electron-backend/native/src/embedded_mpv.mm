@@ -1136,6 +1136,13 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                     endFile->reason == MPV_END_FILE_REASON_EOF &&
                     session->running.load()) {
                     session->snapshot.status = SessionStatus::Ended;
+                } else if (
+                    endFile &&
+                    endFile->reason == MPV_END_FILE_REASON_REDIRECT &&
+                    session->running.load()) {
+                    session->snapshot.status = SessionStatus::Loading;
+                    session->snapshot.error.clear();
+                    session->loadedPath = false;
                 } else if (session->running.load()) {
                     session->snapshot.status = SessionStatus::Idle;
                 }
@@ -1177,6 +1184,19 @@ void runEventLoop(const std::shared_ptr<Session>& session)
                         session->snapshot.status = session->paused
                             ? SessionStatus::Paused
                             : SessionStatus::Playing;
+                    }
+                    break;
+                }
+
+                if (propertyName == "eof-reached" &&
+                    property->format == MPV_FORMAT_FLAG &&
+                    property->data) {
+                    const bool eofReached =
+                        *static_cast<int*>(property->data) != 0;
+                    if (eofReached &&
+                        session->running.load() &&
+                        session->loadedPath) {
+                        session->snapshot.status = SessionStatus::Ended;
                     }
                     break;
                 }
@@ -1694,6 +1714,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         "video-aspect-override",
         MPV_FORMAT_STRING
     );
+    mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);
 
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);
