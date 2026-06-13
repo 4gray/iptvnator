@@ -14,6 +14,16 @@ on:
   schedule:
     - cron: '0 20 * * 3'
 
+# Least-privilege token for CodeQL: read code + Actions, write scan results.
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: codeql-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   analyze:
     name: Analyze
