@@ -1,5 +1,6 @@
 import {
     Component,
+    OnDestroy,
     Signal,
     ViewEncapsulation,
     computed,
@@ -28,6 +29,7 @@ import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { CastControlComponent } from '../casting/cast-control.component';
+import { CastControlVisibility } from '../casting/cast-control-visibility';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import {
@@ -51,6 +53,9 @@ type PlaybackDiagnosticDetail = {
     styleUrls: ['./web-player-view.component.scss'],
     host: {
         class: 'web-player-view',
+        '(pointerenter)': 'castControlVisibility.showTemporarily()',
+        '(pointermove)': 'castControlVisibility.showTemporarily()',
+        '(keydown)': 'castControlVisibility.showTemporarily()',
     },
     imports: [
         ArtPlayerComponent,
@@ -66,7 +71,7 @@ type PlaybackDiagnosticDetail = {
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent {
+export class WebPlayerViewComponent implements OnDestroy {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
 
@@ -99,6 +104,7 @@ export class WebPlayerViewComponent {
     };
     readonly reloadToken = signal(0);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
+    readonly castControlVisibility = new CastControlVisibility();
     readonly visiblePlaybackDiagnostic = computed(() =>
         this.selectedPlayer() === VideoPlayer.EmbeddedMpv
             ? null
@@ -150,6 +156,12 @@ export class WebPlayerViewComponent {
                 this.isLivePlayback(playback)
             );
         });
+
+        this.castControlVisibility.showTemporarily();
+    }
+
+    ngOnDestroy(): void {
+        this.castControlVisibility.destroy();
     }
 
     setVjsOptions(streamUrl: string, isLive = true) {

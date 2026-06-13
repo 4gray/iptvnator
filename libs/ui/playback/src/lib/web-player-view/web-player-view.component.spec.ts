@@ -167,7 +167,7 @@ describe('WebPlayerViewComponent', () => {
         jest.useFakeTimers();
 
         try {
-            component.showCastControlTemporarily();
+            component.castControlVisibility.showTemporarily();
             fixture.detectChanges();
 
             const overlay = fixture.debugElement.query(
@@ -185,10 +185,44 @@ describe('WebPlayerViewComponent', () => {
                 'web-player-cast-control--visible'
             );
 
-            fixture.nativeElement.dispatchEvent(new PointerEvent('pointermove'));
+            fixture.nativeElement.dispatchEvent(new Event('pointermove'));
             fixture.detectChanges();
 
             expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('keeps the cast overlay visible while the device menu is open', () => {
+        jest.useFakeTimers();
+
+        try {
+            component.castControlVisibility.showTemporarily();
+            fixture.detectChanges();
+
+            const overlay = fixture.debugElement.query(
+                By.css('[data-test-id="cast-control-overlay"]')
+            );
+            const castControl = fixture.debugElement.query(
+                By.directive(StubCastControlComponent)
+            ).componentInstance as StubCastControlComponent;
+
+            castControl.menuOpenChange.emit(true);
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+
+            castControl.menuOpenChange.emit(false);
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).not.toContain(
                 'web-player-cast-control--visible'
             );
         } finally {

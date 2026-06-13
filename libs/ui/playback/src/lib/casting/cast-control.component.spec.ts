@@ -75,6 +75,19 @@ describe('CastControlComponent', () => {
         );
     });
 
+    it('reports menu visibility so the overlay does not hide while in use', async () => {
+        const menuStates: boolean[] = [];
+        fixture.componentInstance.menuOpenChange.subscribe((open) =>
+            menuStates.push(open)
+        );
+
+        fixture.componentInstance.handleMenuOpened();
+        fixture.componentInstance.handleMenuClosed();
+        await Promise.resolve();
+
+        expect(menuStates).toEqual([true, false]);
+    });
+
     it('discovers DLNA devices and starts direct playback on selection', async () => {
         await fixture.componentInstance.prepareMenu();
         await fixture.componentInstance.startDlnaPlayback('renderer-1');

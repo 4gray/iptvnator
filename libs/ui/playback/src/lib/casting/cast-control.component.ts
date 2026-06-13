@@ -5,6 +5,7 @@ import {
     computed,
     inject,
     input,
+    output,
     signal,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
@@ -42,6 +43,7 @@ import { CastService } from './cast.service';
 export class CastControlComponent {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly placement = input<'overlay' | 'inline'>('overlay');
+    readonly menuOpenChange = output<boolean>();
 
     readonly dlnaDevices = signal<readonly DlnaRendererDevice[]>([]);
     readonly discovering = signal(false);
@@ -71,6 +73,15 @@ export class CastControlComponent {
         if (this.dlnaAvailable()) {
             await this.refreshDlnaDevices();
         }
+    }
+
+    handleMenuOpened(): void {
+        this.menuOpenChange.emit(true);
+        void this.prepareMenu();
+    }
+
+    handleMenuClosed(): void {
+        this.menuOpenChange.emit(false);
     }
 
     openAirPlay(media = this.getMediaElement()): void {

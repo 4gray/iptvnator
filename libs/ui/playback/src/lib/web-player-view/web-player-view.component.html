@@ -60,7 +60,21 @@
     }
 }
 
-<app-cast-control [playback]="resolvedPlayback()" />
+<div
+    class="web-player-cast-control"
+    data-test-id="cast-control-overlay"
+    [class.web-player-cast-control--visible]="castControlVisibility.visible()"
+    (pointerenter)="castControlVisibility.setInteractionActive(true)"
+    (pointerleave)="castControlVisibility.setInteractionActive(false)"
+    (focusin)="castControlVisibility.setInteractionActive(true)"
+    (focusout)="castControlVisibility.handleFocusOut($event)"
+>
+    <app-cast-control
+        placement="inline"
+        [playback]="resolvedPlayback()"
+        (menuOpenChange)="castControlVisibility.setMenuOpen($event)"
+    />
+</div>
 
 @if (visiblePlaybackDiagnostic(); as issue) {
     <section
