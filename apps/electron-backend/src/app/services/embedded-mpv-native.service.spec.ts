@@ -8,24 +8,38 @@ import { tmpdir } from 'os';
 import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
 
+const mockSpawnSync = jest.fn();
+
+jest.mock('child_process', () => ({
+    spawnSync: mockSpawnSync,
+}));
+
 const powerSaveBlockerMock = {
     start: jest.fn<number, [string]>(),
     stop: jest.fn<void, [number]>(),
     isStarted: jest.fn<boolean, [number]>(),
 };
+const commandLineMock = {
+    getSwitchValue: jest.fn<string, [string]>(),
+};
+const appMock = {
+    isPackaged: true,
+    getAppPath: () => '/mock/app.asar',
+    commandLine: commandLineMock,
+};
 
 jest.mock('electron', () => ({
-    app: {
-        isPackaged: true,
-        getAppPath: () => '/mock/app.asar',
-    },
+    app: appMock,
     powerSaveBlocker: powerSaveBlockerMock,
 }));
 
 const mainWindowSendMock = jest.fn();
+const mainWindowGetNativeWindowHandleMock = jest.fn<Buffer, []>(() =>
+    Buffer.alloc(8)
+);
 const mainWindowMock = {
     isDestroyed: () => false,
-    getNativeWindowHandle: () => Buffer.alloc(8),
+    getNativeWindowHandle: mainWindowGetNativeWindowHandleMock,
     webContents: { send: mainWindowSendMock },
 };
 
@@ -98,6 +112,9 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     let addon: MockAddon;
     let nextBlockerId: number;
     let originalPlatform: NodeJS.Platform;
+    let originalDisplay: string | undefined;
+    let originalOzonePlatformHint: string | undefined;
+    let originalWaylandDisplay: string | undefined;
     let tempDirs: string[];
 
     beforeEach(async () => {
@@ -105,6 +122,14 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         powerSaveBlockerMock.start.mockReset();
         powerSaveBlockerMock.stop.mockReset();
         powerSaveBlockerMock.isStarted.mockReset();
+        commandLineMock.getSwitchValue.mockReset();
+        commandLineMock.getSwitchValue.mockReturnValue('');
+        mockSpawnSync.mockReset();
+        mockSpawnSync.mockReturnValue({
+            status: 0,
+        });
+        mainWindowGetNativeWindowHandleMock.mockReset();
+        mainWindowGetNativeWindowHandleMock.mockReturnValue(Buffer.alloc(8));
         mainWindowSendMock.mockReset();
 
         tempDirs = [];
@@ -115,6 +140,9 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         Object.defineProperty(process, 'platform', {
             value: 'darwin',
         });
+        originalDisplay = process.env.DISPLAY;
+        originalOzonePlatformHint = process.env.ELECTRON_OZONE_PLATFORM_HINT;
+        originalWaylandDisplay = process.env.WAYLAND_DISPLAY;
 
         ({ EmbeddedMpvNativeService } =
             await import('./embedded-mpv-native.service'));
@@ -134,7 +162,19 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         Object.defineProperty(process, 'platform', {
             value: originalPlatform,
         });
+        restoreEnv('DISPLAY', originalDisplay);
+        restoreEnv('ELECTRON_OZONE_PLATFORM_HINT', originalOzonePlatformHint);
+        restoreEnv('WAYLAND_DISPLAY', originalWaylandDisplay);
     });
+
+    function restoreEnv(key: string, value: string | undefined): void {
+        if (value === undefined) {
+            delete process.env[key];
+            return;
+        }
+
+        process.env[key] = value;
+    }
 
     function createTempDir(): string {
         const tempDir = mkdtempSync(
@@ -181,14 +221,12 @@ describe('EmbeddedMpvNativeService power blocker', () => {
 
             // s1 keeps failing while s2 stays healthy: the healthy session
             // must not reset the log suppression for the failing one.
-            addon.getSessionSnapshot.mockImplementation(
-                (sessionId: string) => {
-                    if (sessionId === 's1') {
-                        throw new Error('addon crashed');
-                    }
-                    return snapshot('playing');
+            addon.getSessionSnapshot.mockImplementation((sessionId: string) => {
+                if (sessionId === 's1') {
+                    throw new Error('addon crashed');
                 }
-            );
+                return snapshot('playing');
+            });
 
             // Three poll ticks: nothing may escape the interval callback,
             // and the failure is logged once instead of at poll rate.
@@ -308,6 +346,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     it.each<NodeJS.Platform>(['darwin', 'win32', 'linux'])(
         'reports embedded MPV support on %s when the addon is already loaded',
         (platform) => {
+            delete process.env.WAYLAND_DISPLAY;
             Object.defineProperty(process, 'platform', {
                 value: platform,
             });
@@ -321,6 +360,114 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         }
     );
 
+    it('reports Linux Wayland as unsupported unless Electron is using X11/Xwayland', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        process.env.DISPLAY = ':0';
+        process.env.WAYLAND_DISPLAY = 'wayland-0';
+
+        const support = service.getSupport();
+
+        expect(support.supported).toBe(false);
+        expect(support.reason).toContain('Native Wayland embedding');
+    });
+
+    it('does not treat the ozone platform hint env as proof that Electron is using X11', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        process.env.DISPLAY = ':0';
+        process.env.WAYLAND_DISPLAY = 'wayland-0';
+        process.env.ELECTRON_OZONE_PLATFORM_HINT = 'x11';
+
+        expect(service.getSupport().supported).toBe(false);
+    });
+
+    it('reports Linux Wayland as supported when X11 ozone is requested', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        process.env.DISPLAY = ':0';
+        process.env.WAYLAND_DISPLAY = 'wayland-0';
+        commandLineMock.getSwitchValue.mockReturnValue('x11');
+
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({
+                supported: true,
+                platform: 'linux',
+            })
+        );
+    });
+
+    it('reports Linux as unsupported when the mpv executable is missing', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        delete process.env.WAYLAND_DISPLAY;
+        mockSpawnSync.mockReturnValueOnce({
+            status: null,
+            error: Object.assign(new Error('not found'), { code: 'ENOENT' }),
+        });
+
+        const support = service.getSupport();
+
+        expect(support.supported).toBe(false);
+        expect(support.reason).toContain('requires the mpv executable on PATH');
+        expect(mockSpawnSync).toHaveBeenCalledWith('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
+    });
+
+    it('caches the Linux mpv executable probe result', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        delete process.env.WAYLAND_DISPLAY;
+
+        service.getSupport();
+        service.getSupport();
+
+        expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+        expect(mockSpawnSync).toHaveBeenCalledWith('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
+    });
+
+    it('rejects Electron native Wayland placeholder handles before calling the addon', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        process.env.DISPLAY = ':0';
+        process.env.WAYLAND_DISPLAY = 'wayland-0';
+        mainWindowGetNativeWindowHandleMock.mockReturnValueOnce(
+            Buffer.from([1, 0, 0, 0])
+        );
+
+        expect(() => service.createSession(BOUNDS, '', 1)).toThrow(
+            'Embedded MPV on Linux requires Electron to run under X11 or Xwayland.'
+        );
+        expect(addon.createSession).not.toHaveBeenCalled();
+    });
+
+    it('rejects 64-bit Electron native Wayland placeholder handles before calling the addon', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        process.env.DISPLAY = ':0';
+        process.env.WAYLAND_DISPLAY = 'wayland-0';
+        mainWindowGetNativeWindowHandleMock.mockReturnValueOnce(
+            Buffer.alloc(8)
+        );
+
+        expect(() => service.createSession(BOUNDS, '', 1)).toThrow(
+            'Embedded MPV on Linux requires Electron to run under X11 or Xwayland.'
+        );
+        expect(addon.createSession).not.toHaveBeenCalled();
+    });
+
     it.each([
         {
             platform: 'darwin' as NodeJS.Platform,
@@ -330,13 +477,10 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             platform: 'win32' as NodeJS.Platform,
             runtimeFile: path.join('lib', 'mpv-2.dll'),
         },
-        {
-            platform: 'linux' as NodeJS.Platform,
-            runtimeFile: path.join('lib', 'libmpv.so.2'),
-        },
     ])(
         'loads the addon after validating the $platform runtime file exists',
         ({ platform, runtimeFile }) => {
+            delete process.env.WAYLAND_DISPLAY;
             Object.defineProperty(process, 'platform', {
                 value: platform,
             });
@@ -364,6 +508,36 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(loadAddonModule).toHaveBeenCalledWith(addonPath);
         }
     );
+
+    it('loads the Linux addon without bundled libmpv runtime files', () => {
+        delete process.env.WAYLAND_DISPLAY;
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        const nativeDir = createTempDir();
+        const addonPath = path.join(nativeDir, 'embedded_mpv.node');
+        writeFileSync(addonPath, '');
+        const loadAddonModule = jest.fn().mockReturnValue(addon);
+
+        Object.assign(service as unknown as Record<string, unknown>, {
+            addon: null,
+            addonLoadError: null,
+            loadAddonModule,
+            getAddonCandidatePaths: () => [addonPath],
+        });
+
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({
+                supported: true,
+                platform: 'linux',
+            })
+        );
+        expect(loadAddonModule).toHaveBeenCalledWith(addonPath);
+        expect(mockSpawnSync).toHaveBeenCalledWith('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
+    });
 
     it('loads the addon before reporting support capabilities', () => {
         const loadAddonModule = jest.fn().mockReturnValue(addon);

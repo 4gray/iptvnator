@@ -63,14 +63,14 @@
             "sources": [
               "src/embedded_mpv_linux.cc"
             ],
-            "libraries": [
-              "-L<!(node -p \"process.env.LIBMPV_LIBRARY_DIR || '/usr/lib'\")",
-              "-lmpv",
-              "-lX11",
-              "-lXext"
+            "defines": [
+              "IPTVNATOR_DYNAMIC_LIBMPV"
             ],
-            "ldflags": [
-              "-Wl,-rpath,\\$$ORIGIN/lib"
+            "libraries": [
+              "-L<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")",
+              "-lX11",
+              "-lXext",
+              "-ldl"
             ]
           }
         ]

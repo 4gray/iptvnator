@@ -50,6 +50,7 @@
     "linux": {
         "category": "Video",
         "executableName": "iptvnator",
+        "executableArgs": ["--ozone-platform=x11"],
         "desktop": {
             "entry": {
                 "StartupWMClass": "iptvnator"

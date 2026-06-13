@@ -9,7 +9,12 @@ const {
 } = require('../../tools/packaging/embedded-mpv-packaging.cjs');
 
 const workspaceRoot = process.cwd();
-const addonRoot = path.join(workspaceRoot, 'apps', 'electron-backend', 'native');
+const addonRoot = path.join(
+    workspaceRoot,
+    'apps',
+    'electron-backend',
+    'native'
+);
 const outputDir = path.join(addonRoot, 'build', 'Release');
 const outputFile = path.join(outputDir, 'embedded_mpv.node');
 const outputLibDir = path.join(outputDir, 'lib');
@@ -20,7 +25,10 @@ const distNativeDir = path.join(
     'electron-backend',
     'native'
 );
-const unavailableMarkerFile = path.join(outputDir, 'embedded-mpv-unavailable.txt');
+const unavailableMarkerFile = path.join(
+    outputDir,
+    'embedded-mpv-unavailable.txt'
+);
 const homebrewIncludeDir = '/opt/homebrew/include';
 const homebrewLibDir = '/opt/homebrew/lib';
 const targetPlatform =
@@ -66,6 +74,15 @@ function cleanOutput() {
         unavailableMarkerFile,
         'Embedded MPV native runtime is not available for this build.\n'
     );
+}
+
+function cleanNativeBuildIntermediates() {
+    fs.rmSync(outputFile, { force: true });
+    fs.rmSync(path.join(outputDir, '.deps'), { recursive: true, force: true });
+    fs.rmSync(path.join(outputDir, 'obj.target'), {
+        recursive: true,
+        force: true,
+    });
 }
 
 function cleanDistNativeOutput() {
@@ -164,7 +181,7 @@ function resolveRuntime() {
             : targetPlatform === 'win32'
               ? findWindowsLibMpv(vendoredRuntimeRoot)
               : targetPlatform === 'linux'
-                ? findLinuxLibMpv(vendoredLibDir)
+                ? true
                 : null;
     const vendoredHeader = path.join(vendoredIncludeDir, 'mpv', 'client.h');
 
@@ -209,6 +226,29 @@ function resolveRuntime() {
     }
 
     return null;
+}
+
+function writeLinuxProcessRuntimeManifest(runtime) {
+    fs.rmSync(outputLibDir, { recursive: true, force: true });
+
+    const manifest = {
+        ...runtime.manifest,
+        origin: 'external-mpv-process',
+        generatedAt: new Date().toISOString(),
+        runtimeFiles: [],
+        linuxBackend:
+            runtime.manifest.linuxBackend ?? 'process-isolated mpv --wid',
+        mpvExecutable: 'mpv',
+        platform: targetPlatform,
+        targetArch,
+    };
+
+    fs.writeFileSync(
+        path.join(outputDir, 'embedded-mpv-runtime.json'),
+        `${JSON.stringify(manifest, null, 2)}\n`
+    );
+
+    return manifest;
 }
 
 function copyFile(sourcePath, destinationPath) {
@@ -322,7 +362,9 @@ function runNodeGyp(command, env) {
     );
 
     if (result.status !== 0) {
-        throw new Error(`node-gyp ${command} failed with status ${result.status ?? 1}.`);
+        throw new Error(
+            `node-gyp ${command} failed with status ${result.status ?? 1}.`
+        );
     }
 }
 
@@ -349,9 +391,11 @@ function main() {
         const message = [
             `Skipping build because no embedded MPV runtime was found for ${targetPlatform}-${targetArch}.`,
             `Expected vendored runtime at ${vendoredRuntimeRoot}.`,
-            targetPlatform === 'darwin'
-                ? 'For local development only, set IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 to use Homebrew libmpv.'
-                : 'Stage a vendored LGPL-compatible runtime before requiring Embedded MPV on this platform.',
+            targetPlatform === 'linux'
+                ? 'Stage Linux MPV build inputs before requiring Embedded MPV on this platform.'
+                : targetPlatform === 'darwin'
+                  ? 'For local development only, set IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 to use Homebrew libmpv.'
+                  : 'Stage a vendored LGPL-compatible runtime before requiring Embedded MPV on this platform.',
         ].join('\n');
         if (embeddedMpvRequired) {
             throw new Error(message);
@@ -372,15 +416,14 @@ function main() {
                       ...runtime.manifest,
                   },
               })
-            : copyGenericRuntimeToNativeBuild(runtime);
+            : targetPlatform === 'linux'
+              ? writeLinuxProcessRuntimeManifest(runtime)
+              : copyGenericRuntimeToNativeBuild(runtime);
     fs.rmSync(unavailableMarkerFile, { force: true });
 
-    const electronPackageJson = require(path.join(
-        workspaceRoot,
-        'node_modules',
-        'electron',
-        'package.json'
-    ));
+    const electronPackageJson = require(
+        path.join(workspaceRoot, 'node_modules', 'electron', 'package.json')
+    );
     const electronVersion = electronPackageJson.version;
     const env = {
         ...process.env,
@@ -391,15 +434,23 @@ function main() {
         npm_config_build_from_source: 'true',
         npm_config_update_binary: 'false',
         LIBMPV_INCLUDE_DIR: runtime.includeDir,
-        LIBMPV_LIBRARY_DIR: outputLibDir,
+        ...(targetPlatform === 'linux'
+            ? { LINUX_NATIVE_LIBRARY_DIR: runtime.libDir }
+            : { LIBMPV_LIBRARY_DIR: outputLibDir }),
         ...(runtime.windowsImportLib
-            ? { LIBMPV_IMPORT_LIB: path.join(outputLibDir, path.basename(runtime.windowsImportLib)) }
+            ? {
+                  LIBMPV_IMPORT_LIB: path.join(
+                      outputLibDir,
+                      path.basename(runtime.windowsImportLib)
+                  ),
+              }
             : {}),
     };
 
     log(
         `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
     );
+    cleanNativeBuildIntermediates();
     runNodeGyp('configure', env);
     runNodeGyp('build', env);
 
@@ -415,7 +466,10 @@ function main() {
                 path.join(outputLibDir, dylib)
             ),
         ]);
-        if (runtime.origin === 'vendored-lgpl' && forbiddenLinkErrors.length > 0) {
+        if (
+            runtime.origin === 'vendored-lgpl' &&
+            forbiddenLinkErrors.length > 0
+        ) {
             throw new Error(forbiddenLinkErrors.join('\n'));
         }
     }

@@ -193,7 +193,11 @@ function collectExternalDylibs(entryPaths) {
 
     while (queue.length > 0) {
         const currentPath = queue.shift();
-        if (!currentPath || visited.has(currentPath) || !fs.existsSync(currentPath)) {
+        if (
+            !currentPath ||
+            visited.has(currentPath) ||
+            !fs.existsSync(currentPath)
+        ) {
             continue;
         }
 
@@ -203,7 +207,10 @@ function collectExternalDylibs(entryPaths) {
                 continue;
             }
 
-            const resolvedPath = resolveDependencyPath(dependencyPath, currentPath);
+            const resolvedPath = resolveDependencyPath(
+                dependencyPath,
+                currentPath
+            );
             if (!resolvedPath || !fs.existsSync(resolvedPath)) {
                 continue;
             }
@@ -244,7 +251,11 @@ function patchDylibIds(libDir) {
     }
 }
 
-function patchBinaryDependencies(binaryPath, dependencyBaseDir, replacementPrefix) {
+function patchBinaryDependencies(
+    binaryPath,
+    dependencyBaseDir,
+    replacementPrefix
+) {
     const availableRuntimeFiles = new Set(
         listRuntimeFiles(dependencyBaseDir).map((runtimePath) =>
             path.basename(runtimePath)
@@ -299,7 +310,9 @@ function copyRuntimeToNativeBuild({
     removeDir(outputLibDir);
     ensureDir(outputLibDir);
 
-    const runtimeFilesByName = new Map([[path.basename(libMpvPath), libMpvPath]]);
+    const runtimeFilesByName = new Map([
+        [path.basename(libMpvPath), libMpvPath],
+    ]);
     for (const dylibPath of collectExternalDylibs([libMpvPath])) {
         runtimeFilesByName.set(path.basename(dylibPath), dylibPath);
     }
@@ -315,9 +328,15 @@ function copyRuntimeToNativeBuild({
     }
 
     if (!fs.existsSync(path.join(outputLibDir, 'libmpv.2.dylib'))) {
-        const copiedLibMpvPath = path.join(outputLibDir, path.basename(libMpvPath));
+        const copiedLibMpvPath = path.join(
+            outputLibDir,
+            path.basename(libMpvPath)
+        );
         if (path.basename(copiedLibMpvPath) !== 'libmpv.2.dylib') {
-            copyFile(copiedLibMpvPath, path.join(outputLibDir, 'libmpv.2.dylib'));
+            copyFile(
+                copiedLibMpvPath,
+                path.join(outputLibDir, 'libmpv.2.dylib')
+            );
         }
     }
 
@@ -414,11 +433,7 @@ function getPackagedRuntimeCandidates(libDir, platform, nativeDir) {
                 path.join(libDir, 'mpv.dll'),
             ].filter(Boolean);
         case 'linux':
-            return [
-                path.join(libDir, 'libmpv.so.2'),
-                path.join(libDir, 'libmpv.so.1'),
-                path.join(libDir, 'libmpv.so'),
-            ];
+            return [];
         default:
             return [];
     }
@@ -461,9 +476,29 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         errors.push(`Missing embedded MPV runtime manifest: ${manifestPath}`);
     } else {
         const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
-        if (manifest.origin !== 'vendored-lgpl') {
+        const expectedOrigin =
+            platform === 'linux' ? 'external-mpv-process' : 'vendored-lgpl';
+        if (manifest.origin !== expectedOrigin) {
             errors.push(
-                `Embedded MPV packaged runtime must be vendored-lgpl, received: ${manifest.origin}`
+                `Embedded MPV packaged runtime must be ${expectedOrigin}, received: ${manifest.origin}`
+            );
+        }
+    }
+
+    if (platform === 'linux') {
+        const bundledLinuxRuntime = [
+            path.join(libDir, 'libmpv.so.2'),
+            path.join(libDir, 'libmpv.so.1'),
+            path.join(libDir, 'libmpv.so'),
+        ].filter((candidate) => fs.existsSync(candidate));
+
+        if (bundledLinuxRuntime.length > 0) {
+            errors.push(
+                [
+                    'Linux embedded MPV must use the external mpv process backend and must not bundle libmpv.',
+                    'Remove:',
+                    ...bundledLinuxRuntime.map((candidate) => `- ${candidate}`),
+                ].join('\n')
             );
         }
     }
