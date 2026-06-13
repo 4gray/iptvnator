@@ -115,11 +115,7 @@
             "executor": "nx:run-commands",
             "continuous": true,
             "options": {
-                "parallel": true,
-                "commands": [
-                    "pnpm nx serve web --no-tui",
-                    "node tools/electron/serve-electron-dev.mjs"
-                ]
+                "command": "node tools/electron/serve-electron-dev.mjs"
             }
         },
         "serve-electron": {
@@ -181,7 +177,14 @@
         "lint": {
             "command": "eslint apps/electron-backend/**/*.ts"
         },
+        "test-serve-launcher": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "node --test tools/electron/serve-electron-dev.test.mjs"
+            }
+        },
         "test": {
+            "dependsOn": ["electron-backend:test-serve-launcher"],
             "executor": "@nx/jest:jest",
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
             "options": {

@@ -11,6 +11,12 @@ export const SSDP_ADDRESS = '239.255.255.250';
 export const SSDP_PORT = 1900;
 
 const MAX_DLNA_RESPONSE_BYTES = 512 * 1024;
+const DLNA_REQUEST_TIMEOUT_MS = 4_000;
+
+interface TimeoutRequest {
+    destroy(error: Error): void;
+    once(event: 'close', listener: () => void): void;
+}
 
 export interface SsdpResponse {
     location: string;
@@ -133,13 +139,25 @@ export function requestPinnedText(
                 );
             }
         );
-        req.setTimeout(4_000, () =>
+        enforceAbsoluteRequestTimeout(req);
+        req.setTimeout(DLNA_REQUEST_TIMEOUT_MS, () =>
             req.destroy(new Error('DLNA renderer request timed out.'))
         );
         req.on('error', reject);
         if (body) req.write(body);
         req.end();
     });
+}
+
+export function enforceAbsoluteRequestTimeout(
+    request: TimeoutRequest,
+    timeoutMs = DLNA_REQUEST_TIMEOUT_MS
+): void {
+    const deadline = setTimeout(() => {
+        request.destroy(new Error('DLNA renderer request timed out.'));
+    }, timeoutMs);
+    deadline.unref();
+    request.once('close', () => clearTimeout(deadline));
 }
 
 export function isReceiverFetchableUrl(streamUrl: string): boolean {

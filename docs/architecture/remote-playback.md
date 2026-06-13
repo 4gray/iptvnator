@@ -76,7 +76,8 @@ The renderer never supplies an arbitrary request URL through IPC. Playback IPC
 accepts only a cached device ID and a typed `ResolvedPortalPlayback` payload.
 Pinned requests retain the advertised hostname for HTTP `Host`, TLS SNI, and
 certificate validation while connecting to the validated SSDP source address.
-Redirects are not followed, responses are size-limited, and requests time out.
+Redirects are not followed, responses are size-limited, and requests have both
+an inactivity timeout and an absolute deadline.
 
 ## Ownership
 

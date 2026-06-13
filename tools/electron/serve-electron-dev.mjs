@@ -1,64 +1,39 @@
 import { spawn } from 'node:child_process';
-import { request } from 'node:http';
+import {
+    assertPortAvailable,
+    coordinateChildProcesses,
+    waitForIptvnatorWebServer,
+} from './serve-electron-dev.runtime.mjs';
 
 const WEB_URL = new URL('http://localhost:4200/');
-const STARTUP_TIMEOUT_MS = 120_000;
-const POLL_INTERVAL_MS = 500;
-
-await waitForWebServer();
-
 const packageManagerCli = process.env.npm_execpath;
 if (!packageManagerCli) {
     throw new Error('Unable to locate the workspace package manager CLI.');
 }
 
-const child = spawn(
+await assertPortAvailable(Number(WEB_URL.port));
+
+const childOptions = {
+    stdio: 'inherit',
+    windowsHide: true,
+};
+const webChild = spawn(
     process.execPath,
-    [packageManagerCli, 'nx', 'run', 'electron-backend:serve-electron'],
-    {
-        stdio: 'inherit',
-        windowsHide: true,
-    }
+    [packageManagerCli, 'nx', 'serve', 'web', '--no-tui'],
+    childOptions
 );
 
-for (const signal of ['SIGINT', 'SIGTERM']) {
-    process.on(signal, () => {
-        child.kill(signal);
-    });
+try {
+    await waitForIptvnatorWebServer(WEB_URL, webChild);
+} catch (error) {
+    webChild.kill('SIGTERM');
+    throw error;
 }
 
-child.on('exit', (code, signal) => {
-    if (signal) {
-        process.kill(process.pid, signal);
-        return;
-    }
-    process.exitCode = code ?? 1;
-});
+const electronChild = spawn(
+    process.execPath,
+    [packageManagerCli, 'nx', 'run', 'electron-backend:serve-electron'],
+    childOptions
+);
 
-function waitForWebServer() {
-    const deadline = Date.now() + STARTUP_TIMEOUT_MS;
-
-    return new Promise((resolveReady, reject) => {
-        const check = () => {
-            const req = request(WEB_URL, { method: 'HEAD' }, (response) => {
-                response.resume();
-                resolveReady();
-            });
-            req.setTimeout(2_000, () => req.destroy());
-            req.on('error', () => {
-                if (Date.now() >= deadline) {
-                    reject(
-                        new Error(
-                            `Web development server did not start within ${STARTUP_TIMEOUT_MS} ms.`
-                        )
-                    );
-                    return;
-                }
-                setTimeout(check, POLL_INTERVAL_MS);
-            });
-            req.end();
-        };
-
-        check();
-    });
-}
+coordinateChildProcesses(webChild, electronChild);
