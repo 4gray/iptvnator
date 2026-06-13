@@ -354,6 +354,22 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
+    it('keeps Linux MPV IPC volume readback in mpv percent units', () => {
+        const refreshBody = sourceFunctionBody(
+            widCommonSource,
+            'void refreshLinuxMpvSnapshot(',
+            'refreshLinuxMpvSnapshot'
+        );
+        expect(refreshBody).toContain(
+            'queryLinuxMpvNumber(socketPath, "volume")'
+        );
+        expect(refreshBody).toContain(
+            'session->snapshot.volumePercent =\n' +
+                '            std::max(0.0, std::min(100.0, *volume));'
+        );
+        expect(refreshBody).not.toContain('clampVolumePercent(*volume)');
+    });
+
     it('keeps Linux MPV snapshot IPC off the NAPI snapshot read path', () => {
         const getSnapshotBody = sourceFunctionBody(
             widCommonSource,

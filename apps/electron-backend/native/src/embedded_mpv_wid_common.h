@@ -865,7 +865,8 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
         session->snapshot.durationSeconds = std::max(0.0, *duration);
     }
     if (volume) {
-        session->snapshot.volumePercent = clampVolumePercent(*volume);
+        session->snapshot.volumePercent =
+            std::max(0.0, std::min(100.0, *volume));
     }
     if (paused) {
         session->snapshot.status =

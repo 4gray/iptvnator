@@ -477,10 +477,6 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             platform: 'win32' as NodeJS.Platform,
             runtimeFile: path.join('lib', 'mpv-2.dll'),
         },
-        {
-            platform: 'linux' as NodeJS.Platform,
-            runtimeFile: path.join('lib', 'libmpv.so.2'),
-        },
     ])(
         'loads the addon after validating the $platform runtime file exists',
         ({ platform, runtimeFile }) => {
@@ -512,6 +508,36 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(loadAddonModule).toHaveBeenCalledWith(addonPath);
         }
     );
+
+    it('loads the Linux addon without bundled libmpv runtime files', () => {
+        delete process.env.WAYLAND_DISPLAY;
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        const nativeDir = createTempDir();
+        const addonPath = path.join(nativeDir, 'embedded_mpv.node');
+        writeFileSync(addonPath, '');
+        const loadAddonModule = jest.fn().mockReturnValue(addon);
+
+        Object.assign(service as unknown as Record<string, unknown>, {
+            addon: null,
+            addonLoadError: null,
+            loadAddonModule,
+            getAddonCandidatePaths: () => [addonPath],
+        });
+
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({
+                supported: true,
+                platform: 'linux',
+            })
+        );
+        expect(loadAddonModule).toHaveBeenCalledWith(addonPath);
+        expect(mockSpawnSync).toHaveBeenCalledWith('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
+    });
 
     it('loads the addon before reporting support capabilities', () => {
         const loadAddonModule = jest.fn().mockReturnValue(addon);

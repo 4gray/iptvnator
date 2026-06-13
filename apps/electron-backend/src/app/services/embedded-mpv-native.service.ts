@@ -944,6 +944,10 @@ export class EmbeddedMpvNativeService {
         const nativeDir = path.dirname(addonPath);
         const runtimeCandidates = this.getRuntimeLibraryCandidates(nativeDir);
 
+        if (runtimeCandidates.length === 0) {
+            return null;
+        }
+
         if (!runtimeCandidates.some((candidate) => existsSync(candidate))) {
             return [
                 'Embedded MPV runtime is incomplete. Missing one of:',
@@ -969,11 +973,7 @@ export class EmbeddedMpvNativeService {
                     path.join(nativeDir, 'mpv.dll'),
                 ];
             case 'linux':
-                return [
-                    path.join(nativeDir, 'lib', 'libmpv.so.2'),
-                    path.join(nativeDir, 'lib', 'libmpv.so.1'),
-                    path.join(nativeDir, 'lib', 'libmpv.so'),
-                ];
+                return [];
             default:
                 return [];
         }
