@@ -1,7 +1,8 @@
+import { hasPlaybackHeaders } from '@iptvnator/shared/interfaces';
 import {
     findCastMediaElement,
     getCastMediaType,
-    hasPlaybackHeaders,
+    getSafeCastThumbnailUrl,
     isDirectCastUrl,
 } from './cast-media.utils';
 
@@ -18,6 +19,8 @@ describe('cast media utilities', () => {
         'file:///tmp/movie.mp4',
         'data:video/mp4;base64,AAAA',
         'http://localhost:4200/live.m3u8',
+        'http://dev.localhost:4200/live.m3u8',
+        'http://0.0.0.0:8080/live.m3u8',
         'http://127.0.0.1:8080/live.m3u8',
         'http://[::1]:8080/live.m3u8',
         'not a URL',
@@ -46,6 +49,30 @@ describe('cast media utilities', () => {
                 title: 'Live',
             })
         ).toBe(false);
+    });
+
+    it('only forwards same-origin receiver-fetchable artwork', () => {
+        expect(
+            getSafeCastThumbnailUrl({
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'Live',
+                thumbnail: 'https://example.com/logo.png',
+            })
+        ).toBe('https://example.com/logo.png');
+        expect(
+            getSafeCastThumbnailUrl({
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'Live',
+                thumbnail: 'http://127.0.0.1/admin.png',
+            })
+        ).toBeUndefined();
+        expect(
+            getSafeCastThumbnailUrl({
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'Live',
+                thumbnail: 'https://cdn.example.net/logo.png',
+            })
+        ).toBeUndefined();
     });
 
     it.each([

@@ -113,8 +113,13 @@
         },
         "serve": {
             "executor": "nx:run-commands",
+            "continuous": true,
             "options": {
-                "command": "nx run electron-backend:serve-electron"
+                "parallel": true,
+                "commands": [
+                    "pnpm nx serve web --no-tui",
+                    "node tools/electron/serve-electron-dev.mjs"
+                ]
             }
         },
         "serve-electron": {
@@ -125,7 +130,6 @@
             "executor": "nx-electron:execute",
             "options": {
                 "buildTarget": "electron-backend:build",
-                "waitUntilTargets": ["web:serve"],
                 "remoteDebuggingPort": 9222
             }
         },

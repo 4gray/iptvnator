@@ -15,13 +15,10 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import {
     DlnaRendererDevice,
+    hasPlaybackHeaders,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import {
-    findCastMediaElement,
-    hasPlaybackHeaders,
-    isDirectCastUrl,
-} from './cast-media.utils';
+import { findCastMediaElement, isDirectCastUrl } from './cast-media.utils';
 import { CastService } from './cast.service';
 
 @Component({

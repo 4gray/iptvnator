@@ -2,31 +2,32 @@ import { createSocket } from 'dgram';
 import {
     DlnaRendererDevice,
     ElectronBridgeErrorResult,
+    hasPlaybackHeaders,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import {
-    AV_TRANSPORT_SERVICE,
     SSDP_ADDRESS,
     SSDP_PORT,
     SsdpResponse,
     buildSsdpSearchRequest,
-    buildUpnpActionBody,
-    hasPlaybackHeaders,
     isReceiverFetchableUrl,
     isTrustedSsdpLocation,
-    parseRendererDescription,
     parseSsdpResponse,
     requestPinnedText,
 } from './dlna-protocol';
+import {
+    AV_TRANSPORT_SERVICE,
+    buildUpnpActionBody,
+    parseRendererDescription,
+} from './dlna-xml';
 
 export {
     buildSsdpSearchRequest,
-    buildUpnpActionBody,
     isTrustedSsdpLocation,
     isReceiverFetchableUrl,
-    parseRendererDescription,
     parseSsdpResponse,
 } from './dlna-protocol';
+export { buildUpnpActionBody, parseRendererDescription } from './dlna-xml';
 
 const DEVICE_CACHE_TTL_MS = 5 * 60_000;
 
@@ -63,6 +64,17 @@ export class DlnaRendererService {
         deviceId: string,
         playback: ResolvedPortalPlayback
     ): Promise<ElectronBridgeErrorResult> {
+        if (
+            typeof deviceId !== 'string' ||
+            !deviceId ||
+            !isPlaybackPayload(playback)
+        ) {
+            return {
+                success: false,
+                error: 'Invalid DLNA playback request.',
+            };
+        }
+
         const renderer = this.renderers.get(deviceId);
         if (!renderer || renderer.expiresAt < Date.now()) {
             return {
@@ -220,4 +232,19 @@ function toPublicDevice(renderer: CachedRenderer): DlnaRendererDevice {
         name: renderer.name,
         modelName: renderer.modelName,
     };
+}
+
+function isPlaybackPayload(
+    playback: ResolvedPortalPlayback
+): playback is ResolvedPortalPlayback {
+    return Boolean(
+        playback &&
+        typeof playback === 'object' &&
+        typeof playback.streamUrl === 'string' &&
+        playback.streamUrl &&
+        (playback.headers === undefined ||
+            (playback.headers !== null &&
+                typeof playback.headers === 'object' &&
+                !Array.isArray(playback.headers)))
+    );
 }

@@ -1,3 +1,4 @@
+import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import {
     buildSsdpSearchRequest,
     buildUpnpActionBody,
@@ -52,6 +53,15 @@ describe('DLNA renderer protocol helpers', () => {
         ).toBe(false);
         expect(
             isTrustedSsdpLocation('file:///etc/passwd', '192.168.1.50')
+        ).toBe(false);
+        expect(
+            isTrustedSsdpLocation('http://localhost/device.xml', '127.0.0.1')
+        ).toBe(false);
+        expect(
+            isTrustedSsdpLocation(
+                'http://renderer.local/device.xml',
+                '169.254.10.20'
+            )
         ).toBe(false);
     });
 
@@ -139,5 +149,31 @@ describe('DLNA renderer protocol helpers', () => {
         'https://stream.example/live.m3u8',
     ])('allows receiver-fetchable LAN and public targets: %s', (url) => {
         expect(isReceiverFetchableUrl(url)).toBe(true);
+    });
+
+    it('rejects malformed renderer IPC playback payloads', async () => {
+        const service = new DlnaRendererService();
+        const rendererCache = (
+            service as unknown as {
+                renderers: Map<string, object>;
+            }
+        ).renderers;
+        rendererCache.set('renderer-1', {
+            id: 'renderer-1',
+            name: 'TV',
+            address: '192.168.1.50',
+            controlUrl: 'http://192.168.1.50/control',
+            expiresAt: Date.now() + 60_000,
+        });
+
+        await expect(
+            service.startPlayback(
+                'renderer-1',
+                null as unknown as ResolvedPortalPlayback
+            )
+        ).resolves.toEqual({
+            success: false,
+            error: 'Invalid DLNA playback request.',
+        });
     });
 });
