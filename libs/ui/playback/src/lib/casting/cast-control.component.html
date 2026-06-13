@@ -1,0 +1,125 @@
+<button
+    mat-icon-button
+    type="button"
+    class="cast-control__trigger"
+    data-test-id="cast-control-button"
+    [matMenuTriggerFor]="castMenu"
+    [attr.aria-label]="'CASTING.OPEN' | translate"
+    [matTooltip]="'CASTING.OPEN' | translate"
+    (menuOpened)="prepareMenu()"
+>
+    <mat-icon>{{ connectedDeviceName() ? 'cast_connected' : 'cast' }}</mat-icon>
+</button>
+
+<mat-menu #castMenu="matMenu" class="cast-control__menu">
+    <div class="cast-control__heading" (click)="$event.stopPropagation()">
+        <strong>{{ 'CASTING.TITLE' | translate }}</strong>
+        <span>{{ playback().title }}</span>
+    </div>
+
+    <button
+        mat-menu-item
+        type="button"
+        [disabled]="!airPlayAvailable() || !directCastingAvailable()"
+        (click)="openAirPlay()"
+    >
+        <mat-icon>airplay</mat-icon>
+        <span>
+            {{ 'CASTING.AIRPLAY' | translate }}
+            @if (!airPlayAvailable()) {
+                <small>{{ 'CASTING.SAFARI_ONLY' | translate }}</small>
+            }
+        </span>
+    </button>
+
+    <button
+        mat-menu-item
+        type="button"
+        [disabled]="!googleCastAvailable()"
+        (click)="startGoogleCast()"
+    >
+        <mat-icon>cast</mat-icon>
+        <span>
+            {{ 'CASTING.GOOGLE_CAST' | translate }}
+            @if (!googleCastAvailable()) {
+                <small>{{ 'CASTING.SECURE_PWA_ONLY' | translate }}</small>
+            }
+        </span>
+    </button>
+
+    @if (remotePlaybackAvailable()) {
+        <button
+            mat-menu-item
+            type="button"
+            [disabled]="!directCastingAvailable()"
+            (click)="openRemotePlayback()"
+        >
+            <mat-icon>connected_tv</mat-icon>
+            <span>{{ 'CASTING.REMOTE_PLAYBACK' | translate }}</span>
+        </button>
+    }
+
+    @if (dlnaAvailable()) {
+        <div class="cast-control__section" (click)="$event.stopPropagation()">
+            <span>{{ 'CASTING.DLNA_DEVICES' | translate }}</span>
+            <button
+                mat-icon-button
+                type="button"
+                [disabled]="discovering()"
+                [attr.aria-label]="'CASTING.REFRESH' | translate"
+                (click)="refreshDlnaDevices()"
+            >
+                <mat-icon>refresh</mat-icon>
+            </button>
+        </div>
+
+        @if (discovering()) {
+            <div class="cast-control__state" (click)="$event.stopPropagation()">
+                <mat-spinner diameter="20" />
+                <span>{{ 'CASTING.SEARCHING' | translate }}</span>
+            </div>
+        } @else {
+            @for (device of dlnaDevices(); track device.id) {
+                <button
+                    mat-menu-item
+                    type="button"
+                    [disabled]="!directCastingAvailable()"
+                    (click)="startDlnaPlayback(device.id)"
+                >
+                    <mat-icon>tv</mat-icon>
+                    <span>
+                        {{ device.name }}
+                        @if (device.modelName) {
+                            <small>{{ device.modelName }}</small>
+                        }
+                    </span>
+                </button>
+            } @empty {
+                <div
+                    class="cast-control__state"
+                    (click)="$event.stopPropagation()"
+                >
+                    {{ 'CASTING.NO_DLNA_DEVICES' | translate }}
+                </div>
+            }
+        }
+    }
+
+    @if (!directCastingAvailable()) {
+        <div class="cast-control__warning" (click)="$event.stopPropagation()">
+            <mat-icon>lock</mat-icon>
+            <span>{{ 'CASTING.DIRECT_URL_REQUIRED' | translate }}</span>
+        </div>
+    }
+
+    @if (statusKey()) {
+        <div
+            class="cast-control__warning"
+            role="status"
+            (click)="$event.stopPropagation()"
+        >
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ statusKey() | translate }}</span>
+        </div>
+    }
+</mat-menu>

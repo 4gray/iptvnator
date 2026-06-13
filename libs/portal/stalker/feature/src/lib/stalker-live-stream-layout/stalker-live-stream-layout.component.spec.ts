@@ -21,7 +21,10 @@ import {
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    EpgProgram,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import {
     LiveEpgPanelComponent,
@@ -69,6 +72,7 @@ class StubAudioPlayerComponent {
     readonly url = input.required<string>();
     readonly icon = input('');
     readonly channelName = input('');
+    readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly dispatchAdjacentChannelAction = input(true);
     readonly channelSwitchRequested = output<'next' | 'previous'>();
 }
@@ -278,6 +282,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             streamUrl: 'https://stream.example/jazz.mp3',
             title: 'Jazz FM',
             thumbnail: 'jazz.png',
+            headers: { Authorization: 'Bearer radio' },
         });
         portalPlayer.isEmbeddedPlayer.mockReset();
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
@@ -660,6 +665,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(audioPlayer.url()).toBe('https://stream.example/jazz.mp3');
         expect(audioPlayer.icon()).toBe('jazz.png');
         expect(audioPlayer.channelName()).toBe('Jazz FM');
+        expect(audioPlayer.playback()?.headers).toEqual({
+            Authorization: 'Bearer radio',
+        });
         expect(audioPlayer.dispatchAdjacentChannelAction()).toBe(false);
     });
 });

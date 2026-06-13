@@ -31,9 +31,11 @@ class MockHls {
     static isSupported = jest.fn(() => true);
 
     readonly handlers = new Map<string, (...args: unknown[]) => void>();
-    readonly on = jest.fn((event: string, handler: (...args: unknown[]) => void) => {
-        this.handlers.set(event, handler);
-    });
+    readonly on = jest.fn(
+        (event: string, handler: (...args: unknown[]) => void) => {
+            this.handlers.set(event, handler);
+        }
+    );
     readonly loadSource = jest.fn();
     readonly attachMedia = jest.fn();
     readonly destroy = jest.fn();
@@ -47,9 +49,11 @@ class MockHls {
 class MockMpegTsPlayer {
     readonly handlers = new Map<string, (...args: unknown[]) => void>();
     readonly attachMediaElement = jest.fn();
-    readonly on = jest.fn((event: string, handler: (...args: unknown[]) => void) => {
-        this.handlers.set(event, handler);
-    });
+    readonly on = jest.fn(
+        (event: string, handler: (...args: unknown[]) => void) => {
+            this.handlers.set(event, handler);
+        }
+    );
     readonly load = jest.fn();
     readonly play = jest.fn();
     readonly pause = jest.fn();
@@ -101,6 +105,15 @@ describe('ArtPlayerComponent', () => {
 
     afterEach(() => {
         fixture?.destroy();
+    });
+
+    it('uses the shared cast control instead of ArtPlayer AirPlay UI', () => {
+        createComponent({
+            url: 'https://example.com/live/playlist.m3u8',
+            name: 'HLS Live',
+        });
+
+        expect(artPlayerInstances[0].options['airplay']).toBe(false);
     });
 
     it('emits a playback issue when the native video element reports an unsupported source', () => {
@@ -217,9 +230,11 @@ describe('ArtPlayerComponent', () => {
             artPlayerInstances[0].video,
             'https://example.com/live/channel.ts'
         );
-        mpegTsInstances[0].handlers
-            .get('error')
-            ?.('mediaError', 'unsupported codec', {});
+        mpegTsInstances[0].handlers.get('error')?.(
+            'mediaError',
+            'unsupported codec',
+            {}
+        );
 
         expect(issues).toEqual([
             expect.objectContaining({

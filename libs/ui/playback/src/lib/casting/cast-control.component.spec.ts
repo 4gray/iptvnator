@@ -11,7 +11,10 @@ describe('CastControlComponent', () => {
         openAirPlayPicker: jest.Mock;
         openRemotePlaybackPicker: jest.Mock;
         startDlnaPlayback: jest.Mock;
+        startGoogleCast: jest.Mock;
+        canUseGoogleCast: jest.Mock;
         supportsAirPlay: jest.Mock;
+        supportsDlna: boolean;
         supportsRemotePlayback: jest.Mock;
     };
 
@@ -27,7 +30,10 @@ describe('CastControlComponent', () => {
             openAirPlayPicker: jest.fn(),
             openRemotePlaybackPicker: jest.fn(),
             startDlnaPlayback: jest.fn(),
+            startGoogleCast: jest.fn(),
+            canUseGoogleCast: jest.fn().mockReturnValue(true),
             supportsAirPlay: jest.fn().mockReturnValue(true),
+            supportsDlna: true,
             supportsRemotePlayback: jest.fn().mockReturnValue(true),
         };
 

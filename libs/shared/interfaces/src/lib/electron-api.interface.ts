@@ -4,6 +4,7 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
 } from './embedded-mpv-session.interface';
+import { DlnaRendererDevice } from './casting.interface';
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
 import { ExternalPlayerSession } from './external-player-session.interface';
@@ -702,6 +703,11 @@ export interface ElectronBridgeApi {
         callback: (data: ElectronBridgePlayerError) => void
     ) => void;
     getLocalIpAddresses: () => Promise<string[]>;
+    discoverDlnaRenderers?: () => Promise<DlnaRendererDevice[]>;
+    startDlnaPlayback?: (
+        deviceId: string,
+        playback: ResolvedPortalPlayback
+    ) => Promise<ElectronBridgeErrorResult>;
     onEpgProgress?: (
         callback: (data: ElectronBridgeEpgProgress) => void
     ) => void;

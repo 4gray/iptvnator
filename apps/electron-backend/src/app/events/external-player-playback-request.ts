@@ -8,6 +8,32 @@ export interface EffectiveExternalPlaybackRequest {
     headerFields: string[];
 }
 
+export interface MpvReusePropertyCommand {
+    property: 'user-agent' | 'referrer' | 'http-header-fields';
+    value: string;
+}
+
+export function buildMpvReusePropertyCommands(options: {
+    userAgent?: string;
+    referer?: string;
+    headerFields: string[];
+}): MpvReusePropertyCommand[] {
+    return [
+        {
+            property: 'user-agent',
+            value: options.userAgent ?? '',
+        },
+        {
+            property: 'referrer',
+            value: options.referer ?? '',
+        },
+        {
+            property: 'http-header-fields',
+            value: options.headerFields.join(','),
+        },
+    ];
+}
+
 export function buildHttpHeaderFields(
     origin?: string,
     headers?: Record<string, string>

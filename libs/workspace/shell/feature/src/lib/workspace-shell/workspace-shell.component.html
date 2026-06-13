@@ -77,7 +77,13 @@
                     (artworkClicked)="
                         facade.openActiveExternalSessionTarget()
                     "
-                />
+                >
+                    <app-cast-control
+                        external-playback-cast
+                        placement="inline"
+                        [playback]="toCastPlayback(session)"
+                    />
+                </app-external-playback-dock>
             </footer>
         }
     }
