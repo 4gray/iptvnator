@@ -1,4 +1,5 @@
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { EventEmitter } from 'events';
 import {
     buildSsdpSearchRequest,
     buildUpnpActionBody,
@@ -8,6 +9,7 @@ import {
     parseRendererDescription,
     parseSsdpResponse,
 } from './dlna-renderer.service';
+import { enforceAbsoluteRequestTimeout } from './dlna-protocol';
 
 describe('DLNA renderer protocol helpers', () => {
     it('builds a standards-compliant MediaRenderer discovery request', () => {
@@ -175,5 +177,26 @@ describe('DLNA renderer protocol helpers', () => {
             success: false,
             error: 'Invalid DLNA playback request.',
         });
+    });
+
+    it('enforces and clears the absolute DLNA request deadline', () => {
+        jest.useFakeTimers();
+        const request = new EventEmitter() as EventEmitter & {
+            destroy: jest.Mock;
+        };
+        request.destroy = jest.fn();
+
+        enforceAbsoluteRequestTimeout(request, 100);
+        jest.advanceTimersByTime(100);
+        expect(request.destroy).toHaveBeenCalledWith(
+            new Error('DLNA renderer request timed out.')
+        );
+
+        request.destroy.mockClear();
+        enforceAbsoluteRequestTimeout(request, 100);
+        request.emit('close');
+        jest.advanceTimersByTime(100);
+        expect(request.destroy).not.toHaveBeenCalled();
+        jest.useRealTimers();
     });
 });
