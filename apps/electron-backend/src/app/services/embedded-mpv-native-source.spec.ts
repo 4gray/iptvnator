@@ -41,22 +41,30 @@ describe('Embedded MPV native source recording invariants', () => {
     );
 
     function functionBody(name: string): string {
-        const start = nativeSource.indexOf(`Napi::Value ${name}(`);
+        return sourceFunctionBody(nativeSource, `Napi::Value ${name}(`, name);
+    }
+
+    function sourceFunctionBody(
+        source: string,
+        signature: string,
+        name: string
+    ): string {
+        const start = source.indexOf(signature);
         expect(start).toBeGreaterThanOrEqual(0);
 
-        const bodyStart = nativeSource.indexOf('{', start);
+        const bodyStart = source.indexOf('{', start);
         expect(bodyStart).toBeGreaterThanOrEqual(0);
 
         let depth = 0;
-        for (let index = bodyStart; index < nativeSource.length; index += 1) {
-            if (nativeSource[index] === '{') {
+        for (let index = bodyStart; index < source.length; index += 1) {
+            if (source[index] === '{') {
                 depth += 1;
             }
-            if (nativeSource[index] === '}') {
+            if (source[index] === '}') {
                 depth -= 1;
             }
             if (depth === 0) {
-                return nativeSource.slice(bodyStart, index + 1);
+                return source.slice(bodyStart, index + 1);
             }
         }
 
@@ -343,6 +351,53 @@ describe('Embedded MPV native source recording invariants', () => {
         );
         expect(widCommonSource).toContain(
             '"{\\"command\\":[\\"seek\\"," + seconds + ",\\"absolute\\"]}\\n"'
+        );
+    });
+
+    it('keeps Linux MPV snapshot IPC off the NAPI snapshot read path', () => {
+        const getSnapshotBody = sourceFunctionBody(
+            widCommonSource,
+            'Napi::Value GetSessionSnapshot(',
+            'GetSessionSnapshot'
+        );
+        expect(getSnapshotBody).not.toContain('refreshLinuxMpvSnapshot');
+        expect(widCommonSource).toContain('void runLinuxProcessPollLoop');
+        expect(widCommonSource).toContain('refreshLinuxMpvSnapshot(session);');
+        expect(widCommonSource).toContain('startLinuxProcessPolling(session)');
+        expect(widCommonSource).toContain(
+            'session->eventThread = std::thread(runLinuxProcessPollLoop, session);'
+        );
+    });
+
+    it('terminates Linux MPV processes away from the NAPI teardown path', () => {
+        const destroyBody = sourceFunctionBody(
+            widCommonSource,
+            'void destroySession(',
+            'destroySession'
+        );
+        expect(destroyBody).toContain(
+            'terminateLinuxMpvProcessAsync(session);'
+        );
+        expect(destroyBody).toContain('session->eventThread.detach();');
+        expect(destroyBody).not.toContain('std::this_thread::sleep_for');
+        expect(destroyBody).not.toContain('SIGKILL');
+
+        const asyncTerminationBody = sourceFunctionBody(
+            widCommonSource,
+            'void terminateLinuxMpvProcessAsync(',
+            'terminateLinuxMpvProcessAsync'
+        );
+        expect(asyncTerminationBody).toContain(
+            'kill(process.processId, SIGTERM);'
+        );
+        expect(asyncTerminationBody).toContain('std::thread(');
+        expect(asyncTerminationBody).toContain('waitForLinuxMpvProcessExit');
+    });
+
+    it('uses generation-unique Linux MPV IPC socket paths', () => {
+        expect(widCommonSource).toContain('gNextLinuxIpcSocketId');
+        expect(widCommonSource).toContain(
+            'std::to_string(gNextLinuxIpcSocketId.fetch_add(1))'
         );
     });
 

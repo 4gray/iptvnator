@@ -146,6 +146,9 @@ struct Session {
 
 std::atomic<uint64_t> gNextSessionId{1};
 std::atomic<uint64_t> gNextAsyncRequestId{1};
+#ifdef __linux__
+std::atomic<uint64_t> gNextLinuxIpcSocketId{1};
+#endif
 std::mutex gSessionsMutex;
 std::unordered_map<std::string, std::shared_ptr<Session>> gSessions;
 
@@ -339,6 +342,11 @@ Bounds readBounds(const Napi::Object& object)
 }
 
 #ifdef __linux__
+struct LinuxMpvProcess {
+    pid_t processId = -1;
+    std::string ipcSocketPath;
+};
+
 bool isExecutableAvailable(const char* executableName)
 {
     const char* pathValue = std::getenv("PATH");
@@ -403,7 +411,7 @@ std::vector<std::string> buildLinuxMpvEnvironment()
 
 void updateLinuxProcessState(const std::shared_ptr<Session>& session)
 {
-    if (!session) {
+    if (!session || !session->running.load()) {
         return;
     }
 
@@ -421,8 +429,14 @@ void updateLinuxProcessState(const std::shared_ptr<Session>& session)
     if (result != processId) {
         return;
     }
+    if (!session->running.load()) {
+        return;
+    }
 
     std::lock_guard<std::mutex> lock(session->mutex);
+    if (session->mpvProcessId != processId) {
+        return;
+    }
     session->mpvProcessId = -1;
     session->snapshot.status =
         WIFEXITED(status) && WEXITSTATUS(status) == 0
@@ -433,46 +447,65 @@ void updateLinuxProcessState(const std::shared_ptr<Session>& session)
     }
 }
 
-void terminateLinuxMpvProcess(const std::shared_ptr<Session>& session)
+void unlinkLinuxIpcSocket(const std::string& ipcSocketPath)
 {
+    if (!ipcSocketPath.empty()) {
+        unlink(ipcSocketPath.c_str());
+    }
+}
+
+LinuxMpvProcess takeLinuxMpvProcess(const std::shared_ptr<Session>& session)
+{
+    LinuxMpvProcess process;
     if (!session) {
-        return;
+        return process;
     }
 
-    pid_t processId = -1;
-    std::string ipcSocketPath;
     {
         std::lock_guard<std::mutex> lock(session->mutex);
-        processId = session->mpvProcessId;
+        process.processId = session->mpvProcessId;
         session->mpvProcessId = -1;
-        ipcSocketPath = session->mpvIpcSocketPath;
+        process.ipcSocketPath = session->mpvIpcSocketPath;
         session->mpvIpcSocketPath.clear();
     }
-    if (processId <= 0) {
-        if (!ipcSocketPath.empty()) {
-            unlink(ipcSocketPath.c_str());
-        }
+
+    return process;
+}
+
+void waitForLinuxMpvProcessExit(LinuxMpvProcess process)
+{
+    if (process.processId <= 0) {
+        unlinkLinuxIpcSocket(process.ipcSocketPath);
         return;
     }
 
-    kill(processId, SIGTERM);
     for (int attempt = 0; attempt < 10; attempt += 1) {
         int status = 0;
-        const pid_t result = waitpid(processId, &status, WNOHANG);
-        if (result == processId || result == -1) {
-            if (!ipcSocketPath.empty()) {
-                unlink(ipcSocketPath.c_str());
-            }
+        const pid_t result = waitpid(process.processId, &status, WNOHANG);
+        if (result == process.processId || result == -1) {
+            unlinkLinuxIpcSocket(process.ipcSocketPath);
             return;
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(50));
     }
 
-    kill(processId, SIGKILL);
-    waitpid(processId, nullptr, 0);
-    if (!ipcSocketPath.empty()) {
-        unlink(ipcSocketPath.c_str());
+    kill(process.processId, SIGKILL);
+    waitpid(process.processId, nullptr, 0);
+    unlinkLinuxIpcSocket(process.ipcSocketPath);
+}
+
+void terminateLinuxMpvProcessAsync(const std::shared_ptr<Session>& session)
+{
+    auto process = takeLinuxMpvProcess(session);
+    if (process.processId <= 0) {
+        unlinkLinuxIpcSocket(process.ipcSocketPath);
+        return;
     }
+
+    kill(process.processId, SIGTERM);
+    std::thread([process = std::move(process)]() mutable {
+        waitForLinuxMpvProcessExit(std::move(process));
+    }).detach();
 }
 
 void appendLinuxMpvOption(
@@ -574,7 +607,8 @@ std::string buildLinuxIpcSocketPath(const std::shared_ptr<Session>& session)
 
     return "/tmp/iptvnator-embedded-mpv-" +
         std::to_string(static_cast<long>(getpid())) +
-        "-" + safeSessionId + ".sock";
+        "-" + safeSessionId +
+        "-" + std::to_string(gNextLinuxIpcSocketId.fetch_add(1)) + ".sock";
 }
 
 bool writeAll(int fileDescriptor, const std::string& payload)
@@ -795,6 +829,9 @@ bool sendLinuxMpvCommand(
 void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
 {
     updateLinuxProcessState(session);
+    if (!session || !session->running.load()) {
+        return;
+    }
 
     std::string socketPath;
     pid_t processId = -1;
@@ -814,6 +851,13 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     const auto path = queryLinuxMpvString(socketPath, "path");
 
     std::lock_guard<std::mutex> lock(session->mutex);
+    if (
+        !session->running.load() ||
+        session->mpvProcessId != processId ||
+        session->mpvIpcSocketPath != socketPath
+    ) {
+        return;
+    }
     if (position) {
         session->snapshot.positionSeconds = std::max(0.0, *position);
     }
@@ -831,6 +875,37 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     if (path && !path->empty()) {
         session->snapshot.streamUrl = *path;
     }
+}
+
+void runLinuxProcessPollLoop(std::shared_ptr<Session> session)
+{
+    while (session && session->running.load()) {
+        refreshLinuxMpvSnapshot(session);
+        for (int tick = 0; tick < 10 && session->running.load(); tick += 1) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+    }
+}
+
+bool startLinuxProcessPolling(const std::shared_ptr<Session>& session)
+{
+    if (!session) {
+        return false;
+    }
+
+    bool expected = false;
+    if (!session->running.compare_exchange_strong(expected, true)) {
+        return true;
+    }
+
+    try {
+        session->eventThread = std::thread(runLinuxProcessPollLoop, session);
+    } catch (...) {
+        session->running.store(false);
+        return false;
+    }
+
+    return true;
 }
 
 pid_t spawnLinuxMpvProcess(
@@ -884,7 +959,7 @@ void loadLinuxProcessPlayback(
     const std::string& referer,
     double startTime)
 {
-    terminateLinuxMpvProcess(session);
+    terminateLinuxMpvProcessAsync(session);
     const auto ipcSocketPath = buildLinuxIpcSocketPath(session);
     unlink(ipcSocketPath.c_str());
     const auto arguments = buildLinuxMpvArguments(
@@ -923,6 +998,13 @@ void loadLinuxProcessPlayback(
         session->snapshot.recordingTargetPath.clear();
         session->snapshot.recordingStartedAt.clear();
         session->snapshot.recordingError.clear();
+    }
+    if (!startLinuxProcessPolling(session)) {
+        terminateLinuxMpvProcessAsync(session);
+        throw Napi::Error::New(
+            env,
+            "Failed to start embedded MPV snapshot polling."
+        );
     }
 }
 #endif
@@ -1311,7 +1393,19 @@ void destroySession(const std::shared_ptr<Session>& session)
     }
 
 #ifdef __linux__
-    terminateLinuxMpvProcess(session);
+    session->running.store(false);
+    terminateLinuxMpvProcessAsync(session);
+    if (session->eventThread.joinable()) {
+        session->eventThread.detach();
+    }
+    session->host.destroy();
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.status = SessionStatus::Closed;
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingStartedAt.clear();
+    }
+    return;
 #endif
     session->running.store(false);
     if (session->handle) {
@@ -2004,10 +2098,6 @@ Napi::Value GetSessionSnapshot(const Napi::CallbackInfo& info)
     if (!session) {
         return env.Null();
     }
-
-#ifdef __linux__
-    refreshLinuxMpvSnapshot(session);
-#endif
 
     SessionSnapshot snapshot;
     {
