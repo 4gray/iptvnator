@@ -4,11 +4,16 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
+import { PlaylistsService } from '@iptvnator/services';
+import { of } from 'rxjs';
 
 describe('PwaXtreamDataSource', () => {
     let dataSource: PwaXtreamDataSource;
     let apiService: {
         getStreams: jest.Mock;
+    };
+    let playlistsService: {
+        getPlaylistById: jest.Mock;
     };
 
     const credentials: XtreamCredentials = {
@@ -23,6 +28,9 @@ describe('PwaXtreamDataSource', () => {
         apiService = {
             getStreams: jest.fn(),
         };
+        playlistsService = {
+            getPlaylistById: jest.fn(() => of(undefined)),
+        };
 
         TestBed.configureTestingModule({
             providers: [
@@ -30,6 +38,10 @@ describe('PwaXtreamDataSource', () => {
                 {
                     provide: XtreamApiService,
                     useValue: apiService,
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: playlistsService,
                 },
             ],
         });
@@ -64,6 +76,62 @@ describe('PwaXtreamDataSource', () => {
                 password: credentials.password,
             })
         );
+    });
+
+    it('uses current playlist metadata before stale PWA storage when fetching playlist details', async () => {
+        await dataSource.createPlaylist({
+            id: 'playlist-1',
+            name: 'Old Xtream',
+            title: 'Old Xtream',
+            serverUrl: 'http://old.example:8080',
+            username: 'old-user',
+            password: 'old-pass',
+            type: 'xtream',
+        });
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'playlist-1',
+                title: 'Updated Xtream',
+                importDate: '2026-04-01T00:00:00.000Z',
+                lastUsage: '2026-04-01T00:00:00.000Z',
+                count: 0,
+                autoRefresh: false,
+                updateDate: 123,
+                serverUrl: 'http://new.example:8080',
+                username: 'new-user',
+                password: 'new-pass',
+                userAgent: 'new-agent',
+                referrer: 'https://referrer.example',
+                origin: 'https://origin.example',
+            })
+        );
+
+        await expect(dataSource.getPlaylist('playlist-1')).resolves.toEqual(
+            expect.objectContaining({
+                id: 'playlist-1',
+                name: 'Updated Xtream',
+                title: 'Updated Xtream',
+                updateDate: 123,
+                serverUrl: 'http://new.example:8080',
+                username: 'new-user',
+                password: 'new-pass',
+                userAgent: 'new-agent',
+                referrer: 'https://referrer.example',
+                origin: 'https://origin.example',
+            })
+        );
+        expect(
+            JSON.parse(localStorage.getItem('xtream-playlists') || '[]')
+        ).toEqual([
+            expect.objectContaining({
+                id: 'playlist-1',
+                name: 'Updated Xtream',
+                title: 'Updated Xtream',
+                serverUrl: 'http://new.example:8080',
+                username: 'new-user',
+                type: 'xtream',
+            }),
+        ]);
     });
 
     it('normalizes Xtream API stream identifiers for PWA catalog navigation', async () => {
@@ -480,6 +548,10 @@ describe('PwaXtreamDataSource', () => {
                 {
                     provide: XtreamApiService,
                     useValue: apiService,
+                },
+                {
+                    provide: PlaylistsService,
+                    useValue: playlistsService,
                 },
             ],
         });

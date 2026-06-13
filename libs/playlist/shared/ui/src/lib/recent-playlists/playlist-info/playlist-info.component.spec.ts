@@ -1,5 +1,5 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
@@ -33,6 +33,9 @@ describe('PlaylistInfoComponent', () => {
     let store: {
         dispatch: jest.Mock;
     };
+    let dialogRef: {
+        close: jest.Mock;
+    };
     const originalElectron = window.electron;
 
     const playlist = {
@@ -63,6 +66,9 @@ describe('PlaylistInfoComponent', () => {
         store = {
             dispatch: jest.fn(),
         };
+        dialogRef = {
+            close: jest.fn(),
+        };
 
         await TestBed.configureTestingModule({
             imports: [PlaylistInfoComponent],
@@ -86,6 +92,10 @@ describe('PlaylistInfoComponent', () => {
                 {
                     provide: MatSnackBar,
                     useValue: snackBar,
+                },
+                {
+                    provide: MatDialogRef,
+                    useValue: dialogRef,
                 },
                 {
                     provide: TranslateService,
@@ -146,6 +156,7 @@ describe('PlaylistInfoComponent', () => {
             'CLOSE',
             { duration: 3000 }
         );
+        expect(dialogRef.close).toHaveBeenCalledTimes(1);
     });
 
     it('uses the Electron save dialog when desktop file saving is available', async () => {

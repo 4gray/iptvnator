@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    Playlist,
     PlaybackPositionData,
     XtreamPendingRestoreState,
     XtreamCategory,
@@ -14,6 +15,8 @@ import {
     XtreamApiService,
     XtreamCredentials,
 } from '../services/xtream-api.service';
+import { PlaylistsService } from '@iptvnator/services';
+import { firstValueFrom } from 'rxjs';
 import {
     DbCategoryType,
     IXtreamDataSource,
@@ -76,6 +79,7 @@ type StoredXtreamPlaylistData = Omit<XtreamPlaylistData, 'password'> & {
 @Injectable({ providedIn: 'root' })
 export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly apiService = inject(XtreamApiService);
+    private readonly playlistsService = inject(PlaylistsService);
     private readonly logger = createLogger('PwaXtreamDataSource');
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
 
@@ -89,6 +93,12 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
     // =========================================================================
 
     async getPlaylist(playlistId: string): Promise<XtreamPlaylistData | null> {
+        const currentPlaylist =
+            await this.getPlaylistFromCurrentMetadata(playlistId);
+        if (currentPlaylist) {
+            return currentPlaylist;
+        }
+
         const playlists = this.getPlaylistsFromStorage();
         const playlist = playlists.find((p) => p.id === playlistId);
         return playlist?.password ? playlist : null;
@@ -155,6 +165,67 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
             STORAGE_KEYS.PLAYLISTS,
             JSON.stringify(persistedPlaylists)
         );
+    }
+
+    private async getPlaylistFromCurrentMetadata(
+        playlistId: string
+    ): Promise<XtreamPlaylistData | null> {
+        try {
+            const playlist = await firstValueFrom(
+                this.playlistsService.getPlaylistById(playlistId)
+            );
+            const xtreamPlaylist = this.toXtreamPlaylistData(playlist);
+
+            if (xtreamPlaylist) {
+                this.upsertPlaylistInStorage(xtreamPlaylist);
+            }
+
+            return xtreamPlaylist;
+        } catch {
+            return null;
+        }
+    }
+
+    private toXtreamPlaylistData(
+        playlist: Playlist | null | undefined
+    ): XtreamPlaylistData | null {
+        if (
+            !playlist?._id ||
+            !playlist.serverUrl ||
+            !playlist.username ||
+            !playlist.password
+        ) {
+            return null;
+        }
+
+        return {
+            id: playlist._id,
+            name: playlist.title,
+            title: playlist.title,
+            updateDate: playlist.updateDate,
+            serverUrl: playlist.serverUrl,
+            username: playlist.username,
+            password: playlist.password,
+            type: 'xtream',
+            userAgent: playlist.userAgent,
+            referrer: playlist.referrer,
+            origin: playlist.origin,
+        };
+    }
+
+    private upsertPlaylistInStorage(playlist: XtreamPlaylistData): void {
+        this.rememberPlaylistPassword(playlist);
+
+        const playlists = this.getPlaylistsFromStorage();
+        const index = playlists.findIndex((item) => item.id === playlist.id);
+
+        if (index === -1) {
+            this.savePlaylistsToStorage([...playlists, playlist]);
+            return;
+        }
+
+        playlists[index] = playlist;
+        this.savePlaylistsToStorage(playlists);
     }
 
     private toStoredPlaylist(
