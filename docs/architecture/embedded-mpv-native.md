@@ -82,10 +82,13 @@ The renderer learns which features the loaded addon binary supports through the 
 
 - `ended` when the end-file reason is `MPV_END_FILE_REASON_EOF`
 - `error` when MPV reports an end-file error
+- `loading` when MPV reports `MPV_END_FILE_REASON_REDIRECT`, because playback continues with the redirected playlist contents
 - `idle` for other successful end-file reasons such as replacement/stop
 - `closed` only for dispose/manual teardown
 
 Renderer autoplay must use `ended` only. It must not treat `closed`, `idle`, or `error` as a request to continue to the next episode.
+
+The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
 
 Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only as part of the embedded player control surface. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
 

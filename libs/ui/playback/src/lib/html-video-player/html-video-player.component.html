@@ -1,1 +1,14 @@
-<video #videoPlayer id="video-player" autoplay="true" controls="true"></video>
+<div class="html-video-player-shell">
+    <video
+        #videoPlayer
+        id="video-player"
+        autoplay="true"
+        controls="true"
+    ></video>
+
+    <app-series-playback-navigation-controls
+        [navigation]="seriesNavigation"
+        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+    />
+</div>

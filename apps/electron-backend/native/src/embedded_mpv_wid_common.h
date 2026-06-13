@@ -31,6 +31,7 @@ enum class SessionStatus {
     Loading,
     Playing,
     Paused,
+    Ended,
     Error,
     Closed,
 };
@@ -95,6 +96,8 @@ std::string toStatusString(SessionStatus status)
             return "playing";
         case SessionStatus::Paused:
             return "paused";
+        case SessionStatus::Ended:
+            return "ended";
         case SessionStatus::Error:
             return "error";
         case SessionStatus::Closed:
@@ -518,6 +521,19 @@ void runEventLoop(std::shared_ptr<Session> session)
                     session->snapshot.error = endFile->error < 0
                         ? mpv_error_string(endFile->error)
                         : "Embedded MPV playback ended with an error.";
+                } else if (
+                    endFile &&
+                    endFile->reason == MPV_END_FILE_REASON_EOF &&
+                    session->running.load()) {
+                    session->snapshot.status = SessionStatus::Ended;
+                } else if (
+                    endFile &&
+                    endFile->reason == MPV_END_FILE_REASON_REDIRECT &&
+                    session->running.load()) {
+                    session->snapshot.status = SessionStatus::Loading;
+                    session->snapshot.error.clear();
+                } else if (session->running.load()) {
+                    session->snapshot.status = SessionStatus::Idle;
                 }
                 break;
             }
@@ -536,10 +552,22 @@ void runEventLoop(std::shared_ptr<Session> session)
                         *static_cast<double*>(property->data);
                 } else if (name == "pause" && property->format == MPV_FORMAT_FLAG) {
                     const bool paused = *static_cast<int*>(property->data) != 0;
-                    session->snapshot.status = paused
-                        ? SessionStatus::Paused
-                        : SessionStatus::Playing;
-                    session->snapshot.error.clear();
+                    if (
+                        session->snapshot.status != SessionStatus::Loading &&
+                        session->snapshot.status != SessionStatus::Ended &&
+                        session->snapshot.status != SessionStatus::Error
+                    ) {
+                        session->snapshot.status = paused
+                            ? SessionStatus::Paused
+                            : SessionStatus::Playing;
+                        session->snapshot.error.clear();
+                    }
+                } else if (name == "eof-reached" && property->format == MPV_FORMAT_FLAG) {
+                    const bool eofReached =
+                        *static_cast<int*>(property->data) != 0;
+                    if (eofReached && session->running.load()) {
+                        session->snapshot.status = SessionStatus::Ended;
+                    }
                 } else if (name == "volume" && property->format == MPV_FORMAT_DOUBLE) {
                     session->snapshot.volumePercent =
                         *static_cast<double*>(property->data);
@@ -748,6 +776,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
         "video-aspect-override",
         MPV_FORMAT_STRING
     );
+    mpv_observe_property(session->handle, 11, "eof-reached", MPV_FORMAT_FLAG);
 
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);
