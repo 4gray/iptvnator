@@ -1,10 +1,4 @@
-import {
-    Component,
-    Directive,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { Component, Directive, input, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
@@ -88,12 +82,23 @@ class MockWorkspaceShellContextSidebarComponent {
 
 @Component({
     selector: 'app-external-playback-dock',
-    template: '',
+    template: '<ng-content />',
     standalone: true,
 })
 class MockExternalPlaybackDockComponent {
     readonly session = input<unknown>(null);
     readonly closeClicked = output<void>();
+    readonly artworkClicked = output<void>();
+}
+
+@Component({
+    selector: 'app-cast-control',
+    template: '',
+    standalone: true,
+})
+class MockCastControlComponent {
+    readonly playback = input<unknown>(null);
+    readonly placement = input<'overlay' | 'inline'>('overlay');
 }
 
 @Component({
@@ -210,6 +215,7 @@ describe('WorkspaceShellComponent', () => {
                 set: {
                     imports: [
                         RouterOutlet,
+                        MockCastControlComponent,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -250,6 +256,9 @@ describe('WorkspaceShellComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-external-playback-dock')
         ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-cast-control')
+        ).not.toBeNull();
     });
 
     it('renders the xtream import overlay child only when the facade flag is true', async () => {
@@ -263,6 +272,7 @@ describe('WorkspaceShellComponent', () => {
                 set: {
                     imports: [
                         RouterOutlet,
+                        MockCastControlComponent,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -315,6 +325,7 @@ describe('WorkspaceShellComponent', () => {
                 set: {
                     imports: [
                         RouterOutlet,
+                        MockCastControlComponent,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,

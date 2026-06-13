@@ -93,6 +93,14 @@ class StubEmbeddedMpvPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
+@Component({
+    selector: 'app-cast-control',
+    template: '<button data-test-id="stub-cast-control"></button>',
+})
+class StubCastControlComponent {
+    readonly playback = input.required<unknown>();
+}
+
 describe('WebPlayerViewComponent', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
     let fixture: ComponentFixture<WebPlayerViewComponentInstance>;
@@ -126,6 +134,7 @@ describe('WebPlayerViewComponent', () => {
                 set: {
                     imports: [
                         StubArtPlayerComponent,
+                        StubCastControlComponent,
                         StubEmbeddedMpvPlayerComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
@@ -157,6 +166,11 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.classList).toContain('web-player-view');
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="stub-cast-control"]')
+            )
+        ).not.toBeNull();
     });
 
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {

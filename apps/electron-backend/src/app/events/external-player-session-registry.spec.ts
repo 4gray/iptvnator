@@ -27,6 +27,25 @@ describe('ExternalPlayerSessionRegistry', () => {
         expect(updates.at(-1)?.status).toBe('opened');
     });
 
+    it('marks protected playback without exposing request credentials', () => {
+        const session = registry.beginSession({
+            player: 'mpv',
+            title: 'Header protected stream',
+            streamUrl: 'https://example.com/video.m3u8',
+            requiresRequestHeaders: true,
+        });
+
+        expect(session).toEqual(
+            expect.objectContaining({
+                requiresRequestHeaders: true,
+            })
+        );
+        expect(session).not.toHaveProperty('headers');
+        expect(session).not.toHaveProperty('userAgent');
+        expect(session).not.toHaveProperty('referer');
+        expect(session).not.toHaveProperty('origin');
+    });
+
     it('keeps close capability and closes the session explicitly', async () => {
         const close = jest.fn();
         const session = registry.beginSession({
@@ -45,6 +64,22 @@ describe('ExternalPlayerSessionRegistry', () => {
         expect(closed?.status).toBe('closed');
         expect(closed?.canClose).toBe(false);
         expect(registry.getActiveSessionId()).toBeNull();
+    });
+
+    it('marks a session closed without swallowing close failures', async () => {
+        const session = registry.beginSession({
+            player: 'vlc',
+            title: 'Example',
+            streamUrl: 'https://example.com/video.m3u8',
+        });
+        registry.attachCloser(session.id, () => {
+            throw new Error('close failed');
+        });
+
+        await expect(registry.closeSession(session.id)).rejects.toThrow(
+            'close failed'
+        );
+        expect(registry.getSession(session.id)?.status).toBe('closed');
     });
 
     it('marks runtime failures as errors without clearing the active id', () => {

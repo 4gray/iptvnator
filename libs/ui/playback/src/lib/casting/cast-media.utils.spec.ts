@@ -17,6 +17,9 @@ describe('cast media utilities', () => {
         'blob:https://example.com/stream',
         'file:///tmp/movie.mp4',
         'data:video/mp4;base64,AAAA',
+        'http://localhost:4200/live.m3u8',
+        'http://127.0.0.1:8080/live.m3u8',
+        'http://[::1]:8080/live.m3u8',
         'not a URL',
     ])('rejects URLs a remote receiver cannot fetch', (url) => {
         expect(isDirectCastUrl(url)).toBe(false);
@@ -34,6 +37,13 @@ describe('cast media utilities', () => {
             hasPlaybackHeaders({
                 streamUrl: 'https://example.com/live.m3u8',
                 title: 'Live',
+                requiresRequestHeaders: true,
+            })
+        ).toBe(true);
+        expect(
+            hasPlaybackHeaders({
+                streamUrl: 'https://example.com/live.m3u8',
+                title: 'Live',
             })
         ).toBe(false);
     });
@@ -44,6 +54,11 @@ describe('cast media utilities', () => {
         ['https://example.com/movie.mp4', 'video/mp4'],
         ['https://example.com/radio.mp3', 'audio/mpeg'],
         ['https://example.com/audio.aac', 'audio/aac'],
+        ['https://example.com/live/user/pass/42', 'video/mp2t'],
+        [
+            'https://example.com/play?extension=m3u8&token=signed',
+            'application/x-mpegURL',
+        ],
     ])('infers a receiver media type for %s', (url, mediaType) => {
         expect(getCastMediaType(url)).toBe(mediaType);
     });

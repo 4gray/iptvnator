@@ -10,9 +10,7 @@
             artworkInteractive()
         "
         [disabled]="!artworkInteractive()"
-        [attr.aria-label]="
-            artworkInteractive() ? 'Open in playlist' : null
-        "
+        [attr.aria-label]="artworkInteractive() ? 'Open in playlist' : null"
         (click)="onArtworkClick()"
     >
         @if (showArtwork()) {
@@ -32,7 +30,9 @@
     <div class="external-playback-dock__meta">
         <div class="external-playback-dock__title">{{ session().title }}</div>
         <div class="external-playback-dock__status">
-            <span class="external-playback-dock__chip">{{ playerLabel() }}</span>
+            <span class="external-playback-dock__chip">{{
+                playerLabel()
+            }}</span>
             <span
                 class="external-playback-dock__status-separator"
                 aria-hidden="true"
@@ -52,6 +52,7 @@
     </div>
 
     <div class="external-playback-dock__actions">
+        <ng-content select="[external-playback-cast]" />
         @if (showCloseButton()) {
             <button
                 type="button"

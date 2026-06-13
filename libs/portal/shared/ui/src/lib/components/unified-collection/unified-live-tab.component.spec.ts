@@ -23,10 +23,7 @@ import {
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     Channel,
     EpgItem,
@@ -132,6 +129,7 @@ class StubAudioPlayerComponent {
     readonly icon = input('');
     readonly url = input.required<string>();
     readonly channelName = input('');
+    readonly playback = input<ResolvedPortalPlayback | null>(null);
 }
 
 @Component({
@@ -662,6 +660,7 @@ describe('UnifiedLiveTabComponent', () => {
                 streamUrl: 'https://example.com/radio.m3u8',
                 title: 'M3U Radio',
                 thumbnail: 'radio.png',
+                headers: { Referer: 'https://provider.example' },
             },
             channel: {
                 id: 'm3u-channel',
@@ -700,6 +699,12 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
+        const m3uAudioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+        expect(m3uAudioPlayer.playback()?.headers).toEqual({
+            Referer: 'https://provider.example',
+        });
         expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
@@ -763,6 +768,9 @@ describe('UnifiedLiveTabComponent', () => {
         expect(audioPlayer.url()).toBe('https://example.com/jazz.mp3');
         expect(audioPlayer.icon()).toBe('jazz.png');
         expect(audioPlayer.channelName()).toBe('Jazz Radio');
+        expect(audioPlayer.playback()?.streamUrl).toBe(
+            'https://example.com/jazz.mp3'
+        );
     });
 
     it('renders shared EPG view for Xtream items and records recent history', async () => {

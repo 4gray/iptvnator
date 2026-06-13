@@ -37,7 +37,11 @@ import {
     VLC_REUSE_INSTANCE,
     store,
 } from '../services/store.service';
-import { openMpvPlayer, shutdownMpvSession } from './mpv-session.service';
+import {
+    openMpvPlayer,
+    shutdownMpvSession,
+} from './mpv-session.service';
+import { buildMpvReusePropertyCommands } from './external-player-playback-request';
 import { openVlcPlayer, shutdownVlcSession } from './vlc-session.service';
 
 function createMockChildProcess(): ChildProcess {
@@ -146,5 +150,19 @@ describe('external player shutdown on app quit', () => {
 
         shutdownVlcSession();
         expect(proc.kill).toHaveBeenCalledTimes(1);
+    });
+});
+
+describe('MPV reuse request headers', () => {
+    it('actively clears request properties before loading an unprotected stream', () => {
+        expect(
+            buildMpvReusePropertyCommands({
+                headerFields: [],
+            })
+        ).toEqual([
+            { property: 'user-agent', value: '' },
+            { property: 'referrer', value: '' },
+            { property: 'http-header-fields', value: '' },
+        ]);
     });
 });

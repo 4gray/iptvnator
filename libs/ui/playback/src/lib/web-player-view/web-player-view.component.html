@@ -76,6 +76,8 @@
     }
 }
 
+<app-cast-control [playback]="resolvedPlayback()" />
+
 @if (visiblePlaybackDiagnostic(); as issue) {
     <section
         class="web-player-diagnostic"

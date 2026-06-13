@@ -16,6 +16,7 @@ export interface ExternalPlayerSession {
     title: string;
     thumbnail?: string | null;
     streamUrl: string;
+    requiresRequestHeaders?: boolean;
     contentInfo?: PlayerContentInfo;
     startedAt: string;
     updatedAt: string;

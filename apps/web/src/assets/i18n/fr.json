@@ -410,6 +410,22 @@
         "UNMUTE": "Activer le son",
         "VOLUME": "Volume"
     },
+    "CASTING": {
+        "OPEN": "Cast to a device",
+        "TITLE": "Play on another device",
+        "AIRPLAY": "AirPlay",
+        "SAFARI_ONLY": "Available in Safari on supported Apple devices",
+        "GOOGLE_CAST": "Google Cast / Chromecast",
+        "SECURE_PWA_ONLY": "Requires the secure web app and a direct stream URL",
+        "REMOTE_PLAYBACK": "Browser remote playback",
+        "DLNA_DEVICES": "DLNA / UPnP devices",
+        "REFRESH": "Search again",
+        "SEARCHING": "Searching for devices...",
+        "NO_DLNA_DEVICES": "No DLNA renderers found on this network.",
+        "DIRECT_URL_REQUIRED": "Remote devices need a direct HTTP(S) stream without provider headers.",
+        "DISCOVERY_FAILED": "Device discovery failed.",
+        "PLAYBACK_FAILED": "The remote device could not start this stream."
+    },
     "PLAYBACK_DIAGNOSTICS": {
         "UNSUPPORTED_CONTAINER": {
             "TITLE": "This stream container is likely unsupported by the browser player",

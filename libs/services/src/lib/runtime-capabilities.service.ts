@@ -256,6 +256,13 @@ export class RuntimeCapabilitiesService {
         );
     }
 
+    get supportsDlnaCasting(): boolean {
+        return (
+            this.hasElectronMethod('discoverDlnaRenderers') &&
+            this.hasElectronMethod('startDlnaPlayback')
+        );
+    }
+
     get supportsXtreamSectionNavigation(): boolean {
         return (
             this.isPwa ||

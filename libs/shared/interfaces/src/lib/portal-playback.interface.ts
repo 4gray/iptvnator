@@ -18,4 +18,5 @@ export interface ResolvedPortalPlayback {
     userAgent?: string;
     referer?: string;
     origin?: string;
+    requiresRequestHeaders?: boolean;
 }

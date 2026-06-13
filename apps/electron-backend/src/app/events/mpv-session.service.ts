@@ -19,7 +19,10 @@ import {
     shouldReuseMpvInstance,
     shouldUseMpvSocketBridge,
 } from './external-player-launch-context';
-import { resolveEffectiveExternalPlaybackRequest } from './external-player-playback-request';
+import {
+    buildMpvReusePropertyCommands,
+    resolveEffectiveExternalPlaybackRequest,
+} from './external-player-playback-request';
 import {
     buildPlayerStartError,
     externalPlayerSessions,
@@ -221,11 +224,29 @@ export async function openMpvPlayer({
     startTime,
     headers,
 }: OpenExternalPlayerRequest) {
+    const {
+        effectiveOrigin,
+        effectiveReferer,
+        effectiveUserAgent,
+        headerFields,
+    } = resolveEffectiveExternalPlaybackRequest({
+        url,
+        userAgent,
+        referer,
+        origin,
+        headers,
+    });
     const session = externalPlayerSessions.beginSession({
         player: 'mpv',
         title,
         thumbnail,
         streamUrl: url,
+        requiresRequestHeaders: Boolean(
+            effectiveUserAgent ||
+            effectiveReferer ||
+            effectiveOrigin ||
+            headerFields.length
+        ),
         contentInfo,
     });
 
@@ -243,19 +264,6 @@ export async function openMpvPlayer({
             isFlatpak
         );
         const useMpvSocketBridge = shouldUseMpvSocketBridge(isFlatpak);
-        const {
-            effectiveOrigin,
-            effectiveReferer,
-            effectiveUserAgent,
-            headerFields,
-        } = resolveEffectiveExternalPlaybackRequest({
-            url,
-            userAgent,
-            referer,
-            origin,
-            headers,
-        });
-
         traceExternalPlayer('open mpv player', {
             path: mpvLaunchContext.playerPath,
             launchMode: mpvLaunchContext.mode,
@@ -280,22 +288,14 @@ export async function openMpvPlayer({
         ) {
             traceExternalPlayer('reuse existing mpv instance');
             try {
-                if (effectiveUserAgent) {
+                for (const command of buildMpvReusePropertyCommands({
+                    userAgent: effectiveUserAgent,
+                    referer: effectiveReferer,
+                    headerFields,
+                })) {
                     await sendMpvCommand('set_property', [
-                        'user-agent',
-                        effectiveUserAgent,
-                    ]);
-                }
-                if (effectiveReferer) {
-                    await sendMpvCommand('set_property', [
-                        'referrer',
-                        effectiveReferer,
-                    ]);
-                }
-                if (headerFields.length > 0) {
-                    await sendMpvCommand('set_property', [
-                        'http-header-fields',
-                        headerFields.join(','),
+                        command.property,
+                        command.value,
                     ]);
                 }
 

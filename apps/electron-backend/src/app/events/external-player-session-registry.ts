@@ -9,6 +9,7 @@ interface CreateExternalPlayerSessionOptions {
     title: string;
     thumbnail?: string | null;
     streamUrl: string;
+    requiresRequestHeaders?: boolean;
     contentInfo?: PlayerContentInfo;
 }
 
@@ -42,6 +43,7 @@ export class ExternalPlayerSessionRegistry {
             title: options.title,
             thumbnail: options.thumbnail ?? null,
             streamUrl: options.streamUrl,
+            requiresRequestHeaders: options.requiresRequestHeaders,
             contentInfo: options.contentInfo,
             startedAt,
             updatedAt: startedAt,
@@ -131,7 +133,9 @@ export class ExternalPlayerSessionRegistry {
         try {
             await runtime.close?.();
         } finally {
-            return this.markClosed(id);
+            this.markClosed(id);
         }
+
+        return this.getSession(id);
     }
 }

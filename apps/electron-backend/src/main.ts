@@ -9,6 +9,7 @@ import {
     setMainWindow as setDownloadsMainWindow,
 } from './app/events/database/downloads.events';
 import ElectronEvents from './app/events/electron.events';
+import CastingEvents from './app/events/casting.events';
 import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
 } from './app/events/embedded-mpv.events';
@@ -91,6 +92,7 @@ export default class Main {
         }
 
         ElectronEvents.bootstrapElectronEvents();
+        CastingEvents.bootstrapCastingEvents();
         WindowEvents.bootstrapWindowEvents();
         EmbeddedMpvEvents.bootstrapEmbeddedMpvEvents();
         PlaylistEvents.bootstrapPlaylistEvents();

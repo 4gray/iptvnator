@@ -36,6 +36,8 @@ The application is a cross-platform, open-source project built with Electron and
 - Global favorites aggregated from all playlists
 - Recently viewed live channel removal from row actions and context menus
 - HTML video player with HLS.js support or Video.js-based player
+- Remote playback controls for AirPlay, Google Cast, browser Remote Playback,
+  and Electron DLNA/UPnP renderers when the active stream is receiver-fetchable
 - Internationalization with support for 16 languages:
     - Arabic
     - Moroccan arabic

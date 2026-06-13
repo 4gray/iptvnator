@@ -155,7 +155,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             fullscreen: true,
             fullscreenWeb: true,
             playsInline: true,
-            airplay: true,
+            airplay: false,
             backdrop: true,
             mutex: true,
             theme: '#ff0000',

@@ -27,6 +27,7 @@ import {
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
+import { CastControlComponent } from '../casting/cast-control.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import {
@@ -53,6 +54,7 @@ type PlaybackDiagnosticDetail = {
     },
     imports: [
         ArtPlayerComponent,
+        CastControlComponent,
         ClipboardModule,
         EmbeddedMpvPlayerComponent,
         HtmlVideoPlayerComponent,
