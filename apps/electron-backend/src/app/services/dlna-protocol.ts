@@ -1,8 +1,6 @@
 import { request as httpRequest } from 'http';
 import { request as httpsRequest } from 'https';
 import { isIP } from 'net';
-import { SaxesParser } from 'saxes';
-import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import {
     isLocalHostname,
     isPrivateOrReservedIpv4,
@@ -11,21 +9,12 @@ import {
 
 export const SSDP_ADDRESS = '239.255.255.250';
 export const SSDP_PORT = 1900;
-export const AV_TRANSPORT_SERVICE =
-    'urn:schemas-upnp-org:service:AVTransport:1';
 
 const MAX_DLNA_RESPONSE_BYTES = 512 * 1024;
 
 export interface SsdpResponse {
     location: string;
     usn: string;
-}
-
-export interface RendererDescription {
-    friendlyName: string;
-    modelName: string;
-    udn: string;
-    avTransportControlUrl: string;
 }
 
 export function buildSsdpSearchRequest(): string {
@@ -76,87 +65,6 @@ export function isTrustedSsdpLocation(
     } catch {
         return false;
     }
-}
-
-export function parseRendererDescription(
-    xml: string
-): RendererDescription | null {
-    const values: Partial<RendererDescription> = {};
-    let currentServiceType = '';
-    let currentControlUrl = '';
-    const elements: Array<{ name: string; text: string }> = [];
-    const parser = new SaxesParser();
-
-    parser.on('opentag', (tag) => {
-        elements.push({ name: localName(tag.name), text: '' });
-    });
-    parser.on('text', (text) => {
-        const current = elements.at(-1);
-        if (current) current.text += text;
-    });
-    parser.on('closetag', () => {
-        const current = elements.pop();
-        if (!current) return;
-        const value = current.text.trim();
-
-        switch (current.name) {
-            case 'friendlyName':
-                values.friendlyName ||= value;
-                break;
-            case 'modelName':
-                values.modelName ||= value;
-                break;
-            case 'UDN':
-                values.udn ||= value;
-                break;
-            case 'serviceType':
-                currentServiceType = value;
-                break;
-            case 'controlURL':
-                currentControlUrl = value;
-                break;
-            case 'service':
-                if (currentServiceType === AV_TRANSPORT_SERVICE) {
-                    values.avTransportControlUrl = currentControlUrl;
-                }
-                currentServiceType = '';
-                currentControlUrl = '';
-                break;
-        }
-    });
-
-    try {
-        parser.write(xml).close();
-    } catch {
-        return null;
-    }
-
-    if (!values.friendlyName || !values.avTransportControlUrl) {
-        return null;
-    }
-
-    return {
-        friendlyName: values.friendlyName,
-        modelName: values.modelName ?? '',
-        udn: values.udn ?? '',
-        avTransportControlUrl: values.avTransportControlUrl,
-    };
-}
-
-export function buildUpnpActionBody(
-    action: string,
-    values: Record<string, string>
-): string {
-    const fields = Object.entries(values)
-        .map(([name, value]) => `<${name}>${escapeXml(value)}</${name}>`)
-        .join('');
-    return (
-        '<?xml version="1.0" encoding="utf-8"?>' +
-        '<s:Envelope xmlns:s="http://schemas.xmlsoap.org/soap/envelope/" ' +
-        's:encodingStyle="http://schemas.xmlsoap.org/soap/encoding/">' +
-        `<s:Body><u:${action} xmlns:u="${AV_TRANSPORT_SERVICE}">` +
-        `${fields}</u:${action}></s:Body></s:Envelope>`
-    );
 }
 
 export function requestPinnedText(
@@ -250,23 +158,11 @@ export function isReceiverFetchableUrl(streamUrl: string): boolean {
     }
 }
 
-export function hasPlaybackHeaders(playback: ResolvedPortalPlayback): boolean {
-    return Boolean(
-        playback.requiresRequestHeaders ||
-        playback.userAgent ||
-        playback.referer ||
-        playback.origin ||
-        Object.keys(playback.headers ?? {}).length > 0
-    );
-}
-
 function isPrivateNetworkAddress(address: string): boolean {
     if (isIP(address) !== 4) return false;
     const [a, b] = address.split('.').map(Number);
     return (
         a === 10 ||
-        a === 127 ||
-        (a === 169 && b === 254) ||
         (a === 172 && b >= 16 && b <= 31) ||
         (a === 192 && b === 168)
     );
@@ -295,17 +191,4 @@ function normalizeHostname(hostname: string): string {
     return normalized.startsWith('[') && normalized.endsWith(']')
         ? normalized.slice(1, -1)
         : normalized;
-}
-
-function escapeXml(value: string): string {
-    return value
-        .replace(/&/g, '&amp;')
-        .replace(/</g, '&lt;')
-        .replace(/>/g, '&gt;')
-        .replace(/"/g, '&quot;')
-        .replace(/'/g, '&apos;');
-}
-
-function localName(name: string): string {
-    return name.split(':').at(-1) ?? name;
 }

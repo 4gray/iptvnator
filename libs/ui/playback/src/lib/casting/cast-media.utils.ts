@@ -29,7 +29,9 @@ export function isDirectCastUrl(streamUrl: string): boolean {
             !url.username &&
             !url.password &&
             hostname !== 'localhost' &&
+            !hostname.endsWith('.localhost') &&
             hostname !== '[::1]' &&
+            hostname !== '0.0.0.0' &&
             !hostname.startsWith('127.')
         );
     } catch {
@@ -37,14 +39,22 @@ export function isDirectCastUrl(streamUrl: string): boolean {
     }
 }
 
-export function hasPlaybackHeaders(playback: ResolvedPortalPlayback): boolean {
-    return Boolean(
-        playback.requiresRequestHeaders ||
-        playback.userAgent ||
-        playback.referer ||
-        playback.origin ||
-        Object.keys(playback.headers ?? {}).length > 0
-    );
+export function getSafeCastThumbnailUrl(
+    playback: ResolvedPortalPlayback
+): string | undefined {
+    if (!playback.thumbnail || !isDirectCastUrl(playback.thumbnail)) {
+        return undefined;
+    }
+
+    try {
+        const streamUrl = new URL(playback.streamUrl);
+        const thumbnailUrl = new URL(playback.thumbnail);
+        return streamUrl.origin === thumbnailUrl.origin
+            ? thumbnailUrl.toString()
+            : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 export function getCastMediaType(streamUrl: string): string {

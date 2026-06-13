@@ -57,7 +57,9 @@ user action can retry.
 
 Google Cast uses the Default Media Receiver application ID and sends a typed
 media load request with title, thumbnail, live/buffered stream type, and a MIME
-type inferred from the URL extension.
+type inferred from the URL extension. Artwork is included only when it is a
+receiver-fetchable URL on the same origin as the media stream, preventing an
+untrusted playlist logo from introducing a second receiver-side request target.
 
 ## DLNA/UPnP
 
@@ -86,8 +88,10 @@ Redirects are not followed, responses are size-limited, and requests time out.
   `libs/shared/interfaces/src/lib/electron-api.interface.ts`
 - Electron IPC:
   `apps/electron-backend/src/app/events/casting.events.ts`
-- SSDP, XML, HTTP pinning, and SOAP:
+- SSDP, HTTP pinning, and receiver URL validation:
   `apps/electron-backend/src/app/services/dlna-protocol.ts`
+- renderer XML parsing and SOAP serialization:
+  `apps/electron-backend/src/app/services/dlna-xml.ts`
 - renderer discovery and playback:
   `apps/electron-backend/src/app/services/dlna-renderer.service.ts`
 

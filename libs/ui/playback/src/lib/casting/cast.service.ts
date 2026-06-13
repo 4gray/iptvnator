@@ -2,12 +2,13 @@ import { DOCUMENT } from '@angular/common';
 import { Injectable, inject } from '@angular/core';
 import {
     DlnaRendererDevice,
+    hasPlaybackHeaders,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     getCastMediaType,
-    hasPlaybackHeaders,
+    getSafeCastThumbnailUrl,
     isDirectCastUrl,
     supportsAirPlayPicker,
     supportsRemotePlaybackPicker,
@@ -101,8 +102,9 @@ export class CastService {
             : runtime.chrome.cast.media.StreamType.BUFFERED;
         const metadata = new runtime.chrome.cast.media.GenericMediaMetadata();
         metadata.title = playback.title;
-        if (playback.thumbnail) {
-            metadata.images = [{ url: playback.thumbnail }];
+        const thumbnailUrl = getSafeCastThumbnailUrl(playback);
+        if (thumbnailUrl) {
+            metadata.images = [{ url: thumbnailUrl }];
         }
         mediaInfo.metadata = metadata;
 
