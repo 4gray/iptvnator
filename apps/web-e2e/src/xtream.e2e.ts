@@ -80,9 +80,7 @@ async function addXtreamPortal(
     const dialog = page.locator('mat-dialog-container');
     await expect(dialog).toBeVisible();
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
-    await dialog
-        .getByRole('radio', { name: /Xtream credentials/i })
-        .click();
+    await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
 
     await dialog.locator('#title').fill(name);
     await dialog.locator('#serverUrl').fill(MOCK_SERVER);
@@ -92,6 +90,35 @@ async function addXtreamPortal(
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
     await page.waitForURL(/xtreams.*vod/);
+}
+
+async function openPlaylistDetailsDialog(page: Page, title: string) {
+    const playlistSettingsButton = page.getByRole('button', {
+        name: 'Playlist Settings',
+    });
+
+    if (await playlistSettingsButton.isVisible()) {
+        await playlistSettingsButton.click();
+    } else {
+        await page
+            .locator('app-playlist-switcher .playlist-switcher-trigger')
+            .click();
+
+        const switcherMenu = page.getByRole('menu').filter({ hasText: title });
+        const sourceRow = switcherMenu
+            .locator('.playlist-item')
+            .filter({ hasText: title })
+            .first();
+        await expect(sourceRow).toBeVisible();
+        await sourceRow
+            .getByRole('button', { name: 'Playlist actions' })
+            .click();
+        await page.getByRole('menuitem', { name: 'Playlist info' }).click();
+    }
+
+    const dialog = page.locator('mat-dialog-container');
+    await expect(dialog).toBeVisible();
+    return dialog;
 }
 
 // ---------------------------------------------------------------------------
@@ -437,6 +464,45 @@ test('@xtream add portal and see it in the playlist list', async ({ page }) => {
     await expect(
         page.getByText('My Xtream Test Portal', { exact: false })
     ).toBeVisible();
+});
+
+test('@xtream playlist details edit is retained in the PWA browser context', async ({
+    page,
+}) => {
+    await addXtreamPortal(page, { name: 'Editable PWA Xtream Portal' });
+
+    let dialog = await openPlaylistDetailsDialog(
+        page,
+        'Editable PWA Xtream Portal'
+    );
+    await dialog
+        .locator('input[formcontrolname="title"]')
+        .fill('Edited PWA Xtream Portal');
+    await dialog
+        .locator('input[formcontrolname="serverUrl"]')
+        .fill(MOCK_SERVER);
+    await dialog.locator('input[formcontrolname="username"]').fill('minimal');
+    await dialog.locator('input[formcontrolname="password"]').fill('minimal');
+    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await expect(dialog).toBeHidden();
+
+    await expect(
+        page.getByText('Edited PWA Xtream Portal', { exact: false })
+    ).toBeVisible();
+
+    dialog = await openPlaylistDetailsDialog(page, 'Edited PWA Xtream Portal');
+    await expect(dialog.locator('input[formcontrolname="title"]')).toHaveValue(
+        'Edited PWA Xtream Portal'
+    );
+    await expect(
+        dialog.locator('input[formcontrolname="serverUrl"]')
+    ).toHaveValue(MOCK_SERVER);
+    await expect(
+        dialog.locator('input[formcontrolname="username"]')
+    ).toHaveValue('minimal');
+    await expect(
+        dialog.locator('input[formcontrolname="password"]')
+    ).toHaveValue('minimal');
 });
 
 test('@xtream minimal scenario — reduced item count', async ({ request }) => {
