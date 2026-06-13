@@ -53,27 +53,29 @@ IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wakeup)
 
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <cctype>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#include <iomanip>
 #include <iostream>
-#include <locale>
 #include <memory>
 #include <mutex>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
 #ifdef __linux__
 #include <csignal>
+#include <dirent.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -204,10 +206,19 @@ std::string formatInvariantDouble(double value)
         return "0";
     }
 
-    std::ostringstream output;
-    output.imbue(std::locale::classic());
-    output << std::setprecision(17) << value;
-    return output.str();
+    char buffer[64]{};
+    const auto result = std::to_chars(
+        buffer,
+        buffer + sizeof(buffer),
+        value,
+        std::chars_format::general,
+        17
+    );
+    if (result.ec != std::errc()) {
+        return "0";
+    }
+
+    return std::string(buffer, result.ptr);
 }
 
 std::string nowIsoString()
@@ -594,18 +605,37 @@ std::vector<std::string> buildLinuxMpvArguments(
     return arguments;
 }
 
-long inheritedFileDescriptorLimit()
+void closeInheritedFileDescriptors()
 {
-    const long maxOpenFiles = sysconf(_SC_OPEN_MAX);
-    return maxOpenFiles > 0 ? maxOpenFiles : 1024;
-}
+    DIR* directory = opendir("/proc/self/fd");
+    if (directory) {
+        const int directoryFd = dirfd(directory);
+        while (dirent* entry = readdir(directory)) {
+            char* end = nullptr;
+            const long value = std::strtol(entry->d_name, &end, 10);
+            if (
+                !end ||
+                *end != '\0' ||
+                value <= STDERR_FILENO ||
+                value > INT_MAX
+            ) {
+                continue;
+            }
 
-void closeInheritedFileDescriptors(long fileDescriptorLimit)
-{
-    for (long fileDescriptor = STDERR_FILENO + 1;
-         fileDescriptor < fileDescriptorLimit;
-         fileDescriptor += 1) {
-        const int descriptor = static_cast<int>(fileDescriptor);
+            const int descriptor = static_cast<int>(value);
+            if (descriptor == directoryFd) {
+                continue;
+            }
+            const int flags = fcntl(descriptor, F_GETFD);
+            if (flags >= 0) {
+                fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC);
+            }
+        }
+        closedir(directory);
+        return;
+    }
+
+    for (int descriptor = STDERR_FILENO + 1; descriptor < 1024; descriptor += 1) {
         const int flags = fcntl(descriptor, F_GETFD);
         if (flags >= 0) {
             fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC);
@@ -945,7 +975,6 @@ pid_t spawnLinuxMpvProcess(
     envp.push_back(nullptr);
 
     const bool traceEnabled = std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV");
-    const long fileDescriptorLimit = inheritedFileDescriptorLimit();
     const pid_t processId = fork();
     if (processId != 0) {
         return processId;
@@ -962,7 +991,7 @@ pid_t spawnLinuxMpvProcess(
         }
     }
 
-    closeInheritedFileDescriptors(fileDescriptorLimit);
+    closeInheritedFileDescriptors();
     execvpe(argv[0], argv.data(), envp.data());
     _exit(127);
 }

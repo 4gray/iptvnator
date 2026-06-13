@@ -324,14 +324,19 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(widCommonSource).toContain(
             'arguments.push_back("--gpu-context=x11egl");'
         );
-        expect(widCommonSource).toContain('inheritedFileDescriptorLimit()');
         expect(widCommonSource).toContain(
+            'void closeInheritedFileDescriptors()'
+        );
+        expect(widCommonSource).toContain('opendir("/proc/self/fd")');
+        expect(widCommonSource).toContain('readdir(directory)');
+        expect(widCommonSource).toContain(
+            'fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC)'
+        );
+        expect(widCommonSource).toContain('closeInheritedFileDescriptors();');
+        expect(widCommonSource).not.toContain('inheritedFileDescriptorLimit()');
+        expect(widCommonSource).not.toContain(
             'closeInheritedFileDescriptors(fileDescriptorLimit);'
         );
-        expect(widCommonSource).toContain('flags | FD_CLOEXEC');
-        expect(widCommonSource).not.toContain('opendir(');
-        expect(widCommonSource).not.toContain('readdir(');
-        expect(widCommonSource).not.toContain('closedir(');
     });
 
     it('drives Linux out-of-process MPV state and controls over JSON IPC', () => {
@@ -370,14 +375,42 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(refreshBody).not.toContain('clampVolumePercent(*volume)');
     });
 
+    it('only marks open file descriptors close-on-exec before Linux MPV exec', () => {
+        const closeDescriptorsBody = sourceFunctionBody(
+            widCommonSource,
+            'void closeInheritedFileDescriptors(',
+            'closeInheritedFileDescriptors'
+        );
+        expect(closeDescriptorsBody).toContain('opendir("/proc/self/fd")');
+        expect(closeDescriptorsBody).toContain('readdir(directory)');
+        expect(closeDescriptorsBody).toContain('fcntl(descriptor, F_GETFD)');
+        expect(closeDescriptorsBody).toContain(
+            'fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC)'
+        );
+        expect(widCommonSource).not.toContain('sysconf(_SC_OPEN_MAX)');
+        expect(widCommonSource).not.toContain(
+            'fileDescriptor < fileDescriptorLimit'
+        );
+
+        const spawnBody = sourceFunctionBody(
+            widCommonSource,
+            'pid_t spawnLinuxMpvProcess(',
+            'spawnLinuxMpvProcess'
+        );
+        expect(spawnBody).toContain('closeInheritedFileDescriptors();');
+        expect(spawnBody).not.toContain('inheritedFileDescriptorLimit()');
+    });
+
     it('formats MPV floating-point values independently from the user locale', () => {
         const formatterBody = sourceFunctionBody(
             widCommonSource,
             'std::string formatInvariantDouble(',
             'formatInvariantDouble'
         );
-        expect(formatterBody).toContain('std::locale::classic()');
-        expect(formatterBody).toContain('std::setprecision(17)');
+        expect(formatterBody).toContain('std::to_chars(');
+        expect(formatterBody).toContain('std::chars_format::general');
+        expect(formatterBody).not.toContain('std::locale::classic()');
+        expect(formatterBody).not.toContain('std::ostringstream');
 
         const linuxArgumentsBody = sourceFunctionBody(
             widCommonSource,
