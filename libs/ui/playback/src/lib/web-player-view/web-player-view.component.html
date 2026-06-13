@@ -4,8 +4,12 @@
             [options]="vjsOptions"
             [volume]="volume()"
             [startTime]="startTime()"
+            [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
+            (playbackEnded)="playbackEnded.emit()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>
@@ -17,8 +21,12 @@
             [volume]="volume()"
             [showCaptions]="showCaptions()"
             [startTime]="startTime()"
+            [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
+            (playbackEnded)="playbackEnded.emit()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>
@@ -30,8 +38,12 @@
             [volume]="volume()"
             [showCaptions]="showCaptions()"
             [startTime]="startTime()"
+            [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
+            (playbackEnded)="playbackEnded.emit()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>
@@ -52,8 +64,12 @@
             [options]="vjsOptions"
             [volume]="volume()"
             [startTime]="startTime()"
+            [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"
             (playbackIssue)="handlePlaybackIssue($event)"
+            (playbackEnded)="playbackEnded.emit()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
     } @placeholder {
         <div class="web-player-defer-placeholder" aria-hidden="true"></div>

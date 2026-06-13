@@ -1,5 +1,6 @@
 import { SimpleChange } from '@angular/core';
-import { TestBed } from '@angular/core/testing';
+import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 
 const videoJsMock = jest.fn();
@@ -26,6 +27,7 @@ jest.unstable_mockModule('mpegts.js', () => ({
 
 describe('VjsPlayerComponent', () => {
     let VjsPlayerComponent: typeof import('./vjs-player.component').VjsPlayerComponent;
+    let fixture: ComponentFixture<VjsPlayerComponentInstance>;
     let component: VjsPlayerComponentInstance;
     let player: VjsPlayerComponentInstance['player'];
 
@@ -58,12 +60,13 @@ describe('VjsPlayerComponent', () => {
             load: jest.fn(),
             play: jest.fn(),
         });
+        videoJsMock.mockReset();
         await TestBed.configureTestingModule({
             imports: [VjsPlayerComponent],
         }).compileComponents();
 
-        component =
-            TestBed.createComponent(VjsPlayerComponent).componentInstance;
+        fixture = TestBed.createComponent(VjsPlayerComponent);
+        component = fixture.componentInstance;
         player = {
             error: jest.fn(),
             src: jest.fn(),
@@ -72,6 +75,10 @@ describe('VjsPlayerComponent', () => {
             dispose: jest.fn(),
         } as unknown as VjsPlayerComponentInstance['player'];
         component.player = player;
+    });
+
+    afterEach(() => {
+        fixture.destroy();
     });
 
     it('uses signal-based inputs and outputs', () => {
@@ -328,7 +335,152 @@ describe('VjsPlayerComponent', () => {
 
         expect(testComponent.player.duration).toHaveBeenCalledWith(164.072);
     });
+
+    it('emits playbackEnded exactly once for a native ended event and not during reload or destroy', () => {
+        const events: string[] = [];
+        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
+        fixture.componentRef.setInput('options', {
+            sources: [
+                {
+                    src: 'https://example.com/series/s01e02.mp4',
+                    type: 'video/mp4',
+                },
+            ],
+        });
+        (
+            component as unknown as {
+                playbackEnded: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+            }
+        ).playbackEnded.subscribe(() => events.push('ended'));
+
+        fixture.detectChanges();
+        fixture.nativeElement
+            .querySelector('video')
+            .dispatchEvent(new Event('ended'));
+        component.ngOnChanges({
+            options: new SimpleChange(
+                {
+                    sources: [
+                        {
+                            src: 'https://example.com/series/s01e02.mp4',
+                            type: 'video/mp4',
+                        },
+                    ],
+                },
+                {
+                    sources: [
+                        {
+                            src: 'https://example.com/series/s01e03.mp4',
+                            type: 'video/mp4',
+                        },
+                    ],
+                },
+                false
+            ),
+        });
+        fixture.destroy();
+
+        expect(events).toEqual(['ended']);
+    });
+
+    it('hides series navigation controls when series navigation is absent', () => {
+        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
+        fixture.componentRef.setInput('options', {
+            sources: [
+                {
+                    src: 'https://example.com/movie.mp4',
+                    type: 'video/mp4',
+                },
+            ],
+        });
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="series-playback-previous-episode"]')
+            )
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="series-playback-next-episode"]')
+            )
+        ).toBeNull();
+    });
+
+    it('renders series navigation controls with boundary disabled state', () => {
+        const events: string[] = [];
+        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
+        fixture.componentRef.setInput('options', {
+            sources: [
+                {
+                    src: 'https://example.com/series/s01e01.mp4',
+                    type: 'video/mp4',
+                },
+            ],
+        });
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: false,
+            canNext: true,
+            autoplayEnabled: true,
+        });
+        (
+            component as unknown as {
+                previousEpisodeRequested: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+                nextEpisodeRequested: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+            }
+        ).previousEpisodeRequested.subscribe(() => events.push('previous'));
+        (
+            component as unknown as {
+                nextEpisodeRequested: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+            }
+        ).nextEpisodeRequested.subscribe(() => events.push('next'));
+
+        fixture.detectChanges();
+
+        const previousButton = fixture.debugElement.query(
+            By.css('[data-test-id="series-playback-previous-episode"]')
+        );
+        const nextButton = fixture.debugElement.query(
+            By.css('[data-test-id="series-playback-next-episode"]')
+        );
+        expect(previousButton).not.toBeNull();
+        expect(previousButton.nativeElement.disabled).toBe(true);
+        expect(nextButton).not.toBeNull();
+        expect(nextButton.nativeElement.disabled).toBe(false);
+
+        previousButton.nativeElement.click();
+        nextButton.nativeElement.click();
+
+        expect(events).toEqual(['next']);
+    });
 });
+
+function createVideoJsPlayerMock(): VjsPlayerComponentInstance['player'] {
+    return {
+        audioTracks: jest.fn(() => null),
+        currentTime: jest.fn(() => 0),
+        duration: jest.fn(() => 0),
+        error: jest.fn(() => null),
+        getChild: jest.fn(() => null),
+        on: jest.fn(),
+        reset: jest.fn(),
+        src: jest.fn(),
+        tech: jest.fn(() => ({ el: () => null })),
+        volume: jest.fn(),
+        dispose: jest.fn(),
+        qualitySelectorHls: jest.fn(),
+        aspectRatioPanel: jest.fn(),
+    } as unknown as VjsPlayerComponentInstance['player'];
+}
 
 function createTimeRanges(ranges: Array<[number, number]>): TimeRanges {
     return {

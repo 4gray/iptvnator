@@ -24,6 +24,8 @@ import {
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
+import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
+import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 
 /**
  * This component contains the implementation of video player that is based on video.js library
@@ -98,6 +100,7 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
     templateUrl: './vjs-player.component.html',
     styleUrls: ['./vjs-player.component.scss'],
     encapsulation: ViewEncapsulation.None,
+    imports: [SeriesPlaybackNavigationControlsComponent],
     standalone: true,
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
@@ -119,14 +122,21 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ] as const;
     readonly volume = input(1);
     readonly startTime = input(0);
+    readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
     readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 
     private readonly clearPlaybackIssue = () => {
         this.playbackIssue.emit(null);
+    };
+    private readonly handlePlaybackEnded = () => {
+        this.playbackEnded.emit();
     };
     private readonly scheduleMpegTsVodDurationSync = () => {
         this.syncMpegTsVodDuration();
@@ -142,6 +152,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         const targetVideo = this.target().nativeElement as HTMLVideoElement;
         targetVideo.addEventListener('loadeddata', this.clearPlaybackIssue);
         targetVideo.addEventListener('playing', this.clearPlaybackIssue);
+        targetVideo.addEventListener('ended', this.handlePlaybackEnded);
 
         // For raw MPEG-TS streams, init Video.js without a source (UI/controls only)
         const vjsOptions = isMpegTs
@@ -303,6 +314,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.clearPlaybackIssue
             );
             targetVideo.removeEventListener('playing', this.clearPlaybackIssue);
+            targetVideo.removeEventListener('ended', this.handlePlaybackEnded);
         } catch {
             // Required viewChild can be unavailable when a shallow unit test destroys an unrendered component.
         }
