@@ -151,7 +151,9 @@ describe('Embedded MPV native source recording invariants', () => {
                 idleFallbackStart
             );
             expect(redirectBranch).toContain('SessionStatus::Loading');
-            expect(redirectBranch).toContain('session->snapshot.error.clear();');
+            expect(redirectBranch).toContain(
+                'session->snapshot.error.clear();'
+            );
         }
     });
 
@@ -269,6 +271,36 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(linuxSource).toContain('XPending(display_)');
         expect(linuxSource).toContain('XNextEvent(display_, &event)');
         expect(linuxSource).toContain('drainEvents();');
+    });
+
+    it('defers Linux X11 create failure cleanup until after the error trap scope closes', () => {
+        const trapStart = linuxSource.indexOf(
+            'ScopedX11ErrorTrap x11Errors(display_);'
+        );
+        expect(trapStart).toBeGreaterThanOrEqual(0);
+        const deferredCleanupStart = linuxSource.indexOf(
+            'if (createWindowFailed) {',
+            trapStart
+        );
+        expect(deferredCleanupStart).toBeGreaterThan(trapStart);
+
+        const trappedCreateBlock = linuxSource.slice(
+            trapStart,
+            deferredCleanupStart
+        );
+        const nextWindowGuardStart = linuxSource.indexOf(
+            'if (!window_) {',
+            deferredCleanupStart
+        );
+        expect(nextWindowGuardStart).toBeGreaterThan(deferredCleanupStart);
+        const deferredCleanupBlock = linuxSource.slice(
+            deferredCleanupStart,
+            nextWindowGuardStart
+        );
+
+        expect(trappedCreateBlock).toContain('createWindowFailed = true;');
+        expect(trappedCreateBlock).not.toContain('destroy();');
+        expect(deferredCleanupBlock).toContain('destroy();');
     });
 
     it('keeps Linux mpv child processes isolated from Wayland and inherited Electron descriptors', () => {

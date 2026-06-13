@@ -123,6 +123,7 @@ public:
         attributes.background_pixel = BlackPixel(display_, DefaultScreen(display_));
         attributes.event_mask = ExposureMask | StructureNotifyMask;
 
+        bool createWindowFailed = false;
         {
             ScopedX11ErrorTrap x11Errors(display_);
             trace("creating child window");
@@ -154,9 +155,12 @@ public:
                        "native Wayland embedding is not supported yet.";
                 lastError_ = message.str();
                 window_ = 0;
-                destroy();
-                return false;
+                createWindowFailed = true;
             }
+        }
+        if (createWindowFailed) {
+            destroy();
+            return false;
         }
         if (!window_) {
             lastError_ = "Failed to create embedded MPV X11 child window.";
