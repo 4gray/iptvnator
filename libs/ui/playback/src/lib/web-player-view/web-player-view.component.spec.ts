@@ -196,6 +196,10 @@ describe('WebPlayerViewComponent', () => {
             expect(overlay.nativeElement.classList).not.toContain(
                 'web-player-cast-control--visible'
             );
+            expect(overlay.nativeElement.getAttribute('aria-hidden')).toBe(
+                'true'
+            );
+            expect(overlay.nativeElement.inert).toBe(true);
 
             fixture.nativeElement.dispatchEvent(new Event('pointermove'));
             fixture.detectChanges();
@@ -203,6 +207,8 @@ describe('WebPlayerViewComponent', () => {
             expect(overlay.nativeElement.classList).toContain(
                 'web-player-cast-control--visible'
             );
+            expect(overlay.nativeElement.getAttribute('aria-hidden')).toBeNull();
+            expect(overlay.nativeElement.inert).toBe(false);
         } finally {
             jest.useRealTimers();
         }
