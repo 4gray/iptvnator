@@ -1,0 +1,88 @@
+// Floats above all app content so the window stays controllable while
+// dialogs or the multi-EPG overlay are open — same behavior as the macOS
+// traffic lights. The host is a manual popover (see component) because CDK
+// overlays live in the browser top layer where z-index cannot compete; the
+// declarations below also neutralize the UA popover styles (inset, margin,
+// border, background) and keep the strip visible/positioned when the
+// popover API is unavailable.
+:host {
+    position: fixed;
+    inset: 0 0 auto auto;
+    z-index: 10000;
+    display: flex;
+    width: fit-content;
+    height: fit-content;
+    margin: 0;
+    padding: 0;
+    border: none;
+    background: transparent;
+    overflow: visible;
+    color: inherit;
+    app-region: no-drag;
+    -webkit-app-region: no-drag;
+}
+
+:host(.is-hidden) {
+    display: none;
+}
+
+.window-control {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 46px;
+    height: 32px;
+    margin: 0;
+    padding: 0;
+    border: none;
+    border-radius: 0;
+    background: transparent;
+    color: var(--app-on-surface, #1d1b1e);
+    opacity: 0.85;
+    // Native caption buttons use the arrow cursor, not the hand.
+    cursor: default;
+
+    svg {
+        display: block;
+        width: 10px;
+        height: 10px;
+    }
+
+    svg.crisp {
+        shape-rendering: crispEdges;
+    }
+
+    path {
+        fill: none;
+        stroke: currentColor;
+        stroke-width: 1;
+    }
+
+    &:hover {
+        background: var(--app-hover-overlay, rgba(0, 0, 0, 0.06));
+        opacity: 1;
+    }
+
+    &:active {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #1d1b1e) 14%,
+            transparent
+        );
+    }
+
+    &:focus-visible {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: -2px;
+    }
+
+    &.close:hover {
+        background: #e81123;
+        color: #fff;
+    }
+
+    &.close:active {
+        background: #c50f1f;
+        color: #fff;
+    }
+}

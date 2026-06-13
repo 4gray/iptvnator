@@ -1,5 +1,6 @@
 import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed, waitForAsync } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
@@ -67,6 +68,31 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(component).toBeTruthy();
     });
 
+    it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
+        const el = component.videoPlayer.nativeElement;
+        const removeSpy = jest.spyOn(el, 'removeEventListener');
+        const handlers = component as unknown as {
+            handleVolumeChange: EventListener;
+            handleLoadedMetadata: EventListener;
+            handleTimeUpdate: EventListener;
+        };
+
+        fixture.destroy();
+
+        expect(removeSpy).toHaveBeenCalledWith(
+            'volumechange',
+            handlers.handleVolumeChange
+        );
+        expect(removeSpy).toHaveBeenCalledWith(
+            'loadedmetadata',
+            handlers.handleLoadedMetadata
+        );
+        expect(removeSpy).toHaveBeenCalledWith(
+            'timeupdate',
+            handlers.handleTimeUpdate
+        );
+    });
+
     it('should call play channel function after input changes', () => {
         jest.spyOn(component, 'playChannel');
         jest.spyOn(global.console, 'error').mockImplementation(() => {
@@ -81,6 +107,10 @@ describe('HtmlVideoPlayerComponent', () => {
     });
 
     it('passes channel headers and stream URL to Electron header overrides', () => {
+        jest.spyOn(
+            component.videoPlayer.nativeElement,
+            'load'
+        ).mockImplementation(() => undefined);
         jest.spyOn(
             component.videoPlayer.nativeElement,
             'play'
@@ -107,6 +137,10 @@ describe('HtmlVideoPlayerComponent', () => {
     it('clears Electron header overrides for channels without custom headers', () => {
         jest.spyOn(
             component.videoPlayer.nativeElement,
+            'load'
+        ).mockImplementation(() => undefined);
+        jest.spyOn(
+            component.videoPlayer.nativeElement,
             'play'
         ).mockResolvedValue(undefined);
 
@@ -125,6 +159,36 @@ describe('HtmlVideoPlayerComponent', () => {
             '',
             '',
             'https://stream.example/video.mp4'
+        );
+    });
+
+    it('replaces and reloads native video sources when switching episodes', () => {
+        const video = component.videoPlayer.nativeElement;
+        const loadSpy = jest
+            .spyOn(video, 'load')
+            .mockImplementation(() => undefined);
+        const playSpy = jest.spyOn(video, 'play').mockResolvedValue(undefined);
+
+        component.playChannel({
+            ...TEST_CHANNEL,
+            url: 'https://stream.example/series/s01e01.mp4',
+        });
+        component.playChannel({
+            ...TEST_CHANNEL,
+            url: 'https://stream.example/series/s01e02.mp4',
+        });
+
+        const sources = Array.from(video.querySelectorAll('source'));
+        const [source] = sources;
+        expect(sources).toHaveLength(1);
+        expect(source?.src).toBe(
+            'https://stream.example/series/s01e02.mp4'
+        );
+        expect(source?.type).toBe('video/mp4');
+        expect(loadSpy).toHaveBeenCalledTimes(2);
+        expect(playSpy).toHaveBeenCalledTimes(2);
+        expect(loadSpy.mock.invocationCallOrder[1]).toBeLessThan(
+            playSpy.mock.invocationCallOrder[1]
         );
     });
 
@@ -211,5 +275,90 @@ describe('HtmlVideoPlayerComponent', () => {
 
         expect(issues[0].details).toContain('xhr setup failed');
         expect(issues[0].details).toContain('"status":0');
+    });
+
+    it('emits playbackEnded exactly once for a native ended event and not during reload or destroy', () => {
+        const events: string[] = [];
+        (
+            component as unknown as {
+                playbackEnded: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+            }
+        ).playbackEnded.subscribe(() => events.push('ended'));
+        jest.spyOn(
+            component.videoPlayer.nativeElement,
+            'load'
+        ).mockImplementation(() => undefined);
+        jest.spyOn(
+            component.videoPlayer.nativeElement,
+            'play'
+        ).mockResolvedValue(undefined);
+
+        component.videoPlayer.nativeElement.dispatchEvent(new Event('ended'));
+        component.playChannel({
+            ...TEST_CHANNEL,
+            url: 'https://stream.example/series/s01e03.mp4',
+        });
+        fixture.destroy();
+
+        expect(events).toEqual(['ended']);
+    });
+
+    it('hides series navigation controls when series navigation is absent', () => {
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="series-playback-previous-episode"]')
+            )
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="series-playback-next-episode"]')
+            )
+        ).toBeNull();
+    });
+
+    it('renders series navigation controls with boundary disabled state', () => {
+        const events: string[] = [];
+        fixture.componentRef.setInput('seriesNavigation', {
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        (
+            component as unknown as {
+                previousEpisodeRequested: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+                nextEpisodeRequested: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+            }
+        ).previousEpisodeRequested.subscribe(() => events.push('previous'));
+        (
+            component as unknown as {
+                nextEpisodeRequested: {
+                    subscribe: (fn: () => void) => { unsubscribe: () => void };
+                };
+            }
+        ).nextEpisodeRequested.subscribe(() => events.push('next'));
+
+        fixture.detectChanges();
+
+        const previousButton = fixture.debugElement.query(
+            By.css('[data-test-id="series-playback-previous-episode"]')
+        );
+        const nextButton = fixture.debugElement.query(
+            By.css('[data-test-id="series-playback-next-episode"]')
+        );
+        expect(previousButton).not.toBeNull();
+        expect(previousButton.nativeElement.disabled).toBe(false);
+        expect(nextButton).not.toBeNull();
+        expect(nextButton.nativeElement.disabled).toBe(true);
+
+        previousButton.nativeElement.click();
+        nextButton.nativeElement.click();
+
+        expect(events).toEqual(['previous']);
     });
 });

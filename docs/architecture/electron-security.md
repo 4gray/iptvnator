@@ -103,3 +103,55 @@ Rules:
 When changing this flow, keep stale header cleanup covered. Switching from a
 channel or playlist with custom headers to one without custom headers must clear
 the previous override.
+
+## Main-Process Remote Requests
+
+Renderer-triggered HTTP requests must pass through the URL policy in
+`apps/electron-backend/src/app/events/url-safety.ts`. The policy rejects
+non-HTTP(S) URLs and embedded credentials, and strict callers also reject
+loopback, private, reserved, and DNS-resolved private addresses. IPv4-mapped
+IPv6 literals are decoded before classification, including hexadecimal forms
+such as `::ffff:7f00:1`, so alternate IPv6 spelling cannot bypass IPv4 rules.
+
+Remote request callers must use the validated Axios redirect helper so every
+redirect target is checked before the main process follows it. Under the strict
+policy, the helper pins the socket lookup to the IP addresses that passed
+validation while retaining the original hostname for TLS SNI, certificate
+validation, and virtual hosting. This prevents DNS rebinding between validation
+and connection. Callers with custom TLS policy provide a typed agent factory;
+the validated request layer supplies the pinned lookup instead of copying
+private Node `Agent.options` state. Cross-origin redirects must not forward `Authorization`,
+`Cookie`, `Proxy-Authorization`, Axios `params`, or request bodies.
+
+EPG URLs are strict by default because an M3U playlist can supply them through
+`url-tvg`. Operators who intentionally use a LAN-hosted EPG source should prefer
+the renderer's source-scoped “Allow source” action, which persists the exact EPG
+URL in settings and retries that source only. The
+`IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS=1` environment flag remains an
+emergency/development process-wide override for strict EPG fetches. Directly
+configured Xtream, Stalker, and playlist providers retain private-network
+support, but still require HTTP(S), reject embedded credentials, and validate
+redirects.
+
+Remote playlist TLS certificates are validated by default. The
+renderer can persist a host-scoped invalid-certificate trust decision for a
+playlist or EPG source host. The `IPTVNATOR_ALLOW_INSECURE_TLS=1` escape hatch
+is only for explicitly trusted providers with invalid or self-signed
+certificates when the host-scoped UI path is not available.
+
+## Filesystem Capabilities
+
+Renderer IPC payloads are not filesystem authorization.
+
+- `write-file` accepts only a path returned to the same renderer by the native
+  save dialog. The capability is single-use and is consumed before the write,
+  including when the filesystem operation fails.
+- Download folders are owned by the Electron main process. The OS downloads
+  directory is always allowed; a custom directory is accepted only after the
+  native folder dialog selects it.
+- The selected download directory is persisted under Electron `userData` and
+  returned by `DOWNLOADS_GET_DEFAULT_FOLDER`, so renderer-managed settings
+  cannot substitute an arbitrary host path.
+- Downloads do not overwrite an existing destination file.
+- Reveal and playback handlers accept only file paths recorded in IPTVnator's
+  downloads database.

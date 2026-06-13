@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "プレイリストを取得できませんでした。URLを確認してもう一度お試しください。",
             "ERROR_403": "アクセスが拒否されました（403）：サーバーがリクエストを拒否しました。URLに認証が必要か、プレイリストが制限されている可能性があります。",
             "ERROR_404": "プレイリストが見つかりません（404）：URLは有効なプレイリストを指していません。URLを確認してください。",
-            "ERROR_401": "未認証（401）：このプレイリストにアクセスするには認証が必要です。"
+            "ERROR_401": "未認証（401）：このプレイリストにアクセスするには認証が必要です。",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "m3u(8)プレイリストをテキストとして挿入",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "総番組数",
         "UP_TO_DATE": "EPGは最新です。同期は不要です",
         "RETRY": "再試行",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

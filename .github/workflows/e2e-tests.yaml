@@ -13,6 +13,7 @@ jobs:
         name: Electron E2E on ${{ matrix.os }}
         runs-on: ${{ matrix.os }}
         env:
+            IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS: '1'
             NX_SKIP_NX_CACHE: true
         strategy:
             fail-fast: false

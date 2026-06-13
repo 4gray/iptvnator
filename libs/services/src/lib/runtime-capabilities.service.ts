@@ -38,6 +38,32 @@ export class RuntimeCapabilitiesService {
         return this.platform === 'darwin';
     }
 
+    get isWindows(): boolean {
+        return this.platform === 'win32';
+    }
+
+    get isLinux(): boolean {
+        return this.platform === 'linux';
+    }
+
+    /**
+     * True when the window has no native title bar and the renderer must
+     * draw its own window-management buttons (Windows/Linux). macOS keeps
+     * the native traffic lights instead.
+     */
+    get usesCustomWindowControls(): boolean {
+        return (
+            (this.isWindows || this.isLinux) &&
+            [
+                'minimizeWindow',
+                'toggleMaximizeWindow',
+                'closeWindow',
+                'getWindowState',
+                'onWindowStateChange',
+            ].every((methodName) => this.hasElectronMethod(methodName))
+        );
+    }
+
     get supportsEpg(): boolean {
         return (
             this.supportsEpgImport &&

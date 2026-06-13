@@ -2,6 +2,7 @@ import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { firstValueFrom } from 'rxjs';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
 
@@ -9,6 +10,7 @@ describe('EpgService', () => {
     let service: EpgService;
     let epgBridge: Partial<EpgRuntimeBridgeService>;
     let snackBar: { open: jest.Mock };
+    let settingsStore: { getSettings: jest.Mock; getTrustOptions: jest.Mock };
 
     beforeEach(() => {
         epgBridge = {
@@ -21,6 +23,16 @@ describe('EpgService', () => {
         };
         snackBar = {
             open: jest.fn(),
+        };
+        settingsStore = {
+            getSettings: jest.fn(() => ({
+                trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })),
+            getTrustOptions: jest.fn(() => ({
+                trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+                trustedInsecureTlsHosts: ['playlist.local'],
+            })),
         };
 
         TestBed.configureTestingModule({
@@ -39,6 +51,10 @@ describe('EpgService', () => {
                     useValue: {
                         instant: (key: string) => key,
                     },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: settingsStore,
                 },
             ],
         });
@@ -61,10 +77,13 @@ describe('EpgService', () => {
             'https://example.com/other.xml',
         ]);
 
-        expect(epgBridge.fetchEpg).toHaveBeenCalledWith([
-            'https://example.com/epg.xml',
-            'https://example.com/other.xml',
-        ]);
+        expect(epgBridge.fetchEpg).toHaveBeenCalledWith(
+            ['https://example.com/epg.xml', 'https://example.com/other.xml'],
+            {
+                trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+                trustedInsecureTlsHosts: ['playlist.local'],
+            }
+        );
     });
 
     it('does not show a fetch error when the bridge returns no result', async () => {

@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "No se pudo obtener la lista de reproducción. Verifica la URL e inténtalo de nuevo.",
             "ERROR_403": "Acceso denegado (403): el servidor rechazó la solicitud. La URL puede requerir autenticación o la lista de reproducción está restringida.",
             "ERROR_404": "Lista de reproducción no encontrada (404): la URL no apunta a una lista válida. Verifica la URL.",
-            "ERROR_401": "No autorizado (401): se requiere autenticación para acceder a esta lista de reproducción."
+            "ERROR_401": "No autorizado (401): se requiere autenticación para acceder a esta lista de reproducción.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Inserte la playlist m3u(8) como texto",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Total de programas",
         "UP_TO_DATE": "EPG actualizada, no se necesita sincronización",
         "RETRY": "Reintentar",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

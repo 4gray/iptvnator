@@ -1,6 +1,5 @@
 import { computed, inject, Injectable, OnDestroy, signal } from '@angular/core';
 import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
-import { SettingsStore } from './settings-store.service';
 
 export type DownloadStatus =
     | 'queued'
@@ -33,7 +32,6 @@ export interface DownloadItem {
 @Injectable({ providedIn: 'root' })
 export class DownloadsService implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
-    private readonly settingsStore = inject(SettingsStore);
     private unsubscribe?: () => void;
     private loadDownloadsRequestId = 0;
 
@@ -137,14 +135,9 @@ export class DownloadsService implements OnDestroy {
     async loadDownloadFolder(): Promise<string> {
         if (!this.isAvailable()) return '';
 
-        // First check settings
-        const storedFolder = this.settingsStore.getDownloadFolder?.();
-        if (storedFolder) {
-            this.downloadFolder.set(storedFolder);
-            return storedFolder;
-        }
-
-        // Fall back to default
+        // The main process owns folder authorization. It returns either the OS
+        // default or a custom folder previously selected through a native
+        // dialog, rather than trusting renderer-managed settings.
         try {
             const defaultFolder =
                 await window.electron.downloadsGetDefaultFolder();
@@ -335,8 +328,6 @@ export class DownloadsService implements OnDestroy {
             const folder = await window.electron.downloadsSelectFolder();
             if (folder) {
                 this.downloadFolder.set(folder);
-                // Save to settings
-                await this.settingsStore.updateSettings({ downloadFolder: folder });
             }
             return folder;
         } catch (error) {

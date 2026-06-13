@@ -1,9 +1,17 @@
-<video
-    #target
-    class="video-js"
-    controls
-    muted
-    playsinline
-    preload="none"
-    data-setup='{"liveui": true, "muted": false}'
-></video>
+<div class="vjs-player-shell">
+    <video
+        #target
+        class="video-js"
+        controls
+        muted
+        playsinline
+        preload="none"
+        data-setup='{"liveui": true, "muted": false}'
+    ></video>
+
+    <app-series-playback-navigation-controls
+        [navigation]="seriesNavigation()"
+        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+    />
+</div>

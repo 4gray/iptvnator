@@ -100,6 +100,17 @@ app-root.macos-platform app-navigation .portal-status-container {
     padding-top: 30px;
 }
 
+// Windows/Linux frameless title bar: reserve room in top-aligned drag
+// regions for the renderer-drawn window controls (3 × 46px buttons).
+// Body-level class so it also reaches cdk-overlay content (multi-EPG).
+body.frameless-platform .workspace-header {
+    padding-right: 150px;
+}
+
+body.frameless-platform #epg-navigation {
+    padding-right: 150px;
+}
+
 // ─── Base ─────────────────────────────────────────────────────────────────────
 body,
 html {

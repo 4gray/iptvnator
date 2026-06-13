@@ -24,6 +24,8 @@ import {
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
+import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
+import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 
 type AudioTrackSelector = {
     html: string | HTMLElement;
@@ -34,14 +36,31 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
 @Component({
     selector: 'app-art-player',
-    imports: [],
-    template: `<div #artplayer class="artplayer-container"></div>`,
+    imports: [SeriesPlaybackNavigationControlsComponent],
+    template: `
+        <div class="art-player-shell">
+            <div #artplayer class="artplayer-container"></div>
+
+            <app-series-playback-navigation-controls
+                [navigation]="seriesNavigation"
+                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+            />
+        </div>
+    `,
     styles: [
         `
             :host {
                 display: block;
                 width: 100%;
                 height: 100%;
+            }
+            .art-player-shell {
+                position: relative;
+                width: 100%;
+                height: 100%;
+                min-height: 0;
+                overflow: hidden;
             }
             .artplayer-container {
                 width: 100%;
@@ -55,11 +74,15 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() volume = 1;
     @Input() showCaptions = false;
     @Input() startTime = 0;
+    @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
         duration: number;
     }>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
+    @Output() playbackEnded = new EventEmitter<void>();
+    @Output() previousEpisodeRequested = new EventEmitter<void>();
+    @Output() nextEpisodeRequested = new EventEmitter<void>();
 
     private player!: Artplayer;
     private hls: Hls | null = null;
@@ -80,6 +103,10 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
 
     private readonly clearPlaybackIssue = () => {
         this.playbackIssue.emit(null);
+    };
+
+    private readonly handlePlaybackEnded = () => {
+        this.playbackEnded.emit();
     };
 
     ngOnInit(): void {
@@ -121,6 +148,10 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             this.player.video?.removeEventListener(
                 'playing',
                 this.clearPlaybackIssue
+            );
+            this.player.video?.removeEventListener(
+                'ended',
+                this.handlePlaybackEnded
             );
             this.player.destroy();
         }
@@ -232,6 +263,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             this.clearPlaybackIssue
         );
         this.player.video.addEventListener('playing', this.clearPlaybackIssue);
+        this.player.video.addEventListener('ended', this.handlePlaybackEnded);
 
         if (this.startTime > 0) {
             this.player.on('ready', () => {

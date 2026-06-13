@@ -9,6 +9,7 @@ import {
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
+    ElectronBridgeTrustOptions,
     Language,
     Settings,
     StartupBehavior,
@@ -41,6 +42,8 @@ const DEFAULT_SETTINGS: Settings = {
     recordingFolder: '',
     coverSize: 'medium',
     preferUploadedEpgOverXtream: false,
+    trustedPrivateNetworkEpgUrls: [],
+    trustedInsecureTlsHosts: [],
 };
 
 let embeddedMpvPrepareScheduled = false;
@@ -157,6 +160,12 @@ export const SettingsStore = signalStore(
                 preferUploadedEpgOverXtream:
                     store.preferUploadedEpgOverXtream?.() ??
                     DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
+                trustedPrivateNetworkEpgUrls:
+                    store.trustedPrivateNetworkEpgUrls?.() ??
+                    DEFAULT_SETTINGS.trustedPrivateNetworkEpgUrls,
+                trustedInsecureTlsHosts:
+                    store.trustedInsecureTlsHosts?.() ??
+                    DEFAULT_SETTINGS.trustedInsecureTlsHosts,
             };
         },
 
@@ -168,6 +177,15 @@ export const SettingsStore = signalStore(
             return (
                 store.recordingFolder?.() ?? DEFAULT_SETTINGS.recordingFolder
             );
+        },
+
+        getTrustOptions(): ElectronBridgeTrustOptions {
+            const settings = this.getSettings();
+            return {
+                trustedPrivateNetworkEpgUrls:
+                    settings.trustedPrivateNetworkEpgUrls ?? [],
+                trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
+            };
         },
 
         getPlayer() {

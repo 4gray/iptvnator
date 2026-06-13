@@ -2,6 +2,10 @@ import { app, BrowserWindow } from 'electron';
 import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
+import {
+    ElectronBridgeSecurityErrorCode,
+    ElectronBridgeTrustOptions,
+} from '@iptvnator/shared/interfaces';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 export type EpgProgressStatus = 'queued' | 'loading' | 'complete' | 'error';
@@ -14,6 +18,8 @@ export interface EpgProgressStats {
 interface EpgWorkerMessage {
     type: string;
     error?: string;
+    errorCode?: ElectronBridgeSecurityErrorCode;
+    errorHost?: string;
     url?: string;
     stats?: EpgProgressStats;
 }
@@ -45,7 +51,9 @@ export class EpgWorkerService {
         status: EpgProgressStatus,
         stats?: EpgProgressStats,
         error?: string,
-        queuePosition?: number
+        queuePosition?: number,
+        errorCode?: ElectronBridgeSecurityErrorCode,
+        errorHost?: string
     ): void {
         const windows = BrowserWindow.getAllWindows();
         windows.forEach((win) => {
@@ -55,11 +63,16 @@ export class EpgWorkerService {
                 stats,
                 error,
                 queuePosition,
+                errorCode,
+                errorHost,
             });
         });
     }
 
-    async fetchEpgFromUrl(url: string): Promise<void> {
+    async fetchEpgFromUrl(
+        url: string,
+        options: ElectronBridgeTrustOptions = {}
+    ): Promise<void> {
         // A second request for an URL that is already being fetched must not
         // spawn a competing worker: both would parse and write the same EPG
         // data, and the late one would overwrite the early one's entry in
@@ -84,14 +97,17 @@ export class EpgWorkerService {
             return;
         }
 
-        const fetchPromise = this.startFetch(url).finally(() => {
+        const fetchPromise = this.startFetch(url, options).finally(() => {
             this.inFlightFetches.delete(url);
         });
         this.inFlightFetches.set(url, fetchPromise);
         return fetchPromise;
     }
 
-    private startFetch(url: string): Promise<void> {
+    private startFetch(
+        url: string,
+        options: ElectronBridgeTrustOptions
+    ): Promise<void> {
         return new Promise((resolve, reject) => {
             let worker: Worker;
             try {
@@ -148,7 +164,11 @@ export class EpgWorkerService {
                                 totalChannels: 0,
                                 totalPrograms: 0,
                             });
-                            worker.postMessage({ type: 'FETCH_EPG', url });
+                            worker.postMessage({
+                                type: 'FETCH_EPG',
+                                url,
+                                options,
+                            });
                             break;
 
                         case 'EPG_PROGRESS':
@@ -192,7 +212,10 @@ export class EpgWorkerService {
                                 url,
                                 'error',
                                 undefined,
-                                message.error
+                                message.error,
+                                undefined,
+                                message.errorCode,
+                                message.errorHost
                             );
                             this.workers.delete(url);
                             settle(() => {
@@ -313,13 +336,12 @@ export class EpgWorkerService {
                             // Resolve only after every interrupted fetch
                             // worker has exited too — they may still hold the
                             // SQLite lock the caller expects to be free.
-                            const terminations = [
-                                ...this.workers.values(),
-                            ].map((runningWorker) =>
-                                this.terminateWorker(
-                                    runningWorker,
-                                    'fetch during clear'
-                                )
+                            const terminations = [...this.workers.values()].map(
+                                (runningWorker) =>
+                                    this.terminateWorker(
+                                        runningWorker,
+                                        'fetch during clear'
+                                    )
                             );
                             this.workers.clear();
                             terminations.push(

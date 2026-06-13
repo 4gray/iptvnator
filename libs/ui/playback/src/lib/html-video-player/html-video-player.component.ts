@@ -25,6 +25,8 @@ import {
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
+import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
+import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -35,6 +37,7 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
     selector: 'app-html-video-player',
     templateUrl: './html-video-player.component.html',
     styleUrls: ['./html-video-player.component.scss'],
+    imports: [SeriesPlaybackNavigationControlsComponent],
     standalone: true,
 })
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
@@ -42,11 +45,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Input() channel!: Channel;
     @Input() volume = 1;
     @Input() startTime = 0;
+    @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
         duration: number;
     }>();
     @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
+    @Output() playbackEnded = new EventEmitter<void>();
+    @Output() previousEpisodeRequested = new EventEmitter<void>();
+    @Output() nextEpisodeRequested = new EventEmitter<void>();
 
     private readonly dataService = inject(DataService);
 
@@ -79,26 +86,42 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.playbackIssue.emit(null);
     };
 
-    ngOnInit() {
-        this.videoPlayer.nativeElement.addEventListener('volumechange', () => {
-            this.onVolumeChange();
+    private readonly handleVolumeChange = (): void => {
+        this.onVolumeChange();
+    };
+
+    private readonly handleLoadedMetadata = (): void => {
+        if (this.startTime > 0) {
+            this.videoPlayer.nativeElement.currentTime = this.startTime;
+        }
+    };
+
+    private readonly handleTimeUpdate = (): void => {
+        this.timeUpdate.emit({
+            currentTime: this.videoPlayer.nativeElement.currentTime,
+            duration: this.videoPlayer.nativeElement.duration,
         });
+    };
+
+    private readonly handlePlaybackEnded = (): void => {
+        this.playbackEnded.emit();
+    };
+
+    ngOnInit() {
+        this.videoPlayer.nativeElement.addEventListener(
+            'volumechange',
+            this.handleVolumeChange
+        );
 
         this.videoPlayer.nativeElement.addEventListener(
             'loadedmetadata',
-            () => {
-                if (this.startTime > 0) {
-                    this.videoPlayer.nativeElement.currentTime = this.startTime;
-                }
-            }
+            this.handleLoadedMetadata
         );
 
-        this.videoPlayer.nativeElement.addEventListener('timeupdate', () => {
-            this.timeUpdate.emit({
-                currentTime: this.videoPlayer.nativeElement.currentTime,
-                duration: this.videoPlayer.nativeElement.duration,
-            });
-        });
+        this.videoPlayer.nativeElement.addEventListener(
+            'timeupdate',
+            this.handleTimeUpdate
+        );
 
         this.videoPlayer.nativeElement.addEventListener(
             'error',
@@ -111,6 +134,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.videoPlayer.nativeElement.addEventListener(
             'playing',
             this.clearPlaybackIssue
+        );
+        this.videoPlayer.nativeElement.addEventListener(
+            'ended',
+            this.handlePlaybackEnded
         );
     }
 
@@ -145,6 +172,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.mpegtsPlayer = null;
         }
         if (this.hls) this.hls.destroy();
+        this.clearNativeVideoSources(this.videoPlayer.nativeElement);
         if (channel.url) {
             this.playbackIssue.emit(null);
             const url = channel.url + (channel.epgParams ?? '');
@@ -213,21 +241,32 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.handlePlayOperation();
             } else {
                 debugHtmlPlayer('Using native video player');
-                this.addSourceToVideo(
+                this.replaceNativeVideoSource(
                     this.videoPlayer.nativeElement,
                     url,
                     'video/mp4'
                 );
-                this.videoPlayer.nativeElement.play();
+                this.handlePlayOperation();
             }
         }
     }
 
-    addSourceToVideo(element: HTMLVideoElement, url: string, type: string) {
+    private clearNativeVideoSources(element: HTMLVideoElement): void {
+        element.removeAttribute('src');
+        element.replaceChildren();
+    }
+
+    private replaceNativeVideoSource(
+        element: HTMLVideoElement,
+        url: string,
+        type: string
+    ): void {
+        this.clearNativeVideoSources(element);
         const source = document.createElement('source');
         source.src = url;
         source.type = type;
         element.appendChild(source);
+        element.load();
     }
 
     /**
@@ -332,7 +371,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ngOnDestroy(): void {
         this.videoPlayer.nativeElement.removeEventListener(
             'volumechange',
-            this.onVolumeChange
+            this.handleVolumeChange
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'loadedmetadata',
+            this.handleLoadedMetadata
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'timeupdate',
+            this.handleTimeUpdate
         );
         this.videoPlayer.nativeElement.removeEventListener(
             'error',
@@ -345,6 +392,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.videoPlayer.nativeElement.removeEventListener(
             'playing',
             this.clearPlaybackIssue
+        );
+        this.videoPlayer.nativeElement.removeEventListener(
+            'ended',
+            this.handlePlaybackEnded
         );
         if (this.mpegtsPlayer) {
             this.mpegtsPlayer.pause();

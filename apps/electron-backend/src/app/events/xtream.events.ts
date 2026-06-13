@@ -5,8 +5,13 @@
 
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
-import { PortalDebugEvent, XTREAM_CANCEL_SESSION } from '@iptvnator/shared/interfaces';
+import {
+    PortalDebugEvent,
+    XTREAM_CANCEL_SESSION,
+} from '@iptvnator/shared/interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
+import { assertRemoteUrlAllowed, UnsafeUrlError } from './url-safety';
+import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
@@ -14,7 +19,11 @@ export default class XtreamEvents {
     }
 }
 
-function formatXtreamError(error: unknown, requestUrl: string, action?: string) {
+function formatXtreamError(
+    error: unknown,
+    requestUrl: string,
+    action?: string
+) {
     const parsedUrl = new URL(requestUrl);
     const base = {
         action,
@@ -101,7 +110,11 @@ ipcMain.handle(
                 signal: controller.signal,
             };
 
-            const response = await axios(config);
+            const response = await requestWithValidatedRedirects<unknown>(
+                apiUrl.toString(),
+                config,
+                { allowPrivateNetworks: true }
+            );
 
             // Check if response is successful
             if (response.status >= 400) {
@@ -172,7 +185,11 @@ ipcMain.handle(
             if (!payload.suppressErrorLog) {
                 console.error(
                     '[XTREAM_REQUEST] Failed',
-                    formatXtreamError(error, payload.url, payload.params?.action)
+                    formatXtreamError(
+                        error,
+                        payload.url,
+                        payload.params?.action
+                    )
                 );
             }
 
@@ -218,7 +235,10 @@ ipcMain.handle(
 
 ipcMain.handle(
     XTREAM_CANCEL_SESSION,
-    async (_event, sessionId: string): Promise<{ success: boolean; cancelled: number }> => {
+    async (
+        _event,
+        sessionId: string
+    ): Promise<{ success: boolean; cancelled: number }> => {
         if (!sessionId) {
             return { success: false, cancelled: 0 };
         }
@@ -255,6 +275,24 @@ ipcMain.handle(
             method?: 'GET' | 'HEAD';
         }
     ) => {
+        // Probe URLs must be http(s), but may target private/LAN Xtream hosts
+        // for self-hosted setups. Redirects stay disabled below so a validated
+        // URL cannot bounce to a different private target.
+        try {
+            await assertRemoteUrlAllowed(payload.url, {
+                allowPrivateNetworks: true,
+            });
+        } catch (error) {
+            return {
+                status: 0,
+                url: payload.url,
+                error:
+                    error instanceof UnsafeUrlError
+                        ? error.message
+                        : 'Invalid URL',
+            };
+        }
+
         const config: AxiosRequestConfig = {
             method: payload.method ?? 'HEAD',
             url: payload.url,
@@ -263,7 +301,11 @@ ipcMain.handle(
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
             },
             timeout: 10000,
-            maxRedirects: 5,
+            // SSRF hardening: do NOT follow redirects. assertRemoteUrlAllowed
+            // validated payload.url, but a validated public host could 3xx to an
+            // internal address that would never be re-checked. validateStatus
+            // below returns the 3xx as the probe result instead of following it.
+            maxRedirects: 0,
             validateStatus: () => true,
         };
 

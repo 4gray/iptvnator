@@ -155,7 +155,12 @@
             "ERROR_FETCH_FAILED": "Falha ao buscar a playlist. Verifique a URL e tente novamente.",
             "ERROR_403": "Acesso negado (403): O servidor recusou a solicitação. A URL pode exigir autenticação ou a playlist está restrita.",
             "ERROR_404": "Playlist não encontrada (404): A URL não aponta para uma playlist válida. Verifique a URL.",
-            "ERROR_401": "Não autorizado (401): É necessária autenticação para acessar esta playlist."
+            "ERROR_401": "Não autorizado (401): É necessária autenticação para acessar esta playlist.",
+            "ERROR_INVALID_TLS": "Certificate for this playlist host is invalid.",
+            "ERROR_TLS_HOST_UNKNOWN": "Could not determine the playlist host. Please retry manually.",
+            "TRUST_TLS_HOST": "Trust host",
+            "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+            "TRUST_TLS_HOST_WARNING": "Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates."
         },
         "TEXT_IMPORT": {
             "LABEL": "Inserir playlist m3u(8) como texto",
@@ -569,6 +574,12 @@
         "TOTAL_PROGRAMS": "Total de programas",
         "UP_TO_DATE": "EPG está atualizado, sincronização não é necessária",
         "RETRY": "Tentar novamente",
+        "ALLOW_PRIVATE_SOURCE": "Allow source",
+        "ALLOW_PRIVATE_SOURCE_TITLE": "Allow private-network EPG source?",
+        "ALLOW_PRIVATE_SOURCE_WARNING": "Only allow this if you trust the EPG source. IPTVnator will let this exact EPG URL connect to private or local network addresses.",
+        "TRUST_TLS_HOST": "Trust host",
+        "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
+        "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"

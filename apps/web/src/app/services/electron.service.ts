@@ -3,11 +3,15 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
-import { DataService } from '@iptvnator/services';
+import { DialogService } from '@iptvnator/ui/components';
+import { DataService, SettingsStore } from '@iptvnator/services';
 import {
     AUTO_UPDATE_PLAYLISTS,
     createDevLogger,
+    ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
     ERROR,
+    normalizeHost,
+    parseSecurityPolicyError,
     PlayerContentInfo,
     Playlist,
     PLAYLIST_PARSE_BY_URL,
@@ -46,7 +50,9 @@ export class ElectronService extends DataService {
     private eventListeners: { [key: string]: () => void } = {};
     private messageListeners = new Map<string, EventListener>();
     private readonly snackBar = inject(MatSnackBar);
+    private readonly dialogService = inject(DialogService);
     private readonly store = inject(Store);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly translateService = inject(TranslateService);
     private readonly debugLog = createDevLogger('ElectronService');
     private readonly silentXtreamActions = new Set<string>([
@@ -212,7 +218,10 @@ export class ElectronService extends DataService {
 
         if (type === AUTO_UPDATE_PLAYLISTS) {
             const data = payload as Playlist[];
-            const playlists = await window.electron.autoUpdatePlaylists(data);
+            const playlists = await window.electron.autoUpdatePlaylists(
+                data,
+                this.settingsStore.getTrustOptions()
+            );
             this.store.dispatch(
                 PlaylistActions.updateManyPlaylists({
                     playlists,
@@ -276,7 +285,11 @@ export class ElectronService extends DataService {
         const title = payload.title?.trim() || undefined;
 
         window.electron
-            .fetchPlaylistByUrl(payload.url, title)
+            .fetchPlaylistByUrl(
+                payload.url,
+                title,
+                this.settingsStore.getTrustOptions()
+            )
             .then((result) => {
                 this.store.dispatch(
                     PlaylistActions.handleAddingPlaylistByUrl({
@@ -286,6 +299,14 @@ export class ElectronService extends DataService {
                 );
             })
             .catch((error: unknown) => {
+                if (
+                    this.handlePlaylistSecurityError(error, () =>
+                        this.fetchM3uPlaylistFromUrl(payload)
+                    )
+                ) {
+                    return;
+                }
+
                 const statusCode = this.extractHttpStatusCode(error);
                 let messageKey = 'HOME.URL_UPLOAD.ERROR_FETCH_FAILED';
                 if (statusCode === 403) {
@@ -331,7 +352,8 @@ export class ElectronService extends DataService {
             if (data.url && !data.filePath) {
                 playlistObject = await window.electron.fetchPlaylistByUrl(
                     data.url,
-                    data.title
+                    data.title,
+                    this.settingsStore.getTrustOptions()
                 );
             } else if (data.filePath && !data.url) {
                 playlistObject =
@@ -365,6 +387,14 @@ export class ElectronService extends DataService {
             );
         } catch (error: unknown) {
             console.error('Playlist refresh error:', error);
+            if (
+                data.url &&
+                this.handlePlaylistSecurityError(error, () => {
+                    void this.updateM3uPlaylistFromFile(data);
+                })
+            ) {
+                return;
+            }
             this.snackBar.open(
                 this.getPlaylistRefreshErrorMessage(error, data),
                 this.translateService.instant('CLOSE'),
@@ -423,6 +453,86 @@ export class ElectronService extends DataService {
     private translateWithFallback(key: string, fallback: string): string {
         const translated = this.translateService.instant(key);
         return translated === key ? fallback : translated;
+    }
+
+    private handlePlaylistSecurityError(
+        error: unknown,
+        retry: () => void
+    ): boolean {
+        const securityError = parseSecurityPolicyError(error);
+        if (
+            securityError?.code !==
+            ELECTRON_BRIDGE_SECURITY_ERROR_CODES.InvalidTlsCertificate
+        ) {
+            return false;
+        }
+
+        const ref = this.snackBar.open(
+            this.translateWithFallback(
+                'HOME.URL_UPLOAD.ERROR_INVALID_TLS',
+                'Certificate for this playlist host is invalid.'
+            ),
+            this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                'Trust host'
+            ),
+            { duration: 10000 }
+        );
+
+        ref.onAction().subscribe(() => {
+            this.confirmTrustPlaylistHost(securityError.host, retry);
+        });
+        return true;
+    }
+
+    private confirmTrustPlaylistHost(
+        host: string | undefined,
+        retry: () => void
+    ): void {
+        if (!host) {
+            this.snackBar.open(
+                this.translateWithFallback(
+                    'HOME.URL_UPLOAD.ERROR_TLS_HOST_UNKNOWN',
+                    'Could not determine the playlist host. Please retry manually.'
+                ),
+                this.translateService.instant('CLOSE'),
+                { duration: 5000 }
+            );
+            return;
+        }
+
+        this.dialogService.openConfirmDialog({
+            title: this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_TITLE',
+                'Trust invalid certificate?'
+            ),
+            message: this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST_WARNING',
+                'Only continue if you trust this playlist host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.'
+            ),
+            confirmLabel: this.translateWithFallback(
+                'HOME.URL_UPLOAD.TRUST_TLS_HOST',
+                'Trust host'
+            ),
+            width: '420px',
+            onConfirm: () => {
+                void this.trustPlaylistHost(host).then(retry);
+            },
+        });
+    }
+
+    private async trustPlaylistHost(host: string): Promise<void> {
+        const settings = this.settingsStore.getSettings();
+        const trustedHosts = new Set(
+            (settings.trustedInsecureTlsHosts ?? []).map((item) =>
+                normalizeHost(item)
+            )
+        );
+        trustedHosts.add(normalizeHost(host));
+
+        await this.settingsStore.updateSettings({
+            trustedInsecureTlsHosts: Array.from(trustedHosts),
+        });
     }
 
     /* private getErrorMessageByStatusCode(status: number) {

@@ -109,6 +109,7 @@ describe('EpgEvents', () => {
         expect(worker.postMessage).toHaveBeenCalledWith({
             type: 'FETCH_EPG',
             url: 'https://example.com/guide.xml',
+            options: {},
         });
 
         worker.emit('message', {

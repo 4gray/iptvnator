@@ -141,6 +141,9 @@ export async function launchElectronApp(
         args,
         env: {
             ...process.env,
+            // Electron E2E uses local mock HTTP servers for playlists, portals, and EPG sources.
+            IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS:
+                process.env['IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS'] ?? '1',
             ...options.env,
             ELECTRON_IS_DEV: '0',
             IPTVNATOR_E2E_DATA_DIR: dataDir,

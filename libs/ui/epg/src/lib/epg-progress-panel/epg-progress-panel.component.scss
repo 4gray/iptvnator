@@ -192,6 +192,17 @@
                 );
             }
         }
+
+        .trust-btn {
+            flex: 0 0 auto;
+            min-width: 0;
+            height: 26px;
+            padding: 0 8px;
+            border-radius: 6px;
+            font-size: 0.72rem;
+            line-height: 24px;
+            white-space: nowrap;
+        }
     }
 
     &:hover .dismiss-btn {

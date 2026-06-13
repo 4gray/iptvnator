@@ -21,6 +21,10 @@ type PreloadInvokeCase = {
 const playlistId = 'playlist-1';
 export const operationId = 'operation-1';
 const epgUrls = ['https://example.com/guide.xml'];
+const trustOptions = {
+    trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
+    trustedInsecureTlsHosts: ['playlist.local'],
+};
 const channelIds = ['channel-1', 'channel-2'];
 const playlist = { id: playlistId, name: 'Playlist', type: 'xtream' };
 const playlists = [playlist];
@@ -338,9 +342,9 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
 export const epgPreloadCases: PreloadInvokeCase[] = [
     {
         method: 'fetchEpg',
-        args: [epgUrls],
+        args: [epgUrls, trustOptions],
         channel: 'FETCH_EPG',
-        forwardedArgs: [{ url: epgUrls }],
+        forwardedArgs: [{ url: epgUrls, options: trustOptions }],
     },
     {
         method: 'getChannelPrograms',
@@ -374,9 +378,14 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
     },
     {
         method: 'forceFetchEpg',
-        args: ['https://example.com/guide.xml'],
+        args: ['https://example.com/guide.xml', trustOptions],
         channel: 'EPG_FORCE_FETCH',
-        forwardedArgs: ['https://example.com/guide.xml'],
+        forwardedArgs: [
+            {
+                url: 'https://example.com/guide.xml',
+                options: trustOptions,
+            },
+        ],
     },
     {
         method: 'clearEpgData',
