@@ -87,6 +87,8 @@ class StubEmbeddedMpvPlayerComponent {
 })
 class StubCastControlComponent {
     readonly playback = input.required<unknown>();
+    readonly placement = input<'overlay' | 'inline'>('overlay');
+    readonly menuOpenChange = output<boolean>();
 }
 
 describe('WebPlayerViewComponent', () => {
@@ -159,6 +161,39 @@ describe('WebPlayerViewComponent', () => {
                 By.css('[data-test-id="stub-cast-control"]')
             )
         ).not.toBeNull();
+    });
+
+    it('auto-hides the cast overlay with the player controls and restores it on activity', () => {
+        jest.useFakeTimers();
+
+        try {
+            component.showCastControlTemporarily();
+            fixture.detectChanges();
+
+            const overlay = fixture.debugElement.query(
+                By.css('[data-test-id="cast-control-overlay"]')
+            );
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).not.toContain(
+                'web-player-cast-control--visible'
+            );
+
+            fixture.nativeElement.dispatchEvent(new PointerEvent('pointermove'));
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {
