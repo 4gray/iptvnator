@@ -1,5 +1,6 @@
 import { Component, input } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { provideRouter } from '@angular/router';
@@ -18,6 +19,7 @@ class MockWorkspaceShellRailLinksComponent {
     readonly links = input<unknown[]>([]);
     readonly selectedSection = input<string | null>(null);
     readonly activeClass = input('active');
+    readonly expanded = input(false);
 }
 
 describe('WorkspaceShellRailComponent', () => {
@@ -60,11 +62,6 @@ describe('WorkspaceShellRailComponent', () => {
     });
 
     it('renders provider context region and active settings shortcut state', () => {
-        fixture.componentRef.setInput('brandLink', '/workspace/sources');
-        fixture.componentRef.setInput(
-            'brandAriaLabelKey',
-            'WORKSPACE.SHELL.OPEN_SOURCES'
-        );
         fixture.componentRef.setInput('primaryContextLinks', [
             {
                 icon: 'movie',
@@ -86,15 +83,40 @@ describe('WorkspaceShellRailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
+    });
+
+    it('uses the brand control to toggle the rail instead of navigating', () => {
+        fixture.detectChanges();
+
+        const brand = fixture.debugElement.query(By.css('.brand'));
+
+        expect(brand.nativeElement.tagName).toBe('BUTTON');
+        expect(brand.nativeElement.getAttribute('href')).toBeNull();
+        expect(brand.nativeElement.getAttribute('aria-expanded')).toBe('false');
+
+        brand.triggerEventHandler('click');
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.expanded()).toBe(true);
+        expect(brand.nativeElement.getAttribute('aria-expanded')).toBe('true');
+    });
+
+    it('shows the application and navigation labels while expanded', () => {
+        fixture.componentRef.setInput('expanded', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.brand-label')?.textContent
+        ).toContain('IPTVnator');
         expect(
             fixture.nativeElement
-                .querySelector('.brand')
-                ?.getAttribute('href')
-        ).toContain('/workspace/sources');
+                .querySelector('.rail-shortcut-label')
+                ?.textContent.trim()
+        ).toBe('WORKSPACE.SHELL.RAIL_SETTINGS');
         expect(
             fixture.nativeElement
-                .querySelector('.brand')
-                ?.getAttribute('aria-label')
-        ).toBe('WORKSPACE.SHELL.OPEN_SOURCES');
+                .querySelector('.app-rail')
+                ?.classList.contains('is-expanded')
+        ).toBe(true);
     });
 });

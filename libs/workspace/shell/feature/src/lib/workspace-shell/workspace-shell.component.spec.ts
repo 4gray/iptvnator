@@ -35,6 +35,8 @@ class MockWorkspaceShellRailComponent {
     readonly selectedSection = input<string | null>(null);
     readonly railProviderClass = input('');
     readonly isSettingsRoute = input(false);
+    readonly expanded = input(false);
+    readonly expandedChange = output<boolean>();
 }
 
 @Component({
@@ -250,6 +252,18 @@ describe('WorkspaceShellComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-external-playback-dock')
         ).not.toBeNull();
+
+        const rail = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellRailComponent)
+        );
+        rail.componentInstance.expandedChange.emit(true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-shell')
+                ?.classList.contains('rail-expanded')
+        ).toBe(true);
     });
 
     it('renders the xtream import overlay child only when the facade flag is true', async () => {
