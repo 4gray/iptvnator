@@ -1,4 +1,4 @@
-import { inject, Injectable } from '@angular/core';
+import { inject, Injectable, Injector } from '@angular/core';
 import {
     Playlist,
     PlaybackPositionData,
@@ -79,7 +79,7 @@ type StoredXtreamPlaylistData = Omit<XtreamPlaylistData, 'password'> & {
 @Injectable({ providedIn: 'root' })
 export class PwaXtreamDataSource implements IXtreamDataSource {
     private readonly apiService = inject(XtreamApiService);
-    private readonly playlistsService = inject(PlaylistsService);
+    private readonly injector = inject(Injector);
     private readonly logger = createLogger('PwaXtreamDataSource');
     private readonly contentTypes = ['live', 'movie', 'series'] as const;
 
@@ -171,8 +171,9 @@ export class PwaXtreamDataSource implements IXtreamDataSource {
         playlistId: string
     ): Promise<XtreamPlaylistData | null> {
         try {
+            const playlistsService = this.injector.get(PlaylistsService);
             const playlist = await firstValueFrom(
-                this.playlistsService.getPlaylistById(playlistId)
+                playlistsService.getPlaylistById(playlistId)
             );
             const xtreamPlaylist = this.toXtreamPlaylistData(playlist);
 
