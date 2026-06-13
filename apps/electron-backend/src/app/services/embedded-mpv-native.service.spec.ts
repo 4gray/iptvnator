@@ -414,6 +414,26 @@ describe('EmbeddedMpvNativeService power blocker', () => {
 
         expect(support.supported).toBe(false);
         expect(support.reason).toContain('requires the mpv executable on PATH');
+        expect(mockSpawnSync).toHaveBeenCalledWith('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
+    });
+
+    it('caches the Linux mpv executable probe result', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        delete process.env.WAYLAND_DISPLAY;
+
+        service.getSupport();
+        service.getSupport();
+
+        expect(mockSpawnSync).toHaveBeenCalledTimes(1);
+        expect(mockSpawnSync).toHaveBeenCalledWith('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
     });
 
     it('rejects Electron native Wayland placeholder handles before calling the addon', () => {
@@ -424,6 +444,22 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         process.env.WAYLAND_DISPLAY = 'wayland-0';
         mainWindowGetNativeWindowHandleMock.mockReturnValueOnce(
             Buffer.from([1, 0, 0, 0])
+        );
+
+        expect(() => service.createSession(BOUNDS, '', 1)).toThrow(
+            'Embedded MPV on Linux requires Electron to run under X11 or Xwayland.'
+        );
+        expect(addon.createSession).not.toHaveBeenCalled();
+    });
+
+    it('rejects 64-bit Electron native Wayland placeholder handles before calling the addon', () => {
+        Object.defineProperty(process, 'platform', {
+            value: 'linux',
+        });
+        process.env.DISPLAY = ':0';
+        process.env.WAYLAND_DISPLAY = 'wayland-0';
+        mainWindowGetNativeWindowHandleMock.mockReturnValueOnce(
+            Buffer.alloc(8)
         );
 
         expect(() => service.createSession(BOUNDS, '', 1)).toThrow(

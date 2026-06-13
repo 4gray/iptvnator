@@ -60,9 +60,6 @@ IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wakeup)
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
-#ifdef IPTVNATOR_DYNAMIC_LIBMPV
-#include <dlfcn.h>
-#endif
 #include <iostream>
 #include <memory>
 #include <mutex>
@@ -75,7 +72,6 @@ IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wakeup)
 #include <vector>
 #ifdef __linux__
 #include <csignal>
-#include <dirent.h>
 #include <fcntl.h>
 #include <sys/socket.h>
 #include <sys/time.h>
@@ -151,157 +147,6 @@ std::atomic<uint64_t> gNextSessionId{1};
 std::atomic<uint64_t> gNextAsyncRequestId{1};
 std::mutex gSessionsMutex;
 std::unordered_map<std::string, std::shared_ptr<Session>> gSessions;
-
-#ifdef IPTVNATOR_DYNAMIC_LIBMPV
-std::once_flag gMpvApiLoadOnce;
-bool gMpvApiLoaded = false;
-std::string gMpvApiLoadError;
-void* gMpvLibrary = nullptr;
-
-std::string directoryName(const std::string& filePath)
-{
-    const auto separator = filePath.find_last_of('/');
-    if (separator == std::string::npos) {
-        return ".";
-    }
-
-    if (separator == 0) {
-        return "/";
-    }
-
-    return filePath.substr(0, separator);
-}
-
-std::string currentAddonDirectory()
-{
-    Dl_info info{};
-    if (dladdr(reinterpret_cast<void*>(&currentAddonDirectory), &info) &&
-        info.dli_fname) {
-        return directoryName(info.dli_fname);
-    }
-
-    return ".";
-}
-
-std::vector<std::string> mpvLibraryCandidates()
-{
-    const auto addonDirectory = currentAddonDirectory();
-    const auto bundledLibraryDirectory = addonDirectory + "/lib";
-
-    return {
-        bundledLibraryDirectory + "/libmpv.so.2",
-        bundledLibraryDirectory + "/libmpv.so.1",
-        bundledLibraryDirectory + "/libmpv.so",
-        "libmpv.so.2",
-        "libmpv.so",
-    };
-}
-
-void* openMpvLibrary(const std::string& libraryPath, std::string& error)
-{
-    constexpr int flags = RTLD_NOW | RTLD_LOCAL;
-
-    dlerror();
-    void* library = dlopen(libraryPath.c_str(), flags);
-    const char* loadError = dlerror();
-    if (library) {
-        return library;
-    }
-
-    std::ostringstream message;
-    message << libraryPath << ": ";
-    message << (loadError ? loadError : "unknown dlopen error");
-    error = message.str();
-    return nullptr;
-}
-
-template <typename SymbolPointer>
-bool loadMpvSymbol(
-    void* library,
-    SymbolPointer& target,
-    const char* name,
-    std::string& error)
-{
-    dlerror();
-    void* symbol = dlsym(library, name);
-    const char* symbolError = dlerror();
-    if (symbolError || !symbol) {
-        error = std::string("Unable to resolve libmpv symbol ") + name +
-            ": " + (symbolError ? symbolError : "symbol not found");
-        return false;
-    }
-
-    target = reinterpret_cast<SymbolPointer>(symbol);
-    return true;
-}
-
-bool loadMpvSymbols(void* library, std::string& error)
-{
-#define LOAD_MPV_SYMBOL(name)                         \
-    if (!loadMpvSymbol(library, pfn_##name, #name, error)) { \
-        return false;                                 \
-    }
-
-    LOAD_MPV_SYMBOL(mpv_command_async);
-    LOAD_MPV_SYMBOL(mpv_command_node_async);
-    LOAD_MPV_SYMBOL(mpv_create);
-    LOAD_MPV_SYMBOL(mpv_error_string);
-    LOAD_MPV_SYMBOL(mpv_initialize);
-    LOAD_MPV_SYMBOL(mpv_observe_property);
-    LOAD_MPV_SYMBOL(mpv_request_log_messages);
-    LOAD_MPV_SYMBOL(mpv_set_option_string);
-    LOAD_MPV_SYMBOL(mpv_set_property);
-    LOAD_MPV_SYMBOL(mpv_set_property_async);
-    LOAD_MPV_SYMBOL(mpv_terminate_destroy);
-    LOAD_MPV_SYMBOL(mpv_wait_event);
-    LOAD_MPV_SYMBOL(mpv_wakeup);
-
-#undef LOAD_MPV_SYMBOL
-    return true;
-}
-
-void loadMpvApiOnce()
-{
-    std::vector<std::string> errors;
-
-    for (const auto& candidate : mpvLibraryCandidates()) {
-        std::string openError;
-        void* library = openMpvLibrary(candidate, openError);
-        if (!library) {
-            errors.push_back(openError);
-            continue;
-        }
-
-        std::string symbolError;
-        if (loadMpvSymbols(library, symbolError)) {
-            gMpvLibrary = library;
-            gMpvApiLoaded = true;
-            return;
-        }
-
-        errors.push_back(candidate + ": " + symbolError);
-        dlclose(library);
-    }
-
-    std::ostringstream message;
-    message << "Unable to load the embedded libmpv runtime.";
-    for (const auto& error : errors) {
-        message << "\n- " << error;
-    }
-    gMpvApiLoadError = message.str();
-}
-
-[[maybe_unused]] bool ensureMpvApiLoaded(std::string& error)
-{
-    std::call_once(gMpvApiLoadOnce, loadMpvApiOnce);
-    if (!gMpvApiLoaded) {
-        error = gMpvApiLoadError;
-        return false;
-    }
-
-    return true;
-}
-#endif
 
 void traceMpvCommon(const std::string& message)
 {
@@ -696,36 +541,14 @@ std::vector<std::string> buildLinuxMpvArguments(
     return arguments;
 }
 
-void closeInheritedFileDescriptors()
+long inheritedFileDescriptorLimit()
 {
-    DIR* fdDirectory = opendir("/proc/self/fd");
-    if (fdDirectory) {
-        const int directoryFd = dirfd(fdDirectory);
-
-        while (dirent* entry = readdir(fdDirectory)) {
-            char* end = nullptr;
-            const long fileDescriptor = std::strtol(entry->d_name, &end, 10);
-            if (
-                end == entry->d_name ||
-                (end && *end != '\0') ||
-                fileDescriptor <= STDERR_FILENO ||
-                fileDescriptor == directoryFd
-            ) {
-                continue;
-            }
-            const int descriptor = static_cast<int>(fileDescriptor);
-            const int flags = fcntl(descriptor, F_GETFD);
-            if (flags >= 0) {
-                fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC);
-            }
-        }
-
-        closedir(fdDirectory);
-        return;
-    }
-
     const long maxOpenFiles = sysconf(_SC_OPEN_MAX);
-    const long fileDescriptorLimit = maxOpenFiles > 0 ? maxOpenFiles : 1024;
+    return maxOpenFiles > 0 ? maxOpenFiles : 1024;
+}
+
+void closeInheritedFileDescriptors(long fileDescriptorLimit)
+{
     for (long fileDescriptor = STDERR_FILENO + 1;
          fileDescriptor < fileDescriptorLimit;
          fileDescriptor += 1) {
@@ -1026,6 +849,7 @@ pid_t spawnLinuxMpvProcess(
     envp.push_back(nullptr);
 
     const bool traceEnabled = std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV");
+    const long fileDescriptorLimit = inheritedFileDescriptorLimit();
     const pid_t processId = fork();
     if (processId != 0) {
         return processId;
@@ -1042,7 +866,7 @@ pid_t spawnLinuxMpvProcess(
         }
     }
 
-    closeInheritedFileDescriptors();
+    closeInheritedFileDescriptors(fileDescriptorLimit);
     execvpe(argv[0], argv.data(), envp.data());
     _exit(127);
 }
@@ -1503,9 +1327,6 @@ Napi::Value IsSupported(const Napi::CallbackInfo& info)
     bool supported = NativeVideoHost::isAvailable();
 #ifdef __linux__
     supported = supported && isExecutableAvailable("mpv");
-#elif defined(IPTVNATOR_DYNAMIC_LIBMPV)
-    std::string loadError;
-    supported = supported && ensureMpvApiLoaded(loadError);
 #endif
     return Napi::Boolean::New(info.Env(), supported);
 }
@@ -1537,13 +1358,6 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     }
 
     const auto bounds = readBounds(info[1].As<Napi::Object>());
-#if defined(IPTVNATOR_DYNAMIC_LIBMPV) && !defined(__linux__)
-    std::string mpvLoadError;
-    if (!ensureMpvApiLoaded(mpvLoadError)) {
-        throw Napi::Error::New(env, mpvLoadError);
-    }
-#endif
-
     const auto session = std::make_shared<Session>();
     session->id = "embedded-mpv-" + std::to_string(gNextSessionId.fetch_add(1));
     session->snapshot.volumePercent =

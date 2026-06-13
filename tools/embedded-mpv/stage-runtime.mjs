@@ -181,7 +181,9 @@ try {
         path.join(sourceIncludeDir, 'mpv'),
         path.join(destinationIncludeDir, 'mpv')
     );
-    copyDirectory(sourceLibDir, destinationLibDir, runtimeFileFilter);
+    if (platform !== 'linux') {
+        copyDirectory(sourceLibDir, destinationLibDir, runtimeFileFilter);
+    }
     if (platform === 'win32') {
         copyDirectory(sourceBinDir, destinationLibDir, runtimeFileFilter);
     }

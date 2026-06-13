@@ -97,6 +97,7 @@ export class EmbeddedMpvNativeService {
     private readonly pollFailuresLogged = new Set<string>();
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
+    private cachedLinuxMpvExecutableReason: string | null | undefined;
 
     private detectCapabilities(): EmbeddedMpvCapabilities {
         const addon = this.addon;
@@ -793,12 +794,19 @@ export class EmbeddedMpvNativeService {
             return null;
         }
 
-        const result = spawnSync('mpv', ['--version'], { stdio: 'ignore' });
-        if (result.status === 0) {
-            return null;
+        if (this.cachedLinuxMpvExecutableReason !== undefined) {
+            return this.cachedLinuxMpvExecutableReason;
         }
 
-        return 'Embedded MPV on Linux requires the mpv executable on PATH. Install the mpv package for your distribution and restart IPTVnator.';
+        const result = spawnSync('mpv', ['--version'], {
+            stdio: 'ignore',
+            timeout: 3000,
+        });
+        this.cachedLinuxMpvExecutableReason =
+            result.status === 0
+                ? null
+                : 'Embedded MPV on Linux requires the mpv executable on PATH. Install the mpv package for your distribution and restart IPTVnator.';
+        return this.cachedLinuxMpvExecutableReason;
     }
 
     private isInvalidLinuxWaylandWindowHandle(windowHandle: Buffer): boolean {
@@ -810,11 +818,15 @@ export class EmbeddedMpvNativeService {
             return false;
         }
 
-        if (windowHandle.length === 0 || windowHandle.length > 4) {
+        if (windowHandle.length === 0) {
             return false;
         }
 
-        return windowHandle.readUIntLE(0, windowHandle.length) <= 1;
+        const windowHandleValue =
+            windowHandle.length >= 4
+                ? windowHandle.readUInt32LE(0)
+                : windowHandle.readUIntLE(0, windowHandle.length);
+        return windowHandleValue <= 1;
     }
 
     private getAddon(): NativeEmbeddedMpvAddon {

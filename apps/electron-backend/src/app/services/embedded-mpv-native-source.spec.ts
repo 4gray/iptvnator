@@ -32,6 +32,13 @@ describe('Embedded MPV native source recording invariants', () => {
         ),
         'utf8'
     );
+    const stageRuntimeSource = readFileSync(
+        path.resolve(
+            __dirname,
+            '../../../../../tools/embedded-mpv/stage-runtime.mjs'
+        ),
+        'utf8'
+    );
 
     function functionBody(name: string): string {
         const start = nativeSource.indexOf(`Napi::Value ${name}(`);
@@ -183,8 +190,14 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(widCommonSource).toContain(
             'arguments.push_back("--gpu-context=x11egl");'
         );
-        expect(widCommonSource).toContain('closeInheritedFileDescriptors();');
+        expect(widCommonSource).toContain('inheritedFileDescriptorLimit()');
+        expect(widCommonSource).toContain(
+            'closeInheritedFileDescriptors(fileDescriptorLimit);'
+        );
         expect(widCommonSource).toContain('flags | FD_CLOEXEC');
+        expect(widCommonSource).not.toContain('opendir(');
+        expect(widCommonSource).not.toContain('readdir(');
+        expect(widCommonSource).not.toContain('closedir(');
     });
 
     it('drives Linux out-of-process MPV state and controls over JSON IPC', () => {
@@ -223,7 +236,18 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(widCommonSource).toContain(
             '#define mpv_command_async pfn_mpv_command_async'
         );
+        expect(widCommonSource).not.toContain('mpvLibraryCandidates');
+        expect(widCommonSource).not.toContain('ensureMpvApiLoaded');
+        expect(widCommonSource).not.toContain('"libmpv.so"');
         expect(buildScriptSource).toContain('cleanNativeBuildIntermediates();');
+    });
+
+    it('does not stage Linux libmpv runtime libraries', () => {
+        expect(stageRuntimeSource).toContain(
+            "if (platform !== 'linux') {\n" +
+                '        copyDirectory(sourceLibDir, destinationLibDir, runtimeFileFilter);\n' +
+                '    }'
+        );
     });
 
     it('uses platform-specific embedded MPV runtime cache key inputs in CI', () => {
