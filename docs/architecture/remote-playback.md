@@ -26,6 +26,11 @@ window or the operating-system desktop.
 Unsupported choices remain visible but disabled so the control has a stable
 location across players and runtimes.
 
+In the shared video viewport, the overlay follows the player controls: it
+fades after 2.5 seconds of inactivity and returns on pointer or keyboard
+activity. Hover, keyboard focus, and an open device menu keep it visible. The
+radio player and external-player dock retain their always-visible controls.
+
 ## Receiver-Fetchable Media
 
 Remote receivers fetch the stream themselves. Casting is disabled when the

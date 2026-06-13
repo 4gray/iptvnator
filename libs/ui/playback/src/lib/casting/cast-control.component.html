@@ -6,7 +6,8 @@
     [matMenuTriggerFor]="castMenu"
     [attr.aria-label]="'CASTING.OPEN' | translate"
     [matTooltip]="'CASTING.OPEN' | translate"
-    (menuOpened)="prepareMenu()"
+    (menuOpened)="handleMenuOpened()"
+    (menuClosed)="handleMenuClosed()"
 >
     <mat-icon>{{ connectedDeviceName() ? 'cast_connected' : 'cast' }}</mat-icon>
 </button>
