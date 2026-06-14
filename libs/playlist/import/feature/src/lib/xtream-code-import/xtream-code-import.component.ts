@@ -1,9 +1,11 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import {
+    AbstractControl,
     FormControl,
     FormGroup,
     FormsModule,
     ReactiveFormsModule,
+    ValidationErrors,
     Validators,
 } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -13,8 +15,28 @@ import { Store } from '@ngrx/store';
 import { TranslatePipe } from '@ngx-translate/core';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { PortalStatus, PortalStatusService } from '@iptvnator/services';
-import { Playlist } from '@iptvnator/shared/interfaces';
+import {
+    extractXtreamCredentialsFromUrl,
+    normalizeXtreamServerUrl,
+    Playlist,
+} from '@iptvnator/shared/interfaces';
 import { v4 as uuid } from 'uuid';
+
+function xtreamServerUrlValidator(
+    control: AbstractControl
+): ValidationErrors | null {
+    const value = control.value;
+    if (typeof value !== 'string' || value.trim().length === 0) {
+        return null;
+    }
+
+    try {
+        normalizeXtreamServerUrl(value);
+        return null;
+    } catch {
+        return { xtreamServerUrl: true };
+    }
+}
 
 @Component({
     imports: [
@@ -66,7 +88,7 @@ import { v4 as uuid } from 'uuid';
 })
 export class XtreamCodeImportComponent {
     @Output() addClicked = new EventEmitter<void>();
-    URL_REGEX = /^(http|https|file):\/\/[^ "]+$/;
+    URL_REGEX = /^\s*https?:\/\/[^ "]+\s*$/;
 
     form = new FormGroup({
         _id: new FormControl(uuid()),
@@ -76,6 +98,7 @@ export class XtreamCodeImportComponent {
         serverUrl: new FormControl('', [
             Validators.required,
             Validators.pattern(this.URL_REGEX),
+            xtreamServerUrlValidator,
         ]),
         importDate: new FormControl(new Date().toISOString()),
     });
@@ -89,22 +112,22 @@ export class XtreamCodeImportComponent {
     async testConnection(): Promise<void> {
         if (!this.form.valid) return;
 
-        this.isTestingConnection = true;
-        const serverUrlAsString = this.form.value.serverUrl as string;
-        const url = new URL(serverUrlAsString);
-        const serverUrl = `${url.protocol}//${url.hostname}${
-            url.port ? ':' + url.port : ''
-        }`;
+        const connection = this.getNormalizedConnection();
+        if (!connection) {
+            this.connectionStatus = 'unavailable';
+            return;
+        }
 
+        this.isTestingConnection = true;
         try {
             // User-initiated connection test — bypass the shared cache so the
             // result reflects the portal's current state, not whatever was
             // cached up to 30 s ago by another component.
             this.connectionStatus =
                 await this.portalStatusService.checkPortalStatus(
-                    serverUrl,
-                    this.form.value.username as string,
-                    this.form.value.password as string,
+                    connection.serverUrl,
+                    connection.username,
+                    connection.password,
                     { skipCache: true }
                 );
         } finally {
@@ -137,16 +160,20 @@ export class XtreamCodeImportComponent {
     }
 
     addPlaylist() {
-        const serverUrlAsString = this.form.value.serverUrl as string;
-        const url = new URL(serverUrlAsString);
-        const serverUrl = `${url.protocol}//${url.hostname}${
-            url.port ? ':' + url.port : ''
-        }`;
+        if (!this.form.valid) return;
+
+        const connection = this.getNormalizedConnection();
+        if (!connection) {
+            return;
+        }
+
         this.store.dispatch(
             PlaylistActions.addPlaylist({
                 playlist: {
                     ...this.form.value,
-                    serverUrl,
+                    password: connection.password,
+                    serverUrl: connection.serverUrl,
+                    username: connection.username,
                 } as Playlist,
             })
         );
@@ -160,17 +187,33 @@ export class XtreamCodeImportComponent {
         )
             return;
         try {
-            // Create a new URL object from the complete link
-            const url = new URL(urlAsString);
+            const credentials = extractXtreamCredentialsFromUrl(urlAsString);
+            if (!credentials) {
+                return;
+            }
 
-            // Extract username and password from query parameters
-            const username = url.searchParams.get('username') || '';
-            const password = url.searchParams.get('password') || '';
-
-            this.form.get('username')?.setValue(username);
-            this.form.get('password')?.setValue(password);
+            this.form.get('username')?.setValue(credentials.username);
+            this.form.get('password')?.setValue(credentials.password);
         } catch (error) {
             console.error('Invalid URL', error);
+        }
+    }
+
+    private getNormalizedConnection(): {
+        password: string;
+        serverUrl: string;
+        username: string;
+    } | null {
+        try {
+            return {
+                password: (this.form.value.password as string).trim(),
+                serverUrl: normalizeXtreamServerUrl(
+                    this.form.value.serverUrl as string
+                ),
+                username: (this.form.value.username as string).trim(),
+            };
+        } catch {
+            return null;
         }
     }
 }

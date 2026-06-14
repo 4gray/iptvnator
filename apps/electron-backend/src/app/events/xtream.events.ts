@@ -8,6 +8,7 @@ import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
     XTREAM_CANCEL_SESSION,
+    normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { assertRemoteUrlAllowed, UnsafeUrlError } from './url-safety';
@@ -24,11 +25,16 @@ function formatXtreamError(
     requestUrl: string,
     action?: string
 ) {
-    const parsedUrl = new URL(requestUrl);
+    let parsedUrl: URL | null = null;
+    try {
+        parsedUrl = new URL(requestUrl);
+    } catch {
+        parsedUrl = null;
+    }
     const base = {
         action,
-        host: parsedUrl.host,
-        pathname: parsedUrl.pathname,
+        host: parsedUrl?.host ?? 'unknown',
+        pathname: parsedUrl?.pathname ?? requestUrl,
     };
 
     if (axios.isAxiosError(error)) {
@@ -60,6 +66,19 @@ function formatXtreamError(
     };
 }
 
+function buildXtreamApiUrl(url: string, params: Record<string, string>): URL {
+    const baseUrl = normalizeXtreamServerUrl(url);
+    const apiUrl = new URL(`${baseUrl}/player_api.php`);
+    Object.entries(params).forEach(([key, value]) => {
+        apiUrl.searchParams.append(
+            key,
+            key === 'username' || key === 'password' ? value.trim() : value
+        );
+    });
+
+    return apiUrl;
+}
+
 /**
  * Handle Xtream Codes API requests
  */
@@ -77,15 +96,14 @@ ipcMain.handle(
     ) => {
         const startedAt = Date.now();
         let activeRequestKey: string | null = null;
+        let requestUrlForLog = payload.url;
         try {
             const { url, params, requestId, sessionId } = payload;
 
             // Build URL with query parameters
             // Xtream API endpoint is always at /player_api.php
-            const apiUrl = new URL(`${url}/player_api.php`);
-            Object.entries(params).forEach(([key, value]) => {
-                apiUrl.searchParams.append(key, value);
-            });
+            const apiUrl = buildXtreamApiUrl(url, params);
+            requestUrlForLog = apiUrl.toString();
 
             const controller = new AbortController();
             if (requestId || sessionId) {
@@ -153,10 +171,16 @@ ipcMain.handle(
         } catch (error) {
             const requestId = payload.requestId;
             if (requestId) {
-                const apiUrl = new URL(`${payload.url}/player_api.php`);
-                Object.entries(payload.params ?? {}).forEach(([key, value]) => {
-                    apiUrl.searchParams.append(key, value);
-                });
+                const apiUrl = (() => {
+                    try {
+                        return buildXtreamApiUrl(
+                            payload.url,
+                            payload.params ?? {}
+                        ).toString();
+                    } catch {
+                        return requestUrlForLog;
+                    }
+                })();
 
                 const debugEvent: PortalDebugEvent = {
                     requestId,
@@ -168,7 +192,7 @@ ipcMain.handle(
                     status: 'error',
                     request: {
                         method: 'GET',
-                        url: apiUrl.toString(),
+                        url: apiUrl,
                         headers: {
                             'User-Agent':
                                 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
@@ -187,7 +211,7 @@ ipcMain.handle(
                     '[XTREAM_REQUEST] Failed',
                     formatXtreamError(
                         error,
-                        payload.url,
+                        requestUrlForLog,
                         payload.params?.action
                     )
                 );

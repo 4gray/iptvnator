@@ -256,6 +256,43 @@ https://stream.example/news.m3u8`);
         );
     });
 
+    it('normalizes full Xtream API target URLs before proxying', async () => {
+        const httpClient = new StubHttpClient();
+        httpClient.queueResponse({ user_info: { username: 'demo' } });
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: resolvePublicHost,
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example/panel/player_api.php?username=old&password=old'
+                );
+                const response = await fetch(
+                    `${baseUrl}/xtream?targetId=${targetId}&username=%20demo%20&password=%20secret%20&action=get_account_info`
+                );
+
+                await expect(response.json()).resolves.toEqual({
+                    action: 'get_account_info',
+                    payload: { user_info: { username: 'demo' } },
+                });
+                expect(httpClient.requests).toEqual([
+                    {
+                        headers: undefined,
+                        params: {
+                            action: 'get_account_info',
+                            password: 'secret',
+                            username: 'demo',
+                        },
+                        url: 'http://xtream.example/panel/player_api.php',
+                    },
+                ]);
+            }
+        );
+    });
+
     it('proxies Stalker requests with MAC cookie and bearer token', async () => {
         const httpClient = new StubHttpClient();
         httpClient.queueResponse({ js: [{ id: '2001', title: 'Action' }] });
@@ -418,6 +455,36 @@ https://stream.example/news.m3u8`);
                     },
                     method: 'POST',
                 });
+
+                expect(response.status).toBe(400);
+                await expect(response.json()).resolves.toEqual({
+                    message:
+                        'Provider URL points to a private or local network address',
+                    status: 400,
+                });
+                expect(httpClient.requests).toEqual([]);
+            }
+        );
+    });
+
+    it('rejects Xtream proxy calls when a registered target no longer passes the URL policy', async () => {
+        const httpClient = new StubHttpClient();
+        const resolvedAddresses = [['93.184.216.34'], ['127.0.0.1']];
+
+        await withServer(
+            createWebBackendApp({
+                httpClient,
+                resolveHostname: async () =>
+                    resolvedAddresses.shift() ?? ['127.0.0.1'],
+            }),
+            async (baseUrl) => {
+                const targetId = await registerProviderTarget(
+                    baseUrl,
+                    'http://xtream.example'
+                );
+                const response = await fetch(
+                    `${baseUrl}/xtream?targetId=${targetId}&action=get_account_info`
+                );
 
                 expect(response.status).toBe(400);
                 await expect(response.json()).resolves.toEqual({

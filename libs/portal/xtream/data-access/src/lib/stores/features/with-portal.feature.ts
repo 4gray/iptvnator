@@ -15,6 +15,7 @@ import {
 } from '../../services/xtream-api.service';
 import { PortalStatusType } from '../../xtream-state';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { resolveXtreamPortalStatus } from '@iptvnator/shared/interfaces';
 
 /**
  * Portal state for managing playlist and portal status
@@ -43,30 +44,6 @@ const initialPortalState: PortalState = {
  */
 export function withPortal() {
     const logger = createLogger('withPortal');
-
-    const resolvePortalStatus = (response: {
-        user_info?: {
-            exp_date?: string;
-            status?: string;
-        };
-    } | null): PortalStatusType => {
-        if (!response?.user_info?.status) {
-            return 'unavailable';
-        }
-
-        if (response.user_info.status === 'Active') {
-            if (!response.user_info.exp_date) {
-                return 'active';
-            }
-
-            const expDate = new Date(
-                parseInt(response.user_info.exp_date, 10) * 1000
-            );
-            return expDate < new Date() ? 'expired' : 'active';
-        }
-
-        return 'inactive';
-    };
 
     return signalStoreFeature(
         withState<PortalState>(initialPortalState),
@@ -139,20 +116,28 @@ export function withPortal() {
                     try {
                         const response =
                             await apiService.getAccountInfo(credentials);
-                        const portalStatus = resolvePortalStatus(response);
+                        const portalStatus =
+                            resolveXtreamPortalStatus(response);
                         const serverTimezone =
                             response?.server_info?.timezone ?? undefined;
+                        const allowedOutputFormats = response?.user_info
+                            ?.allowed_output_formats?.length
+                            ? response.user_info.allowed_output_formats
+                                  .map((format) => format.trim())
+                                  .filter(Boolean)
+                            : undefined;
                         patchState(store, { portalStatus });
-                        if (serverTimezone) {
-                            const current = store.currentPlaylist();
-                            if (current) {
-                                patchState(store, {
-                                    currentPlaylist: {
-                                        ...current,
-                                        serverTimezone,
-                                    },
-                                });
-                            }
+                        const current = store.currentPlaylist();
+                        if (current) {
+                            patchState(store, {
+                                currentPlaylist: {
+                                    ...current,
+                                    allowedOutputFormats,
+                                    ...(serverTimezone
+                                        ? { serverTimezone }
+                                        : {}),
+                                },
+                            });
                         }
                         return portalStatus;
                     } catch (error) {

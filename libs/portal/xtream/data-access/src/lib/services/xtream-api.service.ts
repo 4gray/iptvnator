@@ -10,6 +10,7 @@ import {
     XtreamVodDetails,
     XtreamVodStream,
     XTREAM_REQUEST,
+    normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { XtreamAccountInfo } from '../account-info/account-info.interface';
 
@@ -17,6 +18,7 @@ import { XtreamAccountInfo } from '../account-info/account-info.interface';
  * Xtream API credentials
  */
 export interface XtreamCredentials {
+    allowedOutputFormats?: string[];
     serverUrl: string;
     username: string;
     password: string;
@@ -37,6 +39,12 @@ export interface XtreamRequestOptions {
     sessionId?: string;
     suppressErrorLog?: boolean;
 }
+
+const XTREAM_ACCOUNT_ACTIONS = [
+    XtreamCodeActions.GetAccountInfo,
+    null,
+    'get_profile',
+] as const;
 
 /**
  * Raw EPG listing from API (before decoding)
@@ -72,7 +80,10 @@ export class XtreamApiService {
     private readonly dataService = inject(DataService);
 
     async cancelSession(sessionId: string): Promise<boolean> {
-        if (!sessionId || typeof window.electron?.xtreamCancelSession !== 'function') {
+        if (
+            !sessionId ||
+            typeof window.electron?.xtreamCancelSession !== 'function'
+        ) {
             return false;
         }
 
@@ -92,15 +103,38 @@ export class XtreamApiService {
         credentials: XtreamCredentials,
         options?: XtreamRequestOptions
     ): Promise<XtreamAccountInfo> {
-        return this.sendRequest(
-            credentials.serverUrl,
-            {
-                username: credentials.username,
-                password: credentials.password,
-                action: XtreamCodeActions.GetAccountInfo,
-            },
-            options
-        );
+        let lastError: unknown;
+        let lastResponse: XtreamAccountInfo | null = null;
+
+        for (const action of XTREAM_ACCOUNT_ACTIONS) {
+            try {
+                const response = await this.sendRequest<XtreamAccountInfo>(
+                    credentials.serverUrl,
+                    {
+                        ...(action ? { action } : {}),
+                        username: credentials.username,
+                        password: credentials.password,
+                    },
+                    options
+                );
+
+                if (this.hasAccountInfoPayload(response)) {
+                    return response;
+                }
+
+                lastResponse = response;
+            } catch (error) {
+                lastError = error;
+            }
+        }
+
+        if (lastResponse) {
+            return lastResponse;
+        }
+
+        throw lastError instanceof Error
+            ? lastError
+            : new Error('Failed to fetch Xtream account info');
     }
 
     /**
@@ -324,7 +358,8 @@ export class XtreamApiService {
                 Array.prototype.map
                     .call(atob(str), (c: string) => {
                         return (
-                            '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2)
+                            '%' +
+                            ('00' + c.charCodeAt(0).toString(16)).slice(-2)
                         );
                     })
                     .join('')
@@ -334,7 +369,9 @@ export class XtreamApiService {
         }
     }
 
-    private getEpgListings(response: EpgResponse | null | undefined): RawEpgListing[] {
+    private getEpgListings(
+        response: EpgResponse | null | undefined
+    ): RawEpgListing[] {
         const listings = response?.epg_listings;
         if (!listings) {
             return [];
@@ -384,7 +421,10 @@ export class XtreamApiService {
             .filter((item) => Boolean(item.start) && Boolean(item.stop))
             .sort(
                 (left, right) =>
-                    this.getEpgItemTimestampMs(left.start, left.start_timestamp) -
+                    this.getEpgItemTimestampMs(
+                        left.start,
+                        left.start_timestamp
+                    ) -
                     this.getEpgItemTimestampMs(
                         right.start,
                         right.start_timestamp
@@ -429,7 +469,10 @@ export class XtreamApiService {
             .filter((item) => Boolean(item.start) && Boolean(item.stop))
             .sort(
                 (left, right) =>
-                    this.getEpgItemTimestampMs(left.start, left.start_timestamp) -
+                    this.getEpgItemTimestampMs(
+                        left.start,
+                        left.start_timestamp
+                    ) -
                     this.getEpgItemTimestampMs(
                         right.start,
                         right.start_timestamp
@@ -478,13 +521,18 @@ export class XtreamApiService {
         params: Record<string, string | number>,
         options?: XtreamRequestOptions
     ): Promise<TResponse> {
+        const normalizedUrl = normalizeXtreamServerUrl(url);
         const serializedParams: Record<string, string> = {};
         Object.entries(params).forEach(([key, value]) => {
-            serializedParams[key] = String(value);
+            const serializedValue = String(value);
+            serializedParams[key] =
+                key === 'username' || key === 'password'
+                    ? serializedValue.trim()
+                    : serializedValue;
         });
 
         const response = (await this.dataService.sendIpcEvent(XTREAM_REQUEST, {
-            url,
+            url: normalizedUrl,
             params: serializedParams,
             requestId: options?.requestId,
             sessionId: options?.sessionId,
@@ -498,10 +546,19 @@ export class XtreamApiService {
         // The IPC layer catches errors and returns { type: 'ERROR', message, status }
         // instead of rejecting. Convert that back into a thrown error so callers
         // can handle it with .catch() / try-catch.
-        if (response?.type === 'ERROR' || (!response?.payload && response?.message)) {
+        if (
+            response?.type === 'ERROR' ||
+            (!response?.payload && response?.message)
+        ) {
             throw new Error(response?.message ?? 'Request failed');
         }
 
         return response?.payload as TResponse;
+    }
+
+    private hasAccountInfoPayload(
+        response: XtreamAccountInfo | null | undefined
+    ): boolean {
+        return Boolean(response?.user_info);
     }
 }

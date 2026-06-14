@@ -74,6 +74,7 @@ export function withPlayer() {
                 }
 
                 return {
+                    allowedOutputFormats: playlist.allowedOutputFormats,
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
