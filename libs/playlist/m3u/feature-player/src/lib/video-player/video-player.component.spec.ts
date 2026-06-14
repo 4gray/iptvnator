@@ -8,6 +8,7 @@ import {
     signal,
 } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -115,6 +116,8 @@ class StubAudioPlayerComponent {
     readonly url = input('');
     readonly icon = input('');
     readonly channelName = input('');
+    readonly volume = input<number | null>(null);
+    readonly volumeChange = output<number>();
 }
 
 @Component({
@@ -556,6 +559,48 @@ describe('VideoPlayerComponent', () => {
                 .querySelector('.epg')
                 ?.classList.contains('epg-collapsed')
         ).toBe(false);
+    });
+
+    it('passes remote volume changes to the radio audio player', () => {
+        const radioChannel = {
+            ...sampleChannel,
+            radio: 'true',
+        } as Channel;
+        syncStoreState(radioChannel);
+        fixture.detectChanges();
+
+        (
+            component as unknown as {
+                handleRemoteControlCommand(command: {
+                    type: 'volume-down';
+                }): void;
+            }
+        ).handleRemoteControlCommand({ type: 'volume-down' });
+        fixture.detectChanges();
+
+        const audioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+        expect(audioPlayer.volume()).toBe(0.9);
+    });
+
+    it('keeps parent volume state in sync with radio player controls', () => {
+        const radioChannel = {
+            ...sampleChannel,
+            radio: 'true',
+        } as Channel;
+        syncStoreState(radioChannel);
+        fixture.detectChanges();
+
+        const audioPlayer = fixture.debugElement.query(
+            By.directive(StubAudioPlayerComponent)
+        ).componentInstance as StubAudioPlayerComponent;
+
+        audioPlayer.volumeChange.emit(0.35);
+        fixture.detectChanges();
+
+        expect(audioPlayer.volume()).toBe(0.35);
+        expect(localStorage.getItem('volume')).toBe('0.35');
     });
 
     it('restores the collapsed live EPG panel state for inline playback', () => {

@@ -16,8 +16,10 @@ class MockArtplayer {
     readonly destroy = jest.fn();
     readonly currentTime = 0;
     readonly duration = 0;
+    volume: number;
 
     constructor(readonly options: Record<string, unknown>) {
+        this.volume = Number(options['volume'] ?? 1);
         artPlayerInstances.push(this);
     }
 }
@@ -206,6 +208,20 @@ describe('ArtPlayerComponent', () => {
 
         expect(artPlayerInstances[0].options['type']).toBe('m3u8');
         expect(artPlayerInstances[0].options['isLive']).toBe(true);
+    });
+
+    it('applies volume input changes without recreating the player', () => {
+        createComponent({
+            url: 'https://example.com/live/channel.m3u8',
+            name: 'HLS Live',
+        });
+        const player = artPlayerInstances[0];
+
+        fixture.componentRef.setInput('volume', 0.37);
+        fixture.detectChanges();
+
+        expect(player.volume).toBe(0.37);
+        expect(artPlayerInstances).toHaveLength(1);
     });
 
     it('emits a playback issue when mpegts.js reports an unsupported codec', () => {

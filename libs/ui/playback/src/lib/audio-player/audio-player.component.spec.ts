@@ -72,6 +72,28 @@ describe('AudioPlayerComponent', () => {
         expect(localStorage.getItem('volume')).toBe('0');
     });
 
+    it('applies external volume input changes to the current audio element', () => {
+        const audio = createComponent();
+
+        fixture.componentRef.setInput('volume', 0.25);
+        fixture.detectChanges();
+
+        expect(component.volume()).toBe(0.25);
+        expect(audio.volume).toBe(0.25);
+        expect(localStorage.getItem('volume')).toBe('0.25');
+        expect(loadSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('emits local volume changes so parent playback state stays current', () => {
+        createComponent();
+        const emitted: number[] = [];
+        component.volumeChange.subscribe((volume) => emitted.push(volume));
+
+        component.setVolume(0.3);
+
+        expect(emitted).toEqual([0.3]);
+    });
+
     it('handles volume and mute keyboard shortcuts without focusing inputs', () => {
         createComponent();
         component.setVolume(0.5);
