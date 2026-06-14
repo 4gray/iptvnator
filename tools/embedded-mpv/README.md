@@ -29,8 +29,8 @@ vendor/embedded-mpv/
     runtime-manifest.json
   win32-x64/
     include/mpv/client.h
-    lib/mpv-2.dll
-    lib/mpv.lib
+    lib/libmpv-2.dll # or mpv-2.dll/mpv.dll/libmpv.dll
+    lib/libmpv.dll.a # or mpv.lib/mpv-2.lib
     runtime-manifest.json
   linux-x64/
     include/mpv/client.h
@@ -60,7 +60,7 @@ pnpm embedded-mpv:stage-runtime:macos -- x64 /path/to/lgpl-prefix
 The prefix must contain `include/mpv/client.h` and the platform runtime/build files:
 
 - macOS: `lib/libmpv.2.dylib` or `lib/libmpv.dylib` plus all non-system dylib dependencies
-- Windows: `lib/mpv.lib` or `lib/mpv-2.lib`, and `bin/mpv-2.dll` or `lib/mpv-2.dll`
+- Windows: `lib/mpv.lib`, `lib/mpv-2.lib`, or `libmpv.dll.a`, and `bin/` or `lib/` containing `mpv-2.dll`, `libmpv-2.dll`, `mpv.dll`, or `libmpv.dll`
 - Linux: `include/mpv/client.h`; CI also records the `libmpv-dev` and `mpv` package versions used as build inputs. Linux runtime playback uses the system `mpv` executable and does not bundle `libmpv.so`.
 
 If the prefix contains `runtime-manifest.json`, the staging script copies its build metadata into the vendored manifest. At minimum, record:
@@ -85,7 +85,37 @@ to be present. Linux playback does not load or bundle `libmpv` in the Electron
 process; the addon creates an X11 child window and starts a system `mpv --wid`
 process at runtime.
 
-During temporary PR and `master` artifact testing, CI restores an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/<platform>-<arch>/` runtime before falling back to the macOS source build where available. The cache key includes the target platform, architecture, macOS deployment target, Xcode version when available, and hashes of the runtime build/staging scripts. Cache entries are saved only from trusted repository refs and are treated strictly as a speed optimization; tagged macOS release builds continue to rebuild from pinned sources unless a future signed and attested runtime artifact flow is introduced.
+Windows CI does not build libmpv from source. It restores an exact-keyed cache
+for `vendor/embedded-mpv/win32-x64/`; on cache miss it stages a checksum-pinned
+LGPL-compatible archive from repository configuration:
+
+```text
+IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL
+IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256
+```
+
+The values can be repository variables or secrets. Prefer variables when PR
+artifact builds from same-repository branches should include Embedded MPV. For
+non-tag artifact builds only, the workflow falls back to a checksum-pinned
+`zhongfly/mpv-winbuild` `mpv-dev-lgpl-x86_64` archive when those variables are
+unset. Tagged release builds must provide the repository configuration
+explicitly.
+
+The Windows job is pinned to `windows-2022` while the current Electron
+`node-gyp` toolchain cannot identify Visual Studio 18 from `windows-latest`.
+
+The archive must contain a Windows x64 prefix with `include/mpv/client.h`, a
+libmpv import library, and `mpv-2.dll`/`mpv.dll` or
+`libmpv-2.dll`/`libmpv.dll`. The archive can use either the normal prefix layout
+(`lib/` and `bin/`) or the common `mpv-dev-lgpl` flat layout with the import
+library and DLL in the archive root. The staged runtime preserves the DLL
+basename from the archive because Windows import libraries encode the DLL name
+that `embedded_mpv.node` must load at runtime. If
+`runtime-manifest.json` is missing, CI generates a minimal manifest from the
+archive URL/path and checksum; release-ready runtime archives should still
+provide full source/build metadata.
+
+During temporary PR and `master` artifact testing, CI restores an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/<platform>-<arch>/` runtime before falling back to the macOS source build or Windows runtime archive where available. The cache key includes the target platform, architecture, macOS deployment target, Xcode version when available, a hash of the Windows runtime checksum when applicable, and hashes of the runtime build/staging scripts. Cache entries are saved only from trusted repository refs and are treated strictly as a speed optimization; tagged macOS release builds continue to rebuild from pinned sources unless a future signed and attested runtime artifact flow is introduced.
 
 The builder currently pins:
 
@@ -112,7 +142,7 @@ The `afterPack` hook copies `dist/apps/electron-backend/native/` into `app.asar.
 
 During release packaging, `tools/packaging/electron-after-pack.cjs` verifies that macOS/Windows packages use a `vendored-lgpl` runtime/build input set. macOS artifacts additionally verify that Mach-O dependencies have no `/opt/homebrew` or `/usr/local` dynamic links for embedded MPV. Linux artifacts verify that the addon and `external-mpv-process` manifest are present, that no bundled `libmpv.so` files are present, and the runtime support check verifies that `mpv` is available on `PATH`.
 
-Set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` when packaging a release artifact that must include Embedded MPV. The same variable is temporarily enabled for macOS PR and `master` push artifacts while the bundled runtime is being tested. Linux CI packaging requires Embedded MPV after staging the Ubuntu package build inputs. Windows CI packaging requires Embedded MPV when an exact-keyed staged runtime cache is restored; otherwise the Windows job builds without the native addon and Settings keeps Embedded MPV hidden.
+Set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` when packaging a release artifact that must include Embedded MPV. The same variable is temporarily enabled for macOS PR and `master` push artifacts while the bundled runtime is being tested. Linux CI packaging requires Embedded MPV after staging the Ubuntu package build inputs. Windows CI packaging now requires Embedded MPV for x64 artifacts: the job restores the staged runtime cache or stages the checksum-pinned runtime archive, then fails backend build, package make, or package-layout verification if the addon/runtime is missing.
 
 ## Platform Notes
 

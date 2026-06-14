@@ -428,9 +428,13 @@ function getPackagedRuntimeCandidates(libDir, platform, nativeDir) {
         case 'win32':
             return [
                 nativeDir ? path.join(nativeDir, 'mpv-2.dll') : null,
+                nativeDir ? path.join(nativeDir, 'libmpv-2.dll') : null,
                 nativeDir ? path.join(nativeDir, 'mpv.dll') : null,
+                nativeDir ? path.join(nativeDir, 'libmpv.dll') : null,
                 path.join(libDir, 'mpv-2.dll'),
+                path.join(libDir, 'libmpv-2.dll'),
                 path.join(libDir, 'mpv.dll'),
+                path.join(libDir, 'libmpv.dll'),
             ].filter(Boolean);
         case 'linux':
             return [];

@@ -46,7 +46,7 @@ jobs:
                       embedded_mpv_arch: x64
                       embedded_mpv_build_runtime: false
                     - os: windows
-                      runner: windows-latest
+                      runner: windows-2022
                       embedded_mpv_platform: win32
                       embedded_mpv_arch: x64
                       embedded_mpv_build_runtime: false
@@ -109,6 +109,9 @@ jobs:
               if: matrix.embedded_mpv_platform && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
               id: embedded-mpv-runtime-cache-key
               shell: bash
+              env:
+                  IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || '' }}
+                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: a26e28fa55c15ac5b6209d8a9f9c3c8cb39649631a53d3c4774beeae559a078c
               run: |
                   set -euo pipefail
 
@@ -149,6 +152,15 @@ jobs:
                     cacheKeyParts.push(
                       `macos${safeDeploymentTarget}`,
                       `xcode${hash(xcodeVersion)}`
+                    );
+                  } else if (targetPlatform === 'win32') {
+                    sourceHashFiles.push('tools/embedded-mpv/stage-windows-runtime-archive.mjs');
+                    const windowsRuntimeSha256 =
+                      process.env.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 ||
+                      process.env.IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 ||
+                      'missing';
+                    cacheKeyParts.push(
+                      `runtime${hash(windowsRuntimeSha256)}`
                     );
                   }
                   const sourceHash = hash(
@@ -204,6 +216,37 @@ jobs:
                   pnpm embedded-mpv:build-runtime -- "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
                   pnpm embedded-mpv:stage-runtime -- "${{ matrix.embedded_mpv_platform }}" "${{ matrix.embedded_mpv_arch }}" "${RUNTIME_PREFIX}"
 
+            - name: Stage Windows embedded MPV runtime archive
+              if: matrix.os == 'windows' && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
+              shell: bash
+              env:
+                  IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL || '' }}
+                  IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || '' }}
+                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https://github.com/zhongfly/mpv-winbuild/releases/download/2026-06-14-7d245fd100/mpv-dev-lgpl-x86_64-20260614-git-7d245fd100.7z
+                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: a26e28fa55c15ac5b6209d8a9f9c3c8cb39649631a53d3c4774beeae559a078c
+              run: |
+                  set -euo pipefail
+
+                  WINDOWS_RUNTIME_URL="${IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL}"
+                  WINDOWS_RUNTIME_SHA256="${IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256}"
+                  if [ -z "${WINDOWS_RUNTIME_URL}" ] && [ -z "${WINDOWS_RUNTIME_SHA256}" ]; then
+                      case "${GITHUB_REF}" in
+                          refs/tags/v*)
+                              ;;
+                          *)
+                              WINDOWS_RUNTIME_URL="${IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL}"
+                              WINDOWS_RUNTIME_SHA256="${IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256}"
+                              ;;
+                      esac
+                  fi
+
+                  if [ -z "${WINDOWS_RUNTIME_URL}" ] || [ -z "${WINDOWS_RUNTIME_SHA256}" ]; then
+                      echo "::error::Windows Embedded MPV CI requires IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL and IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 repository variables or secrets."
+                      exit 1
+                  fi
+
+                  pnpm embedded-mpv:stage-runtime:windows-archive -- "${WINDOWS_RUNTIME_URL}" "${WINDOWS_RUNTIME_SHA256}"
+
             - name: Stage Linux embedded MPV build inputs
               if: matrix.os == 'linux'
               shell: bash
@@ -245,13 +288,13 @@ jobs:
               env:
                   IPTVNATOR_EMBEDDED_MPV_PLATFORM: ${{ matrix.embedded_mpv_platform || '' }}
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master'))) && '1' || '0' }}
               run: pnpm run build:backend
 
             - name: Verify embedded MPV build output
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: matrix.os == 'linux' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true'
+              if: matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master'))
               shell: bash
               run: |
                   set -euo pipefail
@@ -272,7 +315,7 @@ jobs:
                       test -f dist/apps/electron-backend/native/lib/libmpv.2.dylib || test -f dist/apps/electron-backend/native/lib/libmpv.dylib
                       ;;
                     win32)
-                      test -f dist/apps/electron-backend/native/lib/mpv-2.dll || test -f dist/apps/electron-backend/native/lib/mpv.dll
+                      test -f dist/apps/electron-backend/native/lib/mpv-2.dll || test -f dist/apps/electron-backend/native/lib/libmpv-2.dll || test -f dist/apps/electron-backend/native/lib/mpv.dll || test -f dist/apps/electron-backend/native/lib/libmpv.dll
                       ;;
                     linux)
                       node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'external-mpv-process') { throw new Error('Linux embedded MPV manifest must use external-mpv-process origin.'); }"
@@ -319,6 +362,21 @@ jobs:
                     const pkg = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
                     pkg.mac.target.arch = ['${{ matrix.arch }}'];
                     fs.writeFileSync('electron-builder.json', JSON.stringify(pkg, null, 4));
+                  "
+
+            - name: Override Windows arch in electron-builder.json
+              if: matrix.os == 'windows'
+              run: |
+                  node -e "
+                    const fs = require('fs');
+                    const pkg = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
+                    const targets = Array.isArray(pkg.win?.target) ? pkg.win.target : [];
+                    for (const target of targets) {
+                      if (target && typeof target === 'object') {
+                        target.arch = ['${{ matrix.embedded_mpv_arch }}'];
+                      }
+                    }
+                    fs.writeFileSync('electron-builder.json', JSON.stringify(pkg, null, 4) + '\n');
                   "
 
             - name: Validate macOS signing configuration
@@ -471,23 +529,23 @@ jobs:
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
                   # TEMPORARY PR TEST: change this back to '0' after manually
                   # testing the macOS PR artifact with Embedded MPV included.
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || (matrix.os == 'macos' && github.event_name == 'pull_request') || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && github.event_name == 'pull_request')) && '1' || '0' }}
               run: pnpm run make:app
 
             - name: Verify packaged worker layout
               shell: bash
               env:
                   PACKAGE_OS: ${{ matrix.os }}
-                  PACKAGE_ARCH: ${{ matrix.arch || '' }}
+                  PACKAGE_ARCH: ${{ matrix.arch || matrix.embedded_mpv_arch || '' }}
                   # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
                   # after the macOS Embedded MPV artifacts are built and manually tested.
-                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master')) || (steps.embedded-mpv-runtime-cache.outputs.cache-hit == 'true')) && '1' || '0' }}
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master'))) && '1' || '0' }}
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
 
             - name: Save embedded MPV runtime cache
               # TEMPORARY ARTIFACT TEST: remove `|| github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: matrix.embedded_mpv_build_runtime && !startsWith(github.ref, 'refs/tags/v') && github.repository == '4gray/iptvnator' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
+              if: matrix.embedded_mpv_platform && matrix.os != 'linux' && !startsWith(github.ref, 'refs/tags/v') && github.repository == '4gray/iptvnator' && github.event_name != 'pull_request' && github.ref == 'refs/heads/master' && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
               uses: actions/cache/save@v4
               with:
                   path: |
