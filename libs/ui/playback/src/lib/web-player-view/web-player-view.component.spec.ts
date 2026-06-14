@@ -458,6 +458,41 @@ describe('WebPlayerViewComponent', () => {
             directive: StubArtPlayerComponent,
         },
     ])(
+        'passes volume to $player inline player',
+        async ({ player, directive }) => {
+            fixture.componentRef.setInput('playerOverride', player);
+            fixture.componentRef.setInput('volume', 0.42);
+
+            fixture.detectChanges();
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const playerElement = fixture.debugElement.query(
+                By.directive(directive)
+            );
+            expect(playerElement).not.toBeNull();
+
+            const playerInstance = playerElement.componentInstance as {
+                volume: () => number;
+            };
+            expect(playerInstance.volume()).toBe(0.42);
+        }
+    );
+
+    it.each([
+        {
+            player: VideoPlayer.VideoJs,
+            directive: StubVjsPlayerComponent,
+        },
+        {
+            player: VideoPlayer.Html5Player,
+            directive: StubHtmlVideoPlayerComponent,
+        },
+        {
+            player: VideoPlayer.ArtPlayer,
+            directive: StubArtPlayerComponent,
+        },
+    ])(
         'passes series navigation to $player and forwards episode navigation events',
         async ({ player: selectedPlayer, directive }) => {
             const events: string[] = [];
