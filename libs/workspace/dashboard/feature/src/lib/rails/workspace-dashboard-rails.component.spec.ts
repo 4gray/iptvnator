@@ -2,22 +2,26 @@ import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { DEFAULT_DASHBOARD_RAILS_SETTINGS } from '@iptvnator/shared/interfaces';
 import {
     buildDashboardCollectionViewState,
+    buildDashboardRailSeeAllState,
+    buildDashboardSourceActions,
+    liveRailTitleKeyForSource,
+    shouldShowRecentContentSkeleton,
+} from './dashboard-rail.utils';
+import {
     buildDashboardLiveEpgDetails,
     buildLiveEpgCardsForEnabledRails,
     buildLiveEpgLookupKeys,
-    buildPlaybackPositionReloadKey,
-    buildDashboardSourceActions,
     calcEpgProgress,
     formatEpgTimeRange,
-    formatRemainingLabel,
     getLiveEpgProgramForCard,
+} from './dashboard-live-epg.utils';
+import {
+    buildPlaybackPositionReloadKey,
+    formatRemainingLabel,
     isContinueWatchingRecentItem,
-    liveRailTitleKeyForSource,
     playbackProgressPercent,
-    resolveDashboardHeroArtwork,
-    buildDashboardRailSeeAllState,
-    shouldShowRecentContentSkeleton,
-} from './workspace-dashboard-rails.component';
+} from './dashboard-playback.utils';
+import { resolveDashboardHeroArtwork } from './dashboard-hero.utils';
 import type { DashboardRailCard } from './dashboard-rail.component';
 import { COLLECTION_VIEW_STATE_KEY } from '@iptvnator/portal/shared/util';
 
@@ -516,9 +520,7 @@ describe('playback-position helpers', () => {
     describe('formatRemainingLabel', () => {
         it('returns null without a usable position/duration', () => {
             expect(formatRemainingLabel(null)).toBeNull();
-            expect(
-                formatRemainingLabel({ positionSeconds: 100 })
-            ).toBeNull();
+            expect(formatRemainingLabel({ positionSeconds: 100 })).toBeNull();
             expect(
                 formatRemainingLabel({
                     positionSeconds: 100,
