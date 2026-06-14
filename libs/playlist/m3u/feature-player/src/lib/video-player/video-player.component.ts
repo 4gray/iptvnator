@@ -274,13 +274,13 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     showChannelNumberOverlay = false;
     private channelNumberTimeout?: number;
 
-    volume = 1;
+    readonly volume = signal(1);
 
     constructor() {
         // Initialize volume from localStorage in constructor
         const savedVolume = localStorage.getItem('volume');
         if (savedVolume !== null) {
-            this.volume = Number(savedVolume);
+            this.volume.set(Number(savedVolume));
         }
 
         // React to settings changes
@@ -434,8 +434,8 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 epgStart: currentEpgProgram?.start,
                 epgEnd: currentEpgProgram?.stop,
                 supportsVolume: true,
-                volume: this.volume,
-                muted: this.volume === 0,
+                volume: this.volume(),
+                muted: this.volume() === 0,
             });
         });
     }
@@ -788,14 +788,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
 
         if (command.type === 'volume-up') {
-            this.setVolume(this.volume + 0.1);
+            this.setVolume(this.volume() + 0.1);
         } else if (command.type === 'volume-down') {
-            this.setVolume(this.volume - 0.1);
+            this.setVolume(this.volume() - 0.1);
         } else if (command.type === 'volume-toggle-mute') {
-            if (this.volume === 0) {
+            if (this.volume() === 0) {
                 this.setVolume(this.lastKnownVolume || 1);
             } else {
-                this.lastKnownVolume = this.volume;
+                this.lastKnownVolume = this.volume();
                 this.setVolume(0);
             }
         }
@@ -803,7 +803,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     private setVolume(next: number): void {
         const clamped = Math.max(0, Math.min(1, Number(next.toFixed(2))));
-        this.volume = clamped;
+        this.volume.set(clamped);
         if (clamped > 0) {
             this.lastKnownVolume = clamped;
         }
@@ -815,10 +815,14 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 portal: 'm3u',
                 isLiveView: true,
                 supportsVolume: true,
-                volume: this.volume,
-                muted: this.volume === 0,
+                volume: this.volume(),
+                muted: this.volume() === 0,
             });
         }
+    }
+
+    onInlineVolumeChange(volume: number): void {
+        this.setVolume(volume);
     }
 
     private get remoteControlBridge(): Window['electron'] | undefined {

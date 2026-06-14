@@ -1,0 +1,9 @@
+<div class="art-player-shell">
+    <div #artplayer class="artplayer-container"></div>
+
+    <app-series-playback-navigation-controls
+        [navigation]="seriesNavigation"
+        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+    />
+</div>

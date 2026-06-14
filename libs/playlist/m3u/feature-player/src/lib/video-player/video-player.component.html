@@ -70,6 +70,8 @@
                         [channelName]="
                             activeChannel.name || activeChannel?.tvg?.name || ''
                         "
+                        [volume]="volume()"
+                        (volumeChange)="onInlineVolumeChange($event)"
                     />
                 } @else {
                     <app-web-player-view
@@ -77,7 +79,7 @@
                         [title]="embeddedPlayback()?.title ?? ''"
                         [playback]="embeddedPlayback()"
                         [playerOverride]="playerSettings.player ?? null"
-                        [volume]="volume"
+                        [volume]="volume()"
                         [showCaptions]="!!playerSettings.showCaptions"
                         (externalFallbackRequested)="
                             handleExternalFallbackRequest($event)
