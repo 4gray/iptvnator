@@ -96,6 +96,7 @@ export class DashboardRailComponent implements AfterViewInit, OnDestroy {
     readonly label = input.required<string>();
     readonly items = input.required<DashboardRailCard[]>();
     readonly seeAllLink = input<string[] | null>(null);
+    readonly seeAllState = input<Record<string, unknown> | null>(null);
     readonly aspectRatio = input<string>('2 / 3');
     readonly layout = input<DashboardRailLayout>('cover');
     readonly testId = input<string | null>(null);

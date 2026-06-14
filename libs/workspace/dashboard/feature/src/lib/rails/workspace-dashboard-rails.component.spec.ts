@@ -1,5 +1,7 @@
 import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
 import {
+    buildDashboardCollectionViewState,
+    buildDashboardLiveEpgDetails,
     buildLiveEpgLookupKeys,
     buildPlaybackPositionReloadKey,
     buildDashboardSourceActions,
@@ -7,11 +9,14 @@ import {
     formatEpgTimeRange,
     formatRemainingLabel,
     getLiveEpgProgramForCard,
+    isContinueWatchingRecentItem,
     liveRailTitleKeyForSource,
     playbackProgressPercent,
     resolveDashboardHeroArtwork,
+    buildDashboardRailSeeAllState,
 } from './workspace-dashboard-rails.component';
 import type { DashboardRailCard } from './dashboard-rail.component';
+import { COLLECTION_VIEW_STATE_KEY } from '@iptvnator/portal/shared/util';
 
 describe('buildDashboardSourceActions', () => {
     const basePlaylist = {
@@ -204,6 +209,31 @@ describe('EPG enrichment helpers', () => {
             ).toBeNull();
         });
     });
+
+    describe('buildDashboardLiveEpgDetails', () => {
+        it('builds the current programme details used by the live hero banner', () => {
+            const program = baseProgram({ title: 'Market Open' });
+            const start = program.startTimestamp as number;
+            const stop = program.stopTimestamp as number;
+            const now = start + (stop - start) / 4;
+
+            expect(buildDashboardLiveEpgDetails(program, now)).toMatchObject({
+                nowPlayingTitle: 'Market Open',
+                nowPlayingTimeRange: expect.stringMatching(
+                    /^\d{2}:\d{2} – \d{2}:\d{2}$/
+                ),
+                nowPlayingProgress: 25,
+            });
+        });
+    });
+});
+
+describe('Continue watching helpers', () => {
+    it('keeps live TV out of the Continue Watching rail', () => {
+        expect(isContinueWatchingRecentItem({ type: 'movie' })).toBe(true);
+        expect(isContinueWatchingRecentItem({ type: 'series' })).toBe(true);
+        expect(isContinueWatchingRecentItem({ type: 'live' })).toBe(false);
+    });
 });
 
 describe('Live rail helpers', () => {
@@ -263,8 +293,51 @@ describe('Live rail helpers', () => {
             'WORKSPACE.DASHBOARD.LIVE_FAVORITES'
         );
         expect(liveRailTitleKeyForSource('recent')).toBe(
-            'WORKSPACE.DASHBOARD.LIVE_RECENT'
+            'WORKSPACE.DASHBOARD.RECENTLY_WATCHED_LIVE_TV'
         );
+    });
+
+    it('builds collection view state for dashboard rail see-all links', () => {
+        expect(buildDashboardCollectionViewState('movie')).toEqual({
+            [COLLECTION_VIEW_STATE_KEY]: {
+                selectedContentType: 'movie',
+            },
+        });
+        expect(buildDashboardCollectionViewState('series')).toEqual({
+            [COLLECTION_VIEW_STATE_KEY]: {
+                selectedContentType: 'series',
+            },
+        });
+    });
+
+    it('builds see-all state from the first card content type in mixed rails', () => {
+        expect(
+            buildDashboardRailSeeAllState([
+                channelCard({ contentType: 'live' }),
+                channelCard({
+                    id: 'movie-card',
+                    title: 'Movie',
+                    contentType: 'movie',
+                }),
+            ])
+        ).toEqual({
+            [COLLECTION_VIEW_STATE_KEY]: {
+                selectedContentType: 'live',
+            },
+        });
+        expect(
+            buildDashboardRailSeeAllState([
+                channelCard({
+                    id: 'series-card',
+                    title: 'Series',
+                    contentType: 'series',
+                }),
+            ])
+        ).toEqual({
+            [COLLECTION_VIEW_STATE_KEY]: {
+                selectedContentType: 'series',
+            },
+        });
     });
 
     it('builds a stable playback-position reload key from VOD and series items only', () => {

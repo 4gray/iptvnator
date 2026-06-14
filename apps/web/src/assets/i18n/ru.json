@@ -377,7 +377,24 @@
         "PORT_PATTERN": "Разрешены только цифры",
         "REMOVE_ALL_IN_PROGRESS": "Deleting playlist data…",
         "REMOVE_ALL_PROGRESS": "Deleting playlist data… {{current}} / {{total}}",
-        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
+        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again.",
+        "NAV_DASHBOARD": "Панель",
+        "DASHBOARD": "Панель",
+        "DASHBOARD_SUBTITLE": "Выберите, какие секции отображаются на панели рабочего пространства.",
+        "DASHBOARD_HERO": "Верхний баннер",
+        "DASHBOARD_HERO_DESCRIPTION": "Показывать большой верхний баннер для последнего элемента.",
+        "DASHBOARD_RAIL_CONTINUE": "Продолжить просмотр",
+        "DASHBOARD_RAIL_CONTINUE_DESCRIPTION": "Показывать недавно просмотренные фильмы и сериалы в виде обложек.",
+        "DASHBOARD_RAIL_LIVE_FAVORITES": "Сейчас в эфире на избранных каналах",
+        "DASHBOARD_RAIL_LIVE_FAVORITES_DESCRIPTION": "Показывать избранные live-каналы с текущим прогрессом EPG.",
+        "DASHBOARD_RAIL_RECENT_LIVE": "Недавно просмотренное прямое ТВ",
+        "DASHBOARD_RAIL_RECENT_LIVE_DESCRIPTION": "Показывать live-каналы, которые вы недавно открывали, с текущим прогрессом EPG.",
+        "DASHBOARD_RAIL_FAVORITE_VOD": "Избранные фильмы и сериалы",
+        "DASHBOARD_RAIL_FAVORITE_VOD_DESCRIPTION": "Показывать избранные фильмы и сериалы в виде обложек.",
+        "DASHBOARD_RAIL_SOURCES": "Недавно использованные источники",
+        "DASHBOARD_RAIL_SOURCES_DESCRIPTION": "Показывать быстрый доступ к недавно использованным плейлистам и порталам.",
+        "DASHBOARD_RAIL_XTREAM_ADDED": "Недавно добавленное на Xtream",
+        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Показывать новые фильмы, сериалы и каналы Xtream."
     },
     "THEMES": {
         "DARK_THEME": "Тёмная",
@@ -890,7 +907,9 @@
             "TYPE_MOVIE": "Фильм",
             "TYPE_SERIES": "Сериал",
             "SEASON_EPISODE_BADGE": "С{{season}}·Э{{episode}}",
-            "NOT_YET_SYNCED": "Еще не синхронизировано"
+            "NOT_YET_SYNCED": "Еще не синхронизировано",
+            "RECENTLY_WATCHED_LIVE_TV": "Недавно просмотренное прямое ТВ",
+            "FAVORITE_MOVIES_AND_SERIES": "Избранные фильмы и сериалы"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

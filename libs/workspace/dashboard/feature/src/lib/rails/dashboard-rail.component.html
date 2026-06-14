@@ -12,6 +12,7 @@
             <a
                 class="rail__see-all"
                 [routerLink]="link"
+                [state]="seeAllState() ?? {}"
                 [attr.data-test-id]="testId() ? testId() + '-manage-all' : null"
             >
                 <span class="rail__see-all-label">

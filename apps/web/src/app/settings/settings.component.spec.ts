@@ -58,6 +58,16 @@ import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from '../services/settings.service';
 import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
 
+const DEFAULT_DASHBOARD_RAILS = {
+    hero: true,
+    continueWatching: true,
+    liveFavorites: true,
+    recentlyWatchedLive: true,
+    favoriteMoviesAndSeries: true,
+    recentSources: true,
+    xtreamRecentlyAdded: true,
+};
+
 class MatSnackBarStub {
     open = jest.fn();
 }
@@ -89,6 +99,7 @@ const DEFAULT_SETTINGS = {
     epgUrl: [],
     recordingFolder: '',
     coverSize: 'medium',
+    dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
 };
 
@@ -1107,7 +1118,7 @@ describe('SettingsComponent', () => {
         });
     });
 
-    it('renders workspace startup controls with the expected defaults', () => {
+    it('renders dashboard controls with the expected defaults', () => {
         const nativeElement = fixture.nativeElement as HTMLElement;
 
         expect(
@@ -1115,10 +1126,58 @@ describe('SettingsComponent', () => {
                 '[data-test-id="toggle-show-dashboard"]'
             )
         ).not.toBeNull();
+        expect(
+            nativeElement.querySelector(
+                '[data-test-id="toggle-dashboard-hero"]'
+            )
+        ).not.toBeNull();
+        expect(
+            nativeElement.querySelector(
+                '[data-test-id="toggle-dashboard-rail-live-favorites"]'
+            )
+        ).not.toBeNull();
+        expect(
+            nativeElement.querySelector(
+                '[data-test-id="toggle-dashboard-rail-recently-watched-live"]'
+            )
+        ).not.toBeNull();
+        expect(
+            nativeElement.querySelector(
+                '[data-test-id="toggle-dashboard-rail-favorite-movies-and-series"]'
+            )
+        ).not.toBeNull();
         expect(component.settingsForm.value.showDashboard).toBe(true);
+        expect(component.settingsForm.value.dashboardRails).toEqual(
+            DEFAULT_DASHBOARD_RAILS
+        );
         expect(component.settingsForm.value.startupBehavior).toBe(
             StartupBehavior.FirstView
         );
+    });
+
+    it('disables dashboard surface controls when the dashboard is off', async () => {
+        const showDashboard = component.settingsForm.get('showDashboard');
+        const dashboardRails = component.settingsForm.get('dashboardRails');
+
+        showDashboard?.setValue(false);
+        await fixture.whenStable();
+
+        expect(dashboardRails?.disabled).toBe(true);
+        expect(
+            component.settingsForm.get('dashboardRails.hero')?.disabled
+        ).toBe(true);
+        expect(
+            component.settingsForm.get('dashboardRails.continueWatching')
+                ?.disabled
+        ).toBe(true);
+
+        showDashboard?.setValue(true);
+        await fixture.whenStable();
+
+        expect(dashboardRails?.enabled).toBe(true);
+        expect(
+            component.settingsForm.get('dashboardRails.hero')?.enabled
+        ).toBe(true);
     });
 
     it('should save settings on submit', async () => {

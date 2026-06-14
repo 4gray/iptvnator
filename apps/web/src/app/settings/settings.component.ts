@@ -4,11 +4,13 @@ import {
     computed,
     inject,
     Input,
+    DestroyRef,
     OnDestroy,
     OnInit,
     signal,
     ViewEncapsulation,
 } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import {
     FormArray,
     FormBuilder,
@@ -51,8 +53,10 @@ import {
 import {
     EmbeddedMpvSupport,
     CoverSize,
+    DEFAULT_DASHBOARD_RAILS_SETTINGS,
     Language,
     normalizeExternalPlayerArguments,
+    normalizeDashboardRailsSettings,
     Settings,
     StartupBehavior,
     StreamFormat,
@@ -63,6 +67,7 @@ import { SettingsStore } from '../services/settings-store.service';
 import { SettingsService } from './../services/settings.service';
 import { SettingsAboutSectionComponent } from './settings-about-section.component';
 import { SettingsBackupSectionComponent } from './settings-backup-section.component';
+import { SettingsDashboardSectionComponent } from './settings-dashboard-section.component';
 import {
     SettingsDeleteAllPlaylistsDialogComponent,
     SettingsDeleteAllPlaylistsDialogData,
@@ -103,6 +108,7 @@ import { SettingsSectionScrollDirective } from './settings-section-scroll.direct
         MatDialogModule,
         SettingsAboutSectionComponent,
         SettingsBackupSectionComponent,
+        SettingsDashboardSectionComponent,
         SettingsEpgSectionComponent,
         SettingsGeneralSectionComponent,
         SettingsPlaybackSectionComponent,
@@ -116,6 +122,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     public dataService = inject(DataService);
     private epgService = inject(EpgService);
     private formBuilder = inject(FormBuilder);
+    private destroyRef = inject(DestroyRef);
     private playlistsService = inject(PlaylistsService);
     private router = inject(Router);
     private settingsService = inject(SettingsService);
@@ -204,6 +211,19 @@ export class SettingsComponent implements OnInit, OnDestroy {
         language: Language.ENGLISH,
         showCaptions: false,
         showDashboard: true,
+        dashboardRails: this.formBuilder.group({
+            hero: DEFAULT_DASHBOARD_RAILS_SETTINGS.hero,
+            continueWatching:
+                DEFAULT_DASHBOARD_RAILS_SETTINGS.continueWatching,
+            liveFavorites: DEFAULT_DASHBOARD_RAILS_SETTINGS.liveFavorites,
+            recentlyWatchedLive:
+                DEFAULT_DASHBOARD_RAILS_SETTINGS.recentlyWatchedLive,
+            favoriteMoviesAndSeries:
+                DEFAULT_DASHBOARD_RAILS_SETTINGS.favoriteMoviesAndSeries,
+            recentSources: DEFAULT_DASHBOARD_RAILS_SETTINGS.recentSources,
+            xtreamRecentlyAdded:
+                DEFAULT_DASHBOARD_RAILS_SETTINGS.xtreamRecentlyAdded,
+        }),
         startupBehavior: StartupBehavior.FirstView,
         showExternalPlaybackBar: true,
         theme: Theme.SystemTheme,
@@ -303,6 +323,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         // Wait for settings to load before setting the form
         await this.settingsStore.loadSettings();
         this.setSettings();
+        this.bindDashboardControlsEnabledState();
         void this.loadEmbeddedMpvSupport();
         this.checkAppVersion();
         void this.fetchLocalIpAddresses();
@@ -378,10 +399,35 @@ export class SettingsComponent implements OnInit, OnDestroy {
     setSettings() {
         const currentSettings = this.settingsStore.getSettings();
         this.settingsForm.patchValue(currentSettings);
+        this.syncDashboardControlsEnabledState(
+            currentSettings.showDashboard ?? true
+        );
 
         if (this.supportsEpg && currentSettings.epgUrl) {
             this.epgUrl.clear();
             this.setEpgUrls(currentSettings.epgUrl);
+        }
+    }
+
+    private bindDashboardControlsEnabledState(): void {
+        this.settingsForm
+            .get('showDashboard')
+            ?.valueChanges.pipe(takeUntilDestroyed(this.destroyRef))
+            .subscribe((showDashboard) =>
+                this.syncDashboardControlsEnabledState(showDashboard ?? true)
+            );
+    }
+
+    private syncDashboardControlsEnabledState(showDashboard: boolean): void {
+        const dashboardRails = this.settingsForm.get('dashboardRails');
+        if (!dashboardRails) {
+            return;
+        }
+
+        if (showDashboard) {
+            dashboardRails.enable({ emitEvent: false });
+        } else {
+            dashboardRails.disable({ emitEvent: false });
         }
     }
 
@@ -519,7 +565,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     private createSettingsFromFormValue(): Settings {
         const currentSettings = this.settingsStore.getSettings();
-        const value = this.settingsForm.value;
+        const value = this.settingsForm.getRawValue();
         const epgUrl = Array.isArray(value.epgUrl)
             ? value.epgUrl.filter(
                   (url): url is string => typeof url === 'string'
@@ -533,6 +579,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
             language: value.language ?? Language.ENGLISH,
             showCaptions: value.showCaptions ?? false,
             showDashboard: value.showDashboard ?? true,
+            dashboardRails: normalizeDashboardRailsSettings(
+                value.dashboardRails
+            ),
             startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
             showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
             theme: value.theme ?? Theme.SystemTheme,

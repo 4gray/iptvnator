@@ -377,7 +377,24 @@
         "PORT_PATTERN": "Dozwolone są tylko cyfry",
         "REMOVE_ALL_IN_PROGRESS": "Deleting playlist data…",
         "REMOVE_ALL_PROGRESS": "Deleting playlist data… {{current}} / {{total}}",
-        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
+        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again.",
+        "NAV_DASHBOARD": "Dashboard",
+        "DASHBOARD": "Dashboard",
+        "DASHBOARD_SUBTITLE": "Choose which dashboard rails are shown in the workspace.",
+        "DASHBOARD_HERO": "Hero banner",
+        "DASHBOARD_HERO_DESCRIPTION": "Show the large top banner for your most recent item.",
+        "DASHBOARD_RAIL_CONTINUE": "Continue Watching",
+        "DASHBOARD_RAIL_CONTINUE_DESCRIPTION": "Show recently watched movies and series as cover cards.",
+        "DASHBOARD_RAIL_LIVE_FAVORITES": "Live now on your favorites",
+        "DASHBOARD_RAIL_LIVE_FAVORITES_DESCRIPTION": "Show favorite live channels with current EPG progress.",
+        "DASHBOARD_RAIL_RECENT_LIVE": "Recently watched live TV",
+        "DASHBOARD_RAIL_RECENT_LIVE_DESCRIPTION": "Show live channels you opened recently with current EPG progress.",
+        "DASHBOARD_RAIL_FAVORITE_VOD": "Favorite movies & series",
+        "DASHBOARD_RAIL_FAVORITE_VOD_DESCRIPTION": "Show favorited movies and series as cover cards.",
+        "DASHBOARD_RAIL_SOURCES": "Recently used sources",
+        "DASHBOARD_RAIL_SOURCES_DESCRIPTION": "Show shortcuts to your most recently used playlists and portals.",
+        "DASHBOARD_RAIL_XTREAM_ADDED": "Recently added on Xtream",
+        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Show the newest Xtream movies, series, and channels."
     },
     "THEMES": {
         "DARK_THEME": "Ciemny",
@@ -890,7 +907,9 @@
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Serial",
             "SEASON_EPISODE_BADGE": "S{{season}}·O{{episode}}",
-            "NOT_YET_SYNCED": "Jeszcze niezsynchronizowane"
+            "NOT_YET_SYNCED": "Jeszcze niezsynchronizowane",
+            "RECENTLY_WATCHED_LIVE_TV": "Recently watched live TV",
+            "FAVORITE_MOVIES_AND_SERIES": "Favorite movies & series"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

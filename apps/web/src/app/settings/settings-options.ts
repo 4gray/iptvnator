@@ -114,6 +114,12 @@ export function buildSettingsSectionNavItems({
             visible: supportsEpg,
         },
         {
+            id: 'dashboard',
+            label: 'SETTINGS.NAV_DASHBOARD',
+            icon: 'dashboard',
+            visible: true,
+        },
+        {
             // Must match the section's HTML id (`remote-control`) so the
             // settings-section-scroll directive can resolve the anchor.
             // Was previously '@iptvnator/ui/remote-control' (the NX lib
