@@ -1,9 +1,10 @@
-import { app, BrowserWindow, Menu, screen, shell } from 'electron';
+import { app, BrowserWindow, Menu, screen, session, shell } from 'electron';
 import { WINDOW_STATE_CHANGED } from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
 import {
+    isStartupTraceEnabled,
     isRendererConsoleTraceEnabled,
     isWindowTraceEnabled,
     trace,
@@ -86,6 +87,30 @@ export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructor
         backgroundThrottling: false,
         preload: join(__dirname, 'main.preload.js'),
     };
+}
+
+export async function clearElectronServiceWorkerStorage(
+    electronSession: Pick<Electron.Session, 'clearStorageData'> = session.defaultSession
+): Promise<void> {
+    try {
+        await electronSession.clearStorageData({
+            storages: ['serviceworkers', 'cachestorage'],
+        });
+
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'electron-service-worker-storage:cleared');
+        }
+    } catch (error) {
+        console.warn('Failed to clear Electron service worker storage:', error);
+
+        if (isStartupTraceEnabled()) {
+            trace(
+                'startup',
+                'electron-service-worker-storage:clear-failed',
+                error
+            );
+        }
+    }
 }
 
 function attachWindowTrace(mainWindow: Electron.BrowserWindow): void {
@@ -211,7 +236,9 @@ export default class App {
         // Some APIs can only be used after this event occurs.
         if (rendererAppName) {
             App.initMainWindow();
-            App.loadMainWindow();
+            void App.loadMainWindow().catch((error) => {
+                console.error('Failed to load main window:', error);
+            });
         }
     }
 
@@ -382,15 +409,19 @@ export default class App {
         });
     }
 
-    private static loadMainWindow() {
+    private static async loadMainWindow(): Promise<void> {
         // load the index.html of the app.
         if (App.isDevelopmentMode()) {
-            App.mainWindow.loadURL(`http://localhost:${rendererAppPort}`);
+            const loadPromise = App.mainWindow.loadURL(
+                `http://localhost:${rendererAppPort}`
+            );
             if (App.shouldOpenDevTools()) {
                 App.mainWindow.webContents.openDevTools();
             }
+            await loadPromise;
         } else {
-            App.mainWindow.loadFile(getPackagedRendererIndexPath());
+            await clearElectronServiceWorkerStorage();
+            await App.mainWindow.loadFile(getPackagedRendererIndexPath());
         }
     }
 

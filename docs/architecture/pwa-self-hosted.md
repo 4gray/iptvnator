@@ -44,6 +44,15 @@ Angular also emits hashed font and media assets under `dist/apps/web/media/`.
 Keep `/media/**` in `ngsw-config.json` so the PWA service worker can cache
 bundled fonts, including Material Icons.
 
+The Angular service worker is a browser/PWA feature only. Packaged Electron
+loads the same Angular production bundle from `file://.../app.asar/web`, but it
+must not register `ngsw-worker.js`; otherwise a desktop update can leave the
+first Electron window controlled by a stale file-origin service worker and serve
+old chunks from Electron `userData`. Electron clears legacy `serviceworkers` and
+`cachestorage` storage from its default session before loading the packaged
+renderer so existing desktop installs recover on the next startup without
+clearing unrelated app storage.
+
 `web:serve-static` serves `dist/apps/web` and builds with `web:build:pwa`, so it
 exercises the same output layout as Docker. If Nx daemon state returns stale
 service worker outputs while changing build options, run:

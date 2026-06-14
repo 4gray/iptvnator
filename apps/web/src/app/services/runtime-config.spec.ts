@@ -36,4 +36,42 @@ describe('runtime config helpers', () => {
         ).toBe(false);
         expect(shouldEnableServiceWorker(true, {} as Navigator)).toBe(false);
     });
+
+    it('disables service worker for Electron runtime', () => {
+        expect(
+            shouldEnableServiceWorker(
+                true,
+                { serviceWorker: {} } as Navigator,
+                {
+                    electronBridge: {},
+                    protocol: 'file:',
+                }
+            )
+        ).toBe(false);
+    });
+
+    it('disables service worker for Electron runtime on non-file origins', () => {
+        expect(
+            shouldEnableServiceWorker(
+                true,
+                { serviceWorker: {} } as Navigator,
+                {
+                    electronBridge: {},
+                    protocol: 'https:',
+                }
+            )
+        ).toBe(false);
+    });
+
+    it('disables service worker for file origins without an Electron bridge', () => {
+        expect(
+            shouldEnableServiceWorker(
+                true,
+                { serviceWorker: {} } as Navigator,
+                {
+                    protocol: 'file:',
+                }
+            )
+        ).toBe(false);
+    });
 });
