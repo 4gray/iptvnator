@@ -7,8 +7,11 @@ import { DialogService } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
 import {
     ELECTRON_BRIDGE_SECURITY_ERROR_CODES,
+    ERROR,
     PLAYLIST_PARSE_BY_URL,
     SECURITY_ERROR_PREFIX,
+    XTREAM_REQUEST,
+    XtreamCodeActions,
 } from '@iptvnator/shared/interfaces';
 import { ElectronService } from './electron.service';
 
@@ -18,6 +21,7 @@ describe('ElectronService', () => {
         fetchPlaylistByUrl: jest.Mock;
         openInMpv: jest.Mock;
         openInVlc: jest.Mock;
+        xtreamRequest: jest.Mock;
     };
     let snackBar: { open: jest.Mock };
     let service: ElectronService;
@@ -29,6 +33,7 @@ describe('ElectronService', () => {
             fetchPlaylistByUrl: jest.fn(),
             openInMpv: jest.fn().mockResolvedValue(session),
             openInVlc: jest.fn().mockResolvedValue(session),
+            xtreamRequest: jest.fn(),
         };
         snackBar = {
             open: jest.fn(() => ({
@@ -169,5 +174,30 @@ describe('ElectronService', () => {
                 'User-Agent': 'FallbackAgent/1.0',
             }
         );
+    });
+
+    it('keeps structured background Xtream failures silent', async () => {
+        electronBridge.xtreamRequest.mockResolvedValue({
+            type: ERROR,
+            message: 'Request failed with status code 520',
+            status: 520,
+        });
+
+        const result = await service.sendIpcEvent(XTREAM_REQUEST, {
+            url: 'https://provider.example',
+            params: {
+                action: XtreamCodeActions.GetShortEpg,
+                username: 'user',
+                password: 'secret',
+            },
+            suppressErrorLog: true,
+        });
+
+        expect(result).toEqual({
+            type: ERROR,
+            message: 'Request failed with status code 520',
+            status: 520,
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
     });
 });
