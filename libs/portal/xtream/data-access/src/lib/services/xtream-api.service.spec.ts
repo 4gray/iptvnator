@@ -248,4 +248,24 @@ describe('XtreamApiService', () => {
         expect(shortItems[0].start_timestamp).toBe(fullItems[0].start_timestamp);
         expect(shortItems[0].stop_timestamp).toBe(fullItems[0].stop_timestamp);
     });
+
+    it('preserves cancellation metadata from structured IPC errors', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            type: 'ERROR',
+            name: 'AbortError',
+            message: 'Xtream request cancelled',
+            status: 499,
+        });
+
+        await expect(
+            service.getLiveStreams(credentials, {
+                sessionId: 'session-1',
+                suppressErrorLog: true,
+            })
+        ).rejects.toMatchObject({
+            name: 'AbortError',
+            message: 'Xtream request cancelled',
+            status: 499,
+        });
+    });
 });

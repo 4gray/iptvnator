@@ -200,4 +200,32 @@ describe('ElectronService', () => {
         });
         expect(snackBar.open).not.toHaveBeenCalled();
     });
+
+    it('preserves structured Xtream cancellation metadata', async () => {
+        electronBridge.xtreamRequest.mockResolvedValue({
+            type: ERROR,
+            name: 'AbortError',
+            message: 'Xtream request cancelled',
+            status: 499,
+        });
+
+        const result = await service.sendIpcEvent(XTREAM_REQUEST, {
+            url: 'https://provider.example',
+            params: {
+                action: XtreamCodeActions.GetLiveStreams,
+                username: 'user',
+                password: 'secret',
+            },
+            sessionId: 'session-1',
+            suppressErrorLog: true,
+        });
+
+        expect(result).toEqual({
+            type: ERROR,
+            name: 'AbortError',
+            message: 'Xtream request cancelled',
+            status: 499,
+        });
+        expect(snackBar.open).not.toHaveBeenCalled();
+    });
 });

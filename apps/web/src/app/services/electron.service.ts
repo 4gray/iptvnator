@@ -40,6 +40,7 @@ interface PlayerLaunchPayload {
 
 interface ErrorStatus {
     readonly message?: string;
+    readonly name?: string;
     readonly status?: number;
 }
 
@@ -614,6 +615,7 @@ export class ElectronService extends DataService {
 
             return {
                 type: ERROR,
+                ...(errorInfo?.name ? { name: errorInfo.name } : {}),
                 status: errorInfo?.status ?? 500,
                 message: normalizedMessage,
             };
