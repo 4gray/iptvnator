@@ -1,7 +1,9 @@
 import type { EpgProgram, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { DEFAULT_DASHBOARD_RAILS_SETTINGS } from '@iptvnator/shared/interfaces';
 import {
     buildDashboardCollectionViewState,
     buildDashboardLiveEpgDetails,
+    buildLiveEpgCardsForEnabledRails,
     buildLiveEpgLookupKeys,
     buildPlaybackPositionReloadKey,
     buildDashboardSourceActions,
@@ -14,6 +16,7 @@ import {
     playbackProgressPercent,
     resolveDashboardHeroArtwork,
     buildDashboardRailSeeAllState,
+    shouldShowRecentContentSkeleton,
 } from './workspace-dashboard-rails.component';
 import type { DashboardRailCard } from './dashboard-rail.component';
 import { COLLECTION_VIEW_STATE_KEY } from '@iptvnator/portal/shared/util';
@@ -353,6 +356,108 @@ describe('Live rail helpers', () => {
 
         expect(first).toBe(second);
         expect(first).toBe('a::movie::10|b::series::20');
+    });
+
+    it('omits hero cards from live EPG lookup sources when the hero rail is disabled', () => {
+        const hero = channelCard({ id: 'hero', epgLookupKey: 'hero' });
+        const favorite = channelCard({
+            id: 'favorite',
+            epgLookupKey: 'favorite',
+        });
+        const recent = channelCard({ id: 'recent', epgLookupKey: 'recent' });
+
+        expect(
+            buildLiveEpgCardsForEnabledRails(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    hero: false,
+                },
+                hero,
+                [favorite],
+                [recent]
+            ).map((card) => card.id)
+        ).toEqual(['favorite', 'recent']);
+    });
+
+    it('omits disabled live rails from live EPG lookup sources', () => {
+        const hero = channelCard({ id: 'hero', epgLookupKey: 'hero' });
+        const favorite = channelCard({
+            id: 'favorite',
+            epgLookupKey: 'favorite',
+        });
+        const recent = channelCard({ id: 'recent', epgLookupKey: 'recent' });
+
+        expect(
+            buildLiveEpgCardsForEnabledRails(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    liveFavorites: false,
+                    recentlyWatchedLive: false,
+                },
+                hero,
+                [favorite],
+                [recent]
+            ).map((card) => card.id)
+        ).toEqual(['hero']);
+    });
+});
+
+describe('recent content skeleton helper', () => {
+    it('shows the loading skeleton for Continue Watching when recently watched live is disabled', () => {
+        expect(
+            shouldShowRecentContentSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    recentlyWatchedLive: false,
+                },
+                {
+                    continueWatchingCount: 0,
+                    recentLiveCount: 0,
+                    globalRecentLoading: true,
+                }
+            )
+        ).toBe(true);
+    });
+
+    it('shows the loading skeleton for recently watched live when Continue Watching is disabled', () => {
+        expect(
+            shouldShowRecentContentSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                },
+                {
+                    continueWatchingCount: 0,
+                    recentLiveCount: 0,
+                    globalRecentLoading: true,
+                }
+            )
+        ).toBe(true);
+    });
+
+    it('hides the loading skeleton when no enabled recent rail is waiting for data', () => {
+        expect(
+            shouldShowRecentContentSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    continueWatching: false,
+                    recentlyWatchedLive: false,
+                },
+                {
+                    continueWatchingCount: 0,
+                    recentLiveCount: 0,
+                    globalRecentLoading: true,
+                }
+            )
+        ).toBe(false);
+
+        expect(
+            shouldShowRecentContentSkeleton(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                continueWatchingCount: 1,
+                recentLiveCount: 1,
+                globalRecentLoading: true,
+            })
+        ).toBe(false);
     });
 });
 

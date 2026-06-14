@@ -240,13 +240,7 @@
             />
         }
 
-        @if (
-            dashboardRails().continueWatching &&
-            dashboardRails().recentlyWatchedLive &&
-            continueWatchingCards().length === 0 &&
-            recentLiveCards().length === 0 &&
-            data.globalRecentLoading()
-        ) {
+        @if (showRecentContentSkeleton()) {
             <section
                 class="rails-page__skeleton-rail"
                 aria-hidden="true"

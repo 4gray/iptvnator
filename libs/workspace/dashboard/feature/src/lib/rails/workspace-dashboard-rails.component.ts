@@ -11,7 +11,8 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { interval, of, startWith, switchMap } from 'rxjs';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
-    EpgProgram,
+    type DashboardRailsSettings,
+    type EpgProgram,
     normalizeDashboardRailsSettings,
 } from '@iptvnator/shared/interfaces';
 import { MatButtonModule } from '@angular/material/button';
@@ -323,6 +324,24 @@ export function buildLiveEpgLookupKeys(
     return keys;
 }
 
+type DashboardLiveEpgRailSettings = Pick<
+    DashboardRailsSettings,
+    'hero' | 'liveFavorites' | 'recentlyWatchedLive'
+>;
+
+export function buildLiveEpgCardsForEnabledRails(
+    rails: DashboardLiveEpgRailSettings,
+    heroLiveCard: DashboardRailCard | null,
+    liveFavoriteCards: readonly DashboardRailCard[],
+    recentLiveCards: readonly DashboardRailCard[]
+): DashboardRailCard[] {
+    return [
+        ...(rails.hero && heroLiveCard ? [heroLiveCard] : []),
+        ...(rails.liveFavorites ? liveFavoriteCards : []),
+        ...(rails.recentlyWatchedLive ? recentLiveCards : []),
+    ];
+}
+
 export function getLiveEpgProgramForCard(
     card: DashboardRailCard,
     epgMap: ReadonlyMap<string, EpgProgram | null>
@@ -391,6 +410,31 @@ export function isContinueWatchingRecentItem(
     item: Pick<GlobalRecentItem, 'type'>
 ): boolean {
     return item.type === 'movie' || item.type === 'series';
+}
+
+type DashboardRecentRailSettings = Pick<
+    DashboardRailsSettings,
+    'continueWatching' | 'recentlyWatchedLive'
+>;
+
+export interface DashboardRecentContentSkeletonInput {
+    readonly continueWatchingCount: number;
+    readonly globalRecentLoading: boolean;
+    readonly recentLiveCount: number;
+}
+
+export function shouldShowRecentContentSkeleton(
+    rails: DashboardRecentRailSettings,
+    input: DashboardRecentContentSkeletonInput
+): boolean {
+    if (!input.globalRecentLoading) {
+        return false;
+    }
+
+    return (
+        (rails.continueWatching && input.continueWatchingCount === 0) ||
+        (rails.recentlyWatchedLive && input.recentLiveCount === 0)
+    );
 }
 
 // ── Playback-position helpers (used by both hero + Continue Watching cards)
@@ -592,21 +636,28 @@ export class WorkspaceDashboardRailsComponent {
             .map((item) => this.toRecentCard(item))
     );
 
+    readonly showRecentContentSkeleton = computed(() =>
+        shouldShowRecentContentSkeleton(this.dashboardRails(), {
+            continueWatchingCount: this.continueWatchingCards().length,
+            globalRecentLoading: this.data.globalRecentLoading(),
+            recentLiveCount: this.recentLiveCards().length,
+        })
+    );
+
     // Best-effort EPG lookup keyed by the app-wide M3U XMLTV chain
     // (tvg-id -> tvg-name -> name), with the card title as a final fallback.
     // Xtream/Stalker live items often have no XMLTV side-channel and will
     // simply return null — the card renders without the program row.
     private readonly liveChannelLookupKeys = computed(() => {
         const heroLiveCard = this.heroLiveCard();
-        return buildLiveEpgLookupKeys([
-            ...(heroLiveCard ? [heroLiveCard] : []),
-            ...(this.dashboardRails().liveFavorites
-                ? this.liveFavoriteCards()
-                : []),
-            ...(this.dashboardRails().recentlyWatchedLive
-                ? this.recentLiveCards()
-                : []),
-        ]);
+        return buildLiveEpgLookupKeys(
+            buildLiveEpgCardsForEnabledRails(
+                this.dashboardRails(),
+                heroLiveCard,
+                this.liveFavoriteCards(),
+                this.recentLiveCards()
+            )
+        );
     });
 
     private readonly playbackPositionReloadKey = computed(() =>
