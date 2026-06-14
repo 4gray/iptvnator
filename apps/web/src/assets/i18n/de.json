@@ -377,7 +377,24 @@
         "PORT_PATTERN": "Nur Ziffern sind erlaubt",
         "REMOVE_ALL_IN_PROGRESS": "Deleting playlist data…",
         "REMOVE_ALL_PROGRESS": "Deleting playlist data… {{current}} / {{total}}",
-        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again."
+        "PLAYLISTS_REMOVE_FAILED": "Could not delete playlists. Please try again.",
+        "NAV_DASHBOARD": "Dashboard",
+        "DASHBOARD": "Dashboard",
+        "DASHBOARD_SUBTITLE": "Wählen Sie, welche Dashboard-Rails im Workspace angezeigt werden.",
+        "DASHBOARD_HERO": "Hero-Banner",
+        "DASHBOARD_HERO_DESCRIPTION": "Zeigt den großen oberen Banner für das zuletzt verwendete Element.",
+        "DASHBOARD_RAIL_CONTINUE": "Weiter schauen",
+        "DASHBOARD_RAIL_CONTINUE_DESCRIPTION": "Zeigt zuletzt angesehene Filme und Serien als Cover-Karten.",
+        "DASHBOARD_RAIL_LIVE_FAVORITES": "Jetzt live auf Ihren Favoriten",
+        "DASHBOARD_RAIL_LIVE_FAVORITES_DESCRIPTION": "Zeigt favorisierte Live-Kanäle mit aktuellem EPG-Fortschritt.",
+        "DASHBOARD_RAIL_RECENT_LIVE": "Zuletzt angesehenes Live-TV",
+        "DASHBOARD_RAIL_RECENT_LIVE_DESCRIPTION": "Zeigt Live-Kanäle, die Sie kürzlich geöffnet haben, mit aktuellem EPG-Fortschritt.",
+        "DASHBOARD_RAIL_FAVORITE_VOD": "Favorisierte Filme & Serien",
+        "DASHBOARD_RAIL_FAVORITE_VOD_DESCRIPTION": "Zeigt favorisierte Filme und Serien als Cover-Karten.",
+        "DASHBOARD_RAIL_SOURCES": "Zuletzt verwendete Quellen",
+        "DASHBOARD_RAIL_SOURCES_DESCRIPTION": "Zeigt Schnellzugriffe auf zuletzt verwendete Playlists und Portale.",
+        "DASHBOARD_RAIL_XTREAM_ADDED": "Neu auf Xtream",
+        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Zeigt die neuesten Xtream-Filme, Serien und Kanäle."
     },
     "THEMES": {
         "DARK_THEME": "Dunkel",
@@ -890,7 +907,9 @@
             "TYPE_MOVIE": "Film",
             "TYPE_SERIES": "Serie",
             "SEASON_EPISODE_BADGE": "St{{season}} · F{{episode}}",
-            "NOT_YET_SYNCED": "Noch nicht synchronisiert"
+            "NOT_YET_SYNCED": "Noch nicht synchronisiert",
+            "RECENTLY_WATCHED_LIVE_TV": "Zuletzt angesehenes Live-TV",
+            "FAVORITE_MOVIES_AND_SERIES": "Favorisierte Filme & Serien"
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",

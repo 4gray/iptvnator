@@ -295,6 +295,119 @@
     }
 }
 
+.hero__live-epg {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    width: min(440px, 100%);
+    margin-top: 12px;
+    min-width: 0;
+}
+
+.hero__live-epg-topline {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.hero__live-epg-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    flex: 0 0 auto;
+    font-family: var(
+        --font-mono,
+        ui-monospace,
+        'SF Mono',
+        'JetBrains Mono',
+        Menlo,
+        monospace
+    );
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    letter-spacing: 0;
+    color: var(--app-live-color, #ff8f8f);
+    text-transform: uppercase;
+
+    &::before {
+        content: '';
+        width: 6px;
+        height: 6px;
+        border-radius: 50%;
+        background: var(--app-live-color, #ff8f8f);
+        box-shadow: 0 0 7px var(--app-live-color, #ff8f8f);
+    }
+}
+
+.hero__live-epg-time {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--app-muted-color, #8891a4);
+    font-size: 0.78rem;
+    font-weight: 600;
+    line-height: 1;
+    font-variant-numeric: tabular-nums;
+
+    .hero--with-image & {
+        color: rgba(255, 255, 255, 0.78);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.45);
+    }
+}
+
+.hero__live-epg-title {
+    display: block;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: var(--app-heading-color, #d8dce8);
+    font-size: 0.95rem;
+    font-weight: 650;
+    line-height: 1.25;
+
+    .hero--with-image & {
+        color: rgba(255, 255, 255, 0.96);
+        text-shadow: 0 1px 6px rgba(0, 0, 0, 0.5);
+    }
+}
+
+.hero__live-epg-progress {
+    position: relative;
+    display: block;
+    height: 4px;
+    overflow: hidden;
+    border-radius: 999px;
+    background: color-mix(
+        in srgb,
+        var(--app-on-surface, #e6e1e5) 14%,
+        transparent
+    );
+
+    .hero--with-image & {
+        background: rgba(255, 255, 255, 0.2);
+    }
+
+    i {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--app-live-color, #ff8f8f);
+        transition: width 0.4s ease;
+    }
+
+    &--idle i {
+        background: color-mix(
+            in srgb,
+            var(--app-on-surface, #e6e1e5) 22%,
+            transparent
+        );
+    }
+}
+
 // Watch-progress visualisation. Appears between the subtitle and the CTA
 // only when a resume position is known — VOD/series only (M3U and live
 // channels have no playback positions in the schema).

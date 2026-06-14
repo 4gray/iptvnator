@@ -217,6 +217,21 @@ test.describe('Electron Settings', () => {
                     'mat-checkbox[formcontrolname="showDashboard"] input[type="checkbox"]'
                 )
                 .uncheck();
+            for (const toggleId of [
+                'toggle-dashboard-hero',
+                'toggle-dashboard-rail-continue-watching',
+                'toggle-dashboard-rail-live-favorites',
+                'toggle-dashboard-rail-recently-watched-live',
+                'toggle-dashboard-rail-favorite-movies-and-series',
+                'toggle-dashboard-rail-recent-sources',
+                'toggle-dashboard-rail-xtream-recently-added',
+            ]) {
+                await expect(
+                    firstLaunch.mainWindow
+                        .getByTestId(toggleId)
+                        .locator('input[type="checkbox"]')
+                ).toBeDisabled();
+            }
             await saveSettings(firstLaunch.mainWindow);
         } finally {
             await closeElectronApp(firstLaunch);
@@ -238,6 +253,53 @@ test.describe('Electron Settings', () => {
             );
         } finally {
             await closeElectronApp(secondLaunch);
+        }
+    });
+
+    test('@settings @dashboard @electron hides an individually disabled dashboard rail while dashboard remains enabled', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await importM3uPlaylistFromNativeDialog(app, m3uFixturePath);
+            await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+/);
+
+            await goToDashboard(app.mainWindow);
+            await expect(
+                app.mainWindow.getByTestId('dashboard-recent-sources-rail')
+            ).toBeVisible({ timeout: 20000 });
+
+            await openSettings(app.mainWindow);
+            await app.mainWindow
+                .locator('.settings-section-item')
+                .filter({ hasText: 'Dashboard' })
+                .first()
+                .click();
+            await expect(
+                app.mainWindow
+                    .getByTestId('toggle-show-dashboard')
+                    .locator('input[type="checkbox"]')
+            ).toBeChecked();
+            await app.mainWindow
+                .getByTestId('toggle-dashboard-rail-recent-sources')
+                .locator('input[type="checkbox"]')
+                .uncheck();
+            await saveSettings(app.mainWindow);
+
+            await goToDashboard(app.mainWindow);
+            await app.mainWindow.waitForURL(/\/workspace\/dashboard$/);
+            await expect(
+                app.mainWindow.getByTestId('dashboard-recent-sources-rail')
+            ).toHaveCount(0);
+            await expect(
+                app.mainWindow.getByRole('link', {
+                    name: 'Dashboard',
+                    exact: true,
+                })
+            ).toBeVisible();
+        } finally {
+            await closeElectronApp(app);
         }
     });
 

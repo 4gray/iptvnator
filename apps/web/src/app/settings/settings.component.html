@@ -67,6 +67,11 @@
                 />
             }
 
+            <app-settings-dashboard-section
+                [form]="settingsForm"
+                [activeSection]="activeSection()"
+            />
+
             @if (supportsRemoteControl) {
                 <app-settings-remote-control-section
                     [form]="settingsForm"

@@ -9,6 +9,7 @@ import {
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
+    DEFAULT_DASHBOARD_RAILS_SETTINGS,
     ElectronBridgeTrustOptions,
     Language,
     Settings,
@@ -17,6 +18,7 @@ import {
     StreamFormat,
     Theme,
     VideoPlayer,
+    normalizeDashboardRailsSettings,
 } from '@iptvnator/shared/interfaces';
 
 const DEFAULT_SETTINGS: Settings = {
@@ -41,6 +43,7 @@ const DEFAULT_SETTINGS: Settings = {
     downloadFolder: '',
     recordingFolder: '',
     coverSize: 'medium',
+    dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
     preferUploadedEpgOverXtream: false,
     trustedPrivateNetworkEpgUrls: [],
     trustedInsecureTlsHosts: [],
@@ -95,9 +98,13 @@ export const SettingsStore = signalStore(
                     storage.get(STORE_KEY.Settings)
                 );
                 if (stored) {
+                    const storedSettings = stored as Partial<Settings>;
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
-                        ...(stored as Settings),
+                        ...storedSettings,
+                        dashboardRails: normalizeDashboardRailsSettings(
+                            storedSettings.dashboardRails
+                        ),
                     });
                     void this.sanitizeEmbeddedMpvSelection().catch((error) => {
                         console.warn(
@@ -113,7 +120,16 @@ export const SettingsStore = signalStore(
         },
 
         async updateSettings(settings: Partial<Settings>) {
-            patchState(store, settings);
+            patchState(store, {
+                ...settings,
+                ...(settings.dashboardRails !== undefined
+                    ? {
+                          dashboardRails: normalizeDashboardRailsSettings(
+                              settings.dashboardRails
+                          ),
+                      }
+                    : {}),
+            });
             // Save the complete settings object, not just the partial update
             const completeSettings = this.getSettings();
             try {
@@ -157,6 +173,9 @@ export const SettingsStore = signalStore(
                     store.recordingFolder?.() ??
                     DEFAULT_SETTINGS.recordingFolder,
                 coverSize: store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
+                dashboardRails: normalizeDashboardRailsSettings(
+                    store.dashboardRails?.()
+                ),
                 preferUploadedEpgOverXtream:
                     store.preferUploadedEpgOverXtream?.() ??
                     DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
