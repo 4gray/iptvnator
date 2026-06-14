@@ -11,13 +11,7 @@ import {
     ViewEncapsulation,
 } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import {
-    FormArray,
-    FormBuilder,
-    FormControl,
-    ReactiveFormsModule,
-    Validators,
-} from '@angular/forms';
+import { FormArray, FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import {
     MAT_DIALOG_DATA,
@@ -25,7 +19,6 @@ import {
     MatDialogModule,
 } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { MatSnackBar, MatSnackBarConfig } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import {
     EpgRuntimeBridgeService,
@@ -36,29 +29,15 @@ import { Store } from '@ngrx/store';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { DialogService } from '@iptvnator/ui/components';
 import {
-    PlaylistActions,
     selectAllPlaylistsMeta,
     selectIsEpgAvailable,
 } from '@iptvnator/m3u-state';
-import { firstValueFrom, take } from 'rxjs';
-import {
-    DatabaseService,
-    DataService,
-    DbOperationEvent,
-    PlaylistBackupImportSummary,
-    PlaylistBackupService,
-    PlaylistsService,
-    RuntimeCapabilitiesService,
-} from '@iptvnator/services';
+import { take } from 'rxjs';
+import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     CoverSize,
-    DEFAULT_DASHBOARD_RAILS_SETTINGS,
     Language,
-    normalizeExternalPlayerArguments,
-    normalizeDashboardRailsSettings,
-    Settings,
-    StartupBehavior,
     StreamFormat,
     Theme,
     VideoPlayer,
@@ -73,7 +52,12 @@ import {
     SettingsDeleteAllPlaylistsDialogData,
 } from './settings-delete-all-playlists-dialog.component';
 import { SettingsEpgSectionComponent } from './settings-epg-section.component';
-import { createEpgUrlControl } from './settings-form.utils';
+import {
+    applyEpgUrlsToFormArray,
+    createEpgUrlControl,
+    createSettingsForm,
+    createSettingsFromFormValue,
+} from './settings-form.utils';
 import { SettingsGeneralSectionComponent } from './settings-general-section.component';
 import {
     SettingsPlaylistDeleteSummary,
@@ -91,6 +75,13 @@ import { SettingsPlaybackSectionComponent } from './settings-playback-section.co
 import { SettingsRemoteControlSectionComponent } from './settings-remote-control-section.component';
 import { SettingsResetSectionComponent } from './settings-reset-section.component';
 import { SettingsSectionScrollDirective } from './settings-section-scroll.directive';
+import { SettingsBackupFacade } from './settings-backup.facade';
+import { SettingsPlaylistResetFacade } from './settings-playlist-reset.facade';
+import {
+    buildRemoveAllProgressLabel,
+    buildSettingsPlaylistDeleteSummary,
+} from './settings-playlist-summary.utils';
+import { SettingsSnackbarService } from './settings-snackbar.service';
 
 @Component({
     templateUrl: './settings.component.html',
@@ -116,6 +107,11 @@ import { SettingsSectionScrollDirective } from './settings-section-scroll.direct
         SettingsResetSectionComponent,
         SettingsSectionScrollDirective,
     ],
+    providers: [
+        SettingsBackupFacade,
+        SettingsPlaylistResetFacade,
+        SettingsSnackbarService,
+    ],
 })
 export class SettingsComponent implements OnInit, OnDestroy {
     private dialogService = inject(DialogService);
@@ -123,15 +119,14 @@ export class SettingsComponent implements OnInit, OnDestroy {
     private epgService = inject(EpgService);
     private formBuilder = inject(FormBuilder);
     private destroyRef = inject(DestroyRef);
-    private playlistsService = inject(PlaylistsService);
     private router = inject(Router);
     private settingsService = inject(SettingsService);
-    private snackBar = inject(MatSnackBar);
+    private settingsSnackbar = inject(SettingsSnackbarService);
     private store = inject(Store);
     private translate = inject(TranslateService);
     private matDialog = inject(MatDialog);
-    private playlistBackupService = inject(PlaylistBackupService);
-    private readonly databaseService = inject(DatabaseService);
+    private readonly backupFacade = inject(SettingsBackupFacade);
+    private readonly playlistResetFacade = inject(SettingsPlaylistResetFacade);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly dialogData = inject<{ isDialog: boolean } | null>(
@@ -201,52 +196,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
 
     /** Settings form object */
-    settingsForm = this.formBuilder.group({
-        player: [VideoPlayer.VideoJs],
-        ...(this.supportsEpg
-            ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
-            : {}),
-        streamFormat: StreamFormat.M3u8StreamFormat,
-        openStreamOnDoubleClick: false,
-        language: Language.ENGLISH,
-        showCaptions: false,
-        showDashboard: true,
-        dashboardRails: this.formBuilder.group({
-            hero: DEFAULT_DASHBOARD_RAILS_SETTINGS.hero,
-            continueWatching:
-                DEFAULT_DASHBOARD_RAILS_SETTINGS.continueWatching,
-            liveFavorites: DEFAULT_DASHBOARD_RAILS_SETTINGS.liveFavorites,
-            recentlyWatchedLive:
-                DEFAULT_DASHBOARD_RAILS_SETTINGS.recentlyWatchedLive,
-            favoriteMoviesAndSeries:
-                DEFAULT_DASHBOARD_RAILS_SETTINGS.favoriteMoviesAndSeries,
-            recentSources: DEFAULT_DASHBOARD_RAILS_SETTINGS.recentSources,
-            xtreamRecentlyAdded:
-                DEFAULT_DASHBOARD_RAILS_SETTINGS.xtreamRecentlyAdded,
-        }),
-        startupBehavior: StartupBehavior.FirstView,
-        showExternalPlaybackBar: true,
-        theme: Theme.SystemTheme,
-        mpvPlayerPath: '',
-        mpvPlayerArguments: '',
-        mpvReuseInstance: false,
-        vlcPlayerPath: '',
-        vlcPlayerArguments: '',
-        vlcReuseInstance: false,
-        remoteControl: false,
-        remoteControlPort: [
-            8765,
-            [
-                Validators.required,
-                Validators.min(1),
-                Validators.max(65535),
-                Validators.pattern(/^\d+$/),
-            ],
-        ],
-        recordingFolder: '',
-        coverSize: 'medium' as CoverSize,
-        ...(this.supportsEpg ? { preferUploadedEpgOverXtream: false } : {}),
-    });
+    settingsForm = createSettingsForm(this.formBuilder, this.supportsEpg);
 
     /** Form array with epg sources */
     epgUrl = this.settingsForm.get('epgUrl') as FormArray;
@@ -256,10 +206,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Currently visible QR code IP (null = none visible) */
     visibleQrCodeIp = signal<string | null>(null);
-    readonly isRemovingAllPlaylists = signal(false);
+    readonly isRemovingAllPlaylists =
+        this.playlistResetFacade.isRemovingAllPlaylists;
     readonly isClearingEpgData = signal(false);
-    readonly isExportingData = signal(false);
-    readonly removeAllProgress = signal<DbOperationEvent | null>(null);
+    readonly isExportingData = this.backupFacade.isExportingData;
+    readonly removeAllProgress = this.playlistResetFacade.removeAllProgress;
 
     private settingsStore = inject(SettingsStore);
     readonly sectionNavItems: SettingsSection[] = buildSettingsSectionNavItems({
@@ -268,18 +219,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     });
 
     readonly playlistDeleteSummary = computed<SettingsPlaylistDeleteSummary>(
-        () => {
-            const items = this.playlists();
-
-            return {
-                total: items.length,
-                m3u: items.filter((item) => !item.serverUrl && !item.macAddress)
-                    .length,
-                xtream: items.filter((item) => Boolean(item.serverUrl)).length,
-                stalker: items.filter((item) => Boolean(item.macAddress))
-                    .length,
-            };
-        }
+        () => buildSettingsPlaylistDeleteSummary(this.playlists())
     );
 
     readonly canRemoveAllPlaylists = computed(
@@ -289,26 +229,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     );
 
     readonly removeAllProgressLabel = computed(() => {
-        if (!this.isRemovingAllPlaylists()) {
-            return null;
-        }
-
-        const progress = this.removeAllProgress();
-        const current = progress?.current;
-        const total = progress?.total;
-
-        if (
-            typeof current === 'number' &&
-            typeof total === 'number' &&
-            total > 0
-        ) {
-            return this.translate.instant('SETTINGS.REMOVE_ALL_PROGRESS', {
-                current,
-                total,
-            });
-        }
-
-        return this.translate.instant('SETTINGS.REMOVE_ALL_IN_PROGRESS');
+        return buildRemoveAllProgressLabel({
+            isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
+            progress: this.removeAllProgress(),
+            translate: (key, params) => this.translate.instant(key, params),
+        });
     });
 
     get sectionNav(): SettingsSection[] {
@@ -476,14 +401,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
      * @param epgUrls urls of the EPG sources
      */
     setEpgUrls(epgUrls: string[] | string): void {
-        const urls = Array.isArray(epgUrls) ? epgUrls : [epgUrls];
-        const filteredUrls = urls
-            .map((url) => url.trim())
-            .filter((url) => url !== '');
-
-        filteredUrls.forEach((url) => {
-            this.epgUrl.push(createEpgUrlControl(url));
-        });
+        applyEpgUrlsToFormArray(this.epgUrl, epgUrls);
     }
 
     /**
@@ -557,62 +475,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
         }
     }
 
-    private normalizeExternalPlayerPath(
-        playerPath: string | null | undefined
-    ): string {
-        return playerPath?.trim() ?? '';
-    }
-
-    private createSettingsFromFormValue(): Settings {
-        const currentSettings = this.settingsStore.getSettings();
-        const value = this.settingsForm.getRawValue();
-        const epgUrl = Array.isArray(value.epgUrl)
-            ? value.epgUrl.filter(
-                  (url): url is string => typeof url === 'string'
-              )
-            : (currentSettings.epgUrl ?? []);
-
-        return {
-            player: value.player ?? VideoPlayer.VideoJs,
-            streamFormat: value.streamFormat ?? StreamFormat.M3u8StreamFormat,
-            openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
-            language: value.language ?? Language.ENGLISH,
-            showCaptions: value.showCaptions ?? false,
-            showDashboard: value.showDashboard ?? true,
-            dashboardRails: normalizeDashboardRailsSettings(
-                value.dashboardRails
-            ),
-            startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
-            showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
-            theme: value.theme ?? Theme.SystemTheme,
-            mpvPlayerPath: this.normalizeExternalPlayerPath(
-                value.mpvPlayerPath
-            ),
-            mpvPlayerArguments: normalizeExternalPlayerArguments(
-                value.mpvPlayerArguments
-            ),
-            mpvReuseInstance: value.mpvReuseInstance ?? false,
-            vlcPlayerPath: this.normalizeExternalPlayerPath(
-                value.vlcPlayerPath
-            ),
-            vlcPlayerArguments: normalizeExternalPlayerArguments(
-                value.vlcPlayerArguments
-            ),
-            vlcReuseInstance: value.vlcReuseInstance ?? false,
-            remoteControl: value.remoteControl ?? false,
-            remoteControlPort: Number(value.remoteControlPort ?? 8765),
-            recordingFolder: value.recordingFolder ?? '',
-            coverSize: value.coverSize ?? 'medium',
-            epgUrl,
-            preferUploadedEpgOverXtream:
-                value.preferUploadedEpgOverXtream ??
-                currentSettings.preferUploadedEpgOverXtream ??
-                false,
-            trustedPrivateNetworkEpgUrls:
-                currentSettings.trustedPrivateNetworkEpgUrls ?? [],
-            trustedInsecureTlsHosts:
-                currentSettings.trustedInsecureTlsHosts ?? [],
-        };
+    private createSettingsFromFormValue() {
+        return createSettingsFromFormValue(
+            this.settingsForm,
+            this.settingsStore.getSettings()
+        );
     }
 
     /**
@@ -642,7 +509,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsService.changeTheme(
             this.settingsForm.value.theme ?? Theme.SystemTheme
         );
-        this.openSettingsSnackbar(
+        this.settingsSnackbar.open(
             this.translate.instant('SETTINGS.SETTINGS_SAVED')
         );
     }
@@ -730,13 +597,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     if (result && result.success === false) {
                         throw new Error('Clear EPG returned success=false');
                     }
-                    this.openSettingsSnackbar(
+                    this.settingsSnackbar.open(
                         this.translate.instant('SETTINGS.EPG_DATA_CLEARED')
                     );
                     this.refreshAllEpg();
                 } catch (error) {
                     console.error('Failed to clear EPG data:', error);
-                    this.openSettingsSnackbar(
+                    this.settingsSnackbar.open(
                         this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
                     );
                 } finally {
@@ -747,108 +614,11 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     async exportData() {
-        if (this.isExportingData()) {
-            return;
-        }
-
-        this.isExportingData.set(true);
-
-        // Let Angular paint the busy state before the backup build and native
-        // save dialog handoff start.
-        await this.waitForUiFeedbackFrame();
-
-        try {
-            const backup = await this.playlistBackupService.exportBackup();
-
-            if (this.supportsDesktopFileSave && window.electron) {
-                const savePath = await window.electron.saveFileDialog(
-                    backup.defaultFileName,
-                    [
-                        {
-                            name: 'JSON',
-                            extensions: ['json'],
-                        },
-                    ]
-                );
-
-                if (!savePath) {
-                    return;
-                }
-
-                await window.electron.writeFile(savePath, backup.json);
-            } else {
-                const blob = new Blob([backup.json], {
-                    type: 'application/json',
-                });
-                const url = window.URL.createObjectURL(blob);
-                const link = document.createElement('a');
-                link.href = url;
-                link.download = backup.defaultFileName;
-                link.click();
-                window.URL.revokeObjectURL(url);
-            }
-
-            this.openSettingsSnackbar('Playlist backup exported.');
-        } catch (error) {
-            console.error('Failed to export playlist backup:', error);
-            this.openSettingsSnackbar('Playlist backup export failed.');
-        } finally {
-            this.isExportingData.set(false);
-        }
+        await this.backupFacade.exportData(() => this.waitForUiFeedbackFrame());
     }
 
     importData() {
-        const input = document.createElement('input');
-        input.type = 'file';
-        input.accept = 'application/json';
-
-        input.addEventListener('change', async (event: Event) => {
-            const target = event.target as HTMLInputElement;
-            const file = target.files?.[0];
-
-            if (file) {
-                try {
-                    const summary =
-                        await this.playlistBackupService.importBackup(
-                            await file.text()
-                        );
-
-                    if (summary.imported > 0 || summary.merged > 0) {
-                        this.store.dispatch(
-                            PlaylistActions.removeAllPlaylists()
-                        );
-                        this.store.dispatch(PlaylistActions.loadPlaylists());
-                    }
-
-                    this.setSettings();
-                    this.openSettingsSnackbar(
-                        this.buildBackupImportSummary(summary)
-                    );
-
-                    if (summary.errors.length > 0) {
-                        console.error(
-                            'Playlist backup import completed with issues:',
-                            summary.errors
-                        );
-                    }
-                } catch (error) {
-                    console.error('Failed to import playlist backup:', error);
-                    this.openSettingsSnackbar(
-                        error instanceof Error
-                            ? error.message
-                            : this.translate.instant('SETTINGS.IMPORT_ERROR')
-                    );
-                }
-            }
-        });
-
-        input.click();
-    }
-
-    private buildBackupImportSummary(
-        summary: PlaylistBackupImportSummary
-    ): string {
-        return `Backup import finished: ${summary.imported} imported, ${summary.merged} merged, ${summary.skipped} skipped, ${summary.failed} failed.`;
+        this.backupFacade.importData(() => this.setSettings());
     }
 
     private async waitForUiFeedbackFrame(): Promise<void> {
@@ -885,74 +655,10 @@ export class SettingsComponent implements OnInit, OnDestroy {
             .pipe(take(1))
             .subscribe((confirmed) => {
                 if (confirmed) {
-                    void this.removeAllConfirmed();
+                    void this.playlistResetFacade.removeAllConfirmed(() =>
+                        this.waitForUiFeedbackFrame()
+                    );
                 }
             });
-    }
-
-    private async removeAllConfirmed(): Promise<void> {
-        if (this.isRemovingAllPlaylists()) {
-            return;
-        }
-
-        this.isRemovingAllPlaylists.set(true);
-        this.removeAllProgress.set(null);
-
-        await this.waitForUiFeedbackFrame();
-
-        try {
-            const deleted =
-                this.isDesktop && window.electron
-                    ? await this.deleteAllPlaylistsInElectron()
-                    : await this.deleteAllPlaylistsInBrowser();
-
-            if (!deleted) {
-                throw new Error('Delete all playlists returned success=false');
-            }
-
-            this.store.dispatch(PlaylistActions.removeAllPlaylists());
-            this.openSettingsSnackbar(
-                this.translate.instant('SETTINGS.PLAYLISTS_REMOVED')
-            );
-        } catch (error) {
-            console.error('Error removing playlists:', error);
-            this.openSettingsSnackbar(
-                this.translate.instant('SETTINGS.PLAYLISTS_REMOVE_FAILED')
-            );
-        } finally {
-            this.removeAllProgress.set(null);
-            this.isRemovingAllPlaylists.set(false);
-        }
-    }
-
-    private async deleteAllPlaylistsInElectron(): Promise<boolean> {
-        return this.databaseService.deleteAllPlaylists({
-            operationId: this.databaseService.createOperationId(
-                'settings-delete-all-playlists'
-            ),
-            onEvent: (event) => this.handleDeleteAllPlaylistsEvent(event),
-        });
-    }
-
-    private async deleteAllPlaylistsInBrowser(): Promise<boolean> {
-        await firstValueFrom(this.playlistsService.removeAll());
-        return true;
-    }
-
-    private handleDeleteAllPlaylistsEvent(event: DbOperationEvent): void {
-        this.removeAllProgress.set(event);
-    }
-
-    private openSettingsSnackbar(
-        message: string,
-        config: MatSnackBarConfig = {}
-    ): void {
-        this.snackBar.open(message, undefined, {
-            duration: 2000,
-            horizontalPosition: 'center',
-            verticalPosition: 'bottom',
-            panelClass: ['settings-snackbar'],
-            ...config,
-        });
     }
 }
