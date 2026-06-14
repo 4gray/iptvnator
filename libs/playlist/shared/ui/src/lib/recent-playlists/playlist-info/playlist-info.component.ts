@@ -10,7 +10,11 @@ import {
 } from '@angular/forms';
 import { MatButton, MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
-import { MAT_DIALOG_DATA, MatDialogModule } from '@angular/material/dialog';
+import {
+    MAT_DIALOG_DATA,
+    MatDialogModule,
+    MatDialogRef,
+} from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -90,6 +94,9 @@ export class PlaylistInfoComponent {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
+    private dialogRef = inject(MatDialogRef<PlaylistInfoComponent>, {
+        optional: true,
+    });
     public playlistData = inject<Playlist & { id: string }>(MAT_DIALOG_DATA);
 
     get isDesktop(): boolean {
@@ -159,7 +166,7 @@ export class PlaylistInfoComponent {
                 this.playlist.password &&
                 this.playlist.serverUrl;
 
-            if (isXtream) {
+            if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
                 await this.updateXtreamPlaylist(playlist);
             }
 
@@ -175,6 +182,7 @@ export class PlaylistInfoComponent {
                 this.translate.instant('CLOSE'),
                 { duration: 3000 }
             );
+            this.dialogRef?.close();
         } catch (error) {
             console.error('Error updating playlist:', error);
             this.snackBar.open(
@@ -215,8 +223,7 @@ export class PlaylistInfoComponent {
         );
 
         if (this.runtime.supportsDesktopFileSave) {
-            const desktopFileBridge =
-                window.electron as DesktopFileSaveBridge;
+            const desktopFileBridge = window.electron as DesktopFileSaveBridge;
 
             try {
                 const savePath = await desktopFileBridge.saveFileDialog(
@@ -269,10 +276,7 @@ export class PlaylistInfoComponent {
             'data:text/plain;charset=utf-8,' +
                 encodeURIComponent(playlistAsString)
         );
-        element.setAttribute(
-            'download',
-            this.playlist.title || 'exported.m3u'
-        );
+        element.setAttribute('download', this.playlist.title || 'exported.m3u');
         element.style.display = 'none';
         document.body.appendChild(element);
         element.click();

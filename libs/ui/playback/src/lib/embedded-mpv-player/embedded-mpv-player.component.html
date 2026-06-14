@@ -100,33 +100,35 @@
                     }}</mat-icon>
                 </button>
 
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="embedded-mpv-player__control-button"
-                    data-test-id="embedded-mpv-previous-episode"
-                    [disabled]="isLoading() || !canPreviousEpisode()"
-                    (click)="requestPreviousEpisode()"
-                    aria-label="Previous episode"
-                    matTooltip="Previous episode"
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>skip_previous</mat-icon>
-                </button>
+                @if (showSeriesNavigation()) {
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="embedded-mpv-player__control-button"
+                        data-test-id="embedded-mpv-previous-episode"
+                        [disabled]="isLoading() || !canPreviousEpisode()"
+                        (click)="requestPreviousEpisode()"
+                        aria-label="Previous episode"
+                        matTooltip="Previous episode"
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>skip_previous</mat-icon>
+                    </button>
 
-                <button
-                    mat-icon-button
-                    type="button"
-                    class="embedded-mpv-player__control-button"
-                    data-test-id="embedded-mpv-next-episode"
-                    [disabled]="isLoading() || !canNextEpisode()"
-                    (click)="requestNextEpisode()"
-                    aria-label="Next episode"
-                    matTooltip="Next episode"
-                    matTooltipPosition="above"
-                >
-                    <mat-icon>skip_next</mat-icon>
-                </button>
+                    <button
+                        mat-icon-button
+                        type="button"
+                        class="embedded-mpv-player__control-button"
+                        data-test-id="embedded-mpv-next-episode"
+                        [disabled]="isLoading() || !canNextEpisode()"
+                        (click)="requestNextEpisode()"
+                        aria-label="Next episode"
+                        matTooltip="Next episode"
+                        matTooltipPosition="above"
+                    >
+                        <mat-icon>skip_next</mat-icon>
+                    </button>
+                }
 
                 <button
                     mat-icon-button
@@ -179,7 +181,7 @@
                         <span>{{
                             formatTime(session()?.durationSeconds)
                         }}</span>
-                    } @else {
+                    } @else if (isLivePlayback()) {
                         <span
                             class="embedded-mpv-player__live-badge"
                             aria-label="Live stream"
@@ -190,6 +192,8 @@
                             ></span>
                             LIVE
                         </span>
+                    } @else {
+                        <span>--:--</span>
                     }
                 </div>
                 @if (recordingStatusText(); as recordingStatus) {

@@ -1,9 +1,10 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { MAT_DIALOG_DATA } from '@angular/material/dialog';
+import { MAT_DIALOG_DATA, MatDialogRef } from '@angular/material/dialog';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Store } from '@ngrx/store';
 import { TranslateService } from '@ngx-translate/core';
 import { of } from 'rxjs';
+import { PlaylistActions } from '@iptvnator/m3u-state';
 import {
     DatabaseService,
     PlaylistsService,
@@ -18,12 +19,22 @@ describe('PlaylistInfoComponent', () => {
     let playlistsService: {
         getRawPlaylistById: jest.Mock;
     };
+    let databaseService: {
+        updateXtreamPlaylistDetails: jest.Mock;
+    };
     let runtime: {
         isElectron: boolean;
         supportsDesktopFileSave: boolean;
+        supportsXtreamSqliteDataSource: boolean;
     };
     let snackBar: {
         open: jest.Mock;
+    };
+    let store: {
+        dispatch: jest.Mock;
+    };
+    let dialogRef: {
+        close: jest.Mock;
     };
     const originalElectron = window.electron;
 
@@ -41,12 +52,22 @@ describe('PlaylistInfoComponent', () => {
         playlistsService = {
             getRawPlaylistById: jest.fn(() => of('#EXTM3U\n')),
         };
+        databaseService = {
+            updateXtreamPlaylistDetails: jest.fn(),
+        };
         runtime = {
             isElectron: false,
             supportsDesktopFileSave: false,
+            supportsXtreamSqliteDataSource: false,
         };
         snackBar = {
             open: jest.fn(),
+        };
+        store = {
+            dispatch: jest.fn(),
+        };
+        dialogRef = {
+            close: jest.fn(),
         };
 
         await TestBed.configureTestingModule({
@@ -62,19 +83,19 @@ describe('PlaylistInfoComponent', () => {
                 },
                 {
                     provide: DatabaseService,
-                    useValue: {
-                        updateXtreamPlaylistDetails: jest.fn(),
-                    },
+                    useValue: databaseService,
                 },
                 {
                     provide: Store,
-                    useValue: {
-                        dispatch: jest.fn(),
-                    },
+                    useValue: store,
                 },
                 {
                     provide: MatSnackBar,
                     useValue: snackBar,
+                },
+                {
+                    provide: MatDialogRef,
+                    useValue: dialogRef,
                 },
                 {
                     provide: TranslateService,
@@ -99,6 +120,44 @@ describe('PlaylistInfoComponent', () => {
         fixture = TestBed.createComponent(PlaylistInfoComponent);
         component = fixture.componentInstance;
     }
+
+    it('saves Xtream playlist details through playlist metadata in the browser context', async () => {
+        const xtreamPlaylist = {
+            ...playlist,
+            title: 'Old Xtream',
+            serverUrl: 'http://old.example:8080',
+            username: 'old-user',
+            password: 'old-pass',
+            url: undefined,
+        } as Playlist & { id: string };
+        TestBed.overrideProvider(MAT_DIALOG_DATA, {
+            useValue: xtreamPlaylist,
+        });
+        createComponent();
+
+        const updatedPlaylist = {
+            _id: 'playlist-1',
+            title: 'Updated Xtream',
+            serverUrl: 'http://new.example:8080',
+            username: 'new-user',
+            password: 'new-pass',
+        };
+
+        await component.saveChanges(updatedPlaylist);
+
+        expect(
+            databaseService.updateXtreamPlaylistDetails
+        ).not.toHaveBeenCalled();
+        expect(store.dispatch).toHaveBeenCalledWith(
+            PlaylistActions.updatePlaylistMeta({ playlist: updatedPlaylist })
+        );
+        expect(snackBar.open).toHaveBeenCalledWith(
+            'HOME.PLAYLISTS.PLAYLIST_UPDATE_SUCCESS',
+            'CLOSE',
+            { duration: 3000 }
+        );
+        expect(dialogRef.close).toHaveBeenCalledTimes(1);
+    });
 
     it('uses the Electron save dialog when desktop file saving is available', async () => {
         runtime.isElectron = true;

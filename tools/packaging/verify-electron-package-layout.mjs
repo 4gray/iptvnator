@@ -43,8 +43,11 @@ const electronBuilderConfig = JSON.parse(
     fs.readFileSync(electronBuilderConfigPath, 'utf8')
 );
 const flatpakFinishArgs = electronBuilderConfig.flatpak?.finishArgs ?? [];
+const linuxExecutableArgs = electronBuilderConfig.linux?.executableArgs ?? [];
 const snapConfigInspection = loadSnapConfigInspection();
-const embeddedMpvRequired = isTruthy(process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV);
+const embeddedMpvRequired = isTruthy(
+    process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV
+);
 const workerRelativeDir = path.join(
     'dist',
     'apps',
@@ -118,20 +121,18 @@ function getMacResourceDirs() {
 }
 
 function getUnpackedResourceDirs(prefix) {
-    return packageOutputRoots
-        .filter(directoryExists)
-        .flatMap((outputRoot) =>
-            fs
-                .readdirSync(outputRoot, { withFileTypes: true })
-                .filter(
-                    (entry) =>
-                        entry.isDirectory() &&
-                        entry.name.startsWith(prefix) &&
-                        entry.name.endsWith('-unpacked')
-                )
-                .map((entry) => path.join(outputRoot, entry.name, 'resources'))
-                .filter(directoryExists)
-        );
+    return packageOutputRoots.filter(directoryExists).flatMap((outputRoot) =>
+        fs
+            .readdirSync(outputRoot, { withFileTypes: true })
+            .filter(
+                (entry) =>
+                    entry.isDirectory() &&
+                    entry.name.startsWith(prefix) &&
+                    entry.name.endsWith('-unpacked')
+            )
+            .map((entry) => path.join(outputRoot, entry.name, 'resources'))
+            .filter(directoryExists)
+    );
 }
 
 function getResourceDirs() {
@@ -149,7 +150,17 @@ function getResourceDirs() {
 }
 
 function sanitizeExecutableName(value) {
-    const invalidCharacters = new Set(['<', '>', ':', '"', '/', '\\', '|', '?', '*']);
+    const invalidCharacters = new Set([
+        '<',
+        '>',
+        ':',
+        '"',
+        '/',
+        '\\',
+        '|',
+        '?',
+        '*',
+    ]);
 
     return [...value]
         .filter(
@@ -362,7 +373,8 @@ function parseEffectiveSnapConfig(yamlContent) {
 }
 
 function loadSnapConfigInspection() {
-    const builderEffectiveConfigPath = builderEffectiveConfigPaths.find(fileExists);
+    const builderEffectiveConfigPath =
+        builderEffectiveConfigPaths.find(fileExists);
 
     if (builderEffectiveConfigPath) {
         const effectiveConfigContent = fs.readFileSync(
@@ -496,6 +508,19 @@ function verifyFlatpakPermissions(errors) {
     }
 }
 
+function verifyLinuxExecutableArgs(errors) {
+    if (!Array.isArray(linuxExecutableArgs)) {
+        errors.push('linux.executableArgs must be configured as an array.');
+        return;
+    }
+
+    if (!linuxExecutableArgs.includes('--ozone-platform=x11')) {
+        errors.push(
+            'linux.executableArgs must include --ozone-platform=x11 while embedded MPV requires X11/Xwayland on Linux.'
+        );
+    }
+}
+
 function verifySnapPackagingConfig(errors) {
     if (snapConfigInspection.config?.base !== 'core22') {
         errors.push(
@@ -561,6 +586,7 @@ function verifyResourceDir(resourceDir) {
                 `Missing Flatpak metainfo file: ${flatpakMetainfoPath}`
             );
         }
+        verifyLinuxExecutableArgs(errors);
         verifyFlatpakPermissions(errors);
         verifySnapPackagingConfig(errors);
         verifyLinuxLauncher(resourceDir, errors);

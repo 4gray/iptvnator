@@ -128,8 +128,17 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     );
     readonly isPlaying = computed(() => this.session()?.status === 'playing');
     readonly isErrored = computed(() => this.session()?.status === 'error');
+    readonly isLivePlayback = computed(() => {
+        const playback = this.playback();
+        if (typeof playback.isLive === 'boolean') {
+            return playback.isLive;
+        }
+
+        return !playback.contentInfo;
+    });
     readonly canSeek = computed(
-        () => (this.session()?.durationSeconds ?? 0) > 0
+        () =>
+            !this.isLivePlayback() && (this.session()?.durationSeconds ?? 0) > 0
     );
     readonly canFullscreen = computed(
         () =>
@@ -198,18 +207,25 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly canRecord = computed(
         () =>
             this.capabilities().recording &&
-            this.playback().isLive === true &&
+            this.isLivePlayback() &&
             this.isSupported() &&
             !this.isErrored()
     );
     readonly isRecording = computed(
         () => this.session()?.recording?.active === true
     );
+    readonly showSeriesNavigation = computed(
+        () => !this.isLivePlayback() && this.seriesNavigation() !== null
+    );
     readonly canPreviousEpisode = computed(
-        () => this.seriesNavigation()?.canPrevious === true
+        () =>
+            this.showSeriesNavigation() &&
+            this.seriesNavigation()?.canPrevious === true
     );
     readonly canNextEpisode = computed(
-        () => this.seriesNavigation()?.canNext === true
+        () =>
+            this.showSeriesNavigation() &&
+            this.seriesNavigation()?.canNext === true
     );
     readonly recordingElapsed = computed(() => {
         const startedAt = this.session()?.recording?.startedAt;

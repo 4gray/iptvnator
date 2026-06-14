@@ -1,8 +1,8 @@
 import {
     type APIRequestContext,
-    type Locator,
     type Page,
 } from '@playwright/test';
+import { setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 import {
     getRegisteredProviderUrl,
@@ -70,21 +70,6 @@ async function interceptStalkerRequests(page: Page): Promise<void> {
     });
 }
 
-async function setInputValue(input: Locator, value: string): Promise<void> {
-    await input.fill('');
-    await input.fill(value);
-
-    if ((await input.inputValue()) === value) {
-        return;
-    }
-
-    await input.click();
-    await input.press('ControlOrMeta+A');
-    await input.press('Backspace');
-    await input.type(value);
-    await expect(input).toHaveValue(value);
-}
-
 async function resetMockServer(request: APIRequestContext): Promise<void> {
     let lastError: unknown;
 
@@ -135,8 +120,7 @@ async function addStalkerPortal(
     const addButton = dialog.getByRole('button', { name: 'Add', exact: true });
     await expect(addButton).toBeEnabled({ timeout: 10_000 });
     await addButton.click();
-    // Wait for dialog to close
-    await page.waitForSelector('mat-dialog-container', { state: 'detached' });
+    await expect(dialog).toBeHidden();
     await page.waitForURL(/stalker.*vod/);
 }
 

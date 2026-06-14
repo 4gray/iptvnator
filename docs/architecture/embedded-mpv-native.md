@@ -11,7 +11,7 @@ Source files for the embedded MPV integration:
 - `apps/electron-backend/native/src/embedded_mpv.mm` owns the macOS `libmpv` render integration.
 - `apps/electron-backend/native/src/embedded_mpv_win32.cc` owns the Windows `HWND` + mpv `wid` backend.
 - `apps/electron-backend/native/src/embedded_mpv_linux.cc` owns the Linux X11/Xwayland `Window` + mpv `wid` backend.
-- `apps/electron-backend/native/src/embedded_mpv_wid_common.h` owns the shared Windows/Linux libmpv session surface.
+- `apps/electron-backend/native/src/embedded_mpv_wid_common.h` owns the shared Windows/Linux session surface, including Linux `mpv --wid` process control and JSON IPC.
 - `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts` owns Electron main-process session lifecycle and support detection.
 - `apps/electron-backend/src/app/events/embedded-mpv.events.ts` registers the IPC contract.
 - `apps/electron-backend/src/app/api/main.preload.ts` exposes the preload bridge to the renderer.
@@ -26,7 +26,24 @@ The build directory contains files such as `Makefile`, `binding.Makefile`, `conf
 
 ## How It Is Embedded
 
-The embedded player does not spawn the normal `mpv` application. IPTVnator loads `libmpv` through a native Node addon and renders MPV frames into an app-owned native video surface. macOS uses the libmpv render API in an `NSOpenGLView` because the mpv `wid` path produced a black video surface inside Electron. Windows and Linux use mpv's `wid` option against IPTVnator-owned child windows (`HWND` on Windows, X11 `Window` on Linux/Xwayland).
+The embedded player renders MPV frames into an app-owned native video surface. macOS uses the libmpv render API in an `NSOpenGLView` because the mpv `wid` path produced a black video surface inside Electron. Windows loads `libmpv` through the native Node addon and uses mpv's `wid` option against an IPTVnator-owned child `HWND`. Linux creates an IPTVnator-owned X11/Xwayland child `Window` and starts an out-of-process `mpv --wid=<window>` instance for that child window.
+
+On Linux, `embedded_mpv.node` must not link directly to `libmpv` or load libmpv in-process. Electron loads its own `libffmpeg` and Chromium graphics stack; in-process libmpv can resolve FFmpeg/GL symbols against incompatible Electron symbols, while isolated dynamic-loader namespaces introduce thread/runtime ownership problems. The Linux addon therefore owns only the X11 child-window embedding, process lifecycle, and a private MPV JSON IPC socket. It starts `mpv --wid=<window> --input-ipc-server=<socket>`, polls `time-pos`, `duration`, `volume`, and `pause`, and forwards pause/seek/volume/audio-track commands through that socket. The Linux MPV JSON IPC polling runs on an addon-owned background thread; `getSessionSnapshot()` returns the last cached snapshot and must not perform socket round trips on Electron's main thread. Linux MPV process teardown sends `SIGTERM` on the caller path, then waits and escalates to `SIGKILL` on a detached cleanup thread. A healthy Linux build lists X11/Xext as addon dependencies, but `ldd apps/electron-backend/native/build/Release/embedded_mpv.node` must not list `libmpv`. Runtime support also requires an `mpv` executable on `PATH`.
+
+Linux native Wayland embedding is not implemented. When Electron is started on Xwayland, the Linux backend also starts the child MPV process with `WAYLAND_DISPLAY` removed, `XDG_SESSION_TYPE=x11`, `--vo=gpu,x11`, and `--gpu-context=x11egl`. This prevents MPV from choosing a Wayland VO in a Wayland desktop session, which would ignore the X11 `--wid` target and open a separate top-level MPV window.
+
+## Linux Support Matrix
+
+Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available.
+
+Current release-announcement wording should stay close to this:
+
+- Supported display path: X11 or Xwayland.
+- Not supported: native Wayland embedding.
+- Validated locally: Ubuntu 24.04 GNOME Wayland session with Electron forced to X11/Xwayland and system `mpv`.
+- Validated in CI: Ubuntu 22.04 standard Linux package build and Ubuntu 24.04 Flatpak package build.
+- Expected standard packages: `.deb` on Ubuntu/Debian, `pacman` on Arch/Manjaro, `.rpm` on RPM-based distributions, and AppImage on x64 glibc systems, all with system `mpv` installed.
+- Sandbox caveat: Flatpak and Snap packages build and continue to support the normal inline/external-player flows, but embedded MPV is not announced as supported there yet because the Linux backend launches `mpv --wid` and those sandboxed formats do not expose the host `mpv` executable to the app by default.
 
 The flow is:
 
@@ -36,8 +53,8 @@ The flow is:
 4. The component asks the preload API to create an embedded MPV session with the current viewport bounds and initial volume.
 5. The Electron preload forwards calls through IPC to the main process.
 6. `EmbeddedMpvNativeService` owns sessions, polls snapshots, and emits session updates to the renderer.
-7. The native addon creates an `mpv_handle`, disables MPV's own OSC/input handling, and creates an app-owned platform video host inside the Electron window.
-8. On macOS the addon configures `vo=libmpv`, creates a `mpv_render_context`, and draws into the OpenGL surface. On Windows/Linux it passes the child-window id to mpv through `wid` and uses `vo=gpu`.
+7. The native addon creates an app-owned platform video host inside the Electron window.
+8. On macOS the addon configures `vo=libmpv`, creates a `mpv_render_context`, and draws into the OpenGL surface. On Windows it creates an `mpv_handle`, disables MPV's own OSC/input handling, and passes the child-window id through `wid`. On Linux it starts `mpv --wid=<x11-window>` in a separate process with a private JSON IPC socket and tracks that process until playback replacement or dispose.
 9. Resize, scroll, and fullscreen changes are measured in Angular and sent back to the addon as native bounds so the platform video host stays aligned with the Angular layout.
 10. Playback controls remain IPTVnator-owned Angular UI. MPV receives commands only through the controlled IPC surface.
 
@@ -68,13 +85,15 @@ The dock has a stable reserved height while embedded controls are enabled. Contr
 
 `ResolvedPortalPlayback.startTime` is treated as a media offset in seconds for VOD and episodes. The native addon passes it as the `start` option in one MPV `loadfile` options map together with title, user agent, referrer, and HTTP headers.
 
+VOD and episode payloads carry `contentInfo` and are treated as non-live unless `isLive` is explicitly set. The embedded MPV UI must not infer "live" from a missing duration alone: on Linux the first snapshot can arrive before the out-of-process MPV IPC socket has reported `duration`, so the UI shows an unknown duration placeholder until MPV reports a finite duration. Live playback is classified from `ResolvedPortalPlayback.isLive` when present, otherwise from the absence of `contentInfo`.
+
 Live catchup is different: the catchup URL already encodes the archive window, so live catchup playback must not pass an absolute Unix timestamp as `startTime`.
 
 Audio tracks are discovered from MPV's `track-list` property. The selected track is controlled through MPV's `aid` property. Switching tracks must not reload the stream.
 
 Subtitle tracks mirror the audio-track contract: same `track-list` source, same parsing pipeline, but selected through MPV's `sid` property. A `trackId` of `-1` from the renderer is interpreted as "disable subtitles" and translated to `sid=no` at the addon boundary. Playback speed is observed and set through MPV's `speed` property, clamped at the addon to `[0.25, 4.0]`. Aspect override uses MPV's `video-aspect-override` property as a passthrough string ("no", "16:9", "4:3", "21:9", "2.35:1"). All four properties (`sid`, `speed`, `video-aspect-override`, plus `aid`) are observed at session init so renderer state stays in sync with the native side without needing extra round-trips.
 
-The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. After a native rebuild, the new buttons light up automatically without renderer changes.
+The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. Linux intentionally does not export libmpv-only optional controls while it uses the process-isolated `mpv --wid` backend.
 
 ## Session End And Series Navigation
 
@@ -90,13 +109,13 @@ Renderer autoplay must use `ended` only. It must not treat `closed`, `idle`, or 
 
 The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
 
-Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only as part of the embedded player control surface. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
+Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only for non-live series playback. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
 ## Live Stream Recording
 
-Embedded MPV can record live streams through mpv's `stream-record` option. IPTVnator exposes this only for `ResolvedPortalPlayback.isLive === true`; VOD, episodes, catchup playback, radio audio playback, and non-embedded players do not show the recording control.
+Embedded MPV can record live streams through mpv's `stream-record` option. IPTVnator exposes this only for playback classified as live (`ResolvedPortalPlayback.isLive` when present, otherwise no `contentInfo`); VOD, episodes, catchup playback, radio audio playback, and non-embedded players do not show the recording control.
 
 Recording is session-scoped:
 
@@ -164,29 +183,30 @@ Current development behavior:
 
 - The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
 - The build script first looks for a staged runtime at `vendor/embedded-mpv/<platform>-<arch>/`.
-- The staged runtime must contain `include/mpv/client.h`, platform runtime files, and `runtime-manifest.json`.
+- The staged runtime/build inputs must contain `include/mpv/client.h` and `runtime-manifest.json`. macOS and Windows staging also contains the platform runtime files that are bundled into the app.
 - The compiled `.node` addon is copied into `dist/apps/electron-backend/native/embedded_mpv.node`.
-- Bundled runtime files are copied into `dist/apps/electron-backend/native/lib/`. macOS copies `.dylib` and non-`.dylib` Mach-O dependencies, Windows copies `mpv-2.dll`/`mpv.dll` and import libraries, and Linux copies `libmpv.so*`.
+- Bundled runtime files are copied into `dist/apps/electron-backend/native/lib/` for macOS and Windows. macOS copies `.dylib` and non-`.dylib` Mach-O dependencies; Windows copies `mpv-2.dll`/`mpv.dll` and import libraries. Linux writes an `external-mpv-process` manifest and intentionally leaves `libmpv.so` out of the package.
+- Linux does not bundle or load `libmpv` in the Electron process. Its native addon still requires staged MPV headers, but runtime support depends on the X11/Xwayland window handle plus an `mpv` executable on `PATH`.
 - `afterPack` copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` on macOS, Windows, and Linux so the addon, manifest, and runtime libraries are filesystem-addressable.
 
 Current release caveat:
 
-- Release packaging requires a `vendored-lgpl` runtime manifest.
+- Release packaging requires a `vendored-lgpl` runtime manifest on macOS and Windows, and an `external-mpv-process` manifest on Linux.
 - macOS release packaging rejects embedded MPV binaries linked to `/opt/homebrew` or `/usr/local`.
-- Windows and Linux release packaging verifies that the platform runtime file is present when Embedded MPV is required.
+- Windows release packaging verifies that the platform runtime file is present when Embedded MPV is required. Linux release packaging verifies that the addon and manifest are present and that no bundled `libmpv.so` files slipped into the package.
 - Local development can opt into Homebrew `libmpv` only by setting `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`; packaged release validation rejects that runtime origin.
 
 Before public release, packaging must:
 
-- stage an LGPL-compatible `libmpv` runtime for each release platform/architecture
+- stage an LGPL-compatible `libmpv` runtime for each macOS/Windows release platform/architecture, and stage Linux MPV headers/build metadata for Linux
 - collect indirect macOS dependencies expressed as absolute paths, `@loader_path`, or `@rpath`
 - rewrite macOS install names and dependency paths to app-relative paths such as `@loader_path`
 - code-sign and notarize the full macOS dependency set
 - ensure Windows runtime staging includes both the DLL and the import library used by `node-gyp`
-- ensure Linux runtime staging includes a runtime SONAME (`libmpv.so.2`, `libmpv.so.1`, or `libmpv.so`) and an unversioned `libmpv.so` linker name for local native builds
-- publish the corresponding FFmpeg/libmpv source and build metadata
+- ensure Linux native builds do not gain a direct `libmpv` dependency; the runtime playback path is `mpv --wid` in a separate process
+- publish the corresponding FFmpeg/libmpv source and build metadata for bundled macOS/Windows runtimes; Linux should document the distribution package versions used as build inputs
 
-Users do not need the MPV GUI application for this architecture. IPTVnator bundles `libmpv` for release builds. If the bundled runtime is missing or fails to load, embedded MPV is hidden/unsupported and the existing inline/external players remain available.
+Users on macOS and Windows do not need the MPV GUI application for this architecture. Linux currently requires an `mpv` executable because the supported backend is process-isolated. If the native addon/runtime prerequisites or Linux `mpv` executable are missing, embedded MPV is hidden/unsupported and the existing inline/external players remain available.
 
 ## Runtime Staging
 
@@ -219,9 +239,9 @@ pnpm embedded-mpv:stage-runtime -- darwin arm64 /tmp/embedded-mpv-prefix
 
 During temporary PR and `master` artifact testing, CI can restore an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/<platform>-<arch>/` runtime and skip the expensive source build where a source builder exists. The cache only contains `include/`, `lib/`, and `runtime-manifest.json`; it never contains the compiled `embedded_mpv.node` addon because that target depends on Electron headers, ABI, architecture, and build environment. Runtime cache entries are saved only from trusted repository refs, and tagged public macOS release builds continue to rebuild from pinned sources until a dedicated signed and attested runtime artifact flow exists. Windows and Linux currently use staged runtime cache inputs only; adding pinned source builders for those platforms is a separate release-hardening task.
 
-The CI builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`, libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `8.5.0`. FFmpeg disables autodetected external libraries so Homebrew libraries cannot silently enter the runtime. Libplacebo is checked out from git with the submodules required by its Meson build because the generated GitHub archive does not include submodule contents. Even with Vulkan disabled, libplacebo still compiles Vulkan stubs and needs `3rdparty/Vulkan-Headers`. The generated manifest records source URLs, archive SHA-256 values where applicable, libplacebo git commit/submodule metadata, FFmpeg configure flags, and mpv Meson flags. The staging step normalizes that manifest to `origin: vendored-lgpl`, which release package validation requires.
+The CI builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`, libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `8.5.0`. FFmpeg disables autodetected external libraries so Homebrew libraries cannot silently enter the runtime. Libplacebo is checked out from git with the submodules required by its Meson build because the generated GitHub archive does not include submodule contents. Even with Vulkan disabled, libplacebo still compiles Vulkan stubs and needs `3rdparty/Vulkan-Headers`. The generated manifest records source URLs, archive SHA-256 values where applicable, libplacebo git commit/submodule metadata, FFmpeg configure flags, and mpv Meson flags. The staging step normalizes macOS/Windows manifests to `origin: vendored-lgpl`, which release package validation requires on those platforms.
 
-The Electron backend build consumes the staged runtime and copies platform runtime files into the native build output. macOS additionally rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
+The Electron backend build consumes the staged runtime/build inputs and copies macOS/Windows runtime files into the native build output. Linux consumes the staged MPV headers, writes an `external-mpv-process` manifest, and does not copy `libmpv.so` into the package. macOS additionally rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
 
 For local development before the vendored runtime exists, Homebrew can be used explicitly:
 
@@ -284,8 +304,8 @@ If an embedded session fails to initialize, the app should keep the user in cont
 
 Do not expose embedded MPV broadly until these pass on every supported target:
 
-- packaged app starts without system `mpv` installed
-- bundled `libmpv` and dependent runtime files pass platform package validation
+- macOS/Windows packaged app starts without system `mpv` installed; Linux reports Embedded MPV unsupported with a clear message when system `mpv` is missing
+- bundled `libmpv` and dependent runtime files pass macOS/Windows package validation; Linux package validation confirms the external-process manifest and absence of bundled `libmpv.so`
 - macOS bundled `libmpv` and dependent dylibs pass code signing and notarization
 - VOD resume starts near the saved offset
 - series EOF emits `ended` and embedded MPV auto-continues only inside the current season

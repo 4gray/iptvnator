@@ -1,4 +1,5 @@
-import type { Locator, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { setInputValue } from './e2e-helpers';
 import { expect, test } from './fixtures';
 
 const WEB_BACKEND_URL = 'http://localhost:3333';
@@ -16,21 +17,6 @@ async function installRuntimeConfig(page: Page): Promise<void> {
             body: `window.__IPTVNATOR_CONFIG__ = { BACKEND_URL: ${JSON.stringify(WEB_BACKEND_URL)} };\n`,
         });
     });
-}
-
-async function setInputValue(input: Locator, value: string): Promise<void> {
-    await input.fill('');
-    await input.fill(value);
-
-    if ((await input.inputValue()) === value) {
-        return;
-    }
-
-    await input.click();
-    await input.press('ControlOrMeta+A');
-    await input.press('Backspace');
-    await input.type(value);
-    await expect(input).toHaveValue(value);
 }
 
 async function addXtreamPortal(page: Page): Promise<void> {

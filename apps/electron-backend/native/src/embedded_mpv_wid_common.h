@@ -6,23 +6,87 @@
 
 #include <mpv/client.h>
 
+#ifdef IPTVNATOR_DYNAMIC_LIBMPV
+#ifndef IPTVNATOR_MPV_SELECTANY
+#ifdef MPV_SELECTANY
+#define IPTVNATOR_MPV_SELECTANY MPV_SELECTANY
+#elif defined(_WIN32)
+#define IPTVNATOR_MPV_SELECTANY __declspec(selectany)
+#else
+#define IPTVNATOR_MPV_SELECTANY
+#endif
+#endif
+
+#define IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(name) \
+    IPTVNATOR_MPV_SELECTANY decltype(&name) pfn_##name = nullptr;
+
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_async)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_command_node_async)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_create)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_error_string)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_initialize)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_observe_property)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_request_log_messages)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_set_option_string)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_set_property)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_set_property_async)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_terminate_destroy)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wait_event)
+IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL(mpv_wakeup)
+
+#undef IPTVNATOR_DECLARE_MPV_DYNAMIC_SYMBOL
+
+#define mpv_command_async pfn_mpv_command_async
+#define mpv_command_node_async pfn_mpv_command_node_async
+#define mpv_create pfn_mpv_create
+#define mpv_error_string pfn_mpv_error_string
+#define mpv_initialize pfn_mpv_initialize
+#define mpv_observe_property pfn_mpv_observe_property
+#define mpv_request_log_messages pfn_mpv_request_log_messages
+#define mpv_set_option_string pfn_mpv_set_option_string
+#define mpv_set_property pfn_mpv_set_property
+#define mpv_set_property_async pfn_mpv_set_property_async
+#define mpv_terminate_destroy pfn_mpv_terminate_destroy
+#define mpv_wait_event pfn_mpv_wait_event
+#define mpv_wakeup pfn_mpv_wakeup
+#endif
+
 #include <algorithm>
 #include <atomic>
+#include <charconv>
 #include <chrono>
 #include <cctype>
+#include <climits>
 #include <cmath>
 #include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
+#include <iostream>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <sstream>
 #include <string>
+#include <system_error>
 #include <thread>
 #include <unordered_map>
 #include <utility>
 #include <vector>
+#ifdef __linux__
+#include <csignal>
+#include <dirent.h>
+#include <fcntl.h>
+#include <sys/socket.h>
+#include <sys/time.h>
+#include <sys/un.h>
+#include <sys/wait.h>
+#include <unistd.h>
+#endif
+
+#ifdef __linux__
+extern char **environ;
+#endif
 
 namespace {
 
@@ -78,12 +142,28 @@ struct Session {
     std::string pendingRecordingStartedAt;
     std::string pendingRecordingStopStartedAt;
     uint64_t pendingPlaybackLoadRequestId = 0;
+#ifdef __linux__
+    pid_t mpvProcessId = -1;
+    std::string mpvIpcSocketPath;
+#endif
 };
 
 std::atomic<uint64_t> gNextSessionId{1};
 std::atomic<uint64_t> gNextAsyncRequestId{1};
+#ifdef __linux__
+std::atomic<uint64_t> gNextLinuxIpcSocketId{1};
+#endif
 std::mutex gSessionsMutex;
 std::unordered_map<std::string, std::shared_ptr<Session>> gSessions;
+
+void traceMpvCommon(const std::string& message)
+{
+    if (!std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV")) {
+        return;
+    }
+
+    std::cerr << "[Embedded MPV] " << message << std::endl;
+}
 
 std::string toStatusString(SessionStatus status)
 {
@@ -118,6 +198,27 @@ double clampVolumePercent(double value)
         return 100.0;
     }
     return std::max(0.0, std::min(100.0, value * 100.0));
+}
+
+std::string formatInvariantDouble(double value)
+{
+    if (!std::isfinite(value)) {
+        return "0";
+    }
+
+    char buffer[64]{};
+    const auto result = std::to_chars(
+        buffer,
+        buffer + sizeof(buffer),
+        value,
+        std::chars_format::general,
+        17
+    );
+    if (result.ec != std::errc()) {
+        return "0";
+    }
+
+    return std::string(buffer, result.ptr);
 }
 
 std::string nowIsoString()
@@ -264,6 +365,696 @@ Bounds readBounds(const Napi::Object& object)
         readOptionalNumber(object, "height", 1),
     };
 }
+
+#ifdef __linux__
+struct LinuxMpvProcess {
+    pid_t processId = -1;
+    std::string ipcSocketPath;
+};
+
+bool isExecutableAvailable(const char* executableName)
+{
+    const char* pathValue = std::getenv("PATH");
+    if (!pathValue || !executableName || executableName[0] == '\0') {
+        return false;
+    }
+
+    std::string paths(pathValue);
+    size_t start = 0;
+    while (start <= paths.size()) {
+        const size_t end = paths.find(':', start);
+        const std::string directory = paths.substr(
+            start,
+            end == std::string::npos ? std::string::npos : end - start
+        );
+        const std::string candidate =
+            (directory.empty() ? "." : directory) + "/" + executableName;
+        if (access(candidate.c_str(), X_OK) == 0) {
+            return true;
+        }
+        if (end == std::string::npos) {
+            break;
+        }
+        start = end + 1;
+    }
+
+    return false;
+}
+
+bool hasEnvPrefix(const std::string& entry, const char* prefix)
+{
+    return entry.rfind(prefix, 0) == 0;
+}
+
+std::vector<std::string> buildLinuxMpvEnvironment()
+{
+    std::vector<std::string> environment;
+    bool hasXdgSessionType = false;
+
+    for (char** current = environ; current && *current; current += 1) {
+        const std::string entry(*current);
+
+        if (hasEnvPrefix(entry, "WAYLAND_DISPLAY=")) {
+            continue;
+        }
+
+        if (hasEnvPrefix(entry, "XDG_SESSION_TYPE=")) {
+            environment.push_back("XDG_SESSION_TYPE=x11");
+            hasXdgSessionType = true;
+            continue;
+        }
+
+        environment.push_back(entry);
+    }
+
+    if (!hasXdgSessionType) {
+        environment.push_back("XDG_SESSION_TYPE=x11");
+    }
+
+    return environment;
+}
+
+void updateLinuxProcessState(const std::shared_ptr<Session>& session)
+{
+    if (!session || !session->running.load()) {
+        return;
+    }
+
+    pid_t processId = -1;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        processId = session->mpvProcessId;
+    }
+    if (processId <= 0) {
+        return;
+    }
+
+    int status = 0;
+    const pid_t result = waitpid(processId, &status, WNOHANG);
+    if (result != processId) {
+        return;
+    }
+    if (!session->running.load()) {
+        return;
+    }
+
+    std::lock_guard<std::mutex> lock(session->mutex);
+    if (session->mpvProcessId != processId) {
+        return;
+    }
+    session->mpvProcessId = -1;
+    session->snapshot.status =
+        WIFEXITED(status) && WEXITSTATUS(status) == 0
+            ? SessionStatus::Closed
+            : SessionStatus::Error;
+    if (session->snapshot.status == SessionStatus::Error) {
+        session->snapshot.error = "Embedded MPV process exited unexpectedly.";
+    }
+}
+
+void unlinkLinuxIpcSocket(const std::string& ipcSocketPath)
+{
+    if (!ipcSocketPath.empty()) {
+        unlink(ipcSocketPath.c_str());
+    }
+}
+
+LinuxMpvProcess takeLinuxMpvProcess(const std::shared_ptr<Session>& session)
+{
+    LinuxMpvProcess process;
+    if (!session) {
+        return process;
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        process.processId = session->mpvProcessId;
+        session->mpvProcessId = -1;
+        process.ipcSocketPath = session->mpvIpcSocketPath;
+        session->mpvIpcSocketPath.clear();
+    }
+
+    return process;
+}
+
+void waitForLinuxMpvProcessExit(LinuxMpvProcess process)
+{
+    if (process.processId <= 0) {
+        unlinkLinuxIpcSocket(process.ipcSocketPath);
+        return;
+    }
+
+    for (int attempt = 0; attempt < 10; attempt += 1) {
+        int status = 0;
+        const pid_t result = waitpid(process.processId, &status, WNOHANG);
+        if (result == process.processId || result == -1) {
+            unlinkLinuxIpcSocket(process.ipcSocketPath);
+            return;
+        }
+        std::this_thread::sleep_for(std::chrono::milliseconds(50));
+    }
+
+    kill(process.processId, SIGKILL);
+    waitpid(process.processId, nullptr, 0);
+    unlinkLinuxIpcSocket(process.ipcSocketPath);
+}
+
+void terminateLinuxMpvProcessAsync(const std::shared_ptr<Session>& session)
+{
+    auto process = takeLinuxMpvProcess(session);
+    if (process.processId <= 0) {
+        unlinkLinuxIpcSocket(process.ipcSocketPath);
+        return;
+    }
+
+    kill(process.processId, SIGTERM);
+    std::thread([process = std::move(process)]() mutable {
+        waitForLinuxMpvProcessExit(std::move(process));
+    }).detach();
+}
+
+void appendLinuxMpvOption(
+    std::vector<std::string>& arguments,
+    const std::string& name,
+    const std::string& value)
+{
+    if (!value.empty()) {
+        arguments.push_back("--" + name + "=" + value);
+    }
+}
+
+std::vector<std::string> buildLinuxMpvArguments(
+    const std::shared_ptr<Session>& session,
+    const Napi::Object& playback,
+    const std::string& streamUrl,
+    const std::string& title,
+    const std::string& userAgent,
+    const std::string& referer,
+    double startTime,
+    const std::string& ipcSocketPath)
+{
+    std::vector<std::string> arguments;
+    arguments.reserve(24);
+    arguments.push_back("mpv");
+    arguments.push_back("--no-config");
+    arguments.push_back("--no-terminal");
+    arguments.push_back("--force-window=immediate");
+    arguments.push_back("--osc=no");
+    arguments.push_back("--input-default-bindings=no");
+    arguments.push_back("--input-vo-keyboard=no");
+    arguments.push_back("--ytdl=no");
+    arguments.push_back("--keep-open=yes");
+    arguments.push_back("--wid=" + session->host.wid());
+    arguments.push_back("--input-ipc-server=" + ipcSocketPath);
+    arguments.push_back("--vo=gpu,x11");
+    arguments.push_back("--gpu-context=x11egl");
+
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        arguments.push_back(
+            "--volume=" +
+                formatInvariantDouble(session->snapshot.volumePercent)
+        );
+    }
+
+    if (std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV")) {
+        arguments.push_back("--msg-level=all=trace");
+        arguments.push_back("--log-file=/tmp/iptvnator-embedded-mpv.log");
+    } else {
+        arguments.push_back("--really-quiet");
+    }
+
+    appendLinuxMpvOption(arguments, "force-media-title", title);
+    appendLinuxMpvOption(arguments, "user-agent", userAgent);
+    appendLinuxMpvOption(arguments, "referrer", referer);
+    if (std::isfinite(startTime) && startTime >= 0) {
+        appendLinuxMpvOption(
+            arguments,
+            "start",
+            formatInvariantDouble(startTime)
+        );
+    }
+    if (playback.Has("headers") && playback.Get("headers").IsObject()) {
+        appendLinuxMpvOption(
+            arguments,
+            "http-header-fields",
+            joinHeaderFields(playback.Get("headers").As<Napi::Object>())
+        );
+    }
+    arguments.push_back(streamUrl);
+    return arguments;
+}
+
+void closeInheritedFileDescriptors()
+{
+    DIR* directory = opendir("/proc/self/fd");
+    if (directory) {
+        const int directoryFd = dirfd(directory);
+        while (dirent* entry = readdir(directory)) {
+            char* end = nullptr;
+            const long value = std::strtol(entry->d_name, &end, 10);
+            if (
+                !end ||
+                *end != '\0' ||
+                value <= STDERR_FILENO ||
+                value > INT_MAX
+            ) {
+                continue;
+            }
+
+            const int descriptor = static_cast<int>(value);
+            if (descriptor == directoryFd) {
+                continue;
+            }
+            const int flags = fcntl(descriptor, F_GETFD);
+            if (flags >= 0) {
+                fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC);
+            }
+        }
+        closedir(directory);
+        return;
+    }
+
+    for (int descriptor = STDERR_FILENO + 1; descriptor < 1024; descriptor += 1) {
+        const int flags = fcntl(descriptor, F_GETFD);
+        if (flags >= 0) {
+            fcntl(descriptor, F_SETFD, flags | FD_CLOEXEC);
+        }
+    }
+}
+
+std::string buildLinuxIpcSocketPath(const std::shared_ptr<Session>& session)
+{
+    std::string safeSessionId = session ? session->id : "unknown";
+    for (char& character : safeSessionId) {
+        if (!std::isalnum(static_cast<unsigned char>(character))) {
+            character = '-';
+        }
+    }
+
+    return "/tmp/iptvnator-embedded-mpv-" +
+        std::to_string(static_cast<long>(getpid())) +
+        "-" + safeSessionId +
+        "-" + std::to_string(gNextLinuxIpcSocketId.fetch_add(1)) + ".sock";
+}
+
+bool writeAll(int fileDescriptor, const std::string& payload)
+{
+    const char* current = payload.c_str();
+    size_t remaining = payload.size();
+
+    while (remaining > 0) {
+        const ssize_t written = write(fileDescriptor, current, remaining);
+        if (written <= 0) {
+            return false;
+        }
+        current += written;
+        remaining -= static_cast<size_t>(written);
+    }
+
+    return true;
+}
+
+bool readLine(int fileDescriptor, std::string& output)
+{
+    output.clear();
+    char buffer[512];
+
+    while (output.find('\n') == std::string::npos) {
+        const ssize_t received = read(fileDescriptor, buffer, sizeof(buffer));
+        if (received <= 0) {
+            return !output.empty();
+        }
+        output.append(buffer, static_cast<size_t>(received));
+    }
+
+    const size_t newline = output.find('\n');
+    if (newline != std::string::npos) {
+        output.erase(newline + 1);
+    }
+    return true;
+}
+
+bool transactLinuxMpvIpc(
+    const std::string& socketPath,
+    const std::string& payload,
+    std::string& response)
+{
+    if (socketPath.empty() || socketPath.size() >= sizeof(sockaddr_un::sun_path)) {
+        return false;
+    }
+
+    const int fileDescriptor = socket(AF_UNIX, SOCK_STREAM | SOCK_CLOEXEC, 0);
+    if (fileDescriptor < 0) {
+        return false;
+    }
+
+    timeval timeout{};
+    timeout.tv_sec = 0;
+    timeout.tv_usec = 250000;
+    setsockopt(fileDescriptor, SOL_SOCKET, SO_RCVTIMEO, &timeout, sizeof(timeout));
+    setsockopt(fileDescriptor, SOL_SOCKET, SO_SNDTIMEO, &timeout, sizeof(timeout));
+
+    sockaddr_un address{};
+    address.sun_family = AF_UNIX;
+    std::strncpy(address.sun_path, socketPath.c_str(), sizeof(address.sun_path) - 1);
+
+    bool ok = connect(
+        fileDescriptor,
+        reinterpret_cast<sockaddr*>(&address),
+        sizeof(address)
+    ) == 0;
+    if (ok) {
+        ok = writeAll(fileDescriptor, payload) && readLine(fileDescriptor, response);
+    }
+
+    close(fileDescriptor);
+    return ok;
+}
+
+std::optional<std::string> parseJsonDataToken(const std::string& response)
+{
+    const size_t key = response.find("\"data\"");
+    if (key == std::string::npos) {
+        return std::nullopt;
+    }
+    const size_t colon = response.find(':', key);
+    if (colon == std::string::npos) {
+        return std::nullopt;
+    }
+
+    size_t start = colon + 1;
+    while (start < response.size() &&
+           std::isspace(static_cast<unsigned char>(response[start]))) {
+        start += 1;
+    }
+    if (start >= response.size()) {
+        return std::nullopt;
+    }
+
+    if (response.compare(start, 4, "null") == 0) {
+        return std::nullopt;
+    }
+
+    if (response[start] == '"') {
+        size_t end = start + 1;
+        while (end < response.size()) {
+            if (response[end] == '"' && response[end - 1] != '\\') {
+                break;
+            }
+            end += 1;
+        }
+        if (end >= response.size()) {
+            return std::nullopt;
+        }
+        return response.substr(start + 1, end - start - 1);
+    }
+
+    size_t end = start;
+    while (end < response.size() &&
+           response[end] != ',' &&
+           response[end] != '}' &&
+           !std::isspace(static_cast<unsigned char>(response[end]))) {
+        end += 1;
+    }
+
+    return response.substr(start, end - start);
+}
+
+std::optional<double> parseJsonDataNumber(const std::string& response)
+{
+    const auto token = parseJsonDataToken(response);
+    if (!token) {
+        return std::nullopt;
+    }
+
+    char* end = nullptr;
+    const double value = std::strtod(token->c_str(), &end);
+    if (end == token->c_str() || !std::isfinite(value)) {
+        return std::nullopt;
+    }
+
+    return value;
+}
+
+std::optional<bool> parseJsonDataBoolean(const std::string& response)
+{
+    const auto token = parseJsonDataToken(response);
+    if (!token) {
+        return std::nullopt;
+    }
+    if (*token == "true") {
+        return true;
+    }
+    if (*token == "false") {
+        return false;
+    }
+    return std::nullopt;
+}
+
+std::optional<std::string> parseJsonDataString(const std::string& response)
+{
+    return parseJsonDataToken(response);
+}
+
+std::optional<double> queryLinuxMpvNumber(
+    const std::string& socketPath,
+    const std::string& propertyName)
+{
+    std::string response;
+    if (!transactLinuxMpvIpc(
+            socketPath,
+            "{\"command\":[\"get_property\",\"" + propertyName + "\"]}\n",
+            response
+        )) {
+        return std::nullopt;
+    }
+
+    return parseJsonDataNumber(response);
+}
+
+std::optional<bool> queryLinuxMpvBoolean(
+    const std::string& socketPath,
+    const std::string& propertyName)
+{
+    std::string response;
+    if (!transactLinuxMpvIpc(
+            socketPath,
+            "{\"command\":[\"get_property\",\"" + propertyName + "\"]}\n",
+            response
+        )) {
+        return std::nullopt;
+    }
+
+    return parseJsonDataBoolean(response);
+}
+
+std::optional<std::string> queryLinuxMpvString(
+    const std::string& socketPath,
+    const std::string& propertyName)
+{
+    std::string response;
+    if (!transactLinuxMpvIpc(
+            socketPath,
+            "{\"command\":[\"get_property\",\"" + propertyName + "\"]}\n",
+            response
+        )) {
+        return std::nullopt;
+    }
+
+    return parseJsonDataString(response);
+}
+
+bool sendLinuxMpvCommand(
+    const std::string& socketPath,
+    const std::string& command)
+{
+    std::string response;
+    return transactLinuxMpvIpc(socketPath, command, response);
+}
+
+void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
+{
+    updateLinuxProcessState(session);
+    if (!session || !session->running.load()) {
+        return;
+    }
+
+    std::string socketPath;
+    pid_t processId = -1;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+        processId = session->mpvProcessId;
+    }
+    if (processId <= 0 || socketPath.empty()) {
+        return;
+    }
+
+    const auto position = queryLinuxMpvNumber(socketPath, "time-pos");
+    const auto duration = queryLinuxMpvNumber(socketPath, "duration");
+    const auto volume = queryLinuxMpvNumber(socketPath, "volume");
+    const auto paused = queryLinuxMpvBoolean(socketPath, "pause");
+    const auto path = queryLinuxMpvString(socketPath, "path");
+
+    std::lock_guard<std::mutex> lock(session->mutex);
+    if (
+        !session->running.load() ||
+        session->mpvProcessId != processId ||
+        session->mpvIpcSocketPath != socketPath
+    ) {
+        return;
+    }
+    if (position) {
+        session->snapshot.positionSeconds = std::max(0.0, *position);
+    }
+    if (duration) {
+        session->snapshot.durationSeconds = std::max(0.0, *duration);
+    }
+    if (volume) {
+        session->snapshot.volumePercent =
+            std::max(0.0, std::min(100.0, *volume));
+    }
+    if (paused) {
+        session->snapshot.status =
+            *paused ? SessionStatus::Paused : SessionStatus::Playing;
+        session->snapshot.error.clear();
+    }
+    if (path && !path->empty()) {
+        session->snapshot.streamUrl = *path;
+    }
+}
+
+void runLinuxProcessPollLoop(std::shared_ptr<Session> session)
+{
+    while (session && session->running.load()) {
+        refreshLinuxMpvSnapshot(session);
+        for (int tick = 0; tick < 10 && session->running.load(); tick += 1) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(50));
+        }
+    }
+}
+
+bool startLinuxProcessPolling(const std::shared_ptr<Session>& session)
+{
+    if (!session) {
+        return false;
+    }
+
+    bool expected = false;
+    if (!session->running.compare_exchange_strong(expected, true)) {
+        return true;
+    }
+
+    try {
+        session->eventThread = std::thread(runLinuxProcessPollLoop, session);
+    } catch (...) {
+        session->running.store(false);
+        return false;
+    }
+
+    return true;
+}
+
+pid_t spawnLinuxMpvProcess(
+    const std::vector<std::string>& arguments,
+    const std::vector<std::string>& environment)
+{
+    std::vector<char*> argv;
+    argv.reserve(arguments.size() + 1);
+    for (const auto& argument : arguments) {
+        argv.push_back(const_cast<char*>(argument.c_str()));
+    }
+    argv.push_back(nullptr);
+
+    std::vector<char*> envp;
+    envp.reserve(environment.size() + 1);
+    for (const auto& entry : environment) {
+        envp.push_back(const_cast<char*>(entry.c_str()));
+    }
+    envp.push_back(nullptr);
+
+    const bool traceEnabled = std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV");
+    const pid_t processId = fork();
+    if (processId != 0) {
+        return processId;
+    }
+
+    if (!traceEnabled) {
+        const int nullFd = open("/dev/null", O_RDWR);
+        if (nullFd >= 0) {
+            dup2(nullFd, STDOUT_FILENO);
+            dup2(nullFd, STDERR_FILENO);
+            if (nullFd > STDERR_FILENO) {
+                close(nullFd);
+            }
+        }
+    }
+
+    closeInheritedFileDescriptors();
+    execvpe(argv[0], argv.data(), envp.data());
+    _exit(127);
+}
+
+void loadLinuxProcessPlayback(
+    Napi::Env env,
+    const std::shared_ptr<Session>& session,
+    const Napi::Object& playback,
+    const std::string& streamUrl,
+    const std::string& title,
+    const std::string& userAgent,
+    const std::string& referer,
+    double startTime)
+{
+    terminateLinuxMpvProcessAsync(session);
+    const auto ipcSocketPath = buildLinuxIpcSocketPath(session);
+    unlink(ipcSocketPath.c_str());
+    const auto arguments = buildLinuxMpvArguments(
+        session,
+        playback,
+        streamUrl,
+        title,
+        userAgent,
+        referer,
+        startTime,
+        ipcSocketPath
+    );
+    const auto environment = buildLinuxMpvEnvironment();
+
+    const pid_t processId = spawnLinuxMpvProcess(arguments, environment);
+    if (processId < 0) {
+        throw Napi::Error::New(env, "Failed to start embedded MPV process.");
+    }
+
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->mpvProcessId = processId;
+        session->mpvIpcSocketPath = ipcSocketPath;
+        session->snapshot.positionSeconds = std::max(0.0, startTime);
+        session->snapshot.durationSeconds = -1.0;
+        session->snapshot.streamUrl = streamUrl;
+        session->snapshot.error.clear();
+        session->snapshot.status = SessionStatus::Playing;
+        session->snapshot.audioTracks.clear();
+        session->snapshot.selectedAudioTrackId = -1;
+        session->snapshot.subtitleTracks.clear();
+        session->snapshot.selectedSubtitleTrackId = -1;
+        session->snapshot.playbackSpeed = 1.0;
+        session->snapshot.aspectOverride = "no";
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingTargetPath.clear();
+        session->snapshot.recordingStartedAt.clear();
+        session->snapshot.recordingError.clear();
+    }
+    if (!startLinuxProcessPolling(session)) {
+        terminateLinuxMpvProcessAsync(session);
+        throw Napi::Error::New(
+            env,
+            "Failed to start embedded MPV snapshot polling."
+        );
+    }
+}
+#endif
 
 bool parseIntegerString(const std::string& value, int64_t& result)
 {
@@ -648,6 +1439,21 @@ void destroySession(const std::shared_ptr<Session>& session)
         return;
     }
 
+#ifdef __linux__
+    session->running.store(false);
+    terminateLinuxMpvProcessAsync(session);
+    if (session->eventThread.joinable()) {
+        session->eventThread.detach();
+    }
+    session->host.destroy();
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.status = SessionStatus::Closed;
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingStartedAt.clear();
+    }
+    return;
+#endif
     session->running.store(false);
     if (session->handle) {
         bool recordingActive = false;
@@ -687,7 +1493,11 @@ void destroySession(const std::shared_ptr<Session>& session)
 
 Napi::Value IsSupported(const Napi::CallbackInfo& info)
 {
-    return Napi::Boolean::New(info.Env(), NativeVideoHost::isAvailable());
+    bool supported = NativeVideoHost::isAvailable();
+#ifdef __linux__
+    supported = supported && isExecutableAvailable("mpv");
+#endif
+    return Napi::Boolean::New(info.Env(), supported);
 }
 
 Napi::Value CreateSession(const Napi::CallbackInfo& info)
@@ -701,15 +1511,16 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     }
 
     const auto windowHandle = info[0].As<Napi::Buffer<uint8_t>>();
-    if (windowHandle.Length() < sizeof(uintptr_t)) {
-        throw Napi::Error::New(env, "Native window handle buffer is too small.");
+    const auto windowHandleLength = windowHandle.Length();
+    if (windowHandleLength == 0) {
+        throw Napi::Error::New(env, "Native window handle buffer is empty.");
     }
 
     uintptr_t windowHandleValue = 0;
     std::memcpy(
         &windowHandleValue,
         windowHandle.Data(),
-        std::min(windowHandle.Length(), sizeof(uintptr_t))
+        std::min(windowHandleLength, sizeof(uintptr_t))
     );
     if (windowHandleValue == 0) {
         throw Napi::Error::New(env, "Unable to resolve Electron native window handle.");
@@ -723,17 +1534,33 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
             ? clampVolumePercent(info[3].As<Napi::Number>().DoubleValue())
             : 100.0;
 
+    traceMpvCommon("creating native video host");
     if (!session->host.create(windowHandleValue, bounds)) {
         throw Napi::Error::New(env, NativeVideoHost::lastError());
     }
+    traceMpvCommon("native video host created");
 
+#ifdef __linux__
+    session->host.setBounds(bounds);
+    {
+        std::lock_guard<std::mutex> sessionsLock(gSessionsMutex);
+        gSessions.emplace(session->id, session);
+    }
+    return Napi::String::New(env, session->id);
+#endif
+
+    traceMpvCommon("creating libmpv handle");
     session->handle = mpv_create();
     if (!session->handle) {
         session->host.destroy();
         throw Napi::Error::New(env, "Failed to create libmpv handle.");
     }
+    traceMpvCommon("libmpv handle created");
 
+    traceMpvCommon("resolving native video host id");
     const std::string wid = session->host.wid();
+    traceMpvCommon("native video host id resolved");
+    traceMpvCommon("setting libmpv options");
     mpv_set_option_string(session->handle, "terminal", "no");
     mpv_set_option_string(session->handle, "config", "no");
     mpv_set_option_string(session->handle, "osc", "no");
@@ -743,14 +1570,29 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     mpv_set_option_string(session->handle, "input-vo-keyboard", "no");
     mpv_set_option_string(session->handle, "ytdl", "no");
     mpv_set_option_string(session->handle, "wid", wid.c_str());
+#ifdef __linux__
+    mpv_set_option_string(session->handle, "vo", "x11");
+    mpv_set_option_string(session->handle, "hwdec", "no");
+#else
     mpv_set_option_string(session->handle, "vo", "gpu");
     mpv_set_option_string(session->handle, "hwdec", "auto-safe");
+#endif
+    if (std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV")) {
+        mpv_set_option_string(session->handle, "msg-level", "all=trace");
+        mpv_set_option_string(
+            session->handle,
+            "log-file",
+            "/tmp/iptvnator-embedded-mpv.log"
+        );
+    }
 
-    const auto initialVolume =
-        std::to_string(session->snapshot.volumePercent);
+    const auto initialVolume = formatInvariantDouble(
+        session->snapshot.volumePercent
+    );
     mpv_set_option_string(session->handle, "volume", initialVolume.c_str());
     mpv_request_log_messages(session->handle, "warn");
 
+    traceMpvCommon("initializing libmpv");
     const int initializeResult = mpv_initialize(session->handle);
     if (initializeResult < 0) {
         destroySession(session);
@@ -760,7 +1602,9 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
                 mpv_error_string(initializeResult)
         );
     }
+    traceMpvCommon("libmpv initialized");
 
+    traceMpvCommon("observing libmpv properties");
     mpv_observe_property(session->handle, 1, "time-pos", MPV_FORMAT_DOUBLE);
     mpv_observe_property(session->handle, 2, "duration", MPV_FORMAT_DOUBLE);
     mpv_observe_property(session->handle, 3, "pause", MPV_FORMAT_FLAG);
@@ -781,6 +1625,7 @@ Napi::Value CreateSession(const Napi::CallbackInfo& info)
     session->running.store(true);
     session->eventThread = std::thread(runEventLoop, session);
     session->host.setBounds(bounds);
+    traceMpvCommon("session event loop started");
 
     {
         std::lock_guard<std::mutex> sessionsLock(gSessionsMutex);
@@ -808,6 +1653,20 @@ Napi::Value LoadPlayback(const Napi::CallbackInfo& info)
     const std::string userAgent = readOptionalString(playback, "userAgent");
     const std::string referer = readOptionalString(playback, "referer");
     const double startTime = readOptionalNumber(playback, "startTime", -1);
+
+#ifdef __linux__
+    loadLinuxProcessPlayback(
+        env,
+        session,
+        playback,
+        streamUrl,
+        title,
+        userAgent,
+        referer,
+        startTime
+    );
+    return env.Undefined();
+#endif
 
     bool recordingActive = false;
     {
@@ -957,6 +1816,23 @@ Napi::Value SetPaused(const Napi::CallbackInfo& info)
     const auto session =
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
     int paused = info[1].As<Napi::Boolean>().Value() ? 1 : 0;
+#ifdef __linux__
+    std::string socketPath;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+        session->snapshot.status =
+            paused ? SessionStatus::Paused : SessionStatus::Playing;
+    }
+    if (!socketPath.empty()) {
+        sendLinuxMpvCommand(
+            socketPath,
+            std::string("{\"command\":[\"set_property\",\"pause\",") +
+                (paused ? "true" : "false") + "]}\n"
+        );
+    }
+    return env.Undefined();
+#endif
     const int result = mpv_set_property_async(
         session->handle,
         nextAsyncRequestId(),
@@ -978,8 +1854,25 @@ Napi::Value Seek(const Napi::CallbackInfo& info)
     }
     const auto session =
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
-    const std::string seconds =
-        std::to_string(info[1].As<Napi::Number>().DoubleValue());
+    const std::string seconds = formatInvariantDouble(
+        info[1].As<Napi::Number>().DoubleValue()
+    );
+#ifdef __linux__
+    std::string socketPath;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+        session->snapshot.positionSeconds =
+            std::max(0.0, info[1].As<Napi::Number>().DoubleValue());
+    }
+    if (!socketPath.empty()) {
+        sendLinuxMpvCommand(
+            socketPath,
+            "{\"command\":[\"seek\"," + seconds + ",\"absolute\"]}\n"
+        );
+    }
+    return env.Undefined();
+#endif
     const char* command[] = { "seek", seconds.c_str(), "absolute", nullptr };
     const int result = mpv_command_async(
         session->handle,
@@ -1001,6 +1894,22 @@ Napi::Value SetVolume(const Napi::CallbackInfo& info)
     const auto session =
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
     double volume = clampVolumePercent(info[1].As<Napi::Number>().DoubleValue());
+#ifdef __linux__
+    std::string socketPath;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+        session->snapshot.volumePercent = volume;
+    }
+    if (!socketPath.empty()) {
+        sendLinuxMpvCommand(
+            socketPath,
+            "{\"command\":[\"set_property\",\"volume\"," +
+                formatInvariantDouble(volume) + "]}\n"
+        );
+    }
+    return env.Undefined();
+#endif
     const int result = mpv_set_property_async(
         session->handle,
         nextAsyncRequestId(),
@@ -1024,6 +1933,22 @@ Napi::Value SetAudioTrack(const Napi::CallbackInfo& info)
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
     int64_t trackId =
         static_cast<int64_t>(info[1].As<Napi::Number>().Int64Value());
+#ifdef __linux__
+    std::string socketPath;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        socketPath = session->mpvIpcSocketPath;
+        session->snapshot.selectedAudioTrackId = trackId;
+    }
+    if (!socketPath.empty()) {
+        sendLinuxMpvCommand(
+            socketPath,
+            "{\"command\":[\"set_property\",\"aid\"," +
+                std::to_string(trackId) + "]}\n"
+        );
+    }
+    return env.Undefined();
+#endif
     const int result = mpv_set_property_async(
         session->handle,
         nextAsyncRequestId(),
@@ -1037,7 +1962,7 @@ Napi::Value SetAudioTrack(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
-Napi::Value SetSubtitleTrack(const Napi::CallbackInfo& info)
+[[maybe_unused]] Napi::Value SetSubtitleTrack(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     if (info.Length() < 2 || !info[0].IsString() || !info[1].IsNumber()) {
@@ -1072,7 +1997,7 @@ Napi::Value SetSubtitleTrack(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
-Napi::Value SetSpeed(const Napi::CallbackInfo& info)
+[[maybe_unused]] Napi::Value SetSpeed(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     if (info.Length() < 2 || !info[0].IsString() || !info[1].IsNumber()) {
@@ -1094,7 +2019,7 @@ Napi::Value SetSpeed(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
-Napi::Value SetAspect(const Napi::CallbackInfo& info)
+[[maybe_unused]] Napi::Value SetAspect(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     if (info.Length() < 2 || !info[0].IsString() || !info[1].IsString()) {
@@ -1117,7 +2042,7 @@ Napi::Value SetAspect(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
-Napi::Value StartRecording(const Napi::CallbackInfo& info)
+[[maybe_unused]] Napi::Value StartRecording(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     if (info.Length() < 2 || !info[0].IsString() || !info[1].IsString()) {
@@ -1153,7 +2078,7 @@ Napi::Value StartRecording(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
-Napi::Value StopRecording(const Napi::CallbackInfo& info)
+[[maybe_unused]] Napi::Value StopRecording(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
     if (info.Length() < 1 || !info[0].IsString()) {
@@ -1322,11 +2247,13 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("seek", Napi::Function::New(env, Seek));
     exports.Set("setVolume", Napi::Function::New(env, SetVolume));
     exports.Set("setAudioTrack", Napi::Function::New(env, SetAudioTrack));
+#ifndef __linux__
     exports.Set("setSubtitleTrack", Napi::Function::New(env, SetSubtitleTrack));
     exports.Set("setSpeed", Napi::Function::New(env, SetSpeed));
     exports.Set("setAspect", Napi::Function::New(env, SetAspect));
     exports.Set("startRecording", Napi::Function::New(env, StartRecording));
     exports.Set("stopRecording", Napi::Function::New(env, StopRecording));
+#endif
     exports.Set("getSessionSnapshot", Napi::Function::New(env, GetSessionSnapshot));
     exports.Set("disposeSession", Napi::Function::New(env, DisposeSession));
     return exports;

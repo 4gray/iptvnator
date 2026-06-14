@@ -19,7 +19,14 @@ const electronBuilderConfig = JSON.parse(
 );
 const electronProjectConfig = JSON.parse(
     fs.readFileSync(
-        join(currentDir, '..', '..', 'apps', 'electron-backend', 'project.json'),
+        join(
+            currentDir,
+            '..',
+            '..',
+            'apps',
+            'electron-backend',
+            'project.json'
+        ),
         'utf8'
     )
 );
@@ -49,9 +56,7 @@ const electronAfterPackSource = fs.readFileSync(
     join(currentDir, 'electron-after-pack.cjs'),
     'utf8'
 );
-const {
-    validatePackagedEmbeddedMpv,
-} = require('./embedded-mpv-packaging.cjs');
+const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
 
 test('Linux package identity does not expose the internal Electron backend project name', () => {
     assert.equal(electronBuilderConfig.productName, 'IPTVnator');
@@ -62,15 +67,16 @@ test('Linux package identity does not expose the internal Electron backend proje
         electronBuilderConfig.linux?.desktop?.entry?.StartupWMClass,
         'iptvnator'
     );
+    assert.ok(
+        electronBuilderConfig.linux?.executableArgs?.includes(
+            '--ozone-platform=x11'
+        )
+    );
 });
 
 test('generated Electron package metadata mirrors the root package identity', async () => {
-    const {
-        buildElectronBuilderMetadata,
-        buildElectronPackageMetadata,
-    } = await import(
-        './generate-electron-builder-metadata.mjs'
-    );
+    const { buildElectronBuilderMetadata, buildElectronPackageMetadata } =
+        await import('./generate-electron-builder-metadata.mjs');
     const generatedElectronPackage = buildElectronPackageMetadata(
         packageMetadata,
         electronBuilderConfig,
@@ -156,13 +162,9 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
 });
 
 test('nx-electron packaging does not copy duplicate root package metadata', () => {
-    const nxElectronExecutorPath = require.resolve(
-        'nx-electron/src/executors/package/executor.js'
-    );
-    const nxElectronExecutor = fs.readFileSync(
-        nxElectronExecutorPath,
-        'utf8'
-    );
+    const nxElectronExecutorPath =
+        require.resolve('nx-electron/src/executors/package/executor.js');
+    const nxElectronExecutor = fs.readFileSync(nxElectronExecutorPath, 'utf8');
 
     assert.doesNotMatch(nxElectronExecutor, /['"]\.\/package\.json['"]/);
     assert.match(
@@ -189,14 +191,13 @@ test('embedded MPV runtime binaries are unpacked on every supported desktop plat
     }
 });
 
-test('embedded MPV package validation accepts Windows and Linux runtime files', () => {
+test('embedded MPV package validation accepts Windows runtime files and Linux process isolation', () => {
     const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
 
     try {
         for (const [platform, runtimeFile] of [
             ['windows', 'mpv-2.dll'],
             ['windows', join('lib', 'mpv.dll')],
-            ['linux', join('lib', 'libmpv.so.2')],
         ]) {
             const resourceDir = join(tempDir, platform);
             const nativeDir = join(
@@ -221,6 +222,28 @@ test('embedded MPV package validation accepts Windows and Linux runtime files', 
                 []
             );
         }
+
+        const linuxResourceDir = join(tempDir, 'linux');
+        const linuxNativeDir = join(
+            linuxResourceDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(linuxNativeDir, { recursive: true });
+        fs.writeFileSync(join(linuxNativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(linuxNativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'external-mpv-process' })
+        );
+
+        assert.deepEqual(
+            validatePackagedEmbeddedMpv(linuxResourceDir, {
+                platform: 'linux',
+                required: true,
+            }),
+            []
+        );
     } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
     }
@@ -260,6 +283,35 @@ test('embedded MPV package validation rejects missing required Windows runtime',
         });
 
         assert.match(errors.join('\n'), /Missing bundled embedded MPV runtime/);
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('embedded MPV package validation rejects bundled Linux libmpv', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        const nativeDir = join(
+            tempDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(join(nativeDir, 'lib'), { recursive: true });
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(nativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'external-mpv-process' })
+        );
+        fs.writeFileSync(join(nativeDir, 'lib', 'libmpv.so'), '');
+
+        const errors = validatePackagedEmbeddedMpv(tempDir, {
+            platform: 'linux',
+            required: true,
+        });
+
+        assert.match(errors.join('\n'), /must not bundle libmpv/);
     } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
     }

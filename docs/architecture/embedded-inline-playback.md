@@ -5,7 +5,7 @@ This document records the current contract for embedded playback in portal detai
 ## Summary
 
 - Embedded web players are `videojs`, `html5`, and `artplayer`.
-- `embedded-mpv` exists as a hidden desktop experimental harness backed by a native `libmpv` addon.
+- `embedded-mpv` exists as a hidden desktop experimental harness backed by a native MPV addon. macOS and Windows use in-process `libmpv`; Linux uses an X11/Xwayland child window with an out-of-process `mpv --wid` backend.
 - Controlled external players are `mpv` and `vlc`.
 - macOS `.app` bundle paths are resolved only for real MPV/VLC apps. IINA may
   launch through the MPV path field when the user supplies an executable path
@@ -53,26 +53,30 @@ Current contract:
 - desktop only: macOS, Windows x64, and Linux x64 under X11/Xwayland
 - experimental opt-in
 - enabled in local development only when `IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT=1`
-- enabled in packaged desktop builds only when the bundled native addon and `vendored-lgpl` libmpv runtime load successfully
+- Linux Wayland sessions must start Electron through Xwayland, for example with `pnpm nx run electron-backend:serve-electron --args=--ozone-platform=x11` during local development or `iptvnator --ozone-platform=x11` for a packaged app
+- enabled in packaged desktop builds only when the bundled native addon/runtime prerequisites are present; Linux additionally requires an `mpv` executable on `PATH`
 - uses IPTVnator-owned controls and `ResolvedPortalPlayback` payloads
 - uses the libmpv render API on macOS and renders through an IPTVnator-owned native `NSView`
 - uses mpv `wid` embedding on Windows and Linux through IPTVnator-owned native child windows
-- defaults to libmpv's OpenGL render backend with `hwdec=auto-safe`
+- Linux starts `mpv --wid=<x11-window>` out of process so MPV does not share Electron's FFmpeg or graphics symbols
+- Linux controls that out-of-process MPV instance through a private JSON IPC socket so duration, position, pause, volume, and seek state come from MPV instead of renderer guesses
+- Linux starts that MPV process with `WAYLAND_DISPLAY` removed, `XDG_SESSION_TYPE=x11`, and X11 video output options; otherwise MPV can pick Wayland inside a Wayland desktop session, ignore `--wid`, and open a separate window instead of embedding
+- macOS/Windows default to libmpv's OpenGL render backend with `hwdec=auto-safe`
 - keeps the previous software renderer as a debug fallback via `IPTVNATOR_EMBEDDED_MPV_RENDERER=sw`
-- emits lightweight render diagnostics when `IPTVNATOR_TRACE_EMBEDDED_MPV=1` is set
+- emits lightweight native diagnostics when `IPTVNATOR_TRACE_EMBEDDED_MPV=1` is set; Linux also writes MPV's own trace log to `/tmp/iptvnator-embedded-mpv.log`
 - exposes an IPTVnator-owned fullscreen button that uses the renderer fullscreen API and resyncs the native MPV view bounds after fullscreen transitions
 - auto-hides IPTVnator-owned controls while playback is active and restores them on pointer/focus interaction
 - exposes audio-track metadata from MPV and switches tracks through the `aid` property without reloading the stream
 - passes VOD/episode resume offsets to MPV through the `loadfile` options map; live catchup URLs are treated as already-positioned streams
-- applies the initial volume during session creation and uses async libmpv control calls after startup
+- applies the initial volume during session creation and uses async libmpv control calls after startup where the in-process libmpv backend is active
 - VLC remains external-only
 
 Current limitation:
 
 - the current feasibility harness is still experimental and platform-specific
 - the original macOS `wid` embedding path produced audio with a black video surface inside Electron, so the harness now avoids foreign-window embedding on macOS
-- Windows and Linux use the mpv `wid` path, require staged LGPL runtime files, and still need OS-native smoke coverage before public exposure
-- Linux native Wayland is not supported in this implementation; the Electron process must have `DISPLAY` through X11 or Xwayland
+- Windows and Linux use the mpv `wid` path and still need OS-native packaged smoke coverage before public exposure
+- Linux native Wayland is not supported in this implementation; the Electron process must have `DISPLAY` through X11/Xwayland and a real X11 window handle
 - the OpenGL render path avoids the old per-frame `CGImage` copy path, but it still needs broader interaction, resize, and packaging coverage
 - startup deadlocks seen during early macOS playback bring-up are mitigated, but the feature is still kept behind the explicit experiment flag until more interaction and packaging coverage is proven
 - because of that, the setting is auto-sanitized back to the default inline player unless support detection reports that the experimental runtime is available
@@ -195,7 +199,7 @@ The diagnostic surface covers the inline player viewport when playback fails, wi
 
 URL extension metadata is filtered before diagnostics and player selection use it. Web script extensions such as `.php` are not shown as stream containers; explicit media query metadata such as `extension=ts` or `format=m3u8` is preferred when present.
 
-Portal VOD and episode payloads with `contentInfo` are treated as non-live by the Video.js MPEG-TS path unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
+Portal VOD and episode payloads with `contentInfo` are treated as non-live by the inline players unless `isLive` is explicitly set. If Chromium leaves the underlying MediaSource duration at `Infinity` for a finite TS VOD, the Video.js wrapper normalizes its UI duration from the finite `seekable` or `buffered` range. Embedded MPV uses the same live decision rule and shows an unknown duration placeholder for VOD/episode snapshots until MPV reports a finite duration. This removes the misleading `LIVE` control state without changing stream decoding, diagnostics, or external fallback behavior.
 
 When a diagnostic is actionable in Electron, the diagnostic surface may offer `Open in MPV`, `Open in VLC`, `Copy URL`, technical details, and `Retry`. Web builds only expose copy/help text and retry. MPV/VLC fallback requests carry the original `ResolvedPortalPlayback` payload so headers, referer, origin, user-agent, content metadata, and resume offset stay intact. Retry clears the current diagnostic and rebuilds the active inline player inputs; it does not change the saved player setting.
 

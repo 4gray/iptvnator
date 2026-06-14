@@ -2,8 +2,10 @@ import { TestBed } from '@angular/core/testing';
 import {
     PLAYLIST_DELETE_CLEANUP,
     PlaylistDeleteCleanup,
+    PlaylistsService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
+import { XtreamApiService } from '../services/xtream-api.service';
 import {
     ElectronXtreamDataSource,
     PwaXtreamDataSource,
@@ -63,6 +65,34 @@ describe('provideXtreamDataSource', () => {
         configure(false);
 
         expect(TestBed.inject(XTREAM_DATA_SOURCE)).toBe(pwaSource);
+    });
+
+    it('does not resolve playlist metadata services while constructing the PWA data source', () => {
+        runtime = {
+            supportsXtreamSqliteDataSource: false,
+        };
+
+        TestBed.configureTestingModule({
+            providers: [
+                ...provideXtreamDataSource(),
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: runtime,
+                },
+                {
+                    provide: XtreamApiService,
+                    useValue: {},
+                },
+                {
+                    provide: PlaylistsService,
+                    useFactory: () => {
+                        throw new Error('PlaylistsService should be lazy');
+                    },
+                },
+            ],
+        });
+
+        expect(() => TestBed.inject(XTREAM_DATA_SOURCE)).not.toThrow();
     });
 
     it('skips browser sidecar cleanup for SQLite-backed Xtream storage', async () => {

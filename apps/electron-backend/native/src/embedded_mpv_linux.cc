@@ -1,3 +1,7 @@
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <X11/Xlib.h>
 #include <X11/extensions/shape.h>
 
@@ -7,10 +11,72 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstdint>
+#include <iostream>
+#include <mutex>
 #include <sstream>
 #include <string>
 
 namespace {
+
+std::mutex gX11ErrorMutex;
+bool gX11ErrorTrapped = false;
+XErrorEvent gLastX11Error{};
+
+int trapX11Error(Display*, XErrorEvent* event)
+{
+    gX11ErrorTrapped = true;
+    gLastX11Error = *event;
+    return 0;
+}
+
+bool isTraceEnabled()
+{
+    return std::getenv("IPTVNATOR_TRACE_EMBEDDED_MPV") != nullptr;
+}
+
+void trace(const std::string& message)
+{
+    if (!isTraceEnabled()) {
+        return;
+    }
+
+    std::cerr << "[Embedded MPV Linux] " << message << std::endl;
+}
+
+class ScopedX11ErrorTrap {
+public:
+    explicit ScopedX11ErrorTrap(Display* display)
+        : lock_(gX11ErrorMutex)
+        , display_(display)
+        , previousHandler_(XSetErrorHandler(trapX11Error))
+    {
+        gX11ErrorTrapped = false;
+        gLastX11Error = {};
+    }
+
+    ~ScopedX11ErrorTrap()
+    {
+        if (display_) {
+            XSync(display_, False);
+        }
+        XSetErrorHandler(previousHandler_);
+    }
+
+    bool failed() const
+    {
+        return gX11ErrorTrapped;
+    }
+
+    int errorCode() const
+    {
+        return gLastX11Error.error_code;
+    }
+
+private:
+    std::unique_lock<std::mutex> lock_;
+    Display* display_ = nullptr;
+    XErrorHandler previousHandler_ = nullptr;
+};
 
 class NativeVideoHost {
 public:
@@ -32,6 +98,13 @@ public:
             return false;
         }
 
+        if (parentHandle <= 1) {
+            lastError_ =
+                "Electron did not provide a valid X11 parent window; native Wayland embedding is not supported yet.";
+            return false;
+        }
+
+        trace("opening X11 display");
         display_ = XOpenDisplay(nullptr);
         if (!display_) {
             lastError_ = "Unable to open the X11 display for embedded MPV.";
@@ -39,6 +112,7 @@ public:
         }
 
         parentWindow_ = static_cast<Window>(parentHandle);
+        trace("parent window " + std::to_string(static_cast<unsigned long>(parentWindow_)));
         if (!parentWindow_) {
             lastError_ = "Unable to resolve Electron X11 window handle.";
             destroy();
@@ -49,29 +123,58 @@ public:
         attributes.background_pixel = BlackPixel(display_, DefaultScreen(display_));
         attributes.event_mask = ExposureMask | StructureNotifyMask;
 
-        window_ = XCreateWindow(
-            display_,
-            parentWindow_,
-            0,
-            0,
-            1,
-            1,
-            0,
-            CopyFromParent,
-            InputOutput,
-            CopyFromParent,
-            CWBackPixel | CWEventMask,
-            &attributes
-        );
+        bool createWindowFailed = false;
+        {
+            ScopedX11ErrorTrap x11Errors(display_);
+            trace("creating child window");
+            window_ = XCreateWindow(
+                display_,
+                parentWindow_,
+                0,
+                0,
+                1,
+                1,
+                0,
+                CopyFromParent,
+                InputOutput,
+                CopyFromParent,
+                CWBackPixel | CWEventMask,
+                &attributes
+            );
+            XSync(display_, False);
+            if (!window_ || x11Errors.failed()) {
+                std::ostringstream message;
+                message
+                    << "Failed to create embedded MPV X11 child window.";
+                if (x11Errors.failed()) {
+                    message << " X11 error code: " << x11Errors.errorCode()
+                            << ".";
+                }
+                message
+                    << " Electron did not provide a valid X11 parent window; "
+                       "native Wayland embedding is not supported yet.";
+                lastError_ = message.str();
+                window_ = 0;
+                createWindowFailed = true;
+            }
+        }
+        if (createWindowFailed) {
+            destroy();
+            return false;
+        }
         if (!window_) {
             lastError_ = "Failed to create embedded MPV X11 child window.";
             destroy();
             return false;
         }
 
+        trace("clearing input shape");
         clearInputShape();
+        trace("mapping child window");
         XMapWindow(display_, window_);
+        trace("setting child bounds");
         setBounds(bounds);
+        trace("flushing X11 display");
         XFlush(display_);
         return true;
     }
@@ -99,9 +202,7 @@ public:
 
     std::string wid() const
     {
-        std::ostringstream stream;
-        stream << static_cast<unsigned long>(window_);
-        return stream.str();
+        return std::to_string(static_cast<unsigned long>(window_));
     }
 
     void destroy()

@@ -1,11 +1,13 @@
-import { Component } from '@angular/core';
+import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import {
+    EmbeddedMpvSession,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvPlayerComponent } from './embedded-mpv-player.component';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
-import { signal } from '@angular/core';
 
 @Component({
     imports: [EmbeddedMpvPlayerComponent],
@@ -20,9 +22,14 @@ import { signal } from '@angular/core';
     `,
 })
 class EmbeddedMpvPlayerHostComponent {
-    readonly playback: ResolvedPortalPlayback = {
+    playback: ResolvedPortalPlayback = {
         streamUrl: 'https://example.test/series/1002.mp4',
         title: 'Episode 2',
+        contentInfo: {
+            playlistId: 'playlist-1',
+            contentXtreamId: 1002,
+            contentType: 'episode',
+        },
     };
 
     seriesNavigation = {
@@ -41,27 +48,9 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
     let player: EmbeddedMpvPlayerComponent;
     let controller: EmbeddedMpvSessionController;
 
-    beforeEach(async () => {
-        await TestBed.configureTestingModule({
-            imports: [EmbeddedMpvPlayerHostComponent],
-            providers: [
-                {
-                    provide: EmbeddedMpvOverlayVisibilityService,
-                    useValue: { overlayActive: signal(false) },
-                },
-            ],
-        }).compileComponents();
-
-        fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
-        fixture.detectChanges();
-
-        const playerDebugElement = fixture.debugElement.query(
-            By.directive(EmbeddedMpvPlayerComponent)
-        );
-        player = playerDebugElement.componentInstance;
-        controller = playerDebugElement.injector.get(
-            EmbeddedMpvSessionController
-        );
+    const configureReadyController = (
+        sessionOverrides: Partial<EmbeddedMpvSession> = {}
+    ) => {
         controller.support.set({
             supported: true,
             platform: 'darwin',
@@ -90,8 +79,36 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
             recording: { active: false },
             startedAt: '2026-06-06T12:00:00Z',
             updatedAt: '2026-06-06T12:00:00Z',
+            ...sessionOverrides,
         });
         fixture.detectChanges();
+    };
+
+    const bindPlayer = () => {
+        const playerDebugElement = fixture.debugElement.query(
+            By.directive(EmbeddedMpvPlayerComponent)
+        );
+        player = playerDebugElement.componentInstance;
+        controller = playerDebugElement.injector.get(
+            EmbeddedMpvSessionController
+        );
+    };
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [EmbeddedMpvPlayerHostComponent],
+            providers: [
+                {
+                    provide: EmbeddedMpvOverlayVisibilityService,
+                    useValue: { overlayActive: signal(false) },
+                },
+            ],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
+        fixture.detectChanges();
+        bindPlayer();
+        configureReadyController();
     });
 
     afterEach(() => {
@@ -142,5 +159,71 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
         expect(fixture.componentInstance.endedCount).toBe(1);
         expect(player.isPlaying()).toBe(false);
+    });
+
+    it('hides episode navigation for live playback', () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
+        fixture.componentInstance.playback = {
+            streamUrl: 'https://example.test/live/zdf-hd.ts',
+            title: 'ZDF HD',
+            isLive: true,
+        };
+        fixture.detectChanges();
+        bindPlayer();
+        configureReadyController({
+            streamUrl: 'https://example.test/live/zdf-hd.ts',
+            title: 'ZDF HD',
+            durationSeconds: 120,
+        });
+
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="embedded-mpv-previous-episode"]')
+            )
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="embedded-mpv-next-episode"]')
+            )
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('.embedded-mpv-player__live-badge')
+            )
+        ).not.toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.css('button[aria-label="Back 10 seconds"]')
+            ).nativeElement.disabled
+        ).toBe(true);
+        expect(
+            fixture.debugElement.query(
+                By.css('button[aria-label="Forward 10 seconds"]')
+            ).nativeElement.disabled
+        ).toBe(true);
+        expect(
+            fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
+                .nativeElement.disabled
+        ).toBe(true);
+    });
+
+    it('does not label VOD or episode playback as live while duration is loading', () => {
+        controller.session.update((session) =>
+            session
+                ? {
+                      ...session,
+                      durationSeconds: null,
+                  }
+                : session
+        );
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(
+                By.css('.embedded-mpv-player__live-badge')
+            )
+        ).toBeNull();
+        expect(fixture.nativeElement.textContent).toContain('--:--');
     });
 });
