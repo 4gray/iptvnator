@@ -52,6 +52,40 @@ describe('XtreamEvents session cancellation', () => {
         consoleErrorSpy.mockRestore();
     });
 
+    it('normalizes full Xtream API URLs before appending player_api.php', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+
+        axiosMock.mockResolvedValue({
+            status: 200,
+            data: { ok: true },
+            headers: {},
+        });
+
+        await requestHandler?.(
+            {},
+            {
+                url: 'https://example.com/base/player_api.php?username=old&password=old',
+                params: {
+                    action: 'get_account_info',
+                    password: ' pass ',
+                    username: ' user ',
+                },
+                suppressErrorLog: true,
+            }
+        );
+
+        const requestedUrl = new URL(axiosMock.mock.calls[0][0].url);
+        expect(`${requestedUrl.origin}${requestedUrl.pathname}`).toBe(
+            'https://example.com/base/player_api.php'
+        );
+        expect(requestedUrl.searchParams.get('action')).toBe(
+            'get_account_info'
+        );
+        expect(requestedUrl.searchParams.get('password')).toBe('pass');
+        expect(requestedUrl.searchParams.get('username')).toBe('user');
+    });
+
     it('aborts requests that were registered with only a session id', async () => {
         const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
         const cancelHandler = registeredHandlers.get(XTREAM_CANCEL_SESSION);

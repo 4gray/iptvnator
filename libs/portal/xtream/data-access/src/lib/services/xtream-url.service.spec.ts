@@ -1,6 +1,10 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DatabaseService, SettingsStore } from '@iptvnator/services';
+import {
+    XtreamSerieEpisode,
+    XtreamVodDetails,
+} from '@iptvnator/shared/interfaces';
 import { XtreamCredentials } from './xtream-api.service';
 import { XtreamUrlService } from './xtream-url.service';
 
@@ -42,6 +46,66 @@ describe('XtreamUrlService', () => {
 
     afterEach(() => {
         window.electron = originalElectron;
+    });
+
+    it('normalizes portal base URLs and trims credentials for live streams', () => {
+        const url = service.constructLiveUrl(
+            {
+                serverUrl: ' https://demo.example/base/ ',
+                username: ' demo ',
+                password: ' secret ',
+            },
+            101
+        );
+
+        expect(url).toBe('https://demo.example/base/live/demo/secret/101.ts');
+    });
+
+    it('uses the first allowed provider output format when the selected live format is not allowed', () => {
+        const url = service.constructLiveUrl(
+            {
+                ...credentials,
+                allowedOutputFormats: ['m3u8'],
+            },
+            101
+        );
+
+        expect(url).toBe('http://demo.example/live/demo/secret/101.m3u8');
+    });
+
+    it('returns empty stream URLs instead of throwing for invalid stored server URLs', () => {
+        const invalidCredentials: XtreamCredentials = {
+            ...credentials,
+            serverUrl: 'https://demo:secret@demo.example',
+        };
+        const vodItem: XtreamVodDetails = {
+            movie_data: {
+                added: '',
+                category_id: '',
+                container_extension: 'mp4',
+                custom_sid: null,
+                direct_source: '',
+                name: 'Movie',
+                stream_id: 101,
+            },
+        };
+        const episode: XtreamSerieEpisode = {
+            added: '',
+            container_extension: 'mp4',
+            custom_sid: '',
+            direct_source: '',
+            episode_num: 1,
+            id: '202',
+            info: [],
+            season: 1,
+            title: 'Episode',
+        };
+
+        expect(service.constructLiveUrl(invalidCredentials, 101)).toBe('');
+        expect(service.constructVodUrl(invalidCredentials, vodItem)).toBe('');
+        expect(service.constructEpisodeUrl(invalidCredentials, episode)).toBe(
+            ''
+        );
     });
 
     it('detects the legacy catchup scheme once and then uses the cached result', async () => {

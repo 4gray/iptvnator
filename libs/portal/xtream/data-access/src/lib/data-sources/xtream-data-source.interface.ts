@@ -33,6 +33,7 @@ export interface XtreamPlaylistData {
     referrer?: string;
     origin?: string;
     serverTimezone?: string;
+    allowedOutputFormats?: string[];
 }
 
 /**

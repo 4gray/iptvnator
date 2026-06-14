@@ -7,10 +7,7 @@ import {
     withState,
 } from '@ngrx/signals';
 import { EpgItem } from '@iptvnator/shared/interfaces';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     XtreamApiService,
     XtreamCredentials,
@@ -43,11 +40,7 @@ const initialEpgState: EpgState = {
 export function withEpg() {
     const logger = createLogger('withEpg');
     type ParentSelectionStoreLike = {
-        currentPlaylist?: () => {
-            password: string;
-            serverUrl: string;
-            username: string;
-        } | null;
+        currentPlaylist?: () => XtreamCredentials | null;
         selectedItem?: () => {
             xtream_id?: number | null;
             epg_channel_id?: string | null;
@@ -101,6 +94,7 @@ export function withEpg() {
                 }
 
                 return {
+                    allowedOutputFormats: playlist.allowedOutputFormats,
                     serverUrl: playlist.serverUrl,
                     username: playlist.username,
                     password: playlist.password,
@@ -143,8 +137,9 @@ export function withEpg() {
 
                     const storeAny = store as ParentSelectionStoreLike;
                     const selectedItem = storeAny.selectedItem?.();
+                    const xtreamId = selectedItem?.xtream_id;
 
-                    if (!selectedItem?.xtream_id) {
+                    if (!xtreamId) {
                         patchState(store, { epgItems: [] });
                         return [];
                     }
@@ -157,10 +152,7 @@ export function withEpg() {
                                 epgChannelId: selectedItem.epg_channel_id,
                                 preferUploaded: preferUploaded(),
                                 fetchProvider: () =>
-                                    fetchFullProvider(
-                                        credentials,
-                                        selectedItem.xtream_id!
-                                    ),
+                                    fetchFullProvider(credentials, xtreamId),
                             });
 
                         patchState(store, {

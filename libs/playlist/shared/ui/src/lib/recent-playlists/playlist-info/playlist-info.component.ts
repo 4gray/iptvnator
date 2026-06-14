@@ -28,7 +28,11 @@ import {
     PlaylistsService,
     RuntimeCapabilitiesService,
 } from '@iptvnator/services';
-import { Playlist, PlaylistMeta } from '@iptvnator/shared/interfaces';
+import {
+    normalizeXtreamServerUrl,
+    Playlist,
+    PlaylistMeta,
+} from '@iptvnator/shared/interfaces';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
@@ -160,6 +164,8 @@ export class PlaylistInfoComponent {
 
     async saveChanges(playlist: PlaylistMeta): Promise<void> {
         try {
+            const normalizedPlaylist =
+                this.normalizeXtreamPlaylistMeta(playlist);
             const isXtream =
                 this.playlist &&
                 this.playlist.username &&
@@ -167,12 +173,14 @@ export class PlaylistInfoComponent {
                 this.playlist.serverUrl;
 
             if (isXtream && this.runtime.supportsXtreamSqliteDataSource) {
-                await this.updateXtreamPlaylist(playlist);
+                await this.updateXtreamPlaylist(normalizedPlaylist);
             }
 
             // Dispatch store action to update UI
             this.store.dispatch(
-                PlaylistActions.updatePlaylistMeta({ playlist })
+                PlaylistActions.updatePlaylistMeta({
+                    playlist: normalizedPlaylist,
+                })
             );
 
             this.snackBar.open(
@@ -193,6 +201,19 @@ export class PlaylistInfoComponent {
                 }
             );
         }
+    }
+
+    private normalizeXtreamPlaylistMeta(playlist: PlaylistMeta): PlaylistMeta {
+        if (!playlist.serverUrl || !playlist.username || !playlist.password) {
+            return playlist;
+        }
+
+        return {
+            ...playlist,
+            password: playlist.password.trim(),
+            serverUrl: normalizeXtreamServerUrl(playlist.serverUrl),
+            username: playlist.username.trim(),
+        };
     }
 
     async updateXtreamPlaylist(playlist: PlaylistMeta) {

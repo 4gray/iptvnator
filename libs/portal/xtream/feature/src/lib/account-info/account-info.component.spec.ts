@@ -92,4 +92,24 @@ describe('AccountInfoComponent', () => {
             '-',
         ]);
     });
+
+    it('treats account status as active regardless of provider casing', () => {
+        component.accountInfo.set({
+            user_info: {
+                active_cons: '0',
+                allowed_output_formats: [],
+                exp_date: '0',
+                max_connections: '0',
+                status: 'active',
+                username: 'dialog-user',
+            },
+            server_info: {
+                server_protocol: 'http',
+                url: 'dialog.example.test',
+            },
+        });
+
+        expect(component.isActive()).toBe(true);
+        expect(component.userDetails()[0]?.tone).toBe('positive');
+    });
 });

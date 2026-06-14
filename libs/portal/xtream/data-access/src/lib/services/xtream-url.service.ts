@@ -1,5 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    normalizeXtreamServerUrl,
     XtreamSerieEpisode,
     XtreamVodDetails,
 } from '@iptvnator/shared/interfaces';
@@ -32,6 +33,14 @@ type XtreamVodStreamLike = XtreamVodDetails & {
 
 type XtreamCatchupScheme = 'rest' | 'legacy';
 
+interface NormalizedXtreamCredentials {
+    password: string;
+    rawPassword: string;
+    rawUsername: string;
+    serverUrl: string;
+    username: string;
+}
+
 type XtreamProbeApi = {
     xtreamProbeUrl?: (
         url: string,
@@ -49,7 +58,10 @@ const XTREAM_CATCHUP_SCHEME_KEY_PREFIX = 'xtream-catchup-scheme:';
 export class XtreamUrlService {
     private readonly databaseService = inject(DatabaseService);
     private readonly settingsStore = inject(SettingsStore);
-    private readonly catchupSchemeCache = new Map<string, XtreamCatchupScheme>();
+    private readonly catchupSchemeCache = new Map<
+        string,
+        XtreamCatchupScheme
+    >();
     private readonly catchupSchemeRequests = new Map<
         string,
         Promise<XtreamCatchupScheme>
@@ -64,9 +76,16 @@ export class XtreamUrlService {
         xtreamId: number,
         format?: string
     ): string {
-        const streamFormat =
-            format ?? this.settingsStore.streamFormat() ?? 'ts';
-        return `${credentials.serverUrl}/live/${credentials.username}/${credentials.password}/${xtreamId}.${streamFormat}`;
+        const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
+        const streamFormat = this.resolveLiveStreamFormat(
+            credentials,
+            format ?? this.settingsStore.streamFormat() ?? 'ts'
+        );
+        return `${normalizedCredentials.serverUrl}/live/${normalizedCredentials.username}/${normalizedCredentials.password}/${xtreamId}.${streamFormat}`;
     }
 
     /**
@@ -83,7 +102,12 @@ export class XtreamUrlService {
         if (!streamId || !extension) {
             return '';
         }
-        return `${credentials.serverUrl}/movie/${credentials.username}/${credentials.password}/${streamId}.${extension}`;
+        const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
+        return `${normalizedCredentials.serverUrl}/movie/${normalizedCredentials.username}/${normalizedCredentials.password}/${streamId}.${extension}`;
     }
 
     /**
@@ -94,7 +118,12 @@ export class XtreamUrlService {
         credentials: XtreamCredentials,
         episode: XtreamSerieEpisode
     ): string {
-        return `${credentials.serverUrl}/series/${credentials.username}/${credentials.password}/${episode.id}.${episode.container_extension}`;
+        const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
+        return `${normalizedCredentials.serverUrl}/series/${normalizedCredentials.username}/${normalizedCredentials.password}/${episode.id}.${episode.container_extension}`;
     }
 
     constructCatchupUrl(
@@ -105,6 +134,11 @@ export class XtreamUrlService {
         scheme: XtreamCatchupScheme,
         serverTimezone?: string
     ): string {
+        const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
         const durationMinutes = Math.max(
             1,
             Math.round((stopTimestamp - startTimestamp) / 60)
@@ -116,16 +150,16 @@ export class XtreamUrlService {
 
         if (scheme === 'legacy') {
             const params = new URLSearchParams({
-                username: credentials.username,
-                password: credentials.password,
+                username: normalizedCredentials.rawUsername,
+                password: normalizedCredentials.rawPassword,
                 stream: String(streamId),
                 start: timeString,
                 duration: String(durationMinutes),
             });
-            return `${credentials.serverUrl}/streaming/timeshift.php?${params.toString()}`;
+            return `${normalizedCredentials.serverUrl}/streaming/timeshift.php?${params.toString()}`;
         }
 
-        return `${credentials.serverUrl}/timeshift/${credentials.username}/${credentials.password}/${durationMinutes}/${timeString}/${streamId}.ts`;
+        return `${normalizedCredentials.serverUrl}/timeshift/${normalizedCredentials.username}/${normalizedCredentials.password}/${durationMinutes}/${timeString}/${streamId}.ts`;
     }
 
     async resolveCatchupUrl(
@@ -220,6 +254,10 @@ export class XtreamUrlService {
             serverTimezone
         );
 
+        if (!restUrl || !legacyUrl) {
+            return 'rest';
+        }
+
         const restStatus = await this.probeCatchupUrl(restUrl);
         let detectedScheme: XtreamCatchupScheme;
 
@@ -262,6 +300,47 @@ export class XtreamUrlService {
             status === 403 ||
             status === 405
         );
+    }
+
+    private normalizeCredentials(
+        credentials: XtreamCredentials
+    ): NormalizedXtreamCredentials | null {
+        const rawUsername = credentials.username.trim();
+        const rawPassword = credentials.password.trim();
+        if (!rawUsername || !rawPassword) {
+            return null;
+        }
+
+        let serverUrl: string;
+        try {
+            serverUrl = normalizeXtreamServerUrl(credentials.serverUrl);
+        } catch {
+            return null;
+        }
+
+        return {
+            password: encodeURIComponent(rawPassword),
+            rawPassword,
+            rawUsername,
+            serverUrl,
+            username: encodeURIComponent(rawUsername),
+        };
+    }
+
+    private resolveLiveStreamFormat(
+        credentials: XtreamCredentials,
+        requestedFormat: string
+    ): string {
+        const requested = requestedFormat.trim();
+        const allowedFormats = credentials.allowedOutputFormats
+            ?.map((format) => format.trim())
+            .filter(Boolean);
+
+        if (allowedFormats?.length && !allowedFormats.includes(requested)) {
+            return allowedFormats[0];
+        }
+
+        return requested;
     }
 
     private formatCatchupStartTime(
