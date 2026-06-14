@@ -509,7 +509,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsService.changeTheme(
             this.settingsForm.value.theme ?? Theme.SystemTheme
         );
-        this.openSettingsSnackbar(
+        this.settingsSnackbar.open(
             this.translate.instant('SETTINGS.SETTINGS_SAVED')
         );
     }
@@ -597,13 +597,13 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     if (result && result.success === false) {
                         throw new Error('Clear EPG returned success=false');
                     }
-                    this.openSettingsSnackbar(
+                    this.settingsSnackbar.open(
                         this.translate.instant('SETTINGS.EPG_DATA_CLEARED')
                     );
                     this.refreshAllEpg();
                 } catch (error) {
                     console.error('Failed to clear EPG data:', error);
-                    this.openSettingsSnackbar(
+                    this.settingsSnackbar.open(
                         this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED')
                     );
                 } finally {
@@ -660,9 +660,5 @@ export class SettingsComponent implements OnInit, OnDestroy {
                     );
                 }
             });
-    }
-
-    private openSettingsSnackbar(message: string): void {
-        this.settingsSnackbar.open(message);
     }
 }
