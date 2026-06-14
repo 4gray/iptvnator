@@ -913,6 +913,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Разгарнуць навігацыю",
+            "COLLAPSE_NAVIGATION": "Згарнуць навігацыю",
             "RAIL_DASHBOARD": "Панэль",
             "OPEN_DASHBOARD": "Адкрыць панэль",
             "RAIL_SOURCES": "Крыніцы",

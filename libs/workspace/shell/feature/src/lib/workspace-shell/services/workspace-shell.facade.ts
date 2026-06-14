@@ -67,9 +67,6 @@ export class WorkspaceShellFacade {
     readonly currentUrl = this.routeState.currentUrl;
     readonly currentRoute = this.routeState.currentRoute;
     readonly showDashboard = this.routeState.showDashboard;
-    readonly brandLink = this.routeState.brandLink;
-    readonly brandTooltipKey = this.routeState.brandTooltipKey;
-    readonly brandAriaLabelKey = this.routeState.brandAriaLabelKey;
     readonly currentContext = this.routeState.currentContext;
     readonly currentSection = this.routeState.currentSection;
     readonly commandPaletteCommands = computed<WorkspaceResolvedCommandItem[]>(

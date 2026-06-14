@@ -1,8 +1,13 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    DestroyRef,
+    inject,
     input,
+    model,
+    signal,
 } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
@@ -15,6 +20,9 @@ import { WorkspaceShellRailLinksComponent } from '../workspace-shell-rail-links/
 
 @Component({
     selector: 'app-workspace-shell-rail',
+    host: {
+        '[class.rail-expanded]': 'expanded()',
+    },
     imports: [
         MatIcon,
         MatTooltip,
@@ -27,10 +35,14 @@ import { WorkspaceShellRailLinksComponent } from '../workspace-shell-rail-links/
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellRailComponent {
+    private readonly document = inject(DOCUMENT);
+    private readonly destroyRef = inject(DestroyRef);
+    private readonly compactMediaQuery =
+        this.document.defaultView?.matchMedia?.('(max-width: 640px)') ?? null;
+
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
+    readonly expanded = model(false);
+    readonly isCompact = signal(this.compactMediaQuery?.matches ?? false);
     readonly workspaceLinks = input<PortalRailLink[]>([]);
     readonly primaryContextLinks = input<PortalRailLink[]>([]);
     readonly secondaryContextLinks = input<PortalRailLink[]>([]);
@@ -39,4 +51,33 @@ export class WorkspaceShellRailComponent {
     >(null);
     readonly railProviderClass = input('rail-context-region');
     readonly isSettingsRoute = input(false);
+
+    constructor() {
+        const mediaQuery = this.compactMediaQuery;
+        if (!mediaQuery) {
+            return;
+        }
+
+        const updateCompactState = (matches: boolean): void => {
+            this.isCompact.set(matches);
+            if (matches) {
+                this.expanded.set(false);
+            }
+        };
+        const onMediaChange = (event: MediaQueryListEvent): void =>
+            updateCompactState(event.matches);
+
+        mediaQuery.addEventListener?.('change', onMediaChange);
+        this.destroyRef.onDestroy(() =>
+            mediaQuery.removeEventListener?.('change', onMediaChange)
+        );
+    }
+
+    toggleExpanded(): void {
+        if (this.isCompact()) {
+            return;
+        }
+
+        this.expanded.update((expanded) => !expanded);
+    }
 }

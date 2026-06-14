@@ -913,6 +913,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "展開導覽",
+            "COLLAPSE_NAVIGATION": "收合導覽",
             "RAIL_DASHBOARD": "儀表板",
             "OPEN_DASHBOARD": "開啟儀表板",
             "RAIL_SOURCES": "來源",
