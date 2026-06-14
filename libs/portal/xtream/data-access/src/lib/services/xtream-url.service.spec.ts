@@ -44,6 +44,31 @@ describe('XtreamUrlService', () => {
         window.electron = originalElectron;
     });
 
+    it('normalizes portal base URLs and trims credentials for live streams', () => {
+        const url = service.constructLiveUrl(
+            {
+                serverUrl: ' https://demo.example/base/ ',
+                username: ' demo ',
+                password: ' secret ',
+            },
+            101
+        );
+
+        expect(url).toBe('https://demo.example/base/live/demo/secret/101.ts');
+    });
+
+    it('uses the first allowed provider output format when the selected live format is not allowed', () => {
+        const url = service.constructLiveUrl(
+            {
+                ...credentials,
+                allowedOutputFormats: ['m3u8'],
+            },
+            101
+        );
+
+        expect(url).toBe('http://demo.example/live/demo/secret/101.m3u8');
+    });
+
     it('detects the legacy catchup scheme once and then uses the cached result', async () => {
         const xtreamProbeUrl = jest
             .fn()

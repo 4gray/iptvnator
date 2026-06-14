@@ -146,12 +146,7 @@ const initialContentState: ContentState = {
 export function withContent() {
     const logger = createLogger('withContent');
     type ParentPortalStoreLike = {
-        currentPlaylist?: () => {
-            id?: string;
-            password: string;
-            serverUrl: string;
-            username: string;
-        } | null;
+        currentPlaylist?: () => (XtreamCredentials & { id?: string }) | null;
         playlistId?: () => string | null;
         portalStatus?: () => PortalStatusType;
         checkPortalStatus?: () => Promise<PortalStatusType>;
@@ -374,6 +369,7 @@ export function withContent() {
                 return {
                     playlistId,
                     credentials: {
+                        allowedOutputFormats: playlist.allowedOutputFormats,
                         serverUrl: playlist.serverUrl,
                         username: playlist.username,
                         password: playlist.password,
@@ -386,7 +382,10 @@ export function withContent() {
                 type: ContentType
             ): Promise<boolean> => {
                 const [hasCategories, hasContent] = await Promise.all([
-                    dataSource.hasCategories(playlistId, toDbCategoryType(type)),
+                    dataSource.hasCategories(
+                        playlistId,
+                        toDbCategoryType(type)
+                    ),
                     dataSource.hasContent(playlistId, toStreamType(type)),
                 ]);
 
@@ -399,10 +398,17 @@ export function withContent() {
             ): Promise<boolean> => {
                 const types = getTypesForCacheScope(scope);
 
-                if (scope === 'search' || scope === 'recently-added' || !scope) {
+                if (
+                    scope === 'search' ||
+                    scope === 'recently-added' ||
+                    !scope
+                ) {
                     const checks = await Promise.all(
                         types.map((type) =>
-                            dataSource.hasContent(playlistId, toStreamType(type))
+                            dataSource.hasContent(
+                                playlistId,
+                                toStreamType(type)
+                            )
                         )
                     );
                     return checks.some(Boolean);
@@ -476,10 +482,7 @@ export function withContent() {
                     );
                 } catch (error) {
                     if (
-                        !isCurrentCachedHydrationContext(
-                            playlistId,
-                            generation
-                        )
+                        !isCurrentCachedHydrationContext(playlistId, generation)
                     ) {
                         return;
                     }
@@ -505,9 +508,7 @@ export function withContent() {
                     throw error;
                 }
 
-                if (
-                    !isCurrentCachedHydrationContext(playlistId, generation)
-                ) {
+                if (!isCurrentCachedHydrationContext(playlistId, generation)) {
                     return;
                 }
 
@@ -572,10 +573,7 @@ export function withContent() {
                     return;
                 }
 
-                const requestKey = getCachedHydrationKey(
-                    ctx.playlistId,
-                    scope
-                );
+                const requestKey = getCachedHydrationKey(ctx.playlistId, scope);
                 const inFlightRequest =
                     activeCachedHydrationPromises.get(requestKey);
 
@@ -634,7 +632,7 @@ export function withContent() {
                               : state.activeImportOperationIds.includes(
                                       operationId
                                   )
-                                    ? state.activeImportOperationIds
+                                ? state.activeImportOperationIds
                                 : [
                                       ...state.activeImportOperationIds,
                                       operationId,

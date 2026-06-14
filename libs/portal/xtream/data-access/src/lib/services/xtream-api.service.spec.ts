@@ -30,6 +30,91 @@ describe('XtreamApiService', () => {
         service = TestBed.inject(XtreamApiService);
     });
 
+    it('normalizes account-info server URLs and trims credentials before IPC', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    auth: 1,
+                    exp_date: '0',
+                    status: 'Active',
+                },
+                server_info: {},
+            },
+        });
+
+        await service.getAccountInfo({
+            serverUrl:
+                ' https://demo.example/base/player_api.php?username=old&password=old ',
+            username: ' demo ',
+            password: ' secret ',
+        });
+
+        expect(dataService.sendIpcEvent).toHaveBeenCalledWith(
+            XTREAM_REQUEST,
+            expect.objectContaining({
+                url: 'https://demo.example/base',
+                params: {
+                    action: 'get_account_info',
+                    password: 'secret',
+                    username: 'demo',
+                },
+            })
+        );
+    });
+
+    it('falls back through Xtream account actions until user_info is returned', async () => {
+        dataService.sendIpcEvent.mockImplementation(
+            async (_type: string, payload: unknown) => {
+                const action = (
+                    payload as {
+                        params: { action?: string };
+                    }
+                ).params.action;
+
+                if (action === 'get_profile') {
+                    return {
+                        payload: {
+                            user_info: {
+                                auth: 1,
+                                exp_date: '0',
+                                status: 'Active',
+                            },
+                            server_info: {},
+                        },
+                    };
+                }
+
+                return { payload: { server_info: {} } };
+            }
+        );
+
+        const response = await service.getAccountInfo(credentials);
+
+        expect(response.user_info.auth).toBe(1);
+        expect(dataService.sendIpcEvent).toHaveBeenCalledTimes(3);
+        expect(dataService.sendIpcEvent).toHaveBeenNthCalledWith(
+            2,
+            XTREAM_REQUEST,
+            expect.objectContaining({
+                params: {
+                    password: 'secret',
+                    username: 'demo',
+                },
+            })
+        );
+        expect(dataService.sendIpcEvent).toHaveBeenNthCalledWith(
+            3,
+            XTREAM_REQUEST,
+            expect.objectContaining({
+                params: {
+                    action: 'get_profile',
+                    password: 'secret',
+                    username: 'demo',
+                },
+            })
+        );
+    });
+
     it('falls back to the legacy full-epg action and normalizes the response', async () => {
         dataService.sendIpcEvent.mockImplementation(
             async (_type: string, payload: unknown) => {
@@ -52,9 +137,10 @@ describe('XtreamApiService', () => {
                                 title: Buffer.from('Later Show').toString(
                                     'base64'
                                 ),
-                                description: Buffer.from(
-                                    'Later description'
-                                ).toString('base64'),
+                                description:
+                                    Buffer.from('Later description').toString(
+                                        'base64'
+                                    ),
                                 start: '2026-04-04 11:00:00',
                                 end: '2026-04-04 11:30:00',
                                 start_timestamp: '1775300400',
@@ -245,7 +331,9 @@ describe('XtreamApiService', () => {
 
         expect(shortItems[0].start).toBe(fullItems[0].start);
         expect(shortItems[0].stop).toBe(fullItems[0].stop);
-        expect(shortItems[0].start_timestamp).toBe(fullItems[0].start_timestamp);
+        expect(shortItems[0].start_timestamp).toBe(
+            fullItems[0].start_timestamp
+        );
         expect(shortItems[0].stop_timestamp).toBe(fullItems[0].stop_timestamp);
     });
 });

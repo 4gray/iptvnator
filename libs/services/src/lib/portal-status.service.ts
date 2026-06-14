@@ -1,4 +1,9 @@
 import { Injectable, inject } from '@angular/core';
+import {
+    normalizeXtreamServerUrl,
+    resolveXtreamPortalStatus,
+    XtreamPortalStatusResponseLike,
+} from '@iptvnator/shared/interfaces';
 import { DataService } from './data.service';
 
 export type PortalStatus =
@@ -9,12 +14,7 @@ export type PortalStatus =
     | 'checking';
 
 interface XtreamPortalStatusResponse {
-    payload?: {
-        user_info?: {
-            status?: string;
-            exp_date?: string;
-        };
-    };
+    payload?: XtreamPortalStatusResponseLike;
 }
 
 interface PortalStatusCacheEntry {
@@ -32,6 +32,11 @@ interface CheckPortalStatusOptions {
 }
 
 const PORTAL_STATUS_CACHE_TTL_MS = 30_000;
+const XTREAM_STATUS_ACTIONS = [
+    'get_account_info',
+    null,
+    'get_profile',
+] as const;
 
 @Injectable({
     providedIn: 'root',
@@ -70,7 +75,20 @@ export class PortalStatusService {
         password: string,
         options?: CheckPortalStatusOptions
     ): Promise<PortalStatus> {
-        const cacheKey = this.buildCacheKey(serverUrl, username, password);
+        const connection = this.normalizeConnection(
+            serverUrl,
+            username,
+            password
+        );
+        if (!connection) {
+            return 'unavailable';
+        }
+
+        const cacheKey = this.buildCacheKey(
+            connection.serverUrl,
+            connection.username,
+            connection.password
+        );
 
         if (!options?.skipCache) {
             const cached = this.cache.get(cacheKey);
@@ -87,7 +105,11 @@ export class PortalStatusService {
             }
         }
 
-        const request = this.fetchPortalStatus(serverUrl, username, password)
+        const request = this.fetchPortalStatus(
+            connection.serverUrl,
+            connection.username,
+            connection.password
+        )
             .then((status) => {
                 this.cache.set(cacheKey, {
                     status,
@@ -140,51 +162,65 @@ export class PortalStatusService {
         return `${serverUrl}|${username}|${password}`;
     }
 
+    private normalizeConnection(
+        serverUrl: string,
+        username: string,
+        password: string
+    ): {
+        password: string;
+        serverUrl: string;
+        username: string;
+    } | null {
+        try {
+            const normalizedUsername = username.trim();
+            const normalizedPassword = password.trim();
+            if (!normalizedUsername || !normalizedPassword) {
+                return null;
+            }
+
+            return {
+                serverUrl: normalizeXtreamServerUrl(serverUrl),
+                username: normalizedUsername,
+                password: normalizedPassword,
+            };
+        } catch {
+            return null;
+        }
+    }
+
     private async fetchPortalStatus(
         serverUrl: string,
         username: string,
         password: string
     ): Promise<PortalStatus> {
-        try {
-            let normalizedUrl = serverUrl;
-            if (serverUrl && !serverUrl.endsWith('/')) {
-                normalizedUrl = serverUrl;
-            }
+        let fallbackStatus: PortalStatus = 'unavailable';
 
-            const response =
-                await this.dataService.sendIpcEvent<XtreamPortalStatusResponse>(
-                    'XTREAM_REQUEST',
-                    {
-                        url: normalizedUrl,
-                        params: {
-                            password,
-                            username,
-                            action: 'get_account_info',
-                        },
-                        suppressErrorLog: true,
-                    }
-                );
-            const payload = response?.payload;
-
-            if (!payload?.user_info?.status) {
-                return 'unavailable';
-            }
-
-            if (payload.user_info.status === 'Active') {
-                if (!payload.user_info.exp_date) {
-                    return 'active';
+        for (const action of XTREAM_STATUS_ACTIONS) {
+            try {
+                const response =
+                    await this.dataService.sendIpcEvent<XtreamPortalStatusResponse>(
+                        'XTREAM_REQUEST',
+                        {
+                            url: serverUrl,
+                            params: {
+                                ...(action ? { action } : {}),
+                                password,
+                                username,
+                            },
+                            suppressErrorLog: true,
+                        }
+                    );
+                const status = resolveXtreamPortalStatus(response?.payload);
+                if (status !== 'unavailable') {
+                    return status;
                 }
-
-                const expDate = new Date(
-                    parseInt(payload.user_info.exp_date, 10) * 1000
-                );
-                return expDate < new Date() ? 'expired' : 'active';
-            } else {
-                return 'inactive';
+                fallbackStatus = status;
+            } catch {
+                fallbackStatus = 'unavailable';
             }
-        } catch {
-            return 'unavailable';
         }
+
+        return fallbackStatus;
     }
 
     /**

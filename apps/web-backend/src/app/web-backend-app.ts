@@ -7,6 +7,7 @@ import zlib from 'node:zlib';
 import axios from 'axios';
 import epgParser from 'epg-parser';
 import parser from 'iptv-playlist-parser';
+import { normalizeXtreamServerUrl } from '@iptvnator/shared/interfaces';
 
 export interface WebBackendHttpGetOptions {
     readonly headers?: Record<string, string>;
@@ -185,7 +186,7 @@ export function createWebBackendApp(
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
             const response = await httpClient.get(
-                appendPathSegment(url, 'player_api.php'),
+                buildXtreamPlayerApiUrl(url),
                 {
                     params: getProxyParams(req, ['targetId']),
                 }
@@ -392,6 +393,13 @@ function appendPathSegment(url: URL, segment: string): string {
     nextUrl.search = '';
     nextUrl.hash = '';
     return nextUrl.href;
+}
+
+function buildXtreamPlayerApiUrl(url: URL): string {
+    return appendPathSegment(
+        new URL(normalizeXtreamServerUrl(url.href)),
+        'player_api.php'
+    );
 }
 
 async function handlePlaylistParse(options: {

@@ -37,6 +37,7 @@ export * from './lib/xtream-code-actions';
 export * from './lib/xtream-item.interface';
 export * from './lib/xtream-live-stream.interface';
 export * from './lib/xtream-response.interface';
+export * from './lib/xtream-portal.utils';
 export * from './lib/xtream-restore-state.util';
 export * from './lib/xtream-recently-added.utils';
 export * from './lib/xtream-serie-details.interface';

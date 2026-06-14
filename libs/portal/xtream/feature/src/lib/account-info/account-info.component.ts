@@ -15,7 +15,10 @@ import {
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
-import type { XtreamAccountInfoDialogData } from '@iptvnator/shared/interfaces';
+import {
+    resolveXtreamPortalStatus,
+    type XtreamAccountInfoDialogData,
+} from '@iptvnator/shared/interfaces';
 
 type AccountLoadState = 'loading' | 'ready' | 'error';
 
@@ -64,7 +67,7 @@ export class AccountInfoComponent {
     readonly skeletonPanels = [1, 2];
 
     readonly isActive = computed(
-        () => this.accountInfo()?.user_info?.status === 'Active'
+        () => resolveXtreamPortalStatus(this.accountInfo()) === 'active'
     );
     readonly isTrial = computed(
         () => this.accountInfo()?.user_info?.is_trial === '1'
