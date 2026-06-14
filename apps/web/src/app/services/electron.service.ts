@@ -572,6 +572,10 @@ export class ElectronService extends DataService {
                 requestId: context.requestId,
             });
 
+            if ('type' in response) {
+                throw response;
+            }
+
             const result = {
                 type: XTREAM_RESPONSE,
                 payload: response.payload,

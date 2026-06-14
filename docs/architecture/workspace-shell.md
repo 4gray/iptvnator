@@ -68,6 +68,13 @@ Provider route integration:
    to block remote imports before the loading overlay starts.
 5. Workspace routes no longer rely on nested provider shell components for
    hidden local chrome.
+6. Electron Xtream requests resolve with either a success payload or a
+   structured `ERROR` result. Expected provider failures, including silent EPG
+   preview failures, must not reject the Electron IPC handler because Electron
+   logs every rejected handler as an application error. The renderer converts
+   the structured result back into the shared Xtream error path so status,
+   user-facing notifications, cancellation handling, and debug events retain
+   their existing behavior.
 
 ## Shell Structure
 
