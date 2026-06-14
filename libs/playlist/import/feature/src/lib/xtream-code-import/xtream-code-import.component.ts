@@ -1,9 +1,11 @@
 import { Component, EventEmitter, Output, inject } from '@angular/core';
 import {
+    AbstractControl,
     FormControl,
     FormGroup,
     FormsModule,
     ReactiveFormsModule,
+    ValidationErrors,
     Validators,
 } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -19,6 +21,22 @@ import {
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { v4 as uuid } from 'uuid';
+
+function xtreamServerUrlValidator(
+    control: AbstractControl
+): ValidationErrors | null {
+    const value = control.value;
+    if (typeof value !== 'string' || value.trim().length === 0) {
+        return null;
+    }
+
+    try {
+        normalizeXtreamServerUrl(value);
+        return null;
+    } catch {
+        return { xtreamServerUrl: true };
+    }
+}
 
 @Component({
     imports: [
@@ -80,6 +98,7 @@ export class XtreamCodeImportComponent {
         serverUrl: new FormControl('', [
             Validators.required,
             Validators.pattern(this.URL_REGEX),
+            xtreamServerUrlValidator,
         ]),
         importDate: new FormControl(new Date().toISOString()),
     });
@@ -93,9 +112,13 @@ export class XtreamCodeImportComponent {
     async testConnection(): Promise<void> {
         if (!this.form.valid) return;
 
-        this.isTestingConnection = true;
         const connection = this.getNormalizedConnection();
+        if (!connection) {
+            this.connectionStatus = 'unavailable';
+            return;
+        }
 
+        this.isTestingConnection = true;
         try {
             // User-initiated connection test — bypass the shared cache so the
             // result reflects the portal's current state, not whatever was
@@ -140,6 +163,10 @@ export class XtreamCodeImportComponent {
         if (!this.form.valid) return;
 
         const connection = this.getNormalizedConnection();
+        if (!connection) {
+            return;
+        }
+
         this.store.dispatch(
             PlaylistActions.addPlaylist({
                 playlist: {
@@ -176,13 +203,17 @@ export class XtreamCodeImportComponent {
         password: string;
         serverUrl: string;
         username: string;
-    } {
-        return {
-            password: (this.form.value.password as string).trim(),
-            serverUrl: normalizeXtreamServerUrl(
-                this.form.value.serverUrl as string
-            ),
-            username: (this.form.value.username as string).trim(),
-        };
+    } | null {
+        try {
+            return {
+                password: (this.form.value.password as string).trim(),
+                serverUrl: normalizeXtreamServerUrl(
+                    this.form.value.serverUrl as string
+                ),
+                username: (this.form.value.username as string).trim(),
+            };
+        } catch {
+            return null;
+        }
     }
 }

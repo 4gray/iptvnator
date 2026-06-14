@@ -40,6 +40,24 @@ describe('XtreamCodeImportComponent', () => {
         expect(component.form.valid).toBe(false);
     });
 
+    it('rejects URLs with inline credentials before add or test actions', async () => {
+        component.form.patchValue({
+            title: 'Portal',
+            serverUrl: 'https://user:pass@example.com',
+            username: 'user',
+            password: 'pass',
+        });
+
+        expect(component.form.valid).toBe(false);
+
+        await component.testConnection();
+        component.addPlaylist();
+
+        expect(component.isTestingConnection).toBe(false);
+        expect(portalStatusService.checkPortalStatus).not.toHaveBeenCalled();
+        expect(store.dispatch).not.toHaveBeenCalled();
+    });
+
     it('extracts and trims username and password from a full Xtream URL', () => {
         component.extractParams(
             'https://example.com/get.php?username=%20user%20&password=%20pass%20&type=m3u_plus'

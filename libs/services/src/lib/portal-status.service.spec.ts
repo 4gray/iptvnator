@@ -110,6 +110,32 @@ describe('PortalStatusService', () => {
         );
     });
 
+    it('reads cached status with the same normalized connection key used by checks', async () => {
+        dataService.sendIpcEvent.mockResolvedValue({
+            payload: {
+                user_info: {
+                    auth: 1,
+                    exp_date: '0',
+                    status: 'Active',
+                },
+            },
+        });
+
+        await service.checkPortalStatus(
+            ' https://example.com/get.php?username=old&password=old&type=m3u_plus ',
+            ' user ',
+            ' pass '
+        );
+
+        expect(
+            service.getCachedStatus(
+                ' https://example.com/get.php?username=old&password=old&type=m3u_plus ',
+                ' user ',
+                ' pass '
+            )
+        ).toBe('active');
+    });
+
     it('falls back to alternate account actions when get_account_info does not return user info', async () => {
         dataService.sendIpcEvent.mockImplementation(
             async (_type: string, payload: unknown) => {

@@ -57,9 +57,18 @@ Electron IPC and the PWA backend both construct API requests by appending
 
 Credentials sent to the API are trimmed before serialization.
 
+The PWA backend only proxies Xtream requests through registered provider
+targets. Those targets are validated when registered and revalidated before the
+`/xtream` proxy request, including protocol, URL credentials, DNS resolution,
+and private-network checks.
+
 ## Playback URL Formats
 
 When account info includes `user_info.allowed_output_formats`, the current
 Xtream playlist keeps those formats for the active session. Live stream URL
 construction falls back to the first provider-allowed format when the selected
 application format is not allowed by the portal.
+
+If stored Xtream playback credentials contain an invalid server URL or blank
+username/password, stream URL construction returns an empty URL instead of
+throwing during playback.

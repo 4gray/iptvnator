@@ -33,6 +33,14 @@ type XtreamVodStreamLike = XtreamVodDetails & {
 
 type XtreamCatchupScheme = 'rest' | 'legacy';
 
+interface NormalizedXtreamCredentials {
+    password: string;
+    rawPassword: string;
+    rawUsername: string;
+    serverUrl: string;
+    username: string;
+}
+
 type XtreamProbeApi = {
     xtreamProbeUrl?: (
         url: string,
@@ -69,6 +77,10 @@ export class XtreamUrlService {
         format?: string
     ): string {
         const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
         const streamFormat = this.resolveLiveStreamFormat(
             credentials,
             format ?? this.settingsStore.streamFormat() ?? 'ts'
@@ -91,6 +103,10 @@ export class XtreamUrlService {
             return '';
         }
         const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
         return `${normalizedCredentials.serverUrl}/movie/${normalizedCredentials.username}/${normalizedCredentials.password}/${streamId}.${extension}`;
     }
 
@@ -103,6 +119,10 @@ export class XtreamUrlService {
         episode: XtreamSerieEpisode
     ): string {
         const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
         return `${normalizedCredentials.serverUrl}/series/${normalizedCredentials.username}/${normalizedCredentials.password}/${episode.id}.${episode.container_extension}`;
     }
 
@@ -114,6 +134,11 @@ export class XtreamUrlService {
         scheme: XtreamCatchupScheme,
         serverTimezone?: string
     ): string {
+        const normalizedCredentials = this.normalizeCredentials(credentials);
+        if (!normalizedCredentials) {
+            return '';
+        }
+
         const durationMinutes = Math.max(
             1,
             Math.round((stopTimestamp - startTimestamp) / 60)
@@ -124,8 +149,6 @@ export class XtreamUrlService {
         );
 
         if (scheme === 'legacy') {
-            const normalizedCredentials =
-                this.normalizeCredentials(credentials);
             const params = new URLSearchParams({
                 username: normalizedCredentials.rawUsername,
                 password: normalizedCredentials.rawPassword,
@@ -136,7 +159,6 @@ export class XtreamUrlService {
             return `${normalizedCredentials.serverUrl}/streaming/timeshift.php?${params.toString()}`;
         }
 
-        const normalizedCredentials = this.normalizeCredentials(credentials);
         return `${normalizedCredentials.serverUrl}/timeshift/${normalizedCredentials.username}/${normalizedCredentials.password}/${durationMinutes}/${timeString}/${streamId}.ts`;
     }
 
@@ -232,6 +254,10 @@ export class XtreamUrlService {
             serverTimezone
         );
 
+        if (!restUrl || !legacyUrl) {
+            return 'rest';
+        }
+
         const restStatus = await this.probeCatchupUrl(restUrl);
         let detectedScheme: XtreamCatchupScheme;
 
@@ -276,21 +302,27 @@ export class XtreamUrlService {
         );
     }
 
-    private normalizeCredentials(credentials: XtreamCredentials): {
-        password: string;
-        rawPassword: string;
-        rawUsername: string;
-        serverUrl: string;
-        username: string;
-    } {
+    private normalizeCredentials(
+        credentials: XtreamCredentials
+    ): NormalizedXtreamCredentials | null {
         const rawUsername = credentials.username.trim();
         const rawPassword = credentials.password.trim();
+        if (!rawUsername || !rawPassword) {
+            return null;
+        }
+
+        let serverUrl: string;
+        try {
+            serverUrl = normalizeXtreamServerUrl(credentials.serverUrl);
+        } catch {
+            return null;
+        }
 
         return {
             password: encodeURIComponent(rawPassword),
             rawPassword,
             rawUsername,
-            serverUrl: normalizeXtreamServerUrl(credentials.serverUrl),
+            serverUrl,
             username: encodeURIComponent(rawUsername),
         };
     }

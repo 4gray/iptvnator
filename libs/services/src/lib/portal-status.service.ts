@@ -137,8 +137,21 @@ export class PortalStatusService {
         username: string,
         password: string
     ): PortalStatus | null {
+        const connection = this.normalizeConnection(
+            serverUrl,
+            username,
+            password
+        );
+        if (!connection) {
+            return null;
+        }
+
         const cached = this.cache.get(
-            this.buildCacheKey(serverUrl, username, password)
+            this.buildCacheKey(
+                connection.serverUrl,
+                connection.username,
+                connection.password
+            )
         );
         if (!cached) {
             return null;
@@ -193,8 +206,6 @@ export class PortalStatusService {
         username: string,
         password: string
     ): Promise<PortalStatus> {
-        let fallbackStatus: PortalStatus = 'unavailable';
-
         for (const action of XTREAM_STATUS_ACTIONS) {
             try {
                 const response =
@@ -214,13 +225,12 @@ export class PortalStatusService {
                 if (status !== 'unavailable') {
                     return status;
                 }
-                fallbackStatus = status;
             } catch {
-                fallbackStatus = 'unavailable';
+                // Try the next Xtream account-info action variant.
             }
         }
 
-        return fallbackStatus;
+        return 'unavailable';
     }
 
     /**

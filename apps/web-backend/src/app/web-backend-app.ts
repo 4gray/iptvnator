@@ -177,16 +177,30 @@ export function createWebBackendApp(
     });
 
     app.get('/xtream', corsMiddleware, async (req, res) => {
-        const url = getRegisteredProviderUrl(req, res, providerTargets);
-        if (!url) {
+        const registeredUrl = getRegisteredProviderUrl(
+            req,
+            res,
+            providerTargets
+        );
+        if (!registeredUrl) {
             return;
         }
+        const url = new URL(registeredUrl.href);
 
         try {
+            const providerUrlError = await normalizeAndValidateXtreamProviderUrl(
+                url,
+                providerUrlPolicy
+            );
+            if (providerUrlError) {
+                res.status(providerUrlError.status).json(providerUrlError);
+                return;
+            }
+
             // Provider URLs are validated by /provider-targets before they enter the registry.
             // codeql[js/request-forgery]
             const response = await httpClient.get(
-                buildXtreamPlayerApiUrl(url),
+                appendPathSegment(url, 'player_api.php'),
                 {
                     params: getProxyParams(req, ['targetId']),
                 }
@@ -395,11 +409,27 @@ function appendPathSegment(url: URL, segment: string): string {
     return nextUrl.href;
 }
 
-function buildXtreamPlayerApiUrl(url: URL): string {
-    return appendPathSegment(
-        new URL(normalizeXtreamServerUrl(url.href)),
-        'player_api.php'
+async function normalizeAndValidateXtreamProviderUrl(
+    url: URL,
+    policy: ProviderUrlPolicy
+): Promise<ProviderUrlError | null> {
+    let normalizedUrl: URL;
+    try {
+        normalizedUrl = new URL(normalizeXtreamServerUrl(url.href));
+    } catch {
+        return { message: 'Provider URL is not a valid URL', status: 400 };
+    }
+
+    const validatedUrl = await validateProviderUrl(
+        appendPathSegment(normalizedUrl, 'player_api.php'),
+        policy
     );
+    if ('message' in validatedUrl) {
+        return validatedUrl;
+    }
+
+    url.href = normalizedUrl.href;
+    return null;
 }
 
 async function handlePlaylistParse(options: {

@@ -82,4 +82,22 @@ describe('withPortal', () => {
 
         expect(store.currentPlaylist()?.allowedOutputFormats).toEqual(['m3u8']);
     });
+
+    it('clears stale allowed output formats when account info omits them', async () => {
+        store.setCurrentPlaylist({
+            ...PLAYLIST,
+            allowedOutputFormats: ['m3u8'],
+        });
+        apiService.getAccountInfo.mockResolvedValue({
+            user_info: {
+                auth: 1,
+                exp_date: '0',
+                status: 'Active',
+            },
+        });
+
+        await store.checkPortalStatus();
+
+        expect(store.currentPlaylist()?.allowedOutputFormats).toBeUndefined();
+    });
 });

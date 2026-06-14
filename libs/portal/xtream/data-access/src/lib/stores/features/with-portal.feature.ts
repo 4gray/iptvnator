@@ -120,24 +120,24 @@ export function withPortal() {
                             resolveXtreamPortalStatus(response);
                         const serverTimezone =
                             response?.server_info?.timezone ?? undefined;
-                        const allowedOutputFormats =
-                            response?.user_info?.allowed_output_formats;
+                        const allowedOutputFormats = response?.user_info
+                            ?.allowed_output_formats?.length
+                            ? response.user_info.allowed_output_formats
+                                  .map((format) => format.trim())
+                                  .filter(Boolean)
+                            : undefined;
                         patchState(store, { portalStatus });
-                        if (serverTimezone || allowedOutputFormats?.length) {
-                            const current = store.currentPlaylist();
-                            if (current) {
-                                patchState(store, {
-                                    currentPlaylist: {
-                                        ...current,
-                                        ...(serverTimezone
-                                            ? { serverTimezone }
-                                            : {}),
-                                        ...(allowedOutputFormats?.length
-                                            ? { allowedOutputFormats }
-                                            : {}),
-                                    },
-                                });
-                            }
+                        const current = store.currentPlaylist();
+                        if (current) {
+                            patchState(store, {
+                                currentPlaylist: {
+                                    ...current,
+                                    allowedOutputFormats,
+                                    ...(serverTimezone
+                                        ? { serverTimezone }
+                                        : {}),
+                                },
+                            });
                         }
                         return portalStatus;
                     } catch (error) {
