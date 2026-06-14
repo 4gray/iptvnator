@@ -1,0 +1,164 @@
+<section
+    class="settings-group"
+    [class.settings-group--active]="activeSection() === 'dashboard'"
+    id="dashboard"
+    [formGroup]="form()"
+>
+    <header class="settings-group__header">
+        <div class="settings-group__header-icon">
+            <mat-icon>dashboard</mat-icon>
+        </div>
+        <div class="settings-group__header-text">
+            <h3>{{ 'SETTINGS.DASHBOARD' | translate }}</h3>
+            <p>{{ 'SETTINGS.DASHBOARD_SUBTITLE' | translate }}</p>
+        </div>
+    </header>
+
+    <div class="setting-item">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.SHOW_DASHBOARD' | translate }}</h4>
+            <p>
+                {{ 'SETTINGS.SHOW_DASHBOARD_DESCRIPTION' | translate }}
+            </p>
+        </div>
+        <div class="setting-item__control setting-item__toggle">
+            <mat-checkbox
+                formControlName="showDashboard"
+                data-test-id="toggle-show-dashboard"
+            ></mat-checkbox>
+        </div>
+    </div>
+
+    <div formGroupName="dashboardRails">
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.DASHBOARD_HERO' | translate }}</h4>
+                <p>
+                    {{ 'SETTINGS.DASHBOARD_HERO_DESCRIPTION' | translate }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="hero"
+                    data-test-id="toggle-dashboard-hero"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.DASHBOARD_RAIL_CONTINUE' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_CONTINUE_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="continueWatching"
+                    data-test-id="toggle-dashboard-rail-continue-watching"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{
+                    'SETTINGS.DASHBOARD_RAIL_LIVE_FAVORITES' | translate
+                }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_LIVE_FAVORITES_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="liveFavorites"
+                    data-test-id="toggle-dashboard-rail-live-favorites"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{
+                    'SETTINGS.DASHBOARD_RAIL_RECENT_LIVE' | translate
+                }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_RECENT_LIVE_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="recentlyWatchedLive"
+                    data-test-id="toggle-dashboard-rail-recently-watched-live"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{
+                    'SETTINGS.DASHBOARD_RAIL_FAVORITE_VOD' | translate
+                }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_FAVORITE_VOD_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="favoriteMoviesAndSeries"
+                    data-test-id="toggle-dashboard-rail-favorite-movies-and-series"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.DASHBOARD_RAIL_SOURCES' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_SOURCES_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="recentSources"
+                    data-test-id="toggle-dashboard-rail-recent-sources"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{
+                    'SETTINGS.DASHBOARD_RAIL_XTREAM_ADDED' | translate
+                }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="xtreamRecentlyAdded"
+                    data-test-id="toggle-dashboard-rail-xtream-recently-added"
+                ></mat-checkbox>
+            </div>
+        </div>
+    </div>
+</section>

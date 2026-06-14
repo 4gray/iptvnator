@@ -14,6 +14,7 @@ import Artplayer from 'artplayer';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { addHlsAudioTrackSettings } from './art-player-audio-tracks';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
@@ -27,47 +28,13 @@ import {
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 
-type AudioTrackSelector = {
-    html: string | HTMLElement;
-    default?: boolean;
-};
-
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
 @Component({
     selector: 'app-art-player',
     imports: [SeriesPlaybackNavigationControlsComponent],
-    template: `
-        <div class="art-player-shell">
-            <div #artplayer class="artplayer-container"></div>
-
-            <app-series-playback-navigation-controls
-                [navigation]="seriesNavigation"
-                (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-                (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-            />
-        </div>
-    `,
-    styles: [
-        `
-            :host {
-                display: block;
-                width: 100%;
-                height: 100%;
-            }
-            .art-player-shell {
-                position: relative;
-                width: 100%;
-                height: 100%;
-                min-height: 0;
-                overflow: hidden;
-            }
-            .artplayer-container {
-                width: 100%;
-                height: 100%;
-            }
-        `,
-    ],
+    templateUrl: './art-player.component.html',
+    styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() channel!: Channel;
@@ -122,6 +89,9 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             this.destroyPlayer();
             this.initPlayer();
         }
+        if (changes['volume'] && this.player) {
+            this.applyVolume(changes['volume'].currentValue);
+        }
     }
 
     private destroyPlayer(): void {
@@ -170,7 +140,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         this.player = new Artplayer({
             container: el,
             url: this.channel.url + (this.channel.epgParams || ''),
-            volume: this.volume,
+            volume: this.clampVolume(this.volume),
             isLive: isLive,
             autoplay: true,
             type: this.getVideoType(this.channel.url),
@@ -204,7 +174,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                         });
                         this.hls.loadSource(url);
                         this.hls.attachMedia(video);
-                        this.setupHlsAudioTracks();
+                        addHlsAudioTrackSettings(this.player, this.hls);
                     } else if (
                         video.canPlayType('application/vnd.apple.mpegurl')
                     ) {
@@ -279,6 +249,19 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         });
     }
 
+    private applyVolume(value: number): void {
+        this.player.volume = this.clampVolume(value);
+    }
+
+    private clampVolume(value: number): number {
+        const numericValue = Number(value);
+        if (!Number.isFinite(numericValue)) {
+            return 1;
+        }
+
+        return Math.max(0, Math.min(1, numericValue));
+    }
+
     private handleHlsManifestParsed(
         url: string,
         data: ManifestParsedData
@@ -316,50 +299,6 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 this.createSourceMetadata(url, 'application/x-mpegURL')
             )
         );
-    }
-
-    /**
-     * Listens for HLS.js audio tracks and adds a settings menu entry
-     * to ArtPlayer for switching between available audio tracks.
-     */
-    private setupHlsAudioTracks(): void {
-        if (!this.hls) return;
-
-        const hls = this.hls;
-
-        hls.on(Hls.Events.AUDIO_TRACKS_UPDATED, () => {
-            const tracks = hls.audioTracks;
-            if (!tracks || tracks.length <= 1) return;
-
-            const audioTrackSetting = {
-                html: 'Audio',
-                icon: `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="22" height="22" fill="white">
-                    <path d="M3 9v6h4l5 5V4L7 9H3zm13.5 3c0-1.77-1.02-3.29-2.5-4.03v8.05c1.48-.73 2.5-2.25 2.5-4.02zM14 3.23v2.06c2.89.86 5 3.54 5 6.71s-2.11 5.85-5 6.71v2.06c4.01-.91 7-4.49 7-8.77s-2.99-7.86-7-8.77z"/>
-                </svg>`,
-                width: 220,
-                tooltip: tracks[hls.audioTrack]?.name || '',
-                selector: tracks.map((track, index) => ({
-                    html: track.name || track.lang || `Track ${index + 1}`,
-                    default: index === hls.audioTrack,
-                })),
-                onSelect: function (this: Artplayer, item: AudioTrackSelector) {
-                    const selectedLabel =
-                        typeof item.html === 'string'
-                            ? item.html
-                            : (item.html.textContent ?? '');
-                    const selectedIndex = tracks.findIndex(
-                        (t, i) =>
-                            (t.name || t.lang || `Track ${i + 1}`) ===
-                            selectedLabel
-                    );
-                    if (selectedIndex >= 0) {
-                        hls.audioTrack = selectedIndex;
-                    }
-                },
-            };
-
-            this.player.setting.add(audioTrackSetting);
-        });
     }
 
     private getVideoType(url: string): string {

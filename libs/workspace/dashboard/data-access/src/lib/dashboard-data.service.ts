@@ -265,10 +265,8 @@ export class DashboardDataService {
         this.globalRecentItems().filter((item) => item.type === 'live')
     );
 
-    // Favorited live channels — the dashboard's "Live now" rail prefers this
-    // source so the EPG enrichment lands on the channels users actually care
-    // about. Falls back to globalRecentLiveItems when this is empty so a
-    // fresh-install user still sees something useful.
+    // Favorited live channels — the dashboard's "Live now" rail uses this
+    // source only. Recently watched live channels have their own dashboard rail.
     readonly globalFavoriteLiveItems = computed<DashboardFavoriteItem[]>(() =>
         this.globalFavoriteItems().filter((item) => item.type === 'live')
     );

@@ -9,6 +9,7 @@ import {
     input,
     output,
     signal,
+    untracked,
     viewChild,
 } from '@angular/core';
 import { extractDominantColor } from './extract-color';
@@ -42,8 +43,10 @@ export class AudioPlayerComponent {
     readonly url = input.required<string>();
     readonly channelName = input<string>('');
     readonly playback = input<ResolvedPortalPlayback | null>(null);
+    readonly externalVolume = input<number | null>(null, { alias: 'volume' });
     readonly dispatchAdjacentChannelAction = input(true);
     readonly channelSwitchRequested = output<'next' | 'previous'>();
+    readonly volumeChange = output<number>();
 
     readonly playState = signal<'play' | 'paused'>('paused');
     readonly volume = signal(1);
@@ -82,11 +85,18 @@ export class AudioPlayerComponent {
         }
 
         effect(() => {
+            const volume = this.externalVolume();
+            if (volume === null) return;
+
+            this.setVolume(volume, { emitChange: false });
+        });
+
+        effect(() => {
             const url = this.url();
             const audio = this.audioRef()?.nativeElement;
             if (!audio || !url) return;
             audio.src = url;
-            audio.volume = this.volume();
+            audio.volume = untracked(() => this.volume());
             audio.load();
             this.logoError.set(false);
             this.play();
@@ -145,12 +155,18 @@ export class AudioPlayerComponent {
         this.playState.set('paused');
     }
 
-    setVolume(value: number) {
+    setVolume(
+        value: number,
+        options: { emitChange?: boolean } = {}
+    ) {
         const clamped = Math.round(Math.max(0, Math.min(1, value)) * 100) / 100;
         this.volume.set(clamped);
         const audio = this.audioRef()?.nativeElement;
         if (audio) audio.volume = clamped;
         localStorage.setItem('volume', String(clamped));
+        if (options.emitChange !== false) {
+            this.volumeChange.emit(clamped);
+        }
     }
 
     mute() {

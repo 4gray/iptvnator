@@ -44,6 +44,40 @@ describe('buildSettingsSectionNavItems', () => {
         return ids;
     }
 
+    function collectSettingsComponentSectionOrder(): string[] {
+        const html = readFileSync(
+            resolve(settingsDir, 'settings.component.html'),
+            'utf-8'
+        );
+        const idsByComponent = new Map<string, string>();
+
+        for (const fileName of readdirSync(settingsDir)) {
+            const componentMatch =
+                /^settings-(.+)-section\.component\.html$/.exec(fileName);
+            if (!componentMatch) {
+                continue;
+            }
+            const sectionHtml = readFileSync(
+                resolve(settingsDir, fileName),
+                'utf-8'
+            );
+            const rootMatch = /<section[^>]*\sid="([^"]+)"/i.exec(
+                sectionHtml
+            );
+            if (rootMatch) {
+                idsByComponent.set(
+                    `app-settings-${componentMatch[1]}-section`,
+                    rootMatch[1]
+                );
+            }
+        }
+
+        return Array.from(
+            html.matchAll(/<app-settings-[a-z-]+-section\b/g),
+            (match) => idsByComponent.get(match[0].slice(1))
+        ).filter((id): id is string => Boolean(id));
+    }
+
     it('exposes feature-specific items only when their runtime capabilities are supported', () => {
         const supportedItems = buildSettingsSectionNavItems({
             supportsEpg: true,
@@ -55,7 +89,7 @@ describe('buildSettingsSectionNavItems', () => {
         });
 
         expect(supportedItems.map((item) => item.id)).toEqual(
-            expect.arrayContaining(['epg', 'remote-control'])
+            expect.arrayContaining(['dashboard', 'epg', 'remote-control'])
         );
         expect(
             unsupportedItems.find((item) => item.id === 'epg')?.visible
@@ -84,5 +118,26 @@ describe('buildSettingsSectionNavItems', () => {
         // entry would never get scrolled to).
         const unreachable = [...templateIds].filter((id) => !navIds.has(id));
         expect(unreachable).toEqual([]);
+    });
+
+    it('keeps Dashboard below EPG in both the settings rail and content order', () => {
+        const expectedOrder = [
+            'general',
+            'playback',
+            'epg',
+            'dashboard',
+            'remote-control',
+            'backup',
+            'reset',
+            'about',
+        ];
+
+        expect(
+            buildSettingsSectionNavItems({
+                supportsEpg: true,
+                supportsRemoteControl: true,
+            }).map((item) => item.id)
+        ).toEqual(expectedOrder);
+        expect(collectSettingsComponentSectionOrder()).toEqual(expectedOrder);
     });
 });

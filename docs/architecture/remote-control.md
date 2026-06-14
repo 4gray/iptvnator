@@ -131,6 +131,8 @@ Implemented behavior:
   - up/down in 0.1 increments
   - toggle mute with last non-zero volume restore
   - persists to `localStorage`
+  - propagates to built-in inline players: Video.js, HTML5, ArtPlayer, and radio `AudioPlayerComponent`
+  - does not control external MPV/VLC sessions or the experimental Embedded MPV player
 - Publishes status snapshots via `updateRemoteControlStatus(...)`:
   - `portal: 'm3u'`
   - `isLiveView: true`
@@ -230,7 +232,7 @@ Implemented UI behavior:
 | Channel up/down | Yes | Yes | Yes |
 | Number select | Yes | Yes | Yes |
 | Status publish | Yes | Yes | Yes |
-| Volume command handling | Yes | No | No |
+| Volume command handling | Yes, for built-in inline M3U players | No | No |
 | `supportsVolume` in status | true | false | false |
 
 ## Known limitations

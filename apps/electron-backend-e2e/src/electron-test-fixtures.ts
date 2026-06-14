@@ -47,6 +47,7 @@ export type M3uTestChannel = {
     groupTitle?: string;
     logo?: string;
     name: string;
+    radio?: boolean;
     tvgId?: string;
     tvgName?: string;
     url: string;
@@ -616,6 +617,7 @@ export function buildM3uContent(channels: M3uTestChannel[]): string {
             channel.tvgName ? `tvg-name="${channel.tvgName}"` : '',
             channel.logo ? `tvg-logo="${channel.logo}"` : '',
             channel.groupTitle ? `group-title="${channel.groupTitle}"` : '',
+            channel.radio ? 'radio="true"' : '',
         ]
             .filter(Boolean)
             .join(' ');
@@ -648,6 +650,7 @@ export function parseM3uFixture(filePath: string): M3uTestChannel[] {
               groupTitle?: string;
               logo?: string;
               name: string;
+              radio?: boolean;
               tvgId?: string;
               tvgName?: string;
           }
@@ -665,6 +668,7 @@ export function parseM3uFixture(filePath: string): M3uTestChannel[] {
                     line.match(/group-title="([^"]*)"/)?.[1]?.trim() ?? '',
                 logo: line.match(/tvg-logo="([^"]*)"/)?.[1]?.trim() ?? '',
                 name: line.split(',').at(-1)?.trim() ?? '',
+                radio: /radio="true"/i.test(line),
                 tvgId: line.match(/tvg-id="([^"]*)"/)?.[1]?.trim() ?? '',
                 tvgName: line.match(/tvg-name="([^"]*)"/)?.[1]?.trim() ?? '',
             };
