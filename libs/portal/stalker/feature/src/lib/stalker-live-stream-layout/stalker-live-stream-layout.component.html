@@ -117,6 +117,7 @@
                 @if (isRadioMode()) {
                     <app-audio-player
                         [url]="streamUrl()"
+                        [playback]="activePlayback()"
                         [icon]="activePlaybackArtwork()"
                         [channelName]="activePlaybackTitle()"
                         [dispatchAdjacentChannelAction]="false"

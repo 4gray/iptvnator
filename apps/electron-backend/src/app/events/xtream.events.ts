@@ -6,6 +6,7 @@
 import axios, { AxiosRequestConfig } from 'axios';
 import { ipcMain } from 'electron';
 import {
+    ElectronBridgeXtreamErrorResponse,
     PortalDebugEvent,
     XTREAM_CANCEL_SESSION,
 } from '@iptvnator/shared/interfaces';
@@ -32,14 +33,17 @@ function formatXtreamError(
     };
 
     if (axios.isAxiosError(error)) {
+        const networkError = error as NodeJS.ErrnoException & {
+            hostname?: string;
+        };
         return {
             ...base,
             type: 'AxiosError',
             code: error.code,
             status: error.response?.status,
             message: error.message,
-            syscall: (error as NodeJS.ErrnoException).syscall,
-            hostname: (error as any).hostname,
+            syscall: networkError.syscall,
+            hostname: networkError.hostname,
         };
     }
 
@@ -57,6 +61,54 @@ function formatXtreamError(
         ...base,
         type: 'UnknownError',
         message: String(error),
+    };
+}
+
+function createXtreamErrorResponse(
+    error: unknown
+): ElectronBridgeXtreamErrorResponse {
+    if (axios.isAxiosError(error)) {
+        if (error.code === 'ERR_CANCELED') {
+            return {
+                type: 'ERROR',
+                name: 'AbortError',
+                message: 'Xtream request cancelled',
+                status: 499,
+            };
+        }
+
+        return {
+            type: 'ERROR',
+            message:
+                error.response?.data?.message ||
+                error.message ||
+                'Failed to fetch data from Xtream server',
+            status: error.response?.status || 500,
+        };
+    }
+
+    if (error && typeof error === 'object') {
+        const errorRecord = error as Record<string, unknown>;
+        return {
+            type: 'ERROR',
+            ...(typeof errorRecord.name === 'string'
+                ? { name: errorRecord.name }
+                : {}),
+            message:
+                typeof errorRecord.message === 'string'
+                    ? errorRecord.message
+                    : 'An unknown error occurred',
+            status:
+                typeof errorRecord.status === 'number'
+                    ? errorRecord.status
+                    : 500,
+        };
+    }
+
+    return {
+        type: 'ERROR',
+        message: 'An unknown error occurred',
+        status: 500,
     };
 }
 
@@ -193,38 +245,10 @@ ipcMain.handle(
                 );
             }
 
-            // Format error response
-            if (axios.isAxiosError(error)) {
-                if (error.code === 'ERR_CANCELED') {
-                    throw {
-                        type: 'ERROR',
-                        name: 'AbortError',
-                        message: 'Xtream request cancelled',
-                        status: 499,
-                    };
-                }
-                const errorResponse = {
-                    type: 'ERROR',
-                    message:
-                        error.response?.data?.message ||
-                        error.message ||
-                        'Failed to fetch data from Xtream server',
-                    status: error.response?.status || 500,
-                };
-                throw errorResponse;
-            } else if (
-                error &&
-                typeof error === 'object' &&
-                'message' in error
-            ) {
-                throw error;
-            } else {
-                throw {
-                    type: 'ERROR',
-                    message: 'An unknown error occurred',
-                    status: 500,
-                };
-            }
+            // Returning a structured failure keeps background requests from
+            // becoming rejected Electron handlers while preserving status and
+            // message details for the renderer.
+            return createXtreamErrorResponse(error);
         } finally {
             if (activeRequestKey) {
                 activeXtreamRequests.delete(activeRequestKey);

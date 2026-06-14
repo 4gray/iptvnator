@@ -58,11 +58,12 @@ default browser unless the app window is deliberately meant to host that URL.
 
 The Angular shell defines a baseline CSP in `apps/web/src/index.html`.
 
-The policy keeps the application self-hosted for scripts, blocks object and
-frame embedding, limits forms to the app origin, and allows IPTV playback
-sources through `media-src` and `connect-src` for `http:`, `https:`, `blob:`,
-and `data:`. The policy keeps `script-src` self-hosted and currently keeps
-`unsafe-inline` for existing inline styles.
+The policy keeps application scripts self-hosted except for the official Google
+Cast Web Sender SDK at `https://www.gstatic.com`, blocks object and frame
+embedding, limits forms to the app origin, and allows IPTV playback sources
+through `media-src` and `connect-src` for `http:`, `https:`, `blob:`, and
+`data:`. The policy currently keeps `unsafe-inline` for existing inline styles.
+Do not broaden the Cast exception to a wildcard Google domain or another CDN.
 
 Angular production builds must not rely on inline event handlers for stylesheet
 activation. Keep `web:build:production` and `web:build:pwa` configured without

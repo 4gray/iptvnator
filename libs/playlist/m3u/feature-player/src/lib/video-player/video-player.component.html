@@ -66,6 +66,7 @@
                 @if (activeChannel.radio === 'true') {
                     <app-audio-player
                         [url]="activeChannel.url"
+                        [playback]="embeddedPlayback()"
                         [icon]="activeChannel?.tvg?.logo!"
                         [channelName]="
                             activeChannel.name || activeChannel?.tvg?.name || ''

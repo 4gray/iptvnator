@@ -110,6 +110,15 @@ describe('ArtPlayerComponent', () => {
         fixture?.destroy();
     });
 
+    it('uses the shared cast control instead of ArtPlayer AirPlay UI', () => {
+        createComponent({
+            url: 'https://example.com/live/playlist.m3u8',
+            name: 'HLS Live',
+        });
+
+        expect(artPlayerInstances[0].options['airplay']).toBe(false);
+    });
+
     it('emits a playback issue when the native video element reports an unsupported source', () => {
         createComponent({
             url: 'https://example.com/archive/movie.mkv',

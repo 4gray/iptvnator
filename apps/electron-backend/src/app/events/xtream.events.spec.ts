@@ -102,7 +102,8 @@ describe('XtreamEvents session cancellation', () => {
 
         pendingRequest.reject(cancelError);
 
-        await expect(requestPromise).rejects.toMatchObject({
+        await expect(requestPromise).resolves.toMatchObject({
+            type: 'ERROR',
             name: 'AbortError',
             status: 499,
         });
@@ -184,11 +185,52 @@ describe('XtreamEvents session cancellation', () => {
         firstRequest.reject(cancelError);
         secondRequest.reject(cancelError);
 
-        await expect(firstPromise).rejects.toMatchObject({
+        await expect(firstPromise).resolves.toMatchObject({
+            type: 'ERROR',
             name: 'AbortError',
         });
-        await expect(secondPromise).rejects.toMatchObject({
+        await expect(secondPromise).resolves.toMatchObject({
+            type: 'ERROR',
             name: 'AbortError',
         });
+    });
+
+    it('returns provider failures without rejecting the Electron handler', async () => {
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        const providerError = Object.assign(
+            new Error('Request failed with status code 520'),
+            {
+                response: {
+                    status: 520,
+                },
+            }
+        );
+
+        expect(requestHandler).toBeDefined();
+
+        axiosMock.mockRejectedValue(providerError);
+        axiosMock.isAxiosError.mockImplementation(
+            (error: unknown) => error === providerError
+        );
+
+        const result = requestHandler?.(
+            {},
+            {
+                url: 'http://localhost:3211',
+                params: {
+                    action: 'get_short_epg',
+                    password: 'secret',
+                    username: 'user1',
+                },
+                suppressErrorLog: true,
+            }
+        ) as Promise<unknown>;
+
+        await expect(result).resolves.toEqual({
+            type: 'ERROR',
+            message: 'Request failed with status code 520',
+            status: 520,
+        });
+        expect(consoleErrorSpy).not.toHaveBeenCalled();
     });
 });

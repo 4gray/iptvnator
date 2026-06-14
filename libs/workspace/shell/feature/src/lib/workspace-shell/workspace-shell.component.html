@@ -1,5 +1,6 @@
 <div
     class="workspace-shell"
+    [class.rail-expanded]="railExpanded()"
     appPlaylistDropZone
     #dropZone="playlistDropZone"
 >
@@ -10,15 +11,14 @@
 
     <app-workspace-shell-rail
         [isMacOS]="facade.isMacOS"
-        [brandLink]="facade.brandLink()"
-        [brandTooltipKey]="facade.brandTooltipKey()"
-        [brandAriaLabelKey]="facade.brandAriaLabelKey()"
+        [expanded]="railExpanded()"
         [workspaceLinks]="facade.workspaceLinks()"
         [primaryContextLinks]="facade.primaryContextLinks()"
         [secondaryContextLinks]="facade.secondaryContextLinks()"
         [selectedSection]="facade.currentSection()"
         [railProviderClass]="facade.railProviderClass()"
         [isSettingsRoute]="facade.isSettingsRoute()"
+        (expandedChange)="railExpanded.set($event)"
     />
 
     <app-workspace-shell-header
@@ -53,7 +53,10 @@
         (accountInfoRequested)="facade.openAccountInfo()"
     />
 
-    <div class="workspace-body" [class.single-pane]="!facade.showContextPanel()">
+    <div
+        class="workspace-body"
+        [class.single-pane]="!facade.showContextPanel()"
+    >
         @if (facade.showContextPanel()) {
             <app-workspace-shell-context-sidebar
                 [variant]="facade.contextPanel()"
@@ -74,10 +77,14 @@
                 <app-external-playback-dock
                     [session]="session"
                     (closeClicked)="facade.closeActiveExternalSession()"
-                    (artworkClicked)="
-                        facade.openActiveExternalSessionTarget()
-                    "
-                />
+                    (artworkClicked)="facade.openActiveExternalSessionTarget()"
+                >
+                    <app-cast-control
+                        external-playback-cast
+                        placement="inline"
+                        [playback]="toCastPlayback(session)"
+                    />
+                </app-external-playback-dock>
             </footer>
         }
     }

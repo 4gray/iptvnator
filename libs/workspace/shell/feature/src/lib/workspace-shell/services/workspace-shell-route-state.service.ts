@@ -1,4 +1,10 @@
-import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    signal,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -48,21 +54,6 @@ export class WorkspaceShellRouteStateService {
     readonly currentSection = computed(() => this.currentRoute().section);
     readonly showDashboard = computed(() =>
         this.startupPreferences.showDashboard()
-    );
-    readonly brandLink = computed(() =>
-        this.startupPreferences.getFirstAvailableWorkspacePath(
-            this.showDashboard()
-        )
-    );
-    readonly brandTooltipKey = computed(() =>
-        this.showDashboard()
-            ? 'WORKSPACE.SHELL.RAIL_DASHBOARD'
-            : 'WORKSPACE.SHELL.RAIL_SOURCES'
-    );
-    readonly brandAriaLabelKey = computed(() =>
-        this.showDashboard()
-            ? 'WORKSPACE.SHELL.OPEN_DASHBOARD'
-            : 'WORKSPACE.SHELL.OPEN_SOURCES'
     );
     readonly workspaceLinks = computed<PortalRailLink[]>(() => {
         this.languageTick();

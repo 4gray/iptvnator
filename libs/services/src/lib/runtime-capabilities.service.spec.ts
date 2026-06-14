@@ -35,6 +35,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(false);
         expect(service.supportsDesktopFileSave).toBe(false);
         expect(service.supportsRemoteControl).toBe(false);
+        expect(service.supportsDlnaCasting).toBe(false);
         expect(service.supportsXtreamSectionNavigation).toBe(true);
         expect(service.supportsEpgImport).toBe(false);
         expect(service.supportsEpgProgress).toBe(false);
@@ -120,6 +121,8 @@ describe('RuntimeCapabilitiesService', () => {
             updateRemoteControlStatus: jest.fn(),
             onChannelChange: jest.fn(),
             onRemoteControlCommand: jest.fn(),
+            discoverDlnaRenderers: jest.fn(),
+            startDlnaPlayback: jest.fn(),
             xtreamRequest: jest.fn(),
             fetchEpg: jest.fn(),
             getChannelPrograms: jest.fn(),
@@ -155,6 +158,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsEmbeddedMpv).toBe(true);
         expect(service.supportsDesktopFileSave).toBe(true);
         expect(service.supportsRemoteControl).toBe(true);
+        expect(service.supportsDlnaCasting).toBe(true);
         expect(service.supportsXtreamSectionNavigation).toBe(true);
         expect(service.supportsEpgImport).toBe(true);
         expect(service.supportsEpgProgress).toBe(true);

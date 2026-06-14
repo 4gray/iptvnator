@@ -4,6 +4,7 @@ import type {
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
+    DlnaRendererDevice,
     ElectronBridgeApi,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
@@ -741,6 +742,10 @@ const electronApi: ElectronBridgeApi = {
             contentType
         ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
+    discoverDlnaRenderers: (): Promise<DlnaRendererDevice[]> =>
+        ipcRenderer.invoke('CAST:DLNA_DISCOVER'),
+    startDlnaPlayback: (deviceId: string, playback: ResolvedPortalPlayback) =>
+        ipcRenderer.invoke('CAST:DLNA_START', deviceId, playback),
     // Downloads
     downloadsStart: (data: ElectronBridgeDownloadStartPayload) =>
         ipcRenderer.invoke('DOWNLOADS_START', data),

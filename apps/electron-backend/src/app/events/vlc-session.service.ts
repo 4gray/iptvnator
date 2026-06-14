@@ -310,11 +310,29 @@ export async function openVlcPlayer({
     startTime,
     headers,
 }: OpenVlcPlayerRequest) {
+    const {
+        mergedHeaders,
+        effectiveOrigin,
+        effectiveReferer,
+        effectiveUserAgent,
+    } = resolveEffectiveExternalPlaybackRequest({
+        url,
+        userAgent,
+        referer,
+        origin,
+        headers,
+    });
     const session = externalPlayerSessions.beginSession({
         player: 'vlc',
         title,
         thumbnail,
         streamUrl: url,
+        requiresRequestHeaders: Boolean(
+            effectiveUserAgent ||
+            effectiveReferer ||
+            effectiveOrigin ||
+            Object.keys(mergedHeaders).length
+        ),
         contentInfo,
     });
 
@@ -331,18 +349,6 @@ export async function openVlcPlayer({
             requestedReuseInstance,
             isFlatpak
         );
-        const {
-            mergedHeaders,
-            effectiveOrigin,
-            effectiveReferer,
-            effectiveUserAgent,
-        } = resolveEffectiveExternalPlaybackRequest({
-            url,
-            userAgent,
-            referer,
-            origin,
-            headers,
-        });
         traceExternalPlayer('open vlc player', {
             path: vlcLaunchContext.playerPath,
             launchMode: vlcLaunchContext.mode,

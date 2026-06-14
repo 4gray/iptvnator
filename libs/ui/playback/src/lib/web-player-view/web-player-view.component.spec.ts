@@ -93,6 +93,16 @@ class StubEmbeddedMpvPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
+@Component({
+    selector: 'app-cast-control',
+    template: '<button data-test-id="stub-cast-control"></button>',
+})
+class StubCastControlComponent {
+    readonly playback = input.required<unknown>();
+    readonly placement = input<'overlay' | 'inline'>('overlay');
+    readonly menuOpenChange = output<boolean>();
+}
+
 describe('WebPlayerViewComponent', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
     let fixture: ComponentFixture<WebPlayerViewComponentInstance>;
@@ -126,6 +136,7 @@ describe('WebPlayerViewComponent', () => {
                 set: {
                     imports: [
                         StubArtPlayerComponent,
+                        StubCastControlComponent,
                         StubEmbeddedMpvPlayerComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
@@ -157,6 +168,86 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.classList).toContain('web-player-view');
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="stub-cast-control"]')
+            )
+        ).not.toBeNull();
+    });
+
+    it('auto-hides the cast overlay with the player controls and restores it on activity', () => {
+        jest.useFakeTimers();
+
+        try {
+            component.castControlVisibility.showTemporarily();
+            fixture.detectChanges();
+
+            const overlay = fixture.debugElement.query(
+                By.css('[data-test-id="cast-control-overlay"]')
+            );
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).not.toContain(
+                'web-player-cast-control--visible'
+            );
+            expect(overlay.nativeElement.getAttribute('aria-hidden')).toBe(
+                'true'
+            );
+            expect(overlay.nativeElement.hasAttribute('inert')).toBe(true);
+
+            fixture.nativeElement.dispatchEvent(new Event('pointermove'));
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+            expect(
+                overlay.nativeElement.getAttribute('aria-hidden')
+            ).toBeNull();
+            expect(overlay.nativeElement.hasAttribute('inert')).toBe(false);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('keeps the cast overlay visible while the device menu is open', () => {
+        jest.useFakeTimers();
+
+        try {
+            component.castControlVisibility.showTemporarily();
+            fixture.detectChanges();
+
+            const overlay = fixture.debugElement.query(
+                By.css('[data-test-id="cast-control-overlay"]')
+            );
+            const castControl = fixture.debugElement.query(
+                By.directive(StubCastControlComponent)
+            ).componentInstance as StubCastControlComponent;
+
+            castControl.menuOpenChange.emit(true);
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+
+            castControl.menuOpenChange.emit(false);
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).not.toContain(
+                'web-player-cast-control--visible'
+            );
+        } finally {
+            jest.useRealTimers();
+        }
     });
 
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {

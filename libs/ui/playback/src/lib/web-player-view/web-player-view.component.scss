@@ -14,6 +14,31 @@ app-html-video-player {
     height: 100%;
 }
 
+.web-player-cast-control {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 7;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-4px);
+    transition:
+        opacity 180ms ease-out,
+        transform 180ms ease-out;
+}
+
+.web-player-cast-control--visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .web-player-cast-control {
+        transition: none;
+    }
+}
+
 // Holds the player's space (black, no layout shift) for the one-frame gap
 // before a @defer (on immediate) player chunk resolves.
 .web-player-defer-placeholder {
