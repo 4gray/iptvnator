@@ -46,6 +46,11 @@ describe('WorkspaceShellRailLinksComponent', () => {
         expect(labels).toEqual(['Dashboard', 'Movies']);
         expect(
             fixture.nativeElement
+                .querySelector('.portal-rail-link-label')
+                ?.getAttribute('dir')
+        ).toBe('auto');
+        expect(
+            fixture.nativeElement
                 .querySelector('.rail-links')
                 ?.classList.contains('is-expanded')
         ).toBe(true);

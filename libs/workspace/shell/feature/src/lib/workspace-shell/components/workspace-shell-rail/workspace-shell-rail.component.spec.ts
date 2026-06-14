@@ -83,6 +83,9 @@ describe('WorkspaceShellRailComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.rail-shortcut.is-active')
         ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.rail-navigation')
+        ).not.toBeNull();
     });
 
     it('uses the brand control to toggle the rail instead of navigating', () => {
@@ -101,6 +104,92 @@ describe('WorkspaceShellRailComponent', () => {
         expect(brand.nativeElement.getAttribute('aria-expanded')).toBe('true');
     });
 
+    it('keeps the horizontal mobile navigation compact', () => {
+        const originalMatchMedia = Object.getOwnPropertyDescriptor(
+            window,
+            'matchMedia'
+        );
+        Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            value: jest.fn().mockReturnValue({ matches: true }),
+        });
+
+        try {
+            fixture.destroy();
+            fixture = TestBed.createComponent(WorkspaceShellRailComponent);
+            fixture.detectChanges();
+
+            const brand = fixture.debugElement.query(By.css('.brand'));
+            brand.triggerEventHandler('click');
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.expanded()).toBe(false);
+            expect(brand.nativeElement.disabled).toBe(true);
+            expect(
+                brand.nativeElement.getAttribute('aria-expanded')
+            ).toBeNull();
+            expect(brand.nativeElement.getAttribute('aria-label')).toBeNull();
+            expect(brand.injector.get(MatTooltip).disabled).toBe(true);
+        } finally {
+            if (originalMatchMedia) {
+                Object.defineProperty(window, 'matchMedia', originalMatchMedia);
+            } else {
+                Reflect.deleteProperty(window, 'matchMedia');
+            }
+        }
+    });
+
+    it('closes an expanded rail when the viewport becomes compact', () => {
+        let mediaListener: ((event: { matches: boolean }) => void) | undefined;
+        const removeEventListener = jest.fn();
+        const originalMatchMedia = Object.getOwnPropertyDescriptor(
+            window,
+            'matchMedia'
+        );
+        Object.defineProperty(window, 'matchMedia', {
+            configurable: true,
+            value: jest.fn().mockReturnValue({
+                matches: false,
+                addEventListener: (
+                    _type: string,
+                    listener: (event: { matches: boolean }) => void
+                ) => {
+                    mediaListener = listener;
+                },
+                removeEventListener,
+            }),
+        });
+
+        try {
+            fixture.destroy();
+            fixture = TestBed.createComponent(WorkspaceShellRailComponent);
+            fixture.componentRef.setInput('expanded', true);
+            fixture.detectChanges();
+
+            mediaListener?.({ matches: true });
+            fixture.detectChanges();
+
+            expect(fixture.componentInstance.expanded()).toBe(false);
+            expect(
+                fixture.nativeElement
+                    .querySelector('.brand')
+                    ?.getAttribute('aria-expanded')
+            ).toBeNull();
+
+            fixture.destroy();
+            expect(removeEventListener).toHaveBeenCalledWith(
+                'change',
+                mediaListener
+            );
+        } finally {
+            if (originalMatchMedia) {
+                Object.defineProperty(window, 'matchMedia', originalMatchMedia);
+            } else {
+                Reflect.deleteProperty(window, 'matchMedia');
+            }
+        }
+    });
+
     it('shows the application and navigation labels while expanded', () => {
         fixture.componentRef.setInput('expanded', true);
         fixture.detectChanges();
@@ -113,6 +202,11 @@ describe('WorkspaceShellRailComponent', () => {
                 .querySelector('.rail-shortcut-label')
                 ?.textContent.trim()
         ).toBe('WORKSPACE.SHELL.RAIL_SETTINGS');
+        expect(
+            fixture.nativeElement
+                .querySelector('.rail-shortcut-label')
+                ?.getAttribute('dir')
+        ).toBe('auto');
         expect(
             fixture.nativeElement
                 .querySelector('.app-rail')

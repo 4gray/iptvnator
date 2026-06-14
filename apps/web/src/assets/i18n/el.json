@@ -910,6 +910,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Ανάπτυξη πλοήγησης",
+            "COLLAPSE_NAVIGATION": "Σύμπτυξη πλοήγησης",
             "RAIL_DASHBOARD": "Πίνακας ελέγχου",
             "OPEN_DASHBOARD": "Άνοιγμα πίνακα ελέγχου",
             "RAIL_SOURCES": "Πηγές",

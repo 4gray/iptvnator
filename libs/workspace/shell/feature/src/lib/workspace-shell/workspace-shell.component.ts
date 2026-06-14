@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import {
     ExternalPlayerSession,
@@ -52,6 +52,7 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 export class WorkspaceShellComponent {
     readonly facade = inject(WorkspaceShellFacade);
     readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
+    readonly railExpanded = signal(false);
 
     toCastPlayback(session: ExternalPlayerSession): ResolvedPortalPlayback {
         return {

@@ -17,6 +17,10 @@
     color: var(--mat-sys-on-surface);
 }
 
+.workspace-shell.rail-expanded {
+    grid-template-columns: max-content minmax(0, 1fr);
+}
+
 app-workspace-shell-rail {
     grid-column: 1;
     grid-row: 1 / span 3;
@@ -65,7 +69,6 @@ app-workspace-shell-context-sidebar {
     box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
 }
 
-
 @media (max-width: 780px) {
     .workspace-shell {
         grid-template-columns: 56px 1fr;
@@ -77,6 +80,10 @@ app-workspace-shell-context-sidebar {
     .workspace-shell {
         grid-template-columns: 1fr;
         grid-template-rows: 52px 56px minmax(0, 1fr) auto;
+    }
+
+    .workspace-shell.rail-expanded {
+        grid-template-columns: 1fr;
     }
 
     app-workspace-shell-rail {

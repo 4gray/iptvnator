@@ -910,6 +910,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Развернуть навигацию",
+            "COLLAPSE_NAVIGATION": "Свернуть навигацию",
             "RAIL_DASHBOARD": "Панель",
             "OPEN_DASHBOARD": "Открыть панель",
             "RAIL_SOURCES": "Источники",

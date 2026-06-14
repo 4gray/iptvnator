@@ -910,6 +910,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Gezinmeyi genişlet",
+            "COLLAPSE_NAVIGATION": "Gezinmeyi daralt",
             "RAIL_DASHBOARD": "Pano",
             "OPEN_DASHBOARD": "Panoyu aç",
             "RAIL_SOURCES": "Kaynaklar",

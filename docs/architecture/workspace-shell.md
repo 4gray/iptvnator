@@ -153,6 +153,17 @@ Rail navigation is also shell-owned:
 3. On dashboard, sources, settings, and global favorites, the shell falls back
    to the currently selected playlist so provider navigation remains available
    even outside a provider route.
+4. The IPTVnator brand button toggles the primary rail between its default
+   60px icon-only layout and an expanded, label-bearing layout. The expanded
+   width is content-driven by the longest visible label with equal horizontal
+   spacing around icons and text, capped to preserve the content area. Mobile
+   navigation remains compact and does not enter the expanded state.
+5. Active-link markers must stay inset within the rail so selection styling is
+   not clipped by the rail's overflow boundary.
+6. The navigation links own the rail's scroll area while the settings shortcut
+   remains visible in the fixed footer.
+7. Expanded labels use automatic text direction and logical start alignment so
+   left-to-right and right-to-left translations align naturally.
 
 Command palette behavior is shell-owned but view-extensible:
 
