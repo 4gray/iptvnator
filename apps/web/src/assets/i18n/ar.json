@@ -913,8 +913,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
-            "EXPAND_NAVIGATION": "توسيع التنقل",
-            "COLLAPSE_NAVIGATION": "طي التنقل",
+            "EXPAND_NAVIGATION": "إظهار القائمة",
+            "COLLAPSE_NAVIGATION": "إخفاء القائمة",
             "RAIL_DASHBOARD": "لوحة التحكم",
             "OPEN_DASHBOARD": "فتح لوحة التحكم",
             "RAIL_SOURCES": "المصادر",
