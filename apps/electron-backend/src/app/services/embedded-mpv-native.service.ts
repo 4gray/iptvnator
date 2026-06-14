@@ -968,9 +968,13 @@ export class EmbeddedMpvNativeService {
             case 'win32':
                 return [
                     path.join(nativeDir, 'lib', 'mpv-2.dll'),
+                    path.join(nativeDir, 'lib', 'libmpv-2.dll'),
                     path.join(nativeDir, 'mpv-2.dll'),
+                    path.join(nativeDir, 'libmpv-2.dll'),
                     path.join(nativeDir, 'lib', 'mpv.dll'),
+                    path.join(nativeDir, 'lib', 'libmpv.dll'),
                     path.join(nativeDir, 'mpv.dll'),
+                    path.join(nativeDir, 'libmpv.dll'),
                 ];
             case 'linux':
                 return [];

@@ -11,6 +11,10 @@ const require = createRequire(import.meta.url);
 const packageMetadata = JSON.parse(
     fs.readFileSync(join(currentDir, '..', '..', 'package.json'), 'utf8')
 );
+const buildAndMakeWorkflow = fs.readFileSync(
+    join(currentDir, '..', '..', '.github', 'workflows', 'build-and-make.yaml'),
+    'utf8'
+);
 const electronBuilderConfig = JSON.parse(
     fs.readFileSync(
         join(currentDir, '..', '..', 'electron-builder.json'),
@@ -54,6 +58,42 @@ const packageLayoutVerifier = fs.readFileSync(
 );
 const electronAfterPackSource = fs.readFileSync(
     join(currentDir, 'electron-after-pack.cjs'),
+    'utf8'
+);
+const embeddedMpvPackagingSource = fs.readFileSync(
+    join(currentDir, 'embedded-mpv-packaging.cjs'),
+    'utf8'
+);
+const embeddedMpvBuildSource = fs.readFileSync(
+    join(
+        currentDir,
+        '..',
+        '..',
+        'apps',
+        'electron-backend',
+        'build-embedded-mpv.js'
+    ),
+    'utf8'
+);
+const embeddedMpvStageRuntimeSource = fs.readFileSync(
+    join(currentDir, '..', 'embedded-mpv', 'stage-runtime.mjs'),
+    'utf8'
+);
+const embeddedMpvWindowsArchiveStageSource = fs.readFileSync(
+    join(currentDir, '..', 'embedded-mpv', 'stage-windows-runtime-archive.mjs'),
+    'utf8'
+);
+const embeddedMpvWin32Source = fs.readFileSync(
+    join(
+        currentDir,
+        '..',
+        '..',
+        'apps',
+        'electron-backend',
+        'native',
+        'src',
+        'embedded_mpv_win32.cc'
+    ),
     'utf8'
 );
 const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
@@ -197,7 +237,9 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
     try {
         for (const [platform, runtimeFile] of [
             ['windows', 'mpv-2.dll'],
+            ['windows', 'libmpv-2.dll'],
             ['windows', join('lib', 'mpv.dll')],
+            ['windows', join('lib', 'libmpv.dll')],
         ]) {
             const resourceDir = join(tempDir, platform);
             const nativeDir = join(
@@ -249,6 +291,46 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
     }
 });
 
+test('Windows embedded MPV staging preserves import-library DLL basenames', () => {
+    assert.match(
+        embeddedMpvStageRuntimeSource,
+        /win32:\s*\[\s*'mpv-2\.dll',\s*'libmpv-2\.dll',\s*'mpv\.dll',\s*'libmpv\.dll'\s*\]/
+    );
+    assert.match(
+        embeddedMpvWindowsArchiveStageSource,
+        /path\.join\(normalizedPrefix,\s*'bin',\s*path\.basename\(runtimeDll\)\)/
+    );
+    assert.doesNotMatch(
+        embeddedMpvWindowsArchiveStageSource,
+        /normalizedWindowsDllName/
+    );
+    assert.match(embeddedMpvBuildSource, /'libmpv-2\.dll'/);
+    assert.match(embeddedMpvPackagingSource, /libmpv-2\.dll/);
+});
+
+test('Windows embedded MPV archive staging keeps CI downloads bounded and quiet', () => {
+    assert.match(
+        embeddedMpvWindowsArchiveStageSource,
+        /parsedUrl\.protocol === 'https:'/
+    );
+    assert.doesNotMatch(
+        embeddedMpvWindowsArchiveStageSource,
+        /parsedUrl\.protocol === 'http:'/
+    );
+    assert.match(
+        embeddedMpvWindowsArchiveStageSource,
+        /fs\.createReadStream\(filePath\)/
+    );
+    assert.doesNotMatch(
+        embeddedMpvWindowsArchiveStageSource,
+        /hash\.update\(fs\.readFileSync\(filePath\)\)/
+    );
+    assert.match(
+        embeddedMpvWindowsArchiveStageSource,
+        /runResult\(\s*'tar',\s*\['-xf', archivePath, '-C', extractRoot\],\s*\{\s*stdio: 'pipe',\s*\}\s*\)/s
+    );
+});
+
 test('embedded MPV packaging helpers use a cross-platform module name', () => {
     assert.match(
         electronAfterPackSource,
@@ -257,6 +339,60 @@ test('embedded MPV packaging helpers use a cross-platform module name', () => {
     assert.match(
         packageLayoutVerifier,
         /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
+    );
+});
+
+test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
+    const requireEmbeddedMpvLines = buildAndMakeWorkflow
+        .split(/\r?\n/)
+        .filter((line) => line.includes('IPTVNATOR_REQUIRE_EMBEDDED_MPV:'));
+
+    assert.equal(
+        packageMetadata.scripts?.['embedded-mpv:stage-runtime:windows-archive'],
+        'node tools/embedded-mpv/stage-windows-runtime-archive.mjs'
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /name:\s+Stage Windows embedded MPV runtime archive/
+    );
+    assert.match(buildAndMakeWorkflow, /runner:\s+windows-2022/);
+    assert.match(
+        buildAndMakeWorkflow,
+        /IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL/
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256/
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https:\/\/github\.com\/zhongfly\/mpv-winbuild\/releases\/download\//
+    );
+    assert.match(buildAndMakeWorkflow, /refs\/tags\/v\*/);
+    assert.match(
+        buildAndMakeWorkflow,
+        /name:\s+Override Windows arch in electron-builder\.json/
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /IPTVNATOR_REQUIRE_EMBEDDED_MPV:\s+\$\{\{\s*\(matrix\.os == 'linux' \|\| matrix\.os == 'windows'/
+    );
+    assert.match(embeddedMpvStageRuntimeSource, /\.dll\.a/);
+    assert.match(embeddedMpvBuildSource, /\.dll\.a/);
+    assert.ok(requireEmbeddedMpvLines.length > 0);
+    for (const line of requireEmbeddedMpvLines) {
+        assert.doesNotMatch(line, /cache-hit/);
+    }
+});
+
+test('Windows embedded MPV native build uses wide Win32 cursor resources', () => {
+    assert.match(
+        embeddedMpvWin32Source,
+        /LoadCursorW\(nullptr,\s*MAKEINTRESOURCEW\(32512\)\)/
+    );
+    assert.doesNotMatch(
+        embeddedMpvWin32Source,
+        /LoadCursorW\(nullptr,\s*IDC_ARROW\)/
     );
 });
 

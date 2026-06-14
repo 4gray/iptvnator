@@ -255,13 +255,16 @@ describe('Embedded MPV native source recording invariants', () => {
 
     it('copies Windows runtime DLLs next to the addon for Windows loader lookup', () => {
         expect(buildScriptSource).toContain(
-            "for (const windowsDllName of ['mpv-2.dll', 'mpv.dll'])"
+            "'libmpv-2.dll',"
         );
         expect(buildScriptSource).toContain(
             'path.join(outputDir, windowsDllName)'
         );
         expect(buildScriptSource).toContain("fileName.endsWith('.dll')");
         expect(buildScriptSource).toContain('path.join(outputDir, fileName)');
+        expect(stageRuntimeSource).toContain(
+            "win32: ['mpv-2.dll', 'libmpv-2.dll', 'mpv.dll', 'libmpv.dll']"
+        );
     });
 
     it('checks Win32 window class registration failures explicitly', () => {

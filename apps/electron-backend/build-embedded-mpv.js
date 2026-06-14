@@ -59,7 +59,12 @@ function log(message) {
 function cleanOutput() {
     fs.rmSync(outputFile, { force: true });
     fs.rmSync(outputLibDir, { recursive: true, force: true });
-    for (const windowsDllName of ['mpv-2.dll', 'mpv.dll']) {
+    for (const windowsDllName of [
+        'mpv-2.dll',
+        'libmpv-2.dll',
+        'mpv.dll',
+        'libmpv.dll',
+    ]) {
         fs.rmSync(path.join(outputDir, windowsDllName), { force: true });
     }
     fs.rmSync(path.join(outputDir, '.deps'), { recursive: true, force: true });
@@ -129,7 +134,11 @@ function runtimeFilePredicate(filePath) {
         case 'darwin':
             return fileName.endsWith('.dylib');
         case 'win32':
-            return fileName.endsWith('.dll') || fileName.endsWith('.lib');
+            return (
+                fileName.endsWith('.dll') ||
+                fileName.endsWith('.lib') ||
+                fileName.endsWith('.dll.a')
+            );
         case 'linux':
             return /\.so(?:\.\d+)*$/.test(fileName);
         default:
@@ -152,8 +161,12 @@ function findWindowsLibMpv(runtimeRoot) {
     for (const candidate of [
         path.join(runtimeRoot, 'lib', 'mpv-2.dll'),
         path.join(runtimeRoot, 'bin', 'mpv-2.dll'),
+        path.join(runtimeRoot, 'lib', 'libmpv-2.dll'),
+        path.join(runtimeRoot, 'bin', 'libmpv-2.dll'),
         path.join(runtimeRoot, 'lib', 'mpv.dll'),
         path.join(runtimeRoot, 'bin', 'mpv.dll'),
+        path.join(runtimeRoot, 'lib', 'libmpv.dll'),
+        path.join(runtimeRoot, 'bin', 'libmpv.dll'),
     ]) {
         if (fileExists(candidate)) {
             return candidate;

@@ -94,7 +94,7 @@ function copyDirectory(sourceDir, destinationDir, filter) {
 function findRuntimeFile(libDir) {
     const candidatesByPlatform = {
         darwin: ['libmpv.2.dylib', 'libmpv.dylib'],
-        win32: ['mpv-2.dll', 'mpv.dll'],
+        win32: ['mpv-2.dll', 'libmpv-2.dll', 'mpv.dll', 'libmpv.dll'],
         linux: ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so'],
     };
     const candidates = candidatesByPlatform[platform] ?? [];
@@ -127,7 +127,11 @@ function runtimeFileFilter(_sourcePath, entry) {
     }
 
     if (platform === 'win32') {
-        return entry.name.endsWith('.dll') || entry.name.endsWith('.lib');
+        return (
+            entry.name.endsWith('.dll') ||
+            entry.name.endsWith('.lib') ||
+            entry.name.endsWith('.dll.a')
+        );
     }
 
     if (platform === 'linux') {

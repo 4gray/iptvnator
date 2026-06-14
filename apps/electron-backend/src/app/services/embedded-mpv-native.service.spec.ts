@@ -477,6 +477,10 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             platform: 'win32' as NodeJS.Platform,
             runtimeFile: path.join('lib', 'mpv-2.dll'),
         },
+        {
+            platform: 'win32' as NodeJS.Platform,
+            runtimeFile: path.join('lib', 'libmpv-2.dll'),
+        },
     ])(
         'loads the addon after validating the $platform runtime file exists',
         ({ platform, runtimeFile }) => {

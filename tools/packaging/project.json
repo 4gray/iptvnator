@@ -11,9 +11,14 @@
                 "default",
                 "{workspaceRoot}/package.json",
                 "{workspaceRoot}/electron-builder.json",
+                "{workspaceRoot}/.github/workflows/build-and-make.yaml",
+                "{workspaceRoot}/apps/electron-backend/build-embedded-mpv.js",
                 "{workspaceRoot}/apps/electron-backend/project.json",
+                "{workspaceRoot}/apps/electron-backend/native/src/embedded_mpv_win32.cc",
                 "{workspaceRoot}/apps/electron-backend/src/app/options/maker.options.json",
-                "{workspaceRoot}/tools/packaging/generate-electron-builder-metadata.mjs"
+                "{workspaceRoot}/tools/packaging/generate-electron-builder-metadata.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/stage-runtime.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs"
             ],
             "options": {
                 "command": "node --test tools/packaging/electron-package-identity.test.mjs",

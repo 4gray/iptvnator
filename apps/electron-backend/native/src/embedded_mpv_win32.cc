@@ -158,7 +158,7 @@ private:
         windowClass.lpfnWndProc = &NativeVideoHost::windowProc;
         windowClass.hInstance = GetModuleHandleW(nullptr);
         windowClass.lpszClassName = windowClassName();
-        windowClass.hCursor = LoadCursorW(nullptr, IDC_ARROW);
+        windowClass.hCursor = LoadCursorW(nullptr, MAKEINTRESOURCEW(32512));
         windowClass.hbrBackground =
             reinterpret_cast<HBRUSH>(GetStockObject(BLACK_BRUSH));
         const ATOM classAtom = RegisterClassExW(&windowClass);
