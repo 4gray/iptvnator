@@ -171,10 +171,21 @@ export interface ElectronBridgeXtreamRequestPayload {
     suppressErrorLog?: boolean;
 }
 
-export interface ElectronBridgeXtreamResponse {
+export interface ElectronBridgeXtreamSuccessResponse {
     payload: unknown;
     action: string;
 }
+
+export interface ElectronBridgeXtreamErrorResponse {
+    type: 'ERROR';
+    message: string;
+    status: number;
+    name?: string;
+}
+
+export type ElectronBridgeXtreamResponse =
+    | ElectronBridgeXtreamSuccessResponse
+    | ElectronBridgeXtreamErrorResponse;
 
 export interface ElectronBridgeXtreamCancelResult extends ElectronBridgeResult {
     cancelled: number;

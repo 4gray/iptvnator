@@ -539,7 +539,9 @@ export class XtreamApiService {
             suppressErrorLog: options?.suppressErrorLog,
         })) as {
             message?: string;
+            name?: string;
             payload?: unknown;
+            status?: number;
             type?: string;
         };
 
@@ -550,7 +552,18 @@ export class XtreamApiService {
             response?.type === 'ERROR' ||
             (!response?.payload && response?.message)
         ) {
-            throw new Error(response?.message ?? 'Request failed');
+            const requestError = new Error(
+                response?.message ?? 'Request failed'
+            ) as Error & { status?: number };
+
+            if (response?.name) {
+                requestError.name = response.name;
+            }
+            if (typeof response?.status === 'number') {
+                requestError.status = response.status;
+            }
+
+            throw requestError;
         }
 
         return response?.payload as TResponse;
