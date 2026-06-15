@@ -92,13 +92,13 @@ describe('cast media utilities', () => {
 
     it('finds media inside either video or radio player hosts', () => {
         const videoHost = document.createElement('div');
-        videoHost.className = 'web-player-view';
+        videoHost.setAttribute('data-cast-scope', '');
         const videoControl = document.createElement('app-cast-control');
         const video = document.createElement('video');
         videoHost.append(video, videoControl);
 
         const radioHost = document.createElement('div');
-        radioHost.className = 'radio-hero';
+        radioHost.setAttribute('data-cast-scope', '');
         const radioControl = document.createElement('app-cast-control');
         const audio = document.createElement('audio');
         radioHost.append(radioControl, audio);

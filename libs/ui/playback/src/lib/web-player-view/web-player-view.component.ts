@@ -53,6 +53,7 @@ type PlaybackDiagnosticDetail = {
     styleUrls: ['./web-player-view.component.scss'],
     host: {
         class: 'web-player-view',
+        'data-cast-scope': '',
         '(pointerenter)': 'castControlVisibility.showTemporarily()',
         '(pointermove)': 'castControlVisibility.showTemporarily()',
         '(keydown)': 'castControlVisibility.showTemporarily()',

@@ -79,11 +79,13 @@
                     (closeClicked)="facade.closeActiveExternalSession()"
                     (artworkClicked)="facade.openActiveExternalSessionTarget()"
                 >
-                    <app-cast-control
-                        external-playback-cast
-                        placement="inline"
-                        [playback]="toCastPlayback(session)"
-                    />
+                    @if (castPlayback(); as playback) {
+                        <app-cast-control
+                            external-playback-cast
+                            placement="inline"
+                            [playback]="playback"
+                        />
+                    }
                 </app-external-playback-dock>
             </footer>
         }

@@ -139,7 +139,11 @@ export function requestPinnedText(
                 );
             }
         );
-        enforceAbsoluteRequestTimeout(req);
+        // Absolute deadline is deliberately longer than the per-socket
+        // inactivity timeout: setTimeout below catches an idle socket quickly,
+        // while this bounds total wall-clock time so a trickle-data sender
+        // (a byte every few ms) is still terminated.
+        enforceAbsoluteRequestTimeout(req, 10_000);
         req.setTimeout(DLNA_REQUEST_TIMEOUT_MS, () =>
             req.destroy(new Error('DLNA renderer request timed out.'))
         );

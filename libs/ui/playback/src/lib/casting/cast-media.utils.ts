@@ -11,8 +11,11 @@ type RemotePlaybackMediaElement = HTMLMediaElement & {
 export function findCastMediaElement(
     controlElement: Element
 ): RemotePlaybackMediaElement | null {
+    // Scoped via an explicit [data-cast-scope] attribute on the player host
+    // rather than CSS class names, so a layout/class refactor cannot silently
+    // break Cast media discovery.
     const host =
-        controlElement.closest('.web-player-view, .radio-hero') ??
+        controlElement.closest('[data-cast-scope]') ??
         controlElement.parentElement;
 
     return (

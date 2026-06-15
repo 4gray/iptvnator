@@ -1,9 +1,6 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import {
-    ExternalPlayerSession,
-    ResolvedPortalPlayback,
-} from '@iptvnator/shared/interfaces';
+import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 import { CastControlComponent } from '@iptvnator/ui/playback';
 import {
@@ -54,14 +51,20 @@ export class WorkspaceShellComponent {
     readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
     readonly railExpanded = signal(false);
 
-    toCastPlayback(session: ExternalPlayerSession): ResolvedPortalPlayback {
-        return {
-            streamUrl: session.streamUrl,
-            title: session.title,
-            thumbnail: session.thumbnail,
-            isLive: !session.contentInfo,
-            requiresRequestHeaders: session.requiresRequestHeaders,
-            contentInfo: session.contentInfo,
-        };
-    }
+    // Stable reference for the OnPush cast-control: recomputes only when the
+    // active session changes, instead of allocating a new object on every
+    // change-detection pass.
+    readonly castPlayback = computed<ResolvedPortalPlayback | null>(() => {
+        const session = this.facade.externalPlaybackSession();
+        return session
+            ? {
+                  streamUrl: session.streamUrl,
+                  title: session.title,
+                  thumbnail: session.thumbnail,
+                  isLive: !session.contentInfo,
+                  requiresRequestHeaders: session.requiresRequestHeaders,
+                  contentInfo: session.contentInfo,
+              }
+            : null;
+    });
 }
