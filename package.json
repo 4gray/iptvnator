@@ -131,7 +131,7 @@
         "@angular/platform-browser": "21.2.9",
         "@angular/platform-browser-dynamic": "21.2.9",
         "@angular/router": "21.2.9",
-        "@angular/service-worker": "21.2.9",
+        "@angular/service-worker": "21.2.15",
         "@astrojs/mdx": "4.3.13",
         "@astrojs/sitemap": "3.7.0",
         "@astrojs/tailwind": "6.0.2",
