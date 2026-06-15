@@ -247,15 +247,10 @@ test.describe('Electron Settings', () => {
                     exact: true,
                 })
             ).toHaveCount(0);
-            await expect(
-                secondLaunch.mainWindow.getByRole('link', {
-                    name: 'Sources',
-                    exact: true,
-                })
-            ).toHaveClass(/is-active/);
-            await expect(
-                secondLaunch.mainWindow.locator('button.brand')
-            ).toBeVisible();
+            await expect(secondLaunch.mainWindow.locator('a.brand')).toHaveAttribute(
+                'href',
+                /\/workspace\/sources$/
+            );
         } finally {
             await closeElectronApp(secondLaunch);
         }
