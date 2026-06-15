@@ -116,6 +116,7 @@ class StubAudioPlayerComponent {
     readonly url = input('');
     readonly icon = input('');
     readonly channelName = input('');
+    readonly playback = input<unknown>(null);
     readonly volume = input<number | null>(null);
     readonly volumeChange = output<number>();
 }
