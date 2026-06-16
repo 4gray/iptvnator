@@ -76,6 +76,47 @@
     }
 }
 
+<div
+    class="web-player-cast-control"
+    data-test-id="cast-control-overlay"
+    [class.web-player-cast-control--visible]="castControlVisibility.visible()"
+    [attr.aria-hidden]="castControlVisibility.visible() ? null : 'true'"
+    [attr.inert]="castControlVisibility.visible() ? null : ''"
+    (pointerenter)="castControlVisibility.setInteractionActive(true)"
+    (pointerleave)="castControlVisibility.setInteractionActive(false)"
+    (focusin)="castControlVisibility.setInteractionActive(true)"
+    (focusout)="castControlVisibility.handleFocusOut($event)"
+>
+    <app-cast-control
+        placement="inline"
+        [playback]="resolvedPlayback()"
+        (menuOpenChange)="castControlVisibility.setMenuOpen($event)"
+    />
+    <button
+        mat-icon-button
+        type="button"
+        class="web-player-fullscreen-toggle"
+        data-test-id="player-fullscreen-toggle"
+        [matTooltip]="
+            (isFullscreen()
+                ? 'CASTING.EXIT_FULLSCREEN'
+                : 'CASTING.ENTER_FULLSCREEN'
+            ) | translate
+        "
+        [attr.aria-label]="
+            (isFullscreen()
+                ? 'CASTING.EXIT_FULLSCREEN'
+                : 'CASTING.ENTER_FULLSCREEN'
+            ) | translate
+        "
+        (click)="toggleFullscreen()"
+    >
+        <mat-icon>{{
+            isFullscreen() ? 'fullscreen_exit' : 'fullscreen'
+        }}</mat-icon>
+    </button>
+</div>
+
 @if (visiblePlaybackDiagnostic(); as issue) {
     <section
         class="web-player-diagnostic"

@@ -1,40 +1,69 @@
-<aside class="app-rail" [class.is-macos]="isMacOS()">
-    <a
+<aside
+    id="workspace-primary-navigation"
+    class="app-rail"
+    [class.is-macos]="isMacOS()"
+    [class.is-expanded]="expanded()"
+>
+    <button
+        type="button"
         class="brand"
-        [routerLink]="brandLink()"
-        [matTooltip]="brandTooltipKey() | translate"
+        (click)="toggleExpanded()"
+        [disabled]="isCompact()"
+        [matTooltip]="
+            (expanded()
+                ? 'WORKSPACE.SHELL.COLLAPSE_NAVIGATION'
+                : 'WORKSPACE.SHELL.EXPAND_NAVIGATION'
+            ) | translate
+        "
+        [matTooltipDisabled]="expanded() || isCompact()"
         [matTooltipPosition]="'right'"
-        [attr.aria-label]="brandAriaLabelKey() | translate"
+        [attr.aria-controls]="'workspace-primary-navigation'"
+        [attr.aria-expanded]="isCompact() ? null : expanded()"
+        [attr.aria-label]="
+            isCompact()
+                ? null
+                : ((expanded()
+                      ? 'WORKSPACE.SHELL.COLLAPSE_NAVIGATION'
+                      : 'WORKSPACE.SHELL.EXPAND_NAVIGATION'
+                  ) | translate)
+        "
     >
         <img
             src="./assets/icons/icon-tv-256.png"
             [attr.alt]="'WORKSPACE.SHELL.BRAND_ALT' | translate"
         />
-    </a>
+        @if (expanded()) {
+            <span class="brand-label" dir="auto">IPTVnator</span>
+        }
+    </button>
 
-    <app-workspace-shell-rail-links [links]="workspaceLinks()" />
+    <div class="rail-navigation">
+        <app-workspace-shell-rail-links
+            [expanded]="expanded()"
+            [links]="workspaceLinks()"
+        />
 
-    @if (primaryContextLinks().length > 0) {
-        <div
-            class="rail-context-region"
-            [class]="railProviderClass()"
-        >
-            <app-workspace-shell-rail-links
-                activeClass="is-active"
-                [selectedSection]="selectedSection()"
-                [links]="primaryContextLinks()"
-            />
-
-            @if (secondaryContextLinks().length > 0) {
-                <div class="rail-divider"></div>
+        @if (primaryContextLinks().length > 0) {
+            <div class="rail-context-region" [class]="railProviderClass()">
                 <app-workspace-shell-rail-links
                     activeClass="is-active"
+                    [expanded]="expanded()"
                     [selectedSection]="selectedSection()"
-                    [links]="secondaryContextLinks()"
+                    [links]="primaryContextLinks()"
                 />
-            }
-        </div>
-    }
+
+                @if (secondaryContextLinks().length > 0) {
+                    <div class="rail-divider"></div>
+                    <app-workspace-shell-rail-links
+                        activeClass="is-active"
+                        [expanded]="expanded()"
+                        [selectedSection]="selectedSection()"
+                        [links]="secondaryContextLinks()"
+                    />
+                }
+            </div>
+        }
+    </div>
 
     <div class="rail-footer">
         <a
@@ -42,10 +71,16 @@
             routerLink="/workspace/settings"
             [class.is-active]="isSettingsRoute()"
             [matTooltip]="'WORKSPACE.SHELL.RAIL_SETTINGS' | translate"
+            [matTooltipDisabled]="expanded()"
             [matTooltipPosition]="'right'"
             [attr.aria-label]="'WORKSPACE.SHELL.OPEN_SETTINGS' | translate"
         >
             <mat-icon>settings</mat-icon>
+            @if (expanded()) {
+                <span class="rail-shortcut-label" dir="auto">
+                    {{ 'WORKSPACE.SHELL.RAIL_SETTINGS' | translate }}
+                </span>
+            }
         </a>
     </div>
 </aside>

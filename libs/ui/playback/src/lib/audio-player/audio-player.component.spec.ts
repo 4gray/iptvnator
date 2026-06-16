@@ -56,6 +56,11 @@ describe('AudioPlayerComponent', () => {
         expect(loadSpy).toHaveBeenCalled();
         expect(playSpy).toHaveBeenCalled();
         expect(component.playState()).toBe('play');
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="cast-control-button"]'
+            )
+        ).not.toBeNull();
     });
 
     it('clamps volume updates and persists them to localStorage', () => {
@@ -70,6 +75,24 @@ describe('AudioPlayerComponent', () => {
         expect(component.volume()).toBe(0);
         expect(audio.volume).toBe(0);
         expect(localStorage.getItem('volume')).toBe('0');
+    });
+
+    it('preserves protected playback metadata for the cast guard', () => {
+        createComponent();
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://example.com/radio.mp3',
+            title: 'Protected Radio',
+            headers: { Authorization: 'Bearer test' },
+        });
+        fixture.detectChanges();
+
+        expect(component.castPlayback()).toEqual(
+            expect.objectContaining({
+                headers: { Authorization: 'Bearer test' },
+                streamUrl: 'https://example.com/radio.mp3',
+                isLive: true,
+            })
+        );
     });
 
     it('applies external volume input changes to the current audio element', () => {

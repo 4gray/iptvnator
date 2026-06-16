@@ -93,6 +93,16 @@ class StubEmbeddedMpvPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
+@Component({
+    selector: 'app-cast-control',
+    template: '<button data-test-id="stub-cast-control"></button>',
+})
+class StubCastControlComponent {
+    readonly playback = input.required<unknown>();
+    readonly placement = input<'overlay' | 'inline'>('overlay');
+    readonly menuOpenChange = output<boolean>();
+}
+
 describe('WebPlayerViewComponent', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
     let fixture: ComponentFixture<WebPlayerViewComponentInstance>;
@@ -126,6 +136,7 @@ describe('WebPlayerViewComponent', () => {
                 set: {
                     imports: [
                         StubArtPlayerComponent,
+                        StubCastControlComponent,
                         StubEmbeddedMpvPlayerComponent,
                         StubHtmlVideoPlayerComponent,
                         StubVjsPlayerComponent,
@@ -157,6 +168,172 @@ describe('WebPlayerViewComponent', () => {
         fixture.detectChanges();
 
         expect(fixture.nativeElement.classList).toContain('web-player-view');
+        expect(
+            fixture.debugElement.query(
+                By.css('[data-test-id="stub-cast-control"]')
+            )
+        ).not.toBeNull();
+    });
+
+    it('auto-hides the cast overlay with the player controls and restores it on activity', () => {
+        jest.useFakeTimers();
+
+        try {
+            component.castControlVisibility.showTemporarily();
+            fixture.detectChanges();
+
+            const overlay = fixture.debugElement.query(
+                By.css('[data-test-id="cast-control-overlay"]')
+            );
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).not.toContain(
+                'web-player-cast-control--visible'
+            );
+            expect(overlay.nativeElement.getAttribute('aria-hidden')).toBe(
+                'true'
+            );
+            expect(overlay.nativeElement.hasAttribute('inert')).toBe(true);
+
+            // Activity is tracked at the document level (capture phase) so a
+            // player that captures pointer events or owns the fullscreen
+            // element can't suppress the re-show. jsdom reports a 0x0 host
+            // rect, so a pointer at (0,0) counts as within the player surface.
+            document.dispatchEvent(
+                new MouseEvent('pointermove', { clientX: 0, clientY: 0 })
+            );
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+            expect(
+                overlay.nativeElement.getAttribute('aria-hidden')
+            ).toBeNull();
+            expect(overlay.nativeElement.hasAttribute('inert')).toBe(false);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('keeps the cast overlay visible while the device menu is open', () => {
+        jest.useFakeTimers();
+
+        try {
+            component.castControlVisibility.showTemporarily();
+            fixture.detectChanges();
+
+            const overlay = fixture.debugElement.query(
+                By.css('[data-test-id="cast-control-overlay"]')
+            );
+            const castControl = fixture.debugElement.query(
+                By.directive(StubCastControlComponent)
+            ).componentInstance as StubCastControlComponent;
+
+            castControl.menuOpenChange.emit(true);
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).toContain(
+                'web-player-cast-control--visible'
+            );
+
+            castControl.menuOpenChange.emit(false);
+            jest.advanceTimersByTime(3000);
+            fixture.detectChanges();
+
+            expect(overlay.nativeElement.classList).not.toContain(
+                'web-player-cast-control--visible'
+            );
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('routes fullscreen through the player container and reflects fullscreen state', () => {
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const requestFullscreen = jest.fn().mockResolvedValue(undefined);
+        const exitFullscreen = jest.fn().mockResolvedValue(undefined);
+        host.requestFullscreen = requestFullscreen;
+
+        const originalFsDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'fullscreenElement'
+        );
+        const originalExit = (
+            document as unknown as { exitFullscreen?: () => Promise<void> }
+        ).exitFullscreen;
+        let fullscreenElement: Element | null = null;
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => fullscreenElement,
+        });
+        (
+            document as unknown as { exitFullscreen: () => Promise<void> }
+        ).exitFullscreen = exitFullscreen;
+
+        try {
+            const button = fixture.debugElement.query(
+                By.css('[data-test-id="player-fullscreen-toggle"]')
+            );
+            expect(button).not.toBeNull();
+            expect(button.nativeElement.textContent).not.toContain(
+                'fullscreen_exit'
+            );
+
+            // Entering: fullscreen is requested on the container host, never on
+            // an inner player element, so the cast overlay shares the context.
+            button.nativeElement.click();
+            expect(requestFullscreen).toHaveBeenCalledTimes(1);
+            expect(exitFullscreen).not.toHaveBeenCalled();
+
+            // The browser reports the host as the fullscreen element.
+            fullscreenElement = host;
+            document.dispatchEvent(new Event('fullscreenchange'));
+            fixture.detectChanges();
+            expect(component.isFullscreen()).toBe(true);
+            expect(button.nativeElement.textContent).toContain(
+                'fullscreen_exit'
+            );
+
+            // Toggling again while fullscreen exits via the document API.
+            component.toggleFullscreen();
+            expect(exitFullscreen).toHaveBeenCalledTimes(1);
+
+            fullscreenElement = null;
+            document.dispatchEvent(new Event('fullscreenchange'));
+            fixture.detectChanges();
+            expect(component.isFullscreen()).toBe(false);
+        } finally {
+            if (originalFsDescriptor) {
+                Object.defineProperty(
+                    document,
+                    'fullscreenElement',
+                    originalFsDescriptor
+                );
+            } else {
+                delete (
+                    document as unknown as { fullscreenElement?: unknown }
+                ).fullscreenElement;
+            }
+            if (originalExit) {
+                (
+                    document as unknown as { exitFullscreen?: unknown }
+                ).exitFullscreen = originalExit;
+            } else {
+                delete (
+                    document as unknown as { exitFullscreen?: unknown }
+                ).exitFullscreen;
+            }
+        }
     });
 
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {

@@ -565,7 +565,7 @@ export async function saveSettings(page: Page): Promise<void> {
 
 export async function goToDashboard(page: Page): Promise<void> {
     const dashboardLink = page
-        .locator('a.brand[href$="/workspace/dashboard"]')
+        .getByRole('link', { name: 'Dashboard', exact: true })
         .first();
 
     await expect(dashboardLink).toBeVisible();

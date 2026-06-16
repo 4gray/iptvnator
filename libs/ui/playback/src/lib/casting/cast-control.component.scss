@@ -1,0 +1,75 @@
+:host {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    z-index: 7;
+    display: block;
+}
+
+:host.cast-control--inline {
+    position: static;
+}
+
+.cast-control__trigger {
+    color: #fff;
+    background: rgb(0 0 0 / 58%);
+    border: 1px solid rgb(255 255 255 / 18%);
+    backdrop-filter: blur(12px);
+}
+
+:host.cast-control--connected .cast-control__trigger {
+    color: var(--app-selection-color, #7cb7ff);
+}
+
+.cast-control__heading,
+.cast-control__section,
+.cast-control__state,
+.cast-control__warning {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 16px;
+}
+
+.cast-control__heading {
+    min-width: 270px;
+    flex-direction: column;
+    align-items: flex-start;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+.cast-control__heading span,
+small {
+    display: block;
+    max-width: 250px;
+    overflow: hidden;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.75rem;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.cast-control__section {
+    justify-content: space-between;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.75rem;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.cast-control__state,
+.cast-control__warning {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.8rem;
+}
+
+.cast-control__warning {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.cast-control__warning mat-icon {
+    flex: 0 0 auto;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}

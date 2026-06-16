@@ -1,0 +1,82 @@
+<!doctype html>
+<html>
+    <head>
+        <meta charset="utf-8" />
+        <title>IPTVnator</title>
+        <base href="/" />
+
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <meta
+            http-equiv="Content-Security-Policy"
+            content="default-src 'self'; base-uri 'self'; object-src 'none'; frame-src https://www.youtube.com https://www.youtube-nocookie.com; form-action 'self'; script-src 'self' https://www.gstatic.com; style-src 'self' 'unsafe-inline'; img-src 'self' http: https: file: data: blob:; font-src 'self' data:; media-src 'self' http: https: file: data: blob:; connect-src 'self' http: https: ws: wss: blob: data:; worker-src 'self' blob:"
+        />
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="IPTVnator" />
+        <meta property="og:url" content="https://iptvnator.vercel.app" />
+        <meta
+            property="og:image"
+            content="https://raw.githubusercontent.com/4gray/iptvnator/electron/iptv-dark-theme.png"
+        />
+        <meta
+            property="og:description"
+            content="IPTVnator is a video player application that provides support for the playback of IPTV playlists (m3u, m3u8)"
+        />
+        <link rel="manifest" href="manifest.webmanifest" />
+        <link rel="apple-touch-icon" href="assets/icons/apple-touch-icon.png" />
+        <link rel="icon" type="image/x-icon" href="assets/icons/favicon.ico" />
+        <script src="assets/app-config.js" defer></script>
+        <style>
+            /* Inline splash — paints immediately while the JS bundle and the
+               styles.css (~300KB) are still downloading and Angular is
+               bootstrapping. Removed from the DOM by main.ts after
+               bootstrapApplication() resolves. No assets, zero extra HTTP. */
+            #initial-splash {
+                position: fixed;
+                inset: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                gap: 18px;
+                background: #1f1f23;
+                color: #f5f5f7;
+                font-family:
+                    -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+                    'Helvetica Neue', Arial, sans-serif;
+                z-index: 99999;
+            }
+            #initial-splash .splash-mark {
+                font-size: 18px;
+                font-weight: 600;
+                letter-spacing: 0.04em;
+                opacity: 0.85;
+            }
+            #initial-splash .splash-spinner {
+                width: 28px;
+                height: 28px;
+                border: 3px solid rgba(255, 255, 255, 0.12);
+                border-top-color: rgba(255, 255, 255, 0.7);
+                border-radius: 50%;
+                animation: initial-splash-spin 0.9s linear infinite;
+            }
+            @keyframes initial-splash-spin {
+                to {
+                    transform: rotate(360deg);
+                }
+            }
+            @media (prefers-reduced-motion: reduce) {
+                #initial-splash .splash-spinner {
+                    animation: none;
+                    opacity: 0.6;
+                }
+            }
+        </style>
+    </head>
+    <body class="mat-app-background">
+        <div id="initial-splash" role="status" aria-label="Loading IPTVnator">
+            <span class="splash-mark">IPTVnator</span>
+            <span class="splash-spinner" aria-hidden="true"></span>
+        </div>
+        <app-root></app-root>
+    </body>
+</html>

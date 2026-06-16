@@ -1,4 +1,9 @@
-import { ChangeDetectionStrategy, Component, inject, input } from '@angular/core';
+import {
+    ChangeDetectionStrategy,
+    Component,
+    inject,
+    input,
+} from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import {
@@ -27,9 +32,12 @@ export class WorkspaceShellRailLinksComponent {
         PortalRailSection | string | null | undefined
     >(null);
     readonly activeClass = input<'active' | 'is-active'>('is-active');
+    readonly expanded = input(false);
 
     resolveIcon(link: PortalRailLink): string {
-        const normalizedPath = link.path.map((segment) => String(segment)).join('/');
+        const normalizedPath = link.path
+            .map((segment) => String(segment))
+            .join('/');
         if (normalizedPath.includes('/workspace/sources')) {
             return 'playlist_play';
         }

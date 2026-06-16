@@ -85,6 +85,10 @@
                 },
                 "pwa": {
                     "baseHref": "/",
+                    "index": {
+                        "input": "apps/web/src/index.pwa.html",
+                        "output": "index.html"
+                    },
                     "budgets": [
                         {
                             "type": "initial",

@@ -44,6 +44,7 @@
 
                     <app-audio-player
                         [url]="currentStreamUrl()"
+                        [playback]="activeDetail()?.playback ?? null"
                         [icon]="
                             activeRadioChannel()?.tvg?.logo ??
                             activeDetail()?.playback?.thumbnail ??

@@ -8,75 +8,20 @@ import { ipcMain } from 'electron';
 import {
     PortalDebugEvent,
     XTREAM_CANCEL_SESSION,
-    normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
 import { assertRemoteUrlAllowed, UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
+import {
+    buildXtreamApiUrl,
+    createXtreamErrorResponse,
+    formatXtreamError,
+} from './xtream-request.util';
 
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
         return ipcMain;
     }
-}
-
-function formatXtreamError(
-    error: unknown,
-    requestUrl: string,
-    action?: string
-) {
-    let parsedUrl: URL | null = null;
-    try {
-        parsedUrl = new URL(requestUrl);
-    } catch {
-        parsedUrl = null;
-    }
-    const base = {
-        action,
-        host: parsedUrl?.host ?? 'unknown',
-        pathname: parsedUrl?.pathname ?? requestUrl,
-    };
-
-    if (axios.isAxiosError(error)) {
-        return {
-            ...base,
-            type: 'AxiosError',
-            code: error.code,
-            status: error.response?.status,
-            message: error.message,
-            syscall: (error as NodeJS.ErrnoException).syscall,
-            hostname: (error as any).hostname,
-        };
-    }
-
-    if (error && typeof error === 'object') {
-        const errObj = error as Record<string, unknown>;
-        return {
-            ...base,
-            type: 'ErrorObject',
-            status: errObj.status,
-            message: errObj.message,
-        };
-    }
-
-    return {
-        ...base,
-        type: 'UnknownError',
-        message: String(error),
-    };
-}
-
-function buildXtreamApiUrl(url: string, params: Record<string, string>): URL {
-    const baseUrl = normalizeXtreamServerUrl(url);
-    const apiUrl = new URL(`${baseUrl}/player_api.php`);
-    Object.entries(params).forEach(([key, value]) => {
-        apiUrl.searchParams.append(
-            key,
-            key === 'username' || key === 'password' ? value.trim() : value
-        );
-    });
-
-    return apiUrl;
 }
 
 /**
@@ -217,38 +162,10 @@ ipcMain.handle(
                 );
             }
 
-            // Format error response
-            if (axios.isAxiosError(error)) {
-                if (error.code === 'ERR_CANCELED') {
-                    throw {
-                        type: 'ERROR',
-                        name: 'AbortError',
-                        message: 'Xtream request cancelled',
-                        status: 499,
-                    };
-                }
-                const errorResponse = {
-                    type: 'ERROR',
-                    message:
-                        error.response?.data?.message ||
-                        error.message ||
-                        'Failed to fetch data from Xtream server',
-                    status: error.response?.status || 500,
-                };
-                throw errorResponse;
-            } else if (
-                error &&
-                typeof error === 'object' &&
-                'message' in error
-            ) {
-                throw error;
-            } else {
-                throw {
-                    type: 'ERROR',
-                    message: 'An unknown error occurred',
-                    status: 500,
-                };
-            }
+            // Returning a structured failure keeps background requests from
+            // becoming rejected Electron handlers while preserving status and
+            // message details for the renderer.
+            return createXtreamErrorResponse(error);
         } finally {
             if (activeRequestKey) {
                 activeXtreamRequests.delete(activeRequestKey);

@@ -113,8 +113,9 @@
         },
         "serve": {
             "executor": "nx:run-commands",
+            "continuous": true,
             "options": {
-                "command": "nx run electron-backend:serve-electron"
+                "command": "node tools/electron/serve-electron-dev.mjs"
             }
         },
         "serve-electron": {
@@ -125,7 +126,6 @@
             "executor": "nx-electron:execute",
             "options": {
                 "buildTarget": "electron-backend:build",
-                "waitUntilTargets": ["web:serve"],
                 "remoteDebuggingPort": 9222
             }
         },
@@ -177,7 +177,14 @@
         "lint": {
             "command": "eslint apps/electron-backend/**/*.ts"
         },
+        "test-serve-launcher": {
+            "executor": "nx:run-commands",
+            "options": {
+                "command": "node --test tools/electron/serve-electron-dev.test.mjs"
+            }
+        },
         "test": {
+            "dependsOn": ["electron-backend:test-serve-launcher"],
             "executor": "@nx/jest:jest",
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
             "options": {

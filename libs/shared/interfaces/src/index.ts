@@ -1,5 +1,6 @@
 export * from './lib/channel.interface';
 export * from './lib/channel.model';
+export * from './lib/casting.interface';
 export * from './lib/dev-logger.util';
 export * from './lib/embedded-mpv-session.interface';
 export * from './lib/electron-api.interface';
@@ -25,6 +26,7 @@ export * from './lib/playlist.interface';
 export * from './lib/portal-activity-item.interface';
 export * from './lib/portal-debug.interface';
 export * from './lib/portal-playback.interface';
+export * from './lib/portal-playback.utils';
 export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
 export * from './lib/stalker-portal-actions.enum';

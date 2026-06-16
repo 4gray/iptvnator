@@ -1,10 +1,4 @@
-import {
-    Component,
-    Directive,
-    input,
-    output,
-    signal,
-} from '@angular/core';
+import { Component, Directive, input, output, signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { RouterOutlet, provideRouter } from '@angular/router';
 import { By } from '@angular/platform-browser';
@@ -26,15 +20,14 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 })
 class MockWorkspaceShellRailComponent {
     readonly isMacOS = input(false);
-    readonly brandLink = input('/workspace/dashboard');
-    readonly brandTooltipKey = input('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = input('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = input<unknown[]>([]);
     readonly primaryContextLinks = input<unknown[]>([]);
     readonly secondaryContextLinks = input<unknown[]>([]);
     readonly selectedSection = input<string | null>(null);
     readonly railProviderClass = input('');
     readonly isSettingsRoute = input(false);
+    readonly expanded = input(false);
+    readonly expandedChange = output<boolean>();
 }
 
 @Component({
@@ -88,12 +81,23 @@ class MockWorkspaceShellContextSidebarComponent {
 
 @Component({
     selector: 'app-external-playback-dock',
-    template: '',
+    template: '<ng-content />',
     standalone: true,
 })
 class MockExternalPlaybackDockComponent {
     readonly session = input<unknown>(null);
     readonly closeClicked = output<void>();
+    readonly artworkClicked = output<void>();
+}
+
+@Component({
+    selector: 'app-cast-control',
+    template: '',
+    standalone: true,
+})
+class MockCastControlComponent {
+    readonly playback = input<unknown>(null);
+    readonly placement = input<'overlay' | 'inline'>('overlay');
 }
 
 @Component({
@@ -126,9 +130,6 @@ class MockWorkspaceKeyboardShortcutsService {
 }
 
 class MockWorkspaceShellFacade {
-    readonly brandLink = signal('/workspace/dashboard');
-    readonly brandTooltipKey = signal('WORKSPACE.SHELL.RAIL_DASHBOARD');
-    readonly brandAriaLabelKey = signal('WORKSPACE.SHELL.OPEN_DASHBOARD');
     readonly workspaceLinks = signal([]);
     readonly primaryContextLinks = signal([]);
     readonly secondaryContextLinks = signal([]);
@@ -210,6 +211,7 @@ describe('WorkspaceShellComponent', () => {
                 set: {
                     imports: [
                         RouterOutlet,
+                        MockCastControlComponent,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -250,6 +252,21 @@ describe('WorkspaceShellComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-external-playback-dock')
         ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-cast-control')
+        ).not.toBeNull();
+
+        const rail = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellRailComponent)
+        );
+        rail.componentInstance.expandedChange.emit(true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement
+                .querySelector('.workspace-shell')
+                ?.classList.contains('rail-expanded')
+        ).toBe(true);
     });
 
     it('renders the xtream import overlay child only when the facade flag is true', async () => {
@@ -263,6 +280,7 @@ describe('WorkspaceShellComponent', () => {
                 set: {
                     imports: [
                         RouterOutlet,
+                        MockCastControlComponent,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,
@@ -315,6 +333,7 @@ describe('WorkspaceShellComponent', () => {
                 set: {
                     imports: [
                         RouterOutlet,
+                        MockCastControlComponent,
                         MockExternalPlaybackDockComponent,
                         MockPlaylistDropOverlayComponent,
                         MockPlaylistDropZoneDirective,

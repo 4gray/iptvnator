@@ -152,10 +152,12 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             setting: true,
             playbackRate: true,
             aspectRatio: true,
-            fullscreen: true,
-            fullscreenWeb: true,
+            // Fullscreen is handled at the web-player-view container level so the
+            // cast control stays in the same fullscreen context across all players.
+            fullscreen: false,
+            fullscreenWeb: false,
             playsInline: true,
-            airplay: true,
+            airplay: false,
             backdrop: true,
             mutex: true,
             theme: '#ff0000',

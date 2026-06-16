@@ -666,7 +666,6 @@ describe('WorkspaceShellFacade', () => {
                 exact: true,
             },
         ]);
-        expect(facade.brandLink()).toBe('/workspace/sources');
     });
 
     it('persists the last restorable route from navigation events', () => {

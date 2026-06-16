@@ -1,5 +1,9 @@
 import {
     Component,
+    ElementRef,
+    NgZone,
+    OnDestroy,
+    OnInit,
     Signal,
     ViewEncapsulation,
     computed,
@@ -27,6 +31,8 @@ import {
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
+import { CastControlComponent } from '../casting/cast-control.component';
+import { CastControlVisibility } from '../casting/cast-control-visibility';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import {
@@ -50,9 +56,11 @@ type PlaybackDiagnosticDetail = {
     styleUrls: ['./web-player-view.component.scss'],
     host: {
         class: 'web-player-view',
+        'data-cast-scope': '',
     },
     imports: [
         ArtPlayerComponent,
+        CastControlComponent,
         ClipboardModule,
         EmbeddedMpvPlayerComponent,
         HtmlVideoPlayerComponent,
@@ -64,9 +72,12 @@ type PlaybackDiagnosticDetail = {
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent {
+export class WebPlayerViewComponent implements OnInit, OnDestroy {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly zone = inject(NgZone);
+    private castActivityThrottled = false;
 
     streamUrl = input.required<string>();
     title = input('');
@@ -94,9 +105,12 @@ export class WebPlayerViewComponent {
         isLive: boolean;
         reloadToken: number;
         sources: { src: string; type: string }[];
+        controlBar: { fullscreenToggle: boolean };
     };
     readonly reloadToken = signal(0);
+    readonly isFullscreen = signal(false);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
+    readonly castControlVisibility = new CastControlVisibility();
     readonly visiblePlaybackDiagnostic = computed(() =>
         this.selectedPlayer() === VideoPlayer.EmbeddedMpv
             ? null
@@ -148,6 +162,109 @@ export class WebPlayerViewComponent {
                 this.isLivePlayback(playback)
             );
         });
+
+        this.castControlVisibility.showTemporarily();
+    }
+
+    ngOnInit(): void {
+        // Drive cast-control visibility from document-level activity instead of
+        // host pointer events. A player can capture pointer events (ArtPlayer)
+        // or own the fullscreen element (Video.js), in which case host-level
+        // listeners never fire and the control hides for good. Listeners are
+        // attached in the capture phase (so a player cannot swallow them) and
+        // outside Angular (so idle movement does not trigger change detection);
+        // only the gated re-show re-enters the zone.
+        this.zone.runOutsideAngular(() => {
+            document.addEventListener(
+                'pointermove',
+                this.handlePlayerActivity,
+                true
+            );
+            document.addEventListener(
+                'keydown',
+                this.handlePlayerActivity,
+                true
+            );
+            document.addEventListener(
+                'fullscreenchange',
+                this.handleFullscreenChange
+            );
+        });
+    }
+
+    ngOnDestroy(): void {
+        document.removeEventListener(
+            'pointermove',
+            this.handlePlayerActivity,
+            true
+        );
+        document.removeEventListener('keydown', this.handlePlayerActivity, true);
+        document.removeEventListener(
+            'fullscreenchange',
+            this.handleFullscreenChange
+        );
+        this.castControlVisibility.destroy();
+    }
+
+    private readonly handlePlayerActivity = (event: Event): void => {
+        if (this.castActivityThrottled || !this.isWithinPlayerSurface(event)) {
+            return;
+        }
+        this.castActivityThrottled = true;
+        requestAnimationFrame(() => {
+            this.castActivityThrottled = false;
+        });
+        this.zone.run(() => this.castControlVisibility.showTemporarily());
+    };
+
+    private readonly handleFullscreenChange = (): void => {
+        this.zone.run(() => {
+            this.isFullscreen.set(
+                document.fullscreenElement === this.hostRef.nativeElement
+            );
+            this.castControlVisibility.showTemporarily();
+        });
+    };
+
+    /**
+     * Toggles fullscreen on the player container (`.web-player-view`) rather than
+     * on an individual player element. The container holds both the active player
+     * and the cast-control overlay, so casting stays reachable in fullscreen for
+     * every player (Video.js, HTML5, ArtPlayer). Each player's own fullscreen
+     * control is disabled so this is the single fullscreen entry point.
+     */
+    toggleFullscreen(): void {
+        if (document.fullscreenElement) {
+            void document.exitFullscreen().catch(() => undefined);
+            return;
+        }
+        void this.hostRef.nativeElement
+            .requestFullscreen()
+            .catch(() => undefined);
+    }
+
+    private isWithinPlayerSurface(event: Event): boolean {
+        const host = this.hostRef.nativeElement;
+        const fullscreenElement = document.fullscreenElement;
+        if (
+            fullscreenElement &&
+            (fullscreenElement === host ||
+                host.contains(fullscreenElement) ||
+                fullscreenElement.contains(host))
+        ) {
+            // In fullscreen the player owns the screen — any activity counts.
+            return true;
+        }
+        if (event instanceof MouseEvent) {
+            const rect = host.getBoundingClientRect();
+            return (
+                event.clientX >= rect.left &&
+                event.clientX <= rect.right &&
+                event.clientY >= rect.top &&
+                event.clientY <= rect.bottom
+            );
+        }
+        return false;
     }
 
     setVjsOptions(streamUrl: string, isLive = true) {
@@ -163,6 +280,10 @@ export class WebPlayerViewComponent {
             isLive,
             reloadToken: untracked(() => this.reloadToken()),
             sources: [{ src: streamUrl, type: mimeType }],
+            // Native Video.js fullscreen toggles only the <video> element, which
+            // leaves the cast control (a sibling overlay) outside the fullscreen
+            // context. Fullscreen is handled at the container level instead.
+            controlBar: { fullscreenToggle: false },
         };
     }
 
