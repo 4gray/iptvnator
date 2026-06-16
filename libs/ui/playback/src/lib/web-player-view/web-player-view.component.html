@@ -92,6 +92,29 @@
         [playback]="resolvedPlayback()"
         (menuOpenChange)="castControlVisibility.setMenuOpen($event)"
     />
+    <button
+        mat-icon-button
+        type="button"
+        class="web-player-fullscreen-toggle"
+        data-test-id="player-fullscreen-toggle"
+        [matTooltip]="
+            (isFullscreen()
+                ? 'CASTING.EXIT_FULLSCREEN'
+                : 'CASTING.ENTER_FULLSCREEN'
+            ) | translate
+        "
+        [attr.aria-label]="
+            (isFullscreen()
+                ? 'CASTING.EXIT_FULLSCREEN'
+                : 'CASTING.ENTER_FULLSCREEN'
+            ) | translate
+        "
+        (click)="toggleFullscreen()"
+    >
+        <mat-icon>{{
+            isFullscreen() ? 'fullscreen_exit' : 'fullscreen'
+        }}</mat-icon>
+    </button>
 </div>
 
 @if (visiblePlaybackDiagnostic(); as issue) {

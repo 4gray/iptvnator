@@ -412,6 +412,8 @@
     },
     "CASTING": {
         "OPEN": "Cast to a device",
+        "ENTER_FULLSCREEN": "Fullscreen",
+        "EXIT_FULLSCREEN": "Exit fullscreen",
         "TITLE": "Play on another device",
         "AIRPLAY": "AirPlay",
         "SAFARI_ONLY": "Available in Safari on supported Apple devices",

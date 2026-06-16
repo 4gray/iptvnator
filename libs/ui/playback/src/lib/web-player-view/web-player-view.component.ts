@@ -105,8 +105,10 @@ export class WebPlayerViewComponent implements OnInit, OnDestroy {
         isLive: boolean;
         reloadToken: number;
         sources: { src: string; type: string }[];
+        controlBar: { fullscreenToggle: boolean };
     };
     readonly reloadToken = signal(0);
+    readonly isFullscreen = signal(false);
     readonly playbackDiagnostic = signal<PlaybackDiagnostic | null>(null);
     readonly castControlVisibility = new CastControlVisibility();
     readonly visiblePlaybackDiagnostic = computed(() =>
@@ -216,8 +218,30 @@ export class WebPlayerViewComponent implements OnInit, OnDestroy {
     };
 
     private readonly handleFullscreenChange = (): void => {
-        this.zone.run(() => this.castControlVisibility.showTemporarily());
+        this.zone.run(() => {
+            this.isFullscreen.set(
+                document.fullscreenElement === this.hostRef.nativeElement
+            );
+            this.castControlVisibility.showTemporarily();
+        });
     };
+
+    /**
+     * Toggles fullscreen on the player container (`.web-player-view`) rather than
+     * on an individual player element. The container holds both the active player
+     * and the cast-control overlay, so casting stays reachable in fullscreen for
+     * every player (Video.js, HTML5, ArtPlayer). Each player's own fullscreen
+     * control is disabled so this is the single fullscreen entry point.
+     */
+    toggleFullscreen(): void {
+        if (document.fullscreenElement) {
+            void document.exitFullscreen().catch(() => undefined);
+            return;
+        }
+        void this.hostRef.nativeElement
+            .requestFullscreen()
+            .catch(() => undefined);
+    }
 
     private isWithinPlayerSurface(event: Event): boolean {
         const host = this.hostRef.nativeElement;
@@ -256,6 +280,10 @@ export class WebPlayerViewComponent implements OnInit, OnDestroy {
             isLive,
             reloadToken: untracked(() => this.reloadToken()),
             sources: [{ src: streamUrl, type: mimeType }],
+            // Native Video.js fullscreen toggles only the <video> element, which
+            // leaves the cast control (a sibling overlay) outside the fullscreen
+            // context. Fullscreen is handled at the container level instead.
+            controlBar: { fullscreenToggle: false },
         };
     }
 

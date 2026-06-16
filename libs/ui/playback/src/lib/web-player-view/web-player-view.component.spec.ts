@@ -256,6 +256,86 @@ describe('WebPlayerViewComponent', () => {
         }
     });
 
+    it('routes fullscreen through the player container and reflects fullscreen state', () => {
+        fixture.detectChanges();
+
+        const host = fixture.nativeElement as HTMLElement;
+        const requestFullscreen = jest.fn().mockResolvedValue(undefined);
+        const exitFullscreen = jest.fn().mockResolvedValue(undefined);
+        host.requestFullscreen = requestFullscreen;
+
+        const originalFsDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'fullscreenElement'
+        );
+        const originalExit = (
+            document as unknown as { exitFullscreen?: () => Promise<void> }
+        ).exitFullscreen;
+        let fullscreenElement: Element | null = null;
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => fullscreenElement,
+        });
+        (
+            document as unknown as { exitFullscreen: () => Promise<void> }
+        ).exitFullscreen = exitFullscreen;
+
+        try {
+            const button = fixture.debugElement.query(
+                By.css('[data-test-id="player-fullscreen-toggle"]')
+            );
+            expect(button).not.toBeNull();
+            expect(button.nativeElement.textContent).not.toContain(
+                'fullscreen_exit'
+            );
+
+            // Entering: fullscreen is requested on the container host, never on
+            // an inner player element, so the cast overlay shares the context.
+            button.nativeElement.click();
+            expect(requestFullscreen).toHaveBeenCalledTimes(1);
+            expect(exitFullscreen).not.toHaveBeenCalled();
+
+            // The browser reports the host as the fullscreen element.
+            fullscreenElement = host;
+            document.dispatchEvent(new Event('fullscreenchange'));
+            fixture.detectChanges();
+            expect(component.isFullscreen()).toBe(true);
+            expect(button.nativeElement.textContent).toContain(
+                'fullscreen_exit'
+            );
+
+            // Toggling again while fullscreen exits via the document API.
+            component.toggleFullscreen();
+            expect(exitFullscreen).toHaveBeenCalledTimes(1);
+
+            fullscreenElement = null;
+            document.dispatchEvent(new Event('fullscreenchange'));
+            fixture.detectChanges();
+            expect(component.isFullscreen()).toBe(false);
+        } finally {
+            if (originalFsDescriptor) {
+                Object.defineProperty(
+                    document,
+                    'fullscreenElement',
+                    originalFsDescriptor
+                );
+            } else {
+                delete (
+                    document as unknown as { fullscreenElement?: unknown }
+                ).fullscreenElement;
+            }
+            if (originalExit) {
+                (
+                    document as unknown as { exitFullscreen?: unknown }
+                ).exitFullscreen = originalExit;
+            } else {
+                delete (
+                    document as unknown as { exitFullscreen?: unknown }
+                ).exitFullscreen;
+            }
+        }
+    });
+
     it('renders diagnostics and emits MPV fallback requests when managed external players are available', () => {
         const requests: unknown[] = [];
         runtimeCapabilities.supportsManagedExternalPlayers = true;
