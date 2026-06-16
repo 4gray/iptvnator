@@ -164,7 +164,7 @@ export const filterByMinRating = (
     items: XtreamSelectionItem[],
     minRating: number | null
 ): XtreamSelectionItem[] => {
-    if (!minRating || minRating <= 0) {
+    if (minRating === null || minRating <= 0) {
         return items;
     }
     return items.filter((item) => {
@@ -539,6 +539,10 @@ export function withSelection() {
                         selectedCategoryId: newCategoryId,
                         page: 0,
                         categorySearchTerm: '',
+                        // Clear the rating filter on category change too, mirroring
+                        // categorySearchTerm and setSelectedContentType — otherwise a
+                        // stale threshold stays silently applied in the new category.
+                        minRating: null,
                     });
                 }
             },

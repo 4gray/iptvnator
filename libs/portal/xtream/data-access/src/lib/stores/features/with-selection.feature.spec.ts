@@ -247,4 +247,25 @@ describe('withSelection', () => {
             store.selectItemsFromSelectedCategory().map((item) => item.title)
         ).toEqual(['World News', 'World Sports']);
     });
+
+    it('clears the rating filter when the category changes', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+        store.setMinRating(7);
+        expect(store.minRating()).toBe(7);
+
+        store.setSelectedCategory(20);
+
+        expect(store.minRating()).toBeNull();
+    });
+
+    it('keeps the rating filter when the same category is re-selected', () => {
+        store.setSelectedContentType('vod');
+        store.setSelectedCategory(10);
+        store.setMinRating(7);
+
+        store.setSelectedCategory(10);
+
+        expect(store.minRating()).toBe(7);
+    });
 });
