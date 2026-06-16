@@ -201,7 +201,13 @@ describe('WebPlayerViewComponent', () => {
             );
             expect(overlay.nativeElement.hasAttribute('inert')).toBe(true);
 
-            fixture.nativeElement.dispatchEvent(new Event('pointermove'));
+            // Activity is tracked at the document level (capture phase) so a
+            // player that captures pointer events or owns the fullscreen
+            // element can't suppress the re-show. jsdom reports a 0x0 host
+            // rect, so a pointer at (0,0) counts as within the player surface.
+            document.dispatchEvent(
+                new MouseEvent('pointermove', { clientX: 0, clientY: 0 })
+            );
             fixture.detectChanges();
 
             expect(overlay.nativeElement.classList).toContain(

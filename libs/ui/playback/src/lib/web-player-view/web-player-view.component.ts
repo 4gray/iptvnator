@@ -1,6 +1,9 @@
 import {
     Component,
+    ElementRef,
+    NgZone,
     OnDestroy,
+    OnInit,
     Signal,
     ViewEncapsulation,
     computed,
@@ -54,9 +57,6 @@ type PlaybackDiagnosticDetail = {
     host: {
         class: 'web-player-view',
         'data-cast-scope': '',
-        '(pointerenter)': 'castControlVisibility.showTemporarily()',
-        '(pointermove)': 'castControlVisibility.showTemporarily()',
-        '(keydown)': 'castControlVisibility.showTemporarily()',
     },
     imports: [
         ArtPlayerComponent,
@@ -72,9 +72,12 @@ type PlaybackDiagnosticDetail = {
     ],
     encapsulation: ViewEncapsulation.None,
 })
-export class WebPlayerViewComponent implements OnDestroy {
+export class WebPlayerViewComponent implements OnInit, OnDestroy {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
+    private readonly zone = inject(NgZone);
+    private castActivityThrottled = false;
 
     streamUrl = input.required<string>();
     title = input('');
@@ -161,8 +164,83 @@ export class WebPlayerViewComponent implements OnDestroy {
         this.castControlVisibility.showTemporarily();
     }
 
+    ngOnInit(): void {
+        // Drive cast-control visibility from document-level activity instead of
+        // host pointer events. A player can capture pointer events (ArtPlayer)
+        // or own the fullscreen element (Video.js), in which case host-level
+        // listeners never fire and the control hides for good. Listeners are
+        // attached in the capture phase (so a player cannot swallow them) and
+        // outside Angular (so idle movement does not trigger change detection);
+        // only the gated re-show re-enters the zone.
+        this.zone.runOutsideAngular(() => {
+            document.addEventListener(
+                'pointermove',
+                this.handlePlayerActivity,
+                true
+            );
+            document.addEventListener(
+                'keydown',
+                this.handlePlayerActivity,
+                true
+            );
+            document.addEventListener(
+                'fullscreenchange',
+                this.handleFullscreenChange
+            );
+        });
+    }
+
     ngOnDestroy(): void {
+        document.removeEventListener(
+            'pointermove',
+            this.handlePlayerActivity,
+            true
+        );
+        document.removeEventListener('keydown', this.handlePlayerActivity, true);
+        document.removeEventListener(
+            'fullscreenchange',
+            this.handleFullscreenChange
+        );
         this.castControlVisibility.destroy();
+    }
+
+    private readonly handlePlayerActivity = (event: Event): void => {
+        if (this.castActivityThrottled || !this.isWithinPlayerSurface(event)) {
+            return;
+        }
+        this.castActivityThrottled = true;
+        requestAnimationFrame(() => {
+            this.castActivityThrottled = false;
+        });
+        this.zone.run(() => this.castControlVisibility.showTemporarily());
+    };
+
+    private readonly handleFullscreenChange = (): void => {
+        this.zone.run(() => this.castControlVisibility.showTemporarily());
+    };
+
+    private isWithinPlayerSurface(event: Event): boolean {
+        const host = this.hostRef.nativeElement;
+        const fullscreenElement = document.fullscreenElement;
+        if (
+            fullscreenElement &&
+            (fullscreenElement === host ||
+                host.contains(fullscreenElement) ||
+                fullscreenElement.contains(host))
+        ) {
+            // In fullscreen the player owns the screen — any activity counts.
+            return true;
+        }
+        if (event instanceof MouseEvent) {
+            const rect = host.getBoundingClientRect();
+            return (
+                event.clientX >= rect.left &&
+                event.clientX <= rect.right &&
+                event.clientY >= rect.top &&
+                event.clientY <= rect.bottom
+            );
+        }
+        return false;
     }
 
     setVjsOptions(streamUrl: string, isLive = true) {
