@@ -103,6 +103,14 @@ export class CategoryContentViewComponent implements OnInit {
         return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
+    readonly supportsRatingSort = computed(
+        () => this.catalog.supportsRatingSort === true
+    );
+    readonly canFilterByRating = computed(
+        () => typeof this.catalog.setMinRating === 'function'
+    );
+    readonly minRating = computed(() => this.catalog.minRating?.() ?? null);
+    readonly ratingThresholds = [9, 8, 7, 6, 5] as const;
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }
@@ -119,6 +127,10 @@ export class CategoryContentViewComponent implements OnInit {
 
     setContentSortMode(mode: PortalCatalogSortMode): void {
         this.catalog.setContentSortMode(mode);
+    }
+
+    setMinRating(value: number | null): void {
+        this.catalog.setMinRating?.(value);
     }
 
     ngOnInit(): void {

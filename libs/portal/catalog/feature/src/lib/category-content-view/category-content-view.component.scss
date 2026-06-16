@@ -34,6 +34,12 @@
     @include panel.standard-panel-subtitle();
 }
 
+// ─── Rating filter — highlight the trigger while a threshold is active ───────
+.rating-filter-action.rating-filter-active {
+    color: var(--mat-sys-primary);
+    --mdc-icon-button-icon-color: var(--mat-sys-primary);
+}
+
 // ─── Paginator — flush right, no ghost background ────────────────────────────
 mat-paginator {
     background: transparent !important;

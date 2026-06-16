@@ -68,6 +68,67 @@
                                 <mat-icon>check</mat-icon>
                             }
                         </button>
+                        @if (supportsRatingSort()) {
+                            <button
+                                mat-menu-item
+                                (click)="setContentSortMode('rating-desc')"
+                            >
+                                <span>{{
+                                    'WORKSPACE.SORT_RATING_DESC' | translate
+                                }}</span>
+                                @if (contentSortMode() === 'rating-desc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            <button
+                                mat-menu-item
+                                (click)="setContentSortMode('rating-asc')"
+                            >
+                                <span>{{
+                                    'WORKSPACE.SORT_RATING_ASC' | translate
+                                }}</span>
+                                @if (contentSortMode() === 'rating-asc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                        }
+                    </mat-menu>
+                }
+                @if (canFilterByRating()) {
+                    <button
+                        type="button"
+                        mat-icon-button
+                        class="rating-filter-action"
+                        [class.rating-filter-active]="minRating() !== null"
+                        [matMenuTriggerFor]="ratingFilterMenu"
+                        [matTooltip]="'WORKSPACE.FILTER_RATING' | translate"
+                        [attr.aria-label]="'WORKSPACE.FILTER_RATING' | translate"
+                    >
+                        <mat-icon>star</mat-icon>
+                    </button>
+                    <mat-menu #ratingFilterMenu="matMenu">
+                        <button mat-menu-item (click)="setMinRating(null)">
+                            <span>{{
+                                'WORKSPACE.FILTER_RATING_ANY' | translate
+                            }}</span>
+                            @if (minRating() === null) {
+                                <mat-icon>check</mat-icon>
+                            }
+                        </button>
+                        @for (threshold of ratingThresholds; track threshold) {
+                            <button
+                                mat-menu-item
+                                (click)="setMinRating(threshold)"
+                            >
+                                <span>{{
+                                    'WORKSPACE.FILTER_RATING_MIN'
+                                        | translate: { value: threshold }
+                                }}</span>
+                                @if (minRating() === threshold) {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                        }
                     </mat-menu>
                 }
                 @if (categoryItemCount() > 0) {
