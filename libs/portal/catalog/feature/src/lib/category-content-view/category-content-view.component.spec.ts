@@ -217,8 +217,13 @@ describe('CategoryContentViewComponent', () => {
         const refineButton = fixture.nativeElement.querySelector(
             '.refine-action'
         ) as HTMLButtonElement | null;
+        const sortChip = fixture.nativeElement.querySelector(
+            '.sort-refinement-chip'
+        ) as HTMLElement | null;
 
         expect(refineButton).not.toBeNull();
+        expect(sortChip).not.toBeNull();
+        expect(sortChip?.tagName).not.toBe('BUTTON');
         expect(
             fixture.nativeElement.querySelector('.sort-action')
         ).toBeNull();
@@ -256,6 +261,36 @@ describe('CategoryContentViewComponent', () => {
         ratingChip?.click();
 
         expect(catalog.setMinRating).toHaveBeenCalledWith(null);
+    });
+
+    it('renders full and compact refinement chip labels for responsive layouts', () => {
+        contentSortMode.set('name-asc');
+        minRating.set(9);
+        categoryItemCount.set(12);
+
+        fixture.detectChanges();
+
+        const sortChip = fixture.nativeElement.querySelector(
+            '.sort-refinement-chip'
+        ) as HTMLElement | null;
+        const ratingChip = fixture.nativeElement.querySelector(
+            '.rating-refinement-chip'
+        ) as HTMLElement | null;
+
+        expect(
+            sortChip?.querySelector('.refinement-chip-label-full')?.textContent
+        ).toContain('WORKSPACE.SORT_LABEL');
+        expect(
+            sortChip?.querySelector('.refinement-chip-label-compact')
+                ?.textContent
+        ).toContain('WORKSPACE.SORT_NAME_ASC');
+        expect(
+            ratingChip?.querySelector('.refinement-chip-label-full')?.textContent
+        ).toContain('WORKSPACE.FILTER_RATING');
+        expect(
+            ratingChip?.querySelector('.refinement-chip-label-compact')
+                ?.textContent
+        ).toContain('9.0+');
     });
 
     it('restores the zero-based catalog page from the one-based page query param', () => {
