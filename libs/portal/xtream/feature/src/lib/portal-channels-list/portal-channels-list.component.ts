@@ -127,6 +127,27 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     constructor(private cdr: ChangeDetectorRef) {
         effect(() => {
+            const selectedItem = this.xtreamStore.selectedItem();
+            const viewport = this.viewport();
+            const selectedId = Number(
+                (selectedItem as XtreamChannelListItem | null)?.xtream_id
+            );
+
+            if (!viewport || !Number.isFinite(selectedId) || selectedId <= 0) {
+                return;
+            }
+
+            const selectedIndex = this.filteredChannels().findIndex(
+                (item) => Number(item.xtream_id) === selectedId
+            );
+            if (selectedIndex < 0) {
+                return;
+            }
+
+            viewport.scrollToIndex(selectedIndex, 'smooth');
+        });
+
+        effect(() => {
             if (!this.supportsEpg) {
                 return;
             }

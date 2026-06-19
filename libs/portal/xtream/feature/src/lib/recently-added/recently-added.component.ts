@@ -197,17 +197,37 @@ export class RecentlyAddedComponent {
         this.xtreamStore.setSelectedContentType(type);
 
         if (type === 'live') {
+            const itemId = this.getItemId(item, type);
             this.router.navigate(['..', type, item.category_id], {
                 relativeTo: this.activatedRoute,
+                ...(itemId
+                    ? {
+                          state: {
+                              openXtreamLiveItemId: Number(itemId),
+                              openXtreamLiveTitle:
+                                  item.title || item.name || '',
+                              openXtreamLivePoster:
+                                  item.poster_url || item.stream_icon || '',
+                          },
+                      }
+                    : {}),
             });
         } else {
-            const itemId =
-                item.xtream_id ||
-                item.id ||
-                (type === 'series' ? item.series_id : item.stream_id);
+            const itemId = this.getItemId(item, type);
             this.router.navigate(['..', type, item.category_id, itemId], {
                 relativeTo: this.activatedRoute,
             });
         }
+    }
+
+    private getItemId(
+        item: RecentlyAddedItem,
+        type: ContentType
+    ): number | undefined {
+        return (
+            item.xtream_id ||
+            item.id ||
+            (type === 'series' ? item.series_id : item.stream_id)
+        );
     }
 }

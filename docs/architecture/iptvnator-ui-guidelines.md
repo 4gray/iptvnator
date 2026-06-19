@@ -160,6 +160,12 @@ The shared row should be reused instead of rebuilding channel markup per view.
 
 - M3U, Xtream, and Stalker live layouts share a single sidebar collapse toggle
   that hides the channels rail to give the player and EPG full width.
+- Xtream Live TV's root view (`/live` with no selected category) shows the
+  newest live channels when provider timestamps are available. Selecting a
+  channel from that root surface starts playback, selects the channel's
+  category, highlights the active category and channel, and scrolls the
+  category rail plus virtual channels list to the selected rows when those
+  rails are visible.
 - In Xtream and Stalker live TV, the same toggle also collapses the workspace
   shell context sidebar (the "Live Categories" rail rendered by
   `WorkspaceShellContextSidebarComponent`), matching M3U's "everything quiets"

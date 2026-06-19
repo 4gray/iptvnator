@@ -30,6 +30,49 @@
     height: 100%;
 }
 
+.live-initial-content {
+    align-self: center;
+    box-sizing: border-box;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    height: 100%;
+    max-width: 640px;
+    padding: 18px;
+    width: min(640px, 100%);
+}
+
+.live-initial-content__header {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 0 4px;
+}
+
+.live-initial-content__title {
+    color: var(--mat-sys-on-surface);
+    font-size: 1rem;
+    font-weight: 600;
+    line-height: 1.2;
+    margin: 0;
+}
+
+.live-initial-content__subtitle {
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.82rem;
+    line-height: 1.35;
+    margin: 0;
+}
+
+.live-initial-content app-portal-channels-list {
+    border: 1px solid var(--app-separator);
+    border-radius: 8px;
+    display: block;
+    flex: 1;
+    min-height: 0;
+    overflow: hidden;
+}
+
 .loading-indicator {
     display: flex;
     justify-content: center;
@@ -42,7 +85,11 @@
     border-radius: 14px;
     border: 1px solid rgba(255, 255, 255, 0.08);
     background:
-        linear-gradient(180deg, rgba(255, 255, 255, 0.04), rgba(255, 255, 255, 0)),
+        linear-gradient(
+            180deg,
+            rgba(255, 255, 255, 0.04),
+            rgba(255, 255, 255, 0)
+        ),
         rgba(127, 127, 127, 0.05);
     box-shadow:
         inset 0 1px 0 rgba(255, 255, 255, 0.04),

@@ -52,6 +52,7 @@ class MockXtreamStore {
 describe('RecentlyAddedComponent', () => {
     let store: MockXtreamStore;
     let dateNowSpy: jest.SpyInstance<number, []>;
+    let router: { navigate: jest.Mock };
 
     beforeEach(() => {
         dateNowSpy = jest
@@ -87,6 +88,7 @@ describe('RecentlyAddedComponent', () => {
         });
 
         store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        router = TestBed.inject(Router) as unknown as { navigate: jest.Mock };
     });
 
     afterEach(() => {
@@ -160,5 +162,28 @@ describe('RecentlyAddedComponent', () => {
                 true
             )
         ).toBe(Date.parse('2026-05-15T00:00:00.000Z'));
+    });
+
+    it('navigates live recently-added cards with auto-open playback state', () => {
+        const component = TestBed.runInInjectionContext(
+            () => new RecentlyAddedComponent()
+        );
+        const item = createItem(101, {
+            category_id: 7,
+            poster_url: 'live-news.png',
+            title: 'Live News',
+        });
+
+        component.openItem(item, 'live');
+
+        expect(store.setSelectedContentType).toHaveBeenCalledWith('live');
+        expect(router.navigate).toHaveBeenCalledWith(['..', 'live', 7], {
+            relativeTo: TestBed.inject(ActivatedRoute),
+            state: {
+                openXtreamLiveItemId: 101,
+                openXtreamLiveTitle: 'Live News',
+                openXtreamLivePoster: 'live-news.png',
+            },
+        });
     });
 });

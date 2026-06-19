@@ -33,10 +33,7 @@ import {
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -47,6 +44,7 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 })
 class StubPortalChannelsListComponent {
     readonly sortMode = input<'server' | 'name-asc' | 'name-desc'>('server');
+    readonly channelsOverride = input<unknown[] | null>(null);
     readonly searchTermInput = input('');
     readonly playClicked = output<unknown>();
     readonly playbackRequested = output<unknown>();
@@ -260,8 +258,8 @@ describe('LiveStreamLayoutComponent', () => {
                         get supportsRemoteControl() {
                             return Boolean(
                                 window.electron?.updateRemoteControlStatus &&
-                                    window.electron.onChannelChange &&
-                                    window.electron.onRemoteControlCommand
+                                window.electron.onChannelChange &&
+                                window.electron.onRemoteControlCommand
                             );
                         },
                     },
@@ -419,6 +417,43 @@ describe('LiveStreamLayoutComponent', () => {
         ).toBeNull();
     });
 
+    it('shows recently added live channels on the live root before a category is selected', () => {
+        const newestChannel = {
+            xtream_id: 301,
+            name: 'Newest Channel',
+            category_id: '7',
+            added: String(
+                Math.floor(Date.parse('2026-04-04T12:00:00Z') / 1000)
+            ),
+        };
+        const olderChannel = {
+            xtream_id: 302,
+            name: 'Older Channel',
+            category_id: '8',
+            added: String(
+                Math.floor(Date.parse('2026-04-03T12:00:00Z') / 1000)
+            ),
+        };
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+        liveStreams.set([olderChannel, newestChannel]);
+
+        fixture.detectChanges();
+
+        const list = fixture.debugElement.query(
+            By.directive(StubPortalChannelsListComponent)
+        );
+
+        expect(list).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-portal-empty-state')
+        ).toBeNull();
+        expect(list.componentInstance.channelsOverride()).toEqual([
+            newestChannel,
+            olderChannel,
+        ]);
+    });
+
     it('shows the cross-category live channel list while searching from the live root', () => {
         selectedCategoryId.set(null);
         selectedTypeContentLoading.set(false);
@@ -444,6 +479,10 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('shows embedded playback after selecting a channel from live root search results', () => {
+        const searchResultChannel = {
+            ...sampleChannel,
+            category_id: '7',
+        };
         selectedCategoryId.set(null);
         selectedTypeContentLoading.set(false);
         routeQueryParamMap.next(convertToParamMap({ q: 'world' }));
@@ -453,12 +492,13 @@ describe('LiveStreamLayoutComponent', () => {
             By.directive(StubPortalChannelsListComponent)
         );
 
-        list.componentInstance.playClicked.emit(sampleChannel);
+        list.componentInstance.playClicked.emit(searchResultChannel);
         fixture.detectChanges();
 
         expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
-            sampleChannel
+            searchResultChannel
         );
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(7);
         expect(
             fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
         ).not.toBeNull();

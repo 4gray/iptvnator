@@ -151,6 +151,23 @@
                     (playbackRequested)="playLive($event, true)"
                 />
             </div>
+        } @else if (recentlyAddedLiveItems().length > 0) {
+            <section class="live-initial-content">
+                <header class="live-initial-content__header">
+                    <h2 class="live-initial-content__title">
+                        {{ 'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate }}
+                    </h2>
+                    <p class="live-initial-content__subtitle">
+                        {{ 'PORTALS.SIDEBAR.LIVE_TV' | translate }}
+                    </p>
+                </header>
+                <app-portal-channels-list
+                    [sortMode]="'server'"
+                    [channelsOverride]="recentlyAddedLiveItems()"
+                    (playClicked)="playLive($event)"
+                    (playbackRequested)="playLive($event, true)"
+                />
+            </section>
         } @else {
             <app-portal-empty-state
                 icon="live_tv"

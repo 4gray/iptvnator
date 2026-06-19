@@ -63,6 +63,7 @@ import {
     EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
+    toXtreamRecentlyAddedTimestamp,
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
@@ -71,7 +72,9 @@ import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
 interface XtreamLiveChannelItem {
+    readonly added?: string;
     readonly category_id?: string | number;
+    readonly last_modified?: string;
     readonly name?: string;
     readonly poster_url?: string;
     readonly stream_icon?: string;
@@ -201,6 +204,19 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly liveChannelSortLabel = computed(() =>
         getPortalChannelSortModeLabel(this.liveChannelSortMode())
     );
+    readonly recentlyAddedLiveItems = computed(() => {
+        const nowMs = Date.now();
+
+        return this.getAllLiveStreams()
+            .map((item) => ({
+                item,
+                sortTimestamp: this.getRecentlyAddedTimestamp(item, nowMs),
+            }))
+            .filter(({ sortTimestamp }) => sortTimestamp > 0)
+            .sort((a, b) => b.sortTimestamp - a.sortTimestamp)
+            .slice(0, 20)
+            .map(({ item }) => item);
+    });
 
     readonly selectedCategoryInfo = computed(() => {
         const categoryId = this.selectedCategoryId();
@@ -282,12 +298,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             // status reflect the channel (constructStreamUrl also does this
             // internally, but an explicit call makes the intent clear and
             // keeps the auto-open path testable in isolation).
-            this.xtreamStore.setSelectedItem(item as unknown as Record<string, unknown>);
-            // Navigate to the channel's category so the sidebar shows it highlighted
-            const categoryId = Number(item.category_id);
-            if (Number.isFinite(categoryId) && categoryId > 0) {
-                this.xtreamStore.setSelectedCategory(categoryId);
-            }
+            this.xtreamStore.setSelectedItem(
+                item as unknown as Record<string, unknown>
+            );
             this.pendingAutoOpenLiveItemId.set(null);
             this.clearAutoOpenHistoryState();
         });
@@ -375,6 +388,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         startPlayback = !this.settingsStore.openStreamOnDoubleClick()
     ) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.selectLiveItemCategory(item);
         this.activePlayback.set({
             streamUrl,
             title: item.title ?? item.name ?? '',
@@ -513,6 +527,23 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     private getVisibleChannels(): XtreamLiveChannelItem[] {
         return this.xtreamStore.selectItemsFromSelectedCategory() as XtreamLiveChannelItem[];
+    }
+
+    private selectLiveItemCategory(item: XtreamLiveChannelItem): void {
+        const categoryId = Number(item.category_id);
+        if (Number.isFinite(categoryId) && categoryId > 0) {
+            this.xtreamStore.setSelectedCategory(categoryId);
+        }
+    }
+
+    private getRecentlyAddedTimestamp(
+        item: XtreamLiveChannelItem,
+        nowMs: number
+    ): number {
+        return (
+            toXtreamRecentlyAddedTimestamp(item.added, nowMs) ||
+            toXtreamRecentlyAddedTimestamp(item.last_modified, nowMs)
+        );
     }
 
     private async playCatchup(
