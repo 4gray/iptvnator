@@ -63,31 +63,23 @@ import {
     EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
-    toXtreamRecentlyAddedTimestamp,
 } from '@iptvnator/shared/interfaces';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { ActivatedRoute, NavigationEnd, Router } from '@angular/router';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { LiveStreamAutoOpenStateService } from './live-stream-auto-open-state.service';
+import {
+    getRecentlyAddedLiveItems,
+    XtreamLiveChannelItem,
+} from './live-stream-recently-added.utils';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
-
-interface XtreamLiveChannelItem {
-    readonly added?: string;
-    readonly category_id?: string | number;
-    readonly last_modified?: string;
-    readonly name?: string;
-    readonly poster_url?: string;
-    readonly stream_icon?: string;
-    readonly title?: string;
-    readonly tv_archive?: number | null;
-    readonly tv_archive_duration?: number | string | null;
-    readonly xtream_id: number;
-}
 
 @Component({
     selector: 'app-live-stream-layout',
     templateUrl: './live-stream-layout.component.html',
     styleUrls: ['./live-stream-layout.component.scss'],
+    providers: [LiveStreamAutoOpenStateService],
     imports: [
         EpgListComponent,
         EpgViewComponent,
@@ -119,6 +111,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     private readonly liveSidebarStateService = inject(
         LiveLayoutSidebarStateService
     );
+    private readonly liveAutoOpenState = inject(LiveStreamAutoOpenStateService);
 
     readonly categories = this.xtreamStore.getCategoriesBySelectedType;
     readonly categoryItemCounts = this.xtreamStore.getCategoryItemCounts;
@@ -143,7 +136,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly showLiveChannelSidebar = computed(
         () => !!this.selectedCategoryId() || !!this.workspaceSearchTerm()
     );
-    private readonly pendingAutoOpenLiveItemId = signal<number | null>(null);
+    private readonly pendingAutoOpenLiveItemId =
+        this.liveAutoOpenState.pendingItemId;
     readonly selectedLiveItem = computed<XtreamLiveChannelItem | null>(() => {
         if (this.xtreamStore.selectedContentType() !== 'live') {
             return null;
@@ -204,19 +198,13 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly liveChannelSortLabel = computed(() =>
         getPortalChannelSortModeLabel(this.liveChannelSortMode())
     );
-    readonly recentlyAddedLiveItems = computed(() => {
-        const nowMs = Date.now();
-
-        return this.getAllLiveStreams()
-            .map((item) => ({
-                item,
-                sortTimestamp: this.getRecentlyAddedTimestamp(item, nowMs),
-            }))
-            .filter(({ sortTimestamp }) => sortTimestamp > 0)
-            .sort((a, b) => b.sortTimestamp - a.sortTimestamp)
-            .slice(0, 20)
-            .map(({ item }) => item);
-    });
+    readonly recentlyAddedLiveItems = computed(() =>
+        getRecentlyAddedLiveItems(
+            this.getAllLiveStreams(),
+            this.categories(),
+            this.currentTimeMs()
+        )
+    );
 
     readonly selectedCategoryInfo = computed(() => {
         const categoryId = this.selectedCategoryId();
@@ -263,7 +251,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 filter((e) => e instanceof NavigationEnd),
                 takeUntilDestroyed(this.destroyRef)
             )
-            .subscribe(() => this.checkPendingAutoOpenFromState());
+            .subscribe(() => this.liveAutoOpenState.captureFromHistoryState());
 
         effect(() => {
             const pendingId = this.pendingAutoOpenLiveItemId();
@@ -301,8 +289,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             this.xtreamStore.setSelectedItem(
                 item as unknown as Record<string, unknown>
             );
-            this.pendingAutoOpenLiveItemId.set(null);
-            this.clearAutoOpenHistoryState();
+            this.liveAutoOpenState.clearPendingItem();
+            this.liveAutoOpenState.clearHistoryState();
         });
 
         effect(() => {
@@ -510,17 +498,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         );
     }
 
-    private checkPendingAutoOpenFromState(): void {
-        const requestedItemId = Number(
-            (window.history.state as Record<string, unknown> | null)?.[
-                'openXtreamLiveItemId'
-            ]
-        );
-        if (Number.isFinite(requestedItemId) && requestedItemId > 0) {
-            this.pendingAutoOpenLiveItemId.set(requestedItemId);
-        }
-    }
-
     private getAllLiveStreams(): XtreamLiveChannelItem[] {
         return this.xtreamStore.liveStreams() as unknown as XtreamLiveChannelItem[];
     }
@@ -534,16 +511,6 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         if (Number.isFinite(categoryId) && categoryId > 0) {
             this.xtreamStore.setSelectedCategory(categoryId);
         }
-    }
-
-    private getRecentlyAddedTimestamp(
-        item: XtreamLiveChannelItem,
-        nowMs: number
-    ): number {
-        return (
-            toXtreamRecentlyAddedTimestamp(item.added, nowMs) ||
-            toXtreamRecentlyAddedTimestamp(item.last_modified, nowMs)
-        );
     }
 
     private async playCatchup(
@@ -675,25 +642,5 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         return channelTitle
             ? `${channelTitle} - ${program.title}`
             : program.title;
-    }
-
-    private clearAutoOpenHistoryState(): void {
-        try {
-            const state = (window.history.state ?? {}) as Record<
-                string,
-                unknown
-            >;
-            if (!('openXtreamLiveItemId' in state)) {
-                return;
-            }
-
-            const nextState = { ...state };
-            delete nextState['openXtreamLiveItemId'];
-            delete nextState['openXtreamLiveTitle'];
-            delete nextState['openXtreamLivePoster'];
-            window.history.replaceState(nextState, document.title);
-        } catch {
-            // no-op
-        }
     }
 }

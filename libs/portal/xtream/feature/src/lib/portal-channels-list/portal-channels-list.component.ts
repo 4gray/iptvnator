@@ -13,6 +13,7 @@ import {
     input,
     OnDestroy,
     output,
+    untracked,
     viewChild,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
@@ -137,7 +138,8 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 return;
             }
 
-            const selectedIndex = this.filteredChannels().findIndex(
+            const filteredChannels = untracked(() => this.filteredChannels());
+            const selectedIndex = filteredChannels.findIndex(
                 (item) => Number(item.xtream_id) === selectedId
             );
             if (selectedIndex < 0) {

@@ -369,6 +369,32 @@ describe('PortalChannelsListComponent', () => {
         expect(scrollToIndex).toHaveBeenCalledWith(15, 'smooth');
     });
 
+    it('does not re-scroll the virtual list when the search filter changes', () => {
+        const channels = Array.from({ length: 20 }, (_, index) => ({
+            title: `Channel ${index + 1}`,
+            xtream_id: index + 1,
+        }));
+        selectedTypeContentLoading.set(false);
+        selectedChannels.set(channels);
+        fixture.detectChanges();
+
+        const viewport = fixture.componentInstance.viewport();
+        if (!viewport) {
+            throw new Error('Expected virtual scroll viewport');
+        }
+        const scrollToIndex = jest.spyOn(viewport, 'scrollToIndex');
+
+        selectedItem.set({ xtream_id: 16 });
+        fixture.detectChanges();
+        expect(scrollToIndex).toHaveBeenCalledWith(15, 'smooth');
+
+        scrollToIndex.mockClear();
+        fixture.componentRef.setInput('searchTermInput', 'Channel 16');
+        fixture.detectChanges();
+
+        expect(scrollToIndex).not.toHaveBeenCalled();
+    });
+
     it('passes the live content type when toggling a channel favorite', async () => {
         selectedTypeContentLoading.set(false);
         currentPlaylist.set({

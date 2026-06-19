@@ -212,6 +212,8 @@ describe('LiveStreamLayoutComponent', () => {
         epgItems.set([]);
         currentEpgItem.set(null);
         isLoadingEpg.set(false);
+        categories.set([{ category_id: 1, category_name: 'News' }]);
+        categoryItemCounts.set(new Map<number, number>([[1, 1]]));
         selectedTypeContentLoading.set(false);
         selectedCategoryId.set(1);
         selectedContentType.set('live');
@@ -436,6 +438,10 @@ describe('LiveStreamLayoutComponent', () => {
         };
         selectedCategoryId.set(null);
         selectedTypeContentLoading.set(false);
+        categories.set([
+            { category_id: 7, category_name: 'News' },
+            { category_id: 8, category_name: 'Sports' },
+        ]);
         liveStreams.set([olderChannel, newestChannel]);
 
         fixture.detectChanges();
@@ -452,6 +458,62 @@ describe('LiveStreamLayoutComponent', () => {
             newestChannel,
             olderChannel,
         ]);
+    });
+
+    it('excludes live root recently added channels from hidden categories', () => {
+        const visibleChannel = {
+            xtream_id: 301,
+            name: 'Visible Channel',
+            category_id: '1',
+            added: String(
+                Math.floor(Date.parse('2026-04-04T12:00:00Z') / 1000)
+            ),
+        };
+        const hiddenChannel = {
+            xtream_id: 302,
+            name: 'Hidden Channel',
+            category_id: '2',
+            added: String(
+                Math.floor(Date.parse('2026-04-05T10:00:00Z') / 1000)
+            ),
+        };
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+        categories.set([{ category_id: 1, category_name: 'News' }]);
+        liveStreams.set([hiddenChannel, visibleChannel]);
+
+        fixture.detectChanges();
+
+        const list = fixture.debugElement.query(
+            By.directive(StubPortalChannelsListComponent)
+        );
+
+        expect(list).not.toBeNull();
+        expect(list.componentInstance.channelsOverride()).toEqual([
+            visibleChannel,
+        ]);
+    });
+
+    it('refreshes live root recently added channels as the clock advances', () => {
+        const futureChannel = {
+            xtream_id: 301,
+            name: 'Future Channel',
+            category_id: '1',
+            added: String(
+                Math.floor((fixedNow.getTime() + 25 * 60 * 60 * 1000) / 1000)
+            ),
+        };
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+        liveStreams.set([futureChannel]);
+
+        expect(component.recentlyAddedLiveItems()).toEqual([]);
+
+        jest.setSystemTime(new Date(fixedNow.getTime() + 2 * 60 * 60 * 1000));
+        jest.advanceTimersByTime(30_000);
+        fixture.detectChanges();
+
+        expect(component.recentlyAddedLiveItems()).toEqual([futureChannel]);
     });
 
     it('shows the cross-category live channel list while searching from the live root', () => {
