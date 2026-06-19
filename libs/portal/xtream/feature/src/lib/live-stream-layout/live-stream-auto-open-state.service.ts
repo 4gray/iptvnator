@@ -12,7 +12,10 @@ export class LiveStreamAutoOpenStateService {
         );
         if (Number.isFinite(requestedItemId) && requestedItemId > 0) {
             this.pendingItemId.set(requestedItemId);
+            return;
         }
+
+        this.pendingItemId.set(null);
     }
 
     clearPendingItem(): void {

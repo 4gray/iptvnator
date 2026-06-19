@@ -376,6 +376,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         startPlayback = !this.settingsStore.openStreamOnDoubleClick()
     ) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        // Keep both root/recently-added playback and same-category replays in
+        // sync with the category rail. For already-selected channels this is a
+        // store no-op.
         this.selectLiveItemCategory(item);
         this.activePlayback.set({
             streamUrl,
