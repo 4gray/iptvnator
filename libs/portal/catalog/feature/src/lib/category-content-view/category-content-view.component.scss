@@ -34,10 +34,92 @@
     @include panel.standard-panel-subtitle();
 }
 
-// ─── Rating filter — highlight the trigger while a threshold is active ───────
-.rating-filter-action.rating-filter-active {
+// ─── Refine controls — show current sort/filter state compactly ──────────────
+.active-refinements {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.refinement-chip,
+.refine-action {
+    flex-shrink: 0;
+    min-height: 32px;
+    border-radius: 999px;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    --mdc-text-button-label-text-color: currentColor;
+    --mat-text-button-state-layer-color: currentColor;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.refinement-chip {
+    max-width: 220px;
+    padding: 0 10px;
+    background: var(--mat-sys-surface-container);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.78rem;
+    font-weight: 600;
+
+    span {
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}
+
+.sort-refinement-chip {
+    color: var(--mat-sys-on-surface-variant);
+}
+
+.rating-refinement-chip,
+.refine-action.refine-action-active {
     color: var(--mat-sys-primary);
-    --mdc-icon-button-icon-color: var(--mat-sys-primary);
+}
+
+.refine-action {
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.refine-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--mat-sys-on-primary);
+    background: var(--mat-sys-primary);
+}
+
+.refine-menu-section-title {
+    padding: 8px 16px 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.refine-menu-divider {
+    height: 1px;
+    margin: 6px 12px;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 // ─── Paginator — flush right, no ghost background ────────────────────────────
@@ -73,6 +155,10 @@ app-grid-list {
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
+    }
+
+    .active-refinements {
+        justify-content: flex-start;
     }
 
     app-grid-list {

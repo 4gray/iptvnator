@@ -2,7 +2,7 @@ import { Component, input, output, signal } from '@angular/core';
 import { NgComponentOutlet } from '@angular/common';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
-import { MatIconButton } from '@angular/material/button';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule } from '@angular/material/paginator';
@@ -61,6 +61,7 @@ describe('CategoryContentViewComponent', () => {
     const isPaginatedContentLoading = signal(true);
     const categoryItemCount = signal(0);
     const contentSortMode = signal<PortalCatalogSortMode | null>(null);
+    const minRating = signal<number | null>(null);
     const catalog = {
         provider: 'xtream' as const,
         pageSizeOptions: [10, 25, 50],
@@ -74,6 +75,8 @@ describe('CategoryContentViewComponent', () => {
         selectedItem: signal(null),
         totalPages: signal(0),
         contentSortMode,
+        supportsRatingSort: true,
+        minRating,
         playlist: signal(null),
         isPaginatedContentLoading,
         initialize: jest.fn(),
@@ -82,6 +85,7 @@ describe('CategoryContentViewComponent', () => {
         setPage: jest.fn(),
         setLimit: jest.fn(),
         setContentSortMode: jest.fn(),
+        setMinRating: jest.fn(),
         selectItem: jest.fn().mockReturnValue(null),
         getItemProgress: jest.fn().mockReturnValue({}),
     };
@@ -90,10 +94,13 @@ describe('CategoryContentViewComponent', () => {
         isPaginatedContentLoading.set(true);
         categoryItemCount.set(0);
         contentSortMode.set(null);
+        minRating.set(null);
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
         catalog.setPage.mockClear();
         catalog.setLimit.mockClear();
+        catalog.setContentSortMode.mockClear();
+        catalog.setMinRating.mockClear();
         catalog.selectItem.mockClear();
         catalog.selectItem.mockReturnValue(null);
         router = {
@@ -162,7 +169,7 @@ describe('CategoryContentViewComponent', () => {
                         MockGridListComponent,
                         MockPlaylistErrorViewComponent,
                         MatIcon,
-                        MatIconButton,
+                        MatButtonModule,
                         MatMenuModule,
                         MatPaginatorModule,
                         MatTooltip,
@@ -199,6 +206,56 @@ describe('CategoryContentViewComponent', () => {
         );
 
         expect(catalog.setSearchQuery).toHaveBeenCalledWith('matrix');
+    });
+
+    it('groups catalog sort and rating filters behind one refine menu trigger', () => {
+        contentSortMode.set('date-desc');
+        categoryItemCount.set(12);
+
+        fixture.detectChanges();
+
+        const refineButton = fixture.nativeElement.querySelector(
+            '.refine-action'
+        ) as HTMLButtonElement | null;
+
+        expect(refineButton).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.sort-action')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.rating-filter-action')
+        ).toBeNull();
+
+        refineButton?.click();
+        fixture.detectChanges();
+
+        const overlayText = document.body.textContent ?? '';
+        expect(overlayText).toContain('WORKSPACE.REFINE_SORT_SECTION');
+        expect(overlayText).toContain('WORKSPACE.SORT_DATE_DESC');
+        expect(overlayText).toContain('WORKSPACE.REFINE_RATING_SECTION');
+        expect(overlayText).toContain('WORKSPACE.FILTER_RATING_ANY');
+    });
+
+    it('shows active sort and rating chips and lets the rating chip clear the threshold', () => {
+        contentSortMode.set('rating-desc');
+        minRating.set(8);
+        categoryItemCount.set(12);
+
+        fixture.detectChanges();
+
+        const sortChip = fixture.nativeElement.querySelector(
+            '.sort-refinement-chip'
+        ) as HTMLElement | null;
+        const ratingChip = fixture.nativeElement.querySelector(
+            '.rating-refinement-chip'
+        ) as HTMLButtonElement | null;
+
+        expect(sortChip?.textContent).toContain('WORKSPACE.SORT_TOP_RATED');
+        expect(ratingChip?.textContent).toContain('8');
+
+        ratingChip?.click();
+
+        expect(catalog.setMinRating).toHaveBeenCalledWith(null);
     });
 
     it('restores the zero-based catalog page from the one-based page query param', () => {
