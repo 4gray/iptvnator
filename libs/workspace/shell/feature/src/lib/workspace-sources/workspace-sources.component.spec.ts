@@ -144,4 +144,14 @@ describe('WorkspaceSourcesComponent', () => {
         expect(subtitle.textContent?.trim()).toBe('1 playlist');
         expect(subtitle.tagName).toBe('SPAN');
     });
+
+    it('uses the shared always-visible scrollbar utility for the playlist list', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const content: HTMLElement =
+            fixture.nativeElement.querySelector('.sources-content');
+
+        expect(content.classList.contains('app-scrollbar')).toBe(true);
+    });
 });

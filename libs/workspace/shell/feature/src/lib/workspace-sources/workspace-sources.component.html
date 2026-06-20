@@ -36,7 +36,10 @@
             </mat-menu>
         </header>
     }
-    <div class="sources-content">
+    <div
+        class="sources-content"
+        [class.app-scrollbar]="visibleSourcesCount() > 0"
+    >
         <app-recent-playlists
             [searchQueryInput]="searchQuery()"
             (addPlaylistClicked)="onAddPlaylist($event)"
