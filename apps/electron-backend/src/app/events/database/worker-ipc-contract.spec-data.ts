@@ -47,7 +47,17 @@ export const workerIpcContractCases: WorkerIpcContractCase[] = [
         payload: {},
     },
     {
+        operation: 'DB_GET_APP_PLAYLIST_METAS',
+        args: [],
+        payload: {},
+    },
+    {
         operation: 'DB_GET_APP_PLAYLIST',
+        args: [playlistId],
+        payload: { playlistId },
+    },
+    {
+        operation: 'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS',
         args: [playlistId],
         payload: { playlistId },
     },

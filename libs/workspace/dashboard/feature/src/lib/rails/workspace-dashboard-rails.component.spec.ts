@@ -5,6 +5,7 @@ import {
     buildDashboardRailSeeAllState,
     buildDashboardSourceActions,
     liveRailTitleKeyForSource,
+    shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
 } from './dashboard-rail.utils';
 import {
@@ -460,6 +461,38 @@ describe('recent content skeleton helper', () => {
                 continueWatchingCount: 1,
                 recentLiveCount: 1,
                 globalRecentLoading: true,
+            })
+        ).toBe(false);
+    });
+});
+
+describe('live favorites skeleton helper', () => {
+    it('shows the skeleton while initial global favorites are still loading', () => {
+        expect(
+            shouldShowLiveFavoritesSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    liveFavorites: true,
+                },
+                { globalFavoritesLoading: true }
+            )
+        ).toBe(true);
+    });
+
+    it('hides the skeleton when live favorites are disabled or loading is complete', () => {
+        expect(
+            shouldShowLiveFavoritesSkeleton(
+                {
+                    ...DEFAULT_DASHBOARD_RAILS_SETTINGS,
+                    liveFavorites: false,
+                },
+                { globalFavoritesLoading: true }
+            )
+        ).toBe(false);
+
+        expect(
+            shouldShowLiveFavoritesSkeleton(DEFAULT_DASHBOARD_RAILS_SETTINGS, {
+                globalFavoritesLoading: false,
             })
         ).toBe(false);
     });

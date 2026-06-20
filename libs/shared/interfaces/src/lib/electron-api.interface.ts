@@ -12,6 +12,7 @@ import {
     GlobalSearchResult,
     GlobalSearchResultSource,
 } from './global-search-result.interface';
+import { M3uFavoriteChannel } from './m3u-favorite-channel.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 import {
     XtreamBackupFavoriteItem,
@@ -565,7 +566,11 @@ export interface ElectronBridgeApi {
         playlists: Playlist[]
     ) => Promise<ElectronBridgeCountResult>;
     dbGetAppPlaylists: () => Promise<Playlist[]>;
+    dbGetAppPlaylistMetas: () => Promise<Playlist[]>;
     dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
+    dbGetAppPlaylistFavoriteChannels: (
+        playlistId: string
+    ) => Promise<M3uFavoriteChannel[]>;
     dbUpdatePlaylist: (
         playlistId: string,
         updates: Partial<Playlist> | ElectronBridgePlaylistInput

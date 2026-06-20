@@ -72,6 +72,7 @@ import {
     isXtreamAccountPlaylist,
     liveRailTitleKeyForSource,
     RAIL_ITEM_LIMIT,
+    shouldShowLiveFavoritesSkeleton,
     shouldShowRecentContentSkeleton,
     SKELETON_CARDS_PER_RAIL,
     SKELETON_RAILS,
@@ -201,6 +202,12 @@ export class WorkspaceDashboardRailsComponent {
             .map((item) => this.toRecentCard(item))
     );
 
+    readonly showLiveFavoritesSkeleton = computed(() =>
+        shouldShowLiveFavoritesSkeleton(this.dashboardRails(), {
+            globalFavoritesLoading: this.data.globalFavoritesLoading(),
+        })
+    );
+
     readonly showRecentContentSkeleton = computed(() =>
         shouldShowRecentContentSkeleton(this.dashboardRails(), {
             continueWatchingCount: this.continueWatchingCards().length,
@@ -311,9 +318,14 @@ export class WorkspaceDashboardRailsComponent {
         void this.data.reloadGlobalFavorites();
 
         // Refresh when Xtream playlist count changes so a newly added provider
-        // populates the rail without a manual dashboard reload.
+        // populates the rail without a manual dashboard reload. The Xtream
+        // recently-added query can be the slowest dashboard worker request on
+        // startup, so let favorites claim the worker first.
         effect(() => {
-            if (this.xtreamPlaylistCount() === 0) {
+            if (
+                this.xtreamPlaylistCount() === 0 ||
+                !this.data.globalFavoritesLoaded()
+            ) {
                 return;
             }
 

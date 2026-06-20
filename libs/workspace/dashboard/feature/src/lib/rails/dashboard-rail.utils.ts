@@ -120,6 +120,10 @@ type DashboardRecentRailSettings = Pick<
     DashboardRailsSettings,
     'continueWatching' | 'recentlyWatchedLive'
 >;
+type DashboardLiveFavoriteRailSettings = Pick<
+    DashboardRailsSettings,
+    'liveFavorites'
+>;
 
 export interface DashboardRecentContentSkeletonInput {
     readonly continueWatchingCount: number;
@@ -139,4 +143,15 @@ export function shouldShowRecentContentSkeleton(
         (rails.continueWatching && input.continueWatchingCount === 0) ||
         (rails.recentlyWatchedLive && input.recentLiveCount === 0)
     );
+}
+
+export interface DashboardLiveFavoritesSkeletonInput {
+    readonly globalFavoritesLoading: boolean;
+}
+
+export function shouldShowLiveFavoritesSkeleton(
+    rails: DashboardLiveFavoriteRailSettings,
+    input: DashboardLiveFavoritesSkeletonInput
+): boolean {
+    return rails.liveFavorites && input.globalFavoritesLoading;
 }

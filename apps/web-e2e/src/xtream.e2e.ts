@@ -1,5 +1,6 @@
 import type { APIRequestContext, Page } from '@playwright/test';
 import { expect, test } from './fixtures';
+import { setInputValue } from './e2e-helpers';
 import {
     getRegisteredProviderUrl,
     interceptProviderTargetRegistration,
@@ -82,10 +83,10 @@ async function addXtreamPortal(
     // v0.22 redesign: tabs were replaced with a flat 5-card radio picker.
     await dialog.getByRole('radio', { name: /Xtream credentials/i }).click();
 
-    await dialog.locator('#title').fill(name);
-    await dialog.locator('#serverUrl').fill(MOCK_SERVER);
-    await dialog.locator('#username').fill(username);
-    await dialog.locator('#password').fill(password);
+    await setInputValue(dialog.locator('#title'), name);
+    await setInputValue(dialog.locator('#serverUrl'), MOCK_SERVER);
+    await setInputValue(dialog.locator('#username'), username);
+    await setInputValue(dialog.locator('#password'), password);
 
     await dialog.getByRole('button', { name: 'Add', exact: true }).click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
@@ -475,14 +476,22 @@ test('@xtream playlist details edit is retained in the PWA browser context', asy
         page,
         'Editable PWA Xtream Portal'
     );
-    await dialog
-        .locator('input[formcontrolname="title"]')
-        .fill('Edited PWA Xtream Portal');
-    await dialog
-        .locator('input[formcontrolname="serverUrl"]')
-        .fill(MOCK_SERVER);
-    await dialog.locator('input[formcontrolname="username"]').fill('minimal');
-    await dialog.locator('input[formcontrolname="password"]').fill('minimal');
+    await setInputValue(
+        dialog.locator('input[formcontrolname="title"]'),
+        'Edited PWA Xtream Portal'
+    );
+    await setInputValue(
+        dialog.locator('input[formcontrolname="serverUrl"]'),
+        MOCK_SERVER
+    );
+    await setInputValue(
+        dialog.locator('input[formcontrolname="username"]'),
+        'minimal'
+    );
+    await setInputValue(
+        dialog.locator('input[formcontrolname="password"]'),
+        'minimal'
+    );
     await dialog.getByRole('button', { name: 'Save', exact: true }).click();
     await expect(dialog).toBeHidden();
 

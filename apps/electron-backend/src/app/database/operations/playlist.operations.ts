@@ -1,5 +1,6 @@
 import { eq, inArray } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
+import type { Channel, M3uFavoriteChannel } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
     checkpointOperation,
@@ -56,6 +57,36 @@ function parseJsonValue<T>(value: string | null | undefined, fallback: T): T {
         console.warn('Failed to parse JSON value from DB:', error);
         return fallback;
     }
+}
+
+function getFavoriteChannelMatch(
+    channel: Channel,
+    favoritePositions: ReadonlyMap<string, number>
+): { favoriteId: string; favoriteIndex: number } | null {
+    const channelId = String(channel.id ?? '').trim();
+    const channelUrl = String(channel.url ?? '').trim();
+    const channelIdFavoritePosition = favoritePositions.get(channelId);
+    const channelUrlFavoritePosition = favoritePositions.get(channelUrl);
+
+    if (
+        channelIdFavoritePosition !== undefined &&
+        (channelUrlFavoritePosition === undefined ||
+            channelIdFavoritePosition <= channelUrlFavoritePosition)
+    ) {
+        return {
+            favoriteId: channelId,
+            favoriteIndex: channelIdFavoritePosition,
+        };
+    }
+
+    if (channelUrlFavoritePosition !== undefined) {
+        return {
+            favoriteId: channelUrl,
+            favoriteIndex: channelUrlFavoritePosition,
+        };
+    }
+
+    return null;
 }
 
 function inferPlaylistType(playlist: Record<string, unknown>): PlaylistType {
@@ -277,6 +308,43 @@ export async function getAppPlaylists(db: AppDatabase) {
     return rows.map((row) => parseAppPlaylist(row));
 }
 
+export async function getAppPlaylistMetas(db: AppDatabase) {
+    const rows = await db
+        .select({
+            id: schema.playlists.id,
+            name: schema.playlists.name,
+            serverUrl: schema.playlists.serverUrl,
+            username: schema.playlists.username,
+            password: schema.playlists.password,
+            dateCreated: schema.playlists.dateCreated,
+            lastUpdated: schema.playlists.lastUpdated,
+            type: schema.playlists.type,
+            userAgent: schema.playlists.userAgent,
+            origin: schema.playlists.origin,
+            referrer: schema.playlists.referrer,
+            filePath: schema.playlists.filePath,
+            autoRefresh: schema.playlists.autoRefresh,
+            macAddress: schema.playlists.macAddress,
+            url: schema.playlists.url,
+            portalUrl: schema.playlists.portalUrl,
+            count: schema.playlists.count,
+            importDate: schema.playlists.importDate,
+            updateDate: schema.playlists.updateDate,
+            position: schema.playlists.position,
+            favorites: schema.playlists.favorites,
+            recentlyViewed: schema.playlists.recentlyViewed,
+            lastUsage: schema.playlists.lastUsage,
+        })
+        .from(schema.playlists);
+
+    return rows.map((row) =>
+        parseAppPlaylist({
+            ...row,
+            payload: null,
+        } as schema.Playlist)
+    );
+}
+
 export async function getAppPlaylist(db: AppDatabase, playlistId: string) {
     const rows = await db
         .select()
@@ -285,6 +353,70 @@ export async function getAppPlaylist(db: AppDatabase, playlistId: string) {
         .limit(1);
 
     return rows[0] ? parseAppPlaylist(rows[0]) : null;
+}
+
+export async function getAppPlaylistFavoriteChannels(
+    db: AppDatabase,
+    playlistId: string
+): Promise<M3uFavoriteChannel[]> {
+    const rows = await db
+        .select({
+            id: schema.playlists.id,
+            favorites: schema.playlists.favorites,
+            payload: schema.playlists.payload,
+        })
+        .from(schema.playlists)
+        .where(eq(schema.playlists.id, playlistId))
+        .limit(1);
+    const row = rows[0];
+    if (!row) {
+        return [];
+    }
+
+    const favorites = parseJsonValue<unknown[]>(row.favorites, []).filter(
+        (favorite): favorite is string =>
+            typeof favorite === 'string' && favorite.trim().length > 0
+    );
+    if (favorites.length === 0) {
+        return [];
+    }
+
+    const payload = parseJsonValue<{
+        playlist?: { items?: Channel[] };
+    } | null>(row.payload, null);
+    const channels = Array.isArray(payload?.playlist?.items)
+        ? payload.playlist.items
+        : [];
+    if (channels.length === 0) {
+        return [];
+    }
+
+    const favoritePositions = new Map<string, number>();
+    favorites.forEach((favorite, index) => {
+        if (!favoritePositions.has(favorite)) {
+            favoritePositions.set(favorite, index);
+        }
+    });
+
+    const resolved: M3uFavoriteChannel[] = [];
+    for (const channel of channels) {
+        const match = getFavoriteChannelMatch(channel, favoritePositions);
+        if (!match) {
+            continue;
+        }
+
+        resolved.push({
+            favoriteId: match.favoriteId,
+            favoriteIndex: match.favoriteIndex,
+            channel,
+        });
+
+        if (resolved.length === favoritePositions.size) {
+            break;
+        }
+    }
+
+    return resolved.sort((a, b) => a.favoriteIndex - b.favoriteIndex);
 }
 
 export async function getPlaylist(db: AppDatabase, playlistId: string) {

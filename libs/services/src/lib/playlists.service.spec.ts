@@ -130,6 +130,48 @@ describe('PlaylistsService', () => {
         expect(playlists[0]).not.toHaveProperty('items');
     });
 
+    it('loads Electron playlist summaries from the metadata-only bridge when available', async () => {
+        const electron = {
+            dbGetAppPlaylist: jest.fn(),
+            dbGetAppPlaylistMetas: jest.fn(async () => [
+                {
+                    _id: 'playlist-meta',
+                    title: 'Metadata Playlist',
+                    count: 2,
+                    favorites: ['channel-1'],
+                    playlist: {
+                        items: [{ id: 'channel-1' }],
+                    },
+                },
+            ]),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ||
+                key === STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
+                    ? '1'
+                    : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        const service = createService();
+        const playlists = await firstValueFrom(service.getAllPlaylists());
+
+        expect(electron.dbGetAppPlaylistMetas).toHaveBeenCalledTimes(1);
+        expect(electron.dbGetAppPlaylists).not.toHaveBeenCalled();
+        expect(playlists).toEqual([
+            expect.objectContaining({
+                _id: 'playlist-meta',
+                title: 'Metadata Playlist',
+                favorites: ['channel-1'],
+            }),
+        ]);
+        expect(playlists[0]).not.toHaveProperty('playlist');
+    });
+
     it('normalizes partial SQLite playlists when loading by id', async () => {
         const electron = {
             dbGetAppPlaylist: jest.fn(async () => ({
@@ -166,6 +208,75 @@ describe('PlaylistsService', () => {
                 url: 'https://example.com/list.m3u',
             })
         );
+    });
+
+    it('loads resolved M3U favorite channels from Electron without fetching the full playlist payload', async () => {
+        const resolvedFavorites = [
+            {
+                favoriteId: 'channel-1',
+                favoriteIndex: 0,
+                channel: {
+                    id: 'channel-1',
+                    name: 'Channel One',
+                    url: 'https://example.com/stream-1.m3u8',
+                },
+            },
+        ];
+        const electron = {
+            dbGetAppPlaylist: jest.fn(),
+            dbGetAppPlaylistFavoriteChannels: jest.fn(
+                async () => resolvedFavorites
+            ),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ||
+                key === STALKER_PLAYLIST_METADATA_MIGRATION_FLAG
+                    ? '1'
+                    : null
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        const service = createService();
+
+        await expect(
+            firstValueFrom(service.getM3uFavoriteChannels('playlist-1'))
+        ).resolves.toBe(resolvedFavorites);
+        expect(electron.dbGetAppState).toHaveBeenCalledWith(
+            SQLITE_PLAYLIST_MIGRATION_FLAG
+        );
+        expect(electron.dbGetAppPlaylistFavoriteChannels).toHaveBeenCalledWith(
+            'playlist-1'
+        );
+        expect(electron.dbGetAppPlaylist).not.toHaveBeenCalled();
+        expect(electron.dbGetAppPlaylists).not.toHaveBeenCalled();
+    });
+
+    it('falls back from resolved M3U favorites when SQLite playlist migration is incomplete', async () => {
+        const electron = {
+            dbGetAppPlaylist: jest.fn(),
+            dbGetAppPlaylistFavoriteChannels: jest.fn(),
+            dbGetAppPlaylists: jest.fn(async () => []),
+            dbGetAppState: jest.fn(async (key: string) =>
+                key === SQLITE_PLAYLIST_MIGRATION_FLAG ? null : '1'
+            ),
+            dbSetAppState: jest.fn(),
+            dbUpsertAppPlaylist: jest.fn(),
+            dbUpsertAppPlaylists: jest.fn(),
+        };
+        testWindow.electron = electron;
+
+        const service = createService();
+
+        await expect(
+            firstValueFrom(service.getM3uFavoriteChannels('playlist-1'))
+        ).resolves.toBeNull();
+        expect(electron.dbGetAppPlaylistFavoriteChannels).not.toHaveBeenCalled();
+        expect(electron.dbGetAppPlaylist).not.toHaveBeenCalled();
+        expect(electron.dbGetAppPlaylists).not.toHaveBeenCalled();
     });
 
     it('adds browser playlists through IndexedDB and returns the original playlist', async () => {

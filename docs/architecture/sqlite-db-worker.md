@@ -259,13 +259,28 @@ Xtream-only row shape:
 2. `DB_UPSERT_APP_PLAYLIST`
 3. `DB_UPSERT_APP_PLAYLISTS`
 4. `DB_GET_APP_PLAYLISTS`
-5. `DB_GET_APP_PLAYLIST`
-6. `DB_GET_PLAYLIST`
-7. `DB_UPDATE_PLAYLIST`
-8. `DB_DELETE_PLAYLIST`
-9. `DB_DELETE_ALL_PLAYLISTS`
-10. `DB_GET_APP_STATE`
-11. `DB_SET_APP_STATE`
+5. `DB_GET_APP_PLAYLIST_METAS`
+6. `DB_GET_APP_PLAYLIST`
+7. `DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS`
+8. `DB_GET_PLAYLIST`
+9. `DB_UPDATE_PLAYLIST`
+10. `DB_DELETE_PLAYLIST`
+11. `DB_DELETE_ALL_PLAYLISTS`
+12. `DB_GET_APP_STATE`
+13. `DB_SET_APP_STATE`
+
+`DB_GET_APP_PLAYLIST_METAS` is the preferred path for summary surfaces such as
+the workspace sidebar and dashboard source rail. It selects playlist metadata
+columns only and deliberately skips the large `payload` column, which can
+contain full parsed M3U channel lists. Full playlist reads must continue using
+`DB_GET_APP_PLAYLIST` for one playlist or `DB_GET_APP_PLAYLISTS` for legacy
+full-data workflows.
+
+`DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS` is a dashboard-oriented M3U fast path.
+It resolves a playlist's favorite IDs to matching channel payloads inside the
+DB worker and returns only the matched channels plus favorite order metadata.
+Renderer code must still fall back to `DB_GET_APP_PLAYLIST` when the fast path
+is unavailable or the SQLite playlist migration has not completed.
 
 ### Xtream refresh helpers
 

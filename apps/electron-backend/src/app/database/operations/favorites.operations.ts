@@ -89,40 +89,21 @@ export async function getFavorites(db: AppDatabase, playlistId: string) {
 }
 
 export async function getGlobalFavorites(db: AppDatabase) {
-    return db
-        .select({
-            id: schema.content.id,
-            category_id: schema.content.categoryId,
-            title: schema.content.title,
-            rating: schema.content.rating,
-            added: schema.content.added,
-            poster_url: schema.content.posterUrl,
-            xtream_id: schema.content.xtreamId,
-            type: schema.content.type,
-            playlist_id: schema.playlists.id,
-            playlist_name: schema.playlists.name,
-            added_at: schema.favorites.addedAt,
-            position: schema.favorites.position,
-        })
-        .from(schema.favorites)
-        .innerJoin(
-            schema.content,
-            eq(schema.favorites.contentId, schema.content.id)
-        )
-        .innerJoin(
-            schema.categories,
-            eq(schema.content.categoryId, schema.categories.id)
-        )
-        .innerJoin(
-            schema.playlists,
-            eq(schema.categories.playlistId, schema.playlists.id)
-        )
-        .where(eq(schema.content.type, 'live'))
-        .orderBy(asc(schema.favorites.position), desc(schema.favorites.addedAt))
-        .limit(300);
+    const favorites = await selectGlobalFavoriteRows(db, {
+        includeBackdrop: false,
+    });
+
+    return favorites.filter((favorite) => favorite.type === 'live').slice(0, 300);
 }
 
 export async function getAllGlobalFavorites(db: AppDatabase) {
+    return selectGlobalFavoriteRows(db, { includeBackdrop: true }).limit(500);
+}
+
+function selectGlobalFavoriteRows(
+    db: AppDatabase,
+    options: { includeBackdrop: boolean }
+) {
     return db
         .select({
             id: schema.content.id,
@@ -131,7 +112,9 @@ export async function getAllGlobalFavorites(db: AppDatabase) {
             rating: schema.content.rating,
             added: schema.content.added,
             poster_url: schema.content.posterUrl,
-            backdrop_url: schema.content.backdropUrl,
+            ...(options.includeBackdrop
+                ? { backdrop_url: schema.content.backdropUrl }
+                : {}),
             xtream_id: schema.content.xtreamId,
             type: schema.content.type,
             playlist_id: schema.playlists.id,
@@ -152,8 +135,7 @@ export async function getAllGlobalFavorites(db: AppDatabase) {
             schema.playlists,
             eq(schema.categories.playlistId, schema.playlists.id)
         )
-        .orderBy(asc(schema.favorites.position), desc(schema.favorites.addedAt))
-        .limit(500);
+        .orderBy(asc(schema.favorites.position), desc(schema.favorites.addedAt));
 }
 
 export async function reorderGlobalFavorites(

@@ -28,6 +28,7 @@ import {
 import {
     buildPlaylistRecentItems,
     Channel,
+    M3uFavoriteChannel,
     Playlist,
     PortalAddedItem,
     PortalActivityItem,
@@ -116,7 +117,7 @@ export class DashboardDataService {
     private readonly ngZone = inject(NgZone);
     private readonly translate = inject(TranslateService);
     private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private favoritesAutoRefreshEnabled = false;
+    private readonly favoritesAutoRefreshEnabled = signal(false);
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
         { initialValue: null }
@@ -171,6 +172,8 @@ export class DashboardDataService {
     );
     private readonly globalFavoritesLoadingState = signal(true);
     private readonly globalFavoritesLoadedState = signal(false);
+    private readonly xtreamGlobalFavoritesLoadedState = signal(false);
+    private readonly playlistBackedGlobalFavoritesLoadedState = signal(false);
     private readonly xtreamRecentlyAddedLoadingState = signal(true);
     private readonly xtreamRecentlyAddedLoadedState = signal(false);
     readonly playlists = this.store.selectSignal(selectAllPlaylistsMeta);
@@ -427,11 +430,14 @@ export class DashboardDataService {
     constructor() {
         effect(() => {
             this.playlistFavoritesReloadKey();
-            if (!this.playlistsLoaded() || !this.favoritesAutoRefreshEnabled) {
+            if (
+                !this.playlistsLoaded() ||
+                !this.favoritesAutoRefreshEnabled()
+            ) {
                 return;
             }
 
-            void this.refreshPlaylistBackedGlobalFavorites();
+            void this.reloadPlaylistBackedGlobalFavorites();
         });
 
         effect(() => {
@@ -523,13 +529,27 @@ export class DashboardDataService {
     async reloadGlobalFavorites(): Promise<void> {
         if (!this.globalFavoritesLoaded()) {
             this.globalFavoritesLoadingState.set(true);
+            this.xtreamGlobalFavoritesLoadedState.set(false);
+            this.playlistBackedGlobalFavoritesLoadedState.set(false);
         }
 
-        const xtreamReload = this.reloadXtreamGlobalFavorites();
-        const m3uReload = this.refreshPlaylistBackedGlobalFavorites();
+        const xtreamReload = this.reloadXtreamGlobalFavorites().finally(() => {
+            this.ngZone.run(() =>
+                this.xtreamGlobalFavoritesLoadedState.set(true)
+            );
+            this.finishInitialGlobalFavoritesLoadIfReady();
+        });
+        const m3uReload = this.reloadPlaylistBackedGlobalFavorites();
 
         await Promise.all([xtreamReload, m3uReload]);
-        this.favoritesAutoRefreshEnabled = true;
+        if (
+            this.playlistsLoaded() &&
+            !this.playlistBackedGlobalFavoritesLoadedState()
+        ) {
+            await this.reloadPlaylistBackedGlobalFavorites();
+        }
+        this.finishInitialGlobalFavoritesLoadIfReady();
+        this.favoritesAutoRefreshEnabled.set(true);
     }
 
     async getGlobalRecentlyAddedItems(
@@ -600,7 +620,6 @@ export class DashboardDataService {
         if (!this.hasPortalActivityStorage) {
             const favorites = await this.loadPwaXtreamGlobalFavorites();
             this.ngZone.run(() => this.xtreamGlobalFavorites.set(favorites));
-            this.finishInitialGlobalFavoritesLoadIfReady();
             return;
         }
 
@@ -616,8 +635,6 @@ export class DashboardDataService {
                 err
             );
             this.ngZone.run(() => this.xtreamGlobalFavorites.set([]));
-        } finally {
-            this.finishInitialGlobalFavoritesLoadIfReady();
         }
     }
 
@@ -710,9 +727,25 @@ export class DashboardDataService {
         return 'movie';
     }
 
-    private async refreshPlaylistBackedGlobalFavorites(): Promise<void> {
-        await this.reloadM3uGlobalFavorites();
+    private async reloadPlaylistBackedGlobalFavorites(): Promise<void> {
+        const loaded = await this.refreshPlaylistBackedGlobalFavorites();
+        if (!loaded) {
+            return;
+        }
+
+        this.ngZone.run(() =>
+            this.playlistBackedGlobalFavoritesLoadedState.set(true)
+        );
         this.finishInitialGlobalFavoritesLoadIfReady();
+    }
+
+    private async refreshPlaylistBackedGlobalFavorites(): Promise<boolean> {
+        if (!this.playlistsLoaded()) {
+            return false;
+        }
+
+        await this.reloadM3uGlobalFavorites();
+        return true;
     }
 
     private async reloadM3uGlobalFavorites(): Promise<void> {
@@ -762,7 +795,12 @@ export class DashboardDataService {
                 let items: DashboardFavoriteItem[];
                 try {
                     items = await this.loadM3uPlaylistFavorites(playlist);
-                } catch {
+                } catch (err) {
+                    console.warn(
+                        '[DashboardData] Failed to load M3U favorites for playlist',
+                        playlist._id,
+                        err
+                    );
                     items = [];
                 }
 
@@ -778,7 +816,11 @@ export class DashboardDataService {
     }
 
     private finishInitialGlobalFavoritesLoadIfReady(): void {
-        if (!this.playlistsLoaded()) {
+        if (
+            !this.playlistsLoaded() ||
+            !this.xtreamGlobalFavoritesLoadedState() ||
+            !this.playlistBackedGlobalFavoritesLoadedState()
+        ) {
             return;
         }
 
@@ -1059,14 +1101,20 @@ export class DashboardDataService {
     ): Promise<DashboardFavoriteItem[]> {
         // Cache fingerprint covers what affects the result: the favorites
         // list itself and the playlist's update timestamp (changes mean
-        // channels may have been added/removed by a refresh). A cache hit
-        // skips the heavyweight getPlaylistById() call — for large M3U
-        // playlists that's a serialized payload of 90K+ channels avoided
-        // entirely on repeat dashboard mounts.
+        // channels may have been added/removed by a refresh).
         const fingerprint = this.buildM3uFavoritesFingerprint(playlistMeta);
         const cached = this.m3uFavoritesCache.get(playlistMeta._id);
         if (cached && cached.fingerprint === fingerprint) {
             return cached.items;
+        }
+
+        const fastPathItems =
+            await this.loadM3uPlaylistFavoritesFromResolvedChannels(
+                playlistMeta,
+                fingerprint
+            );
+        if (fastPathItems !== null) {
+            return fastPathItems;
         }
 
         const playlist = (await firstValueFrom(
@@ -1126,25 +1174,14 @@ export class DashboardDataService {
                     return acc;
                 }
 
-                acc.push({
-                    id: matchedFavoriteId,
-                    title:
-                        channel.name?.trim() || channel.tvg?.name || channelId,
-                    type: 'live',
-                    playlist_id: playlistMeta._id,
-                    playlist_name:
-                        playlistMeta.title || playlistMeta.filename || 'M3U',
-                    added_at: fallbackTimestamp,
-                    category_id: 'live',
-                    xtream_id: matchedFavoriteId,
-                    poster_url: channel.tvg?.logo || undefined,
-                    epg_lookup_key:
-                        channel.tvg?.id?.trim() ||
-                        channel.tvg?.name?.trim() ||
-                        channel.name?.trim() ||
-                        undefined,
-                    source: 'm3u',
-                });
+                acc.push(
+                    this.createM3uFavoriteItem(
+                        playlistMeta,
+                        matchedFavoriteId,
+                        channel,
+                        fallbackTimestamp
+                    )
+                );
                 return acc;
             },
             []
@@ -1155,6 +1192,77 @@ export class DashboardDataService {
             items: computedItems,
         });
         return computedItems;
+    }
+
+    private async loadM3uPlaylistFavoritesFromResolvedChannels(
+        playlistMeta: PlaylistMeta,
+        fingerprint: string
+    ): Promise<DashboardFavoriteItem[] | null> {
+        let resolvedChannels: M3uFavoriteChannel[] | null;
+        try {
+            resolvedChannels = await firstValueFrom(
+                this.playlistsService.getM3uFavoriteChannels(playlistMeta._id)
+            );
+        } catch (err) {
+            console.warn(
+                '[DashboardData] Failed to load resolved M3U favorites, falling back to full playlist payload',
+                err
+            );
+            return null;
+        }
+
+        if (resolvedChannels === null) {
+            return null;
+        }
+
+        const fallbackTimestamp =
+            this.getM3uFavoriteTimestamp(playlistMeta) ??
+            new Date(0).toISOString();
+        const items = resolvedChannels.slice().map((favorite) =>
+            this.createM3uFavoriteItem(
+                playlistMeta,
+                favorite.favoriteId,
+                favorite.channel,
+                fallbackTimestamp
+            )
+        );
+
+        this.m3uFavoritesCache.set(playlistMeta._id, {
+            fingerprint,
+            items,
+        });
+        return items;
+    }
+
+    private createM3uFavoriteItem(
+        playlistMeta: PlaylistMeta,
+        favoriteId: string,
+        channel: Channel,
+        fallbackTimestamp: string
+    ): DashboardFavoriteItem {
+        const channelId = String(channel.id ?? '').trim();
+
+        return {
+            id: favoriteId,
+            title:
+                channel.name?.trim() ||
+                channel.tvg?.name?.trim() ||
+                channelId ||
+                favoriteId,
+            type: 'live',
+            playlist_id: playlistMeta._id,
+            playlist_name: playlistMeta.title || playlistMeta.filename || 'M3U',
+            added_at: fallbackTimestamp,
+            category_id: 'live',
+            xtream_id: favoriteId,
+            poster_url: channel.tvg?.logo || undefined,
+            epg_lookup_key:
+                channel.tvg?.id?.trim() ||
+                channel.tvg?.name?.trim() ||
+                channel.name?.trim() ||
+                undefined,
+            source: 'm3u',
+        };
     }
 
     private buildM3uFavoritesFingerprint(playlist: PlaylistMeta): string {

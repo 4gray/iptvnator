@@ -21,6 +21,7 @@ import {
     DbStores,
     extractStalkerItemId,
     isM3uRecentlyViewedItem,
+    M3uFavoriteChannel,
     M3uRecentlyViewedItem,
     Playlist,
     PlaylistMeta,
@@ -50,6 +51,10 @@ type PlaylistStorageElectronApi = {
     dbDeleteAllPlaylists: () => Promise<unknown>;
     dbDeletePlaylist: (playlistId: string) => Promise<unknown>;
     dbGetAppPlaylist: (playlistId: string) => Promise<Playlist | null>;
+    dbGetAppPlaylistFavoriteChannels?: (
+        playlistId: string
+    ) => Promise<M3uFavoriteChannel[]>;
+    dbGetAppPlaylistMetas?: () => Promise<Playlist[]>;
     dbGetAppPlaylists: () => Promise<Playlist[]>;
     dbGetAppState: (key: string) => Promise<string | null>;
     dbSetAppState: (key: string, value: string) => Promise<unknown>;
@@ -379,7 +384,8 @@ export class PlaylistsService {
             return this.runOnSqlite(async () => {
                 const electron = this.electronApi;
                 const playlists = electron
-                    ? await electron.dbGetAppPlaylists()
+                    ? await (electron.dbGetAppPlaylistMetas?.() ??
+                          electron.dbGetAppPlaylists())
                     : [];
                 return (playlists as Playlist[]).map((playlist) =>
                     this.toPlaylistMeta(playlist)
@@ -646,6 +652,34 @@ export class PlaylistsService {
                     data.favorites?.includes(channel.id)
                 )
             )
+        );
+    }
+
+    getM3uFavoriteChannels(
+        playlistId: string
+    ): Observable<M3uFavoriteChannel[] | null> {
+        const electron = this.electronApi;
+        const getFavoriteChannels =
+            electron?.dbGetAppPlaylistFavoriteChannels;
+        if (
+            !electron ||
+            !this.isElectronStorageAvailable ||
+            typeof getFavoriteChannels !== 'function'
+        ) {
+            return of(null);
+        }
+
+        return from(
+            (async () => {
+                const alreadyMigrated = await electron.dbGetAppState(
+                    SQLITE_PLAYLIST_MIGRATION_FLAG
+                );
+                if (alreadyMigrated !== '1') {
+                    return null;
+                }
+
+                return getFavoriteChannels(playlistId);
+            })()
         );
     }
 

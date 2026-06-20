@@ -6,7 +6,7 @@ import {
     selectAllPlaylistsMeta,
     selectPlaylistsLoadingFlag,
 } from '@iptvnator/m3u-state';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import { DatabaseService, PlaylistsService } from '@iptvnator/services';
 import {
     PlaybackPositionData,
@@ -24,6 +24,17 @@ import {
 describe('DashboardDataService', () => {
     let service: DashboardDataService;
     const playlistsLoadedSignal = signal(true);
+
+    const waitForMockCall = async (mock: jest.Mock, attempts = 10) => {
+        for (let index = 0; index < attempts; index++) {
+            if (mock.mock.calls.length > 0) {
+                return;
+            }
+            await Promise.resolve();
+        }
+
+        throw new Error('Expected mock to be called');
+    };
 
     const createPendingItems = <T = never>() => {
         let resolvePending: (items: T[]) => void = () => {
@@ -135,6 +146,7 @@ describe('DashboardDataService', () => {
         },
     } as Playlist;
     const playlistsServiceMock = {
+        getM3uFavoriteChannels: jest.fn().mockReturnValue(of(null)),
         getPlaylistById: jest.fn().mockReturnValue(of(playlistMock)),
         setFavorites: jest.fn().mockReturnValue(of(undefined)),
         removeFromM3uRecentlyViewed: jest.fn().mockReturnValue(
@@ -177,6 +189,8 @@ describe('DashboardDataService', () => {
         });
         playlistsLoadedSignal.set(true);
         playlistsSignal.set(createDefaultPlaylists());
+        playlistsServiceMock.getM3uFavoriteChannels.mockClear();
+        playlistsServiceMock.getM3uFavoriteChannels.mockReturnValue(of(null));
         playlistsServiceMock.getPlaylistById.mockClear();
         playlistsServiceMock.getPlaylistById.mockReturnValue(of(playlistMock));
         playlistsServiceMock.setFavorites.mockClear();
@@ -249,6 +263,8 @@ describe('DashboardDataService', () => {
         expect(dbServiceMock.getAllGlobalFavorites).not.toHaveBeenCalled();
         expect(dbServiceMock.getGlobalRecentlyAdded).not.toHaveBeenCalled();
         expect(playlistsServiceMock.getPlaylistById).not.toHaveBeenCalled();
+        expect(service.globalFavoritesLoaded()).toBe(false);
+        expect(service.globalFavoritesLoading()).toBe(true);
         expect(service.dashboardReady()).toBe(false);
     });
 
@@ -310,6 +326,131 @@ describe('DashboardDataService', () => {
                 }),
             ])
         );
+    });
+
+    it('uses resolved M3U favorite channels when Electron can provide them without loading the full playlist payload', async () => {
+        playlistsServiceMock.getM3uFavoriteChannels.mockReturnValue(
+            of([
+                {
+                    favoriteId: 'channel-1',
+                    favoriteIndex: 0,
+                    channel: playlistMock.playlist.items[0],
+                },
+                {
+                    favoriteId: 'https://example.com/stream-2.m3u8',
+                    favoriteIndex: 1,
+                    channel: playlistMock.playlist.items[1],
+                },
+            ])
+        );
+
+        await service.reloadGlobalFavorites();
+
+        expect(
+            playlistsServiceMock.getM3uFavoriteChannels
+        ).toHaveBeenCalledWith('m3u-1');
+        expect(playlistsServiceMock.getPlaylistById).not.toHaveBeenCalled();
+        expect(service.globalFavoriteItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    id: 'channel-1',
+                    title: 'Channel One',
+                    source: 'm3u',
+                }),
+                expect.objectContaining({
+                    id: 'https://example.com/stream-2.m3u8',
+                    title: 'Channel Two',
+                    source: 'm3u',
+                }),
+            ])
+        );
+    });
+
+    it('keeps initial global favorites loading until playlist-backed favorites finish loading', async () => {
+        const pendingM3uPlaylist = new Subject<Playlist>();
+        playlistsServiceMock.getPlaylistById.mockReturnValue(
+            pendingM3uPlaylist.asObservable()
+        );
+
+        dbServiceMock.getAllGlobalFavorites.mockResolvedValue([
+            {
+                id: 501,
+                category_id: 19,
+                title: 'Fast Xtream Channel',
+                added_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/fav-channel.png',
+                xtream_id: 5501,
+                type: 'live',
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream Playlist',
+            },
+        ]);
+
+        const reload = service.reloadGlobalFavorites();
+        await Promise.resolve();
+        await waitForMockCall(playlistsServiceMock.getPlaylistById);
+
+        expect(service.globalFavoriteLiveItems()).toEqual([
+            expect.objectContaining({ title: 'Fast Xtream Channel' }),
+        ]);
+        expect(service.globalFavoritesLoaded()).toBe(false);
+        expect(service.globalFavoritesLoading()).toBe(true);
+
+        pendingM3uPlaylist.next(playlistMock);
+        pendingM3uPlaylist.complete();
+        await reload;
+
+        expect(service.globalFavoritesLoaded()).toBe(true);
+        expect(service.globalFavoritesLoading()).toBe(false);
+        expect(service.globalFavoriteLiveItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ title: 'Fast Xtream Channel' }),
+                expect.objectContaining({ title: 'Channel One' }),
+                expect.objectContaining({ title: 'Channel Two' }),
+            ])
+        );
+    });
+
+    it('reloads M3U favorites when playlists finish loading before the first global favorites reload completes', async () => {
+        playlistsLoadedSignal.set(false);
+        playlistsSignal.set([]);
+        TestBed.flushEffects();
+
+        const pendingXtreamFavorites = createPendingItems();
+        dbServiceMock.getAllGlobalFavorites.mockReturnValue(
+            pendingXtreamFavorites.promise
+        );
+
+        const reload = service.reloadGlobalFavorites();
+        await Promise.resolve();
+
+        expect(playlistsServiceMock.getPlaylistById).not.toHaveBeenCalled();
+
+        playlistsSignal.set(createDefaultPlaylists());
+        playlistsLoadedSignal.set(true);
+        TestBed.flushEffects();
+        await Promise.resolve();
+
+        expect(playlistsServiceMock.getPlaylistById).not.toHaveBeenCalled();
+
+        pendingXtreamFavorites.resolve([]);
+        await reload;
+        TestBed.flushEffects();
+        await Promise.resolve();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(playlistsServiceMock.getPlaylistById).toHaveBeenCalledWith(
+            'm3u-1'
+        );
+        expect(service.globalFavoriteLiveItems()).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({ title: 'Channel One' }),
+                expect.objectContaining({ title: 'Channel Two' }),
+            ])
+        );
+        expect(service.globalFavoritesLoaded()).toBe(true);
+        expect(service.globalFavoritesLoading()).toBe(false);
     });
 
     it('keeps the earliest matching M3U favorite id when channel id and URL both match', async () => {
