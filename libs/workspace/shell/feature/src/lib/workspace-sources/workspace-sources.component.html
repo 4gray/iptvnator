@@ -4,9 +4,9 @@
 >
     @if (visibleSourcesCount() > 0) {
         <header class="sources-header">
-            <div class="sources-header__text">
+            <div class="sources-header__meta">
                 <h2 class="sources-title">{{ title() }}</h2>
-                <p class="sources-subtitle">{{ subtitle() }}</p>
+                <span class="sources-subtitle">{{ subtitle() }}</span>
             </div>
             <button
                 type="button"
@@ -36,7 +36,10 @@
             </mat-menu>
         </header>
     }
-    <div class="sources-content">
+    <div
+        class="sources-content"
+        [class.app-scrollbar]="visibleSourcesCount() > 0"
+    >
         <app-recent-playlists
             [searchQueryInput]="searchQuery()"
             (addPlaylistClicked)="onAddPlaylist($event)"
