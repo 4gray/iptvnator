@@ -875,8 +875,6 @@
         "SORT_DATE_ASC": "تاريخ الإضافة (الأقدم أولاً)",
         "SORT_NAME_ASC": "الاسم (أ-ي)",
         "SORT_NAME_DESC": "الاسم (ي-أ)",
-        "SORT_RATING_DESC": "Rating (high to low)",
-        "SORT_RATING_ASC": "Rating (low to high)",
         "SORT_TOP_RATED": "Top rated",
         "SORT_LOWEST_RATED": "Lowest rated first",
         "REFINE_ACTION": "Refine",

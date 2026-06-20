@@ -875,8 +875,6 @@
         "SORT_DATE_ASC": "Datum toegevoegd (oudste eerst)",
         "SORT_NAME_ASC": "Naam A-Z",
         "SORT_NAME_DESC": "Naam Z-A",
-        "SORT_RATING_DESC": "Rating (high to low)",
-        "SORT_RATING_ASC": "Rating (low to high)",
         "SORT_TOP_RATED": "Top rated",
         "SORT_LOWEST_RATED": "Lowest rated first",
         "REFINE_ACTION": "Refine",

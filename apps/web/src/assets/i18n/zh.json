@@ -875,8 +875,6 @@
         "SORT_DATE_ASC": "添加日期（最旧优先）",
         "SORT_NAME_ASC": "名称 A-Z",
         "SORT_NAME_DESC": "名称 Z-A",
-        "SORT_RATING_DESC": "Rating (high to low)",
-        "SORT_RATING_ASC": "Rating (low to high)",
         "SORT_TOP_RATED": "Top rated",
         "SORT_LOWEST_RATED": "Lowest rated first",
         "REFINE_ACTION": "Refine",

@@ -875,8 +875,6 @@
         "SORT_DATE_ASC": "Дата дадання (спачатку старыя)",
         "SORT_NAME_ASC": "Назва А-Я",
         "SORT_NAME_DESC": "Назва Я-А",
-        "SORT_RATING_DESC": "Rating (high to low)",
-        "SORT_RATING_ASC": "Rating (low to high)",
         "SORT_TOP_RATED": "Top rated",
         "SORT_LOWEST_RATED": "Lowest rated first",
         "REFINE_ACTION": "Refine",
