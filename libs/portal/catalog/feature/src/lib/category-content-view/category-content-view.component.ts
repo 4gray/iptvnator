@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { map } from 'rxjs/operators';
-import { MatIconButton } from '@angular/material/button';
+import { MatButtonModule } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
@@ -48,8 +48,8 @@ interface CategoryContentItem {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         GridListComponent,
+        MatButtonModule,
         MatIcon,
-        MatIconButton,
         MatMenuModule,
         MatPaginatorModule,
         MatTooltip,
@@ -103,6 +103,42 @@ export class CategoryContentViewComponent implements OnInit {
         return `${itemCount} ${itemCount === 1 ? 'item' : 'items'}`;
     });
     readonly canSortContent = computed(() => this.contentSortMode() !== null);
+    readonly supportsRatingSort = computed(
+        () => this.catalog.supportsRatingSort === true
+    );
+    readonly canFilterByRating = computed(
+        () =>
+            this.supportsRatingSort() &&
+            typeof this.catalog.setMinRating === 'function'
+    );
+    readonly minRating = computed(() =>
+        this.canFilterByRating() ? (this.catalog.minRating?.() ?? null) : null
+    );
+    readonly ratingThresholds = [9, 8, 7, 6, 5] as const;
+    readonly hasRefineControls = computed(
+        () => this.canSortContent() || this.canFilterByRating()
+    );
+    readonly activeRefinementCount = computed(() =>
+        this.minRating() !== null ? 1 : 0
+    );
+    readonly activeSortLabelKey = computed(() => {
+        switch (this.contentSortMode()) {
+            case 'date-desc':
+                return 'WORKSPACE.SORT_DATE_DESC';
+            case 'date-asc':
+                return 'WORKSPACE.SORT_DATE_ASC';
+            case 'name-asc':
+                return 'WORKSPACE.SORT_NAME_ASC';
+            case 'name-desc':
+                return 'WORKSPACE.SORT_NAME_DESC';
+            case 'rating-desc':
+                return 'WORKSPACE.SORT_TOP_RATED';
+            case 'rating-asc':
+                return 'WORKSPACE.SORT_LOWEST_RATED';
+            default:
+                return 'WORKSPACE.SORT_CUSTOM';
+        }
+    });
     readonly searchTerm = toSignal(
         this.activatedRoute.queryParamMap.pipe(map((p) => p.get('q') ?? '')),
         { initialValue: '' }
@@ -119,6 +155,10 @@ export class CategoryContentViewComponent implements OnInit {
 
     setContentSortMode(mode: PortalCatalogSortMode): void {
         this.catalog.setContentSortMode(mode);
+    }
+
+    setMinRating(value: number | null): void {
+        this.catalog.setMinRating?.(value);
     }
 
     ngOnInit(): void {

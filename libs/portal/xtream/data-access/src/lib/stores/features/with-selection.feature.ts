@@ -21,7 +21,9 @@ export type XtreamCategorySortMode =
     | 'date-desc'
     | 'date-asc'
     | 'name-asc'
-    | 'name-desc';
+    | 'name-desc'
+    | 'rating-desc'
+    | 'rating-asc';
 
 /**
  * Selection state for managing UI selection and pagination
@@ -34,6 +36,7 @@ export interface SelectionState {
     limit: number;
     contentSortMode: XtreamCategorySortMode;
     categorySearchTerm: string;
+    minRating: number | null;
     isLoadingDetails: boolean;
     detailsError: string | null;
 }
@@ -49,6 +52,7 @@ const initialSelectionState: SelectionState = {
     limit: Number(localStorage.getItem('xtream-page-size') ?? 25),
     contentSortMode: 'date-desc',
     categorySearchTerm: '',
+    minRating: null,
     isLoadingDetails: false,
     detailsError: null,
 };
@@ -114,6 +118,61 @@ type ParentSelectionStoreLike = {
     vodStreams?: () => XtreamSelectionItem[];
 };
 
+const parseRatingValue = (value: unknown): number | null => {
+    if (typeof value === 'number') {
+        return Number.isFinite(value) ? value : null;
+    }
+    if (typeof value === 'string') {
+        const parsed = Number.parseFloat(value.trim());
+        return Number.isFinite(parsed) ? parsed : null;
+    }
+    return null;
+};
+
+/**
+ * Numeric IMDb-style rating used for sorting/filtering. Mirrors the grid badge
+ * (prefers `rating_imdb`, falls back to the generic `rating`), checking the
+ * stream-list shape first and the nested `info` object as a fallback. Returns
+ * null when no parseable rating exists.
+ */
+export const getNumericRating = (
+    item: XtreamSelectionItem
+): number | null => {
+    const info =
+        item.info && !Array.isArray(item.info)
+            ? (item.info as Record<string, unknown>)
+            : null;
+    const record = item as Record<string, unknown>;
+    for (const field of ['rating_imdb', 'rating'] as const) {
+        const direct = parseRatingValue(record[field]);
+        if (direct !== null) {
+            return direct;
+        }
+        const nested = info ? parseRatingValue(info[field]) : null;
+        if (nested !== null) {
+            return nested;
+        }
+    }
+    return null;
+};
+
+/**
+ * Filter VOD/series items by a minimum IMDb rating. Unrated items are excluded
+ * while a threshold is active.
+ */
+export const filterByMinRating = (
+    items: XtreamSelectionItem[],
+    minRating: number | null
+): XtreamSelectionItem[] => {
+    if (minRating === null || minRating <= 0) {
+        return items;
+    }
+    return items.filter((item) => {
+        const rating = getNumericRating(item);
+        return rating !== null && rating >= minRating;
+    });
+};
+
 /**
  * Selection feature store for managing UI selection and pagination.
  * Handles:
@@ -155,6 +214,29 @@ export function withSelection() {
                             getItemDate(a, categoryType) -
                             getItemDate(b, categoryType)
                         );
+                    }
+
+                    if (
+                        sortMode === 'rating-desc' ||
+                        sortMode === 'rating-asc'
+                    ) {
+                        const ratingA = getNumericRating(a);
+                        const ratingB = getNumericRating(b);
+                        // Unrated items always sink to the bottom, regardless
+                        // of sort direction.
+                        if (ratingA === null || ratingB === null) {
+                            if (ratingA !== ratingB) {
+                                return ratingA === null ? 1 : -1;
+                            }
+                        } else if (ratingA !== ratingB) {
+                            return sortMode === 'rating-desc'
+                                ? ratingB - ratingA
+                                : ratingA - ratingB;
+                        }
+                        // Equal ratings (or both unrated): alphabetical tiebreak.
+                        const ratingTitleA = a.title ?? a.name ?? '';
+                        const ratingTitleB = b.title ?? b.name ?? '';
+                        return COLLATOR.compare(ratingTitleA, ratingTitleB);
                     }
 
                     const titleA = a.title ?? a.name ?? '';
@@ -269,6 +351,7 @@ export function withSelection() {
                           : storeAny.serialStreams?.() || [];
 
                 if (categoryType === 'vod' || categoryType === 'series') {
+                    const minRating = store.minRating();
                     let filtered = categoryId
                         ? content.filter(
                               (item) => Number(item.category_id) === categoryId
@@ -276,7 +359,8 @@ export function withSelection() {
                         : sortedContent();
 
                     filtered = filterBySearchTerm(filtered, searchTerm);
-                    return categoryId || searchTerm
+                    filtered = filterByMinRating(filtered, minRating);
+                    return categoryId || searchTerm || minRating
                         ? sortByMode(filtered, sortMode, categoryType)
                         : filtered;
                 }
@@ -436,6 +520,7 @@ export function withSelection() {
                     selectedCategoryId: null,
                     page: 0,
                     categorySearchTerm: '',
+                    minRating: null,
                 });
             },
 
@@ -454,6 +539,10 @@ export function withSelection() {
                         selectedCategoryId: newCategoryId,
                         page: 0,
                         categorySearchTerm: '',
+                        // Clear the rating filter on category change too, mirroring
+                        // categorySearchTerm and setSelectedContentType — otherwise a
+                        // stale threshold stays silently applied in the new category.
+                        minRating: null,
                     });
                 }
             },
@@ -503,6 +592,21 @@ export function withSelection() {
                 }
                 patchState(store, {
                     contentSortMode: mode,
+                    page: 0,
+                });
+            },
+
+            /**
+             * Set the minimum IMDb rating filter for VOD/series content.
+             * A null or non-positive value clears the filter.
+             */
+            setMinRating(value: number | null): void {
+                const normalized = value && value > 0 ? value : null;
+                if (store.minRating() === normalized) {
+                    return;
+                }
+                patchState(store, {
+                    minRating: normalized,
                     page: 0,
                 });
             },

@@ -14,16 +14,27 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
+    container: category-content / inline-size;
 }
 
 // ─── Sticky header bar — styled like a widget header ─────────────────────────
 .category-content-header {
     @include panel.standard-panel-header($sticky: true);
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto auto;
+    grid-template-areas: 'meta refinements refine paginator';
+    align-items: center;
+    justify-content: stretch;
+    gap: 8px 12px;
 }
 
 // ─── Category meta (title + subtitle) ────────────────────────────────────────
 .category-meta {
     @include panel.standard-panel-meta();
+    grid-area: meta;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
 }
 
 .category-title {
@@ -32,16 +43,198 @@
 
 .category-subtitle {
     @include panel.standard-panel-subtitle();
+    padding: 0;
+    border-radius: 0;
+    line-height: 1.2;
+    background: transparent;
+}
+
+// ─── Refine controls — show current sort/filter state compactly ──────────────
+.active-refinements {
+    grid-area: refinements;
+    justify-self: end;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 6px;
+    flex: 0 1 auto;
+    min-width: 0;
+    max-width: min(430px, 36cqi);
+    flex-wrap: wrap;
+    app-region: no-drag;
+}
+
+.refinement-chip,
+.refine-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    flex-shrink: 0;
+    min-height: 32px;
+    border-radius: 999px;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    --mdc-text-button-label-text-color: currentColor;
+    --mat-text-button-state-layer-color: currentColor;
+
+    mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+    }
+}
+
+.refinement-chip {
+    max-width: 220px;
+    padding: 0 10px;
+    background: var(--mat-sys-surface-container);
+    border: 1px solid rgba(255, 255, 255, 0.06);
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.refinement-chip-label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.refinement-chip-label-compact {
+    display: none;
+}
+
+@container category-content (max-width: 1120px) {
+    .refinement-chip-label-full {
+        display: none;
+    }
+
+    .refinement-chip-label-compact {
+        display: inline;
+    }
+}
+
+.sort-refinement-chip {
+    color: var(--mat-sys-on-surface-variant);
+    cursor: default;
+    user-select: none;
+}
+
+.rating-refinement-chip,
+.refine-action.refine-action-active {
+    color: var(--mat-sys-primary);
+}
+
+.refine-action {
+    grid-area: refine;
+    justify-self: end;
+    padding: 0 12px;
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    app-region: no-drag;
+}
+
+.refine-count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 18px;
+    height: 18px;
+    padding: 0 5px;
+    border-radius: 999px;
+    font-size: 0.68rem;
+    font-weight: 700;
+    line-height: 1;
+    color: var(--mat-sys-on-primary);
+    background: var(--mat-sys-primary);
+}
+
+.refine-menu-section-title {
+    padding: 8px 16px 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.2;
+    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.refine-menu-divider {
+    height: 1px;
+    margin: 6px 12px;
+    background: rgba(255, 255, 255, 0.08);
 }
 
 // ─── Paginator — flush right, no ghost background ────────────────────────────
 mat-paginator {
+    grid-area: paginator;
+    justify-self: end;
+    max-width: 100%;
     background: transparent !important;
     flex-shrink: 0;
     // Shrink paginator text to fit header height comfortably
     --mat-paginator-container-size: 40px;
-    --mat-paginator-enabled-icon-color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    --mat-paginator-enabled-icon-color: var(
+        --app-body-color,
+        var(--mat-sys-on-surface-variant)
+    );
     --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
+}
+
+@container category-content (max-width: 920px) {
+    .category-content-header {
+        grid-template-columns: minmax(0, 1fr) auto auto;
+        grid-template-areas:
+            'meta paginator paginator'
+            'refinements refinements refine';
+        padding: 8px 16px;
+        min-height: unset;
+    }
+
+    .active-refinements {
+        justify-self: stretch;
+        flex: 1 1 auto;
+        justify-content: flex-start;
+        max-width: none;
+    }
+
+    .refinement-chip {
+        max-width: min(220px, 100%);
+    }
+
+    .refine-action {
+        justify-self: end;
+    }
+}
+
+@container category-content (max-width: 640px) {
+    .category-content-header {
+        grid-template-columns: minmax(0, 1fr) auto;
+        grid-template-areas:
+            'meta meta'
+            'refinements refine'
+            'paginator paginator';
+    }
+
+    .category-meta {
+        width: 100%;
+    }
+
+    .active-refinements {
+        width: 100%;
+    }
+
+    .refinement-chip {
+        max-width: min(220px, calc(100cqi - 160px));
+    }
+
+    .refine-action {
+        justify-self: end;
+    }
+
+    mat-paginator {
+        justify-self: start;
+    }
 }
 
 // ─── Grid scroll area ─────────────────────────────────────────────────────────
@@ -56,17 +249,14 @@ app-grid-list {
 }
 
 @media (max-width: 768px) {
-    .category-content-header {
-        flex-direction: column;
-        align-items: flex-start;
-        padding: 10px 16px;
-        min-height: unset;
-    }
-
     .category-meta {
         flex-direction: column;
         align-items: flex-start;
         gap: 4px;
+    }
+
+    .active-refinements {
+        justify-content: flex-start;
     }
 
     app-grid-list {

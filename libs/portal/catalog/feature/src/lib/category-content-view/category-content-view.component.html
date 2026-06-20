@@ -12,62 +12,182 @@
                         {{ categoryItemSubtitle() }}
                     </div>
                 </div>
-                @if (canSortContent()) {
+                @if (hasRefineControls()) {
+                    <div class="active-refinements" aria-live="polite">
+                        @if (canSortContent()) {
+                            <div
+                                class="refinement-chip sort-refinement-chip"
+                                [attr.aria-label]="
+                                    ('WORKSPACE.SORT_LABEL' | translate) +
+                                    (activeSortLabelKey() | translate)
+                                "
+                            >
+                                <mat-icon>sort</mat-icon>
+                                <span
+                                    class="refinement-chip-label refinement-chip-label-full"
+                                >
+                                    {{ 'WORKSPACE.SORT_LABEL' | translate
+                                    }}{{ activeSortLabelKey() | translate }}
+                                </span>
+                                <span
+                                    class="refinement-chip-label refinement-chip-label-compact"
+                                >
+                                    {{ activeSortLabelKey() | translate }}
+                                </span>
+                            </div>
+                        }
+                        @if (minRating(); as rating) {
+                            <button
+                                type="button"
+                                mat-button
+                                class="refinement-chip rating-refinement-chip"
+                                (click)="setMinRating(null)"
+                                [attr.aria-label]="
+                                    'WORKSPACE.REFINE_CLEAR_RATING'
+                                        | translate: { value: rating }
+                                "
+                            >
+                                <mat-icon>star</mat-icon>
+                                <span
+                                    class="refinement-chip-label refinement-chip-label-full"
+                                >
+                                    {{ 'WORKSPACE.FILTER_RATING' | translate }}:
+                                    {{ rating }}.0+
+                                </span>
+                                <span
+                                    class="refinement-chip-label refinement-chip-label-compact"
+                                >
+                                    {{ rating }}.0+
+                                </span>
+                                <mat-icon>close</mat-icon>
+                            </button>
+                        }
+                    </div>
                     <button
                         type="button"
-                        mat-icon-button
-                        class="sort-action"
-                        [matMenuTriggerFor]="sortContentMenu"
-                        matTooltip="Sort content"
-                        aria-label="Sort content"
+                        mat-button
+                        class="refine-action"
+                        [class.refine-action-active]="activeRefinementCount() > 0"
+                        [matMenuTriggerFor]="refineMenu"
+                        [matTooltip]="'WORKSPACE.REFINE_ACTION' | translate"
+                        [attr.aria-label]="'WORKSPACE.REFINE_ACTION' | translate"
                     >
-                        <mat-icon>sort</mat-icon>
+                        <mat-icon>tune</mat-icon>
+                        <span>{{ 'WORKSPACE.REFINE_ACTION' | translate }}</span>
+                        @if (activeRefinementCount() > 0) {
+                            <span class="refine-count">{{
+                                activeRefinementCount()
+                            }}</span>
+                        }
                     </button>
-                    <mat-menu #sortContentMenu="matMenu">
-                        <button
-                            mat-menu-item
-                            (click)="setContentSortMode('date-desc')"
-                        >
-                            <span>{{
-                                'WORKSPACE.SORT_DATE_DESC' | translate
-                            }}</span>
-                            @if (contentSortMode() === 'date-desc') {
-                                <mat-icon>check</mat-icon>
+                    <mat-menu #refineMenu="matMenu" class="refine-menu">
+                        @if (canSortContent()) {
+                            <div class="refine-menu-section-title">
+                                {{ 'WORKSPACE.REFINE_SORT_SECTION' | translate }}
+                            </div>
+                            <button
+                                mat-menu-item
+                                (click)="setContentSortMode('date-desc')"
+                            >
+                                <span>{{
+                                    'WORKSPACE.SORT_DATE_DESC' | translate
+                                }}</span>
+                                @if (contentSortMode() === 'date-desc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            <button
+                                mat-menu-item
+                                (click)="setContentSortMode('date-asc')"
+                            >
+                                <span>{{
+                                    'WORKSPACE.SORT_DATE_ASC' | translate
+                                }}</span>
+                                @if (contentSortMode() === 'date-asc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            <button
+                                mat-menu-item
+                                (click)="setContentSortMode('name-asc')"
+                            >
+                                <span>{{
+                                    'WORKSPACE.SORT_NAME_ASC' | translate
+                                }}</span>
+                                @if (contentSortMode() === 'name-asc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            <button
+                                mat-menu-item
+                                (click)="setContentSortMode('name-desc')"
+                            >
+                                <span>{{
+                                    'WORKSPACE.SORT_NAME_DESC' | translate
+                                }}</span>
+                                @if (contentSortMode() === 'name-desc') {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            @if (supportsRatingSort()) {
+                                <button
+                                    mat-menu-item
+                                    (click)="setContentSortMode('rating-desc')"
+                                >
+                                    <span>{{
+                                        'WORKSPACE.SORT_TOP_RATED' | translate
+                                    }}</span>
+                                    @if (contentSortMode() === 'rating-desc') {
+                                        <mat-icon>check</mat-icon>
+                                    }
+                                </button>
+                                <button
+                                    mat-menu-item
+                                    (click)="setContentSortMode('rating-asc')"
+                                >
+                                    <span>{{
+                                        'WORKSPACE.SORT_LOWEST_RATED'
+                                            | translate
+                                    }}</span>
+                                    @if (contentSortMode() === 'rating-asc') {
+                                        <mat-icon>check</mat-icon>
+                                    }
+                                </button>
                             }
-                        </button>
-                        <button
-                            mat-menu-item
-                            (click)="setContentSortMode('date-asc')"
-                        >
-                            <span>{{
-                                'WORKSPACE.SORT_DATE_ASC' | translate
-                            }}</span>
-                            @if (contentSortMode() === 'date-asc') {
-                                <mat-icon>check</mat-icon>
+                        }
+                        @if (canFilterByRating()) {
+                            @if (canSortContent()) {
+                                <div class="refine-menu-divider"></div>
                             }
-                        </button>
-                        <button
-                            mat-menu-item
-                            (click)="setContentSortMode('name-asc')"
-                        >
-                            <span>{{
-                                'WORKSPACE.SORT_NAME_ASC' | translate
-                            }}</span>
-                            @if (contentSortMode() === 'name-asc') {
-                                <mat-icon>check</mat-icon>
+                            <div class="refine-menu-section-title">
+                                {{
+                                    'WORKSPACE.REFINE_RATING_SECTION'
+                                        | translate
+                                }}
+                            </div>
+                            <button mat-menu-item (click)="setMinRating(null)">
+                                <span>{{
+                                    'WORKSPACE.FILTER_RATING_ANY' | translate
+                                }}</span>
+                                @if (minRating() === null) {
+                                    <mat-icon>check</mat-icon>
+                                }
+                            </button>
+                            @for (threshold of ratingThresholds; track threshold) {
+                                <button
+                                    mat-menu-item
+                                    (click)="setMinRating(threshold)"
+                                >
+                                    <span>{{
+                                        'WORKSPACE.FILTER_RATING_MIN'
+                                            | translate: { value: threshold }
+                                    }}</span>
+                                    @if (minRating() === threshold) {
+                                        <mat-icon>check</mat-icon>
+                                    }
+                                </button>
                             }
-                        </button>
-                        <button
-                            mat-menu-item
-                            (click)="setContentSortMode('name-desc')"
-                        >
-                            <span>{{
-                                'WORKSPACE.SORT_NAME_DESC' | translate
-                            }}</span>
-                            @if (contentSortMode() === 'name-desc') {
-                                <mat-icon>check</mat-icon>
-                            }
-                        </button>
+                        }
                     </mat-menu>
                 }
                 @if (categoryItemCount() > 0) {

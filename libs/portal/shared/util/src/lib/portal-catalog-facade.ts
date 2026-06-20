@@ -7,7 +7,9 @@ export type PortalCatalogSortMode =
     | 'date-desc'
     | 'date-asc'
     | 'name-asc'
-    | 'name-desc';
+    | 'name-desc'
+    | 'rating-desc'
+    | 'rating-asc';
 
 export interface PortalCatalogPlaylistMeta {
     id: string;
@@ -44,6 +46,13 @@ export interface PortalCatalogFacade<
     readonly categoryItemCount: Signal<number>;
     readonly contentSortMode: Signal<PortalCatalogSortMode | null>;
     readonly playlist: Signal<PortalCatalogPlaylistMeta | null>;
+    /**
+     * Optional IMDb-rating capability (Xtream VOD/series). Providers without
+     * structured ratings (e.g. Stalker) leave these undefined, and the rating
+     * sort options + minimum-rating filter hide themselves in the UI.
+     */
+    readonly supportsRatingSort?: boolean;
+    readonly minRating?: Signal<number | null>;
 
     initialize(categoryId?: string | null): void;
     setSearchQuery?(query: string): void;
@@ -51,6 +60,7 @@ export interface PortalCatalogFacade<
     setPage(page: number): void;
     setLimit(limit: number): void;
     setContentSortMode(mode: PortalCatalogSortMode): void;
+    setMinRating?(value: number | null): void;
     selectItem(item: TItem): string[] | null;
     getItemProgress(item: TItem): PortalCatalogItemProgress;
 }

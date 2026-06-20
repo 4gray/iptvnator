@@ -10,6 +10,19 @@ import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 
 const SORT_STORAGE_KEY = 'xtream-category-sort-mode';
 
+const isValidSortMode = (
+    mode: string | null
+): mode is PortalCatalogSortMode =>
+    mode === 'date-desc' ||
+    mode === 'date-asc' ||
+    mode === 'name-asc' ||
+    mode === 'name-desc' ||
+    mode === 'rating-desc' ||
+    mode === 'rating-asc';
+
+const isRatingSortMode = (mode: PortalCatalogSortMode): boolean =>
+    mode === 'rating-desc' || mode === 'rating-asc';
+
 @Injectable()
 export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     Record<string, unknown>,
@@ -37,7 +50,20 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     readonly categoryItemCount = computed(
         () => this.xtreamStore.selectItemsFromSelectedCategory().length
     );
-    readonly contentSortMode = this.xtreamStore.contentSortMode;
+    readonly contentSortMode = computed<PortalCatalogSortMode>(() => {
+        const mode = this.xtreamStore.contentSortMode();
+
+        return !this.supportsRatingSort && isRatingSortMode(mode)
+            ? 'date-desc'
+            : mode;
+    });
+    get supportsRatingSort(): boolean {
+        const type = this.contentType();
+        return type === 'vod' || type === 'series';
+    }
+    readonly minRating = computed(() =>
+        this.supportsRatingSort ? this.xtreamStore.minRating() : null
+    );
     readonly playlist = computed<PortalCatalogPlaylistMeta | null>(() => {
         const playlist = this.xtreamStore.currentPlaylist();
         if (!playlist) {
@@ -52,13 +78,8 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
 
     initialize(categoryId?: string | null): void {
         const savedSortMode = localStorage.getItem(SORT_STORAGE_KEY);
-        if (
-            savedSortMode === 'date-desc' ||
-            savedSortMode === 'date-asc' ||
-            savedSortMode === 'name-asc' ||
-            savedSortMode === 'name-desc'
-        ) {
-            this.xtreamStore.setContentSortMode(savedSortMode);
+        if (isValidSortMode(savedSortMode)) {
+            this.setContentSortMode(savedSortMode);
         }
 
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
@@ -93,8 +114,20 @@ export class XtreamCatalogFacadeService implements PortalCatalogFacade<
     }
 
     setContentSortMode(mode: PortalCatalogSortMode): void {
+        if (!this.supportsRatingSort && isRatingSortMode(mode)) {
+            return;
+        }
+
         this.xtreamStore.setContentSortMode(mode);
         localStorage.setItem(SORT_STORAGE_KEY, mode);
+    }
+
+    setMinRating(value: number | null): void {
+        if (!this.supportsRatingSort) {
+            return;
+        }
+
+        this.xtreamStore.setMinRating(value);
     }
 
     selectItem(item: Record<string, unknown>): string[] | null {
