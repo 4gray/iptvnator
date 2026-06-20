@@ -14,84 +14,65 @@
     padding-bottom: 1rem;
 }
 
-// Global search overlay styles
-:host-context(.global-search-overlay) {
-    .results-grid {
-        mat-card {
-            position: relative;
-
-            .poster,
-            .poster-placeholder {
-                margin-top: 24px;
-            }
-
-            .playlist-badge {
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                background: rgba(0, 0, 0, 0.85);
-                padding: 6px 8px;
-                font-size: 12px;
-                color: white;
-                white-space: nowrap;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                border-top-left-radius: inherit;
-                border-top-right-radius: inherit;
-                display: flex;
-                align-items: center;
-                gap: 4px;
-
-                mat-icon {
-                    font-size: 14px;
-                    width: 14px;
-                    height: 14px;
-                    flex-shrink: 0;
-                }
-            }
-        }
-    }
-}
-
-// Subheader row for global search (note + grouping toggle)
+// Subheader row for global search (scope note + filters/options)
 .global-search-subheader {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 16px;
-
-    .global-search-subheader-left {
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-        min-width: 0;
-    }
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
 
     .global-search-note {
         display: flex;
         align-items: center;
-        gap: 6px;
+        gap: 8px;
         font-size: 0.8rem;
-        opacity: 0.55;
+        color: var(--mat-sys-on-surface-variant);
 
         mat-icon {
-            font-size: 15px;
-            width: 15px;
-            height: 15px;
+            color: var(--mat-sys-primary);
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
             flex-shrink: 0;
         }
     }
 
-    .global-search-filters {
+    .global-search-controls {
+        display: flex;
+        align-items: center;
+        gap: 20px;
+        flex-wrap: wrap;
+    }
+
+    .global-search-filters,
+    .global-search-options {
         display: flex;
         align-items: center;
         gap: 12px;
         flex-wrap: wrap;
     }
 
+    .global-search-options {
+        padding-inline-start: 20px;
+        border-inline-start: 1px solid var(--mat-sys-outline-variant);
+    }
+
     ::ng-deep mat-checkbox {
         flex-shrink: 0;
+    }
+}
+
+@media (max-width: 900px) {
+    .global-search-subheader {
+        .global-search-controls {
+            gap: 10px;
+        }
+
+        .global-search-options {
+            width: 100%;
+            padding-inline-start: 0;
+            border-inline-start: 0;
+        }
     }
 }
 
@@ -127,27 +108,6 @@
     }
 }
 
-:host-context(.global-search-overlay) {
-    .playlist-group {
-        .playlist-title {
-            background: var(--surface);
-        }
-    }
-
-    .results-grid {
-        mat-card {
-            .playlist-badge {
-                display: none;
-            }
-
-            .poster,
-            .poster-placeholder {
-                margin-top: 0;
-            }
-        }
-    }
-}
-
 .playlist-section {
     .section-title {
         margin: 0 0 1.5rem;
@@ -157,4 +117,14 @@
         color: var(--mat-sys-on-surface);
         padding: 0 8px;
     }
+}
+
+.global-search-loading-more {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    padding: 18px 0 22px;
+    color: var(--mat-sys-on-surface-variant);
+    font-size: 0.85rem;
 }

@@ -1,4 +1,4 @@
-import { Component, inject } from '@angular/core';
+import { Component, HostListener, inject, viewChild } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
 import { ExternalPlaybackDockComponent } from '@iptvnator/ui/components';
 import {
@@ -46,4 +46,52 @@ import { WorkspaceKeyboardShortcutsService } from '../workspace-keyboard-shortcu
 export class WorkspaceShellComponent {
     readonly facade = inject(WorkspaceShellFacade);
     readonly keyboardShortcuts = inject(WorkspaceKeyboardShortcutsService);
+    private readonly header = viewChild<WorkspaceShellHeaderShortcutTarget>(
+        'workspaceHeader'
+    );
+
+    @HostListener('document:keydown', ['$event'])
+    onDocumentKeydown(event: KeyboardEvent): void {
+        if (
+            event.defaultPrevented ||
+            !this.facade.isElectron ||
+            !isFindShortcut(event)
+        ) {
+            return;
+        }
+
+        const header = this.header();
+        const target = event.target;
+        if (isEditableTarget(target) && !header?.containsSearchInput(target)) {
+            return;
+        }
+
+        event.preventDefault();
+        this.facade.openGlobalSearch(this.facade.searchQuery());
+        setTimeout(() => header?.focusSearchInput({ select: true }));
+    }
+}
+
+function isFindShortcut(event: KeyboardEvent): boolean {
+    return (event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'f';
+}
+
+function isEditableTarget(target: EventTarget | null): boolean {
+    if (!(target instanceof HTMLElement)) {
+        return false;
+    }
+
+    if (target.isContentEditable) {
+        return true;
+    }
+
+    const tagName = target.tagName.toLowerCase();
+    return (
+        tagName === 'input' || tagName === 'textarea' || tagName === 'select'
+    );
+}
+
+interface WorkspaceShellHeaderShortcutTarget {
+    containsSearchInput(target: EventTarget | null): boolean;
+    focusSearchInput(options?: { select?: boolean }): void;
 }

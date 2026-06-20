@@ -17,6 +17,8 @@ import type {
     ElectronBridgeWindowState,
     ElectronBridgeXtreamContentStream,
     ExternalPlayerSession,
+    GlobalSearchPaginationOptions,
+    GlobalSearchResultSource,
     PlaybackPositionData,
     PlayerContentInfo,
     Playlist,
@@ -603,14 +605,28 @@ const electronApi: ElectronBridgeApi = {
     dbGlobalSearch: (
         searchTerm: string,
         types: string[],
-        excludeHidden?: boolean
-    ) =>
-        ipcRenderer.invoke(
+        excludeHidden?: boolean,
+        sources?: GlobalSearchResultSource[],
+        options?: GlobalSearchPaginationOptions
+    ) => {
+        if (sources?.length || options) {
+            return ipcRenderer.invoke(
+                'DB_GLOBAL_SEARCH',
+                searchTerm,
+                types,
+                excludeHidden,
+                sources,
+                options
+            );
+        }
+
+        return ipcRenderer.invoke(
             'DB_GLOBAL_SEARCH',
             searchTerm,
             types,
             excludeHidden
-        ),
+        );
+    },
     dbGetGlobalRecentlyAdded: (
         kind: 'all' | 'vod' | 'series',
         limit?: number,

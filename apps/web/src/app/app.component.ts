@@ -95,10 +95,7 @@ export class AppComponent implements OnInit {
         if (this.runtime.isElectron) {
             document.addEventListener('keydown', (event) => {
                 if (event.ctrlKey || event.metaKey) {
-                    if (event.key === 'f') {
-                        event.preventDefault();
-                        this.workspaceShellActions.openGlobalSearch();
-                    } else if (event.key === 'r') {
+                    if (event.key === 'r') {
                         event.preventDefault();
                         this.workspaceShellActions.openGlobalRecent();
                     }

@@ -5,12 +5,13 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { GlobalSearchResult } from '@iptvnator/services';
+import { GlobalSearchResult } from '@iptvnator/shared/interfaces';
 import {
     XTREAM_DATA_SOURCE,
     XtreamContentItem,
 } from '../../data-sources/xtream-data-source.interface';
 import { createLogger } from '@iptvnator/portal/shared/util';
+import { XtreamSearchResultItem } from '../../xtream-state';
 
 /**
  * Search filters configuration
@@ -27,7 +28,7 @@ export interface SearchFilters {
 export interface SearchState {
     searchTerm: string;
     searchFilters: SearchFilters;
-    searchResults: XtreamContentItem[];
+    searchResults: XtreamSearchResultItem[];
     globalSearchResults: GlobalSearchResult[];
     isSearching: boolean;
 }

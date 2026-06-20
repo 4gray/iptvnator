@@ -8,6 +8,10 @@ import {
     handleWorkerRequest,
     requestWorkerWithEvents,
 } from './worker-events.utils';
+import type {
+    GlobalSearchPaginationOptions,
+    GlobalSearchResultSource,
+} from '@iptvnator/shared/interfaces';
 
 handleWorkerRequest(
     'DB_HAS_CONTENT',
@@ -114,11 +118,43 @@ handleWorkerRequest(
     })
 );
 
-handleWorkerRequest(
+handleWorkerRequest<
+    [
+        string,
+        string[],
+        boolean | undefined,
+        GlobalSearchResultSource[]?,
+        GlobalSearchPaginationOptions?,
+    ]
+>(
     'DB_GLOBAL_SEARCH',
-    (searchTerm: string, types: string[], excludeHidden = false) => ({
-        searchTerm,
-        types,
-        excludeHidden,
-    })
+    (
+        searchTerm: string,
+        types: string[],
+        excludeHidden = false,
+        sources?: GlobalSearchResultSource[],
+        options?: GlobalSearchPaginationOptions
+    ) => {
+        const payload: {
+            searchTerm: string;
+            types: string[];
+            excludeHidden: boolean;
+            sources?: GlobalSearchResultSource[];
+            options?: GlobalSearchPaginationOptions;
+        } = {
+            searchTerm,
+            types,
+            excludeHidden,
+        };
+
+        if (sources?.length) {
+            payload.sources = sources;
+        }
+
+        if (options) {
+            payload.options = options;
+        }
+
+        return payload;
+    }
 );

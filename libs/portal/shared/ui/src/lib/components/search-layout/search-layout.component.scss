@@ -12,6 +12,7 @@
     display: flex;
     flex-direction: column;
     height: 100%;
+    min-height: 0;
     width: 100%;
 }
 
@@ -19,7 +20,8 @@
     display: flex;
     flex-direction: column;
     flex: 1;
-    overflow-y: auto;
+    min-height: 0;
+    overflow: hidden;
     padding: 0 20px 0 20px;
 }
 
@@ -90,6 +92,7 @@
 
 .results-container {
     flex: 1;
+    min-height: 0;
     overflow-y: auto;
 }
 
@@ -153,19 +156,4 @@
 ::ng-deep .results-grid {
     @include grid.content-grid;
     padding-bottom: 1rem;
-}
-
-// Global search overlay context
-:host-context(.global-search-overlay) {
-    // Prevent Electron's app-region: drag from bleeding through the dialog overlay
-    app-region: no-drag;
-
-    .search-page {
-        background: var(--background);
-        height: 100vh;
-    }
-
-    .header {
-        background: var(--background);
-    }
 }

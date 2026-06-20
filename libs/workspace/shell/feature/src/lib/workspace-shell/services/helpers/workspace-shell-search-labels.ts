@@ -130,6 +130,10 @@ export function resolveSearchScopeLabel(ctx: SearchScopeContext): string {
         return translate('PORTALS.RECENTLY_VIEWED');
     }
 
+    if (kind === 'global-search') {
+        return translate('WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH');
+    }
+
     if (kind === 'downloads') {
         return translate('WORKSPACE.SHELL.RAIL_DOWNLOADS');
     }

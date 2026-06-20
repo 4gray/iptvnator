@@ -654,6 +654,12 @@ describe('WorkspaceShellFacade', () => {
                 path: ['/workspace/sources'],
             },
             {
+                icon: 'search',
+                tooltip: 'WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH',
+                path: ['/workspace/search'],
+                exact: true,
+            },
+            {
                 icon: 'favorite',
                 tooltip: 'HOME.PLAYLISTS.GLOBAL_FAVORITES',
                 path: ['/workspace/global-favorites'],
@@ -667,6 +673,17 @@ describe('WorkspaceShellFacade', () => {
             },
         ]);
         expect(facade.brandLink()).toBe('/workspace/sources');
+    });
+
+    it('hides the Electron-only global search rail link in the web runtime', () => {
+        runtime.isElectron = false;
+        showDashboardSignal.set(false);
+
+        expect(facade.workspaceLinks().map((link) => link.path)).toEqual([
+            ['/workspace/sources'],
+            ['/workspace/global-favorites'],
+            ['/workspace/global-recent'],
+        ]);
     });
 
     it('persists the last restorable route from navigation events', () => {
@@ -704,6 +721,63 @@ describe('WorkspaceShellFacade', () => {
             true
         );
         expect(commands.every((command) => command.enabled)).toBe(true);
+    });
+
+    it('shows the global search command for M3U-only sources', () => {
+        activePlaylistSignal.set({
+            _id: 'pl-m3u',
+            title: 'Playlist M3U',
+            count: 10,
+            importDate: '2026-04-22T10:00:00.000Z',
+            autoRefresh: false,
+        });
+        playlistsSignal.set([
+            {
+                _id: 'pl-m3u',
+                title: 'Playlist M3U',
+                count: 10,
+                importDate: '2026-04-22T10:00:00.000Z',
+                autoRefresh: false,
+            },
+        ]);
+        facade.currentUrl.set('/workspace/dashboard');
+
+        expect(
+            facade.commandPaletteCommands().map((command) => command.id)
+        ).toContain('global-search');
+    });
+
+    it('does not enable global search for empty invalid playlist metadata', () => {
+        activePlaylistSignal.set(null);
+        playlistsSignal.set([
+            {
+                _id: 'empty-playlist',
+                title: 'Empty playlist',
+            } as PlaylistSignalMeta,
+        ]);
+        facade.currentUrl.set('/workspace/search');
+
+        expect(facade.canUseSearch()).toBe(false);
+        expect(
+            facade.commandPaletteCommands().map((command) => command.id)
+        ).not.toContain('global-search');
+    });
+
+    it('hides the global search command and header capability in the web runtime', () => {
+        runtime.isElectron = false;
+        playlistsSignal.set([
+            {
+                _id: 'pl-m3u',
+                title: 'Playlist M3U',
+                count: 10,
+            } as PlaylistSignalMeta,
+        ]);
+        facade.currentUrl.set('/workspace/search');
+
+        expect(facade.canUseSearch()).toBe(false);
+        expect(
+            facade.commandPaletteCommands().map((command) => command.id)
+        ).not.toContain('global-search');
     });
 
     it('hides the downloads command when downloads are unsupported', () => {

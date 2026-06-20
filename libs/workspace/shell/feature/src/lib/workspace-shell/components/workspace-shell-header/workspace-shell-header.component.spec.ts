@@ -93,6 +93,19 @@ describe('WorkspaceShellHeaderComponent', () => {
         expect(emitted).toEqual(['matrix']);
     });
 
+    it('focuses and selects the search input on request', () => {
+        const input: HTMLInputElement =
+            fixture.nativeElement.querySelector('input[type="search"]');
+        input.value = 'matrix';
+        input.blur();
+
+        component.focusSearchInput({ select: true });
+
+        expect(document.activeElement).toBe(input);
+        expect(input.selectionStart).toBe(0);
+        expect(input.selectionEnd).toBe('matrix'.length);
+    });
+
     it('emits add playlist requests when the toolbar add button is clicked', () => {
         const requested = jest.fn();
         component.addPlaylistRequested.subscribe(requested);

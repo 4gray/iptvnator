@@ -7,6 +7,11 @@ import {
 import { EpgChannelMetadata } from './epg-channel-metadata.model';
 import { EpgProgram } from './epg-program.model';
 import { ExternalPlayerSession } from './external-player-session.interface';
+import {
+    GlobalSearchPaginationOptions,
+    GlobalSearchResult,
+    GlobalSearchResultSource,
+} from './global-search-result.interface';
 import { M3uFavoriteChannel } from './m3u-favorite-channel.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 import {
@@ -323,10 +328,7 @@ export type ElectronBridgeXtreamContentStream =
       }
     | Record<string, unknown>;
 
-export interface ElectronBridgeGlobalSearchResult extends ElectronBridgeXtreamContent {
-    playlist_id: string;
-    playlist_name: string;
-}
+export type ElectronBridgeGlobalSearchResult = GlobalSearchResult;
 
 export interface ElectronBridgeGlobalRecentItem extends ElectronBridgeXtreamContent {
     playlist_id: string;
@@ -635,7 +637,9 @@ export interface ElectronBridgeApi {
     dbGlobalSearch: (
         searchTerm: string,
         types: string[],
-        excludeHidden?: boolean
+        excludeHidden?: boolean,
+        sources?: GlobalSearchResultSource[],
+        options?: GlobalSearchPaginationOptions
     ) => Promise<ElectronBridgeGlobalSearchResult[]>;
     dbGetGlobalRecentlyAdded: (
         kind: ElectronBridgeGlobalRecentlyAddedKind,

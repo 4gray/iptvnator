@@ -1,4 +1,10 @@
-import { computed, DestroyRef, inject, Injectable, signal } from '@angular/core';
+import {
+    computed,
+    DestroyRef,
+    inject,
+    Injectable,
+    signal,
+} from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
@@ -84,6 +90,17 @@ export class WorkspaceShellRouteStateService {
             path: ['/workspace/sources'],
         });
 
+        if (this.runtime.isElectron) {
+            links.push({
+                icon: 'search',
+                tooltip: this.translateText(
+                    'WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH'
+                ),
+                path: ['/workspace/search'],
+                exact: true,
+            });
+        }
+
         links.push({
             icon: 'favorite',
             tooltip: this.translateText('HOME.PLAYLISTS.GLOBAL_FAVORITES'),
@@ -125,6 +142,7 @@ export class WorkspaceShellRouteStateService {
             currentRoute.kind !== 'settings' &&
             currentRoute.kind !== 'global-favorites' &&
             currentRoute.kind !== 'global-recent' &&
+            currentRoute.kind !== 'global-search' &&
             currentRoute.kind !== 'downloads'
         ) {
             return null;

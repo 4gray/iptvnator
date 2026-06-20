@@ -306,6 +306,8 @@ describe('VideoPlayerComponent', () => {
         overlayMock.create.mockClear();
         overlayRef.attach.mockClear();
         overlayRef.dispose.mockClear();
+        routerMock.currentNavigation.mockReturnValue(null);
+        routerMock.navigate.mockClear();
         storeMock.dispatch.mockClear();
         dataServiceMock.sendIpcEvent.mockClear();
 
@@ -765,6 +767,32 @@ describe('VideoPlayerComponent', () => {
                 channel: sampleChannel,
                 startPlayback: true,
             })
+        );
+    });
+
+    it('opens an M3U channel passed from global search route state', () => {
+        const globalSearchChannel = {
+            ...sampleChannel,
+            id: 'global-search-channel',
+            url: 'http://localhost/global-search-live.m3u8',
+            name: 'Global Search Live',
+        } as Channel;
+        routerMock.currentNavigation.mockReturnValue({
+            extras: {
+                state: {
+                    openM3uChannelUrl: globalSearchChannel.url,
+                },
+            },
+        });
+        activeChannel.set(null);
+        activeChannel$.next(null);
+        channels.set([sampleChannel, globalSearchChannel]);
+        channels$.next([sampleChannel, globalSearchChannel]);
+
+        fixture.detectChanges();
+
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            ChannelActions.setActiveChannel({ channel: globalSearchChannel })
         );
     });
 

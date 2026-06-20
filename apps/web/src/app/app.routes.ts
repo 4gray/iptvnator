@@ -1,5 +1,6 @@
 import { inject } from '@angular/core';
 import { Router, Routes } from '@angular/router';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceStartupPreferencesService } from '@iptvnator/workspace/shell/util';
 
 const workspaceEntryRedirect = async () =>
@@ -13,6 +14,20 @@ const dashboardAccessGuard = async () => {
     return redirectPath === '/workspace/dashboard'
         ? true
         : router.parseUrl(redirectPath);
+};
+
+export function resolveElectronOnlyGlobalSearchRoute(
+    runtime: Pick<RuntimeCapabilitiesService, 'isElectron'>,
+    router: Pick<Router, 'parseUrl'>
+) {
+    return runtime.isElectron ? true : router.parseUrl('/workspace/sources');
+}
+
+const electronOnlyGlobalSearchGuard = () => {
+    return resolveElectronOnlyGlobalSearchRoute(
+        inject(RuntimeCapabilitiesService),
+        inject(Router)
+    );
 };
 
 export const routes: Routes = [
@@ -78,6 +93,17 @@ export const routes: Routes = [
                 loadComponent: () =>
                     import('./global-collection-route.component').then(
                         (c) => c.GlobalCollectionRouteComponent
+                    ),
+            },
+            {
+                path: 'search',
+                canActivate: [electronOnlyGlobalSearchGuard],
+                data: {
+                    isGlobalSearch: true,
+                },
+                loadComponent: () =>
+                    import('@iptvnator/portal/xtream/feature').then(
+                        (c) => c.GlobalSearchResultsComponent
                     ),
             },
             {
