@@ -58,6 +58,8 @@ import {
     deleteAllPlaylists,
     deletePlaylist,
     getAppPlaylist,
+    getAppPlaylistFavoriteChannels,
+    getAppPlaylistMetas,
     getAppPlaylists,
     getAppState,
     getPlaylist,
@@ -501,9 +503,17 @@ async function executeRequest(message: DbWorkerRequestMessage) {
         case 'DB_GET_APP_PLAYLISTS':
             return getAppPlaylists(db);
 
+        case 'DB_GET_APP_PLAYLIST_METAS':
+            return getAppPlaylistMetas(db);
+
         case 'DB_GET_APP_PLAYLIST': {
             const payload = message.payload as { playlistId: string };
             return getAppPlaylist(db, payload.playlistId);
+        }
+
+        case 'DB_GET_APP_PLAYLIST_FAVORITE_CHANNELS': {
+            const payload = message.payload as { playlistId: string };
+            return getAppPlaylistFavoriteChannels(db, payload.playlistId);
         }
 
         case 'DB_GET_PLAYLIST': {

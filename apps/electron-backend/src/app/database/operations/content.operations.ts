@@ -124,13 +124,59 @@ export async function getGlobalRecentlyAdded(
     limit = 200,
     playlistType?: RecentlyAddedPlaylistType
 ) {
-    const contentTypes = getRecentlyAddedContentTypes(kind);
     const normalizedLimit = Number.isFinite(limit)
         ? Math.min(Math.max(Math.trunc(limit), 1), 200)
         : 200;
 
+    const contentTypes = getRecentlyAddedContentTypes(kind);
+
+    if (contentTypes.length > 1) {
+        const rows = await Promise.all(
+            contentTypes.map((type) =>
+                getGlobalRecentlyAddedByType(
+                    db,
+                    type,
+                    normalizedLimit,
+                    playlistType
+                )
+            )
+        );
+
+        return rows
+            .flat()
+            .sort(
+                (left, right) =>
+                    getRecentlyAddedSortValue(right) -
+                    getRecentlyAddedSortValue(left)
+            )
+            .slice(0, normalizedLimit);
+    }
+
+    return getGlobalRecentlyAddedByType(
+        db,
+        contentTypes[0],
+        normalizedLimit,
+        playlistType
+    );
+}
+
+function getRecentlyAddedSortValue(item: {
+    added?: string | null;
+    added_at?: string | null;
+}): number {
+    const value = Number(item.added_at || item.added || 0);
+
+    return Number.isFinite(value) ? value : 0;
+}
+
+function getGlobalRecentlyAddedByType(
+    db: AppDatabase,
+    type: 'movie' | 'series',
+    limit: number,
+    playlistType?: RecentlyAddedPlaylistType
+) {
     const whereConditions = [
-        inArray(schema.content.type, contentTypes),
+        eq(schema.content.type, type),
         eq(schema.categories.hidden, false),
         sql`${schema.content.added} <> ''`,
         sql`${schema.content.added} <= ${getXtreamRecentlyAddedMaxEpochSeconds()}`,
@@ -164,7 +210,7 @@ export async function getGlobalRecentlyAdded(
         )
         .where(and(...whereConditions))
         .orderBy(desc(schema.content.added))
-        .limit(normalizedLimit);
+        .limit(limit);
 }
 
 type XtreamContentValue = {

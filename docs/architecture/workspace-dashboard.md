@@ -51,10 +51,10 @@ Core implementation:
 
 Render rules:
 
-1. `dashboardReady() === false` → render the page-level skeleton rails/hero.
-   The first-load gate waits for playlist metadata plus the first global
-   recent/global favorites reloads and, when Xtream playlists exist, the first
-   Xtream recently-added reload.
+1. Dashboard rails render independently as their data sources resolve. The
+   page no longer uses `dashboardReady()` as a page-wide skeleton gate.
+   Initial hero/recent/favorites loading states render scoped skeletons so one
+   slow rail does not hide already available content.
 2. `hasPlaylists() === false` → render `<app-empty-state type="welcome">`
    full-bleed. All rails and the hero are skipped.
 3. `hero()` = `globalRecentItems()[0]`. If present, render the hero panel.
@@ -66,6 +66,10 @@ Render rules:
 6. The mixed global favorites rail is not rendered on the dashboard. Live
    favorites are promoted into the live rail, while mixed favorites stay on
    `/workspace/global-favorites`.
+7. The live favorites rail keeps its scoped skeleton until the initial global
+   favorites load has completed for both Xtream-backed and playlist-backed
+   favorites. This avoids first-paint partial counts such as a single Stalker
+   favorite appearing before M3U favorites finish resolving.
 
 ## Rail Contract
 
@@ -106,7 +110,10 @@ Render rules:
        (PWA returns `[]`) and auto-hides when empty, so users without Xtream
        playlists never see it. Cards carry a `playlist_name · type` subtitle
        so users can tell which provider each item came from. Driven by an
-       effect that re-runs whenever the Xtream playlist count changes.
+       effect that re-runs whenever the Xtream playlist count changes, but the
+       first run waits for `globalFavoritesLoaded()` so the slower
+       recently-added DB query does not block the live favorites rail on
+       startup.
     5. `sourceCards` — maps `recentPlaylists()` to rail cards. `recentPlaylists()`
        ranks M3U, Xtream, and Stalker sources by their latest recent activity
        from `globalRecentItems()`, then falls back to playlist
@@ -128,6 +135,20 @@ Render rules:
 8. Playback-position reloads are keyed by the VOD/series recent set and should
    call `reloadPlaybackPositions()` through `untracked()` so live-only recent
    changes do not trigger unnecessary IPC round-trips.
+9. Electron M3U dashboard favorites should use
+   `PlaylistsService.getM3uFavoriteChannels()` first. That method checks the
+   SQLite playlist migration flag and then calls
+   `dbGetAppPlaylistFavoriteChannels(playlistId)`, letting the DB worker return
+   only matched favorite channels instead of sending the full playlist payload
+   back to the renderer. If the bridge method is missing or migration is
+   incomplete, the dashboard falls back to the full playlist read.
+10. Electron playlist summary loads should use
+    `dbGetAppPlaylistMetas()` through `PlaylistsService.getAllPlaylists()`.
+    This keeps dashboard/source/sidebar startup on a metadata-only SQLite path
+    and avoids parsing full M3U `payload` blobs for surfaces that only need
+    playlist title, type, counts, favorites, recent activity, and source
+    connection fields. Workflows that need channel payloads still call
+    `getPlaylistById()`.
 
 ## Empty State
 

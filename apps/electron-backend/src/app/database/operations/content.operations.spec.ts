@@ -7,20 +7,29 @@ const eqMock = jest.fn((left: unknown, right: unknown) => ({
     left,
     right,
 }));
+const inArrayMock = jest.fn((left: unknown, values: unknown[]) => ({
+    kind: 'inArray',
+    left,
+    values,
+}));
 
 jest.mock('drizzle-orm', () => ({
     and: (...conditions: unknown[]) => andMock(...conditions),
     asc: jest.fn(),
     desc: jest.fn(),
     eq: (left: unknown, right: unknown) => eqMock(left, right),
-    inArray: jest.fn(),
+    inArray: (left: unknown, values: unknown[]) => inArrayMock(left, values),
     or: jest.fn(),
     sql: jest.fn(),
 }));
 
 import * as schema from '@iptvnator/shared/database/schema';
 import type { AppDatabase } from '../database.types';
-import { getContentByXtreamId, saveContent } from './content.operations';
+import {
+    getContentByXtreamId,
+    getGlobalRecentlyAdded,
+    saveContent,
+} from './content.operations';
 
 function createDbMock(result: unknown[] = []) {
     const limit = jest.fn().mockResolvedValue(result);
@@ -40,10 +49,50 @@ function createDbMock(result: unknown[] = []) {
     };
 }
 
+function createRecentlyAddedDbMock(resultsByCall: unknown[][]) {
+    const queries: Array<{
+        from: jest.Mock;
+        innerJoin: jest.Mock;
+        limit: jest.Mock;
+        orderBy: jest.Mock;
+        where: jest.Mock;
+    }> = [];
+    let resultIndex = 0;
+    const select = jest.fn(() => {
+        const query = {
+            from: jest.fn(),
+            innerJoin: jest.fn(),
+            limit: jest.fn(),
+            orderBy: jest.fn(),
+            where: jest.fn(),
+        };
+        query.from.mockReturnValue(query);
+        query.innerJoin.mockReturnValue(query);
+        query.where.mockReturnValue(query);
+        query.orderBy.mockReturnValue(query);
+        query.limit.mockImplementation(async () => {
+            const result = resultsByCall[resultIndex] ?? [];
+            resultIndex += 1;
+            return result;
+        });
+        queries.push(query);
+        return query;
+    });
+
+    return {
+        db: {
+            select,
+        } as unknown as AppDatabase,
+        queries,
+        select,
+    };
+}
+
 describe('content.operations', () => {
     beforeEach(() => {
         andMock.mockClear();
         eqMock.mockClear();
+        inArrayMock.mockClear();
     });
 
     it('adds the content type filter when resolving by xtream ID', async () => {
@@ -254,5 +303,37 @@ describe('content.operations', () => {
         } finally {
             dateNowSpy.mockRestore();
         }
+    });
+
+    it('loads global recently added movie and series rows separately before merging the top results', async () => {
+        const { db, select } = createRecentlyAddedDbMock([
+            [
+                {
+                    id: 1,
+                    added_at: '200',
+                    type: 'movie',
+                    title: 'Movie',
+                },
+            ],
+            [
+                {
+                    id: 2,
+                    added_at: '300',
+                    type: 'series',
+                    title: 'Series',
+                },
+            ],
+        ]);
+
+        const result = await getGlobalRecentlyAdded(db, 'all', 20, 'xtream');
+
+        expect(select).toHaveBeenCalledTimes(2);
+        expect(eqMock).toHaveBeenCalledWith(schema.content.type, 'movie');
+        expect(eqMock).toHaveBeenCalledWith(schema.content.type, 'series');
+        expect(inArrayMock).not.toHaveBeenCalledWith(
+            schema.content.type,
+            expect.anything()
+        );
+        expect(result.map((item) => item.id)).toEqual([2, 1]);
     });
 });

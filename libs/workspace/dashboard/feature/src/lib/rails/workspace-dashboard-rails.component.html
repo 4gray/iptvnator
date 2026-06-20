@@ -192,6 +192,7 @@
         <!-- Live favorites: no fallback. Recently watched live gets its own rail. -->
         @if (
             dashboardRails().liveFavorites &&
+            !showLiveFavoritesSkeleton() &&
             liveFavoriteCardsEnriched().length > 0
         ) {
             <lib-dashboard-rail
@@ -203,6 +204,19 @@
                 layout="channel"
                 [testId]="'dashboard-live-favorites-rail'"
             />
+        } @else if (showLiveFavoritesSkeleton()) {
+            <section
+                class="rails-page__skeleton-rail"
+                aria-hidden="true"
+                aria-busy="true"
+            >
+                <div class="rails-page__skeleton-header"></div>
+                <div class="rails-page__skeleton-track">
+                    @for (slot of skeletonSlots; track slot) {
+                        <div class="rails-page__skeleton-card"></div>
+                    }
+                </div>
+            </section>
         }
 
         @if (
