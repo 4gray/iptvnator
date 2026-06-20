@@ -1,4 +1,4 @@
-import { Readable } from 'stream';
+import { PassThrough, Readable } from 'stream';
 import { brotliCompressSync, gzipSync } from 'zlib';
 import { createDecodedEpgStream } from './epg-stream-decoder';
 import { StreamingEpgParser } from './epg-streaming-parser';
@@ -69,11 +69,26 @@ describe('createDecodedEpgStream', () => {
     });
 
     it('decodes gzip XML payloads after transfer decoding', async () => {
-        const transferEncodedPayload = gzipSync(gzipSync(xmltvFixture));
+        const transferEncodedPayload = brotliCompressSync(
+            gzipSync(xmltvFixture)
+        );
 
         const decodedText = await collectDecodedText(
             createDecodedEpgStream(
                 Readable.from([transferEncodedPayload]),
+                { 'content-encoding': 'br' },
+                true
+            )
+        );
+
+        expect(decodedText.startsWith('<?xml')).toBe(true);
+        expect(parseChannelCount(decodedText)).toBe(1);
+    });
+
+    it('does not double-gunzip mislabelled gzip XML payloads', async () => {
+        const decodedText = await collectDecodedText(
+            createDecodedEpgStream(
+                Readable.from([gzipSync(xmltvFixture)]),
                 { 'content-encoding': 'gzip' },
                 true
             )
@@ -81,5 +96,35 @@ describe('createDecodedEpgStream', () => {
 
         expect(decodedText.startsWith('<?xml')).toBe(true);
         expect(parseChannelCount(decodedText)).toBe(1);
+    });
+
+    it('decodes multi-value content-encoding in reverse order', async () => {
+        const encodedPayload = brotliCompressSync(gzipSync(xmltvFixture));
+
+        const decodedText = await collectDecodedText(
+            createDecodedEpgStream(
+                Readable.from([encodedPayload]),
+                { 'content-encoding': 'gzip, br' },
+                false
+            )
+        );
+
+        expect(decodedText.startsWith('<?xml')).toBe(true);
+        expect(parseChannelCount(decodedText)).toBe(1);
+    });
+
+    it('destroys the source stream when a decoder fails', async () => {
+        const source = new PassThrough();
+        const decodedStream = createDecodedEpgStream(
+            source,
+            { 'content-encoding': 'gzip' },
+            false
+        );
+
+        const readPromise = collectDecodedText(decodedStream);
+        source.end(Buffer.from('not gzip'));
+
+        await expect(readPromise).rejects.toThrow();
+        expect(source.destroyed).toBe(true);
     });
 });

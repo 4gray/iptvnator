@@ -107,4 +107,12 @@ describe('getEpgResponseContentEncoding', () => {
             })
         ).toBe(null);
     });
+
+    it('returns the outermost supported transfer encoding first', () => {
+        expect(
+            getEpgResponseContentEncoding({
+                'content-encoding': 'gzip, br',
+            })
+        ).toBe('br');
+    });
 });

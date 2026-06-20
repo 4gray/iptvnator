@@ -1,17 +1,18 @@
-import { Readable, Transform } from 'stream';
+import { PassThrough, Readable, Transform, pipeline } from 'stream';
 import {
     createBrotliDecompress,
     createGunzip,
     createInflate,
 } from 'zlib';
 import {
-    getEpgResponseContentEncoding,
+    EpgResponseContentEncoding,
+    getEpgResponseContentEncodings,
     HeaderReader,
 } from './epg-response-utils';
 
 function createContentEncodingDecoder(
-    contentEncoding: ReturnType<typeof getEpgResponseContentEncoding>
-): Transform | null {
+    contentEncoding: EpgResponseContentEncoding
+): Transform {
     switch (contentEncoding) {
         case 'br':
             return createBrotliDecompress();
@@ -19,8 +20,6 @@ function createContentEncodingDecoder(
             return createGunzip();
         case 'deflate':
             return createInflate();
-        default:
-            return null;
     }
 }
 
@@ -29,16 +28,10 @@ export function createDecodedEpgStream(
     headers: HeaderReader,
     shouldGunzipPayload: boolean
 ): Readable {
-    const transforms: Transform[] = [];
-    const contentEncoding = getEpgResponseContentEncoding(headers);
-    const contentEncodingDecoder =
-        createContentEncodingDecoder(contentEncoding);
+    const contentEncodings = getEpgResponseContentEncodings(headers);
+    const transforms = contentEncodings.map(createContentEncodingDecoder);
 
-    if (contentEncodingDecoder) {
-        transforms.push(contentEncodingDecoder);
-    }
-
-    if (shouldGunzipPayload) {
+    if (shouldGunzipPayload && !contentEncodings.includes('gzip')) {
         transforms.push(createGunzip());
     }
 
@@ -46,16 +39,12 @@ export function createDecodedEpgStream(
         return source;
     }
 
-    const decodedStream = transforms.reduce<Readable>(
-        (stream, transform) => stream.pipe(transform),
-        source
-    );
-
-    for (const stream of [source, ...transforms]) {
-        if (stream !== decodedStream) {
-            stream.on('error', (error) => decodedStream.destroy(error));
+    const output = new PassThrough();
+    pipeline([source, ...transforms, output], (error) => {
+        if (error) {
+            output.destroy(error);
         }
-    }
+    });
 
-    return decodedStream;
+    return output;
 }

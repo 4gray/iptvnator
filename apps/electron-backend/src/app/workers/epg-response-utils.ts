@@ -6,6 +6,12 @@ export type HeaderReader =
 
 export type EpgResponseContentEncoding = 'br' | 'gzip' | 'deflate';
 
+const SUPPORTED_CONTENT_ENCODINGS: readonly EpgResponseContentEncoding[] = [
+    'br',
+    'gzip',
+    'deflate',
+];
+
 function getHeaderValue(headers: HeaderReader, name: string): string | null {
     const value =
         'get' in headers && typeof headers.get === 'function'
@@ -32,15 +38,26 @@ function hasGzipPath(url: string | null | undefined): boolean {
 export function getEpgResponseContentEncoding(
     headers: HeaderReader
 ): EpgResponseContentEncoding | null {
-    const contentEncoding = getHeaderValue(headers, 'content-encoding')
-        ?.toLowerCase()
-        .split(',')
-        .map((encoding) => encoding.trim())
-        .find((encoding): encoding is EpgResponseContentEncoding =>
-            ['br', 'gzip', 'deflate'].includes(encoding)
-        );
+    const contentEncoding = getEpgResponseContentEncodings(headers).at(0);
 
     return contentEncoding ?? null;
+}
+
+export function getEpgResponseContentEncodings(
+    headers: HeaderReader
+): EpgResponseContentEncoding[] {
+    return (
+        getHeaderValue(headers, 'content-encoding')
+            ?.toLowerCase()
+            .split(',')
+            .map((encoding) => encoding.trim())
+            .filter((encoding): encoding is EpgResponseContentEncoding =>
+                SUPPORTED_CONTENT_ENCODINGS.includes(
+                    encoding as EpgResponseContentEncoding
+                )
+            )
+            .reverse() ?? []
+    );
 }
 
 /**
