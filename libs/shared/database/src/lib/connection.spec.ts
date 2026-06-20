@@ -236,4 +236,75 @@ describe('database schema statements', () => {
 
         expect(transaction).not.toHaveBeenCalled();
     });
+
+    it('backfills the content title FTS index before content-mutating migrations', () => {
+        const callOrder: string[] = [];
+        const runMigrations = (
+            __databaseConnectionTestHooks as unknown as {
+                runMigrations: (sqlite: {
+                    exec: (statement: string) => void;
+                    prepare: (statement: string) => {
+                        all?: () => unknown[];
+                        get?: (...args: unknown[]) => unknown;
+                        run?: (...args: unknown[]) => unknown;
+                    };
+                    transaction: (callback: () => void) => () => void;
+                }) => void;
+            }
+        ).runMigrations;
+        const sqlite = {
+            exec: jest.fn(),
+            prepare: jest.fn((statement: string) => {
+                if (statement.includes('SELECT value FROM app_state')) {
+                    return {
+                        get: (): undefined => {
+                            return undefined;
+                        },
+                    };
+                }
+                if (
+                    statement.includes(
+                        'INSERT INTO content_title_fts(content_title_fts)'
+                    )
+                ) {
+                    return {
+                        run: () => {
+                            callOrder.push('fts-rebuild');
+                        },
+                    };
+                }
+                if (statement.includes('INSERT INTO app_state')) {
+                    return { run: jest.fn() };
+                }
+                if (statement.includes('UPDATE content')) {
+                    return {
+                        run: () => {
+                            callOrder.push('content-update');
+                        },
+                    };
+                }
+                if (statement.includes('DELETE FROM content')) {
+                    return {
+                        run: () => {
+                            callOrder.push('content-delete');
+                        },
+                    };
+                }
+
+                return {
+                    all: () => [],
+                    get: (): undefined => undefined,
+                    run: jest.fn(),
+                };
+            }),
+            transaction: jest.fn((callback: () => void) => callback),
+        };
+
+        runMigrations(sqlite);
+
+        expect(callOrder).toEqual(['fts-rebuild', 'content-update']);
+        expect(sqlite.prepare).toHaveBeenCalledWith(
+            expect.stringContaining('UPDATE content')
+        );
+    });
 });

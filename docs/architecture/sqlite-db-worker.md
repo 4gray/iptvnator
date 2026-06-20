@@ -213,8 +213,9 @@ Xtream-only row shape:
    passed to `MATCH`, so FTS reserved words such as `and` are treated as search
    text instead of degrading to the slow fallback path. Existing databases
    rebuild this index once through the `migration:content-title-fts-trigram:v1`
-   app-state marker; fresh inserts, deletes, and title updates stay
-   synchronized through SQLite triggers.
+   app-state marker before legacy content cleanup/normalization migrations run;
+   fresh inserts, deletes, and title updates stay synchronized through SQLite
+   triggers.
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` only as a coarse
    candidate prefilter, then parses candidate JSON payloads and matches channel

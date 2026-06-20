@@ -329,6 +329,7 @@ export const __databaseConnectionTestHooks = {
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,
     normalizeXtreamContentAddedEpochs,
     ensureContentTitleFts,
+    runMigrations,
 } as const;
 
 /**
@@ -626,10 +627,10 @@ function runMigrationStatements(
  */
 function runMigrations(sqliteDb: Database.Database): void {
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
+    ensureContentTitleFts(sqliteDb);
     deduplicateXtreamCache(sqliteDb);
     normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);
-    ensureContentTitleFts(sqliteDb);
 }
 
 export interface DatabaseOptions {

@@ -335,6 +335,7 @@ export class SearchResultsComponent implements AfterViewInit {
             this.lastGlobalSearchTypes = [...effectiveTypes];
             this.lastGlobalSearchExcludeHidden = effectiveExcludeHidden;
             this.hasMoreGlobalResults.set(false);
+            this.isLoadingMoreGlobalResults.set(false);
             this.xtreamStore.setIsSearching(true);
         }
 
@@ -355,7 +356,10 @@ export class SearchResultsComponent implements AfterViewInit {
             }
 
             if (results && Array.isArray(results)) {
-                const visibleResults = results.slice(0, GLOBAL_SEARCH_PAGE_SIZE);
+                const visibleResults = results.slice(
+                    0,
+                    GLOBAL_SEARCH_PAGE_SIZE
+                );
                 this.hasMoreGlobalResults.set(
                     results.length > GLOBAL_SEARCH_PAGE_SIZE
                 );
@@ -503,14 +507,7 @@ export class SearchResultsComponent implements AfterViewInit {
     }
 
     private getCurrentGlobalSearchResults(): GlobalSearchResult[] {
-        const store = this.xtreamStore as typeof this.xtreamStore & {
-            globalSearchResults?: () => GlobalSearchResult[];
-        };
-
-        return (
-            store.globalSearchResults?.() ??
-            (this.xtreamStore.searchResults() as GlobalSearchResult[])
-        );
+        return this.xtreamStore.searchResults() as GlobalSearchResult[];
     }
 
     private selectM3uItem(item: GlobalSearchResult): void {
