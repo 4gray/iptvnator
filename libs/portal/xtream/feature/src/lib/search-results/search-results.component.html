@@ -58,7 +58,9 @@
                         @for (filter of filterConfig; track filter.key) {
                             <mat-checkbox
                                 [ngModel]="filters()[filter.key]"
-                                (ngModelChange)="updateFilter(filter.key, $event)"
+                                (ngModelChange)="
+                                    updateFilter(filter.key, $event)
+                                "
                             >
                                 {{ filter.translationKey | translate }}
                             </mat-checkbox>
@@ -97,13 +99,10 @@
                 <!-- Grouped by playlist -->
                 <div class="playlist-section">
                     <h2 class="section-title">
-                        Found {{ xtreamStore.searchResults().length }} items across
-                        {{ groupedResults().length }} playlists
+                        Found {{ xtreamStore.searchResults().length }} items
+                        across {{ groupedResults().length }} playlists
                     </h2>
-                    @for (
-                        group of groupedResults();
-                        track group.playlistId
-                    ) {
+                    @for (group of groupedResults(); track group.playlistId) {
                         <div class="playlist-group">
                             <h3 class="playlist-title">
                                 <mat-icon>playlist_play</mat-icon>
@@ -115,7 +114,9 @@
                             <div class="results-grid">
                                 @for (item of group.items; track item.id) {
                                     <app-content-card
-                                        [posterUrl]="item.poster_url"
+                                        [posterUrl]="
+                                            item.poster_url ?? undefined
+                                        "
                                         [title]="item.title"
                                         [type]="getDisplayType(item)"
                                         [showPlaceholder]="true"
@@ -131,7 +132,7 @@
                 <div class="results-grid">
                     @for (item of xtreamStore.searchResults(); track item.id) {
                         <app-content-card
-                            [posterUrl]="item.poster_url"
+                            [posterUrl]="item.poster_url ?? undefined"
                             [title]="item.title"
                             [type]="getDisplayType(item)"
                             [showPlaceholder]="true"
@@ -156,7 +157,7 @@
             <div class="results-grid">
                 @for (item of xtreamStore.searchResults(); track item.id) {
                     <app-content-card
-                        [posterUrl]="item.poster_url"
+                        [posterUrl]="item.poster_url ?? undefined"
                         [title]="item.title"
                         [type]="item.type"
                         [showPlaceholder]="true"
