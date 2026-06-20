@@ -36,6 +36,7 @@ mat-card:hover {
         .card-thumbnail-container {
             position: relative;
             width: 100%;
+            box-sizing: border-box;
             border-radius: 10px;
             overflow: hidden;
             aspect-ratio: 2 / 3; // maintain poster ratio
@@ -55,22 +56,37 @@ mat-card:hover {
         .stream-icon-placeholder {
             width: 100%;
             height: 100%;
-            min-height: 200px;
-            // Use graphite surface token, not hardcoded grey
-            background: var(--mat-sys-surface-container-high);
-            display: flex;
-            flex-direction: column;
-            justify-content: center;
-            align-items: center;
-            gap: 8px;
+            box-sizing: border-box;
+            display: grid;
+            place-items: center;
             color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
             border-radius: 10px;
 
-            &::after {
-                content: 'No cover';
-                font-size: 0.75rem;
-                font-weight: 500;
-                letter-spacing: 0.03em;
+            mat-icon {
+                width: clamp(28px, 20%, 42px);
+                height: clamp(28px, 20%, 42px);
+                font-size: clamp(28px, 20%, 42px);
+                opacity: 0.46;
+            }
+        }
+
+        &.grid-card--logo {
+            .card-thumbnail-container {
+                aspect-ratio: 16 / 9;
+                background:
+                    linear-gradient(
+                        180deg,
+                        rgba(255, 255, 255, 0.04),
+                        rgba(255, 255, 255, 0)
+                    ),
+                    var(--mat-sys-surface-container-high);
+                box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+            }
+
+            .stream-icon {
+                object-fit: contain;
+                padding: 18px;
+                box-sizing: border-box;
             }
         }
 
@@ -87,6 +103,35 @@ mat-card:hover {
             line-height: 1.35;
             color: var(--app-body-color, var(--mat-sys-on-surface-variant));
         }
+    }
+}
+
+// ─── Type badge ──────────────────────────────────────────────────────────────
+.type-badge {
+    position: absolute;
+    top: 6px;
+    left: 6px;
+    z-index: 1;
+    padding: 3px 6px;
+    border-radius: 5px;
+    font-size: 0.58rem;
+    font-weight: 700;
+    line-height: 1;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    background: rgba(0, 0, 0, 0.85);
+    color: #fff;
+
+    &.live {
+        color: #ef5350;
+    }
+
+    &.movie {
+        color: #42a5f5;
+    }
+
+    &.series {
+        color: #66bb6a;
     }
 }
 
@@ -135,7 +180,6 @@ mat-card:hover {
         --error-empty-description-opacity: 0.9;
     }
 }
-
 
 @media (max-width: 768px) {
     .grid-empty-state {

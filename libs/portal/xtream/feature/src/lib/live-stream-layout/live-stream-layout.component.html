@@ -152,10 +152,40 @@
                 />
             </div>
         } @else {
-            <app-portal-empty-state
-                icon="live_tv"
-                [message]="'PORTALS.SELECT_CATEGORY' | translate"
-            />
+            <div class="live-all-items-content category-content-layout">
+                <div class="category-content-header">
+                    <div class="category-meta">
+                        <h2 class="category-title">All Items</h2>
+                        <div class="category-subtitle">
+                            {{ liveRootSubtitle() }}
+                        </div>
+                    </div>
+                    @if (showLiveRootPaginator()) {
+                        <mat-paginator
+                            [pageIndex]="liveRootPageIndex()"
+                            [length]="liveRootItemCount()"
+                            [pageSize]="liveRootLimit()"
+                            [pageSizeOptions]="liveRootPageSizeOptions"
+                            (page)="onLiveRootPageChange($event)"
+                            aria-label="Select page"
+                        />
+                    }
+                </div>
+                <app-grid-list
+                    class="live-all-items-grid app-scrollbar"
+                    [isLoading]="isSelectedTypeContentLoading()"
+                    [items]="liveRootItems()"
+                    [pageIndex]="liveRootPageIndex()"
+                    [totalPages]="liveRootTotalPages()"
+                    [limit]="liveRootLimit()"
+                    [pageSizeOptions]="liveRootPageSizeOptions"
+                    [showPaginator]="false"
+                    [searchTerm]="workspaceSearchTerm()"
+                    [variant]="'logo'"
+                    [type]="'live'"
+                    (itemClicked)="onLiveRootItemClick($event)"
+                />
+            </div>
         }
     } @else {
         <app-portal-empty-state

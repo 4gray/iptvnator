@@ -34,6 +34,7 @@ interface RecentlyAddedItem {
 // Three placeholder slots per skeleton rail — enough to suggest a horizontal
 // scroll without taking the whole viewport.
 const SKELETON_CARDS_PER_RAIL = [1, 2, 3, 4, 5, 6] as const;
+const RECENTLY_ADDED_ITEMS_LIMIT = 30;
 
 @Component({
     selector: 'app-recently-added',
@@ -144,7 +145,7 @@ export class RecentlyAddedComponent {
             .sort((a, b) => {
                 return b.sortTimestamp - a.sortTimestamp;
             })
-            .slice(0, 20)
+            .slice(0, RECENTLY_ADDED_ITEMS_LIMIT)
             .map(({ item }) => item);
     }
 
@@ -197,17 +198,37 @@ export class RecentlyAddedComponent {
         this.xtreamStore.setSelectedContentType(type);
 
         if (type === 'live') {
+            const itemId = this.getItemId(item, type);
             this.router.navigate(['..', type, item.category_id], {
                 relativeTo: this.activatedRoute,
+                ...(itemId
+                    ? {
+                          state: {
+                              openXtreamLiveItemId: Number(itemId),
+                              openXtreamLiveTitle:
+                                  item.title || item.name || '',
+                              openXtreamLivePoster:
+                                  item.poster_url || item.stream_icon || '',
+                          },
+                      }
+                    : {}),
             });
         } else {
-            const itemId =
-                item.xtream_id ||
-                item.id ||
-                (type === 'series' ? item.series_id : item.stream_id);
+            const itemId = this.getItemId(item, type);
             this.router.navigate(['..', type, item.category_id, itemId], {
                 relativeTo: this.activatedRoute,
             });
         }
+    }
+
+    private getItemId(
+        item: RecentlyAddedItem,
+        type: ContentType
+    ): number | undefined {
+        return (
+            item.xtream_id ||
+            item.id ||
+            (type === 'series' ? item.series_id : item.stream_id)
+        );
     }
 }

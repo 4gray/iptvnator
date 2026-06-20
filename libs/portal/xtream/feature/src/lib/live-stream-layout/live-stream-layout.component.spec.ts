@@ -31,12 +31,11 @@ import {
     LiveEpgPanelSummary,
 } from '@iptvnator/ui/shared-portals';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
+import { GridListComponent } from '@iptvnator/portal/shared/ui';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
 import { LiveStreamLayoutComponent } from './live-stream-layout.component';
-import {
-    RuntimeCapabilitiesService,
-    SettingsStore,
-} from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
+import { PageEvent } from '@angular/material/paginator';
 
 const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 
@@ -47,9 +46,30 @@ const LIVE_CHANNEL_SORT_STORAGE_KEY = 'xtream-live-channel-sort-mode';
 })
 class StubPortalChannelsListComponent {
     readonly sortMode = input<'server' | 'name-asc' | 'name-desc'>('server');
+    readonly channelsOverride = input<unknown[] | null>(null);
     readonly searchTermInput = input('');
     readonly playClicked = output<unknown>();
     readonly playbackRequested = output<unknown>();
+}
+
+@Component({
+    selector: 'app-grid-list',
+    standalone: true,
+    template: '<div data-test-id="grid-list-stub"></div>',
+})
+class StubGridListComponent {
+    readonly items = input<unknown[]>([]);
+    readonly isLoading = input(false);
+    readonly showPaginator = input(true);
+    readonly searchTerm = input('');
+    readonly pageIndex = input(0);
+    readonly totalPages = input(0);
+    readonly limit = input(25);
+    readonly pageSizeOptions = input<number[]>([]);
+    readonly variant = input<'poster' | 'logo'>('poster');
+    readonly type = input<string>();
+    readonly itemClicked = output<unknown>();
+    readonly pageChange = output<PageEvent>();
 }
 
 @Component({
@@ -145,10 +165,16 @@ describe('LiveStreamLayoutComponent', () => {
     const selectedItem = signal<unknown>(sampleChannel);
     const currentPlaylist = signal(playlist);
     const liveStreams = signal<unknown[]>([]);
+    const paginatedContent = signal<unknown[]>([]);
+    const totalPages = signal(0);
+    const page = signal(0);
+    const limit = signal(25);
 
     const xtreamStore = {
         getCategoriesBySelectedType: categories,
         getCategoryItemCounts: categoryItemCounts,
+        getPaginatedContent: paginatedContent,
+        getTotalPages: totalPages,
         epgItems,
         currentEpgItem,
         isLoadingEpg,
@@ -158,14 +184,19 @@ describe('LiveStreamLayoutComponent', () => {
         selectedItem,
         currentPlaylist,
         liveStreams,
+        page,
+        limit,
         selectItemsFromSelectedCategory: jest.fn(() => [sampleChannel]),
         constructStreamUrl: jest.fn(() => 'https://example.com/live.ts'),
         openPlayer: jest.fn(),
         setSelectedItem: jest.fn(),
         setSelectedCategory: jest.fn(),
+        setPage: jest.fn((nextPage: number) => page.set(nextPage)),
+        setLimit: jest.fn((nextLimit: number) => limit.set(nextLimit)),
     };
 
     let routerEvents: Subject<unknown>;
+    let router: { events: Subject<unknown>; navigate: jest.Mock };
     const favoritesService = {
         getFavorites: jest.fn().mockReturnValue(of([])),
     };
@@ -198,14 +229,21 @@ describe('LiveStreamLayoutComponent', () => {
         } as typeof window.electron;
 
         routerEvents = new Subject();
+        router = { events: routerEvents, navigate: jest.fn() };
         xtreamStore.constructStreamUrl.mockClear();
         xtreamStore.openPlayer.mockClear();
         xtreamStore.setSelectedItem.mockClear();
         xtreamStore.setSelectedCategory.mockClear();
+        xtreamStore.setPage.mockClear();
+        xtreamStore.setLimit.mockClear();
         xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
             sampleChannel,
         ]);
         liveStreams.set([]);
+        paginatedContent.set([]);
+        totalPages.set(0);
+        page.set(0);
+        limit.set(25);
         favoritesService.getFavorites.mockClear();
         xtreamUrlService.resolveCatchupUrl.mockClear();
         portalPlayer.isEmbeddedPlayer.mockReset();
@@ -214,6 +252,8 @@ describe('LiveStreamLayoutComponent', () => {
         epgItems.set([]);
         currentEpgItem.set(null);
         isLoadingEpg.set(false);
+        categories.set([{ category_id: 1, category_name: 'News' }]);
+        categoryItemCounts.set(new Map<number, number>([[1, 1]]));
         selectedTypeContentLoading.set(false);
         selectedCategoryId.set(1);
         selectedContentType.set('live');
@@ -243,7 +283,10 @@ describe('LiveStreamLayoutComponent', () => {
                 },
                 {
                     provide: Router,
-                    useValue: { events: routerEvents.asObservable() },
+                    useValue: {
+                        events: router.events.asObservable(),
+                        navigate: router.navigate,
+                    },
                 },
                 { provide: XtreamStore, useValue: xtreamStore },
                 { provide: FavoritesService, useValue: favoritesService },
@@ -260,8 +303,8 @@ describe('LiveStreamLayoutComponent', () => {
                         get supportsRemoteControl() {
                             return Boolean(
                                 window.electron?.updateRemoteControlStatus &&
-                                    window.electron.onChannelChange &&
-                                    window.electron.onRemoteControlCommand
+                                window.electron.onChannelChange &&
+                                window.electron.onRemoteControlCommand
                             );
                         },
                     },
@@ -276,6 +319,7 @@ describe('LiveStreamLayoutComponent', () => {
                         EpgListComponent,
                         EpgViewComponent,
                         LiveEpgPanelComponent,
+                        GridListComponent,
                         PortalChannelsListComponent,
                         ResizableDirective,
                         TranslatePipe,
@@ -287,6 +331,7 @@ describe('LiveStreamLayoutComponent', () => {
                         StubEpgListComponent,
                         StubEpgViewComponent,
                         StubLiveEpgPanelComponent,
+                        StubGridListComponent,
                         StubPortalChannelsListComponent,
                         StubResizableDirective,
                         MockPipe(
@@ -419,6 +464,153 @@ describe('LiveStreamLayoutComponent', () => {
         ).toBeNull();
     });
 
+    it('shows live all-items content with the shared grid and header paginator before a category is selected', () => {
+        const firstChannel = {
+            xtream_id: 301,
+            name: 'First Channel',
+            category_id: '7',
+            added: String(
+                Math.floor(Date.parse('2026-04-04T12:00:00Z') / 1000)
+            ),
+        };
+        const secondChannel = {
+            xtream_id: 302,
+            name: 'Second Channel',
+            category_id: '8',
+            added: String(
+                Math.floor(Date.parse('2026-04-03T12:00:00Z') / 1000)
+            ),
+        };
+        const thirdChannel = {
+            xtream_id: 303,
+            name: 'Third Channel',
+            category_id: '9',
+            added: String(
+                Math.floor(Date.parse('2026-04-02T12:00:00Z') / 1000)
+            ),
+        };
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+        limit.set(25);
+        page.set(0);
+        totalPages.set(2);
+        paginatedContent.set([firstChannel, secondChannel]);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([
+            firstChannel,
+            secondChannel,
+            thirdChannel,
+        ]);
+
+        fixture.detectChanges();
+
+        const grid = fixture.debugElement.query(
+            By.directive(StubGridListComponent)
+        );
+        expect(grid).not.toBeNull();
+        expect(grid.componentInstance.items()).toEqual([
+            firstChannel,
+            secondChannel,
+        ]);
+        expect(grid.componentInstance.variant()).toBe('logo');
+        expect(grid.componentInstance.type()).toBe('live');
+        expect(grid.componentInstance.showPaginator()).toBe(false);
+        expect(grid.componentInstance.pageIndex()).toBe(0);
+        expect(grid.componentInstance.totalPages()).toBe(2);
+        expect(grid.componentInstance.limit()).toBe(25);
+        expect(grid.componentInstance.pageSizeOptions()).toEqual([
+            10, 25, 50, 100,
+        ]);
+        expect(
+            fixture.nativeElement.querySelector('.category-title').textContent
+        ).toContain('All Items');
+        expect(
+            fixture.nativeElement.querySelector('.category-subtitle')
+                .textContent
+        ).toContain('3 channels');
+        expect(
+            fixture.nativeElement.querySelector('mat-paginator')
+        ).not.toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.directive(StubPortalChannelsListComponent)
+            )
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-portal-empty-state')
+        ).toBeNull();
+    });
+
+    it('plays a live all-items grid card and selects its category', () => {
+        const channel = {
+            xtream_id: 301,
+            name: 'Grid Channel',
+            category_id: '7',
+            added: String(
+                Math.floor(Date.parse('2026-04-04T12:00:00Z') / 1000)
+            ),
+        };
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+        paginatedContent.set([channel]);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue([channel]);
+
+        fixture.detectChanges();
+
+        const grid = fixture.debugElement.query(
+            By.directive(StubGridListComponent)
+        );
+        grid.componentInstance.itemClicked.emit(channel);
+        fixture.detectChanges();
+
+        expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(channel);
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(7);
+        expect(
+            fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
+        ).not.toBeNull();
+    });
+
+    it('updates live root pagination from the header paginator', () => {
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+        xtreamStore.selectItemsFromSelectedCategory.mockReturnValue(
+            Array.from({ length: 80 }, (_, index) => ({
+                xtream_id: index + 1,
+                name: `Channel ${index + 1}`,
+            }))
+        );
+        paginatedContent.set([]);
+
+        fixture.detectChanges();
+
+        const paginator = fixture.debugElement.query(By.css('mat-paginator'));
+        expect(paginator).not.toBeNull();
+        paginator.triggerEventHandler('page', {
+            pageIndex: 1,
+            pageSize: 50,
+            length: 80,
+            previousPageIndex: 0,
+        } satisfies PageEvent);
+
+        expect(xtreamStore.setPage).toHaveBeenCalledWith(1);
+        expect(xtreamStore.setLimit).toHaveBeenCalledWith(50);
+        expect(router.navigate).toHaveBeenCalledWith([], {
+            relativeTo: expect.any(Object),
+            queryParams: { page: 2 },
+            queryParamsHandling: 'merge',
+            replaceUrl: true,
+        });
+    });
+
+    it('applies the live root page query parameter', () => {
+        selectedCategoryId.set(null);
+        selectedTypeContentLoading.set(false);
+
+        routeQueryParamMap.next(convertToParamMap({ page: '3' }));
+        fixture.detectChanges();
+
+        expect(xtreamStore.setPage).toHaveBeenCalledWith(2);
+    });
+
     it('shows the cross-category live channel list while searching from the live root', () => {
         selectedCategoryId.set(null);
         selectedTypeContentLoading.set(false);
@@ -444,6 +636,10 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('shows embedded playback after selecting a channel from live root search results', () => {
+        const searchResultChannel = {
+            ...sampleChannel,
+            category_id: '7',
+        };
         selectedCategoryId.set(null);
         selectedTypeContentLoading.set(false);
         routeQueryParamMap.next(convertToParamMap({ q: 'world' }));
@@ -453,12 +649,13 @@ describe('LiveStreamLayoutComponent', () => {
             By.directive(StubPortalChannelsListComponent)
         );
 
-        list.componentInstance.playClicked.emit(sampleChannel);
+        list.componentInstance.playClicked.emit(searchResultChannel);
         fixture.detectChanges();
 
         expect(xtreamStore.constructStreamUrl).toHaveBeenCalledWith(
-            sampleChannel
+            searchResultChannel
         );
+        expect(xtreamStore.setSelectedCategory).toHaveBeenCalledWith(7);
         expect(
             fixture.debugElement.query(By.directive(StubWebPlayerViewComponent))
         ).not.toBeNull();
