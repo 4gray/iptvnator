@@ -107,9 +107,13 @@ export class CategoryContentViewComponent implements OnInit {
         () => this.catalog.supportsRatingSort === true
     );
     readonly canFilterByRating = computed(
-        () => typeof this.catalog.setMinRating === 'function'
+        () =>
+            this.supportsRatingSort() &&
+            typeof this.catalog.setMinRating === 'function'
     );
-    readonly minRating = computed(() => this.catalog.minRating?.() ?? null);
+    readonly minRating = computed(() =>
+        this.canFilterByRating() ? (this.catalog.minRating?.() ?? null) : null
+    );
     readonly ratingThresholds = [9, 8, 7, 6, 5] as const;
     readonly hasRefineControls = computed(
         () => this.canSortContent() || this.canFilterByRating()

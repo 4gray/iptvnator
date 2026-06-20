@@ -47,6 +47,7 @@ describe('XtreamCatalogFacadeService', () => {
     const totalPages = signal(1);
     const isPaginatedContentLoading = signal(false);
     const contentSortMode = signal<PortalCatalogSortMode>('date-desc');
+    const minRating = signal<number | null>(null);
     const currentPlaylist = signal<XtreamPlaylistData | null>(PLAYLIST_ONE);
 
     const xtreamStore = {
@@ -61,6 +62,7 @@ describe('XtreamCatalogFacadeService', () => {
         getTotalPages: totalPages,
         isPaginatedContentLoading,
         contentSortMode,
+        minRating,
         currentPlaylist,
         loadAllPositions: jest.fn(),
         setCategorySearchTerm: jest.fn(),
@@ -78,6 +80,9 @@ describe('XtreamCatalogFacadeService', () => {
         }),
         setContentSortMode: jest.fn((mode: PortalCatalogSortMode) => {
             contentSortMode.set(mode);
+        }),
+        setMinRating: jest.fn((value: number | null) => {
+            minRating.set(value);
         }),
         hasSeriesProgress: jest.fn().mockReturnValue(false),
         getProgressPercent: jest.fn().mockReturnValue(40),
@@ -100,6 +105,7 @@ describe('XtreamCatalogFacadeService', () => {
         totalPages.set(1);
         isPaginatedContentLoading.set(false);
         contentSortMode.set('date-desc');
+        minRating.set(null);
         currentPlaylist.set(PLAYLIST_ONE);
 
         xtreamStore.loadAllPositions.mockClear();
@@ -109,6 +115,7 @@ describe('XtreamCatalogFacadeService', () => {
         xtreamStore.setPage.mockClear();
         xtreamStore.setLimit.mockClear();
         xtreamStore.setContentSortMode.mockClear();
+        xtreamStore.setMinRating.mockClear();
         xtreamStore.hasSeriesProgress.mockClear();
         xtreamStore.getProgressPercent.mockClear();
         xtreamStore.isWatched.mockClear();
@@ -189,5 +196,68 @@ describe('XtreamCatalogFacadeService', () => {
         expect(localStorage.getItem('xtream-category-sort-mode')).toBe(
             'name-desc'
         );
+    });
+
+    it('keeps rating sort modes out of live content', () => {
+        contentSortMode.set('rating-desc');
+        contentType.set('live');
+
+        expect(service.supportsRatingSort).toBe(false);
+        expect(service.contentSortMode()).toBe('date-desc');
+
+        service.setContentSortMode('rating-asc');
+
+        expect(xtreamStore.setContentSortMode).not.toHaveBeenCalled();
+        expect(localStorage.getItem('xtream-category-sort-mode')).toBeNull();
+
+        contentType.set('vod');
+
+        expect(service.supportsRatingSort).toBe(true);
+        expect(service.contentSortMode()).toBe('rating-desc');
+
+        service.setContentSortMode('rating-asc');
+
+        expect(xtreamStore.setContentSortMode).toHaveBeenCalledWith(
+            'rating-asc'
+        );
+        expect(localStorage.getItem('xtream-category-sort-mode')).toBe(
+            'rating-asc'
+        );
+    });
+
+    it('does not restore saved rating sort modes for live content', () => {
+        contentType.set('live');
+        localStorage.setItem('xtream-category-sort-mode', 'rating-desc');
+
+        service.initialize('42');
+
+        expect(xtreamStore.setContentSortMode).not.toHaveBeenCalled();
+        expect(service.contentSortMode()).toBe('date-desc');
+    });
+
+    it('exposes rating refinements only for VOD and series content', () => {
+        minRating.set(8);
+
+        expect(service.supportsRatingSort).toBe(true);
+        expect(service.minRating?.()).toBe(8);
+
+        service.setMinRating(7);
+
+        expect(xtreamStore.setMinRating).toHaveBeenCalledWith(7);
+
+        contentType.set('series');
+
+        expect(service.supportsRatingSort).toBe(true);
+        expect(service.minRating?.()).toBe(7);
+
+        xtreamStore.setMinRating.mockClear();
+        contentType.set('live');
+
+        expect(service.supportsRatingSort).toBe(false);
+        expect(service.minRating?.()).toBeNull();
+
+        service.setMinRating(9);
+
+        expect(xtreamStore.setMinRating).not.toHaveBeenCalled();
     });
 });

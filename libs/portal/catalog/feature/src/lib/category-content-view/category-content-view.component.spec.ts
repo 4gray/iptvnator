@@ -94,6 +94,7 @@ describe('CategoryContentViewComponent', () => {
         isPaginatedContentLoading.set(true);
         categoryItemCount.set(0);
         contentSortMode.set(null);
+        catalog.supportsRatingSort = true;
         minRating.set(null);
         catalog.initialize.mockClear();
         catalog.setSearchQuery.mockClear();
@@ -261,6 +262,22 @@ describe('CategoryContentViewComponent', () => {
         ratingChip?.click();
 
         expect(catalog.setMinRating).toHaveBeenCalledWith(null);
+    });
+
+    it('hides rating refinements when the catalog facade does not support rating sorting', () => {
+        catalog.supportsRatingSort = false;
+        contentSortMode.set('date-desc');
+        minRating.set(9);
+        categoryItemCount.set(12);
+
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.supportsRatingSort()).toBe(false);
+        expect(fixture.componentInstance.canFilterByRating()).toBe(false);
+        expect(fixture.componentInstance.minRating()).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('.rating-refinement-chip')
+        ).toBeNull();
     });
 
     it('renders full and compact refinement chip labels for responsive layouts', () => {
