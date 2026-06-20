@@ -449,6 +449,8 @@ describe('DashboardDataService', () => {
                 expect.objectContaining({ title: 'Channel Two' }),
             ])
         );
+        expect(service.globalFavoritesLoaded()).toBe(true);
+        expect(service.globalFavoritesLoading()).toBe(false);
     });
 
     it('keeps the earliest matching M3U favorite id when channel id and URL both match', async () => {

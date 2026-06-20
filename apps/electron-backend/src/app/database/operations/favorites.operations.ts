@@ -10,7 +10,6 @@ import {
 import { persistContentBackdropIfMissing } from './content-backdrop.operations';
 
 const DEFAULT_BATCH_SIZE = 100;
-const GLOBAL_LIVE_FAVORITES_SCAN_LIMIT = 2000;
 
 export async function addFavorite(
     db: AppDatabase,
@@ -92,7 +91,7 @@ export async function getFavorites(db: AppDatabase, playlistId: string) {
 export async function getGlobalFavorites(db: AppDatabase) {
     const favorites = await selectGlobalFavoriteRows(db, {
         includeBackdrop: false,
-    }).limit(GLOBAL_LIVE_FAVORITES_SCAN_LIMIT);
+    });
 
     return favorites.filter((favorite) => favorite.type === 'live').slice(0, 300);
 }

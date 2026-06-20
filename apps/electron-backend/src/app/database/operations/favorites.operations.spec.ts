@@ -23,6 +23,9 @@ function createGlobalFavoritesDbMock(rows: unknown[]) {
         innerJoin: jest.fn(),
         limit: jest.fn(),
         orderBy: jest.fn(),
+        then: jest.fn((resolve, reject) =>
+            Promise.resolve(rows).then(resolve, reject)
+        ),
         where: whereMock,
     };
     query.from.mockReturnValue(query);
@@ -48,7 +51,7 @@ describe('favorites.operations', () => {
     });
 
     it('filters live global favorites after scanning the small favorites set', async () => {
-        const { db } = createGlobalFavoritesDbMock([
+        const { db, query } = createGlobalFavoritesDbMock([
             {
                 id: 1,
                 title: 'Saved Movie',
@@ -64,6 +67,7 @@ describe('favorites.operations', () => {
         const result = await getGlobalFavorites(db);
 
         expect(whereMock).not.toHaveBeenCalled();
+        expect(query.limit).not.toHaveBeenCalled();
         expect(result).toEqual([
             expect.objectContaining({
                 id: 2,

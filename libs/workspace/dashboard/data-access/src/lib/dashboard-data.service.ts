@@ -542,6 +542,12 @@ export class DashboardDataService {
         const m3uReload = this.reloadPlaylistBackedGlobalFavorites();
 
         await Promise.all([xtreamReload, m3uReload]);
+        if (
+            this.playlistsLoaded() &&
+            !this.playlistBackedGlobalFavoritesLoadedState()
+        ) {
+            await this.reloadPlaylistBackedGlobalFavorites();
+        }
         this.finishInitialGlobalFavoritesLoadIfReady();
         this.favoritesAutoRefreshEnabled.set(true);
     }
@@ -1212,17 +1218,14 @@ export class DashboardDataService {
         const fallbackTimestamp =
             this.getM3uFavoriteTimestamp(playlistMeta) ??
             new Date(0).toISOString();
-        const items = resolvedChannels
-            .slice()
-            .sort((a, b) => a.favoriteIndex - b.favoriteIndex)
-            .map((favorite) =>
-                this.createM3uFavoriteItem(
-                    playlistMeta,
-                    favorite.favoriteId,
-                    favorite.channel,
-                    fallbackTimestamp
-                )
-            );
+        const items = resolvedChannels.slice().map((favorite) =>
+            this.createM3uFavoriteItem(
+                playlistMeta,
+                favorite.favoriteId,
+                favorite.channel,
+                fallbackTimestamp
+            )
+        );
 
         this.m3uFavoritesCache.set(playlistMeta._id, {
             fingerprint,
