@@ -5,6 +5,7 @@ import { TranslateService } from '@ngx-translate/core';
 import { startWith } from 'rxjs';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { WorkspaceSearchCapability } from '@iptvnator/workspace/shell/util';
 import {
     SEARCH_LOADED_ONLY_STATUS,
@@ -14,6 +15,7 @@ import {
     resolveSearchPlaceholderKey,
     resolveSearchScopeLabel,
 } from './helpers/workspace-shell-search-labels';
+import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
 import { WorkspaceShellSearchSyncService } from './workspace-shell-search-sync.service';
 
@@ -23,6 +25,7 @@ export class WorkspaceShellSearchService {
     private readonly xtreamStore = inject(XtreamStore);
     private readonly stalkerStore = inject(StalkerStore);
     private readonly translate = inject(TranslateService);
+    private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly routeState = inject(WorkspaceShellRouteStateService);
     private readonly searchSync = inject(WorkspaceShellSearchSyncService);
 
@@ -83,25 +86,18 @@ export class WorkspaceShellSearchService {
         }
 
         if (route.kind === 'global-search') {
-            const hasSearchablePlaylists = this.routeState.playlists().some(
-                (playlist) =>
-                    !!playlist.serverUrl ||
-                    (!playlist.macAddress &&
-                        (!!playlist.filePath ||
-                            !!playlist.url ||
-                            !playlist.serverUrl))
-            );
+            const hasSearchablePlaylists =
+                this.runtime.isElectron &&
+                this.routeState
+                    .playlists()
+                    .some(isWorkspaceGlobalSearchablePlaylist);
 
             return {
                 enabled: hasSearchablePlaylists,
-                behavior: hasSearchablePlaylists
-                    ? 'remote-search'
-                    : 'disabled',
+                behavior: hasSearchablePlaylists ? 'remote-search' : 'disabled',
                 context: null,
                 section: null,
-                searchMode: hasSearchablePlaylists
-                    ? 'remote-search'
-                    : 'none',
+                searchMode: hasSearchablePlaylists ? 'remote-search' : 'none',
                 placeholderKey: 'WORKSPACE.SHELL.SEARCH_GLOBAL_PLACEHOLDER',
                 scopeLabel: this.translateText(
                     'WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH'

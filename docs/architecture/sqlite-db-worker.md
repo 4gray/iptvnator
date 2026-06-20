@@ -209,14 +209,18 @@ Xtream-only row shape:
 1. `source_type = "xtream"` rows come from the normalized `content` and
    `categories` tables joined with `playlists`. Xtream title matching uses
    `content_title_fts`, an FTS5 trigram index over `content.title`, for search
-   terms with at least one 3+ character token. Existing databases rebuild this
-   index once through the `migration:content-title-fts-trigram:v1` app-state
-   marker; fresh inserts, deletes, and title updates stay synchronized through
-   SQLite triggers.
+   terms with at least one 3+ character token. Tokens are quoted before being
+   passed to `MATCH`, so FTS reserved words such as `and` are treated as search
+   text instead of degrading to the slow fallback path. Existing databases
+   rebuild this index once through the `migration:content-title-fts-trigram:v1`
+   app-state marker; fresh inserts, deletes, and title updates stay
+   synchronized through SQLite triggers.
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
    `playlists.payload`. The worker uses SQL `payload LIKE` only as a coarse
    candidate prefilter, then parses candidate JSON payloads and matches channel
-   name, TVG name, and group title case-insensitively in the worker.
+   name, TVG name, and group title case-insensitively in the worker. The SQL
+   candidate query is capped by the same candidate limit used for Xtream search,
+   so large matching M3U payloads are not loaded without an upper bound.
 3. The optional `sources` argument can restrict search to `xtream` or `m3u`,
    but omitted callers keep the backward-compatible behavior of searching all
    supported global-search sources.

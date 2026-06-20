@@ -7,6 +7,10 @@ describe('app routes', () => {
         path?: string;
         redirectTo?: unknown;
     }> = [];
+    let resolveElectronOnlyGlobalSearchRoute: (
+        runtime: { isElectron: boolean },
+        router: { parseUrl: (url: string) => unknown }
+    ) => unknown;
 
     beforeAll(async () => {
         jest.resetModules();
@@ -42,11 +46,14 @@ describe('app routes', () => {
             })
         );
 
-        const { routes } = await import('./app.routes');
+        const appRoutes = await import('./app.routes');
+        const { routes } = appRoutes;
         const workspaceRoute = routes.find(
             (route) => route.path === 'workspace'
         );
         workspaceChildren = workspaceRoute?.children ?? [];
+        resolveElectronOnlyGlobalSearchRoute =
+            appRoutes.resolveElectronOnlyGlobalSearchRoute;
     });
 
     it('lazy-loads M3U workspace routes through the feature boundary', async () => {
@@ -99,7 +106,21 @@ describe('app routes', () => {
         expect(globalSearchRoute?.data).toEqual({
             isGlobalSearch: true,
         });
+        expect(globalSearchRoute?.canActivate).toHaveLength(1);
         expect(typeof globalSearchRoute?.loadComponent).toBe('function');
+    });
+
+    it('redirects the Electron-only global search route in the web runtime', async () => {
+        const redirectTree = { url: '/workspace/sources' };
+        const parseUrl = jest.fn().mockReturnValue(redirectTree);
+
+        const result = resolveElectronOnlyGlobalSearchRoute(
+            { isElectron: false },
+            { parseUrl }
+        );
+
+        expect(parseUrl).toHaveBeenCalledWith('/workspace/sources');
+        expect(result).toBe(redirectTree);
     });
 
     it('uses a dynamic redirect for the default /workspace child route', async () => {

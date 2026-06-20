@@ -76,8 +76,9 @@ Provider route integration:
 The shell is intentionally split into four persistent regions:
 
 1. Left rail:
-    1. Static workspace links for dashboard, sources, global search,
-       global favorites, and recently viewed.
+    1. Static workspace links for dashboard, sources, global favorites, and
+       recently viewed. The routed global-search rail link is Electron-only
+       because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
     3. Settings remains a persistent footer shortcut in the rail.
 2. Top header:
@@ -145,9 +146,10 @@ Search is shell-owned and route-aware:
 
 1. Disabled on settings routes.
 2. Enabled on sources routes.
-3. Enabled for `/workspace/search`, which is the routed global-search view.
-   `Ctrl/Cmd+F` in Electron opens this route and focuses/selects the header
-   search input instead of opening a fullscreen dialog.
+3. Enabled for `/workspace/search`, which is the Electron-only routed
+   global-search view. `Ctrl/Cmd+F` in Electron opens this route and
+   focuses/selects the header search input instead of opening a fullscreen
+   dialog.
 4. Enabled for supported Xtream and Stalker content/search views.
 5. Placeholder text and search handling vary by provider and section.
 6. Input changes are debounced before route/store updates are applied.

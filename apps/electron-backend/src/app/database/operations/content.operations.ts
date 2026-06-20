@@ -285,6 +285,7 @@ function shouldUseContentTitlePrefixIndex(searchTerm: string): boolean {
 function buildContentTitleFtsMatchQuery(searchTerm: string): string {
     return getSearchTokens(searchTerm)
         .filter((token) => token.length >= 3)
+        .map((token) => `"${token.replace(/"/g, '""')}"`)
         .join(' AND ');
 }
 
@@ -1196,7 +1197,8 @@ export async function globalSearch(
                     ...buildM3uPayloadSearchConditions(searchTerm)
                 )
             )
-            .orderBy(schema.playlists.name);
+            .orderBy(schema.playlists.name)
+            .limit(candidateLimit);
 
         results.push(
             ...buildScoredM3uGlobalSearchResults(

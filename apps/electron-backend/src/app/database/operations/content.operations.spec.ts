@@ -536,4 +536,63 @@ describe('content.operations', () => {
             }),
         ]);
     });
+
+    it('quotes FTS tokens so reserved words do not fall back to content scans', async () => {
+        const all = jest.fn().mockResolvedValue([
+            {
+                id: 1,
+                category_id: 10,
+                title: 'And One TV',
+                rating: '',
+                added: '',
+                poster_url: '',
+                epg_channel_id: '',
+                tv_archive: 0,
+                tv_archive_duration: 0,
+                direct_source: '',
+                xtream_id: 99,
+                type: 'live',
+                playlist_id: 'playlist-1',
+                playlist_name: 'Playlist One',
+            },
+        ]);
+        const db = {
+            all,
+            select: jest.fn(),
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'and', ['live'], false, ['xtream'], {
+            limit: 10,
+        });
+
+        const matchSqlCall = sqlMock.mock.calls.find(([strings]) =>
+            Array.from(strings as TemplateStringsArray)
+                .join(' ')
+                .includes('content_title_fts MATCH')
+        );
+
+        expect(matchSqlCall?.[1]).toBe('"and"');
+    });
+
+    it('limits M3U playlist payload candidates before parsing large JSON payloads', async () => {
+        const limit = jest.fn().mockResolvedValue([]);
+        const orderedQuery = {
+            limit,
+            then: (resolve: (value: unknown[]) => void) => resolve([]),
+        };
+        const orderBy = jest.fn().mockReturnValue(orderedQuery);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'news', ['live'], false, ['m3u'], {
+            limit: 10,
+        });
+
+        expect(orderBy).toHaveBeenCalledWith(schema.playlists.name);
+        expect(limit).toHaveBeenCalledWith(500);
+    });
 });
