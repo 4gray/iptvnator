@@ -10,6 +10,7 @@ export * from './lib/epg-item.interface';
 export * from './lib/epg-program.model';
 export * from './lib/external-player-arguments.utils';
 export * from './lib/external-player-session.interface';
+export * from './lib/global-search-result.interface';
 export * from './lib/indexed-db.config';
 export * from './lib/ipc-command.class';
 export * from './lib/ipc-commands';

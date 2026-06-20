@@ -43,10 +43,12 @@ Current workspace routes:
 4. `/workspace/sources`
 5. `/workspace/playlists/:id/:view`
 6. `/workspace/global-favorites`
-7. `/workspace/downloads`
-8. `/workspace/settings`
-9. `/workspace/xtreams/:id/...`
-10. `/workspace/stalker/:id/...`
+7. `/workspace/global-recent`
+8. `/workspace/search`
+9. `/workspace/downloads`
+10. `/workspace/settings`
+11. `/workspace/xtreams/:id/...`
+12. `/workspace/stalker/:id/...`
 
 Compatibility redirect:
 
@@ -74,7 +76,9 @@ Provider route integration:
 The shell is intentionally split into four persistent regions:
 
 1. Left rail:
-    1. Static workspace links for dashboard, sources, global favorites, and recently viewed.
+    1. Static workspace links for dashboard, sources, global favorites, and
+       recently viewed. The routed global-search rail link is Electron-only
+       because its data source is the SQLite worker bridge.
     2. Provider-aware context links derived from the active or current playlist.
     3. Settings remains a persistent footer shortcut in the rail.
 2. Top header:
@@ -142,17 +146,24 @@ Search is shell-owned and route-aware:
 
 1. Disabled on settings routes.
 2. Enabled on sources routes.
-3. Enabled for supported Xtream and Stalker content/search views.
-4. Placeholder text and search handling vary by provider and section.
-5. Input changes are debounced before route/store updates are applied.
+3. Enabled for `/workspace/search`, which is the Electron-only routed
+   global-search view. `Ctrl/Cmd+F` in Electron opens this route and
+   focuses/selects the header search input instead of opening a fullscreen
+   dialog.
+4. Enabled for supported Xtream and Stalker content/search views.
+5. Placeholder text and search handling vary by provider and section.
+6. Input changes are debounced before route/store updates are applied.
+7. Global search uses the header input as its primary input and writes the
+   search phrase to the `q` query parameter, so history/back-forward behavior
+   matches the rest of the workspace.
 
 Rail navigation is also shell-owned:
 
 1. Workspace-global entries are static.
 2. Provider entries come from `buildPortalRailLinks(...)`.
-3. On dashboard, sources, settings, and global favorites, the shell falls back
-   to the currently selected playlist so provider navigation remains available
-   even outside a provider route.
+3. On dashboard, sources, settings, global search, global favorites, and global
+   recent, the shell falls back to the currently selected playlist so provider
+   navigation remains available even outside a provider route.
 
 Command palette behavior is shell-owned but view-extensible:
 

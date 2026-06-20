@@ -32,20 +32,10 @@ export class AppWorkspaceShellActionsService implements WorkspaceShellActions {
     }
 
     openGlobalSearch(initialQuery = ''): void {
-        void import('@iptvnator/portal/xtream/feature').then(
-            ({ GlobalSearchResultsComponent }) => {
-                this.dialog.open(GlobalSearchResultsComponent, {
-                    width: '100%',
-                    height: '100%',
-                    maxWidth: '100%',
-                    panelClass: 'global-search-overlay',
-                    data: {
-                        isGlobalSearch: true,
-                        initialQuery,
-                    },
-                });
-            }
-        );
+        const query = initialQuery.trim();
+        void this.router.navigate(['/workspace/search'], {
+            queryParams: query ? { q: query } : {},
+        });
     }
 
     openGlobalRecent(): void {

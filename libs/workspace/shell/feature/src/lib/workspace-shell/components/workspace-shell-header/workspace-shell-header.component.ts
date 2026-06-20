@@ -1,8 +1,10 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     input,
     output,
+    viewChild,
 } from '@angular/core';
 import { MatIconButton } from '@angular/material/button';
 import { MatIcon } from '@angular/material/icon';
@@ -26,6 +28,9 @@ import { WorkspaceHeaderBulkAction } from '../../services/helpers/workspace-shel
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class WorkspaceShellHeaderComponent {
+    private readonly searchInput =
+        viewChild<ElementRef<HTMLInputElement>>('searchInput');
+
     readonly isMac =
         typeof navigator !== 'undefined' &&
         /Mac|iPhone|iPad|iPod/i.test(navigator.platform);
@@ -69,6 +74,23 @@ export class WorkspaceShellHeaderComponent {
     readonly downloadsRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+
+    focusSearchInput(options: { select?: boolean } = {}): void {
+        const inputElement = this.searchInput()?.nativeElement;
+        if (!inputElement || inputElement.disabled) {
+            return;
+        }
+
+        inputElement.focus();
+        if (options.select) {
+            inputElement.select();
+        }
+    }
+
+    containsSearchInput(target: EventTarget | null): boolean {
+        const inputElement = this.searchInput()?.nativeElement;
+        return !!inputElement && target === inputElement;
+    }
 
     onSearchInput(event: Event): void {
         const target = event.target as HTMLInputElement | null;

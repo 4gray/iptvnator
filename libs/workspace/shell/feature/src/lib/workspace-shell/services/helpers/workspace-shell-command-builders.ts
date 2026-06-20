@@ -27,7 +27,7 @@ export interface CommandBuilderContext {
     context: WorkspacePortalContext | null;
     section: PortalRailSection | null;
     hasActivePlaylist: boolean;
-    hasXtreamPlaylists: boolean;
+    hasSearchablePlaylists: boolean;
     canRefreshPlaylist: boolean;
     supportsDownloads: boolean;
     showDashboard: boolean;
@@ -141,7 +141,7 @@ export function getGlobalCommandDefinitions(
 ): WorkspaceCommandContribution[] {
     const {
         route,
-        hasXtreamPlaylists,
+        hasSearchablePlaylists,
         supportsDownloads,
         showDashboard,
         actions,
@@ -156,8 +156,8 @@ export function getGlobalCommandDefinitions(
             descriptionKey:
                 'WORKSPACE.SHELL.COMMANDS.GLOBAL_SEARCH_DESCRIPTION',
             priority: 10,
-            visible: hasXtreamPlaylists,
-            keywords: ['xtream'],
+            visible: hasSearchablePlaylists && route.kind !== 'global-search',
+            keywords: ['xtream', 'm3u', 'live'],
             run: ({ query }) => actions.openGlobalSearch(query),
         },
         {

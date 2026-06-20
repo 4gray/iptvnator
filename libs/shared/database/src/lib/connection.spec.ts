@@ -23,6 +23,7 @@ describe('database schema statements', () => {
         columnMigrationStatements,
         indexMigrationStatements,
         normalizeXtreamContentAddedEpochs,
+        ensureContentTitleFts,
     } = __databaseConnectionTestHooks;
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
@@ -36,6 +37,10 @@ describe('database schema statements', () => {
         expect(schemaSql).toContain(
             'CREATE VIRTUAL TABLE IF NOT EXISTS epg_programs_fts USING fts5'
         );
+        expect(schemaSql).toContain(
+            'CREATE VIRTUAL TABLE IF NOT EXISTS content_title_fts USING fts5'
+        );
+        expect(schemaSql).toContain("tokenize='trigram'");
         expect(schemaSql).toContain(
             'CREATE TABLE IF NOT EXISTS playback_positions'
         );
@@ -54,6 +59,15 @@ describe('database schema statements', () => {
         );
         expect(schemaSql).toContain(
             'CREATE TRIGGER IF NOT EXISTS epg_programs_au'
+        );
+        expect(schemaSql).toContain(
+            'CREATE TRIGGER IF NOT EXISTS content_title_fts_ai'
+        );
+        expect(schemaSql).toContain(
+            'CREATE TRIGGER IF NOT EXISTS content_title_fts_ad'
+        );
+        expect(schemaSql).toContain(
+            'CREATE TRIGGER IF NOT EXISTS content_title_fts_au'
         );
     });
 
@@ -169,5 +183,128 @@ describe('database schema statements', () => {
         normalizeXtreamContentAddedEpochs(sqlite);
 
         expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('rebuilds the content title FTS index once for existing content', () => {
+        const selectGet = jest.fn().mockReturnValue(undefined);
+        const rebuildRun = jest.fn();
+        const stateRun = jest.fn();
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return { get: selectGet };
+            }
+            if (statement.includes('content_title_fts')) {
+                return { run: rebuildRun };
+            }
+            if (statement.includes('INSERT INTO app_state')) {
+                return { run: stateRun };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof ensureContentTitleFts>[0];
+
+        ensureContentTitleFts(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(rebuildRun).toHaveBeenCalledTimes(1);
+        expect(stateRun).toHaveBeenCalledWith(
+            'migration:content-title-fts-trigram:v1'
+        );
+    });
+
+    it('skips content title FTS rebuild after it has run', () => {
+        const selectGet = jest.fn().mockReturnValue({ value: 'done' });
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return { get: selectGet };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof ensureContentTitleFts>[0];
+
+        ensureContentTitleFts(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('backfills the content title FTS index before content-mutating migrations', () => {
+        const callOrder: string[] = [];
+        const runMigrations = (
+            __databaseConnectionTestHooks as unknown as {
+                runMigrations: (sqlite: {
+                    exec: (statement: string) => void;
+                    prepare: (statement: string) => {
+                        all?: () => unknown[];
+                        get?: (...args: unknown[]) => unknown;
+                        run?: (...args: unknown[]) => unknown;
+                    };
+                    transaction: (callback: () => void) => () => void;
+                }) => void;
+            }
+        ).runMigrations;
+        const sqlite = {
+            exec: jest.fn(),
+            prepare: jest.fn((statement: string) => {
+                if (statement.includes('SELECT value FROM app_state')) {
+                    return {
+                        get: (): undefined => {
+                            return undefined;
+                        },
+                    };
+                }
+                if (
+                    statement.includes(
+                        'INSERT INTO content_title_fts(content_title_fts)'
+                    )
+                ) {
+                    return {
+                        run: () => {
+                            callOrder.push('fts-rebuild');
+                        },
+                    };
+                }
+                if (statement.includes('INSERT INTO app_state')) {
+                    return { run: jest.fn() };
+                }
+                if (statement.includes('UPDATE content')) {
+                    return {
+                        run: () => {
+                            callOrder.push('content-update');
+                        },
+                    };
+                }
+                if (statement.includes('DELETE FROM content')) {
+                    return {
+                        run: () => {
+                            callOrder.push('content-delete');
+                        },
+                    };
+                }
+
+                return {
+                    all: () => [],
+                    get: (): undefined => undefined,
+                    run: jest.fn(),
+                };
+            }),
+            transaction: jest.fn((callback: () => void) => callback),
+        };
+
+        runMigrations(sqlite);
+
+        expect(callOrder).toEqual(['fts-rebuild', 'content-update']);
+        expect(sqlite.prepare).toHaveBeenCalledWith(
+            expect.stringContaining('UPDATE content')
+        );
     });
 });

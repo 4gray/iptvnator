@@ -42,6 +42,15 @@ describe('workspace-shell-route.utils', () => {
                 usesQuerySearch: true,
             })
         );
+        expect(parseWorkspaceShellRoute('/workspace/search?q=matrix')).toEqual(
+            expect.objectContaining({
+                kind: 'global-search',
+                context: null,
+                contextPanel: 'none',
+                searchMode: 'remote-search',
+                usesQuerySearch: true,
+            })
+        );
         expect(parseWorkspaceShellRoute('/workspace/downloads')).toEqual(
             expect.objectContaining({
                 kind: 'downloads',

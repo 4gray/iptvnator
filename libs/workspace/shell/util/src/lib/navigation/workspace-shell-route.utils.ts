@@ -8,6 +8,7 @@ export type WorkspaceShellPageKind =
     | 'downloads'
     | 'global-favorites'
     | 'global-recent'
+    | 'global-search'
     | 'portal'
     | 'settings'
     | 'sources'
@@ -194,6 +195,10 @@ function resolveRouteSearchMode(
         return 'local-filter';
     }
 
+    if (kind === 'global-search') {
+        return 'remote-search';
+    }
+
     if (kind === 'portal') {
         return resolvePortalSearchMode(context, section);
     }
@@ -288,9 +293,11 @@ export function parseWorkspaceShellRoute(url: string): WorkspaceShellRoute {
                   ? 'global-favorites'
                   : page === 'global-recent'
                     ? 'global-recent'
-                  : page === 'downloads'
-                    ? 'downloads'
-                    : 'unknown';
+                    : page === 'search'
+                      ? 'global-search'
+                      : page === 'downloads'
+                        ? 'downloads'
+                        : 'unknown';
     const searchMode = resolveRouteSearchMode(kind, null, null);
 
     return {

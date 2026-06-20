@@ -1,6 +1,6 @@
-import { GlobalSearchResult } from '@iptvnator/services';
 import {
     EpgItem,
+    GlobalSearchResult,
     XtreamCategory,
     XtreamLiveStream,
     XtreamSerieItem,
@@ -40,6 +40,8 @@ export interface XtreamPortalStatus {
     message?: string;
 }
 
+export type XtreamSearchResultItem = XtreamContentItem | GlobalSearchResult;
+
 export interface XtreamState {
     isLoadingCategories: boolean;
     isLoadingContent: boolean;
@@ -54,7 +56,7 @@ export interface XtreamState {
     page: number;
     limit: number;
     selectedCategoryId: number | null;
-    searchResults: XtreamContentItem[];
+    searchResults: XtreamSearchResultItem[];
     selectedContentType: ContentType;
     selectedItem: unknown | null;
     importCount: number;

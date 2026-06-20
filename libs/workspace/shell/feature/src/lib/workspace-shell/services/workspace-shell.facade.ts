@@ -17,6 +17,7 @@ import {
     CommandBuilderActions,
     CommandBuilderContext,
 } from './helpers/workspace-shell-command-builders';
+import { isWorkspaceGlobalSearchablePlaylist } from './helpers/workspace-shell-searchable-playlists';
 import { WorkspaceShellCommandPaletteService } from './workspace-shell-command-palette.service';
 import { WorkspaceShellHeaderService } from './workspace-shell-header.service';
 import { WorkspaceShellRouteStateService } from './workspace-shell-route-state.service';
@@ -219,9 +220,9 @@ export class WorkspaceShellFacade {
             context: this.currentContext(),
             section: this.currentSection(),
             hasActivePlaylist: !!this.activePlaylist(),
-            hasXtreamPlaylists: this.playlists().some(
-                (playlist) => !!playlist.serverUrl
-            ),
+            hasSearchablePlaylists:
+                this.isElectron &&
+                this.playlists().some(isWorkspaceGlobalSearchablePlaylist),
             canRefreshPlaylist: this.canRefreshPlaylist(),
             supportsDownloads: this.supportsDownloads,
             showDashboard: this.showDashboard(),

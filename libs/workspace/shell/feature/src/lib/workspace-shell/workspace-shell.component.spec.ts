@@ -72,6 +72,9 @@ class MockWorkspaceShellHeaderComponent {
     readonly headerBulkActionRequested = output<void>();
     readonly playlistInfoRequested = output<void>();
     readonly accountInfoRequested = output<void>();
+
+    focusSearchInput = jest.fn();
+    containsSearchInput = jest.fn(() => false);
 }
 
 @Component({
@@ -187,6 +190,7 @@ class MockWorkspaceShellFacade {
     onSearchInput = jest.fn();
     onSearchEnter = jest.fn();
     openCommandPalette = jest.fn();
+    openGlobalSearch = jest.fn();
     openAddPlaylistDialog = jest.fn();
     runHeaderShortcut = jest.fn();
     refreshCurrentPlaylist = jest.fn();
@@ -349,5 +353,60 @@ describe('WorkspaceShellComponent', () => {
         header.shortcutsRequested.emit();
 
         expect(shortcutsService.openShortcutsDialog).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the routed global search and focuses header search on Ctrl/Cmd+F', async () => {
+        jest.useFakeTimers();
+        const facade = new MockWorkspaceShellFacade();
+
+        await TestBed.configureTestingModule({
+            imports: [WorkspaceShellComponent],
+            providers: [provideRouter([])],
+        })
+            .overrideComponent(WorkspaceShellComponent, {
+                set: {
+                    imports: [
+                        RouterOutlet,
+                        MockExternalPlaybackDockComponent,
+                        MockPlaylistDropOverlayComponent,
+                        MockPlaylistDropZoneDirective,
+                        MockWorkspaceShellContextSidebarComponent,
+                        MockWorkspaceShellHeaderComponent,
+                        MockWorkspaceShellImportOverlayComponent,
+                        MockWorkspaceShellRailComponent,
+                    ],
+                    providers: [
+                        {
+                            provide: WorkspaceShellFacade,
+                            useValue: facade,
+                        },
+                        {
+                            provide: WorkspaceKeyboardShortcutsService,
+                            useClass: MockWorkspaceKeyboardShortcutsService,
+                        },
+                    ],
+                },
+            })
+            .compileComponents();
+
+        const fixture = TestBed.createComponent(WorkspaceShellComponent);
+        fixture.detectChanges();
+        const header = fixture.debugElement.query(
+            By.directive(MockWorkspaceShellHeaderComponent)
+        ).componentInstance as MockWorkspaceShellHeaderComponent;
+        const event = new KeyboardEvent('keydown', {
+            key: 'f',
+            metaKey: true,
+            bubbles: true,
+            cancelable: true,
+        });
+
+        document.dispatchEvent(event);
+        jest.runOnlyPendingTimers();
+
+        expect(event.defaultPrevented).toBe(true);
+        expect(facade.openGlobalSearch).toHaveBeenCalledWith('');
+        expect(header.focusSearchInput).toHaveBeenCalledWith({ select: true });
+        jest.useRealTimers();
     });
 });

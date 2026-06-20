@@ -459,12 +459,19 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                 searchTerm: string;
                 types: string[];
                 excludeHidden?: boolean;
+                sources?: Array<'xtream' | 'm3u'>;
+                options?: {
+                    limit?: number;
+                    offset?: number;
+                };
             };
             return globalSearch(
                 db,
                 payload.searchTerm,
                 payload.types,
-                payload.excludeHidden
+                payload.excludeHidden,
+                payload.sources,
+                payload.options
             );
         }
 

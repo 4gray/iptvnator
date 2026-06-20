@@ -27,6 +27,8 @@ import { SearchFormComponent } from '../search-form/search-form.component';
 })
 export class SearchLayoutComponent {
     private readonly searchFormComponent = viewChild(SearchFormComponent);
+    private readonly nearEndThresholdPx = 240;
+    private isWithinNearEndThreshold = false;
 
     /** Page title translation key */
     readonly title = input<string>('PORTALS.SIDEBAR.SEARCH');
@@ -55,11 +57,19 @@ export class SearchLayoutComponent {
     /** Minimum characters required for search */
     readonly minSearchLength = input<number>(3);
 
+    /** Initial state description translation key */
+    readonly initialDescriptionKey = input<string>(
+        'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION'
+    );
+
     /** Emitted when search term changes */
     readonly searchTermChange = output<string>();
 
     /** Emitted when close button is clicked */
     readonly closeClick = output<void>();
+
+    /** Emitted when the scroll container is close to the bottom */
+    readonly nearEnd = output<void>();
 
     /** Focus the search input */
     focusSearchInput(): void {
@@ -72,6 +82,23 @@ export class SearchLayoutComponent {
 
     onCloseClick(): void {
         this.closeClick.emit();
+    }
+
+    onSearchContentScroll(event: Event): void {
+        const target = event.target as HTMLElement | null;
+        if (!target) {
+            return;
+        }
+
+        const distanceToBottom =
+            target.scrollHeight - target.scrollTop - target.clientHeight;
+        const isNearEnd = distanceToBottom <= this.nearEndThresholdPx;
+
+        if (isNearEnd && !this.isWithinNearEndThreshold) {
+            this.nearEnd.emit();
+        }
+
+        this.isWithinNearEndThreshold = isNearEnd;
     }
 
     /** Check if we should show the "no results" state */

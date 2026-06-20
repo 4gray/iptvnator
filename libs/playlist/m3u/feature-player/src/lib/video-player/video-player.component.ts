@@ -321,13 +321,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             const state =
                 this.router.currentNavigation()?.extras?.state ??
                 window.history.state;
-            const targetUrl =
+            const recentTargetUrl =
                 typeof state?.openRecentChannelUrl === 'string'
                     ? state.openRecentChannelUrl.trim()
                     : '';
+            const globalSearchTargetUrl =
+                typeof state?.openM3uChannelUrl === 'string'
+                    ? state.openM3uChannelUrl.trim()
+                    : '';
+            const targetUrl = globalSearchTargetUrl || recentTargetUrl;
+            const canOpenGlobalSearchTarget =
+                !!globalSearchTargetUrl && currentView === 'all';
+            const canOpenRecentTarget =
+                !!recentTargetUrl && currentView === 'recent';
 
             if (
-                currentView !== 'recent' ||
+                (!canOpenGlobalSearchTarget && !canOpenRecentTarget) ||
                 !targetUrl ||
                 channels.length === 0
             ) {
@@ -335,7 +344,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             }
 
             if (activeChannel?.url === targetUrl) {
-                this.clearConsumedRecentChannelState();
+                this.clearConsumedChannelOpenState();
                 return;
             }
 
@@ -349,7 +358,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             this.store.dispatch(
                 ChannelActions.setActiveChannel({ channel: matchedChannel })
             );
-            this.clearConsumedRecentChannelState();
+            this.clearConsumedChannelOpenState();
         });
 
         effect(() => {
@@ -627,18 +636,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         );
     }
 
-    private clearConsumedRecentChannelState(): void {
+    private clearConsumedChannelOpenState(): void {
         const historyState = (window.history.state ?? {}) as Record<
             string,
             unknown
         >;
-        if (!historyState['openRecentChannelUrl']) {
+        if (
+            !historyState['openRecentChannelUrl'] &&
+            !historyState['openM3uChannelUrl']
+        ) {
             return;
         }
 
         try {
             const nextState = { ...historyState };
             delete nextState['openRecentChannelUrl'];
+            delete nextState['openM3uChannelUrl'];
             window.history.replaceState(nextState, document.title);
         } catch {
             // no-op
