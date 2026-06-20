@@ -219,8 +219,13 @@ export class WorkspaceShellFacade {
             context: this.currentContext(),
             section: this.currentSection(),
             hasActivePlaylist: !!this.activePlaylist(),
-            hasXtreamPlaylists: this.playlists().some(
-                (playlist) => !!playlist.serverUrl
+            hasSearchablePlaylists: this.playlists().some(
+                (playlist) =>
+                    !!playlist.serverUrl ||
+                    (!playlist.macAddress &&
+                        (!!playlist.filePath ||
+                            !!playlist.url ||
+                            !playlist.serverUrl))
             ),
             canRefreshPlaylist: this.canRefreshPlaylist(),
             supportsDownloads: this.supportsDownloads,

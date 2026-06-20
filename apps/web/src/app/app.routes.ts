@@ -81,6 +81,16 @@ export const routes: Routes = [
                     ),
             },
             {
+                path: 'search',
+                data: {
+                    isGlobalSearch: true,
+                },
+                loadComponent: () =>
+                    import('@iptvnator/portal/xtream/feature').then(
+                        (c) => c.GlobalSearchResultsComponent
+                    ),
+            },
+            {
                 path: 'downloads',
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(

@@ -203,6 +203,41 @@ state handlers that still used direct main-thread SQLite access.
 6. `DB_GLOBAL_SEARCH`
 7. `DB_GET_GLOBAL_RECENTLY_ADDED`
 
+`DB_GLOBAL_SEARCH` returns a shared global-search result union rather than an
+Xtream-only row shape:
+
+1. `source_type = "xtream"` rows come from the normalized `content` and
+   `categories` tables joined with `playlists`. Xtream title matching uses
+   `content_title_fts`, an FTS5 trigram index over `content.title`, for search
+   terms with at least one 3+ character token. Existing databases rebuild this
+   index once through the `migration:content-title-fts-trigram:v1` app-state
+   marker; fresh inserts, deletes, and title updates stay synchronized through
+   SQLite triggers.
+2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
+   `playlists.payload`. The worker uses SQL `payload LIKE` only as a coarse
+   candidate prefilter, then parses candidate JSON payloads and matches channel
+   name, TVG name, and group title case-insensitively in the worker.
+3. The optional `sources` argument can restrict search to `xtream` or `m3u`,
+   but omitted callers keep the backward-compatible behavior of searching all
+   supported global-search sources.
+4. The optional pagination argument accepts `{ limit, offset }`. The worker
+   keeps the legacy default of 50 results when the argument is omitted, but the
+   routed global-search view requests one extra row per page to implement
+   lazy loading without requiring a separate count query.
+5. Candidate rows are ranked in the worker after the coarse SQL prefilter.
+   Exact and prefix matches sort ahead of word-prefix and substring matches;
+   short first tokens such as `tv` stay anchored to the start of the title, so
+   `TV Sport` matches but `Test TV` does not. These short first-token queries
+   bypass trigram FTS and use the `idx_content_title` prefix index path because
+   trigram tokenization cannot match 1-2 character terms.
+6. `excludeHidden` still filters hidden Xtream categories and also filters M3U
+   channels whose `group.title` is listed in the playlist payload's
+   `hiddenGroupTitles`.
+7. M3U radio entries are returned as live results with `radio = "true"` and the
+   serialized `Channel` attached for renderer playback routing.
+8. EPG-program text is not part of this contract; EPG search remains a separate
+   feature because it uses different persistence and freshness rules.
+
 ### Playlist metadata
 
 1. `DB_CREATE_PLAYLIST`
@@ -288,7 +323,8 @@ to `epg-worker.service.ts`.
 Xtream search now guards against stale async responses:
 
 1. local playlist search uses a monotonically increasing request version
-2. global search uses a separate request version in the dialog component
+2. global search uses a separate request version in the routed workspace search
+   component
 3. clearing search invalidates older pending results
 
 This prevents an older worker response from repainting over a newer query or a

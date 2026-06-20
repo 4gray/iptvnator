@@ -807,8 +807,10 @@
             "RESULTS_FOUND": "Найдено {{count}} результатов",
             "NO_RESULTS_FOR": "Нет результатов по запросу \"{{term}}\"",
             "GROUP_BY_PLAYLIST": "Группировать результаты по плейлистам",
-            "XTREAM_ONLY_NOTE": "Глобальный поиск пока доступен только для плейлистов Xtream.",
-            "VISIBLE_CATEGORIES_ONLY": "Только видимые категории"
+            "VISIBLE_CATEGORIES_ONLY": "Только видимые категории",
+            "GLOBAL_SEARCH_SOURCE_NOTE": "Глобальный поиск включает результаты из плейлистов Xtream и M3U.",
+            "GLOBAL_INITIAL_DESCRIPTION": "Введите минимум 2 символа для поиска по плейлистам Xtream и M3U.",
+            "LOADING_MORE_RESULTS": "Загружаем еще результаты..."
         },
         "STREAM_URL_COPIED": "URL-адрес потока был скопирован в буфер обмена.",
         "COPY_STREAM_URL": "Копировать URL-адрес потока",
@@ -928,6 +930,7 @@
             "OPEN_SOURCES": "Открыть источники",
             "RAIL_GLOBAL_FAVORITES": "Избранное",
             "RAIL_GLOBAL_RECENT": "Недавно просмотренные",
+            "RAIL_GLOBAL_SEARCH": "Глобальный поиск",
             "RAIL_SETTINGS": "Настройки",
             "OPEN_SETTINGS": "Открыть настройки",
             "RAIL_LIBRARY": "Библиотека",
@@ -945,6 +948,7 @@
             "RAIL_CONTEXT_ACTIONS": "Действия раздела",
             "SEARCH_LABEL": "Поиск",
             "SEARCH_SOURCES_PLACEHOLDER": "Искать источники (все плейлисты)...",
+            "SEARCH_GLOBAL_PLACEHOLDER": "Искать во всех плейлистах...",
             "SEARCH_PLAYLIST_PLACEHOLDER": "Искать в этом плейлисте...",
             "SEARCH_SECTION_PLACEHOLDER": "Искать в этом разделе...",
             "FILTER_SECTION_PLACEHOLDER": "Фильтровать этот раздел...",
@@ -1002,7 +1006,7 @@
             "XTREAM_IMPORT_CANCEL": "Остановить синхронизацию",
             "XTREAM_IMPORT_CANCELLING": "Остановка синхронизации...",
             "COMMANDS": {
-                "GLOBAL_SEARCH_LABEL": "Искать во всех плейлистах Xtream",
+                "GLOBAL_SEARCH_LABEL": "Искать во всех плейлистах",
                 "GLOBAL_SEARCH_DESCRIPTION": "Открыть глобальный поиск",
                 "PLAYLIST_SEARCH_LABEL": "Расширенный поиск в этом плейлисте",
                 "PLAYLIST_SEARCH_DESCRIPTION": "Открыть расширенный поиск плейлиста",

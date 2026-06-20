@@ -91,6 +91,17 @@ describe('app routes', () => {
         expect(typeof globalRecentRoute?.loadComponent).toBe('function');
     });
 
+    it('adds a routed /workspace/search global search view', async () => {
+        const globalSearchRoute = workspaceChildren.find(
+            (route) => route.path === 'search'
+        );
+
+        expect(globalSearchRoute?.data).toEqual({
+            isGlobalSearch: true,
+        });
+        expect(typeof globalSearchRoute?.loadComponent).toBe('function');
+    });
+
     it('uses a dynamic redirect for the default /workspace child route', async () => {
         const workspaceDefaultRoute = workspaceChildren.find(
             (route) => route.path === ''

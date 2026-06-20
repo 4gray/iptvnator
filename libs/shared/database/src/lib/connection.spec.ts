@@ -23,6 +23,7 @@ describe('database schema statements', () => {
         columnMigrationStatements,
         indexMigrationStatements,
         normalizeXtreamContentAddedEpochs,
+        ensureContentTitleFts,
     } = __databaseConnectionTestHooks;
 
     it('defines the core fresh-install tables, indexes, and FTS triggers', () => {
@@ -36,6 +37,10 @@ describe('database schema statements', () => {
         expect(schemaSql).toContain(
             'CREATE VIRTUAL TABLE IF NOT EXISTS epg_programs_fts USING fts5'
         );
+        expect(schemaSql).toContain(
+            'CREATE VIRTUAL TABLE IF NOT EXISTS content_title_fts USING fts5'
+        );
+        expect(schemaSql).toContain("tokenize='trigram'");
         expect(schemaSql).toContain(
             'CREATE TABLE IF NOT EXISTS playback_positions'
         );
@@ -54,6 +59,15 @@ describe('database schema statements', () => {
         );
         expect(schemaSql).toContain(
             'CREATE TRIGGER IF NOT EXISTS epg_programs_au'
+        );
+        expect(schemaSql).toContain(
+            'CREATE TRIGGER IF NOT EXISTS content_title_fts_ai'
+        );
+        expect(schemaSql).toContain(
+            'CREATE TRIGGER IF NOT EXISTS content_title_fts_ad'
+        );
+        expect(schemaSql).toContain(
+            'CREATE TRIGGER IF NOT EXISTS content_title_fts_au'
         );
     });
 
@@ -167,6 +181,58 @@ describe('database schema statements', () => {
         } as unknown as Parameters<typeof normalizeXtreamContentAddedEpochs>[0];
 
         normalizeXtreamContentAddedEpochs(sqlite);
+
+        expect(transaction).not.toHaveBeenCalled();
+    });
+
+    it('rebuilds the content title FTS index once for existing content', () => {
+        const selectGet = jest.fn().mockReturnValue(undefined);
+        const rebuildRun = jest.fn();
+        const stateRun = jest.fn();
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return { get: selectGet };
+            }
+            if (statement.includes('content_title_fts')) {
+                return { run: rebuildRun };
+            }
+            if (statement.includes('INSERT INTO app_state')) {
+                return { run: stateRun };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof ensureContentTitleFts>[0];
+
+        ensureContentTitleFts(sqlite);
+
+        expect(transaction).toHaveBeenCalledTimes(1);
+        expect(rebuildRun).toHaveBeenCalledTimes(1);
+        expect(stateRun).toHaveBeenCalledWith(
+            'migration:content-title-fts-trigram:v1'
+        );
+    });
+
+    it('skips content title FTS rebuild after it has run', () => {
+        const selectGet = jest.fn().mockReturnValue({ value: 'done' });
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return { get: selectGet };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof ensureContentTitleFts>[0];
+
+        ensureContentTitleFts(sqlite);
 
         expect(transaction).not.toHaveBeenCalled();
     });

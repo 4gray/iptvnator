@@ -85,6 +85,13 @@ export class WorkspaceShellRouteStateService {
         });
 
         links.push({
+            icon: 'search',
+            tooltip: this.translateText('WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH'),
+            path: ['/workspace/search'],
+            exact: true,
+        });
+
+        links.push({
             icon: 'favorite',
             tooltip: this.translateText('HOME.PLAYLISTS.GLOBAL_FAVORITES'),
             path: ['/workspace/global-favorites'],
@@ -125,6 +132,7 @@ export class WorkspaceShellRouteStateService {
             currentRoute.kind !== 'settings' &&
             currentRoute.kind !== 'global-favorites' &&
             currentRoute.kind !== 'global-recent' &&
+            currentRoute.kind !== 'global-search' &&
             currentRoute.kind !== 'downloads'
         ) {
             return null;

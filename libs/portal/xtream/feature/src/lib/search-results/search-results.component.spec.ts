@@ -9,6 +9,7 @@ import {
     XtreamContentItem,
     XtreamStore,
 } from '@iptvnator/portal/xtream/data-access';
+import { GlobalSearchResult } from '@iptvnator/shared/interfaces';
 
 jest.mock('@iptvnator/portal/shared/ui', () => ({
     ContentCardComponent: class {},
@@ -94,7 +95,10 @@ describe('SearchResultsComponent initialQuery contract', () => {
                     provide: ActivatedRoute,
                     useValue: {
                         snapshot: {
-                            data: {},
+                            data: {
+                                isGlobalSearch: true,
+                                layout: 'workspace',
+                            },
                             queryParamMap: convertToParamMap({ q: '' }),
                         },
                         queryParamMap: of(convertToParamMap({ q: '' })),
@@ -142,6 +146,19 @@ describe('SearchResultsComponent initialQuery contract', () => {
         expect(store.setSearchTerm).not.toHaveBeenCalled();
     });
 
+    it('clears the workspace global search term when the route q param is empty', () => {
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.searchTerm.set('matrix');
+
+        const component = TestBed.runInInjectionContext(
+            () => new SearchResultsComponent(null, undefined)
+        );
+        TestBed.flushEffects();
+
+        expect(store.setSearchTerm).toHaveBeenCalledWith('');
+        expect(component.searchTerm()).toBe('');
+    });
+
     it('navigates global search selection to workspace xtream route', () => {
         const component = TestBed.runInInjectionContext(
             () =>
@@ -163,6 +180,66 @@ describe('SearchResultsComponent initialQuery contract', () => {
             ['/workspace', 'xtreams', 'playlist-1', 'vod', '123', '456'],
             {
                 state: undefined,
+            }
+        );
+    });
+
+    it('navigates M3U global search selection to the M3U player with route state', () => {
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent(
+                    {
+                        isGlobalSearch: true,
+                    },
+                    undefined
+                )
+        );
+        const channel = {
+            id: 'channel-news',
+            url: 'https://stream.test/news.m3u8',
+            name: 'Daily News',
+            group: { title: 'News' },
+            tvg: {
+                id: 'daily-news',
+                name: 'Daily News HD',
+                url: '',
+                logo: '',
+                rec: '',
+            },
+            http: {
+                referrer: '',
+                'user-agent': '',
+                origin: '',
+            },
+            radio: '',
+        };
+
+        component.selectItem({
+            source_type: 'm3u',
+            content_type: 'live',
+            playlist_id: 'm3u-1',
+            playlist_name: 'M3U One',
+            channel_id: 'channel-news',
+            stream_url: 'https://stream.test/news.m3u8',
+            group_title: 'News',
+            radio: '',
+            poster_url: '',
+            channel,
+            id: 'm3u-1::channel-news',
+            category_id: 'm3u',
+            title: 'Daily News',
+            rating: '',
+            added: '',
+            xtream_id: 0,
+            type: 'live',
+        } satisfies GlobalSearchResult);
+
+        expect(routerNavigateMock).toHaveBeenCalledWith(
+            ['/workspace', 'playlists', 'm3u-1', 'all'],
+            {
+                state: {
+                    openM3uChannelUrl: 'https://stream.test/news.m3u8',
+                },
             }
         );
     });
@@ -199,5 +276,67 @@ describe('SearchResultsComponent initialQuery contract', () => {
         await stalePromise;
 
         expect(store.searchResults()).toEqual(freshResults);
+    });
+
+    it('loads additional global search pages and appends them to existing results', async () => {
+        const firstPage = Array.from({ length: 101 }, (_, index) =>
+            createSearchItem({
+                id: index + 1,
+                title: `Result ${index + 1}`,
+                xtream_id: index + 1,
+            })
+        );
+        const secondPage = [
+            createSearchItem({
+                id: 102,
+                title: 'Result 102',
+                xtream_id: 102,
+            }),
+        ];
+        const databaseService = TestBed.inject(DatabaseService) as {
+            globalSearchContent: jest.Mock;
+        };
+        databaseService.globalSearchContent
+            .mockResolvedValueOnce(firstPage)
+            .mockResolvedValueOnce(secondPage);
+
+        const component = TestBed.runInInjectionContext(
+            () =>
+                new SearchResultsComponent({
+                    isGlobalSearch: true,
+                }, undefined)
+        );
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+
+        await component.searchGlobal('matrix', ['movie'], false);
+
+        expect(databaseService.globalSearchContent).toHaveBeenCalledWith(
+            'matrix',
+            ['movie'],
+            false,
+            undefined,
+            {
+                limit: 101,
+                offset: 0,
+            }
+        );
+        expect(store.searchResults()).toHaveLength(100);
+        expect(component.hasMoreGlobalResults()).toBe(true);
+
+        await component.loadMoreGlobalResults();
+
+        expect(databaseService.globalSearchContent).toHaveBeenLastCalledWith(
+            'matrix',
+            ['movie'],
+            false,
+            undefined,
+            {
+                limit: 101,
+                offset: 100,
+            }
+        );
+        expect(store.searchResults()).toHaveLength(101);
+        expect(store.searchResults()[100].title).toBe('Result 102');
+        expect(component.hasMoreGlobalResults()).toBe(false);
     });
 });

@@ -26,6 +26,8 @@ let initPromise: Promise<DatabaseInstance> | null = null;
 const XTREAM_ADDED_EPOCH_MILLISECONDS_THRESHOLD = 10_000_000_000;
 const XTREAM_ADDED_EPOCH_SECONDS_MIGRATION_KEY =
     'migration:xtream-content-added-epoch-seconds:v1';
+const CONTENT_TITLE_FTS_MIGRATION_KEY =
+    'migration:content-title-fts-trigram:v1';
 
 function readTraceFlag(name: string): boolean {
     const value = process.env[name]?.trim().toLowerCase();
@@ -158,6 +160,29 @@ const CREATE_TABLE_STATEMENTS = [
     // categories row, and hidden categories are absent so they're skipped
     // before any row lookup.
     `CREATE INDEX IF NOT EXISTS idx_categories_visible ON categories(id, playlist_id, type) WHERE hidden = 0`,
+    // Trigram FTS index for global Xtream title search. It supports fast
+    // contains matches such as "max" -> "beIN MAX" and "Cinemax" without
+    // scanning the full content table.
+    `CREATE VIRTUAL TABLE IF NOT EXISTS content_title_fts USING fts5(
+      title,
+      content='content',
+      content_rowid='id',
+      tokenize='trigram'
+  )`,
+    `CREATE TRIGGER IF NOT EXISTS content_title_fts_ai AFTER INSERT ON content BEGIN
+      INSERT INTO content_title_fts(rowid, title)
+      VALUES (new.id, new.title);
+  END`,
+    `CREATE TRIGGER IF NOT EXISTS content_title_fts_ad AFTER DELETE ON content BEGIN
+      INSERT INTO content_title_fts(content_title_fts, rowid, title)
+      VALUES ('delete', old.id, old.title);
+  END`,
+    `CREATE TRIGGER IF NOT EXISTS content_title_fts_au AFTER UPDATE ON content BEGIN
+      INSERT INTO content_title_fts(content_title_fts, rowid, title)
+      VALUES ('delete', old.id, old.title);
+      INSERT INTO content_title_fts(rowid, title)
+      VALUES (new.id, new.title);
+  END`,
     `CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique ON favorites(content_id, playlist_id)`,
     `CREATE INDEX IF NOT EXISTS favorites_playlist_idx ON favorites(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS favorites_content_idx ON favorites(content_id)`,
@@ -303,6 +328,7 @@ export const __databaseConnectionTestHooks = {
     columnMigrationStatements: COLUMN_MIGRATION_STATEMENTS,
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,
     normalizeXtreamContentAddedEpochs,
+    ensureContentTitleFts,
 } as const;
 
 /**
@@ -523,6 +549,50 @@ function normalizeXtreamContentAddedEpochs(sqliteDb: Database.Database): void {
     }
 }
 
+function ensureContentTitleFts(sqliteDb: Database.Database): void {
+    try {
+        const migrationState = sqliteDb
+            .prepare(`SELECT value FROM app_state WHERE key = ?`)
+            .get(CONTENT_TITLE_FTS_MIGRATION_KEY) as
+            | { value?: unknown }
+            | undefined;
+
+        if (migrationState?.value === 'done') {
+            return;
+        }
+
+        const executeMigration = sqliteDb.transaction(() => {
+            sqliteDb
+                .prepare(
+                    `INSERT INTO content_title_fts(content_title_fts)
+                     VALUES ('rebuild')`
+                )
+                .run();
+
+            sqliteDb
+                .prepare(
+                    `INSERT INTO app_state (key, value, updated_at)
+                     VALUES (?, 'done', datetime('now'))
+                     ON CONFLICT(key) DO UPDATE SET
+                        value = excluded.value,
+                        updated_at = excluded.updated_at`
+                )
+                .run(CONTENT_TITLE_FTS_MIGRATION_KEY);
+        });
+
+        executeMigration();
+    } catch (error) {
+        const message =
+            typeof error === 'object' && error !== null && 'message' in error
+                ? String((error as { message?: unknown }).message ?? error)
+                : String(error);
+
+        console.warn(
+            `Content title FTS rebuild failed (continuing): ${message}`
+        );
+    }
+}
+
 function runMigrationStatements(
     sqliteDb: Database.Database,
     statements: string[]
@@ -559,6 +629,7 @@ function runMigrations(sqliteDb: Database.Database): void {
     deduplicateXtreamCache(sqliteDb);
     normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);
+    ensureContentTitleFts(sqliteDb);
 }
 
 export interface DatabaseOptions {

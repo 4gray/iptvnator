@@ -193,13 +193,6 @@ textarea,
     backdrop-filter: blur(4px);
 }
 
-// Full-screen overlay dialogs (global search/recent) must stay interactive in Electron.
-.global-search-overlay,
-.global-search-overlay .mat-mdc-dialog-surface,
-.global-search-overlay .mat-mdc-dialog-container {
-    app-region: no-drag;
-}
-
 // Command palette dialog — the palette-shell renders its own background, border,
 // radius and shadow, so strip MDC's dialog surface chrome to avoid a darker
 // halo peeking out behind the rounded corners.

@@ -82,6 +82,36 @@ export class WorkspaceShellSearchService {
             };
         }
 
+        if (route.kind === 'global-search') {
+            const hasSearchablePlaylists = this.routeState.playlists().some(
+                (playlist) =>
+                    !!playlist.serverUrl ||
+                    (!playlist.macAddress &&
+                        (!!playlist.filePath ||
+                            !!playlist.url ||
+                            !playlist.serverUrl))
+            );
+
+            return {
+                enabled: hasSearchablePlaylists,
+                behavior: hasSearchablePlaylists
+                    ? 'remote-search'
+                    : 'disabled',
+                context: null,
+                section: null,
+                searchMode: hasSearchablePlaylists
+                    ? 'remote-search'
+                    : 'none',
+                placeholderKey: 'WORKSPACE.SHELL.SEARCH_GLOBAL_PLACEHOLDER',
+                scopeLabel: this.translateText(
+                    'WORKSPACE.SHELL.RAIL_GLOBAL_SEARCH'
+                ),
+                statusLabel: '',
+                minLength: hasSearchablePlaylists ? 2 : 0,
+                advancedRouteTarget: null,
+            };
+        }
+
         if (route.searchMode === 'none') {
             return {
                 enabled: false,

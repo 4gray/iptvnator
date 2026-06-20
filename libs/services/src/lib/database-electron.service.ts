@@ -4,7 +4,10 @@
  */
 
 import { Injectable } from '@angular/core';
-import {
+import type {
+    GlobalSearchPaginationOptions,
+    GlobalSearchResult,
+    GlobalSearchResultSource,
     PlaylistMeta,
     XtreamBackupFavoriteItem,
     XtreamBackupHiddenCategory,
@@ -78,10 +81,7 @@ type XtreamContentStream =
       }
     | Record<string, unknown>;
 
-export interface GlobalSearchResult extends XtreamContent {
-    playlist_id: string;
-    playlist_name: string;
-}
+export type { GlobalSearchResult };
 
 export interface GlobalRecentItem extends XtreamContent {
     playlist_id: string;
@@ -590,12 +590,16 @@ export class DatabaseService {
     async globalSearchContent(
         searchTerm: string,
         types: string[],
-        excludeHidden?: boolean
+        excludeHidden?: boolean,
+        sources?: GlobalSearchResultSource[],
+        options?: GlobalSearchPaginationOptions
     ): Promise<GlobalSearchResult[]> {
         return await window.electron.dbGlobalSearch(
             searchTerm,
             types,
-            excludeHidden
+            excludeHidden,
+            sources,
+            options
         );
     }
 

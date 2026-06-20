@@ -3,7 +3,7 @@
     <ng-content select="[details]" />
 
     @if (!showDetails()) {
-        <div class="search-content">
+        <div class="search-content" (scroll)="onSearchContentScroll($event)">
             <div class="header sticky-header">
                 <div class="header-top">
                     <div class="header-left">
@@ -74,7 +74,7 @@
                         <mat-icon>search</mat-icon>
                         <div class="no-items-content">
                             <h3>{{ 'PORTALS.SEARCH_VIEW.INITIAL_TITLE' | translate }}</h3>
-                            <p>{{ 'PORTALS.SEARCH_VIEW.INITIAL_DESCRIPTION' | translate }}</p>
+                            <p>{{ initialDescriptionKey() | translate }}</p>
                         </div>
                     </div>
                 }

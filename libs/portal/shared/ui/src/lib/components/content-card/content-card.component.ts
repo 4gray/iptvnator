@@ -71,6 +71,8 @@ export class ContentCardComponent {
         switch (this.type()) {
             case 'live':
                 return 'live_tv';
+            case 'radio':
+                return 'radio';
             case 'series':
                 return 'tv';
             default:

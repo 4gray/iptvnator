@@ -154,18 +154,3 @@
     @include grid.content-grid;
     padding-bottom: 1rem;
 }
-
-// Global search overlay context
-:host-context(.global-search-overlay) {
-    // Prevent Electron's app-region: drag from bleeding through the dialog overlay
-    app-region: no-drag;
-
-    .search-page {
-        background: var(--background);
-        height: 100vh;
-    }
-
-    .header {
-        background: var(--background);
-    }
-}
