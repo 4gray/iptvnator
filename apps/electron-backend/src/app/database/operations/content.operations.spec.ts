@@ -574,7 +574,30 @@ describe('content.operations', () => {
         expect(matchSqlCall?.[1]).toBe('"and"');
     });
 
-    it('limits M3U playlist payload candidates before parsing large JSON payloads', async () => {
+    it('uses a stable max candidate limit for M3U playlist payload searches', async () => {
+        const limit = jest.fn().mockResolvedValue([]);
+        const orderedQuery = {
+            limit,
+            then: (resolve: (value: unknown[]) => void) => resolve([]),
+        };
+        const orderBy = jest.fn().mockReturnValue(orderedQuery);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'news', ['live'], false, ['m3u'], {
+            limit: 10,
+            offset: 100,
+        });
+
+        expect(orderBy).toHaveBeenCalledWith(schema.playlists.name);
+        expect(limit).toHaveBeenCalledWith(5000);
+    });
+
+    it('prefilters M3U payloads by searchable text fields instead of raw payload contains', async () => {
         const limit = jest.fn().mockResolvedValue([]);
         const orderedQuery = {
             limit,
@@ -592,7 +615,21 @@ describe('content.operations', () => {
             limit: 10,
         });
 
-        expect(orderBy).toHaveBeenCalledWith(schema.playlists.name);
-        expect(limit).toHaveBeenCalledWith(500);
+        const searchPatterns = sqlMock.mock.calls
+            .flatMap(([, ...values]) => values)
+            .filter(
+                (value): value is string =>
+                    typeof value === 'string' &&
+                    value.toLocaleLowerCase().includes('news')
+            );
+
+        expect(searchPatterns.length).toBeGreaterThan(0);
+        expect(searchPatterns).not.toContain('%news%');
+        expect(
+            searchPatterns.every(
+                (pattern) =>
+                    pattern.includes('"name"') || pattern.includes('"title"')
+            )
+        ).toBe(true);
     });
 });

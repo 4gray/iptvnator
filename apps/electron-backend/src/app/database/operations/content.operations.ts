@@ -74,7 +74,6 @@ function buildLikePatterns(
 
 const DEFAULT_GLOBAL_SEARCH_LIMIT = 50;
 const MAX_GLOBAL_SEARCH_LIMIT = 500;
-const MIN_GLOBAL_SEARCH_CANDIDATE_LIMIT = 500;
 const MAX_GLOBAL_SEARCH_CANDIDATE_LIMIT = 5000;
 const M3U_PLAYLIST_TYPES = ['m3u-file', 'm3u-text', 'm3u-url'] as const;
 
@@ -245,16 +244,8 @@ function paginateScoredResults<T extends GlobalSearchResult>(
         .map((item) => item.result);
 }
 
-function getGlobalSearchCandidateLimit(
-    pagination: NormalizedGlobalSearchPagination
-): number {
-    return Math.min(
-        Math.max(
-            (pagination.offset + pagination.limit) * 4,
-            MIN_GLOBAL_SEARCH_CANDIDATE_LIMIT
-        ),
-        MAX_GLOBAL_SEARCH_CANDIDATE_LIMIT
-    );
+function getGlobalSearchCandidateLimit(): number {
+    return MAX_GLOBAL_SEARCH_CANDIDATE_LIMIT;
 }
 
 function buildContentTitleSearchConditions(searchTerm: string) {
@@ -453,12 +444,15 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
         .limit(candidateLimit);
 }
 
-function buildM3uPayloadPrefixPatterns(token: string): string[] {
-    return buildLikePatterns(token, 'prefix').flatMap((pattern) => [
-        `%"name":"${pattern}`,
-        `%"name": "${pattern}`,
-        `%"title":"${pattern}`,
-        `%"title": "${pattern}`,
+function buildM3uPayloadTextFieldPatterns(
+    token: string,
+    mode: 'contains' | 'prefix'
+): string[] {
+    return buildLikePatterns(token, mode).flatMap((pattern) => [
+        `%"name":"${pattern}"%`,
+        `%"name": "${pattern}"%`,
+        `%"title":"${pattern}"%`,
+        `%"title": "${pattern}"%`,
     ]);
 }
 
@@ -472,8 +466,8 @@ function buildM3uPayloadSearchConditions(searchTerm: string) {
         .map((token, index) => {
             const patterns =
                 index === 0 && token.length <= 2
-                    ? buildM3uPayloadPrefixPatterns(token)
-                    : buildLikePatterns(token);
+                    ? buildM3uPayloadTextFieldPatterns(token, 'prefix')
+                    : buildM3uPayloadTextFieldPatterns(token, 'contains');
             const likeConditions = patterns.map(
                 (pattern) =>
                     sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
@@ -1099,7 +1093,7 @@ export async function globalSearch(
     }
 
     const pagination = normalizeGlobalSearchPagination(options);
-    const candidateLimit = getGlobalSearchCandidateLimit(pagination);
+    const candidateLimit = getGlobalSearchCandidateLimit();
     const results: ScoredGlobalSearchResult[] = [];
 
     if (hasGlobalSearchSource(sources, GLOBAL_SEARCH_RESULT_SOURCES.Xtream)) {

@@ -217,18 +217,21 @@ Xtream-only row shape:
    fresh inserts, deletes, and title updates stay synchronized through SQLite
    triggers.
 2. `source_type = "m3u"` rows come from M3U playlist payloads stored in
-   `playlists.payload`. The worker uses SQL `payload LIKE` only as a coarse
-   candidate prefilter, then parses candidate JSON payloads and matches channel
-   name, TVG name, and group title case-insensitively in the worker. The SQL
-   candidate query is capped by the same candidate limit used for Xtream search,
-   so large matching M3U payloads are not loaded without an upper bound.
+   `playlists.payload`. The worker uses SQL `payload LIKE` against channel
+   `name`/`title` JSON fields only as a coarse candidate prefilter, then parses
+   candidate JSON payloads and matches channel name, TVG name, and group title
+   case-insensitively in the worker. The SQL candidate query is capped by the
+   same stable 5000-row candidate limit used for Xtream search, so large
+   matching M3U payloads are not loaded without an upper bound.
 3. The optional `sources` argument can restrict search to `xtream` or `m3u`,
    but omitted callers keep the backward-compatible behavior of searching all
    supported global-search sources.
 4. The optional pagination argument accepts `{ limit, offset }`. The worker
    keeps the legacy default of 50 results when the argument is omitted, but the
    routed global-search view requests one extra row per page to implement
-   lazy loading without requiring a separate count query.
+   lazy loading without requiring a separate count query. Candidate selection
+   uses a stable max-size pool for every page so score-based in-memory ranking
+   cannot shift already-rendered items into later pages.
 5. Candidate rows are ranked in the worker after the coarse SQL prefilter.
    Exact and prefix matches sort ahead of word-prefix and substring matches;
    short first tokens such as `tv` stay anchored to the start of the title, so

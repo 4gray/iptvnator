@@ -28,6 +28,7 @@ import { SearchFormComponent } from '../search-form/search-form.component';
 export class SearchLayoutComponent {
     private readonly searchFormComponent = viewChild(SearchFormComponent);
     private readonly nearEndThresholdPx = 240;
+    private isWithinNearEndThreshold = false;
 
     /** Page title translation key */
     readonly title = input<string>('PORTALS.SIDEBAR.SEARCH');
@@ -91,9 +92,13 @@ export class SearchLayoutComponent {
 
         const distanceToBottom =
             target.scrollHeight - target.scrollTop - target.clientHeight;
-        if (distanceToBottom <= this.nearEndThresholdPx) {
+        const isNearEnd = distanceToBottom <= this.nearEndThresholdPx;
+
+        if (isNearEnd && !this.isWithinNearEndThreshold) {
             this.nearEnd.emit();
         }
+
+        this.isWithinNearEndThreshold = isNearEnd;
     }
 
     /** Check if we should show the "no results" state */
