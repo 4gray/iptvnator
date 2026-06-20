@@ -193,7 +193,10 @@ test.describe('Electron Catalog Sorting', () => {
             await waitForStalkerCatalog(app.mainWindow);
 
             await expect(
-                app.mainWindow.getByRole('button', { name: 'Sort content' })
+                app.mainWindow.getByRole('button', {
+                    name: 'Refine',
+                    exact: true,
+                })
             ).toHaveCount(0);
             await expect(
                 app.mainWindow.getByRole('button', { name: 'Sort channels' })
@@ -201,12 +204,18 @@ test.describe('Electron Catalog Sorting', () => {
 
             await openWorkspaceSection(app.mainWindow, 'Movies');
             await expect(
-                app.mainWindow.getByRole('button', { name: 'Sort content' })
+                app.mainWindow.getByRole('button', {
+                    name: 'Refine',
+                    exact: true,
+                })
             ).toHaveCount(0);
 
             await openWorkspaceSection(app.mainWindow, 'Series');
             await expect(
-                app.mainWindow.getByRole('button', { name: 'Sort content' })
+                app.mainWindow.getByRole('button', {
+                    name: 'Refine',
+                    exact: true,
+                })
             ).toHaveCount(0);
         } finally {
             await closeElectronApp(app);
@@ -371,7 +380,7 @@ async function setContentSortMode(
         | 'Name A-Z'
         | 'Name Z-A'
 ): Promise<void> {
-    await page.getByRole('button', { name: 'Sort content' }).click();
+    await page.getByRole('button', { name: 'Refine', exact: true }).click();
     await page.getByRole('menuitem', { name: label, exact: true }).click();
 }
 
