@@ -4,6 +4,7 @@ import {
     computed,
     input,
     output,
+    signal,
 } from '@angular/core';
 import { MatCardModule } from '@angular/material/card';
 import { MatIcon } from '@angular/material/icon';
@@ -25,6 +26,7 @@ interface GridListItem {
     category_id?: number | string;
     poster_url?: string;
     cover?: string;
+    stream_icon?: string;
     title?: string;
     o_name?: string;
     name?: string;
@@ -60,6 +62,19 @@ export function resolveGridRating(
     return formatGridRating(item.rating_imdb) ?? formatGridRating(item.rating);
 }
 
+const BLANK_ARTWORK_URL_PATTERN =
+    /(^|\/)blank-icon\.(?:png|jpe?g|webp|gif|svg)(?:[?#].*)?$/i;
+
+function normalizeArtworkUrl(value: string | undefined): string | undefined {
+    const trimmed = value?.trim();
+
+    if (!trimmed || BLANK_ARTWORK_URL_PATTERN.test(trimmed)) {
+        return undefined;
+    }
+
+    return trimmed;
+}
+
 @Component({
     selector: 'app-grid-list',
     template: `<div class="grid-list__grid">
@@ -82,22 +97,49 @@ export function resolveGridRating(
             } @else {
                 @for (item of items(); track $index) {
                     @let i = $any(item);
-                    <mat-card (click)="itemClicked.emit(item)">
-                        @let poster = i.poster_url ?? i.cover;
+                    <mat-card
+                        [class.grid-card--logo]="variant() === 'logo'"
+                        (click)="itemClicked.emit(item)"
+                    >
+                        @let poster = resolvePoster(i);
                         <div class="card-thumbnail-container">
-                            <img
-                                class="stream-icon"
-                                [src]="
-                                    poster ||
-                                    './assets/images/default-poster.png'
-                                "
-                                (error)="
-                                    $event.target.src =
-                                        './assets/images/default-poster.png'
-                                "
-                                loading="lazy"
-                                alt="logo"
-                            />
+                            @if (type()) {
+                                <div
+                                    class="type-badge"
+                                    [class.live]="type() === 'live'"
+                                    [class.movie]="type() === 'vod'"
+                                    [class.series]="type() === 'series'"
+                                >
+                                    {{ type() }}
+                                </div>
+                            }
+                            @if (poster && !hasArtworkFailed(poster)) {
+                                <img
+                                    class="stream-icon"
+                                    [src]="poster"
+                                    (error)="onImageError($event, poster)"
+                                    loading="lazy"
+                                    alt="logo"
+                                />
+                            } @else if (
+                                shouldRenderArtworkPlaceholder(poster)
+                            ) {
+                                <div
+                                    class="stream-icon-placeholder"
+                                    aria-hidden="true"
+                                >
+                                    <mat-icon>{{
+                                        getPlaceholderIcon()
+                                    }}</mat-icon>
+                                </div>
+                            } @else {
+                                <img
+                                    class="stream-icon"
+                                    src="./assets/images/default-poster.png"
+                                    loading="lazy"
+                                    alt="logo"
+                                />
+                            }
                             @if (i.progress && i.progress > 0) {
                                 <app-progress-capsule [progress]="i.progress" />
                             }
@@ -186,6 +228,8 @@ export function resolveGridRating(
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class GridListComponent {
+    private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
+
     readonly items = input<GridListItem[]>([]);
     readonly isLoading = input<boolean>(false);
     readonly showPaginator = input(true);
@@ -197,7 +241,15 @@ export class GridListComponent {
     readonly totalPages = input<number>(0);
     readonly limit = input<number>(25);
     readonly pageSizeOptions = input<number[]>([]);
+    readonly variant = input<'poster' | 'logo'>('poster');
+    readonly type = input<'vod' | 'series' | 'live' | string>('');
     protected readonly resolveRating = resolveGridRating;
+    protected readonly resolvePoster = (
+        item: GridListItem
+    ): string | undefined =>
+        normalizeArtworkUrl(item.poster_url) ??
+        normalizeArtworkUrl(item.cover) ??
+        normalizeArtworkUrl(item.stream_icon);
     protected readonly hasActiveSearch = computed(
         () => (this.searchTerm() ?? '').trim().length > 0
     );
@@ -207,4 +259,51 @@ export class GridListComponent {
         const count = Math.max(8, Math.min(18, preferredCount));
         return Array.from({ length: count }, (_, index) => index);
     });
+
+    protected hasArtworkFailed(poster: string): boolean {
+        return this.failedArtworkUrls().has(poster);
+    }
+
+    protected shouldRenderArtworkPlaceholder(
+        poster: string | undefined
+    ): boolean {
+        return (
+            this.usesArtworkPlaceholder() &&
+            (!poster || this.hasArtworkFailed(poster))
+        );
+    }
+
+    protected getPlaceholderIcon(): string {
+        switch (this.type()) {
+            case 'live':
+                return 'live_tv';
+            case 'series':
+                return 'tv';
+            default:
+                return 'movie';
+        }
+    }
+
+    protected onImageError(event: Event, poster: string): void {
+        if (this.usesArtworkPlaceholder()) {
+            this.failedArtworkUrls.update((failedUrls) => {
+                const nextFailedUrls = new Set(failedUrls);
+                nextFailedUrls.add(poster);
+
+                return nextFailedUrls;
+            });
+            (event.target as HTMLImageElement | null)?.style.setProperty(
+                'display',
+                'none'
+            );
+            return;
+        }
+
+        (event.target as HTMLImageElement).src =
+            './assets/images/default-poster.png';
+    }
+
+    private usesArtworkPlaceholder(): boolean {
+        return this.variant() === 'logo' || this.type() === 'live';
+    }
 }

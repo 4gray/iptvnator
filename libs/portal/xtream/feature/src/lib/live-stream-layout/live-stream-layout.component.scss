@@ -1,4 +1,5 @@
 @use '@angular/material' as mat;
+@use '../../../../../../ui/styles/panel-header' as panel;
 @use '../../../../../../ui/styles/portal-layout' as portal;
 @use '../../../../../../ui/styles/portal-sidebar';
 
@@ -30,47 +31,53 @@
     height: 100%;
 }
 
-.live-initial-content {
-    align-self: center;
-    box-sizing: border-box;
+.live-all-items-content {
+    align-self: stretch;
     display: flex;
     flex-direction: column;
-    gap: 12px;
     height: 100%;
-    max-width: 640px;
-    padding: 18px;
-    width: min(640px, 100%);
+    min-height: 0;
+    overflow: hidden;
+    width: 100%;
 }
 
-.live-initial-content__header {
-    display: flex;
-    flex-direction: column;
-    gap: 2px;
-    padding: 0 4px;
+.category-content-header {
+    @include panel.standard-panel-header($sticky: true);
 }
 
-.live-initial-content__title {
-    color: var(--mat-sys-on-surface);
-    font-size: 1rem;
-    font-weight: 600;
-    line-height: 1.2;
-    margin: 0;
+.category-meta {
+    @include panel.standard-panel-meta();
 }
 
-.live-initial-content__subtitle {
-    color: var(--mat-sys-on-surface-variant);
-    font-size: 0.82rem;
-    line-height: 1.35;
-    margin: 0;
+.category-title {
+    @include panel.standard-panel-title();
 }
 
-.live-initial-content app-portal-channels-list {
-    border: 1px solid var(--app-separator);
-    border-radius: 8px;
+.category-subtitle {
+    @include panel.standard-panel-subtitle();
+}
+
+mat-paginator {
+    background: transparent !important;
+    flex-shrink: 0;
+    --mat-paginator-container-size: 40px;
+    --mat-paginator-enabled-icon-color: var(
+        --app-body-color,
+        var(--mat-sys-on-surface-variant)
+    );
+    --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
+}
+
+app-grid-list.live-all-items-grid {
+    --cover-grid-min-width: var(--live-channel-grid-min-width, 148px);
+
     display: block;
     flex: 1;
     min-height: 0;
-    overflow: hidden;
+    overflow-y: auto;
+    padding: 16px 20px 20px;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
 }
 
 .loading-indicator {

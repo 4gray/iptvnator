@@ -34,6 +34,7 @@ interface RecentlyAddedItem {
 // Three placeholder slots per skeleton rail — enough to suggest a horizontal
 // scroll without taking the whole viewport.
 const SKELETON_CARDS_PER_RAIL = [1, 2, 3, 4, 5, 6] as const;
+const RECENTLY_ADDED_ITEMS_LIMIT = 30;
 
 @Component({
     selector: 'app-recently-added',
@@ -144,7 +145,7 @@ export class RecentlyAddedComponent {
             .sort((a, b) => {
                 return b.sortTimestamp - a.sortTimestamp;
             })
-            .slice(0, 20)
+            .slice(0, RECENTLY_ADDED_ITEMS_LIMIT)
             .map(({ item }) => item);
     }
 

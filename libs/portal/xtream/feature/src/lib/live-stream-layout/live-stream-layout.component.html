@@ -151,28 +151,41 @@
                     (playbackRequested)="playLive($event, true)"
                 />
             </div>
-        } @else if (recentlyAddedLiveItems().length > 0) {
-            <section class="live-initial-content">
-                <header class="live-initial-content__header">
-                    <h2 class="live-initial-content__title">
-                        {{ 'PORTALS.SIDEBAR.RECENTLY_ADDED' | translate }}
-                    </h2>
-                    <p class="live-initial-content__subtitle">
-                        {{ 'PORTALS.SIDEBAR.LIVE_TV' | translate }}
-                    </p>
-                </header>
-                <app-portal-channels-list
-                    [sortMode]="'server'"
-                    [channelsOverride]="recentlyAddedLiveItems()"
-                    (playClicked)="playLive($event)"
-                    (playbackRequested)="playLive($event, true)"
-                />
-            </section>
         } @else {
-            <app-portal-empty-state
-                icon="live_tv"
-                [message]="'PORTALS.SELECT_CATEGORY' | translate"
-            />
+            <div class="live-all-items-content category-content-layout">
+                <div class="category-content-header">
+                    <div class="category-meta">
+                        <h2 class="category-title">All Items</h2>
+                        <div class="category-subtitle">
+                            {{ liveRootSubtitle() }}
+                        </div>
+                    </div>
+                    @if (showLiveRootPaginator()) {
+                        <mat-paginator
+                            [pageIndex]="liveRootPageIndex()"
+                            [length]="liveRootItemCount()"
+                            [pageSize]="liveRootLimit()"
+                            [pageSizeOptions]="liveRootPageSizeOptions"
+                            (page)="onLiveRootPageChange($event)"
+                            aria-label="Select page"
+                        />
+                    }
+                </div>
+                <app-grid-list
+                    class="live-all-items-grid app-scrollbar"
+                    [isLoading]="isSelectedTypeContentLoading()"
+                    [items]="liveRootItems()"
+                    [pageIndex]="liveRootPageIndex()"
+                    [totalPages]="liveRootTotalPages()"
+                    [limit]="liveRootLimit()"
+                    [pageSizeOptions]="liveRootPageSizeOptions"
+                    [showPaginator]="false"
+                    [searchTerm]="workspaceSearchTerm()"
+                    [variant]="'logo'"
+                    [type]="'live'"
+                    (itemClicked)="onLiveRootItemClick($event)"
+                />
+            </div>
         }
     } @else {
         <app-portal-empty-state

@@ -95,8 +95,8 @@ describe('RecentlyAddedComponent', () => {
         dateNowSpy.mockRestore();
     });
 
-    it('does not let far-future provider dates pin the first VOD rail slots', () => {
-        const freshItems = Array.from({ length: 21 }, (_, index) =>
+    it('shows up to 30 recently added VOD items after filtering invalid provider dates', () => {
+        const freshItems = Array.from({ length: 31 }, (_, index) =>
             createItem(index + 1, {
                 added: String(
                     Math.floor(
@@ -122,8 +122,10 @@ describe('RecentlyAddedComponent', () => {
         );
         const titles = component.recentlyAddedVod().map((item) => item.title);
 
-        expect(titles).toHaveLength(20);
+        expect(titles).toHaveLength(30);
         expect(titles[0]).toBe('Fresh 1');
+        expect(titles.at(-1)).toBe('Fresh 30');
+        expect(titles).not.toContain('Fresh 31');
         expect(titles).not.toContain('Future Provider Item');
     });
 
