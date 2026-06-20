@@ -28,9 +28,9 @@ export interface GlobalSearchBaseResult {
     id: number | string;
     category_id: number | string;
     title: string;
-    rating: string;
-    added: string;
-    poster_url: string;
+    rating: string | null;
+    added: string | null;
+    poster_url: string | null;
     xtream_id: number;
     type: GlobalSearchContentType;
     playlist_id: string;

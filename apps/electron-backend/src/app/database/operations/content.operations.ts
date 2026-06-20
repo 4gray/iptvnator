@@ -37,9 +37,39 @@ function normalizeSearchMatchText(value: unknown): string {
         : '';
 }
 
+function normalizeSqlSearchText(value: unknown): string {
+    return typeof value === 'string'
+        ? value
+              .toLocaleLowerCase()
+              .replace(/[^\p{L}\p{N}]+/gu, ' ')
+              .trim()
+              .replace(/\s+/g, ' ')
+        : '';
+}
+
 function getSearchTokens(value: unknown): string[] {
     const normalized = normalizeSearchMatchText(value);
     return normalized ? normalized.split(' ') : [];
+}
+
+function getSqlSearchTokenGroups(value: unknown): string[][] {
+    const rawTokens = normalizeSqlSearchText(value).split(' ').filter(Boolean);
+    const normalizedTokens = getSearchTokens(value);
+    const tokenCount = Math.max(rawTokens.length, normalizedTokens.length);
+
+    return Array.from({ length: tokenCount }, (_, index) =>
+        [...new Set([rawTokens[index], normalizedTokens[index]])].filter(
+            Boolean
+        )
+    ).filter((group) => group.length > 0);
+}
+
+function isShortSearchTokenGroup(tokens: readonly string[]): boolean {
+    return tokens.some((token) => token.length <= 2);
+}
+
+function getSqlSearchTokenVariants(value: unknown): string[] {
+    return [...new Set(getSqlSearchTokenGroups(value).flat())];
 }
 
 function buildLikePatterns(
@@ -48,7 +78,7 @@ function buildLikePatterns(
 ): string[] {
     const variants = new Set<string>();
 
-    for (const value of [term, ...getSearchTokens(term)]) {
+    for (const value of [term, ...getSqlSearchTokenVariants(term)]) {
         const trimmedValue = value.trim();
         if (!trimmedValue) {
             continue;
@@ -249,18 +279,22 @@ function getGlobalSearchCandidateLimit(): number {
 }
 
 function buildContentTitleSearchConditions(searchTerm: string) {
-    const tokens = getSearchTokens(searchTerm);
-    if (tokens.length === 0) {
+    const tokenGroups = getSqlSearchTokenGroups(searchTerm);
+    if (tokenGroups.length === 0) {
         return [];
     }
 
-    return tokens
-        .map((token, index) => {
+    return tokenGroups
+        .map((tokens, index) => {
             const mode =
-                index === 0 && token.length <= 2 ? 'prefix' : 'contains';
-            const likeConditions = buildLikePatterns(token, mode).map(
-                (pattern) =>
-                    sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+                index === 0 && isShortSearchTokenGroup(tokens)
+                    ? 'prefix'
+                    : 'contains';
+            const likeConditions = tokens.flatMap((token) =>
+                buildLikePatterns(token, mode).map(
+                    (pattern) =>
+                        sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+                )
             );
             return or(...likeConditions);
         })
@@ -268,15 +302,25 @@ function buildContentTitleSearchConditions(searchTerm: string) {
 }
 
 function shouldUseContentTitlePrefixIndex(searchTerm: string): boolean {
-    const [firstToken] = getSearchTokens(searchTerm);
+    const [firstTokenGroup] = getSqlSearchTokenGroups(searchTerm);
 
-    return !!firstToken && firstToken.length <= 2;
+    return !!firstTokenGroup && isShortSearchTokenGroup(firstTokenGroup);
 }
 
 function buildContentTitleFtsMatchQuery(searchTerm: string): string {
-    return getSearchTokens(searchTerm)
-        .filter((token) => token.length >= 3)
-        .map((token) => `"${token.replace(/"/g, '""')}"`)
+    return getSqlSearchTokenGroups(searchTerm)
+        .map((tokens) => {
+            const quotedTokens = tokens
+                .filter((token) => token.length >= 3)
+                .map((token) => `"${token.replace(/"/g, '""')}"`);
+
+            if (quotedTokens.length <= 1) {
+                return quotedTokens[0] ?? '';
+            }
+
+            return `(${quotedTokens.join(' OR ')})`;
+        })
+        .filter(Boolean)
         .join(' AND ');
 }
 
@@ -290,30 +334,37 @@ function shouldUseContentTitleFts(searchTerm: string): boolean {
 function buildGlobPrefixPatterns(token: string): string[] {
     const variants = new Set<string>();
 
-    variants.add(token);
-    variants.add(token.toLocaleLowerCase());
-    variants.add(token.toLocaleUpperCase());
-    variants.add(
-        token.charAt(0).toLocaleUpperCase() + token.slice(1).toLocaleLowerCase()
-    );
+    for (const value of [token, ...getSqlSearchTokenVariants(token)]) {
+        variants.add(value);
+        variants.add(value.toLocaleLowerCase());
+        variants.add(value.toLocaleUpperCase());
+        variants.add(
+            value.charAt(0).toLocaleUpperCase() +
+                value.slice(1).toLocaleLowerCase()
+        );
+    }
 
     return [...variants].map((value) => `${value}*`);
 }
 
 function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
-    return getSearchTokens(searchTerm).map((token, index) => {
-        if (index === 0 && token.length <= 2) {
+    return getSqlSearchTokenGroups(searchTerm).map((tokens, index) => {
+        if (index === 0 && isShortSearchTokenGroup(tokens)) {
             return sql`(${sql.join(
-                buildGlobPrefixPatterns(token).map(
-                    (pattern) => sql`c.title GLOB ${pattern}`
+                tokens.flatMap((token) =>
+                    buildGlobPrefixPatterns(token).map(
+                        (pattern) => sql`c.title GLOB ${pattern}`
+                    )
                 ),
                 sql` OR `
             )})`;
         }
 
         return sql`(${sql.join(
-            buildLikePatterns(token).map(
-                (pattern) => sql`c.title LIKE ${pattern} ESCAPE '\\'`
+            tokens.flatMap((token) =>
+                buildLikePatterns(token).map(
+                    (pattern) => sql`c.title LIKE ${pattern} ESCAPE '\\'`
+                )
             ),
             sql` OR `
         )})`;
@@ -457,17 +508,20 @@ function buildM3uPayloadTextFieldPatterns(
 }
 
 function buildM3uPayloadSearchConditions(searchTerm: string) {
-    const tokens = getSearchTokens(searchTerm);
-    if (tokens.length === 0) {
+    const tokenGroups = getSqlSearchTokenGroups(searchTerm);
+    if (tokenGroups.length === 0) {
         return [];
     }
 
-    return tokens
-        .map((token, index) => {
-            const patterns =
-                index === 0 && token.length <= 2
-                    ? buildM3uPayloadTextFieldPatterns(token, 'prefix')
-                    : buildM3uPayloadTextFieldPatterns(token, 'contains');
+    return tokenGroups
+        .map((tokens, index) => {
+            const mode =
+                index === 0 && isShortSearchTokenGroup(tokens)
+                    ? 'prefix'
+                    : 'contains';
+            const patterns = tokens.flatMap((token) =>
+                buildM3uPayloadTextFieldPatterns(token, mode)
+            );
             const likeConditions = patterns.map(
                 (pattern) =>
                     sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
@@ -584,14 +638,14 @@ function toM3uGlobalSearchResult(
         stream_url: channel.url,
         group_title: channel.group.title,
         radio: channel.radio,
-        poster_url: channel.tvg.logo,
+        poster_url: channel.tvg.logo || null,
         channel,
         id: `${row.id}::${channel.id || channel.url}`,
         category_id: 'm3u',
         title: channel.name || channel.tvg.name || channel.url,
-        rating: '',
-        added: '',
-        xtream_id: 0,
+        rating: null,
+        added: null,
+        xtream_id: -1,
         type: GLOBAL_SEARCH_CONTENT_TYPES.Live,
     };
 }

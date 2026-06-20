@@ -351,6 +351,9 @@ describe('content.operations', () => {
                 group_title: 'News',
                 radio: '',
                 poster_url: 'https://image.test/news.png',
+                rating: null,
+                added: null,
+                xtream_id: -1,
                 title: 'Daily News',
                 type: 'live',
             }),
@@ -574,6 +577,44 @@ describe('content.operations', () => {
         expect(matchSqlCall?.[1]).toBe('"and"');
     });
 
+    it('keeps accented FTS token variants in global search SQL prefilters', async () => {
+        const all = jest.fn().mockResolvedValue([
+            {
+                id: 1,
+                category_id: 10,
+                title: 'Café TV',
+                rating: null,
+                added: null,
+                poster_url: null,
+                epg_channel_id: '',
+                tv_archive: 0,
+                tv_archive_duration: 0,
+                direct_source: '',
+                xtream_id: 99,
+                type: 'live',
+                playlist_id: 'playlist-1',
+                playlist_name: 'Playlist One',
+            },
+        ]);
+        const db = {
+            all,
+            select: jest.fn(),
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'Café', ['live'], false, ['xtream'], {
+            limit: 10,
+        });
+
+        const matchSqlCall = sqlMock.mock.calls.find(([strings]) =>
+            Array.from(strings as TemplateStringsArray)
+                .join(' ')
+                .includes('content_title_fts MATCH')
+        );
+
+        expect(matchSqlCall?.[1]).toContain('"café"');
+        expect(matchSqlCall?.[1]).toContain('"cafe"');
+    });
+
     it('uses a stable max candidate limit for M3U playlist payload searches', async () => {
         const limit = jest.fn().mockResolvedValue([]);
         const orderedQuery = {
@@ -625,6 +666,46 @@ describe('content.operations', () => {
 
         expect(searchPatterns.length).toBeGreaterThan(0);
         expect(searchPatterns).not.toContain('%news%');
+        expect(
+            searchPatterns.every(
+                (pattern) =>
+                    pattern.includes('"name"') || pattern.includes('"title"')
+            )
+        ).toBe(true);
+    });
+
+    it('keeps accented M3U payload text field variants in SQL prefilters', async () => {
+        const limit = jest.fn().mockResolvedValue([]);
+        const orderedQuery = {
+            limit,
+            then: (resolve: (value: unknown[]) => void) => resolve([]),
+        };
+        const orderBy = jest.fn().mockReturnValue(orderedQuery);
+        const where = jest.fn().mockReturnValue({ orderBy });
+        const from = jest.fn().mockReturnValue({ where });
+        const select = jest.fn().mockReturnValue({ from });
+        const db = {
+            select,
+        } as unknown as AppDatabase;
+
+        await globalSearch(db, 'Café', ['live'], false, ['m3u'], {
+            limit: 10,
+        });
+
+        const searchPatterns = sqlMock.mock.calls
+            .flatMap(([, ...values]) => values)
+            .filter(
+                (value): value is string =>
+                    typeof value === 'string' &&
+                    value.toLocaleLowerCase().includes('caf')
+            );
+
+        expect(searchPatterns).toEqual(
+            expect.arrayContaining([
+                expect.stringContaining('café'),
+                expect.stringContaining('cafe'),
+            ])
+        );
         expect(
             searchPatterns.every(
                 (pattern) =>
