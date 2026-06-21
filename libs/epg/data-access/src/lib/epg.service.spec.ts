@@ -209,4 +209,45 @@ describe('EpgService', () => {
             { sourceUrls: ['https://playlist.example.com/guide.xml'] }
         );
     });
+
+    it('returns null scoped current programs instead of re-entering global lookup when scoped batch lookup fails', async () => {
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            settingsStore.getSettings.mockReturnValue({
+                epgUrl: ['https://global.example.com/guide.xml'],
+                trustedPrivateNetworkEpgUrls: [],
+                trustedInsecureTlsHosts: [],
+            });
+            epgBridge.supportsProgramLookup = true;
+            epgBridge.supportsCurrentProgramBatch = true;
+            epgBridge.getCurrentProgramsBatch = jest
+                .fn()
+                .mockRejectedValueOnce(new Error('ipc down'))
+                .mockResolvedValueOnce({
+                    'guide-news': {
+                        channel: 'guide-news',
+                        start: '2026-05-23T10:00:00.000Z',
+                        stop: '2026-05-23T11:00:00.000Z',
+                        title: 'Global News Bulletin',
+                    },
+                });
+
+            const result = await firstValueFrom(
+                service.getCurrentProgramsForChannels(['guide-news'], {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                })
+            );
+
+            expect(result.get('guide-news')).toBeNull();
+            expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+            expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
+                ['guide-news'],
+                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
 });

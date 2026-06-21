@@ -210,10 +210,12 @@ export async function updateSourceDialog(
 }
 
 export async function saveSourceDialog(dialog: Locator): Promise<void> {
-    await expect(
-        dialog.getByRole('button', { name: 'Save', exact: true })
-    ).toBeEnabled();
-    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    const saveButton = dialog
+        .locator('mat-dialog-actions')
+        .getByRole('button', { name: 'Save', exact: true });
+
+    await expect(saveButton).toBeEnabled();
+    await saveButton.click();
     await expect(dialog).toBeHidden();
 }
 

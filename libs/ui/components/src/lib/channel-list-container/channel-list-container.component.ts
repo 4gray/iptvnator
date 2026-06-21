@@ -56,6 +56,7 @@ import {
     Settings,
     STORE_KEY,
 } from '@iptvnator/shared/interfaces';
+import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';
@@ -139,7 +140,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             return [];
         }
 
-        return this.normalizeEpgUrls(playlist.epgUrls ?? []);
+        return normalizeEpgUrls(playlist.epgUrls ?? []);
     });
     readonly shouldShowEpg = computed(
         () =>
@@ -317,7 +318,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                         Object.keys(settings as Settings).length > 0
                     ) {
                         const epgUrl = (settings as Settings).epgUrl;
-                        this.globalEpgUrls.set(this.normalizeEpgUrls(epgUrl));
+                        this.globalEpgUrls.set(normalizeEpgUrls(epgUrl));
                     }
                 });
         } else {
@@ -407,16 +408,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         | undefined {
         const sourceUrls = this.playlistEpgUrls();
         return sourceUrls.length > 0 ? { sourceUrls } : undefined;
-    }
-
-    private normalizeEpgUrls(urls: string[] | null | undefined): string[] {
-        return Array.from(
-            new Set(
-                (urls ?? [])
-                    .map((url) => url?.trim())
-                    .filter((url): url is string => Boolean(url))
-            )
-        );
     }
 
     /**

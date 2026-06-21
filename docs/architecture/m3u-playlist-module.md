@@ -282,9 +282,17 @@ These URLs are playlist-scoped by default:
   loaded, added, or refreshed, using the same EPG progress/import pipeline as
   Settings-managed XMLTV URLs. Before fetching, playlist URLs already present in
   global Settings are filtered out so the same XMLTV URL is not downloaded
-  twice.
-- The Electron EPG database stores `source_url` on imported programs so channel
-  rows can ask for the active playlist's EPG sources first.
+  twice. Within a running session, the effect remembers the last fetchable URL
+  set per playlist and only re-fetches when that URL set changes; metadata-only
+  edits such as renaming a playlist or hiding groups do not re-download local
+  EPG sources.
+- The Electron EPG database stores `source_url` on imported programs so current
+  program lookups can ask for the active playlist's EPG sources first. Existing
+  databases backfill this column from `epg_channels.source_url` once before the
+  scoped indexes are created. When multiple EPG files reuse the same XMLTV
+  channel id, the channel row keeps its original `source_url` attribution instead
+  of being overwritten by the last imported source; program scoping remains
+  source-specific through `epg_programs.source_url`.
 - `ChannelListContainerComponent` enables EPG rows when either global settings
   URLs or the active M3U playlist has `epgUrls`.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels

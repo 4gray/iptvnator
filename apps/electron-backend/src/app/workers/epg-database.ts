@@ -27,7 +27,6 @@ export class EpgDatabase {
                 display_name = excluded.display_name,
                 icon_url = excluded.icon_url,
                 url = excluded.url,
-                source_url = excluded.source_url,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
 

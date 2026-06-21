@@ -1146,7 +1146,10 @@ export async function saveSourceDialog(
     page: Page,
     dialog: Locator
 ): Promise<void> {
-    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog
+        .locator('mat-dialog-actions')
+        .getByRole('button', { name: 'Save', exact: true })
+        .click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
     await expectPlaylistUpdatedToast(page);
 }

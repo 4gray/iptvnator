@@ -386,7 +386,7 @@ export class EpgService {
             }),
             catchError((err) => {
                 console.error('EPG scoped batch current programs error:', err);
-                return this.getCurrentProgramsForChannels(normalizedChannelIds);
+                return of(this.createNullProgramMap(normalizedChannelIds));
             })
         );
     }
@@ -446,6 +446,12 @@ export class EpgService {
 
     private normalizeSourceUrls(options?: EpgLookupOptions): string[] {
         return normalizeEpgUrls(options?.sourceUrls ?? []);
+    }
+
+    private createNullProgramMap(
+        channelIds: string[]
+    ): Map<string, EpgProgram | null> {
+        return new Map(channelIds.map((channelId) => [channelId, null]));
     }
 
     private getGlobalEpgSourceUrls(excluding: string[] = []): string[] {

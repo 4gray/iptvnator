@@ -326,4 +326,59 @@ describe('database schema statements', () => {
             expect.stringContaining('UPDATE content')
         );
     });
+
+    it('backfills migrated EPG program source URLs before creating scoped EPG indexes', () => {
+        const callOrder: string[] = [];
+        const runMigrations = (
+            __databaseConnectionTestHooks as unknown as {
+                runMigrations: (sqlite: {
+                    exec: (statement: string) => void;
+                    prepare: (statement: string) => {
+                        all?: () => unknown[];
+                        get?: (...args: unknown[]) => unknown;
+                        run?: (...args: unknown[]) => unknown;
+                    };
+                    transaction: (callback: () => void) => () => void;
+                }) => void;
+            }
+        ).runMigrations;
+        const sqlite = {
+            exec: jest.fn((statement: string) => {
+                if (statement.includes('idx_epg_programs_source')) {
+                    callOrder.push('epg-source-index');
+                }
+            }),
+            prepare: jest.fn((statement: string) => {
+                if (statement.includes('SELECT value FROM app_state')) {
+                    return {
+                        get: (): undefined => undefined,
+                    };
+                }
+                if (statement.includes('UPDATE epg_programs')) {
+                    return {
+                        run: () => {
+                            callOrder.push('epg-source-backfill');
+                        },
+                    };
+                }
+                if (statement.includes('INSERT INTO app_state')) {
+                    return { run: jest.fn() };
+                }
+
+                return {
+                    all: () => [],
+                    get: (): undefined => undefined,
+                    run: jest.fn(),
+                };
+            }),
+            transaction: jest.fn((callback: () => void) => callback),
+        };
+
+        runMigrations(sqlite);
+
+        expect(callOrder).toContain('epg-source-backfill');
+        expect(callOrder.indexOf('epg-source-backfill')).toBeLessThan(
+            callOrder.indexOf('epg-source-index')
+        );
+    });
 });

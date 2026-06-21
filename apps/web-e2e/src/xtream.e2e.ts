@@ -492,7 +492,10 @@ test('@xtream playlist details edit is retained in the PWA browser context', asy
         dialog.locator('input[formcontrolname="password"]'),
         'minimal'
     );
-    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog
+        .locator('mat-dialog-actions')
+        .getByRole('button', { name: 'Save', exact: true })
+        .click();
     await expect(dialog).toBeHidden();
 
     await expect(

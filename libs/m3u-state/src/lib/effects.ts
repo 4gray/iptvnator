@@ -3,7 +3,6 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
 import {
-    filterPlaylistEpgUrlsForFetch,
     normalizeEpgUrls,
     resolveM3uCatchupUrl,
 } from '@iptvnator/shared/m3u-utils';
@@ -22,7 +21,11 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
-import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
@@ -45,6 +48,7 @@ import {
 } from './selectors';
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 import { buildExternalPlayerPayload } from './external-player-payload.util';
+import { resolvePlaylistScopedEpgFetchPlan } from './playlist-scoped-epg-fetch.util';
 
 @Injectable({ providedIn: 'any' })
 export class PlaylistEffects {
@@ -58,6 +62,7 @@ export class PlaylistEffects {
     private store = inject(Store);
     private translate = inject(TranslateService);
     private settingsStore = inject(SettingsStore);
+    private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
     updateFavorites$ = createEffect(
         () => {
@@ -271,6 +276,7 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.removePlaylist),
                 switchMap(async (action) => {
+                    this.playlistScopedEpgFetchKeys.delete(action.playlistId);
                     await firstValueFrom(
                         this.playlistsService.deletePlaylist(action.playlistId)
                     );
@@ -446,24 +452,18 @@ export class PlaylistEffects {
     }
 
     private fetchPlaylistScopedEpg(playlist: Playlist): void {
-        if (playlist.serverUrl || playlist.macAddress) {
-            return;
-        }
-
-        const epgUrls = Array.from(
-            new Set(
-                filterPlaylistEpgUrlsForFetch(
-                    playlist.epgUrls,
-                    this.getGlobalEpgUrls()
-                )
-            )
+        const plan = resolvePlaylistScopedEpgFetchPlan(
+            playlist,
+            this.getGlobalEpgUrls(),
+            this.playlistScopedEpgFetchKeys.get(playlist._id)
         );
+        this.playlistScopedEpgFetchKeys.set(playlist._id, plan.key);
 
-        if (epgUrls.length === 0) {
+        if (!plan.shouldFetch) {
             return;
         }
 
-        this.epgService.fetchEpg(epgUrls);
+        this.epgService.fetchEpg(plan.urls);
     }
 
     private fetchPlaylistScopedEpgForPlaylists(playlists: Playlist[]): void {
@@ -471,18 +471,19 @@ export class PlaylistEffects {
         const globalEpgUrls = this.getGlobalEpgUrls();
 
         for (const playlist of playlists) {
-            if (playlist.serverUrl || playlist.macAddress) {
+            const plan = resolvePlaylistScopedEpgFetchPlan(
+                playlist,
+                globalEpgUrls,
+                this.playlistScopedEpgFetchKeys.get(playlist._id)
+            );
+            this.playlistScopedEpgFetchKeys.set(playlist._id, plan.key);
+
+            if (!plan.shouldFetch) {
                 continue;
             }
 
-            for (const url of filterPlaylistEpgUrlsForFetch(
-                playlist.epgUrls,
-                globalEpgUrls
-            )) {
-                const trimmedUrl = url.trim();
-                if (trimmedUrl.length > 0) {
-                    epgUrls.add(trimmedUrl);
-                }
+            for (const url of plan.urls) {
+                epgUrls.add(url);
             }
         }
 

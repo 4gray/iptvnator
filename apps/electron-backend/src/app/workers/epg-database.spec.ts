@@ -81,6 +81,21 @@ describe('EpgDatabase', () => {
             sourceUrl
         );
     });
+
+    it('does not overwrite a shared channel source URL when another EPG source reuses the same channel ID', () => {
+        const { Database, database } = createEpgDatabaseMock();
+
+        new EpgDatabase(Database);
+
+        const insertChannelSql = database.prepare.mock.calls
+            .map(([sql]) => normalizeSql(sql))
+            .find((sql) => sql.startsWith('INSERT INTO epg_channels'));
+
+        expect(insertChannelSql).toBeDefined();
+        expect(insertChannelSql).not.toContain(
+            'source_url = excluded.source_url'
+        );
+    });
 });
 
 describe('EpgDatabaseClearOperation', () => {

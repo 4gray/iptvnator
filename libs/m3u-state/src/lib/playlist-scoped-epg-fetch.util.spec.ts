@@ -1,0 +1,56 @@
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
+import { resolvePlaylistScopedEpgFetchPlan } from './playlist-scoped-epg-fetch.util';
+
+function createPlaylistMeta(
+    overrides: Partial<PlaylistMeta> = {}
+): PlaylistMeta {
+    return {
+        _id: 'playlist-1',
+        title: 'Playlist',
+        count: 1,
+        importDate: '2026-06-21T10:00:00.000Z',
+        autoRefresh: false,
+        epgUrls: [],
+        ...overrides,
+    };
+}
+
+describe('resolvePlaylistScopedEpgFetchPlan', () => {
+    it('does not refetch when playlist metadata changes without fetchable EPG URL changes', () => {
+        const playlist = createPlaylistMeta({
+            title: 'Renamed playlist',
+            epgUrls: ['https://playlist.example.com/guide.xml'],
+        });
+
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(
+                playlist,
+                [],
+                'https://playlist.example.com/guide.xml'
+            )
+        ).toEqual({
+            key: 'https://playlist.example.com/guide.xml',
+            shouldFetch: false,
+            urls: ['https://playlist.example.com/guide.xml'],
+        });
+    });
+
+    it('does not fetch playlist EPG URLs that are already configured globally', () => {
+        const playlist = createPlaylistMeta({
+            epgUrls: [
+                'https://global.example.com/guide.xml',
+                'https://playlist.example.com/guide.xml',
+            ],
+        });
+
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(playlist, [
+                ' https://global.example.com/guide.xml ',
+            ])
+        ).toEqual({
+            key: 'https://playlist.example.com/guide.xml',
+            shouldFetch: true,
+            urls: ['https://playlist.example.com/guide.xml'],
+        });
+    });
+});
