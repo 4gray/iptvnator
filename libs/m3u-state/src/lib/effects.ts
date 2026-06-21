@@ -291,7 +291,9 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylist),
                 tap((action) => {
-                    this.fetchPlaylistScopedEpg(action.playlist);
+                    this.fetchPlaylistScopedEpg(action.playlist, {
+                        force: action.refreshEpg === true,
+                    });
                 }),
                 switchMap((action) =>
                     this.playlistsService.updatePlaylist(action.playlistId, {
@@ -451,11 +453,15 @@ export class PlaylistEffects {
         void this.router.navigate(['/workspace', 'playlists', playlist._id]);
     }
 
-    private fetchPlaylistScopedEpg(playlist: Playlist): void {
+    private fetchPlaylistScopedEpg(
+        playlist: Playlist,
+        options: { force?: boolean } = {}
+    ): void {
         const plan = resolvePlaylistScopedEpgFetchPlan(
             playlist,
             this.getGlobalEpgUrls(),
-            this.playlistScopedEpgFetchKeys.get(playlist._id)
+            this.playlistScopedEpgFetchKeys.get(playlist._id),
+            options
         );
         this.playlistScopedEpgFetchKeys.set(playlist._id, plan.key);
 

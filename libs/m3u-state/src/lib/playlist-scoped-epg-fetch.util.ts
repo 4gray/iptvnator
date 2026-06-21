@@ -7,10 +7,15 @@ export interface PlaylistScopedEpgFetchPlan {
     urls: string[];
 }
 
+export interface PlaylistScopedEpgFetchOptions {
+    force?: boolean;
+}
+
 export function resolvePlaylistScopedEpgFetchPlan(
     playlist: Pick<PlaylistMeta, 'epgUrls' | 'macAddress' | 'serverUrl'>,
     globalEpgUrls: readonly string[],
-    previousKey = ''
+    previousKey = '',
+    options: PlaylistScopedEpgFetchOptions = {}
 ): PlaylistScopedEpgFetchPlan {
     if (playlist.serverUrl || playlist.macAddress) {
         return { key: '', shouldFetch: false, urls: [] };
@@ -32,10 +37,11 @@ export function resolvePlaylistScopedEpgFetchPlan(
             .filter((url) => url.length > 0)
     );
     const newUrls = urls.filter((url) => !previousUrls.has(url));
+    const urlsToFetch = options.force ? urls : newUrls;
 
     return {
         key,
-        shouldFetch: newUrls.length > 0,
-        urls: newUrls.length > 0 ? newUrls : urls,
+        shouldFetch: urlsToFetch.length > 0,
+        urls: urlsToFetch.length > 0 ? urlsToFetch : urls,
     };
 }

@@ -560,7 +560,7 @@ export class EpgService {
         fallbackSourceUrls: string[]
     ): string {
         return JSON.stringify({
-            channelIds,
+            channelIds: [...channelIds].sort(),
             sourceUrls: normalizeEpgUrls(sourceUrls),
             fallbackSourceUrls: normalizeEpgUrls(fallbackSourceUrls),
         });

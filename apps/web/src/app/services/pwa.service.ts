@@ -171,6 +171,7 @@ export class PwaService extends DataService {
                     PlaylistActions.updatePlaylist({
                         playlist,
                         playlistId,
+                        refreshEpg: true,
                     })
                 );
 

@@ -289,8 +289,10 @@ These URLs are playlist-scoped by default:
   edits such as renaming a playlist or hiding groups do not re-download local
   EPG sources. When the local URL set expands, only newly added fetchable URLs
   are downloaded; disabling or removing one source does not re-download the
-  remaining sources. Partial metadata updates that omit `epgUrls` preserve the
-  previous fetch key, while an explicit empty `epgUrls` list clears it.
+  remaining sources. Explicit playlist refreshes bypass that session fetch key
+  and re-download the current fetchable local EPG URLs. Partial metadata updates
+  that omit `epgUrls` preserve the previous fetch key, while an explicit empty
+  `epgUrls` list clears it.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
   databases backfill this column from `epg_channels.source_url` once, in bounded
@@ -308,7 +310,8 @@ These URLs are playlist-scoped by default:
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
   source scope. Batch current-program lookups use the same source-scoped
-  per-channel TTL cache and in-flight batch deduplication before reaching IPC.
+  per-channel TTL cache and order-insensitive in-flight batch deduplication
+  before reaching IPC.
   Channel metadata lookups use the same playlist-first, Settings-managed
   fallback strategy so icons and display names can still come from global EPG
   sources when the playlist-local guide only supplies programs. If multiple EPG

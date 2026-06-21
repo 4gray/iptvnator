@@ -112,4 +112,30 @@ describe('resolvePlaylistScopedEpgFetchPlan', () => {
             urls: ['https://playlist.example.com/new.xml'],
         });
     });
+
+    it('fetches all playlist EPG URLs when refresh is forced for an already fetched source set', () => {
+        const playlist = createPlaylistMeta({
+            epgUrls: [
+                'https://playlist.example.com/keep.xml',
+                'https://playlist.example.com/other.xml',
+            ],
+        });
+        const key = [
+            'https://playlist.example.com/keep.xml',
+            'https://playlist.example.com/other.xml',
+        ].join('\n');
+
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(playlist, [], key, {
+                force: true,
+            })
+        ).toEqual({
+            key,
+            shouldFetch: true,
+            urls: [
+                'https://playlist.example.com/keep.xml',
+                'https://playlist.example.com/other.xml',
+            ],
+        });
+    });
 });

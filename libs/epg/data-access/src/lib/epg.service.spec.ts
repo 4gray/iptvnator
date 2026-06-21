@@ -423,6 +423,65 @@ describe('EpgService', () => {
         }
     });
 
+    it('deduplicates concurrent scoped batch current program lookups regardless of channel order', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        let resolveBatch:
+            | ((programs: Record<string, unknown>) => void)
+            | undefined;
+        epgBridge.getCurrentProgramsBatch = jest.fn(
+            () =>
+                new Promise((resolve) => {
+                    resolveBatch = resolve;
+                })
+        );
+
+        const firstLookup = firstValueFrom(
+            service.getCurrentProgramsForChannels(
+                ['guide-news', 'guide-sports'],
+                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            )
+        );
+        const secondLookup = firstValueFrom(
+            service.getCurrentProgramsForChannels(
+                ['guide-sports', 'guide-news'],
+                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            )
+        );
+
+        try {
+            expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+            resolveBatch?.({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Guide Bulletin',
+                },
+                'guide-sports': {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Sports Bulletin',
+                },
+            });
+
+            const [firstResult, secondResult] = await Promise.all([
+                firstLookup,
+                secondLookup,
+            ]);
+
+            expect(firstResult.get('guide-news')?.title).toBe(
+                'Playlist Guide Bulletin'
+            );
+            expect(secondResult.get('guide-sports')?.title).toBe(
+                'Playlist Sports Bulletin'
+            );
+        } finally {
+            resolveBatch?.({});
+        }
+    });
+
     it('returns null scoped current programs instead of re-entering global lookup when scoped batch lookup fails', async () => {
         const consoleError = jest
             .spyOn(console, 'error')

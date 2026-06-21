@@ -10,7 +10,11 @@ export const PlaylistActions = createActionGroup({
         'Add Many Playlists': props<{ playlists: Playlist[] }>(),
         'Remove Playlist': props<{ playlistId: string }>(),
         'Update Playlist Meta': props<{ playlist: PlaylistMeta }>(),
-        'Update Playlist': props<{ playlist: Playlist; playlistId: string }>(),
+        'Update Playlist': props<{
+            playlist: Playlist;
+            playlistId: string;
+            refreshEpg?: boolean;
+        }>(),
         'Update Many Playlists': props<{ playlists: Playlist[] }>(),
         'Parse Playlist': props<{
             uploadType: 'FILE' | 'URL' | 'TEXT';

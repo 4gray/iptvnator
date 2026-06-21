@@ -623,6 +623,7 @@ describe('PlaylistRefreshActionService', () => {
             PlaylistActions.updatePlaylist({
                 playlist: refreshedPlaylist,
                 playlistId: item._id,
+                refreshEpg: true,
             })
         );
     });

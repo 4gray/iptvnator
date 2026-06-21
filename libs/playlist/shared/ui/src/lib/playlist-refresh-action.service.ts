@@ -227,6 +227,7 @@ export class PlaylistRefreshActionService {
                         _id: item._id,
                     },
                     playlistId: item._id,
+                    refreshEpg: true,
                 })
             );
 
