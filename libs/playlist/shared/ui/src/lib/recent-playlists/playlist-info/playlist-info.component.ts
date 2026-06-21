@@ -397,6 +397,29 @@ export class PlaylistInfoComponent {
             return;
         }
 
+        if (this.epgBridge.supportsDataManagement) {
+            void this.epgBridge
+                .clearEpgDataForSource(epgUrl)
+                .then((result) => {
+                    if (result && result.success === false) {
+                        throw new Error('Clear EPG source returned false');
+                    }
+                })
+                .catch((error) => {
+                    console.error(
+                        'Failed to clear playlist EPG source data:',
+                        error
+                    );
+                    this.snackBar.open(
+                        this.translate.instant(
+                            'SETTINGS.EPG_DATA_CLEAR_FAILED'
+                        ),
+                        this.translate.instant('CLOSE'),
+                        { duration: 3000 }
+                    );
+                });
+        }
+
         const detectedEpgUrls = this.getRawDetectedPlaylistEpgUrls();
         const disabledEpgUrls = this.normalizeEpgUrls(
             this.playlist.disabledEpgUrls
@@ -420,7 +443,9 @@ export class PlaylistInfoComponent {
     }
 
     addPlaylistEpgSourceInput(): void {
-        this.playlistEpgSourceInputs.push(this.createPlaylistEpgSourceControl());
+        this.playlistEpgSourceInputs.push(
+            this.createPlaylistEpgSourceControl()
+        );
     }
 
     removePlaylistEpgSourceInput(index: number): void {
@@ -587,6 +612,8 @@ export class PlaylistInfoComponent {
 
     private resetPlaylistEpgSourceInputs(): void {
         this.playlistEpgSourceInputs.clear();
-        this.playlistEpgSourceInputs.push(this.createPlaylistEpgSourceControl());
+        this.playlistEpgSourceInputs.push(
+            this.createPlaylistEpgSourceControl()
+        );
     }
 }

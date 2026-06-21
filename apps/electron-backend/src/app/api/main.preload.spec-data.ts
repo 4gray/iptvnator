@@ -406,6 +406,12 @@ export const epgPreloadCases: PreloadInvokeCase[] = [
         forwardedArgs: [],
     },
     {
+        method: 'clearEpgDataForSource',
+        args: ['https://example.com/guide.xml'],
+        channel: 'EPG_CLEAR_SOURCE',
+        forwardedArgs: [{ sourceUrl: 'https://example.com/guide.xml' }],
+    },
+    {
         method: 'checkEpgFreshness',
         args: [epgUrls, 24],
         channel: 'EPG_CHECK_FRESHNESS',

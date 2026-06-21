@@ -484,6 +484,8 @@ const electronApi: ElectronBridgeApi = {
     forceFetchEpg: (url: string, options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('EPG_FORCE_FETCH', { url, options }),
     clearEpgData: () => ipcRenderer.invoke('EPG_CLEAR_ALL'),
+    clearEpgDataForSource: (sourceUrl: string) =>
+        ipcRenderer.invoke('EPG_CLEAR_SOURCE', { sourceUrl }),
     checkEpgFreshness: (urls: string[], maxAgeHours?: number) =>
         ipcRenderer.invoke('EPG_CHECK_FRESHNESS', { urls, maxAgeHours }),
     searchEpgPrograms: (searchTerm: string, limit?: number) =>

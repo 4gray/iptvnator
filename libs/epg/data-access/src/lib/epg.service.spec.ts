@@ -375,4 +375,55 @@ describe('EpgService', () => {
             consoleError.mockRestore();
         }
     });
+
+    it('falls back to global EPG metadata for channels missing from playlist-scoped sources', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsChannelMetadata = true;
+        epgBridge.getChannelMetadata = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    id: 'guide-news',
+                    displayName: 'Playlist News',
+                    iconUrl: 'https://playlist.example.com/news.png',
+                },
+                'guide-sports': null,
+            })
+            .mockResolvedValueOnce({
+                'guide-sports': {
+                    id: 'guide-sports',
+                    displayName: 'Global Sports',
+                    iconUrl: 'https://global.example.com/sports.png',
+                },
+            });
+
+        const result = await firstValueFrom(
+            service.getChannelMetadataForChannels(
+                ['guide-news', 'guide-sports'],
+                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            )
+        );
+
+        expect(result.get('guide-news')).toMatchObject({
+            displayName: 'Playlist News',
+        });
+        expect(result.get('guide-sports')).toMatchObject({
+            displayName: 'Global Sports',
+            iconUrl: 'https://global.example.com/sports.png',
+        });
+        expect(epgBridge.getChannelMetadata).toHaveBeenNthCalledWith(
+            1,
+            ['guide-news', 'guide-sports'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+        expect(epgBridge.getChannelMetadata).toHaveBeenNthCalledWith(
+            2,
+            ['guide-sports'],
+            { sourceUrls: ['https://global.example.com/guide.xml'] }
+        );
+    });
 });

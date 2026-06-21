@@ -1,5 +1,9 @@
 import type BetterSqlite3 from 'better-sqlite3';
-import { EpgDatabase, EpgDatabaseClearOperation } from './epg-database';
+import {
+    EpgDatabase,
+    EpgDatabaseClearOperation,
+    EpgDatabaseSourceClearOperation,
+} from './epg-database';
 import type { ParsedChannel } from './epg-streaming-parser';
 
 function createDatabaseMock(exec: jest.Mock) {
@@ -58,7 +62,8 @@ describe('EpgDatabase', () => {
         const preparedSql = database.prepare.mock.calls.map(([sql]) =>
             normalizeSql(sql)
         );
-        const deleteProgramsSql = 'DELETE FROM epg_programs WHERE source_url = ?';
+        const deleteProgramsSql =
+            'DELETE FROM epg_programs WHERE source_url = ?';
         const deleteOrphanChannelsSql = normalizeSql(`
             DELETE FROM epg_channels
             WHERE source_url = ?
@@ -132,5 +137,41 @@ describe('EpgDatabaseClearOperation', () => {
             'DELETE FROM epg_channels',
             'ROLLBACK',
         ]);
+    });
+});
+
+describe('EpgDatabaseSourceClearOperation', () => {
+    it('clears programs for one source and prunes only orphan channels from that source', () => {
+        const sourceUrl = 'https://playlist.example.com/guide.xml';
+        const { Database, database, statements } = createEpgDatabaseMock();
+
+        new EpgDatabaseSourceClearOperation(Database).run(sourceUrl);
+
+        const preparedSql = database.prepare.mock.calls.map(([sql]) =>
+            normalizeSql(sql)
+        );
+        const deleteProgramsSql =
+            'DELETE FROM epg_programs WHERE source_url = ?';
+        const deleteOrphanChannelsSql = normalizeSql(`
+            DELETE FROM epg_channels
+            WHERE source_url = ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM epg_programs
+                  WHERE epg_programs.channel_id = epg_channels.id
+              )
+        `);
+
+        expect(preparedSql).toContain(deleteProgramsSql);
+        expect(preparedSql).toContain(deleteOrphanChannelsSql);
+        expect(preparedSql).not.toContain(
+            'DELETE FROM epg_channels WHERE source_url = ?'
+        );
+        expect(statements.get(deleteProgramsSql)).toHaveBeenCalledWith(
+            sourceUrl
+        );
+        expect(statements.get(deleteOrphanChannelsSql)).toHaveBeenCalledWith(
+            sourceUrl
+        );
     });
 });

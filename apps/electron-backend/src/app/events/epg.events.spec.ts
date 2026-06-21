@@ -282,6 +282,30 @@ describe('EpgEvents', () => {
         expect(cleared).toBe(true);
     });
 
+    it('clears one EPG source through a worker and allows it to be fetched again', async () => {
+        const workerService = new EpgWorkerService('[Test EPG]', 1000);
+        const sourceUrl = 'https://playlist.example.com/guide.xml';
+        workerService.markFetchedUrl(sourceUrl);
+
+        const clearPromise = workerService.clearEpgDataForSource(
+            ` ${sourceUrl} `
+        );
+        const worker = mockWorkerInstances[0];
+
+        worker.emit('message', { type: 'READY' });
+        await flushPromises();
+
+        expect(worker.postMessage).toHaveBeenCalledWith({
+            type: 'CLEAR_EPG_SOURCE',
+            sourceUrl,
+        });
+
+        worker.emit('message', { type: 'CLEAR_COMPLETE' });
+
+        await expect(clearPromise).resolves.toBeUndefined();
+        expect(workerService.hasFetchedUrl(sourceUrl)).toBe(false);
+    });
+
     it('rejects a timed-out fetch with the timeout error after the worker has terminated', async () => {
         jest.useFakeTimers();
 

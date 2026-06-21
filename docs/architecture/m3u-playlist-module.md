@@ -305,12 +305,17 @@ These URLs are playlist-scoped by default:
   playlists are not treated as global fallback sources. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
-  source scope.
+  source scope. Channel metadata lookups use the same playlist-first,
+  Settings-managed fallback strategy so icons and display names can still come
+  from global EPG sources when the playlist-local guide only supplies programs.
 - The playlist details dialog shows enabled EPG URLs with explicit actions to
   refresh, remove, or add a source to global Settings. It also allows adding one
   or more manual playlist-local sources and indicates when additional detected
-  candidates were not auto-enabled. Detected playlist sources are not silently
-  promoted to global settings.
+  candidates were not auto-enabled. Removing a playlist-local source also
+  clears programs tagged with that `source_url` and prunes only orphaned channel
+  rows for that same source, so shared XMLTV channel ids from other sources are
+  preserved. Detected playlist sources are not silently promoted to global
+  settings.
 
 ### Performance Optimizations
 

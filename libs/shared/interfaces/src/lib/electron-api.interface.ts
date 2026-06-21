@@ -535,6 +535,7 @@ export interface ElectronBridgeApi {
         options?: ElectronBridgeTrustOptions
     ) => Promise<ElectronBridgeEpgFetchResult>;
     clearEpgData: () => Promise<ElectronBridgeResult>;
+    clearEpgDataForSource: (sourceUrl: string) => Promise<ElectronBridgeResult>;
     checkEpgFreshness: (
         urls: string[],
         maxAgeHours?: number

@@ -102,7 +102,8 @@ export class RuntimeCapabilitiesService {
     get supportsEpgDataManagement(): boolean {
         return (
             this.hasElectronMethod('forceFetchEpg') &&
-            this.hasElectronMethod('clearEpgData')
+            this.hasElectronMethod('clearEpgData') &&
+            this.hasElectronMethod('clearEpgDataForSource')
         );
     }
 

@@ -129,6 +129,7 @@ describe('RuntimeCapabilitiesService', () => {
             onEpgProgress: jest.fn(),
             forceFetchEpg: jest.fn(),
             clearEpgData: jest.fn(),
+            clearEpgDataForSource: jest.fn(),
             getEpgChannelsByRange: jest.fn(),
             searchEpgPrograms: jest.fn(),
         };
@@ -305,6 +306,7 @@ describe('RuntimeCapabilitiesService', () => {
             checkEpgFreshness: jest.fn(),
             forceFetchEpg: jest.fn(),
             clearEpgData: jest.fn(),
+            clearEpgDataForSource: jest.fn(),
             getEpgChannelsByRange: jest.fn(),
             searchEpgPrograms: jest.fn(),
         };
@@ -320,6 +322,7 @@ describe('RuntimeCapabilitiesService', () => {
             checkEpgFreshness: jest.fn(),
             forceFetchEpg: jest.fn(),
             clearEpgData: jest.fn(),
+            clearEpgDataForSource: jest.fn(),
             getEpgChannelsByRange: jest.fn(),
             searchEpgPrograms: jest.fn(),
         };

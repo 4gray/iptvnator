@@ -109,6 +109,14 @@ export default class EpgEvents {
         });
 
         ipcMain.handle(
+            'EPG_CLEAR_SOURCE',
+            async (_event, args: { sourceUrl: string }) => {
+                await this.clearEpgDataForSource(args.sourceUrl);
+                return { success: true };
+            }
+        );
+
+        ipcMain.handle(
             'EPG_CHECK_FRESHNESS',
             async (
                 _event,
@@ -319,5 +327,9 @@ export default class EpgEvents {
 
     static async clearEpgData(): Promise<void> {
         return epgWorkerService.clearEpgData();
+    }
+
+    static async clearEpgDataForSource(sourceUrl: string): Promise<void> {
+        return epgWorkerService.clearEpgDataForSource(sourceUrl);
     }
 }

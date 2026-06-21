@@ -29,6 +29,7 @@ type EpgElectronBridge = Pick<
     Partial<ElectronBridgeApi>,
     | 'checkEpgFreshness'
     | 'clearEpgData'
+    | 'clearEpgDataForSource'
     | 'fetchEpg'
     | 'forceFetchEpg'
     | 'getChannelPrograms'
@@ -109,6 +110,22 @@ export class EpgRuntimeBridgeService {
         }
 
         return this.bridge?.clearEpgData?.() ?? Promise.resolve(null);
+    }
+
+    clearEpgDataForSource(sourceUrl: string): Promise<EpgClearResult | null> {
+        if (!this.supportsDataManagement) {
+            return Promise.resolve(null);
+        }
+
+        const normalizedSourceUrl = sourceUrl.trim();
+        if (!normalizedSourceUrl) {
+            return Promise.resolve(null);
+        }
+
+        return (
+            this.bridge?.clearEpgDataForSource?.(normalizedSourceUrl) ??
+            Promise.resolve(null)
+        );
     }
 
     getChannelPrograms(

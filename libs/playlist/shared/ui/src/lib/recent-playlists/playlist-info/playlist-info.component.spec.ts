@@ -27,6 +27,7 @@ describe('PlaylistInfoComponent', () => {
     let epgBridge: {
         supportsDataManagement: boolean;
         forceFetchEpg: jest.Mock;
+        clearEpgDataForSource: jest.Mock;
     };
     let runtime: {
         isElectron: boolean;
@@ -69,6 +70,9 @@ describe('PlaylistInfoComponent', () => {
         epgBridge = {
             supportsDataManagement: true,
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
+            clearEpgDataForSource: jest
+                .fn()
+                .mockResolvedValue({ success: true }),
         };
         runtime = {
             isElectron: false,
@@ -426,6 +430,9 @@ describe('PlaylistInfoComponent', () => {
             'https://playlist.example.com/remove.xml'
         );
 
+        expect(epgBridge.clearEpgDataForSource).toHaveBeenCalledWith(
+            'https://playlist.example.com/remove.xml'
+        );
         expect(store.dispatch).toHaveBeenCalledWith(
             PlaylistActions.updatePlaylistMeta({
                 playlist: expect.objectContaining({
@@ -460,13 +467,13 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        component.playlistEpgSourceInputs.at(0).setValue(
-            ' https://playlist.example.com/new.xml '
-        );
+        component.playlistEpgSourceInputs
+            .at(0)
+            .setValue(' https://playlist.example.com/new.xml ');
         component.addPlaylistEpgSourceInput();
-        component.playlistEpgSourceInputs.at(1).setValue(
-            'https://playlist.example.com/manual.xml'
-        );
+        component.playlistEpgSourceInputs
+            .at(1)
+            .setValue('https://playlist.example.com/manual.xml');
 
         component.savePlaylistEpgSources();
 

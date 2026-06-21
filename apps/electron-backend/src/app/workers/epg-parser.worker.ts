@@ -6,7 +6,11 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
-import { EpgDatabase, EpgDatabaseClearOperation } from './epg-database';
+import {
+    EpgDatabase,
+    EpgDatabaseClearOperation,
+    EpgDatabaseSourceClearOperation,
+} from './epg-database';
 import { createDecodedEpgStream } from './epg-stream-decoder';
 import { StreamingEpgParser } from './epg-streaming-parser';
 import {
@@ -61,8 +65,9 @@ const Database = loadBetterSqlite3();
  */
 
 interface WorkerMessage {
-    type: 'FETCH_EPG' | 'FORCE_FETCH' | 'CLEAR_EPG';
+    type: 'FETCH_EPG' | 'FORCE_FETCH' | 'CLEAR_EPG' | 'CLEAR_EPG_SOURCE';
     url?: string;
+    sourceUrl?: string;
     options?: ElectronBridgeTrustOptions;
 }
 
@@ -330,6 +335,33 @@ function clearAllEpgData(): void {
     }
 }
 
+function clearEpgDataForSource(sourceUrl: string): void {
+    const clearOperation = new EpgDatabaseSourceClearOperation(Database);
+
+    try {
+        console.log(
+            loggerLabel,
+            `Clearing EPG data for source ${sourceUrl}...`
+        );
+
+        clearOperation.run(sourceUrl);
+
+        console.log(loggerLabel, `EPG data cleared for source ${sourceUrl}`);
+
+        const response: WorkerResponse = { type: 'CLEAR_COMPLETE' };
+        parentPort?.postMessage(response);
+    } catch (error) {
+        console.error(loggerLabel, 'Error clearing EPG source data:', error);
+        const errorResponse: WorkerResponse = {
+            type: 'EPG_ERROR',
+            error: error instanceof Error ? error.message : String(error),
+        };
+        parentPort?.postMessage(errorResponse);
+    } finally {
+        clearOperation.close();
+    }
+}
+
 /**
  * Worker message handler
  */
@@ -343,6 +375,8 @@ if (parentPort) {
                 await fetchAndParseEpgStreaming(message.url!, message.options);
             } else if (message.type === 'CLEAR_EPG') {
                 clearAllEpgData();
+            } else if (message.type === 'CLEAR_EPG_SOURCE') {
+                clearEpgDataForSource(message.sourceUrl ?? '');
             }
         } catch (error) {
             console.error(loggerLabel, 'Worker error:', error);

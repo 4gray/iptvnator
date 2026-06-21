@@ -157,3 +157,46 @@ export class EpgDatabaseClearOperation {
         this.db.close();
     }
 }
+
+export class EpgDatabaseSourceClearOperation {
+    private readonly db: BetterSqlite3.Database;
+    private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
+
+    constructor(Database: typeof BetterSqlite3) {
+        this.db = new Database(getIptvnatorDatabasePath());
+        this.db.pragma('busy_timeout = 5000');
+
+        this.deleteProgramsForSourceStmt = this.db.prepare(`
+            DELETE FROM epg_programs WHERE source_url = ?
+        `);
+
+        this.deleteOrphanChannelsForSourceStmt = this.db.prepare(`
+            DELETE FROM epg_channels
+            WHERE source_url = ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM epg_programs
+                  WHERE epg_programs.channel_id = epg_channels.id
+              )
+        `);
+    }
+
+    run(sourceUrl: string): void {
+        const normalizedSourceUrl = sourceUrl.trim();
+        if (!normalizedSourceUrl) {
+            return;
+        }
+
+        const clearSource = this.db.transaction((url: string) => {
+            this.deleteProgramsForSourceStmt.run(url);
+            this.deleteOrphanChannelsForSourceStmt.run(url);
+        });
+
+        clearSource(normalizedSourceUrl);
+    }
+
+    close(): void {
+        this.db.close();
+    }
+}
