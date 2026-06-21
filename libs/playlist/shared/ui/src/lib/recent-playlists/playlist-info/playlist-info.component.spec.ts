@@ -137,7 +137,18 @@ describe('PlaylistInfoComponent', () => {
                 {
                     provide: TranslateService,
                     useValue: {
+                        currentLang: 'en',
+                        get: jest.fn((key: string) => of(key)),
                         instant: jest.fn((key: string) => key),
+                        onDefaultLangChange: of({
+                            lang: 'en',
+                            translations: {},
+                        }),
+                        onLangChange: of({ lang: 'en', translations: {} }),
+                        onTranslationChange: of({
+                            lang: 'en',
+                            translations: {},
+                        }),
                     },
                 },
                 {
@@ -539,6 +550,20 @@ describe('PlaylistInfoComponent', () => {
         );
         expect(component.playlistEpgSourceInputs.length).toBe(1);
         expect(component.playlistEpgSourceInputs.at(0).value).toBe('');
+    });
+
+    it('shows a validation error for invalid playlist-local EPG source URLs', () => {
+        createComponent();
+        fixture.detectChanges();
+
+        component.playlistEpgSourceInputs.at(0).setValue('not a url');
+        component.savePlaylistEpgSources();
+        fixture.detectChanges();
+
+        expect(store.dispatch).not.toHaveBeenCalled();
+        expect(fixture.nativeElement.textContent).toContain(
+            'SETTINGS.EPG_URL_ERROR'
+        );
     });
 
     it('falls back to browser download when desktop file saving is unavailable', async () => {

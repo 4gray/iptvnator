@@ -242,6 +242,11 @@
                                     'SETTINGS.EPG_URL_LABEL' | translate
                                 }}</mat-label>
                                 <input matInput [formControlName]="$index" />
+                                @if (control.invalid && control.touched) {
+                                    <mat-error>{{
+                                        'SETTINGS.EPG_URL_ERROR' | translate
+                                    }}</mat-error>
+                                }
                             </mat-form-field>
                             <button
                                 mat-icon-button
