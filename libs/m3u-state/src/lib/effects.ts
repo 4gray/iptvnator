@@ -31,6 +31,7 @@ import {
     OPEN_VLC_PLAYER,
     Channel,
     Playlist,
+    PlaylistMeta,
     STORE_KEY,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
@@ -290,16 +291,17 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylist),
-                tap((action) => {
-                    this.fetchPlaylistScopedEpg(action.playlist, {
-                        force: action.refreshEpg === true,
-                    });
-                }),
                 switchMap((action) =>
                     this.playlistsService.updatePlaylist(action.playlistId, {
                         ...action.playlist,
                         _id: action.playlistId,
-                    })
+                    }).pipe(
+                        tap(() => {
+                            this.fetchPlaylistScopedEpg(action.playlist, {
+                                force: action.refreshEpg === true,
+                            });
+                        })
+                    )
                 )
             );
         },
@@ -334,19 +336,16 @@ export class PlaylistEffects {
                     PlaylistActions.addPlaylist,
                     PlaylistActions.handleAddingPlaylistByUrl
                 ),
-                tap((action) => {
-                    if ('isTemporary' in action && action.isTemporary) {
-                        return;
-                    }
-
-                    this.fetchPlaylistScopedEpg(action.playlist);
-                    this.navigateToPlaylist(action.playlist);
-                }),
                 switchMap((action) => {
                     if ('isTemporary' in action && action.isTemporary) {
                         return EMPTY;
                     }
-                    return this.playlistsService.addPlaylist(action.playlist);
+                    return this.playlistsService.addPlaylist(action.playlist).pipe(
+                        tap(() => {
+                            this.fetchPlaylistScopedEpg(action.playlist);
+                            this.navigateToPlaylist(action.playlist);
+                        })
+                    );
                 })
             );
         },
@@ -357,11 +356,18 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
-                tap((action) => {
-                    this.fetchPlaylistScopedEpg(action.playlist as Playlist);
-                }),
                 switchMap((action) =>
-                    this.playlistsService.updatePlaylistMeta(action.playlist)
+                    this.playlistsService.updatePlaylistMeta(action.playlist).pipe(
+                        tap(() => {
+                            if (
+                                this.hasPlaylistScopedEpgSourceChange(
+                                    action.playlist
+                                )
+                            ) {
+                                this.fetchPlaylistScopedEpg(action.playlist);
+                            }
+                        })
+                    )
                 )
             );
         },
@@ -398,13 +404,16 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updateManyPlaylists),
-                tap((action) => {
-                    action.playlists.forEach((playlist) =>
-                        this.fetchPlaylistScopedEpg(playlist)
-                    );
-                }),
                 switchMap((action) =>
-                    this.playlistsService.updateManyPlaylists(action.playlists)
+                    this.playlistsService
+                        .updateManyPlaylists(action.playlists)
+                        .pipe(
+                            tap(() => {
+                                action.playlists.forEach((playlist) =>
+                                    this.fetchPlaylistScopedEpg(playlist)
+                                );
+                            })
+                        )
                 )
             );
         },
@@ -454,7 +463,10 @@ export class PlaylistEffects {
     }
 
     private fetchPlaylistScopedEpg(
-        playlist: Playlist,
+        playlist: Pick<
+            Playlist,
+            '_id' | 'epgUrls' | 'macAddress' | 'serverUrl'
+        >,
         options: { force?: boolean } = {}
     ): void {
         const plan = resolvePlaylistScopedEpgFetchPlan(
@@ -470,6 +482,15 @@ export class PlaylistEffects {
         }
 
         this.epgService.fetchEpg(plan.urls);
+    }
+
+    private hasPlaylistScopedEpgSourceChange(playlist: PlaylistMeta): boolean {
+        return (
+            Object.prototype.hasOwnProperty.call(playlist, 'epgUrls') ||
+            Object.prototype.hasOwnProperty.call(playlist, 'detectedEpgUrls') ||
+            Object.prototype.hasOwnProperty.call(playlist, 'manualEpgUrls') ||
+            Object.prototype.hasOwnProperty.call(playlist, 'disabledEpgUrls')
+        );
     }
 
     private fetchPlaylistScopedEpgForPlaylists(playlists: Playlist[]): void {

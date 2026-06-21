@@ -88,9 +88,10 @@ describe('EpgQueryService', () => {
         const whereCalls: unknown[] = [];
         const select = jest
             .fn()
-            .mockReturnValueOnce(createSelectChain([], whereCalls))
             .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
-            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls));
+            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
+            .mockReturnValueOnce(createSelectChain([], whereCalls))
+            .mockReturnValueOnce(createSelectChain([], whereCalls));
 
         getDatabase.mockResolvedValue({ select });
 
@@ -110,6 +111,124 @@ describe('EpgQueryService', () => {
                     condition.includes('source_url')
             )
         ).toBe(true);
+    });
+
+    it('falls back to legacy unscoped current programs after a scoped batch miss', async () => {
+        const whereCalls: unknown[] = [];
+        const select = jest
+            .fn()
+            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
+            .mockReturnValueOnce(
+                createLimitedSelectChain(
+                    [
+                        {
+                            id: 1,
+                            channelId: 'legacy-channel',
+                            start: '2026-06-21T17:00:00.000Z',
+                            stop: '2026-06-21T18:00:00.000Z',
+                            title: 'Legacy Guide Program',
+                            description: null,
+                            category: null,
+                            iconUrl: null,
+                            rating: null,
+                            episodeNum: null,
+                            sourceUrl: null,
+                        },
+                    ],
+                    whereCalls
+                )
+            );
+
+        getDatabase.mockResolvedValue({ select });
+
+        const result = await service.getCurrentProgramsBatch(
+            ['legacy-channel'],
+            {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            }
+        );
+
+        expect(result['legacy-channel']?.title).toBe('Legacy Guide Program');
+        expect(
+            whereCalls
+                .map((condition) => flattenSql(condition).toLowerCase())
+                .some(
+                    (condition) =>
+                        condition.includes('source_url') &&
+                        condition.includes('is null')
+            )
+        ).toBe(true);
+    });
+
+    it('resolves display-name current program fallback in batched queries', async () => {
+        const whereCalls: unknown[] = [];
+        const select = jest
+            .fn()
+            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
+            .mockReturnValueOnce(createLimitedSelectChain([], whereCalls))
+            .mockReturnValueOnce(
+                createSelectChain(
+                    [
+                        {
+                            id: 'guide-news',
+                            displayName: 'News Channel',
+                            iconUrl: null,
+                        },
+                        {
+                            id: 'guide-sports',
+                            displayName: 'Sports Channel',
+                            iconUrl: null,
+                        },
+                    ],
+                    whereCalls
+                )
+            )
+            .mockReturnValueOnce(
+                createLimitedSelectChain(
+                    [
+                        {
+                            id: 1,
+                            channelId: 'guide-news',
+                            start: '2026-06-21T17:00:00.000Z',
+                            stop: '2026-06-21T18:00:00.000Z',
+                            title: 'News Now',
+                            description: null,
+                            category: null,
+                            iconUrl: null,
+                            rating: null,
+                            episodeNum: null,
+                            sourceUrl: 'https://playlist.example.com/guide.xml',
+                        },
+                        {
+                            id: 2,
+                            channelId: 'guide-sports',
+                            start: '2026-06-21T17:00:00.000Z',
+                            stop: '2026-06-21T18:00:00.000Z',
+                            title: 'Sports Now',
+                            description: null,
+                            category: null,
+                            iconUrl: null,
+                            rating: null,
+                            episodeNum: null,
+                            sourceUrl: 'https://playlist.example.com/guide.xml',
+                        },
+                    ],
+                    whereCalls
+                )
+            );
+
+        getDatabase.mockResolvedValue({ select });
+
+        const result = await service.getCurrentProgramsBatch(
+            ['News Channel', 'Sports Channel'],
+            {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            }
+        );
+
+        expect(result['News Channel']?.title).toBe('News Now');
+        expect(result['Sports Channel']?.title).toBe('Sports Now');
+        expect(select).toHaveBeenCalledTimes(4);
     });
 
     it('scopes channel metadata by program source ownership for shared channels', async () => {
