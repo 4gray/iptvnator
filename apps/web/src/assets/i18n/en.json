@@ -218,6 +218,7 @@
         "PLAYBACK": "Playback",
         "EPG_SOURCES": "EPG sources",
         "EPG_SOURCES_DESCRIPTION": "Add one or more URLs as EPG sources",
+        "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} of {{detected}} detected playlist EPG sources were auto-selected for import.",
         "EPG_EMPTY_TITLE": "No EPG sources yet",
         "EPG_EMPTY_HINT": "Add a URL to fetch program data for your channels.",
         "PREFER_UPLOADED_EPG_TITLE": "Prefer your EPG sources for Xtream playlists",

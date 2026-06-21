@@ -26,6 +26,7 @@ describe('EpgService', () => {
         };
         settingsStore = {
             getSettings: jest.fn(() => ({
+                epgUrl: [],
                 trustedPrivateNetworkEpgUrls: ['http://192.168.1.20/guide.xml'],
                 trustedInsecureTlsHosts: ['playlist.local'],
             })),
@@ -75,6 +76,7 @@ describe('EpgService', () => {
             'https://example.com/epg.xml',
             '',
             'https://example.com/other.xml',
+            ' https://example.com/epg.xml ',
         ]);
 
         expect(epgBridge.fetchEpg).toHaveBeenCalledWith(
@@ -131,5 +133,80 @@ describe('EpgService', () => {
 
         expect(epgBridge.getChannelPrograms).toHaveBeenCalledWith('channel-1');
         jest.useRealTimers();
+    });
+
+    it('queries playlist-scoped current programs first and falls back to global EPG for missing channels', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: [
+                'https://global.example.com/guide.xml',
+                ' https://global.example.com/guide.xml ',
+            ],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Guide Bulletin',
+                },
+                'guide-sports': null,
+            })
+            .mockResolvedValueOnce({
+                'guide-sports': {
+                    channel: 'guide-sports',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Global Sports Bulletin',
+                },
+            });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(
+                ['guide-news', 'guide-sports'],
+                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            )
+        );
+
+        expect(result.get('guide-news')?.title).toBe('Playlist Guide Bulletin');
+        expect(result.get('guide-sports')?.title).toBe(
+            'Global Sports Bulletin'
+        );
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
+            1,
+            ['guide-news', 'guide-sports'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenNthCalledWith(
+            2,
+            ['guide-sports'],
+            { sourceUrls: ['https://global.example.com/guide.xml'] }
+        );
+    });
+
+    it('does not fall back to the unscoped EPG pool when no global EPG URLs are configured', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest.fn().mockResolvedValue({
+            'guide-sports': null,
+        });
+
+        const result = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-sports'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+
+        expect(result.get('guide-sports')).toBeNull();
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledWith(
+            ['guide-sports'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
     });
 });

@@ -206,6 +206,10 @@ export interface ElectronBridgeEpgFreshnessResult {
     freshUrls: string[];
 }
 
+export interface ElectronBridgeEpgLookupOptions {
+    sourceUrls?: string[];
+}
+
 export interface ElectronBridgeEpgProgressStats {
     totalChannels: number;
     totalPrograms: number;
@@ -509,12 +513,17 @@ export interface ElectronBridgeApi {
         urls: string[],
         options?: ElectronBridgeTrustOptions
     ) => Promise<ElectronBridgeEpgFetchResult>;
-    getChannelPrograms: (channelId: string) => Promise<EpgProgram[]>;
+    getChannelPrograms: (
+        channelId: string,
+        options?: ElectronBridgeEpgLookupOptions
+    ) => Promise<EpgProgram[]>;
     getCurrentProgramsBatch: (
-        channelIds: string[]
+        channelIds: string[],
+        options?: ElectronBridgeEpgLookupOptions
     ) => Promise<Record<string, EpgProgram | null>>;
     getEpgChannelMetadata: (
-        channelIds: string[]
+        channelIds: string[],
+        options?: ElectronBridgeEpgLookupOptions
     ) => Promise<Record<string, EpgChannelMetadata | null>>;
     getEpgChannels: () => Promise<ElectronBridgeEpgChannelListResult>;
     getEpgChannelsByRange: (

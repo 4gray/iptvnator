@@ -32,6 +32,10 @@ export const playlists = sqliteTable('playlists', {
     origin: text('origin'),
     referrer: text('referrer'),
     filePath: text('filePath'),
+    epgUrls: text('epg_urls'),
+    detectedEpgUrls: text('detected_epg_urls'),
+    manualEpgUrls: text('manual_epg_urls'),
+    disabledEpgUrls: text('disabled_epg_urls'),
     autoRefresh: integer('autoRefresh', { mode: 'boolean' }).default(false),
     macAddress: text('macAddress'),
     url: text('url'),
@@ -204,12 +208,20 @@ export const epgPrograms = sqliteTable(
         iconUrl: text('icon_url'),
         rating: text('rating'),
         episodeNum: text('episode_num'),
+        sourceUrl: text('source_url'),
     },
     (table) => ({
         channelIdx: index('idx_epg_programs_channel').on(table.channelId),
+        sourceIdx: index('idx_epg_programs_source').on(table.sourceUrl),
         startIdx: index('idx_epg_programs_start').on(table.start),
         stopIdx: index('idx_epg_programs_stop').on(table.stop),
         timeRangeIdx: index('idx_epg_programs_time_range').on(
+            table.channelId,
+            table.start,
+            table.stop
+        ),
+        sourceTimeRangeIdx: index('idx_epg_programs_source_time_range').on(
+            table.sourceUrl,
             table.channelId,
             table.start,
             table.stop
@@ -256,9 +268,10 @@ export const playbackPositions = sqliteTable(
             table.seriesXtreamId
         ),
         updatedIdx: index('playback_positions_updated_idx').on(table.updatedAt),
-        playlistUpdatedIdx: index(
-            'playback_positions_playlist_updated_idx'
-        ).on(table.playlistId, sql`${table.updatedAt} DESC`),
+        playlistUpdatedIdx: index('playback_positions_playlist_updated_idx').on(
+            table.playlistId,
+            sql`${table.updatedAt} DESC`
+        ),
     })
 );
 

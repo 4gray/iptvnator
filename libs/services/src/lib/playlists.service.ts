@@ -5,6 +5,7 @@ import {
     aggregateFavoriteChannels,
     createFavoritesPlaylist,
     createPlaylistObject,
+    resolvePlaylistEpgSourceState,
 } from '@iptvnator/shared/m3u-utils';
 import { NgxIndexedDBService } from 'ngx-indexed-db';
 import {
@@ -210,6 +211,10 @@ export class PlaylistsService {
             playlist: playlist.playlist,
             url: playlist.url,
             filePath: playlist.filePath,
+            epgUrls: playlist.epgUrls ?? [],
+            detectedEpgUrls: playlist.detectedEpgUrls ?? playlist.epgUrls ?? [],
+            manualEpgUrls: playlist.manualEpgUrls ?? [],
+            disabledEpgUrls: playlist.disabledEpgUrls ?? [],
             userAgent: playlist.userAgent,
             referrer: playlist.referrer,
             origin: playlist.origin,
@@ -465,6 +470,19 @@ export class PlaylistsService {
     updatePlaylist(playlistId: string, updatedPlaylist: Playlist) {
         return this.getPlaylistById(playlistId).pipe(
             switchMap((currentPlaylist: Playlist) => {
+                const epgSourceState = resolvePlaylistEpgSourceState({
+                    detectedEpgUrls:
+                        updatedPlaylist.detectedEpgUrls ??
+                        currentPlaylist.detectedEpgUrls,
+                    enabledEpgUrls:
+                        updatedPlaylist.epgUrls ?? currentPlaylist.epgUrls,
+                    manualEpgUrls:
+                        updatedPlaylist.manualEpgUrls ??
+                        currentPlaylist.manualEpgUrls,
+                    disabledEpgUrls:
+                        updatedPlaylist.disabledEpgUrls ??
+                        currentPlaylist.disabledEpgUrls,
+                });
                 const mergedPlaylist: Playlist = {
                     ...currentPlaylist,
                     ...updatedPlaylist,
@@ -475,6 +493,10 @@ export class PlaylistsService {
                     updateDate: Date.now(),
                     updateState: PlaylistUpdateState.UPDATED,
                     favorites: currentPlaylist.favorites,
+                    epgUrls: epgSourceState.epgUrls,
+                    detectedEpgUrls: epgSourceState.detectedEpgUrls,
+                    manualEpgUrls: epgSourceState.manualEpgUrls,
+                    disabledEpgUrls: epgSourceState.disabledEpgUrls,
                     autoRefresh:
                         currentPlaylist.autoRefresh ??
                         updatedPlaylist.autoRefresh,
@@ -515,6 +537,18 @@ export class PlaylistsService {
     updatePlaylistMeta(updatedPlaylist: PlaylistMeta) {
         return this.getPlaylistById(updatedPlaylist._id).pipe(
             switchMap((playlist) => {
+                const epgSourceState = resolvePlaylistEpgSourceState({
+                    detectedEpgUrls:
+                        updatedPlaylist.detectedEpgUrls ??
+                        playlist.detectedEpgUrls,
+                    enabledEpgUrls: updatedPlaylist.epgUrls ?? playlist.epgUrls,
+                    manualEpgUrls:
+                        updatedPlaylist.manualEpgUrls ??
+                        playlist.manualEpgUrls,
+                    disabledEpgUrls:
+                        updatedPlaylist.disabledEpgUrls ??
+                        playlist.disabledEpgUrls,
+                });
                 const nextPlaylist: Playlist = {
                     ...playlist,
                     ...(updatedPlaylist.title != null
@@ -564,6 +598,21 @@ export class PlaylistsService {
                               hiddenGroupTitles:
                                   updatedPlaylist.hiddenGroupTitles,
                           }
+                        : {}),
+                    ...(updatedPlaylist.detectedEpgUrls !== undefined
+                        ? { detectedEpgUrls: epgSourceState.detectedEpgUrls }
+                        : {}),
+                    ...(updatedPlaylist.manualEpgUrls !== undefined
+                        ? { manualEpgUrls: epgSourceState.manualEpgUrls }
+                        : {}),
+                    ...(updatedPlaylist.disabledEpgUrls !== undefined
+                        ? { disabledEpgUrls: epgSourceState.disabledEpgUrls }
+                        : {}),
+                    ...(updatedPlaylist.epgUrls !== undefined ||
+                    updatedPlaylist.detectedEpgUrls !== undefined ||
+                    updatedPlaylist.manualEpgUrls !== undefined ||
+                    updatedPlaylist.disabledEpgUrls !== undefined
+                        ? { epgUrls: epgSourceState.epgUrls }
                         : {}),
                     ...(updatedPlaylist.updateDate !== undefined
                         ? { updateDate: updatedPlaylist.updateDate }
@@ -659,8 +708,7 @@ export class PlaylistsService {
         playlistId: string
     ): Observable<M3uFavoriteChannel[] | null> {
         const electron = this.electronApi;
-        const getFavoriteChannels =
-            electron?.dbGetAppPlaylistFavoriteChannels;
+        const getFavoriteChannels = electron?.dbGetAppPlaylistFavoriteChannels;
         if (
             !electron ||
             !this.isElectronStorageAvailable ||

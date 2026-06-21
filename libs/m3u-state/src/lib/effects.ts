@@ -2,7 +2,11 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
-import { resolveM3uCatchupUrl } from '@iptvnator/shared/m3u-utils';
+import {
+    filterPlaylistEpgUrlsForFetch,
+    normalizeEpgUrls,
+    resolveM3uCatchupUrl,
+} from '@iptvnator/shared/m3u-utils';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -18,7 +22,7 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
@@ -53,6 +57,7 @@ export class PlaylistEffects {
     private storage = inject(StorageMap);
     private store = inject(Store);
     private translate = inject(TranslateService);
+    private settingsStore = inject(SettingsStore);
 
     updateFavorites$ = createEffect(
         () => {
@@ -222,6 +227,9 @@ export class PlaylistEffects {
             ofType(PlaylistActions.loadPlaylists),
             switchMap(() =>
                 this.playlistsService.getAllPlaylists().pipe(
+                    tap((playlists) => {
+                        this.fetchPlaylistScopedEpgForPlaylists(playlists);
+                    }),
                     map((playlists) =>
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
@@ -276,6 +284,9 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylist),
+                tap((action) => {
+                    this.fetchPlaylistScopedEpg(action.playlist);
+                }),
                 switchMap((action) =>
                     this.playlistsService.updatePlaylist(action.playlistId, {
                         ...action.playlist,
@@ -320,6 +331,7 @@ export class PlaylistEffects {
                         return;
                     }
 
+                    this.fetchPlaylistScopedEpg(action.playlist);
                     this.navigateToPlaylist(action.playlist);
                 }),
                 switchMap((action) => {
@@ -337,6 +349,9 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
+                tap((action) => {
+                    this.fetchPlaylistScopedEpg(action.playlist as Playlist);
+                }),
                 switchMap((action) =>
                     this.playlistsService.updatePlaylistMeta(action.playlist)
                 )
@@ -375,6 +390,11 @@ export class PlaylistEffects {
         () => {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updateManyPlaylists),
+                tap((action) => {
+                    action.playlists.forEach((playlist) =>
+                        this.fetchPlaylistScopedEpg(playlist)
+                    );
+                }),
                 switchMap((action) =>
                     this.playlistsService.updateManyPlaylists(action.playlists)
                 )
@@ -423,5 +443,55 @@ export class PlaylistEffects {
         }
 
         void this.router.navigate(['/workspace', 'playlists', playlist._id]);
+    }
+
+    private fetchPlaylistScopedEpg(playlist: Playlist): void {
+        if (playlist.serverUrl || playlist.macAddress) {
+            return;
+        }
+
+        const epgUrls = Array.from(
+            new Set(
+                filterPlaylistEpgUrlsForFetch(
+                    playlist.epgUrls,
+                    this.getGlobalEpgUrls()
+                )
+            )
+        );
+
+        if (epgUrls.length === 0) {
+            return;
+        }
+
+        this.epgService.fetchEpg(epgUrls);
+    }
+
+    private fetchPlaylistScopedEpgForPlaylists(playlists: Playlist[]): void {
+        const epgUrls = new Set<string>();
+        const globalEpgUrls = this.getGlobalEpgUrls();
+
+        for (const playlist of playlists) {
+            if (playlist.serverUrl || playlist.macAddress) {
+                continue;
+            }
+
+            for (const url of filterPlaylistEpgUrlsForFetch(
+                playlist.epgUrls,
+                globalEpgUrls
+            )) {
+                const trimmedUrl = url.trim();
+                if (trimmedUrl.length > 0) {
+                    epgUrls.add(trimmedUrl);
+                }
+            }
+        }
+
+        if (epgUrls.size > 0) {
+            this.epgService.fetchEpg(Array.from(epgUrls));
+        }
+    }
+
+    private getGlobalEpgUrls(): string[] {
+        return normalizeEpgUrls(this.settingsStore.getSettings().epgUrl ?? []);
     }
 }

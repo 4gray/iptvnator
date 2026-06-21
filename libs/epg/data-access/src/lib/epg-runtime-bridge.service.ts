@@ -7,6 +7,7 @@ import {
     ElectronBridgeEpgProgressStatus,
     ElectronBridgeEpgChannelWithPrograms,
     ElectronBridgeEpgFreshnessResult,
+    ElectronBridgeEpgLookupOptions,
     ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES,
     ElectronBridgeResult,
     ElectronBridgeTrustOptions,
@@ -22,6 +23,7 @@ export type EpgImportProgress = ElectronBridgeEpgProgress;
 export type EpgFetchResult = ElectronBridgeEpgFetchResult;
 export type EpgFreshnessResult = ElectronBridgeEpgFreshnessResult;
 export type EpgClearResult = ElectronBridgeResult;
+export type EpgLookupOptions = ElectronBridgeEpgLookupOptions;
 
 type EpgElectronBridge = Pick<
     Partial<ElectronBridgeApi>,
@@ -109,41 +111,55 @@ export class EpgRuntimeBridgeService {
         return this.bridge?.clearEpgData?.() ?? Promise.resolve(null);
     }
 
-    getChannelPrograms(channelId: string): Promise<EpgProgram[] | null> {
+    getChannelPrograms(
+        channelId: string,
+        options?: EpgLookupOptions
+    ): Promise<EpgProgram[] | null> {
         if (!this.supportsProgramLookup) {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.getChannelPrograms?.(channelId) ??
-            Promise.resolve(null)
-        );
+        if (!this.bridge?.getChannelPrograms) {
+            return Promise.resolve(null);
+        }
+
+        return options
+            ? this.bridge.getChannelPrograms(channelId, options)
+            : this.bridge.getChannelPrograms(channelId);
     }
 
     getCurrentProgramsBatch(
-        channelIds: string[]
+        channelIds: string[],
+        options?: EpgLookupOptions
     ): Promise<Record<string, EpgProgram | null> | null> {
         if (!this.supportsCurrentProgramBatch) {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.getCurrentProgramsBatch?.(channelIds) ??
-            Promise.resolve(null)
-        );
+        if (!this.bridge?.getCurrentProgramsBatch) {
+            return Promise.resolve(null);
+        }
+
+        return options
+            ? this.bridge.getCurrentProgramsBatch(channelIds, options)
+            : this.bridge.getCurrentProgramsBatch(channelIds);
     }
 
     getChannelMetadata(
-        channelIds: string[]
+        channelIds: string[],
+        options?: EpgLookupOptions
     ): Promise<Record<string, EpgChannelMetadata | null> | null> {
         if (!this.supportsChannelMetadata) {
             return Promise.resolve(null);
         }
 
-        return (
-            this.bridge?.getEpgChannelMetadata?.(channelIds) ??
-            Promise.resolve(null)
-        );
+        if (!this.bridge?.getEpgChannelMetadata) {
+            return Promise.resolve(null);
+        }
+
+        return options
+            ? this.bridge.getEpgChannelMetadata(channelIds, options)
+            : this.bridge.getEpgChannelMetadata(channelIds);
     }
 
     checkFreshness(

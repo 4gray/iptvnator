@@ -2,15 +2,19 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, forkJoin, from, Observable, of } from 'rxjs';
-import { catchError, map, tap, timeout } from 'rxjs/operators';
+import { catchError, map, switchMap, tap, timeout } from 'rxjs/operators';
 import {
     createDevLogger,
     EpgChannelMetadata,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
-import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
+import {
+    EpgLookupOptions,
+    EpgRuntimeBridgeService,
+} from './epg-runtime-bridge.service';
 import { normalizeEpgPrograms } from './epg-program-normalization.util';
+import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 
 interface CachedProgram {
     program: EpgProgram | null;
@@ -44,8 +48,8 @@ export class EpgService {
     fetchEpg(urls: string[]): void {
         if (!this.epgBridge.supportsImport) return;
 
-        // Filter out empty URLs and send all URLs at once
-        const validUrls = urls.filter((url) => url?.trim());
+        // Filter out empty and duplicate URLs and send all URLs at once.
+        const validUrls = normalizeEpgUrls(urls);
         if (validUrls.length === 0) return;
 
         from(
@@ -117,10 +121,46 @@ export class EpgService {
      * @returns Observable of current program or null
      */
     getCurrentProgramForChannel(
-        channelId: string
+        channelId: string,
+        options?: EpgLookupOptions
     ): Observable<EpgProgram | null> {
         if (!this.epgBridge.supportsProgramLookup || !channelId) {
             return of(null);
+        }
+
+        const sourceUrls = this.normalizeSourceUrls(options);
+        if (sourceUrls.length > 0) {
+            return from(
+                this.epgBridge.getChannelPrograms(channelId, { sourceUrls })
+            ).pipe(
+                timeout(3000),
+                map((programs) => normalizeEpgPrograms(programs ?? [])),
+                switchMap((programs) => {
+                    const currentProgram = this.findCurrentProgram(programs);
+                    if (currentProgram) {
+                        return of(currentProgram);
+                    }
+
+                    return this.getGlobalCurrentProgramForChannel(
+                        channelId,
+                        sourceUrls
+                    );
+                }),
+                catchError((err) => {
+                    console.error('EPG scoped current program error:', err);
+                    return this.getGlobalCurrentProgramForChannel(
+                        channelId,
+                        sourceUrls
+                    );
+                })
+            );
+        }
+
+        const globalSourceUrls = this.getGlobalEpgSourceUrls();
+        if (globalSourceUrls.length > 0) {
+            return this.getCurrentProgramForChannel(channelId, {
+                sourceUrls: globalSourceUrls,
+            });
         }
 
         // Check cache first
@@ -185,7 +225,8 @@ export class EpgService {
      * @returns Observable of Map with channelId -> current program
      */
     getCurrentProgramsForChannels(
-        channelIds: string[]
+        channelIds: string[],
+        options?: EpgLookupOptions
     ): Observable<Map<string, EpgProgram | null>> {
         if (!this.epgBridge.supportsProgramLookup) {
             return of(new Map());
@@ -193,6 +234,29 @@ export class EpgService {
 
         if (!channelIds || channelIds.length === 0) {
             return of(new Map());
+        }
+
+        const sourceUrls = this.normalizeSourceUrls(options);
+        if (
+            sourceUrls.length > 0 &&
+            this.epgBridge.supportsCurrentProgramBatch
+        ) {
+            return this.getScopedCurrentProgramsForChannels(
+                channelIds,
+                sourceUrls
+            );
+        }
+
+        const globalSourceUrls = this.getGlobalEpgSourceUrls();
+        if (
+            globalSourceUrls.length > 0 &&
+            this.epgBridge.supportsCurrentProgramBatch
+        ) {
+            return this.getScopedCurrentProgramsForChannels(
+                channelIds,
+                globalSourceUrls,
+                []
+            );
         }
 
         const resultMap = new Map<string, EpgProgram | null>();
@@ -260,27 +324,100 @@ export class EpgService {
         );
     }
 
-    getChannelMetadataForChannels(
-        channelIds: string[]
-    ): Observable<Map<string, EpgChannelMetadata | null>> {
-        if (!this.epgBridge.supportsChannelMetadata) {
-            return of(new Map());
-        }
-
-        const normalizedChannelIds = Array.from(
-            new Set(
-                channelIds
-                    .map((channelId) => channelId.trim())
-                    .filter((channelId) => channelId.length > 0)
-            )
-        );
-
+    private getScopedCurrentProgramsForChannels(
+        channelIds: string[],
+        sourceUrls: string[],
+        fallbackSourceUrls = this.getGlobalEpgSourceUrls(sourceUrls)
+    ): Observable<Map<string, EpgProgram | null>> {
+        const normalizedChannelIds = this.normalizeChannelIds(channelIds);
         if (normalizedChannelIds.length === 0) {
             return of(new Map());
         }
 
         return from(
-            this.epgBridge.getChannelMetadata(normalizedChannelIds)
+            this.epgBridge.getCurrentProgramsBatch(normalizedChannelIds, {
+                sourceUrls,
+            })
+        ).pipe(
+            timeout(5000),
+            switchMap((scopedResult) => {
+                const resultMap = new Map<string, EpgProgram | null>();
+                const fallbackChannelIds: string[] = [];
+
+                normalizedChannelIds.forEach((channelId) => {
+                    const program = scopedResult?.[channelId] ?? null;
+                    resultMap.set(channelId, program);
+                    if (!program) {
+                        fallbackChannelIds.push(channelId);
+                    }
+                });
+
+                if (fallbackChannelIds.length === 0) {
+                    return of(resultMap);
+                }
+
+                if (fallbackSourceUrls.length === 0) {
+                    return of(resultMap);
+                }
+
+                return from(
+                    this.epgBridge.getCurrentProgramsBatch(fallbackChannelIds, {
+                        sourceUrls: fallbackSourceUrls,
+                    })
+                ).pipe(
+                    timeout(5000),
+                    map((globalResult) => {
+                        fallbackChannelIds.forEach((channelId) => {
+                            resultMap.set(
+                                channelId,
+                                globalResult?.[channelId] ?? null
+                            );
+                        });
+                        return resultMap;
+                    }),
+                    catchError((err) => {
+                        console.error(
+                            'EPG global fallback current programs error:',
+                            err
+                        );
+                        return of(resultMap);
+                    })
+                );
+            }),
+            catchError((err) => {
+                console.error('EPG scoped batch current programs error:', err);
+                return this.getCurrentProgramsForChannels(normalizedChannelIds);
+            })
+        );
+    }
+
+    getChannelMetadataForChannels(
+        channelIds: string[],
+        options?: EpgLookupOptions
+    ): Observable<Map<string, EpgChannelMetadata | null>> {
+        if (!this.epgBridge.supportsChannelMetadata) {
+            return of(new Map());
+        }
+
+        const normalizedChannelIds = this.normalizeChannelIds(channelIds);
+
+        if (normalizedChannelIds.length === 0) {
+            return of(new Map());
+        }
+
+        const sourceUrls = this.normalizeSourceUrls(options);
+        const globalSourceUrls =
+            sourceUrls.length > 0 ? [] : this.getGlobalEpgSourceUrls();
+        const effectiveSourceUrls =
+            sourceUrls.length > 0 ? sourceUrls : globalSourceUrls;
+
+        return from(
+            this.epgBridge.getChannelMetadata(
+                normalizedChannelIds,
+                effectiveSourceUrls.length > 0
+                    ? { sourceUrls: effectiveSourceUrls }
+                    : undefined
+            )
         ).pipe(
             map((metadataByChannelId) => {
                 return new Map<string, EpgChannelMetadata | null>(
@@ -293,6 +430,49 @@ export class EpgService {
             catchError((err) => {
                 console.error('EPG get channel metadata error:', err);
                 return of(new Map<string, EpgChannelMetadata | null>());
+            })
+        );
+    }
+
+    private normalizeChannelIds(channelIds: string[]): string[] {
+        return Array.from(
+            new Set(
+                channelIds
+                    .map((channelId) => channelId.trim())
+                    .filter((channelId) => channelId.length > 0)
+            )
+        );
+    }
+
+    private normalizeSourceUrls(options?: EpgLookupOptions): string[] {
+        return normalizeEpgUrls(options?.sourceUrls ?? []);
+    }
+
+    private getGlobalEpgSourceUrls(excluding: string[] = []): string[] {
+        const excludedUrls = new Set(excluding);
+        return normalizeEpgUrls(
+            this.settingsStore.getSettings().epgUrl ?? []
+        ).filter((url) => !excludedUrls.has(url));
+    }
+
+    private getGlobalCurrentProgramForChannel(
+        channelId: string,
+        excludingSourceUrls: string[]
+    ): Observable<EpgProgram | null> {
+        const sourceUrls = this.getGlobalEpgSourceUrls(excludingSourceUrls);
+        if (sourceUrls.length === 0) {
+            return of(null);
+        }
+
+        return from(
+            this.epgBridge.getChannelPrograms(channelId, { sourceUrls })
+        ).pipe(
+            timeout(3000),
+            map((programs) => normalizeEpgPrograms(programs ?? [])),
+            map((programs) => this.findCurrentProgram(programs)),
+            catchError((err) => {
+                console.error('EPG global current program error:', err);
+                return of(null);
             })
         );
     }

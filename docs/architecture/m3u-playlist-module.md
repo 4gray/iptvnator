@@ -251,6 +251,51 @@ EPG lookup keys use the same precedence in both program and icon paths:
 2. `tvg-name`
 3. channel name
 
+### Playlist-Declared EPG Sources
+
+Some M3U providers declare XMLTV sources in the playlist header instead of
+requiring the user to add them in Settings. The importer extracts EPG URLs from
+`#EXTM3U` header attributes `x-tvg-url`, `url-tvg`, and `tvg-url` in
+`@iptvnator/shared/m3u-utils`, then stores the normalized, deduplicated
+candidates on `Playlist.detectedEpgUrls`.
+
+`Playlist.epgUrls` is the enabled playlist-scoped subset used for automatic
+import and lookup. Two additional lists preserve user edits:
+
+- `Playlist.manualEpgUrls` stores URLs the user explicitly added for this
+  playlist, including detected catalog URLs the user manually enabled.
+- `Playlist.disabledEpgUrls` stores detected URLs the user removed from this
+  playlist so playlist refreshes do not silently re-enable them.
+
+- Up to five detected URLs are enabled automatically.
+- Larger header lists are treated as provider catalogs. The importer keeps all
+  candidates in `detectedEpgUrls`, but auto-enables only recommended URLs whose
+  `guides/<country>` path matches playlist hints such as `tvg-country` or the
+  country suffix in `tvg-id` (`channel.ua`). Language hints are used only when no
+  country hints are present.
+- Recommendations are capped so a malformed or global provider list cannot
+  start dozens of XMLTV downloads during playlist import.
+
+These URLs are playlist-scoped by default:
+
+- `libs/m3u-state` auto-fetches enabled `epgUrls` when M3U playlists are
+  loaded, added, or refreshed, using the same EPG progress/import pipeline as
+  Settings-managed XMLTV URLs. Before fetching, playlist URLs already present in
+  global Settings are filtered out so the same XMLTV URL is not downloaded
+  twice.
+- The Electron EPG database stores `source_url` on imported programs so channel
+  rows can ask for the active playlist's EPG sources first.
+- `ChannelListContainerComponent` enables EPG rows when either global settings
+  URLs or the active M3U playlist has `epgUrls`.
+- Scoped lookups fall back only to Settings-managed EPG URLs for channels
+  missing from the playlist-declared source. Playlist-local sources from other
+  playlists are not treated as global fallback sources.
+- The playlist details dialog shows enabled EPG URLs with explicit actions to
+  refresh, remove, or add a source to global Settings. It also allows adding one
+  or more manual playlist-local sources and indicates when additional detected
+  candidates were not auto-enabled. Detected playlist sources are not silently
+  promoted to global settings.
+
 ### Performance Optimizations
 
 | Optimization                  | Implementation                                            |
@@ -291,7 +336,7 @@ EPG lookup keys use the same precedence in both program and icon paths:
 
 ## EPG Integration
 
-### EpgService (libs/services/)
+### EpgService (`@iptvnator/epg/data-access`)
 
 ```typescript
 class EpgService {
@@ -303,12 +348,14 @@ class EpgService {
 
     // Batch fetch current programs
     getCurrentProgramsForChannels(
-        channelIds: string[]
+        channelIds: string[],
+        options?: { sourceUrls?: string[] }
     ): Observable<Map<string, EpgProgram>>;
 
     // Batch fetch XMLTV channel metadata for logo fallback
     getChannelMetadataForChannels(
-        channelIds: string[]
+        channelIds: string[],
+        options?: { sourceUrls?: string[] }
     ): Observable<Map<string, EpgChannelMetadata | null>>;
 
     // Observables

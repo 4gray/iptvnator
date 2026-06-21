@@ -1,5 +1,6 @@
 import { on } from '@ngrx/store';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { resolvePlaylistEpgSourceState } from '@iptvnator/shared/m3u-utils';
 import { PlaylistActions } from '../actions';
 import { playlistsAdapter } from '../playlists.state';
 import { PlaylistState } from '../state';
@@ -34,6 +35,19 @@ export const playlistReducers = [
         const isActivePlaylist =
             state.playlists.selectedId === action.playlistId;
         const currentPlaylist = state.playlists.entities[action.playlistId];
+        const epgSourceState = resolvePlaylistEpgSourceState({
+            detectedEpgUrls:
+                action.playlist.detectedEpgUrls ??
+                currentPlaylist?.detectedEpgUrls,
+            enabledEpgUrls:
+                action.playlist.epgUrls ?? currentPlaylist?.epgUrls,
+            manualEpgUrls:
+                action.playlist.manualEpgUrls ??
+                currentPlaylist?.manualEpgUrls,
+            disabledEpgUrls:
+                action.playlist.disabledEpgUrls ??
+                currentPlaylist?.disabledEpgUrls,
+        });
         return {
             ...state,
             channels: isActivePlaylist
@@ -49,8 +63,11 @@ export const playlistReducers = [
                         updateDate: Date.now(),
                         count: action.playlist.playlist.items.length,
                         userAgent: action.playlist.userAgent,
-                        favorites:
-                            currentPlaylist?.favorites ?? [],
+                        favorites: currentPlaylist?.favorites ?? [],
+                        epgUrls: epgSourceState.epgUrls,
+                        detectedEpgUrls: epgSourceState.detectedEpgUrls,
+                        manualEpgUrls: epgSourceState.manualEpgUrls,
+                        disabledEpgUrls: epgSourceState.disabledEpgUrls,
                         autoRefresh:
                             currentPlaylist?.autoRefresh ??
                             action.playlist.autoRefresh,
@@ -142,6 +159,16 @@ export const playlistReducers = [
                             : {}),
                         ...(p.hiddenGroupTitles != null
                             ? { hiddenGroupTitles: p.hiddenGroupTitles }
+                            : {}),
+                        ...(p.epgUrls != null ? { epgUrls: p.epgUrls } : {}),
+                        ...(p.detectedEpgUrls != null
+                            ? { detectedEpgUrls: p.detectedEpgUrls }
+                            : {}),
+                        ...(p.manualEpgUrls != null
+                            ? { manualEpgUrls: p.manualEpgUrls }
+                            : {}),
+                        ...(p.disabledEpgUrls != null
+                            ? { disabledEpgUrls: p.disabledEpgUrls }
                             : {}),
                         ...(p.updateDate !== undefined
                             ? { updateDate: p.updateDate }

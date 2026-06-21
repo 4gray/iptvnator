@@ -394,7 +394,8 @@
         "DASHBOARD_RAIL_SOURCES": "Recently used sources",
         "DASHBOARD_RAIL_SOURCES_DESCRIPTION": "Show shortcuts to your most recently used playlists and portals.",
         "DASHBOARD_RAIL_XTREAM_ADDED": "Recently added on Xtream",
-        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Show the newest Xtream movies, series, and channels."
+        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Show the newest Xtream movies, series, and channels.",
+        "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} of {{detected}} detected playlist EPG sources were auto-selected for import."
     },
     "THEMES": {
         "DARK_THEME": "Σκούρο",

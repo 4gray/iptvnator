@@ -127,17 +127,54 @@ export class EpgWorkerService {
             // Guards against double-settling and keeps the outer loop moving
             // when the worker dies or hangs without sending EPG_COMPLETE/EPG_ERROR.
             let settled = false;
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            let lastProgressStats: EpgProgressStats = {
+                totalChannels: 0,
+                totalPrograms: 0,
+            };
+
+            const clearFetchTimeout = () => {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = undefined;
+                }
+            };
+
             const settle = (fn: () => void) => {
                 if (settled) return;
                 settled = true;
-                clearTimeout(timeoutId);
+                clearFetchTimeout();
                 fn();
             };
 
-            const timeoutId = setTimeout(() => {
+            const scheduleFetchTimeout = () => {
+                clearFetchTimeout();
+                timeoutId = setTimeout(() => {
+                    handleFetchTimeout();
+                }, this.fetchTimeoutMs);
+            };
+
+            const hasProgressMoved = (stats: EpgProgressStats): boolean =>
+                stats.totalChannels > lastProgressStats.totalChannels ||
+                stats.totalPrograms > lastProgressStats.totalPrograms;
+
+            const recordProgress = (stats: EpgProgressStats): void => {
+                lastProgressStats = {
+                    totalChannels: Math.max(
+                        lastProgressStats.totalChannels,
+                        stats.totalChannels
+                    ),
+                    totalPrograms: Math.max(
+                        lastProgressStats.totalPrograms,
+                        stats.totalPrograms
+                    ),
+                };
+            };
+
+            const handleFetchTimeout = () => {
                 const errorMessage = `EPG fetch timed out after ${
                     this.fetchTimeoutMs / 1000
-                }s`;
+                }s without progress`;
                 console.error(this.loggerLabel, `${errorMessage}: ${url}`);
                 this.sendProgressToRenderer(
                     url,
@@ -154,12 +191,15 @@ export class EpgWorkerService {
                         () => reject(new Error(errorMessage))
                     );
                 });
-            }, this.fetchTimeoutMs);
+            };
+
+            scheduleFetchTimeout();
 
             worker.on('message', async (message: EpgWorkerMessage) => {
                 try {
                     switch (message.type) {
                         case 'READY':
+                            scheduleFetchTimeout();
                             this.sendProgressToRenderer(url, 'loading', {
                                 totalChannels: 0,
                                 totalPrograms: 0,
@@ -173,6 +213,10 @@ export class EpgWorkerService {
 
                         case 'EPG_PROGRESS':
                             if (message.stats) {
+                                if (hasProgressMoved(message.stats)) {
+                                    recordProgress(message.stats);
+                                    scheduleFetchTimeout();
+                                }
                                 this.sendProgressToRenderer(
                                     url,
                                     'loading',

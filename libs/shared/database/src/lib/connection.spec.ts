@@ -82,6 +82,9 @@ describe('database schema statements', () => {
             expect.arrayContaining([
                 'ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0',
                 'ALTER TABLE playlists ADD COLUMN payload TEXT',
+                'ALTER TABLE playlists ADD COLUMN detected_epg_urls TEXT',
+                'ALTER TABLE playlists ADD COLUMN manual_epg_urls TEXT',
+                'ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT',
                 'ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0',
                 'ALTER TABLE content ADD COLUMN backdrop_url TEXT',
             ])
@@ -102,7 +105,23 @@ describe('database schema statements', () => {
                 'CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)',
                 'CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)',
                 'CREATE INDEX IF NOT EXISTS favorites_playlist_position_idx ON favorites(playlist_id, position, added_at DESC)',
+                'CREATE INDEX IF NOT EXISTS idx_epg_programs_source ON epg_programs(source_url)',
+                'CREATE INDEX IF NOT EXISTS idx_epg_programs_source_time_range ON epg_programs(source_url, channel_id, start, stop)',
             ])
+        );
+    });
+
+    it('creates indexes for migrated EPG program columns only after column migrations run', () => {
+        const createSchemaSql = createTableStatements.map(compactSql);
+
+        expect(createSchemaSql).not.toContain(
+            'CREATE INDEX IF NOT EXISTS idx_epg_programs_source ON epg_programs(source_url)'
+        );
+        expect(createSchemaSql).not.toContain(
+            'CREATE INDEX IF NOT EXISTS idx_epg_programs_source_time_range ON epg_programs(source_url, channel_id, start, stop)'
+        );
+        expect(columnMigrationStatements.map(compactSql)).toContain(
+            'ALTER TABLE epg_programs ADD COLUMN source_url TEXT'
         );
     });
 

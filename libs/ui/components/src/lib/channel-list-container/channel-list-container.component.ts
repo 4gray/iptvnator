@@ -39,6 +39,7 @@ import {
     forkJoin,
     firstValueFrom,
     map,
+    Subscription,
 } from 'rxjs';
 import {
     PlaylistsService,
@@ -128,9 +129,24 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Interval for global progress updates */
     private progressInterval?: number;
+    private epgAvailabilitySubscription?: Subscription;
 
     /** Whether to show EPG data in channel items */
-    readonly shouldShowEpg = signal(false);
+    private readonly globalEpgUrls = signal<string[]>([]);
+    readonly playlistEpgUrls = computed(() => {
+        const playlist = this.activePlaylist();
+        if (!playlist || playlist.serverUrl || playlist.macAddress) {
+            return [];
+        }
+
+        return this.normalizeEpgUrls(playlist.epgUrls ?? []);
+    });
+    readonly shouldShowEpg = computed(
+        () =>
+            this.runtime.supportsEpg &&
+            (this.globalEpgUrls().length > 0 ||
+                this.playlistEpgUrls().length > 0)
+    );
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -301,12 +317,19 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                         Object.keys(settings as Settings).length > 0
                     ) {
                         const epgUrl = (settings as Settings).epgUrl;
-                        this.shouldShowEpg.set(!!(epgUrl && epgUrl.length > 0));
+                        this.globalEpgUrls.set(this.normalizeEpgUrls(epgUrl));
                     }
                 });
         } else {
-            this.shouldShowEpg.set(false);
+            this.globalEpgUrls.set([]);
         }
+
+        this.epgAvailabilitySubscription =
+            this.epgService.epgAvailable$.subscribe((available) => {
+                if (available) {
+                    this.fetchEpgForChannels(this._channelList);
+                }
+            });
 
         // Set up EPG refresh interval (every 60 seconds)
         this.epgRefreshInterval = window.setInterval(() => {
@@ -330,6 +353,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             clearInterval(this.progressInterval);
         }
 
+        this.epgAvailabilitySubscription?.unsubscribe();
         this.channelList$.complete();
     }
 
@@ -351,10 +375,17 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             )
         );
 
+        const epgLookupOptions = this.getPlaylistEpgLookupOptions();
+
         forkJoin({
-            epgMap: this.epgService.getCurrentProgramsForChannels(channelIds),
-            metadataMap:
-                this.epgService.getChannelMetadataForChannels(channelIds),
+            epgMap: this.epgService.getCurrentProgramsForChannels(
+                channelIds,
+                epgLookupOptions
+            ),
+            metadataMap: this.epgService.getChannelMetadataForChannels(
+                channelIds,
+                epgLookupOptions
+            ),
         }).subscribe(({ epgMap, metadataMap }) => {
             this.channelEpgMap.set(epgMap);
             this.channelIconMap.set(
@@ -369,6 +400,23 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 )
             );
         });
+    }
+
+    private getPlaylistEpgLookupOptions():
+        | { sourceUrls: string[] }
+        | undefined {
+        const sourceUrls = this.playlistEpgUrls();
+        return sourceUrls.length > 0 ? { sourceUrls } : undefined;
+    }
+
+    private normalizeEpgUrls(urls: string[] | null | undefined): string[] {
+        return Array.from(
+            new Set(
+                (urls ?? [])
+                    .map((url) => url?.trim())
+                    .filter((url): url is string => Boolean(url))
+            )
+        );
     }
 
     /**

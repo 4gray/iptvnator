@@ -307,6 +307,39 @@ describe('EpgEvents', () => {
         expect(terminated).toBe(true);
     });
 
+    it('keeps an active EPG fetch alive when worker progress keeps moving', async () => {
+        jest.useFakeTimers();
+
+        const workerService = new EpgWorkerService('[Test EPG]', 25);
+        const fetchPromise = workerService.fetchEpgFromUrl(
+            'https://example.com/large-guide.xml'
+        );
+        const fetchOutcome = fetchPromise.then(
+            () => 'resolved' as const,
+            (error) => error
+        );
+        const worker = mockWorkerInstances[0];
+
+        worker.emit('message', { type: 'READY' });
+
+        jest.advanceTimersByTime(20);
+        worker.emit('message', {
+            type: 'EPG_PROGRESS',
+            stats: { totalChannels: 100, totalPrograms: 500000 },
+        });
+
+        jest.advanceTimersByTime(20);
+
+        expect(worker.terminate).not.toHaveBeenCalled();
+
+        worker.emit('message', {
+            type: 'EPG_COMPLETE',
+            stats: { totalChannels: 100, totalPrograms: 510000 },
+        });
+
+        await expect(fetchOutcome).resolves.toBe('resolved');
+    });
+
     it('falls back to case-insensitive channel id lookup for EPG programs', async () => {
         const select = jest.fn();
         const programLimitExact = jest.fn().mockResolvedValue([]);

@@ -7,6 +7,7 @@ import type {
     ElectronBridgeApi,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
+    ElectronBridgeEpgLookupOptions,
     ElectronBridgeEpgProgress,
     ElectronBridgePlaybackPositionInput,
     ElectronBridgePlaylistInput,
@@ -460,12 +461,23 @@ const electronApi: ElectronBridgeApi = {
     ) => ipcRenderer.invoke('AUTO_UPDATE', playlists, options),
     fetchEpg: (urls: string[], options?: ElectronBridgeTrustOptions) =>
         ipcRenderer.invoke('FETCH_EPG', { url: urls, options }),
-    getChannelPrograms: (channelId: string) =>
-        ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId }),
-    getCurrentProgramsBatch: (channelIds: string[]) =>
-        ipcRenderer.invoke('GET_CURRENT_PROGRAMS_BATCH', { channelIds }),
-    getEpgChannelMetadata: (channelIds: string[]) =>
-        ipcRenderer.invoke('EPG_GET_CHANNEL_METADATA', { channelIds }),
+    getChannelPrograms: (
+        channelId: string,
+        options?: ElectronBridgeEpgLookupOptions
+    ) => ipcRenderer.invoke('GET_CHANNEL_PROGRAMS', { channelId, options }),
+    getCurrentProgramsBatch: (
+        channelIds: string[],
+        options?: ElectronBridgeEpgLookupOptions
+    ) =>
+        ipcRenderer.invoke('GET_CURRENT_PROGRAMS_BATCH', {
+            channelIds,
+            options,
+        }),
+    getEpgChannelMetadata: (
+        channelIds: string[],
+        options?: ElectronBridgeEpgLookupOptions
+    ) =>
+        ipcRenderer.invoke('EPG_GET_CHANNEL_METADATA', { channelIds, options }),
     getEpgChannels: () => ipcRenderer.invoke('EPG_GET_CHANNELS'),
     getEpgChannelsByRange: (skip: number, limit: number) =>
         ipcRenderer.invoke('EPG_GET_CHANNELS_BY_RANGE', { skip, limit }),

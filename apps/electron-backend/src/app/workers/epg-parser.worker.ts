@@ -133,9 +133,7 @@ async function fetchAndParseEpgStreaming(
             headers: response.headers,
             url: responseUrl,
         });
-        const contentEncoding = getEpgResponseContentEncoding(
-            response.headers
-        );
+        const contentEncoding = getEpgResponseContentEncoding(response.headers);
 
         if (responseUrl && responseUrl !== url) {
             console.log(
@@ -172,7 +170,7 @@ async function fetchAndParseEpgStreaming(
             },
             (programs) => {
                 // Insert programs directly into database
-                epgDb.insertPrograms(programs);
+                epgDb.insertPrograms(programs, url);
             },
             (totalChannels, totalPrograms) => {
                 // Send progress to main thread (lightweight)

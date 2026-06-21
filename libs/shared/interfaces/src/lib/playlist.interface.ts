@@ -33,6 +33,14 @@ export interface Playlist {
     referrer?: string;
     origin?: string;
     filePath?: string;
+    /** M3U-scoped EPG source URLs enabled for automatic import and lookup. */
+    epgUrls?: string[];
+    /** All M3U EPG source URLs detected from the playlist header. */
+    detectedEpgUrls?: string[];
+    /** Playlist-local EPG source URLs explicitly enabled by the user. */
+    manualEpgUrls?: string[];
+    /** Detected playlist EPG source URLs explicitly disabled by the user. */
+    disabledEpgUrls?: string[];
     autoRefresh: boolean;
     updateDate?: number;
     updateState?: PlaylistUpdateState;

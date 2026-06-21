@@ -1,8 +1,6 @@
 export interface ParsedPlaylist {
     header: {
-        attrs: {
-            'x-tvg-url': string;
-        };
+        attrs: Record<string, string | undefined>;
         raw: string;
     };
     items: ParsedPlaylistItem[];

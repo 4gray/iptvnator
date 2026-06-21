@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
 import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
@@ -19,10 +19,14 @@ interface EpgProgramRow {
 export class EpgQueryService {
     constructor(private readonly loggerLabel = '[EPG Events]') {}
 
-    async getChannelPrograms(channelId: string): Promise<EpgProgram[]> {
+    async getChannelPrograms(
+        channelId: string,
+        options: { sourceUrls?: string[] } = {}
+    ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
             const trimmedChannelId = channelId.trim();
+            const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
 
             if (!trimmedChannelId) {
                 return [];
@@ -31,7 +35,12 @@ export class EpgQueryService {
             let results = await db
                 .select()
                 .from(schema.epgPrograms)
-                .where(eq(schema.epgPrograms.channelId, trimmedChannelId))
+                .where(
+                    this.withProgramSourceScope(
+                        eq(schema.epgPrograms.channelId, trimmedChannelId),
+                        sourceUrls
+                    )
+                )
                 .orderBy(schema.epgPrograms.start)
                 .limit(500);
 
@@ -45,7 +54,10 @@ export class EpgQueryService {
                 .select()
                 .from(schema.epgChannels)
                 .where(
-                    sql`${schema.epgChannels.id} = ${trimmedChannelId} COLLATE NOCASE`
+                    this.withChannelSourceScope(
+                        sql`${schema.epgChannels.id} = ${trimmedChannelId} COLLATE NOCASE`,
+                        sourceUrls
+                    )
                 )
                 .limit(1);
 
@@ -53,7 +65,12 @@ export class EpgQueryService {
                 results = await db
                     .select()
                     .from(schema.epgPrograms)
-                    .where(eq(schema.epgPrograms.channelId, channel[0].id))
+                    .where(
+                        this.withProgramSourceScope(
+                            eq(schema.epgPrograms.channelId, channel[0].id),
+                            sourceUrls
+                        )
+                    )
                     .orderBy(schema.epgPrograms.start)
                     .limit(500);
 
@@ -67,7 +84,12 @@ export class EpgQueryService {
             channel = await db
                 .select()
                 .from(schema.epgChannels)
-                .where(eq(schema.epgChannels.displayName, trimmedChannelId))
+                .where(
+                    this.withChannelSourceScope(
+                        eq(schema.epgChannels.displayName, trimmedChannelId),
+                        sourceUrls
+                    )
+                )
                 .limit(1);
 
             if (channel.length === 0) {
@@ -75,7 +97,10 @@ export class EpgQueryService {
                     .select()
                     .from(schema.epgChannels)
                     .where(
-                        sql`${schema.epgChannels.displayName} = ${trimmedChannelId} COLLATE NOCASE`
+                        this.withChannelSourceScope(
+                            sql`${schema.epgChannels.displayName} = ${trimmedChannelId} COLLATE NOCASE`,
+                            sourceUrls
+                        )
                     )
                     .limit(1);
             }
@@ -84,7 +109,12 @@ export class EpgQueryService {
                 results = await db
                     .select()
                     .from(schema.epgPrograms)
-                    .where(eq(schema.epgPrograms.channelId, channel[0].id))
+                    .where(
+                        this.withProgramSourceScope(
+                            eq(schema.epgPrograms.channelId, channel[0].id),
+                            sourceUrls
+                        )
+                    )
                     .orderBy(schema.epgPrograms.start)
                     .limit(500);
 
@@ -105,7 +135,8 @@ export class EpgQueryService {
     }
 
     async getCurrentProgramsBatch(
-        channelIds: string[]
+        channelIds: string[],
+        options: { sourceUrls?: string[] } = {}
     ): Promise<Record<string, EpgProgram | null>> {
         const result: Record<string, EpgProgram | null> = {};
         if (!Array.isArray(channelIds) || channelIds.length === 0) {
@@ -126,15 +157,19 @@ export class EpgQueryService {
         try {
             const db = await getDatabase();
             const now = new Date().toISOString();
+            const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
 
             const rows = await db
                 .select()
                 .from(schema.epgPrograms)
                 .where(
-                    and(
-                        inArray(schema.epgPrograms.channelId, validIds),
-                        lte(schema.epgPrograms.start, now),
-                        gte(schema.epgPrograms.stop, now)
+                    this.withProgramSourceScope(
+                        and(
+                            inArray(schema.epgPrograms.channelId, validIds),
+                            lte(schema.epgPrograms.start, now),
+                            gte(schema.epgPrograms.stop, now)
+                        ) as SQL,
+                        sourceUrls
                     )
                 );
 
@@ -155,7 +190,10 @@ export class EpgQueryService {
                     .select()
                     .from(schema.epgChannels)
                     .where(
-                        sql`${schema.epgChannels.id} = ${channelId} COLLATE NOCASE`
+                        this.withChannelSourceScope(
+                            sql`${schema.epgChannels.id} = ${channelId} COLLATE NOCASE`,
+                            sourceUrls
+                        )
                     )
                     .limit(1);
 
@@ -164,7 +202,10 @@ export class EpgQueryService {
                         .select()
                         .from(schema.epgChannels)
                         .where(
-                            sql`${schema.epgChannels.displayName} = ${channelId} COLLATE NOCASE`
+                            this.withChannelSourceScope(
+                                sql`${schema.epgChannels.displayName} = ${channelId} COLLATE NOCASE`,
+                                sourceUrls
+                            )
                         )
                         .limit(1);
                 }
@@ -177,10 +218,13 @@ export class EpgQueryService {
                     .select()
                     .from(schema.epgPrograms)
                     .where(
-                        and(
-                            eq(schema.epgPrograms.channelId, channel[0].id),
-                            lte(schema.epgPrograms.start, now),
-                            gte(schema.epgPrograms.stop, now)
+                        this.withProgramSourceScope(
+                            and(
+                                eq(schema.epgPrograms.channelId, channel[0].id),
+                                lte(schema.epgPrograms.start, now),
+                                gte(schema.epgPrograms.stop, now)
+                            ) as SQL,
+                            sourceUrls
                         )
                     )
                     .limit(1);
@@ -232,7 +276,8 @@ export class EpgQueryService {
     }
 
     async getChannelMetadata(
-        channelIds: string[]
+        channelIds: string[],
+        options: { sourceUrls?: string[] } = {}
     ): Promise<Record<string, EpgChannelMetadata | null>> {
         try {
             const normalizedChannelIds =
@@ -243,6 +288,7 @@ export class EpgQueryService {
             }
 
             const db = await getDatabase();
+            const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
             const lowerKeys = Array.from(
                 new Set(
                     normalizedChannelIds.map((channelId) =>
@@ -251,6 +297,7 @@ export class EpgQueryService {
                 )
             );
             const lowerKeyValues = lowerKeys.map((key) => sql`${key}`);
+            const sourceUrlValues = sourceUrls.map((url) => sql`${url}`);
 
             const candidates = await db
                 .select({
@@ -259,8 +306,15 @@ export class EpgQueryService {
                     iconUrl: schema.epgChannels.iconUrl,
                 })
                 .from(schema.epgChannels).where(sql`
-                    LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerKeyValues, sql`, `)})
-                    OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                    (
+                        LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                        OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                    )
+                    ${
+                        sourceUrlValues.length > 0
+                            ? sql`AND ${schema.epgChannels.sourceUrl} IN (${sql.join(sourceUrlValues, sql`, `)})`
+                            : sql``
+                    }
                 `);
 
             return Object.fromEntries(
@@ -335,6 +389,34 @@ export class EpgQueryService {
                     .filter((channelId) => channelId.length > 0)
             )
         );
+    }
+
+    private normalizeSourceUrls(sourceUrls?: string[]): string[] {
+        return Array.from(
+            new Set(
+                (sourceUrls ?? [])
+                    .map((sourceUrl) => sourceUrl.trim())
+                    .filter((sourceUrl) => sourceUrl.length > 0)
+            )
+        );
+    }
+
+    private withProgramSourceScope(condition: SQL, sourceUrls: string[]): SQL {
+        return sourceUrls.length > 0
+            ? (and(
+                  condition,
+                  inArray(schema.epgPrograms.sourceUrl, sourceUrls)
+              ) as SQL)
+            : condition;
+    }
+
+    private withChannelSourceScope(condition: SQL, sourceUrls: string[]): SQL {
+        return sourceUrls.length > 0
+            ? (and(
+                  condition,
+                  inArray(schema.epgChannels.sourceUrl, sourceUrls)
+              ) as SQL)
+            : condition;
     }
 
     private resolveChannelMetadataCandidate(
