@@ -291,7 +291,7 @@ These URLs are playlist-scoped by default:
   fetch key, while an explicit empty `epgUrls` list clears it.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
-  databases backfill this column from `epg_channels.source_url` once before the
+  databases backfill this column from `epg_channels.source_url` once after the
   scoped indexes are created. When multiple EPG files reuse the same XMLTV
   channel id, the channel row keeps its original `source_url` attribution instead
   of being overwritten by the last imported source; program scoping remains
@@ -302,7 +302,10 @@ These URLs are playlist-scoped by default:
   coalesce into one visible-channel EPG refresh.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
-  playlists are not treated as global fallback sources.
+  playlists are not treated as global fallback sources. Single-channel current
+  program lookups include the source URL set in their cache and in-flight keys,
+  so playlist-local and global lookups deduplicate without reusing the wrong
+  source scope.
 - The playlist details dialog shows enabled EPG URLs with explicit actions to
   refresh, remove, or add a source to global Settings. It also allows adding one
   or more manual playlist-local sources and indicates when additional detected

@@ -135,6 +135,131 @@ describe('EpgService', () => {
         jest.useRealTimers();
     });
 
+    it('caches current program lookups separately by EPG source URL scope', async () => {
+        settingsStore.getSettings.mockReturnValue({
+            epgUrl: ['https://global.example.com/guide.xml'],
+            trustedPrivateNetworkEpgUrls: [],
+            trustedInsecureTlsHosts: [],
+        });
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.getChannelPrograms = jest
+            .fn()
+            .mockResolvedValueOnce([
+                {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Guide Bulletin',
+                },
+            ])
+            .mockResolvedValueOnce([
+                {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Global News Bulletin',
+                },
+            ])
+            .mockResolvedValue([]);
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            const playlistResult = await firstValueFrom(
+                service.getCurrentProgramForChannel('guide-news', {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                })
+            );
+            const globalResult = await firstValueFrom(
+                service.getCurrentProgramForChannel('guide-news')
+            );
+            const cachedPlaylistResult = await firstValueFrom(
+                service.getCurrentProgramForChannel('guide-news', {
+                    sourceUrls: [' https://playlist.example.com/guide.xml '],
+                })
+            );
+            const cachedGlobalResult = await firstValueFrom(
+                service.getCurrentProgramForChannel('guide-news')
+            );
+
+            expect(playlistResult?.title).toBe('Playlist Guide Bulletin');
+            expect(globalResult?.title).toBe('Global News Bulletin');
+            expect(cachedPlaylistResult?.title).toBe('Playlist Guide Bulletin');
+            expect(cachedGlobalResult?.title).toBe('Global News Bulletin');
+            expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(2);
+            expect(epgBridge.getChannelPrograms).toHaveBeenNthCalledWith(
+                1,
+                'guide-news',
+                { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+            );
+            expect(epgBridge.getChannelPrograms).toHaveBeenNthCalledWith(
+                2,
+                'guide-news',
+                { sourceUrls: ['https://global.example.com/guide.xml'] }
+            );
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
+    it('deduplicates concurrent scoped current program lookups for the same source scope', async () => {
+        epgBridge.supportsProgramLookup = true;
+        let resolvePrograms:
+            | ((
+                  programs: {
+                      channel: string;
+                      start: string;
+                      stop: string;
+                      title: string;
+                  }[]
+              ) => void)
+            | undefined;
+        epgBridge.getChannelPrograms = jest.fn(
+            () =>
+                new Promise((resolve) => {
+                    resolvePrograms = resolve;
+                })
+        );
+        jest.useFakeTimers();
+        jest.setSystemTime(new Date('2026-05-23T10:30:00.000Z'));
+
+        try {
+            const firstLookup = firstValueFrom(
+                service.getCurrentProgramForChannel('guide-news', {
+                    sourceUrls: ['https://playlist.example.com/guide.xml'],
+                })
+            );
+            const secondLookup = firstValueFrom(
+                service.getCurrentProgramForChannel('guide-news', {
+                    sourceUrls: [' https://playlist.example.com/guide.xml '],
+                })
+            );
+
+            expect(epgBridge.getChannelPrograms).toHaveBeenCalledTimes(1);
+            resolvePrograms?.([
+                {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Guide Bulletin',
+                },
+            ]);
+
+            await expect(
+                Promise.all([firstLookup, secondLookup])
+            ).resolves.toEqual([
+                expect.objectContaining({
+                    title: 'Playlist Guide Bulletin',
+                }),
+                expect.objectContaining({
+                    title: 'Playlist Guide Bulletin',
+                }),
+            ]);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('queries playlist-scoped current programs first and falls back to global EPG for missing channels', async () => {
         settingsStore.getSettings.mockReturnValue({
             epgUrl: [

@@ -702,11 +702,11 @@ function runMigrationStatements(
  */
 function runMigrations(sqliteDb: Database.Database): void {
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
-    backfillEpgProgramSourceUrls(sqliteDb);
     ensureContentTitleFts(sqliteDb);
     deduplicateXtreamCache(sqliteDb);
     normalizeXtreamContentAddedEpochs(sqliteDb);
     runMigrationStatements(sqliteDb, INDEX_MIGRATION_STATEMENTS);
+    backfillEpgProgramSourceUrls(sqliteDb);
 }
 
 export interface DatabaseOptions {

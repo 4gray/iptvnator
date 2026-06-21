@@ -327,7 +327,7 @@ describe('database schema statements', () => {
         );
     });
 
-    it('backfills migrated EPG program source URLs before creating scoped EPG indexes', () => {
+    it('backfills migrated EPG program source URLs after creating scoped EPG indexes', () => {
         const callOrder: string[] = [];
         const runMigrations = (
             __databaseConnectionTestHooks as unknown as {
@@ -377,8 +377,9 @@ describe('database schema statements', () => {
         runMigrations(sqlite);
 
         expect(callOrder).toContain('epg-source-backfill');
-        expect(callOrder.indexOf('epg-source-backfill')).toBeLessThan(
-            callOrder.indexOf('epg-source-index')
+        expect(callOrder).toContain('epg-source-index');
+        expect(callOrder.indexOf('epg-source-index')).toBeLessThan(
+            callOrder.indexOf('epg-source-backfill')
         );
     });
 });
