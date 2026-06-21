@@ -251,6 +251,40 @@ describe('ChannelListContainerComponent', () => {
         );
     });
 
+    it('refreshes visible channel EPG when playlist EPG URLs arrive after channels', () => {
+        runtimeCapabilities.supportsEpg = true;
+        storageGet.mockReturnValue(of({ epgUrl: [] }));
+
+        fixture.detectChanges();
+        fixture.componentInstance.channelList = [
+            createChannel('guide-news', 'https://example.com/news.m3u8'),
+        ];
+        expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            undefined
+        );
+        epgService.getCurrentProgramsForChannels.mockClear();
+        epgService.getChannelMetadataForChannels.mockClear();
+
+        activePlaylistSignal.set({
+            _id: 'playlist-1',
+            title: 'Playlist One',
+            count: 1,
+            importDate: '2026-04-11T00:00:00.000Z',
+            epgUrls: ['https://playlist.example.com/guide.xml'],
+        } as PlaylistMeta);
+        fixture.detectChanges();
+
+        expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+        expect(epgService.getChannelMetadataForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+    });
+
     it('debounces visible channel EPG row refreshes after EPG imports complete', () => {
         jest.useFakeTimers();
         try {

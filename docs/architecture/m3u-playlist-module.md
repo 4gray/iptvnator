@@ -306,7 +306,13 @@ These URLs are playlist-scoped by default:
 - `ChannelListContainerComponent` enables EPG rows when either global settings
   URLs or the active M3U playlist has `epgUrls`. EPG availability refreshes are
   debounced so several playlist-local XMLTV imports completing close together
-  coalesce into one visible-channel EPG refresh.
+  coalesce into one visible-channel EPG refresh. The visible channel list also
+  refreshes when the effective EPG source context changes, so a playlist whose
+  `epgUrls` arrive after the channels are rendered does not wait for the next
+  periodic refresh before showing current programs. A successful EPG import
+  clears current-program lookup caches before publishing availability, so an
+  early "no current program" lookup cannot mask freshly imported rows until the
+  TTL expires.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
   playlists are not treated as global fallback sources. Single-channel current

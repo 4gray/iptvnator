@@ -79,6 +79,7 @@ export class EpgService {
                     if (result === null) return;
 
                     if (result.success) {
+                        this.clearCache();
                         this.epgAvailable.next(true);
                     } else {
                         this.epgAvailable.next(false);

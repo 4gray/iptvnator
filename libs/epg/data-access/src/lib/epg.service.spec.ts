@@ -1,7 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, skip } from 'rxjs';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from './epg-runtime-bridge.service';
 import { EpgService } from './epg.service';
@@ -368,6 +368,47 @@ describe('EpgService', () => {
             'Playlist Guide Bulletin'
         );
         expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('clears cached null current programs after a successful EPG import', async () => {
+        epgBridge.supportsImport = true;
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValueOnce({
+                'guide-news': null,
+            })
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Guide Bulletin',
+                },
+            });
+
+        const beforeImport = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        expect(beforeImport.get('guide-news')).toBeNull();
+
+        const availability = firstValueFrom(service.epgAvailable$.pipe(skip(1)));
+        service.fetchEpg(['https://playlist.example.com/guide.xml']);
+        await expect(availability).resolves.toBe(true);
+
+        const afterImport = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+
+        expect(afterImport.get('guide-news')?.title).toBe(
+            'Playlist Guide Bulletin'
+        );
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(2);
     });
 
     it('deduplicates concurrent scoped batch current program lookups for the same source scope', async () => {

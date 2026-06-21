@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     Input,
     input,
@@ -10,6 +11,7 @@ import {
     OnInit,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -120,6 +122,10 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    /** Route-aware playlist ID for recent-item mutations */
+    private readonly resolvedPlaylistId =
+        this.playlistContext.resolvedPlaylistId;
+    private readonly activePlaylist = this.playlistContext.activePlaylist;
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());
@@ -151,6 +157,22 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             (this.globalEpgUrls().length > 0 ||
                 this.playlistEpgUrls().length > 0)
     );
+    private readonly epgSourceRefreshKey = computed(() => {
+        if (!this.runtime.supportsEpg) {
+            return '';
+        }
+
+        const globalUrls = this.globalEpgUrls();
+        const playlistUrls = this.playlistEpgUrls();
+        if (globalUrls.length === 0 && playlistUrls.length === 0) {
+            return '';
+        }
+
+        return JSON.stringify({
+            globalUrls: Array.from(new Set(globalUrls)).sort(),
+            playlistUrls: Array.from(new Set(playlistUrls)).sort(),
+        });
+    });
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -202,6 +224,22 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     _channelList: Channel[] = [];
     private readonly channelListSignal = signal<Channel[]>([]);
     private channelList$ = new BehaviorSubject<Channel[]>([]);
+    private lastEpgSourceRefreshKey = '';
+    private readonly epgSourceRefreshEffect = effect(() => {
+        const refreshKey = this.epgSourceRefreshKey();
+        if (refreshKey === this.lastEpgSourceRefreshKey) {
+            return;
+        }
+
+        this.lastEpgSourceRefreshKey = refreshKey;
+        if (!refreshKey || this._channelList.length === 0) {
+            return;
+        }
+
+        untracked(() => {
+            this.fetchEpgForChannels(this._channelList);
+        });
+    });
 
     get channelList(): Channel[] {
         return this._channelList;
@@ -215,11 +253,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         this.channelList$.next(safeValue);
         this.fetchEpgForChannels(safeValue);
     }
-
-    /** Route-aware playlist ID for recent-item mutations */
-    private readonly resolvedPlaylistId =
-        this.playlistContext.resolvedPlaylistId;
-    private readonly activePlaylist = this.playlistContext.activePlaylist;
 
     readonly hiddenGroupTitles = computed(() => {
         const playlist = this.activePlaylist();
