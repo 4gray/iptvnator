@@ -287,8 +287,10 @@ These URLs are playlist-scoped by default:
   twice. Within a running session, the effect remembers the last fetchable URL
   set per playlist and only re-fetches when that URL set changes; metadata-only
   edits such as renaming a playlist or hiding groups do not re-download local
-  EPG sources. Partial metadata updates that omit `epgUrls` preserve the previous
-  fetch key, while an explicit empty `epgUrls` list clears it.
+  EPG sources. When the local URL set expands, only newly added fetchable URLs
+  are downloaded; disabling or removing one source does not re-download the
+  remaining sources. Partial metadata updates that omit `epgUrls` preserve the
+  previous fetch key, while an explicit empty `epgUrls` list clears it.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
   databases backfill this column from `epg_channels.source_url` once, in bounded
@@ -305,9 +307,14 @@ These URLs are playlist-scoped by default:
   playlists are not treated as global fallback sources. Single-channel current
   program lookups include the source URL set in their cache and in-flight keys,
   so playlist-local and global lookups deduplicate without reusing the wrong
-  source scope. Channel metadata lookups use the same playlist-first,
-  Settings-managed fallback strategy so icons and display names can still come
-  from global EPG sources when the playlist-local guide only supplies programs.
+  source scope. Batch current-program lookups use the same source-scoped
+  per-channel TTL cache and in-flight batch deduplication before reaching IPC.
+  Channel metadata lookups use the same playlist-first, Settings-managed
+  fallback strategy so icons and display names can still come from global EPG
+  sources when the playlist-local guide only supplies programs. If multiple EPG
+  sources reuse the same XMLTV channel id, channel metadata and display-name
+  fallback lookups treat a channel as source-scoped when either the channel row
+  itself or matching programs are tagged with the requested `source_url`.
 - The playlist details dialog shows enabled EPG URLs with explicit actions to
   refresh, remove, or add a source to global Settings. It also allows adding one
   or more manual playlist-local sources and indicates when additional detected

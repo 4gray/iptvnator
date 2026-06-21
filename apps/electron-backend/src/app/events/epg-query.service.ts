@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray, lte, sql, type SQL } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte, or, sql, type SQL } from 'drizzle-orm';
 import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
@@ -297,7 +297,12 @@ export class EpgQueryService {
                 )
             );
             const lowerKeyValues = lowerKeys.map((key) => sql`${key}`);
-            const sourceUrlValues = sourceUrls.map((url) => sql`${url}`);
+            const lookupCondition = sql`
+                (
+                    LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                    OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                )
+            `;
 
             const candidates = await db
                 .select({
@@ -305,17 +310,13 @@ export class EpgQueryService {
                     displayName: schema.epgChannels.displayName,
                     iconUrl: schema.epgChannels.iconUrl,
                 })
-                .from(schema.epgChannels).where(sql`
-                    (
-                        LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerKeyValues, sql`, `)})
-                        OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                .from(schema.epgChannels)
+                .where(
+                    this.withChannelSourceScope(
+                        lookupCondition as SQL,
+                        sourceUrls
                     )
-                    ${
-                        sourceUrlValues.length > 0
-                            ? sql`AND ${schema.epgChannels.sourceUrl} IN (${sql.join(sourceUrlValues, sql`, `)})`
-                            : sql``
-                    }
-                `);
+                );
 
             return Object.fromEntries(
                 normalizedChannelIds.map((channelId) => [
@@ -414,9 +415,23 @@ export class EpgQueryService {
         return sourceUrls.length > 0
             ? (and(
                   condition,
-                  inArray(schema.epgChannels.sourceUrl, sourceUrls)
+                  or(
+                      inArray(schema.epgChannels.sourceUrl, sourceUrls),
+                      this.channelHasProgramsForSourceScope(sourceUrls)
+                  ) as SQL
               ) as SQL)
             : condition;
+    }
+
+    private channelHasProgramsForSourceScope(sourceUrls: string[]): SQL {
+        const sourceUrlValues = sourceUrls.map((sourceUrl) => sql`${sourceUrl}`);
+
+        return sql`EXISTS (
+            SELECT 1
+            FROM ${schema.epgPrograms}
+            WHERE ${schema.epgPrograms.channelId} = ${schema.epgChannels.id}
+              AND ${schema.epgPrograms.sourceUrl} IN (${sql.join(sourceUrlValues, sql`, `)})
+        )`;
     }
 
     private resolveChannelMetadataCandidate(

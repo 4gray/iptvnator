@@ -25,10 +25,17 @@ export function resolvePlaylistScopedEpgFetchPlan(
 
     const urls = filterPlaylistEpgUrlsForFetch(playlist.epgUrls, globalEpgUrls);
     const key = urls.join('\n');
+    const previousUrls = new Set(
+        previousKey
+            .split('\n')
+            .map((url) => url.trim())
+            .filter((url) => url.length > 0)
+    );
+    const newUrls = urls.filter((url) => !previousUrls.has(url));
 
     return {
         key,
-        shouldFetch: urls.length > 0 && key !== previousKey,
-        urls,
+        shouldFetch: newUrls.length > 0,
+        urls: newUrls.length > 0 ? newUrls : urls,
     };
 }

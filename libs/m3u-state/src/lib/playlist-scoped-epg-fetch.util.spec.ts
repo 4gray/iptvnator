@@ -67,4 +67,49 @@ describe('resolvePlaylistScopedEpgFetchPlan', () => {
             urls: [],
         });
     });
+
+    it('does not refetch remaining playlist EPG URLs when one local source is disabled', () => {
+        const playlist = createPlaylistMeta({
+            epgUrls: ['https://playlist.example.com/keep.xml'],
+        });
+
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(
+                playlist,
+                [],
+                [
+                    'https://playlist.example.com/keep.xml',
+                    'https://playlist.example.com/remove.xml',
+                ].join('\n')
+            )
+        ).toEqual({
+            key: 'https://playlist.example.com/keep.xml',
+            shouldFetch: false,
+            urls: ['https://playlist.example.com/keep.xml'],
+        });
+    });
+
+    it('fetches only newly added playlist EPG URLs when the local source set expands', () => {
+        const playlist = createPlaylistMeta({
+            epgUrls: [
+                'https://playlist.example.com/keep.xml',
+                'https://playlist.example.com/new.xml',
+            ],
+        });
+
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(
+                playlist,
+                [],
+                'https://playlist.example.com/keep.xml'
+            )
+        ).toEqual({
+            key: [
+                'https://playlist.example.com/keep.xml',
+                'https://playlist.example.com/new.xml',
+            ].join('\n'),
+            shouldFetch: true,
+            urls: ['https://playlist.example.com/new.xml'],
+        });
+    });
 });

@@ -335,6 +335,94 @@ describe('EpgService', () => {
         );
     });
 
+    it('caches scoped batch current programs by EPG source URL scope', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        epgBridge.getCurrentProgramsBatch = jest
+            .fn()
+            .mockResolvedValue({})
+            .mockResolvedValueOnce({
+                'guide-news': {
+                    channel: 'guide-news',
+                    start: '2026-05-23T10:00:00.000Z',
+                    stop: '2026-05-23T11:00:00.000Z',
+                    title: 'Playlist Guide Bulletin',
+                },
+            });
+
+        const firstResult = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        const secondResult = await firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: [' https://playlist.example.com/guide.xml '],
+            })
+        );
+
+        expect(firstResult.get('guide-news')?.title).toBe(
+            'Playlist Guide Bulletin'
+        );
+        expect(secondResult.get('guide-news')?.title).toBe(
+            'Playlist Guide Bulletin'
+        );
+        expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+    });
+
+    it('deduplicates concurrent scoped batch current program lookups for the same source scope', async () => {
+        epgBridge.supportsProgramLookup = true;
+        epgBridge.supportsCurrentProgramBatch = true;
+        const batchResolvers: Array<
+            (programs: Record<string, unknown>) => void
+        > = [];
+        epgBridge.getCurrentProgramsBatch = jest.fn(
+            () =>
+                new Promise((resolve) => {
+                    batchResolvers.push(resolve);
+                })
+        );
+
+        const firstLookup = firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            })
+        );
+        const secondLookup = firstValueFrom(
+            service.getCurrentProgramsForChannels(['guide-news'], {
+                sourceUrls: [' https://playlist.example.com/guide.xml '],
+            })
+        );
+
+        try {
+            expect(epgBridge.getCurrentProgramsBatch).toHaveBeenCalledTimes(1);
+            batchResolvers.forEach((resolve) =>
+                resolve({
+                    'guide-news': {
+                        channel: 'guide-news',
+                        start: '2026-05-23T10:00:00.000Z',
+                        stop: '2026-05-23T11:00:00.000Z',
+                        title: 'Playlist Guide Bulletin',
+                    },
+                })
+            );
+
+            const [firstResult, secondResult] = await Promise.all([
+                firstLookup,
+                secondLookup,
+            ]);
+
+            expect(firstResult.get('guide-news')?.title).toBe(
+                'Playlist Guide Bulletin'
+            );
+            expect(secondResult.get('guide-news')?.title).toBe(
+                'Playlist Guide Bulletin'
+            );
+        } finally {
+            batchResolvers.forEach((resolve) => resolve({}));
+        }
+    });
+
     it('returns null scoped current programs instead of re-entering global lookup when scoped batch lookup fails', async () => {
         const consoleError = jest
             .spyOn(console, 'error')

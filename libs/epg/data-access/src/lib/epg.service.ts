@@ -49,6 +49,10 @@ export class EpgService {
         string,
         Observable<EpgProgram | null>
     >();
+    private fetchingCurrentProgramBatches = new Map<
+        string,
+        Observable<Map<string, EpgProgram | null>>
+    >();
     private readonly CACHE_TTL = 60000; // 60 seconds
 
     readonly epgAvailable$ = this.epgAvailable.asObservable();
@@ -306,8 +310,81 @@ export class EpgService {
             return of(new Map());
         }
 
+        const resultMap = new Map<string, EpgProgram | null>();
+        const channelsToFetch: string[] = [];
+
+        normalizedChannelIds.forEach((channelId) => {
+            const cached = this.getCachedProgram(
+                this.createProgramCacheKey(channelId, sourceUrls)
+            );
+            if (cached) {
+                resultMap.set(channelId, cached.program);
+            } else {
+                channelsToFetch.push(channelId);
+            }
+        });
+
+        if (channelsToFetch.length === 0) {
+            return of(resultMap);
+        }
+
+        const batchCacheKey = this.createProgramBatchCacheKey(
+            channelsToFetch,
+            sourceUrls,
+            fallbackSourceUrls
+        );
+        const existingRequest =
+            this.fetchingCurrentProgramBatches.get(batchCacheKey);
+        const request$ =
+            existingRequest ??
+            this.fetchScopedCurrentProgramsBatch(
+                channelsToFetch,
+                sourceUrls,
+                fallbackSourceUrls
+            ).pipe(
+                tap((fetchedMap) => {
+                    const cacheTimestamp = Date.now();
+                    channelsToFetch.forEach((channelId) => {
+                        this.programCache.set(
+                            this.createProgramCacheKey(channelId, sourceUrls),
+                            {
+                                program: fetchedMap.get(channelId) ?? null,
+                                timestamp: cacheTimestamp,
+                            }
+                        );
+                    });
+                }),
+                finalize(() => {
+                    this.fetchingCurrentProgramBatches.delete(batchCacheKey);
+                }),
+                shareReplay({ bufferSize: 1, refCount: false })
+            );
+
+        if (!existingRequest) {
+            this.fetchingCurrentProgramBatches.set(batchCacheKey, request$);
+        }
+
+        return request$.pipe(
+            map((fetchedMap) => {
+                const mergedResultMap = new Map(resultMap);
+                channelsToFetch.forEach((channelId) => {
+                    mergedResultMap.set(
+                        channelId,
+                        fetchedMap.get(channelId) ?? null
+                    );
+                });
+                return mergedResultMap;
+            })
+        );
+    }
+
+    private fetchScopedCurrentProgramsBatch(
+        channelIds: string[],
+        sourceUrls: string[],
+        fallbackSourceUrls: string[]
+    ): Observable<Map<string, EpgProgram | null>> {
         return from(
-            this.epgBridge.getCurrentProgramsBatch(normalizedChannelIds, {
+            this.epgBridge.getCurrentProgramsBatch(channelIds, {
                 sourceUrls,
             })
         ).pipe(
@@ -316,7 +393,7 @@ export class EpgService {
                 const resultMap = new Map<string, EpgProgram | null>();
                 const fallbackChannelIds: string[] = [];
 
-                normalizedChannelIds.forEach((channelId) => {
+                channelIds.forEach((channelId) => {
                     const program = scopedResult?.[channelId] ?? null;
                     resultMap.set(channelId, program);
                     if (!program) {
@@ -358,7 +435,7 @@ export class EpgService {
             }),
             catchError((err) => {
                 console.error('EPG scoped batch current programs error:', err);
-                return of(this.createNullProgramMap(normalizedChannelIds));
+                return of(this.createNullProgramMap(channelIds));
             })
         );
     }
@@ -477,6 +554,18 @@ export class EpgService {
         return `source:${channelId}:${JSON.stringify(normalizedSourceUrls)}`;
     }
 
+    private createProgramBatchCacheKey(
+        channelIds: string[],
+        sourceUrls: string[],
+        fallbackSourceUrls: string[]
+    ): string {
+        return JSON.stringify({
+            channelIds,
+            sourceUrls: normalizeEpgUrls(sourceUrls),
+            fallbackSourceUrls: normalizeEpgUrls(fallbackSourceUrls),
+        });
+    }
+
     private getCachedProgram(cacheKey: string): CachedProgram | undefined {
         const cached = this.programCache.get(cacheKey);
         if (!cached) {
@@ -590,5 +679,6 @@ export class EpgService {
     clearCache(): void {
         this.programCache.clear();
         this.fetchingCurrentPrograms.clear();
+        this.fetchingCurrentProgramBatches.clear();
     }
 }
