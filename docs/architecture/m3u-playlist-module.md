@@ -272,7 +272,9 @@ import and lookup. Two additional lists preserve user edits:
   candidates in `detectedEpgUrls`, but auto-enables only recommended URLs whose
   `guides/<country>` path matches playlist hints such as `tvg-country` or the
   country suffix in `tvg-id` (`channel.ua`). Language hints are used only when no
-  country hints are present.
+  country hints are present. If no recommendation can be made, the importer
+  falls back to the first five detected URLs so generic provider catalogs still
+  produce usable local EPG sources instead of silently enabling none.
 - Recommendations are capped so a malformed or global provider list cannot
   start dozens of XMLTV downloads during playlist import.
 
@@ -285,7 +287,8 @@ These URLs are playlist-scoped by default:
   twice. Within a running session, the effect remembers the last fetchable URL
   set per playlist and only re-fetches when that URL set changes; metadata-only
   edits such as renaming a playlist or hiding groups do not re-download local
-  EPG sources.
+  EPG sources. Partial metadata updates that omit `epgUrls` preserve the previous
+  fetch key, while an explicit empty `epgUrls` list clears it.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
   databases backfill this column from `epg_channels.source_url` once before the
@@ -294,7 +297,9 @@ These URLs are playlist-scoped by default:
   of being overwritten by the last imported source; program scoping remains
   source-specific through `epg_programs.source_url`.
 - `ChannelListContainerComponent` enables EPG rows when either global settings
-  URLs or the active M3U playlist has `epgUrls`.
+  URLs or the active M3U playlist has `epgUrls`. EPG availability refreshes are
+  debounced so several playlist-local XMLTV imports completing close together
+  coalesce into one visible-channel EPG refresh.
 - Scoped lookups fall back only to Settings-managed EPG URLs for channels
   missing from the playlist-declared source. Playlist-local sources from other
   playlists are not treated as global fallback sources.

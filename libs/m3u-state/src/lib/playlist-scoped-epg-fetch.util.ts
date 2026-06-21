@@ -16,6 +16,13 @@ export function resolvePlaylistScopedEpgFetchPlan(
         return { key: '', shouldFetch: false, urls: [] };
     }
 
+    if (
+        !Object.prototype.hasOwnProperty.call(playlist, 'epgUrls') &&
+        previousKey.length > 0
+    ) {
+        return { key: previousKey, shouldFetch: false, urls: [] };
+    }
+
     const urls = filterPlaylistEpgUrlsForFetch(playlist.epgUrls, globalEpgUrls);
     const key = urls.join('\n');
 

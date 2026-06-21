@@ -251,28 +251,46 @@ describe('ChannelListContainerComponent', () => {
         );
     });
 
-    it('refreshes visible channel EPG rows after an EPG import completes', () => {
-        runtimeCapabilities.supportsEpg = true;
-        activePlaylistSignal.set({
-            _id: 'playlist-1',
-            title: 'Playlist One',
-            count: 1,
-            importDate: '2026-04-11T00:00:00.000Z',
-            epgUrls: ['https://playlist.example.com/guide.xml'],
-        } as PlaylistMeta);
+    it('debounces visible channel EPG row refreshes after EPG imports complete', () => {
+        jest.useFakeTimers();
+        try {
+            runtimeCapabilities.supportsEpg = true;
+            activePlaylistSignal.set({
+                _id: 'playlist-1',
+                title: 'Playlist One',
+                count: 1,
+                importDate: '2026-04-11T00:00:00.000Z',
+                epgUrls: ['https://playlist.example.com/guide.xml'],
+            } as PlaylistMeta);
 
-        fixture.detectChanges();
-        fixture.componentInstance.channelList = [
-            createChannel('guide-news', 'https://example.com/news.m3u8'),
-        ];
-        epgService.getCurrentProgramsForChannels.mockClear();
+            fixture.detectChanges();
+            fixture.componentInstance.channelList = [
+                createChannel('guide-news', 'https://example.com/news.m3u8'),
+            ];
+            epgService.getCurrentProgramsForChannels.mockClear();
 
-        epgService.epgAvailable$.next(true);
+            epgService.epgAvailable$.next(true);
+            epgService.epgAvailable$.next(true);
+            jest.advanceTimersByTime(1999);
 
-        expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
-            ['guide-news'],
-            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
-        );
+            expect(
+                epgService.getCurrentProgramsForChannels
+            ).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1);
+
+            expect(
+                epgService.getCurrentProgramsForChannels
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                epgService.getCurrentProgramsForChannels
+            ).toHaveBeenCalledWith(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            });
+        } finally {
+            fixture.destroy();
+            jest.useRealTimers();
+        }
     });
 
     it('dispatches playlist meta updates when hidden group titles change', () => {

@@ -53,4 +53,18 @@ describe('resolvePlaylistScopedEpgFetchPlan', () => {
             urls: ['https://playlist.example.com/guide.xml'],
         });
     });
+
+    it('keeps the previous fetch key when a partial playlist metadata update omits EPG URLs', () => {
+        expect(
+            resolvePlaylistScopedEpgFetchPlan(
+                {},
+                [],
+                'https://playlist.example.com/guide.xml'
+            )
+        ).toEqual({
+            key: 'https://playlist.example.com/guide.xml',
+            shouldFetch: false,
+            urls: [],
+        });
+    });
 });

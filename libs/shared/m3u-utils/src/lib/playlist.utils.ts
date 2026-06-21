@@ -89,7 +89,9 @@ export interface PlaylistEpgSourceState {
     disabledEpgUrls: string[];
 }
 
-export function normalizeEpgUrls(urls: readonly string[] | undefined): string[] {
+export function normalizeEpgUrls(
+    urls: readonly string[] | undefined
+): string[] {
     return Array.from(
         new Set(
             (urls ?? [])
@@ -163,12 +165,17 @@ export function resolveM3uEpgUrlSelection(
         };
     }
 
+    const recommendedEpgUrls = selectRecommendedEpgUrls(
+        detectedEpgUrls,
+        playlist?.items ?? []
+    );
+
     return {
         detectedEpgUrls,
-        enabledEpgUrls: selectRecommendedEpgUrls(
-            detectedEpgUrls,
-            playlist?.items ?? []
-        ),
+        enabledEpgUrls:
+            recommendedEpgUrls.length > 0
+                ? recommendedEpgUrls
+                : detectedEpgUrls.slice(0, M3U_AUTO_IMPORT_EPG_URL_LIMIT),
     };
 }
 
@@ -290,9 +297,7 @@ function addDelimitedCodes(target: Set<string>, value: string | undefined) {
 
 function normalizeRegionCode(value: string | undefined): string | undefined {
     const normalized = value?.trim().toLowerCase();
-    return normalized && /^[a-z]{2}$/.test(normalized)
-        ? normalized
-        : undefined;
+    return normalized && /^[a-z]{2}$/.test(normalized) ? normalized : undefined;
 }
 
 function normalizeLanguageCode(value: string | undefined): string | undefined {

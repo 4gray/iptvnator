@@ -35,6 +35,7 @@ import {
 import {
     BehaviorSubject,
     combineLatest,
+    debounceTime,
     filter,
     forkJoin,
     firstValueFrom,
@@ -89,6 +90,8 @@ function mapChannelsByFirstUrl(channels: Channel[]): Map<string, Channel> {
 
     return channelsByUrl;
 }
+
+const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
 
 @Component({
     selector: 'app-channel-list-container',
@@ -325,11 +328,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             this.globalEpgUrls.set([]);
         }
 
-        this.epgAvailabilitySubscription =
-            this.epgService.epgAvailable$.subscribe((available) => {
-                if (available) {
-                    this.fetchEpgForChannels(this._channelList);
-                }
+        this.epgAvailabilitySubscription = this.epgService.epgAvailable$
+            .pipe(
+                filter((available) => available),
+                debounceTime(EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS)
+            )
+            .subscribe(() => {
+                this.fetchEpgForChannels(this._channelList);
             });
 
         // Set up EPG refresh interval (every 60 seconds)

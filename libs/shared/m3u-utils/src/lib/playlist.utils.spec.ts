@@ -199,6 +199,47 @@ describe('playlist utils', () => {
         ]);
     });
 
+    it('falls back to the first detected EPG URLs when a large list has no region recommendation match', () => {
+        const epgUrls = [
+            'https://provider.example.com/epg/source-1.xml',
+            'https://provider.example.com/epg/source-2.xml',
+            'https://provider.example.com/epg/source-3.xml',
+            'https://provider.example.com/epg/source-4.xml',
+            'https://provider.example.com/epg/source-5.xml',
+            'https://provider.example.com/epg/source-6.xml',
+        ];
+        const playlist = createPlaylistObject(
+            'Playlist with generic EPG list',
+            {
+                header: {
+                    attrs: {
+                        'x-tvg-url': epgUrls.join(','),
+                    },
+                    raw: '#EXTM3U',
+                },
+                items: [
+                    {
+                        name: 'Generic Channel',
+                        tvg: {
+                            id: 'generic-channel',
+                            name: 'Generic Channel',
+                            url: '',
+                            logo: '',
+                            rec: '',
+                        },
+                        group: { title: 'Undefined' },
+                        http: { referrer: '', 'user-agent': '' },
+                        raw: '#EXTINF:-1 tvg-id="generic-channel",Generic Channel',
+                        url: 'https://example.com/stream.m3u8',
+                    },
+                ],
+            }
+        );
+
+        expect(playlist.detectedEpgUrls).toEqual(epgUrls);
+        expect(playlist.epgUrls).toEqual(epgUrls.slice(0, 5));
+    });
+
     it('keeps disabled playlist EPG sources out while preserving manually enabled URLs', () => {
         expect(
             resolvePlaylistEpgSourceState({
