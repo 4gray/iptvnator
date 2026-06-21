@@ -291,11 +291,11 @@ These URLs are playlist-scoped by default:
   fetch key, while an explicit empty `epgUrls` list clears it.
 - The Electron EPG database stores `source_url` on imported programs so current
   program lookups can ask for the active playlist's EPG sources first. Existing
-  databases backfill this column from `epg_channels.source_url` once after the
-  scoped indexes are created. When multiple EPG files reuse the same XMLTV
-  channel id, the channel row keeps its original `source_url` attribution instead
-  of being overwritten by the last imported source; program scoping remains
-  source-specific through `epg_programs.source_url`.
+  databases backfill this column from `epg_channels.source_url` once, in bounded
+  batches, after the scoped indexes are created. When multiple EPG files reuse
+  the same XMLTV channel id, the channel row keeps its original `source_url`
+  attribution instead of being overwritten by the last imported source; program
+  scoping remains source-specific through `epg_programs.source_url`.
 - `ChannelListContainerComponent` enables EPG rows when either global settings
   URLs or the active M3U playlist has `epgUrls`. EPG availability refreshes are
   debounced so several playlist-local XMLTV imports completing close together
@@ -313,9 +313,10 @@ These URLs are playlist-scoped by default:
   or more manual playlist-local sources and indicates when additional detected
   candidates were not auto-enabled. Removing a playlist-local source also
   clears programs tagged with that `source_url` and prunes only orphaned channel
-  rows for that same source, so shared XMLTV channel ids from other sources are
-  preserved. Detected playlist sources are not silently promoted to global
-  settings.
+  rows for that same source before saving the playlist metadata change, so a
+  failed cleanup keeps the source enabled and visible. Shared XMLTV channel ids
+  from other sources are preserved. Detected playlist sources are not silently
+  promoted to global settings.
 
 ### Performance Optimizations
 

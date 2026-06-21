@@ -30,6 +30,7 @@ const CONTENT_TITLE_FTS_MIGRATION_KEY =
     'migration:content-title-fts-trigram:v1';
 const EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY =
     'migration:epg-program-source-url-backfill:v1';
+const EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE = 50_000;
 
 function readTraceFlag(name: string): boolean {
     const value = process.env[name]?.trim().toLowerCase();
@@ -624,39 +625,54 @@ function backfillEpgProgramSourceUrls(sqliteDb: Database.Database): void {
             return;
         }
 
-        const executeMigration = sqliteDb.transaction(() => {
-            sqliteDb
-                .prepare(
-                    `UPDATE epg_programs
-                     SET source_url = (
-                         SELECT epg_channels.source_url
-                         FROM epg_channels
-                         WHERE epg_channels.id = epg_programs.channel_id
-                         LIMIT 1
-                     )
-                     WHERE source_url IS NULL
-                       AND EXISTS (
-                           SELECT 1
-                           FROM epg_channels
-                           WHERE epg_channels.id = epg_programs.channel_id
-                             AND epg_channels.source_url IS NOT NULL
-                             AND epg_channels.source_url <> ''
-                       )`
-                )
-                .run();
+        const backfillStatement = sqliteDb.prepare(
+            `UPDATE epg_programs
+             SET source_url = (
+                 SELECT epg_channels.source_url
+                 FROM epg_channels
+                 WHERE epg_channels.id = epg_programs.channel_id
+                 LIMIT 1
+             )
+             WHERE id IN (
+                 SELECT pending_programs.id
+                 FROM epg_programs AS pending_programs
+                 JOIN epg_channels
+                   ON epg_channels.id = pending_programs.channel_id
+                 WHERE pending_programs.source_url IS NULL
+                   AND epg_channels.source_url IS NOT NULL
+                   AND epg_channels.source_url <> ''
+                 LIMIT ${EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE}
+             )`
+        );
+        const markMigrationDoneStatement = sqliteDb.prepare(
+            `INSERT INTO app_state (key, value, updated_at)
+             VALUES (?, 'done', datetime('now'))
+             ON CONFLICT(key) DO UPDATE SET
+                value = excluded.value,
+                updated_at = excluded.updated_at`
+        );
 
-            sqliteDb
-                .prepare(
-                    `INSERT INTO app_state (key, value, updated_at)
-                     VALUES (?, 'done', datetime('now'))
-                     ON CONFLICT(key) DO UPDATE SET
-                        value = excluded.value,
-                        updated_at = excluded.updated_at`
-                )
-                .run(EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY);
+        const executeBackfillBatch = sqliteDb.transaction((): number => {
+            const result = backfillStatement.run();
+            return typeof result === 'object' &&
+                result !== null &&
+                'changes' in result &&
+                typeof result.changes === 'number'
+                ? result.changes
+                : 0;
+        });
+        const markMigrationDone = sqliteDb.transaction(() => {
+            markMigrationDoneStatement.run(
+                EPG_PROGRAM_SOURCE_URL_BACKFILL_MIGRATION_KEY
+            );
         });
 
-        executeMigration();
+        let updatedRows = 0;
+        do {
+            updatedRows = executeBackfillBatch();
+        } while (updatedRows === EPG_PROGRAM_SOURCE_URL_BACKFILL_BATCH_SIZE);
+
+        markMigrationDone();
     } catch (error) {
         const message =
             typeof error === 'object' && error !== null && 'message' in error

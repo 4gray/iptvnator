@@ -426,7 +426,7 @@ describe('PlaylistInfoComponent', () => {
         });
         createComponent();
 
-        component.removePlaylistEpgSource(
+        await component.removePlaylistEpgSource(
             'https://playlist.example.com/remove.xml'
         );
 
@@ -453,6 +453,49 @@ describe('PlaylistInfoComponent', () => {
                 }),
             })
         );
+    });
+
+    it('keeps a playlist EPG source enabled when source data cleanup fails', async () => {
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            epgBridge.clearEpgDataForSource.mockRejectedValueOnce(
+                new Error('Database cleanup failed')
+            );
+            TestBed.overrideProvider(MAT_DIALOG_DATA, {
+                useValue: {
+                    ...playlist,
+                    epgUrls: [
+                        'https://playlist.example.com/keep.xml',
+                        'https://playlist.example.com/remove.xml',
+                    ],
+                    detectedEpgUrls: [
+                        'https://playlist.example.com/keep.xml',
+                        'https://playlist.example.com/remove.xml',
+                    ],
+                    manualEpgUrls: [],
+                    disabledEpgUrls: [],
+                },
+            });
+            createComponent();
+
+            await component.removePlaylistEpgSource(
+                'https://playlist.example.com/remove.xml'
+            );
+
+            expect(epgBridge.clearEpgDataForSource).toHaveBeenCalledWith(
+                'https://playlist.example.com/remove.xml'
+            );
+            expect(store.dispatch).not.toHaveBeenCalled();
+            expect(snackBar.open).toHaveBeenCalledWith(
+                'SETTINGS.EPG_DATA_CLEAR_FAILED',
+                'CLOSE',
+                { duration: 3000 }
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 
     it('adds playlist-local EPG sources with URL normalization and deduplication', async () => {

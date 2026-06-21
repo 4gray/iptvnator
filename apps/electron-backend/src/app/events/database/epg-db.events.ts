@@ -298,17 +298,21 @@ ipcMain.handle('EPG_DB_CLEAR_SOURCE', async (_event, sourceUrl: string) => {
     try {
         const db = await getDatabase();
 
-        await db
-            .delete(schema.epgPrograms)
-            .where(eq(schema.epgPrograms.sourceUrl, sourceUrl));
-        await db.delete(schema.epgChannels).where(sql`
-            ${schema.epgChannels.sourceUrl} = ${sourceUrl}
-            AND NOT EXISTS (
-                SELECT 1
-                FROM ${schema.epgPrograms}
-                WHERE ${schema.epgPrograms.channelId} = ${schema.epgChannels.id}
-            )
-        `);
+        await db.transaction((tx) => {
+            tx.delete(schema.epgPrograms)
+                .where(eq(schema.epgPrograms.sourceUrl, sourceUrl))
+                .run();
+            tx.delete(schema.epgChannels)
+                .where(sql`
+                    ${schema.epgChannels.sourceUrl} = ${sourceUrl}
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM ${schema.epgPrograms}
+                        WHERE ${schema.epgPrograms.channelId} = ${schema.epgChannels.id}
+                    )
+                `)
+                .run();
+        });
 
         console.log(loggerLabel, `Cleared EPG data for source: ${sourceUrl}`);
         return { success: true };

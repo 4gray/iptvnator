@@ -382,4 +382,46 @@ describe('database schema statements', () => {
             callOrder.indexOf('epg-source-backfill')
         );
     });
+
+    it('backfills migrated EPG program source URLs in bounded batches', () => {
+        const { backfillEpgProgramSourceUrls } =
+            __databaseConnectionTestHooks;
+        let updateStatement = '';
+        const backfillRun = jest
+            .fn()
+            .mockReturnValueOnce({ changes: 50_000 })
+            .mockReturnValueOnce({ changes: 12 });
+        const stateRun = jest.fn();
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return {
+                    get: (): undefined => undefined,
+                };
+            }
+            if (statement.includes('UPDATE epg_programs')) {
+                updateStatement = compactSql(statement);
+                return {
+                    run: backfillRun,
+                };
+            }
+            if (statement.includes('INSERT INTO app_state')) {
+                return { run: stateRun };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof backfillEpgProgramSourceUrls>[0];
+
+        backfillEpgProgramSourceUrls(sqlite);
+
+        expect(updateStatement).toContain('LIMIT 50000');
+        expect(backfillRun).toHaveBeenCalledTimes(2);
+        expect(stateRun).toHaveBeenCalledWith(
+            'migration:epg-program-source-url-backfill:v1'
+        );
+    });
 });
