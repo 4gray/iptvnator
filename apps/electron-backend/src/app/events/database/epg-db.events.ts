@@ -298,10 +298,21 @@ ipcMain.handle('EPG_DB_CLEAR_SOURCE', async (_event, sourceUrl: string) => {
     try {
         const db = await getDatabase();
 
-        // Deleting channels will cascade delete programs due to foreign key
-        await db
-            .delete(schema.epgChannels)
-            .where(eq(schema.epgChannels.sourceUrl, sourceUrl));
+        await db.transaction((tx) => {
+            tx.delete(schema.epgPrograms)
+                .where(eq(schema.epgPrograms.sourceUrl, sourceUrl))
+                .run();
+            tx.delete(schema.epgChannels)
+                .where(sql`
+                    ${schema.epgChannels.sourceUrl} = ${sourceUrl}
+                    AND NOT EXISTS (
+                        SELECT 1
+                        FROM ${schema.epgPrograms}
+                        WHERE ${schema.epgPrograms.channelId} = ${schema.epgChannels.id}
+                    )
+                `)
+                .run();
+        });
 
         console.log(loggerLabel, `Cleared EPG data for source: ${sourceUrl}`);
         return { success: true };

@@ -82,6 +82,9 @@ describe('database schema statements', () => {
             expect.arrayContaining([
                 'ALTER TABLE categories ADD COLUMN hidden INTEGER DEFAULT 0',
                 'ALTER TABLE playlists ADD COLUMN payload TEXT',
+                'ALTER TABLE playlists ADD COLUMN detected_epg_urls TEXT',
+                'ALTER TABLE playlists ADD COLUMN manual_epg_urls TEXT',
+                'ALTER TABLE playlists ADD COLUMN disabled_epg_urls TEXT',
                 'ALTER TABLE favorites ADD COLUMN position INTEGER DEFAULT 0',
                 'ALTER TABLE content ADD COLUMN backdrop_url TEXT',
             ])
@@ -102,7 +105,23 @@ describe('database schema statements', () => {
                 'CREATE UNIQUE INDEX IF NOT EXISTS categories_playlist_type_xtream_unique ON categories(playlist_id, type, xtream_id)',
                 'CREATE UNIQUE INDEX IF NOT EXISTS content_category_type_xtream_unique ON content(category_id, type, xtream_id)',
                 'CREATE INDEX IF NOT EXISTS favorites_playlist_position_idx ON favorites(playlist_id, position, added_at DESC)',
+                'CREATE INDEX IF NOT EXISTS idx_epg_programs_source ON epg_programs(source_url)',
+                'CREATE INDEX IF NOT EXISTS idx_epg_programs_source_time_range ON epg_programs(source_url, channel_id, start, stop)',
             ])
+        );
+    });
+
+    it('creates indexes for migrated EPG program columns only after column migrations run', () => {
+        const createSchemaSql = createTableStatements.map(compactSql);
+
+        expect(createSchemaSql).not.toContain(
+            'CREATE INDEX IF NOT EXISTS idx_epg_programs_source ON epg_programs(source_url)'
+        );
+        expect(createSchemaSql).not.toContain(
+            'CREATE INDEX IF NOT EXISTS idx_epg_programs_source_time_range ON epg_programs(source_url, channel_id, start, stop)'
+        );
+        expect(columnMigrationStatements.map(compactSql)).toContain(
+            'ALTER TABLE epg_programs ADD COLUMN source_url TEXT'
         );
     });
 
@@ -305,6 +324,104 @@ describe('database schema statements', () => {
         expect(callOrder).toEqual(['fts-rebuild', 'content-update']);
         expect(sqlite.prepare).toHaveBeenCalledWith(
             expect.stringContaining('UPDATE content')
+        );
+    });
+
+    it('backfills migrated EPG program source URLs after creating scoped EPG indexes', () => {
+        const callOrder: string[] = [];
+        const runMigrations = (
+            __databaseConnectionTestHooks as unknown as {
+                runMigrations: (sqlite: {
+                    exec: (statement: string) => void;
+                    prepare: (statement: string) => {
+                        all?: () => unknown[];
+                        get?: (...args: unknown[]) => unknown;
+                        run?: (...args: unknown[]) => unknown;
+                    };
+                    transaction: (callback: () => void) => () => void;
+                }) => void;
+            }
+        ).runMigrations;
+        const sqlite = {
+            exec: jest.fn((statement: string) => {
+                if (statement.includes('idx_epg_programs_source')) {
+                    callOrder.push('epg-source-index');
+                }
+            }),
+            prepare: jest.fn((statement: string) => {
+                if (statement.includes('SELECT value FROM app_state')) {
+                    return {
+                        get: (): undefined => undefined,
+                    };
+                }
+                if (statement.includes('UPDATE epg_programs')) {
+                    return {
+                        run: () => {
+                            callOrder.push('epg-source-backfill');
+                        },
+                    };
+                }
+                if (statement.includes('INSERT INTO app_state')) {
+                    return { run: jest.fn() };
+                }
+
+                return {
+                    all: () => [],
+                    get: (): undefined => undefined,
+                    run: jest.fn(),
+                };
+            }),
+            transaction: jest.fn((callback: () => void) => callback),
+        };
+
+        runMigrations(sqlite);
+
+        expect(callOrder).toContain('epg-source-backfill');
+        expect(callOrder).toContain('epg-source-index');
+        expect(callOrder.indexOf('epg-source-index')).toBeLessThan(
+            callOrder.indexOf('epg-source-backfill')
+        );
+    });
+
+    it('backfills migrated EPG program source URLs in bounded batches', () => {
+        const { backfillEpgProgramSourceUrls } =
+            __databaseConnectionTestHooks;
+        let updateStatement = '';
+        const backfillRun = jest
+            .fn()
+            .mockReturnValueOnce({ changes: 50_000 })
+            .mockReturnValueOnce({ changes: 12 });
+        const stateRun = jest.fn();
+        const prepare = jest.fn((statement: string) => {
+            if (statement.includes('SELECT value FROM app_state')) {
+                return {
+                    get: (): undefined => undefined,
+                };
+            }
+            if (statement.includes('UPDATE epg_programs')) {
+                updateStatement = compactSql(statement);
+                return {
+                    run: backfillRun,
+                };
+            }
+            if (statement.includes('INSERT INTO app_state')) {
+                return { run: stateRun };
+            }
+
+            throw new Error(`Unexpected statement: ${compactSql(statement)}`);
+        });
+        const transaction = jest.fn((callback: () => void) => callback);
+        const sqlite = {
+            prepare,
+            transaction,
+        } as unknown as Parameters<typeof backfillEpgProgramSourceUrls>[0];
+
+        backfillEpgProgramSourceUrls(sqlite);
+
+        expect(updateStatement).toContain('LIMIT 50000');
+        expect(backfillRun).toHaveBeenCalledTimes(2);
+        expect(stateRun).toHaveBeenCalledWith(
+            'migration:epg-program-source-url-backfill:v1'
         );
     });
 });

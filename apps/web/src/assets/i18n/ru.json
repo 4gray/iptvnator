@@ -218,6 +218,7 @@
         "PLAYBACK": "Воспроизведение",
         "EPG_SOURCES": "Источники EPG",
         "EPG_SOURCES_DESCRIPTION": "Добавьте один или несколько URL-адресов источников EPG",
+        "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} из {{detected}} найденных источников EPG плейлиста выбрано для импорта автоматически.",
         "EPG_EMPTY_TITLE": "No EPG sources yet",
         "EPG_EMPTY_HINT": "Add a URL to fetch program data for your channels.",
         "PREFER_UPLOADED_EPG_TITLE": "Предпочитать ваши источники EPG для плейлистов Xtream",

@@ -152,6 +152,141 @@
                 }
             </mat-form-field>
         }
+        @if (canManagePlaylistEpgSources) {
+            <section
+                class="playlist-epg-sources"
+                data-test-id="playlist-epg-sources"
+            >
+                <div class="playlist-epg-sources__header">
+                    <mat-icon>event_note</mat-icon>
+                    <div>
+                        <h3 class="playlist-epg-sources__title">
+                            {{ 'SETTINGS.EPG_SOURCES' | translate }}
+                        </h3>
+                        <p>
+                            @if (hiddenDetectedPlaylistEpgSourceCount > 0) {
+                                {{
+                                    'SETTINGS.PLAYLIST_EPG_SOURCES_AUTO_SELECTED'
+                                        | translate
+                                            : {
+                                                  enabled:
+                                                      playlistEpgUrls.length,
+                                                  detected:
+                                                      playlistDetectedEpgUrls.length,
+                                              }
+                                }}
+                            } @else {
+                                {{
+                                    'SETTINGS.EPG_SOURCES_DESCRIPTION'
+                                        | translate
+                                }}
+                            }
+                        </p>
+                    </div>
+                </div>
+                @for (epgUrl of playlistEpgUrls; track epgUrl) {
+                    <div class="playlist-epg-source-row">
+                        <mat-form-field
+                            class="w-full"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>{{
+                                'SETTINGS.EPG_URL_LABEL' | translate
+                            }}</mat-label>
+                            <input matInput [value]="epgUrl" readonly />
+                        </mat-form-field>
+                        <button
+                            mat-icon-button
+                            type="button"
+                            [disabled]="!canRefreshPlaylistEpg"
+                            [matTooltip]="'SETTINGS.REFRESH_EPG' | translate"
+                            (click)="refreshPlaylistEpgSource(epgUrl)"
+                        >
+                            <mat-icon>refresh</mat-icon>
+                        </button>
+                        <button
+                            mat-icon-button
+                            type="button"
+                            [disabled]="isGlobalEpgSource(epgUrl)"
+                            [matTooltip]="'SETTINGS.ADD_EPG_SOURCE' | translate"
+                            (click)="addPlaylistEpgSourceToSettings(epgUrl)"
+                        >
+                            <mat-icon>playlist_add</mat-icon>
+                        </button>
+                        <button
+                            mat-icon-button
+                            type="button"
+                            [matTooltip]="
+                                'SETTINGS.REMOVE_EPG_SOURCE' | translate
+                            "
+                            (click)="removePlaylistEpgSource(epgUrl)"
+                        >
+                            <mat-icon>delete</mat-icon>
+                        </button>
+                    </div>
+                }
+                <div
+                    formArrayName="playlistEpgSourceInputs"
+                    class="playlist-epg-source-form"
+                >
+                    @for (
+                        control of playlistEpgSourceInputs.controls;
+                        track $index
+                    ) {
+                        <div class="playlist-epg-source-row">
+                            <mat-form-field
+                                class="w-full"
+                                subscriptSizing="dynamic"
+                            >
+                                <mat-label>{{
+                                    'SETTINGS.EPG_URL_LABEL' | translate
+                                }}</mat-label>
+                                <input matInput [formControlName]="$index" />
+                                @if (control.invalid && control.touched) {
+                                    <mat-error>{{
+                                        'SETTINGS.EPG_URL_ERROR' | translate
+                                    }}</mat-error>
+                                }
+                            </mat-form-field>
+                            <button
+                                mat-icon-button
+                                type="button"
+                                [matTooltip]="
+                                    'SETTINGS.REMOVE_EPG_SOURCE' | translate
+                                "
+                                (click)="removePlaylistEpgSourceInput($index)"
+                            >
+                                <mat-icon>remove</mat-icon>
+                            </button>
+                        </div>
+                    }
+                    <div class="playlist-epg-source-actions">
+                        <button
+                            mat-button
+                            type="button"
+                            (click)="addPlaylistEpgSourceInput()"
+                        >
+                            <mat-icon>add</mat-icon>
+                            {{ 'SETTINGS.ADD_EPG_SOURCE' | translate }}
+                        </button>
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            [attr.aria-label]="
+                                ('HOME.PLAYLISTS.INFO_DIALOG.SAVE'
+                                    | translate) +
+                                ' ' +
+                                ('SETTINGS.EPG_SOURCES' | translate)
+                            "
+                            (click)="savePlaylistEpgSources()"
+                        >
+                            <mat-icon>playlist_add</mat-icon>
+                            {{ 'HOME.PLAYLISTS.INFO_DIALOG.SAVE' | translate }}
+                        </button>
+                    </div>
+                </div>
+            </section>
+        }
         @if (isDesktop && (playlist.url || playlist.filePath)) {
             <mat-checkbox class="w-full" formControlName="autoRefresh">
                 {{ 'HOME.PLAYLISTS.INFO_DIALOG.AUTO_UPDATE' | translate }}

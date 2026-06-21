@@ -28,6 +28,40 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 </tv>
 `;
 
+function createCurrentXmltvFixture(
+    channelId: string,
+    channelName: string,
+    programTitle: string
+): string {
+    const start = new Date(Date.now() - 15 * 60 * 1000);
+    const stop = new Date(Date.now() + 45 * 60 * 1000);
+
+    return `<?xml version="1.0" encoding="UTF-8"?>
+<tv>
+  <channel id="${channelId}">
+    <display-name>${channelName}</display-name>
+  </channel>
+  <programme start="${formatXmltvDate(start)} +0000" stop="${formatXmltvDate(stop)} +0000" channel="${channelId}">
+    <title>${programTitle}</title>
+    <desc>M3U-declared EPG source smoke test.</desc>
+  </programme>
+</tv>
+`;
+}
+
+function formatXmltvDate(date: Date): string {
+    const pad = (value: number) => String(value).padStart(2, '0');
+
+    return [
+        date.getUTCFullYear(),
+        pad(date.getUTCMonth() + 1),
+        pad(date.getUTCDate()),
+        pad(date.getUTCHours()),
+        pad(date.getUTCMinutes()),
+        pad(date.getUTCSeconds()),
+    ].join('');
+}
+
 test.describe('Electron EPG', () => {
     test('@epg @electron adds an EPG source, fetches guide data, removes the source row, and clears stored EPG data', async ({
         dataDir,
@@ -48,7 +82,10 @@ test.describe('Electron EPG', () => {
                 .first()
                 .fill(epgServer.resourceUrl);
 
-            await app.mainWindow.locator('.epg-source-row button').first().click();
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .first()
+                .click();
             await expect(
                 app.mainWindow.locator('.epg-progress-panel')
             ).toBeVisible();
@@ -58,18 +95,27 @@ test.describe('Electron EPG', () => {
                 })
                 .toBeGreaterThan(0);
             await expect(
-                app.mainWindow.locator('.epg-progress-panel .stat-badge').first()
+                app.mainWindow
+                    .locator('.epg-progress-panel .stat-badge')
+                    .first()
             ).toBeVisible();
 
-            await app.mainWindow.locator('.epg-source-row button').nth(1).click();
-            await expect(app.mainWindow.locator('.epg-source-row')).toHaveCount(0);
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .nth(1)
+                .click();
+            await expect(app.mainWindow.locator('.epg-source-row')).toHaveCount(
+                0
+            );
 
             await app.mainWindow
                 .getByRole('button', { name: 'Clear EPG data' })
                 .click();
             const dialog = app.mainWindow.locator('mat-dialog-container');
             await expect(dialog).toBeVisible();
-            await dialog.getByRole('button', { name: 'Yes', exact: true }).click();
+            await dialog
+                .getByRole('button', { name: 'Yes', exact: true })
+                .click();
             await app.mainWindow.waitForSelector('mat-dialog-container', {
                 state: 'detached',
             });
@@ -81,6 +127,86 @@ test.describe('Electron EPG', () => {
                 .toBe(0);
         } finally {
             await closeElectronApp(app);
+            await epgServer.close();
+        }
+    });
+
+    test('@epg @electron imports and renders an EPG source declared by an M3U playlist header', async ({
+        dataDir,
+    }) => {
+        const epgServer = await createMutableTextServer(
+            createCurrentXmltvFixture(
+                'playlist-guide-news',
+                'Playlist Guide News',
+                'Playlist Scoped Bulletin'
+            ),
+            {
+                contentType: 'application/xml; charset=utf-8',
+                resourcePath: '/guides/ua/playlist-guide.xml',
+            }
+        );
+        const detectedEpgUrls = [
+            `${epgServer.origin}/guides/us/ignored.xml`,
+            `${epgServer.origin}/guides/de/ignored.xml`,
+            epgServer.resourceUrl,
+            `${epgServer.origin}/guides/fr/ignored.xml`,
+            `${epgServer.origin}/guides/uk/ignored.xml`,
+            `${epgServer.origin}/guides/es/ignored.xml`,
+        ];
+        const playlistContent = buildM3uContent([
+            {
+                name: 'Playlist Guide News',
+                tvgCountry: 'UA',
+                tvgId: 'playlist-guide-news',
+                url: 'https://example.com/live/playlist-guide-news.m3u8',
+            },
+        ]).replace(
+            '#EXTM3U',
+            `#EXTM3U x-tvg-url="${detectedEpgUrls.join(',')}"`
+        );
+        const playlistServer = await createMutableTextServer(playlistContent, {
+            contentType: 'application/x-mpegurl; charset=utf-8',
+            resourcePath: '/playlist-with-epg.m3u',
+        });
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await importM3uPlaylistFromUrl(
+                app.mainWindow,
+                playlistServer.resourceUrl
+            );
+
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel')
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.locator('.epg-progress-panel .import-item')
+            ).toHaveCount(1);
+            await expect(
+                app.mainWindow.locator(
+                    '.epg-progress-panel .import-item.status-complete'
+                )
+            ).toHaveCount(1, { timeout: 30000 });
+            await expect
+                .poll(() => getEpgChannelCount(app.mainWindow), {
+                    timeout: 30000,
+                })
+                .toBeGreaterThan(0);
+
+            await openWorkspaceSection(app.mainWindow, 'All channels');
+
+            const channelItem = channelItemByTitle(
+                app.mainWindow,
+                'Playlist Guide News'
+            );
+            await expect(channelItem).toBeVisible();
+            await expect(channelItem.locator('.epg-title')).toContainText(
+                'Playlist Scoped Bulletin',
+                { timeout: 30000 }
+            );
+        } finally {
+            await closeElectronApp(app);
+            await playlistServer.close();
             await epgServer.close();
         }
     });
@@ -135,7 +261,10 @@ test.describe('Electron EPG', () => {
                 .locator('.epg-source-row input')
                 .first()
                 .fill(epgServer.resourceUrl);
-            await app.mainWindow.locator('.epg-source-row button').first().click();
+            await app.mainWindow
+                .locator('.epg-source-row button')
+                .first()
+                .click();
 
             await expect
                 .poll(() => getEpgChannelCount(app.mainWindow), {

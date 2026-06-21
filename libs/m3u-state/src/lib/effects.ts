@@ -2,7 +2,10 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
-import { resolveM3uCatchupUrl } from '@iptvnator/shared/m3u-utils';
+import {
+    normalizeEpgUrls,
+    resolveM3uCatchupUrl,
+} from '@iptvnator/shared/m3u-utils';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -18,12 +21,17 @@ import {
     tap,
     withLatestFrom,
 } from 'rxjs';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import {
+    DataService,
+    PlaylistsService,
+    SettingsStore,
+} from '@iptvnator/services';
 import {
     OPEN_MPV_PLAYER,
     OPEN_VLC_PLAYER,
     Channel,
     Playlist,
+    PlaylistMeta,
     STORE_KEY,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
@@ -41,6 +49,7 @@ import {
 } from './selectors';
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 import { buildExternalPlayerPayload } from './external-player-payload.util';
+import { resolvePlaylistScopedEpgFetchPlan } from './playlist-scoped-epg-fetch.util';
 
 @Injectable({ providedIn: 'any' })
 export class PlaylistEffects {
@@ -53,6 +62,8 @@ export class PlaylistEffects {
     private storage = inject(StorageMap);
     private store = inject(Store);
     private translate = inject(TranslateService);
+    private settingsStore = inject(SettingsStore);
+    private readonly playlistScopedEpgFetchKeys = new Map<string, string>();
 
     updateFavorites$ = createEffect(
         () => {
@@ -222,6 +233,9 @@ export class PlaylistEffects {
             ofType(PlaylistActions.loadPlaylists),
             switchMap(() =>
                 this.playlistsService.getAllPlaylists().pipe(
+                    tap((playlists) => {
+                        this.fetchPlaylistScopedEpgForPlaylists(playlists);
+                    }),
                     map((playlists) =>
                         PlaylistActions.loadPlaylistsSuccess({
                             playlists,
@@ -263,6 +277,7 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.removePlaylist),
                 switchMap(async (action) => {
+                    this.playlistScopedEpgFetchKeys.delete(action.playlistId);
                     await firstValueFrom(
                         this.playlistsService.deletePlaylist(action.playlistId)
                     );
@@ -280,7 +295,13 @@ export class PlaylistEffects {
                     this.playlistsService.updatePlaylist(action.playlistId, {
                         ...action.playlist,
                         _id: action.playlistId,
-                    })
+                    }).pipe(
+                        tap(() => {
+                            this.fetchPlaylistScopedEpg(action.playlist, {
+                                force: action.refreshEpg === true,
+                            });
+                        })
+                    )
                 )
             );
         },
@@ -315,18 +336,16 @@ export class PlaylistEffects {
                     PlaylistActions.addPlaylist,
                     PlaylistActions.handleAddingPlaylistByUrl
                 ),
-                tap((action) => {
-                    if ('isTemporary' in action && action.isTemporary) {
-                        return;
-                    }
-
-                    this.navigateToPlaylist(action.playlist);
-                }),
                 switchMap((action) => {
                     if ('isTemporary' in action && action.isTemporary) {
                         return EMPTY;
                     }
-                    return this.playlistsService.addPlaylist(action.playlist);
+                    return this.playlistsService.addPlaylist(action.playlist).pipe(
+                        tap(() => {
+                            this.fetchPlaylistScopedEpg(action.playlist);
+                            this.navigateToPlaylist(action.playlist);
+                        })
+                    );
                 })
             );
         },
@@ -338,7 +357,17 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updatePlaylistMeta),
                 switchMap((action) =>
-                    this.playlistsService.updatePlaylistMeta(action.playlist)
+                    this.playlistsService.updatePlaylistMeta(action.playlist).pipe(
+                        tap(() => {
+                            if (
+                                this.hasPlaylistScopedEpgSourceChange(
+                                    action.playlist
+                                )
+                            ) {
+                                this.fetchPlaylistScopedEpg(action.playlist);
+                            }
+                        })
+                    )
                 )
             );
         },
@@ -376,7 +405,15 @@ export class PlaylistEffects {
             return this.actions$.pipe(
                 ofType(PlaylistActions.updateManyPlaylists),
                 switchMap((action) =>
-                    this.playlistsService.updateManyPlaylists(action.playlists)
+                    this.playlistsService
+                        .updateManyPlaylists(action.playlists)
+                        .pipe(
+                            tap(() => {
+                                action.playlists.forEach((playlist) =>
+                                    this.fetchPlaylistScopedEpg(playlist)
+                                );
+                            })
+                        )
                 )
             );
         },
@@ -423,5 +460,66 @@ export class PlaylistEffects {
         }
 
         void this.router.navigate(['/workspace', 'playlists', playlist._id]);
+    }
+
+    private fetchPlaylistScopedEpg(
+        playlist: Pick<
+            Playlist,
+            '_id' | 'epgUrls' | 'macAddress' | 'serverUrl'
+        >,
+        options: { force?: boolean } = {}
+    ): void {
+        const plan = resolvePlaylistScopedEpgFetchPlan(
+            playlist,
+            this.getGlobalEpgUrls(),
+            this.playlistScopedEpgFetchKeys.get(playlist._id),
+            options
+        );
+        this.playlistScopedEpgFetchKeys.set(playlist._id, plan.key);
+
+        if (!plan.shouldFetch) {
+            return;
+        }
+
+        this.epgService.fetchEpg(plan.urls);
+    }
+
+    private hasPlaylistScopedEpgSourceChange(playlist: PlaylistMeta): boolean {
+        return (
+            Object.prototype.hasOwnProperty.call(playlist, 'epgUrls') ||
+            Object.prototype.hasOwnProperty.call(playlist, 'detectedEpgUrls') ||
+            Object.prototype.hasOwnProperty.call(playlist, 'manualEpgUrls') ||
+            Object.prototype.hasOwnProperty.call(playlist, 'disabledEpgUrls')
+        );
+    }
+
+    private fetchPlaylistScopedEpgForPlaylists(playlists: Playlist[]): void {
+        const epgUrls = new Set<string>();
+        const globalEpgUrls = this.getGlobalEpgUrls();
+
+        for (const playlist of playlists) {
+            const plan = resolvePlaylistScopedEpgFetchPlan(
+                playlist,
+                globalEpgUrls,
+                this.playlistScopedEpgFetchKeys.get(playlist._id)
+            );
+            this.playlistScopedEpgFetchKeys.set(playlist._id, plan.key);
+
+            if (!plan.shouldFetch) {
+                continue;
+            }
+
+            for (const url of plan.urls) {
+                epgUrls.add(url);
+            }
+        }
+
+        if (epgUrls.size > 0) {
+            this.epgService.fetchEpg(Array.from(epgUrls));
+        }
+    }
+
+    private getGlobalEpgUrls(): string[] {
+        return normalizeEpgUrls(this.settingsStore.getSettings().epgUrl ?? []);
     }
 }

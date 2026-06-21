@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    effect,
     inject,
     Input,
     input,
@@ -10,6 +11,7 @@ import {
     OnInit,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
@@ -35,10 +37,12 @@ import {
 import {
     BehaviorSubject,
     combineLatest,
+    debounceTime,
     filter,
     forkJoin,
     firstValueFrom,
     map,
+    Subscription,
 } from 'rxjs';
 import {
     PlaylistsService,
@@ -55,6 +59,7 @@ import {
     Settings,
     STORE_KEY,
 } from '@iptvnator/shared/interfaces';
+import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { AllChannelsViewComponent } from './all-channels-view/all-channels-view.component';
 import { FavoritesViewComponent } from './favorites-view/favorites-view.component';
 import { GroupsViewComponent } from './groups-view/groups-view.component';
@@ -88,6 +93,8 @@ function mapChannelsByFirstUrl(channels: Channel[]): Map<string, Channel> {
     return channelsByUrl;
 }
 
+const EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS = 2000;
+
 @Component({
     selector: 'app-channel-list-container',
     templateUrl: './channel-list-container.component.html',
@@ -115,6 +122,10 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    /** Route-aware playlist ID for recent-item mutations */
+    private readonly resolvedPlaylistId =
+        this.playlistContext.resolvedPlaylistId;
+    private readonly activePlaylist = this.playlistContext.activePlaylist;
 
     /** Map of channel ID to current EPG program */
     readonly channelEpgMap = signal(new Map<string, EpgProgram | null>());
@@ -128,9 +139,40 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
 
     /** Interval for global progress updates */
     private progressInterval?: number;
+    private epgAvailabilitySubscription?: Subscription;
 
     /** Whether to show EPG data in channel items */
-    readonly shouldShowEpg = signal(false);
+    private readonly globalEpgUrls = signal<string[]>([]);
+    readonly playlistEpgUrls = computed(() => {
+        const playlist = this.activePlaylist();
+        if (!playlist || playlist.serverUrl || playlist.macAddress) {
+            return [];
+        }
+
+        return normalizeEpgUrls(playlist.epgUrls ?? []);
+    });
+    readonly shouldShowEpg = computed(
+        () =>
+            this.runtime.supportsEpg &&
+            (this.globalEpgUrls().length > 0 ||
+                this.playlistEpgUrls().length > 0)
+    );
+    private readonly epgSourceRefreshKey = computed(() => {
+        if (!this.runtime.supportsEpg) {
+            return '';
+        }
+
+        const globalUrls = this.globalEpgUrls();
+        const playlistUrls = this.playlistEpgUrls();
+        if (globalUrls.length === 0 && playlistUrls.length === 0) {
+            return '';
+        }
+
+        return JSON.stringify({
+            globalUrls: Array.from(new Set(globalUrls)).sort(),
+            playlistUrls: Array.from(new Set(playlistUrls)).sort(),
+        });
+    });
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -182,6 +224,22 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
     _channelList: Channel[] = [];
     private readonly channelListSignal = signal<Channel[]>([]);
     private channelList$ = new BehaviorSubject<Channel[]>([]);
+    private lastEpgSourceRefreshKey = '';
+    private readonly epgSourceRefreshEffect = effect(() => {
+        const refreshKey = this.epgSourceRefreshKey();
+        if (refreshKey === this.lastEpgSourceRefreshKey) {
+            return;
+        }
+
+        this.lastEpgSourceRefreshKey = refreshKey;
+        if (!refreshKey || this._channelList.length === 0) {
+            return;
+        }
+
+        untracked(() => {
+            this.fetchEpgForChannels(this._channelList);
+        });
+    });
 
     get channelList(): Channel[] {
         return this._channelList;
@@ -195,11 +253,6 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
         this.channelList$.next(safeValue);
         this.fetchEpgForChannels(safeValue);
     }
-
-    /** Route-aware playlist ID for recent-item mutations */
-    private readonly resolvedPlaylistId =
-        this.playlistContext.resolvedPlaylistId;
-    private readonly activePlaylist = this.playlistContext.activePlaylist;
 
     readonly hiddenGroupTitles = computed(() => {
         const playlist = this.activePlaylist();
@@ -301,12 +354,21 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                         Object.keys(settings as Settings).length > 0
                     ) {
                         const epgUrl = (settings as Settings).epgUrl;
-                        this.shouldShowEpg.set(!!(epgUrl && epgUrl.length > 0));
+                        this.globalEpgUrls.set(normalizeEpgUrls(epgUrl));
                     }
                 });
         } else {
-            this.shouldShowEpg.set(false);
+            this.globalEpgUrls.set([]);
         }
+
+        this.epgAvailabilitySubscription = this.epgService.epgAvailable$
+            .pipe(
+                filter((available) => available),
+                debounceTime(EPG_AVAILABILITY_REFRESH_DEBOUNCE_MS)
+            )
+            .subscribe(() => {
+                this.fetchEpgForChannels(this._channelList);
+            });
 
         // Set up EPG refresh interval (every 60 seconds)
         this.epgRefreshInterval = window.setInterval(() => {
@@ -330,6 +392,7 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             clearInterval(this.progressInterval);
         }
 
+        this.epgAvailabilitySubscription?.unsubscribe();
         this.channelList$.complete();
     }
 
@@ -351,10 +414,17 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
             )
         );
 
+        const epgLookupOptions = this.getPlaylistEpgLookupOptions();
+
         forkJoin({
-            epgMap: this.epgService.getCurrentProgramsForChannels(channelIds),
-            metadataMap:
-                this.epgService.getChannelMetadataForChannels(channelIds),
+            epgMap: this.epgService.getCurrentProgramsForChannels(
+                channelIds,
+                epgLookupOptions
+            ),
+            metadataMap: this.epgService.getChannelMetadataForChannels(
+                channelIds,
+                epgLookupOptions
+            ),
         }).subscribe(({ epgMap, metadataMap }) => {
             this.channelEpgMap.set(epgMap);
             this.channelIconMap.set(
@@ -369,6 +439,13 @@ export class ChannelListContainerComponent implements OnInit, OnDestroy {
                 )
             );
         });
+    }
+
+    private getPlaylistEpgLookupOptions():
+        | { sourceUrls: string[] }
+        | undefined {
+        const sourceUrls = this.playlistEpgUrls();
+        return sourceUrls.length > 0 ? { sourceUrls } : undefined;
     }
 
     /**

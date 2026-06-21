@@ -24,6 +24,11 @@ interface EpgWorkerMessage {
     stats?: EpgProgressStats;
 }
 
+interface ClearWorkerMessage {
+    type: 'CLEAR_EPG' | 'CLEAR_EPG_SOURCE';
+    sourceUrl?: string;
+}
+
 export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
     private readonly workers = new Map<string, Worker>();
@@ -127,17 +132,54 @@ export class EpgWorkerService {
             // Guards against double-settling and keeps the outer loop moving
             // when the worker dies or hangs without sending EPG_COMPLETE/EPG_ERROR.
             let settled = false;
+            let timeoutId: ReturnType<typeof setTimeout> | undefined;
+            let lastProgressStats: EpgProgressStats = {
+                totalChannels: 0,
+                totalPrograms: 0,
+            };
+
+            const clearFetchTimeout = () => {
+                if (timeoutId) {
+                    clearTimeout(timeoutId);
+                    timeoutId = undefined;
+                }
+            };
+
             const settle = (fn: () => void) => {
                 if (settled) return;
                 settled = true;
-                clearTimeout(timeoutId);
+                clearFetchTimeout();
                 fn();
             };
 
-            const timeoutId = setTimeout(() => {
+            const scheduleFetchTimeout = () => {
+                clearFetchTimeout();
+                timeoutId = setTimeout(() => {
+                    handleFetchTimeout();
+                }, this.fetchTimeoutMs);
+            };
+
+            const hasProgressMoved = (stats: EpgProgressStats): boolean =>
+                stats.totalChannels > lastProgressStats.totalChannels ||
+                stats.totalPrograms > lastProgressStats.totalPrograms;
+
+            const recordProgress = (stats: EpgProgressStats): void => {
+                lastProgressStats = {
+                    totalChannels: Math.max(
+                        lastProgressStats.totalChannels,
+                        stats.totalChannels
+                    ),
+                    totalPrograms: Math.max(
+                        lastProgressStats.totalPrograms,
+                        stats.totalPrograms
+                    ),
+                };
+            };
+
+            const handleFetchTimeout = () => {
                 const errorMessage = `EPG fetch timed out after ${
                     this.fetchTimeoutMs / 1000
-                }s`;
+                }s without progress`;
                 console.error(this.loggerLabel, `${errorMessage}: ${url}`);
                 this.sendProgressToRenderer(
                     url,
@@ -154,12 +196,15 @@ export class EpgWorkerService {
                         () => reject(new Error(errorMessage))
                     );
                 });
-            }, this.fetchTimeoutMs);
+            };
+
+            scheduleFetchTimeout();
 
             worker.on('message', async (message: EpgWorkerMessage) => {
                 try {
                     switch (message.type) {
                         case 'READY':
+                            scheduleFetchTimeout();
                             this.sendProgressToRenderer(url, 'loading', {
                                 totalChannels: 0,
                                 totalPrograms: 0,
@@ -173,6 +218,10 @@ export class EpgWorkerService {
 
                         case 'EPG_PROGRESS':
                             if (message.stats) {
+                                if (hasProgressMoved(message.stats)) {
+                                    recordProgress(message.stats);
+                                    scheduleFetchTimeout();
+                                }
                                 this.sendProgressToRenderer(
                                     url,
                                     'loading',
@@ -287,6 +336,77 @@ export class EpgWorkerService {
     }
 
     async clearEpgData(): Promise<void> {
+        return this.runClearWorker({
+            timeoutLabel: 'EPG clear',
+            exitLabel: 'Clear worker',
+            readyMessage: { type: 'CLEAR_EPG' },
+            completeWorkerLabel: 'completed clear',
+            failedWorkerLabel: 'failed clear',
+            erroredWorkerLabel: 'errored clear',
+            onComplete: async (worker) => {
+                console.log(this.loggerLabel, 'EPG data cleared via worker');
+                this.fetchedUrls.clear();
+                // Resolve only after every interrupted fetch worker has exited
+                // too — they may still hold the SQLite lock the caller expects
+                // to be free.
+                const terminations = [...this.workers.values()].map(
+                    (runningWorker) =>
+                        this.terminateWorker(
+                            runningWorker,
+                            'fetch during clear'
+                        )
+                );
+                this.workers.clear();
+                terminations.push(
+                    this.terminateWorker(worker, 'completed clear')
+                );
+                await Promise.all(terminations);
+            },
+        });
+    }
+
+    async clearEpgDataForSource(sourceUrl: string): Promise<void> {
+        const normalizedSourceUrl = sourceUrl.trim();
+        if (!normalizedSourceUrl) {
+            return;
+        }
+
+        const runningWorker = this.workers.get(normalizedSourceUrl);
+        if (runningWorker) {
+            this.workers.delete(normalizedSourceUrl);
+            await this.terminateWorker(runningWorker, 'source clear');
+        }
+
+        return this.runClearWorker({
+            timeoutLabel: 'EPG source clear',
+            exitLabel: 'Source clear worker',
+            readyMessage: {
+                type: 'CLEAR_EPG_SOURCE',
+                sourceUrl: normalizedSourceUrl,
+            },
+            completeWorkerLabel: 'completed source clear',
+            failedWorkerLabel: 'failed source clear',
+            erroredWorkerLabel: 'errored source clear',
+            onComplete: async (worker) => {
+                console.log(
+                    this.loggerLabel,
+                    `EPG data cleared for source via worker: ${normalizedSourceUrl}`
+                );
+                this.fetchedUrls.delete(normalizedSourceUrl);
+                await this.terminateWorker(worker, 'completed source clear');
+            },
+        });
+    }
+
+    private runClearWorker(options: {
+        timeoutLabel: string;
+        exitLabel: string;
+        readyMessage: ClearWorkerMessage;
+        completeWorkerLabel: string;
+        failedWorkerLabel: string;
+        erroredWorkerLabel: string;
+        onComplete: (worker: Worker) => Promise<void>;
+    }): Promise<void> {
         return new Promise((resolve, reject) => {
             let worker: Worker;
             try {
@@ -302,6 +422,7 @@ export class EpgWorkerService {
             }
 
             let settled = false;
+            let timeoutId: ReturnType<typeof setTimeout>;
             const settle = (fn: () => void) => {
                 if (settled) return;
                 settled = true;
@@ -309,15 +430,16 @@ export class EpgWorkerService {
                 fn();
             };
 
-            const timeoutId = setTimeout(() => {
-                const errorMessage = `EPG clear timed out after ${
+            timeoutId = setTimeout(() => {
+                const errorMessage = `${options.timeoutLabel} timed out after ${
                     this.fetchTimeoutMs / 1000
                 }s`;
                 console.error(this.loggerLabel, errorMessage);
                 settle(() => {
-                    void this.terminateWorker(worker, 'timed out clear').then(
-                        () => reject(new Error(errorMessage))
-                    );
+                    void this.terminateWorker(
+                        worker,
+                        `timed out ${options.timeoutLabel}`
+                    ).then(() => reject(new Error(errorMessage)));
                 });
             }, this.fetchTimeoutMs);
 
@@ -325,31 +447,12 @@ export class EpgWorkerService {
                 'message',
                 (message: { type: string; error?: string }) => {
                     if (message.type === 'READY') {
-                        worker.postMessage({ type: 'CLEAR_EPG' });
+                        worker.postMessage(options.readyMessage);
                     } else if (message.type === 'CLEAR_COMPLETE') {
                         settle(() => {
-                            console.log(
-                                this.loggerLabel,
-                                'EPG data cleared via worker'
-                            );
-                            this.fetchedUrls.clear();
-                            // Resolve only after every interrupted fetch
-                            // worker has exited too — they may still hold the
-                            // SQLite lock the caller expects to be free.
-                            const terminations = [...this.workers.values()].map(
-                                (runningWorker) =>
-                                    this.terminateWorker(
-                                        runningWorker,
-                                        'fetch during clear'
-                                    )
-                            );
-                            this.workers.clear();
-                            terminations.push(
-                                this.terminateWorker(worker, 'completed clear')
-                            );
-                            void Promise.all(terminations).then(() =>
-                                resolve()
-                            );
+                            void options
+                                .onComplete(worker)
+                                .then(() => resolve(), reject);
                         });
                     } else if (message.type === 'EPG_ERROR') {
                         console.error(
@@ -360,7 +463,7 @@ export class EpgWorkerService {
                         settle(() => {
                             void this.terminateWorker(
                                 worker,
-                                'failed clear'
+                                options.failedWorkerLabel
                             ).then(() =>
                                 reject(
                                     new Error(message.error || 'Clear failed')
@@ -378,15 +481,16 @@ export class EpgWorkerService {
                     error
                 );
                 settle(() => {
-                    void this.terminateWorker(worker, 'errored clear').then(
-                        () => reject(error)
-                    );
+                    void this.terminateWorker(
+                        worker,
+                        options.erroredWorkerLabel
+                    ).then(() => reject(error));
                 });
             });
 
             worker.on('exit', (code) => {
                 if (settled) return;
-                const errorMessage = `Clear worker exited unexpectedly (code ${code})`;
+                const errorMessage = `${options.exitLabel} exited unexpectedly (code ${code})`;
                 console.error(this.loggerLabel, errorMessage);
                 settle(() => reject(new Error(errorMessage)));
             });

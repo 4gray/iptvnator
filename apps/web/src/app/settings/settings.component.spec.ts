@@ -194,6 +194,9 @@ describe('SettingsComponent', () => {
     beforeEach(waitForAsync(() => {
         epgBridge = {
             clearEpgData: jest.fn().mockResolvedValue({ success: true }),
+            clearEpgDataForSource: jest
+                .fn()
+                .mockResolvedValue({ success: true }),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             supportsDataManagement: true,
             supportsImport: true,
@@ -291,6 +294,9 @@ describe('SettingsComponent', () => {
                 staleUrls: [],
             }),
             clearEpgData: jest.fn().mockResolvedValue({ success: true }),
+            clearEpgDataForSource: jest
+                .fn()
+                .mockResolvedValue({ success: true }),
             fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
@@ -1175,9 +1181,9 @@ describe('SettingsComponent', () => {
         await fixture.whenStable();
 
         expect(dashboardRails?.enabled).toBe(true);
-        expect(
-            component.settingsForm.get('dashboardRails.hero')?.enabled
-        ).toBe(true);
+        expect(component.settingsForm.get('dashboardRails.hero')?.enabled).toBe(
+            true
+        );
     });
 
     it('should save settings on submit', async () => {

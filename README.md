@@ -323,10 +323,11 @@ Useful narrower flags:
 Security-sensitive network compatibility flags are opt-in:
 
 - `IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS=1` permits strict EPG fetches from
-  playlist metadata (`url-tvg`) to resolve to localhost, LAN, or other private
-  addresses. Directly configured Xtream/Stalker portals and private playlist
-  servers remain supported without this flag. Prefer the in-app source-scoped
-  “Allow source” action for a trusted EPG URL.
+  playlist metadata (`x-tvg-url`, `url-tvg`, or `tvg-url`) to resolve to
+  localhost, LAN, or other private addresses. Directly configured
+  Xtream/Stalker portals and private playlist servers remain supported without
+  this flag. Prefer the in-app source-scoped “Allow source” action for a trusted
+  EPG URL.
 - `IPTVNATOR_ALLOW_INSECURE_TLS=1` disables certificate validation for remote
   playlist imports and refreshes for the whole Electron process. Prefer the
   in-app host-scoped trust action for a trusted provider with a self-signed or

@@ -65,6 +65,11 @@ describe('ChannelListContainerComponent', () => {
     let fixture: ComponentFixture<ChannelListContainerComponent>;
     let dispatch: jest.Mock;
     let activePlaylistSignal: ReturnType<typeof signal<PlaylistMeta | null>>;
+    let epgService: {
+        epgAvailable$: BehaviorSubject<boolean>;
+        getChannelMetadataForChannels: jest.Mock;
+        getCurrentProgramsForChannels: jest.Mock;
+    };
     let favoriteChannelIds$: BehaviorSubject<string[]>;
     let runtimeCapabilities: { supportsEpg: boolean };
     let storageGet: jest.Mock;
@@ -75,6 +80,15 @@ describe('ChannelListContainerComponent', () => {
         favoriteChannelIds$ = new BehaviorSubject<string[]>([]);
         runtimeCapabilities = { supportsEpg: true };
         storageGet = jest.fn().mockReturnValue(of({}));
+        epgService = {
+            epgAvailable$: new BehaviorSubject<boolean>(false),
+            getChannelMetadataForChannels: jest
+                .fn()
+                .mockReturnValue(of(new Map())),
+            getCurrentProgramsForChannels: jest
+                .fn()
+                .mockReturnValue(of(new Map())),
+        };
         activePlaylistSignal = signal<PlaylistMeta | null>({
             _id: 'playlist-1',
             title: 'Playlist One',
@@ -110,14 +124,7 @@ describe('ChannelListContainerComponent', () => {
             providers: [
                 {
                     provide: EpgService,
-                    useValue: {
-                        getChannelMetadataForChannels: jest
-                            .fn()
-                            .mockReturnValue(of(new Map())),
-                        getCurrentProgramsForChannels: jest
-                            .fn()
-                            .mockReturnValue(of(new Map())),
-                    },
+                    useValue: epgService,
                 },
                 {
                     provide: PlaylistsService,
@@ -215,6 +222,109 @@ describe('ChannelListContainerComponent', () => {
 
         expect(storageGet).toHaveBeenCalled();
         expect(fixture.componentInstance.shouldShowEpg()).toBe(true);
+    });
+
+    it('enables EPG rows and scopes lookups when the active M3U playlist has detected EPG URLs', () => {
+        runtimeCapabilities.supportsEpg = true;
+        storageGet.mockReturnValue(of({ epgUrl: [] }));
+        activePlaylistSignal.set({
+            _id: 'playlist-1',
+            title: 'Playlist One',
+            count: 1,
+            importDate: '2026-04-11T00:00:00.000Z',
+            epgUrls: ['https://playlist.example.com/guide.xml'],
+        } as PlaylistMeta);
+
+        fixture.detectChanges();
+        fixture.componentInstance.channelList = [
+            createChannel('guide-news', 'https://example.com/news.m3u8'),
+        ];
+
+        expect(fixture.componentInstance.shouldShowEpg()).toBe(true);
+        expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+        expect(epgService.getChannelMetadataForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+    });
+
+    it('refreshes visible channel EPG when playlist EPG URLs arrive after channels', () => {
+        runtimeCapabilities.supportsEpg = true;
+        storageGet.mockReturnValue(of({ epgUrl: [] }));
+
+        fixture.detectChanges();
+        fixture.componentInstance.channelList = [
+            createChannel('guide-news', 'https://example.com/news.m3u8'),
+        ];
+        expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            undefined
+        );
+        epgService.getCurrentProgramsForChannels.mockClear();
+        epgService.getChannelMetadataForChannels.mockClear();
+
+        activePlaylistSignal.set({
+            _id: 'playlist-1',
+            title: 'Playlist One',
+            count: 1,
+            importDate: '2026-04-11T00:00:00.000Z',
+            epgUrls: ['https://playlist.example.com/guide.xml'],
+        } as PlaylistMeta);
+        fixture.detectChanges();
+
+        expect(epgService.getCurrentProgramsForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+        expect(epgService.getChannelMetadataForChannels).toHaveBeenCalledWith(
+            ['guide-news'],
+            { sourceUrls: ['https://playlist.example.com/guide.xml'] }
+        );
+    });
+
+    it('debounces visible channel EPG row refreshes after EPG imports complete', () => {
+        jest.useFakeTimers();
+        try {
+            runtimeCapabilities.supportsEpg = true;
+            activePlaylistSignal.set({
+                _id: 'playlist-1',
+                title: 'Playlist One',
+                count: 1,
+                importDate: '2026-04-11T00:00:00.000Z',
+                epgUrls: ['https://playlist.example.com/guide.xml'],
+            } as PlaylistMeta);
+
+            fixture.detectChanges();
+            fixture.componentInstance.channelList = [
+                createChannel('guide-news', 'https://example.com/news.m3u8'),
+            ];
+            epgService.getCurrentProgramsForChannels.mockClear();
+
+            epgService.epgAvailable$.next(true);
+            epgService.epgAvailable$.next(true);
+            jest.advanceTimersByTime(1999);
+
+            expect(
+                epgService.getCurrentProgramsForChannels
+            ).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(1);
+
+            expect(
+                epgService.getCurrentProgramsForChannels
+            ).toHaveBeenCalledTimes(1);
+            expect(
+                epgService.getCurrentProgramsForChannels
+            ).toHaveBeenCalledWith(['guide-news'], {
+                sourceUrls: ['https://playlist.example.com/guide.xml'],
+            });
+        } finally {
+            fixture.destroy();
+            jest.useRealTimers();
+        }
     });
 
     it('dispatches playlist meta updates when hidden group titles change', () => {

@@ -48,7 +48,9 @@ export type M3uTestChannel = {
     logo?: string;
     name: string;
     radio?: boolean;
+    tvgCountry?: string;
     tvgId?: string;
+    tvgLanguage?: string;
     tvgName?: string;
     url: string;
 };
@@ -614,6 +616,10 @@ export function buildM3uContent(channels: M3uTestChannel[]): string {
     for (const channel of channels) {
         const attributes = [
             channel.tvgId ? `tvg-id="${channel.tvgId}"` : '',
+            channel.tvgCountry ? `tvg-country="${channel.tvgCountry}"` : '',
+            channel.tvgLanguage
+                ? `tvg-language="${channel.tvgLanguage}"`
+                : '',
             channel.tvgName ? `tvg-name="${channel.tvgName}"` : '',
             channel.logo ? `tvg-logo="${channel.logo}"` : '',
             channel.groupTitle ? `group-title="${channel.groupTitle}"` : '',
@@ -1140,7 +1146,10 @@ export async function saveSourceDialog(
     page: Page,
     dialog: Locator
 ): Promise<void> {
-    await dialog.getByRole('button', { name: 'Save', exact: true }).click();
+    await dialog
+        .locator('mat-dialog-actions')
+        .getByRole('button', { name: 'Save', exact: true })
+        .click();
     await page.waitForSelector('mat-dialog-container', { state: 'detached' });
     await expectPlaylistUpdatedToast(page);
 }

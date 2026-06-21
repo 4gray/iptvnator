@@ -68,6 +68,17 @@ describe('playlist.operations', () => {
                 importDate: '2026-04-01T00:00:00.000Z',
                 favorites: JSON.stringify(['channel-1']),
                 recentlyViewed: JSON.stringify([{ id: 'recent-1' }]),
+                epgUrls: JSON.stringify(['https://example.com/enabled.xml']),
+                detectedEpgUrls: JSON.stringify([
+                    'https://example.com/enabled.xml',
+                    'https://example.com/detected-only.xml',
+                ]),
+                manualEpgUrls: JSON.stringify([
+                    'https://example.com/manual.xml',
+                ]),
+                disabledEpgUrls: JSON.stringify([
+                    'https://example.com/disabled.xml',
+                ]),
                 autoRefresh: false,
                 url: 'https://example.com/list.m3u',
             },
@@ -84,6 +95,13 @@ describe('playlist.operations', () => {
                 count: 2,
                 favorites: ['channel-1'],
                 recentlyViewed: [{ id: 'recent-1' }],
+                epgUrls: ['https://example.com/enabled.xml'],
+                detectedEpgUrls: [
+                    'https://example.com/enabled.xml',
+                    'https://example.com/detected-only.xml',
+                ],
+                manualEpgUrls: ['https://example.com/manual.xml'],
+                disabledEpgUrls: ['https://example.com/disabled.xml'],
                 url: 'https://example.com/list.m3u',
             }),
         ]);

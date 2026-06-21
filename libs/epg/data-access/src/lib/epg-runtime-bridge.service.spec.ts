@@ -66,11 +66,15 @@ describe('EpgRuntimeBridgeService', () => {
         const fetchEpg = jest.fn().mockResolvedValue({ success: true });
         const forceFetchEpg = jest.fn().mockResolvedValue({ success: true });
         const clearEpgData = jest.fn().mockResolvedValue({ success: true });
+        const clearEpgDataForSource = jest
+            .fn()
+            .mockResolvedValue({ success: true });
         window.electron = {
             ...window.electron,
             fetchEpg,
             forceFetchEpg,
             clearEpgData,
+            clearEpgDataForSource,
         } as unknown as typeof window.electron;
         runtimeCapabilities.supportsEpgImport = true;
         runtimeCapabilities.supportsEpgDataManagement = true;
@@ -84,6 +88,13 @@ describe('EpgRuntimeBridgeService', () => {
         await expect(service.clearEpgData()).resolves.toEqual({
             success: true,
         });
+        await expect(
+            service.clearEpgDataForSource(
+                ' https://playlist.example.com/guide.xml '
+            )
+        ).resolves.toEqual({
+            success: true,
+        });
 
         expect(fetchEpg).toHaveBeenCalledWith(
             ['https://example.com/epg.xml'],
@@ -94,6 +105,9 @@ describe('EpgRuntimeBridgeService', () => {
             undefined
         );
         expect(clearEpgData).toHaveBeenCalledTimes(1);
+        expect(clearEpgDataForSource).toHaveBeenCalledWith(
+            'https://playlist.example.com/guide.xml'
+        );
     });
 
     it('delegates read-side EPG calls through the typed Electron bridge', async () => {
@@ -127,15 +141,23 @@ describe('EpgRuntimeBridgeService', () => {
         runtimeCapabilities.supportsEpgProgramSearch = true;
 
         await service.getChannelPrograms('channel-1');
-        await service.getCurrentProgramsBatch(['channel-1']);
-        await service.getChannelMetadata(['channel-1']);
+        await service.getCurrentProgramsBatch(['channel-1'], {
+            sourceUrls: ['https://playlist.example.com/guide.xml'],
+        });
+        await service.getChannelMetadata(['channel-1'], {
+            sourceUrls: ['https://playlist.example.com/guide.xml'],
+        });
         await service.checkFreshness(['https://example.com/epg.xml'], 12);
         await service.getChannelsByRange(0, 20);
         await service.searchPrograms('news', 20);
 
         expect(getChannelPrograms).toHaveBeenCalledWith('channel-1');
-        expect(getCurrentProgramsBatch).toHaveBeenCalledWith(['channel-1']);
-        expect(getEpgChannelMetadata).toHaveBeenCalledWith(['channel-1']);
+        expect(getCurrentProgramsBatch).toHaveBeenCalledWith(['channel-1'], {
+            sourceUrls: ['https://playlist.example.com/guide.xml'],
+        });
+        expect(getEpgChannelMetadata).toHaveBeenCalledWith(['channel-1'], {
+            sourceUrls: ['https://playlist.example.com/guide.xml'],
+        });
         expect(checkEpgFreshness).toHaveBeenCalledWith(
             ['https://example.com/epg.xml'],
             12

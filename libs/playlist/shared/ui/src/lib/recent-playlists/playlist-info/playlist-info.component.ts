@@ -4,6 +4,7 @@ import { Component, inject } from '@angular/core';
 import {
     FormControl,
     ReactiveFormsModule,
+    UntypedFormArray,
     UntypedFormBuilder,
     UntypedFormGroup,
     Validators,
@@ -21,23 +22,31 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { MatTooltip } from '@angular/material/tooltip';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { PlaylistActions } from '@iptvnator/m3u-state';
 import { firstValueFrom } from 'rxjs';
 import {
     DatabaseService,
     PlaylistsService,
     RuntimeCapabilitiesService,
+    SettingsStore,
 } from '@iptvnator/services';
 import {
     normalizeXtreamServerUrl,
     Playlist,
     PlaylistMeta,
 } from '@iptvnator/shared/interfaces';
+import {
+    normalizeEpgUrls,
+    resolvePlaylistEpgSourceState,
+} from '@iptvnator/shared/m3u-utils';
 
 type DesktopFileSaveBridge = Pick<
     typeof window.electron,
     'saveFileDialog' | 'writeFile'
 >;
+
+const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
 
 @Component({
     selector: 'app-playlist-info',
@@ -68,9 +77,60 @@ type DesktopFileSaveBridge = Pick<
 
             mat-dialog-content p {
                 margin: 0;
-                color: var(--app-muted-color);
+                color: var(--mat-sys-on-surface-variant);
                 font-size: 12.5px;
                 line-height: 1.45;
+            }
+
+            .playlist-epg-sources {
+                display: flex;
+                flex-direction: column;
+                gap: 10px;
+                padding: 12px;
+                border: 1px solid
+                    var(
+                        --app-widget-header-border,
+                        var(--mat-sys-outline-variant)
+                    );
+                border-radius: 8px;
+                background: var(--mat-sys-surface-container-low);
+            }
+
+            .playlist-epg-sources__header {
+                display: flex;
+                gap: 10px;
+                align-items: flex-start;
+            }
+
+            .playlist-epg-sources__header mat-icon {
+                color: var(--mat-sys-primary);
+            }
+
+            .playlist-epg-sources__title {
+                margin: 0 0 2px;
+                font-size: 14px;
+                font-weight: 600;
+                line-height: 1.25;
+            }
+
+            .playlist-epg-source-row {
+                display: grid;
+                grid-template-columns: minmax(0, 1fr) auto auto auto;
+                gap: 6px;
+                align-items: center;
+            }
+
+            .playlist-epg-source-actions {
+                display: flex;
+                flex-wrap: wrap;
+                gap: 8px;
+                justify-content: flex-end;
+            }
+
+            @media (max-width: 520px) {
+                .playlist-epg-source-row {
+                    grid-template-columns: minmax(0, 1fr);
+                }
             }
         `,
     ],
@@ -98,6 +158,8 @@ export class PlaylistInfoComponent {
     private snackBar = inject(MatSnackBar);
     private translate = inject(TranslateService);
     private runtime = inject(RuntimeCapabilitiesService);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    private readonly settingsStore = inject(SettingsStore);
     private dialogRef = inject(MatDialogRef<PlaylistInfoComponent>, {
         optional: true,
     });
@@ -105,6 +167,38 @@ export class PlaylistInfoComponent {
 
     get isDesktop(): boolean {
         return this.runtime.supportsDesktopFileSave;
+    }
+
+    get playlistEpgUrls(): string[] {
+        return this.normalizeEpgUrls(this.playlist.epgUrls);
+    }
+
+    get playlistDetectedEpgUrls(): string[] {
+        const detectedUrls = this.normalizeEpgUrls(
+            this.playlist.detectedEpgUrls
+        );
+        return detectedUrls.length > 0 ? detectedUrls : this.playlistEpgUrls;
+    }
+
+    get hiddenDetectedPlaylistEpgSourceCount(): number {
+        const enabledUrls = new Set(this.playlistEpgUrls);
+        return this.playlistDetectedEpgUrls.filter(
+            (url) => !enabledUrls.has(url)
+        ).length;
+    }
+
+    get canRefreshPlaylistEpg(): boolean {
+        return this.epgBridge.supportsDataManagement;
+    }
+
+    get canManagePlaylistEpgSources(): boolean {
+        return !this.playlist.serverUrl && !this.playlist.macAddress;
+    }
+
+    get playlistEpgSourceInputs(): UntypedFormArray {
+        return this.playlistDetails.get(
+            'playlistEpgSourceInputs'
+        ) as UntypedFormArray;
     }
 
     /** Playlist object */
@@ -159,6 +253,9 @@ export class PlaylistInfoComponent {
             stalkerDeviceId2: new FormControl(this.playlist.stalkerDeviceId2),
             stalkerSignature1: new FormControl(this.playlist.stalkerSignature1),
             stalkerSignature2: new FormControl(this.playlist.stalkerSignature2),
+            playlistEpgSourceInputs: new UntypedFormArray([
+                this.createPlaylistEpgSourceControl(),
+            ]),
         });
     }
 
@@ -236,6 +333,159 @@ export class PlaylistInfoComponent {
             password: playlist.password,
             serverUrl: playlist.serverUrl,
         }); */
+    }
+
+    async refreshPlaylistEpgSource(url: string): Promise<void> {
+        const normalizedUrl = url.trim();
+        if (!normalizedUrl) {
+            return;
+        }
+
+        const result = await this.epgBridge.forceFetchEpg(
+            normalizedUrl,
+            this.settingsStore.getTrustOptions()
+        );
+
+        if (!result) {
+            return;
+        }
+
+        this.snackBar.open(
+            this.translate.instant(
+                result.success ? 'EPG.FETCH_SUCCESS' : 'EPG.ERROR'
+            ),
+            this.translate.instant('CLOSE'),
+            { duration: 3000 }
+        );
+    }
+
+    async addPlaylistEpgSourceToSettings(url: string): Promise<void> {
+        const epgUrl = url.trim();
+        if (!epgUrl || this.isGlobalEpgSource(epgUrl)) {
+            return;
+        }
+
+        const currentSettings = this.settingsStore.getSettings();
+        await this.settingsStore.updateSettings({
+            epgUrl: this.normalizeEpgUrls([
+                ...(currentSettings.epgUrl ?? []),
+                epgUrl,
+            ]),
+        });
+
+        this.snackBar.open(
+            this.translate.instant('SETTINGS.ADD_EPG_SOURCE'),
+            this.translate.instant('CLOSE'),
+            { duration: 3000 }
+        );
+    }
+
+    isGlobalEpgSource(url: string): boolean {
+        const normalizedUrl = url.trim();
+        if (!normalizedUrl) {
+            return false;
+        }
+
+        return this.normalizeEpgUrls(
+            this.settingsStore.getSettings().epgUrl
+        ).includes(normalizedUrl);
+    }
+
+    async removePlaylistEpgSource(url: string): Promise<void> {
+        const epgUrl = url.trim();
+        if (!epgUrl) {
+            return;
+        }
+
+        if (this.epgBridge.supportsDataManagement) {
+            try {
+                const result =
+                    await this.epgBridge.clearEpgDataForSource(epgUrl);
+                if (result && result.success === false) {
+                    throw new Error('Clear EPG source returned false');
+                }
+            } catch (error) {
+                console.error(
+                    'Failed to clear playlist EPG source data:',
+                    error
+                );
+                this.snackBar.open(
+                    this.translate.instant('SETTINGS.EPG_DATA_CLEAR_FAILED'),
+                    this.translate.instant('CLOSE'),
+                    { duration: 3000 }
+                );
+                return;
+            }
+        }
+
+        const detectedEpgUrls = this.getRawDetectedPlaylistEpgUrls();
+        const disabledEpgUrls = this.normalizeEpgUrls(
+            this.playlist.disabledEpgUrls
+        );
+        const nextDisabledEpgUrls = detectedEpgUrls.includes(epgUrl)
+            ? this.normalizeEpgUrls([...disabledEpgUrls, epgUrl])
+            : disabledEpgUrls.filter((disabledUrl) => disabledUrl !== epgUrl);
+
+        const state = resolvePlaylistEpgSourceState({
+            detectedEpgUrls,
+            enabledEpgUrls: this.playlistEpgUrls.filter(
+                (enabledUrl) => enabledUrl !== epgUrl
+            ),
+            manualEpgUrls: this.normalizeEpgUrls(
+                this.playlist.manualEpgUrls
+            ).filter((manualUrl) => manualUrl !== epgUrl),
+            disabledEpgUrls: nextDisabledEpgUrls,
+        });
+
+        this.applyPlaylistEpgSourceState(state);
+    }
+
+    addPlaylistEpgSourceInput(): void {
+        this.playlistEpgSourceInputs.push(
+            this.createPlaylistEpgSourceControl()
+        );
+    }
+
+    removePlaylistEpgSourceInput(index: number): void {
+        if (this.playlistEpgSourceInputs.length <= 1) {
+            this.playlistEpgSourceInputs.at(0).reset('');
+            return;
+        }
+
+        this.playlistEpgSourceInputs.removeAt(index);
+    }
+
+    savePlaylistEpgSources(): void {
+        if (this.playlistEpgSourceInputs.invalid) {
+            this.playlistEpgSourceInputs.markAllAsTouched();
+            return;
+        }
+
+        const addedUrls = this.normalizeEpgUrls(
+            this.playlistEpgSourceInputs.value as string[]
+        );
+        if (addedUrls.length === 0) {
+            return;
+        }
+
+        const addedUrlSet = new Set(addedUrls);
+        const state = resolvePlaylistEpgSourceState({
+            detectedEpgUrls: this.getRawDetectedPlaylistEpgUrls(),
+            enabledEpgUrls: this.normalizeEpgUrls([
+                ...this.playlistEpgUrls,
+                ...addedUrls,
+            ]),
+            manualEpgUrls: this.normalizeEpgUrls([
+                ...(this.playlist.manualEpgUrls ?? []),
+                ...addedUrls,
+            ]),
+            disabledEpgUrls: this.normalizeEpgUrls(
+                this.playlist.disabledEpgUrls
+            ).filter((url) => !addedUrlSet.has(url)),
+        });
+
+        this.applyPlaylistEpgSourceState(state);
+        this.resetPlaylistEpgSourceInputs();
     }
 
     async exportPlaylist() {
@@ -321,5 +571,47 @@ export class PlaylistInfoComponent {
                 );
             }
         }
+    }
+
+    private normalizeEpgUrls(urls?: string[] | null): string[] {
+        return normalizeEpgUrls(urls ?? []);
+    }
+
+    private createPlaylistEpgSourceControl(value = ''): FormControl<string> {
+        return new FormControl(value, {
+            nonNullable: true,
+            validators: [Validators.pattern(EPG_URL_PATTERN)],
+        });
+    }
+
+    private getRawDetectedPlaylistEpgUrls(): string[] {
+        return this.normalizeEpgUrls(this.playlist.detectedEpgUrls);
+    }
+
+    private applyPlaylistEpgSourceState(
+        state: ReturnType<typeof resolvePlaylistEpgSourceState>
+    ): void {
+        const playlistMeta = {
+            _id: this.playlist._id,
+            epgUrls: state.epgUrls,
+            detectedEpgUrls: state.detectedEpgUrls,
+            manualEpgUrls: state.manualEpgUrls,
+            disabledEpgUrls: state.disabledEpgUrls,
+        } as PlaylistMeta;
+
+        this.playlist = {
+            ...this.playlist,
+            ...playlistMeta,
+        };
+        this.store.dispatch(
+            PlaylistActions.updatePlaylistMeta({ playlist: playlistMeta })
+        );
+    }
+
+    private resetPlaylistEpgSourceInputs(): void {
+        this.playlistEpgSourceInputs.clear();
+        this.playlistEpgSourceInputs.push(
+            this.createPlaylistEpgSourceControl()
+        );
     }
 }

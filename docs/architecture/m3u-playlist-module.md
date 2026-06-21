@@ -251,6 +251,98 @@ EPG lookup keys use the same precedence in both program and icon paths:
 2. `tvg-name`
 3. channel name
 
+### Playlist-Declared EPG Sources
+
+Some M3U providers declare XMLTV sources in the playlist header instead of
+requiring the user to add them in Settings. The importer extracts EPG URLs from
+`#EXTM3U` header attributes `x-tvg-url`, `url-tvg`, and `tvg-url` in
+`@iptvnator/shared/m3u-utils`, then stores the normalized, deduplicated
+candidates on `Playlist.detectedEpgUrls`.
+
+`Playlist.epgUrls` is the enabled playlist-scoped subset used for automatic
+import and lookup. Two additional lists preserve user edits:
+
+- `Playlist.manualEpgUrls` stores URLs the user explicitly added for this
+  playlist, including detected catalog URLs the user manually enabled.
+- `Playlist.disabledEpgUrls` stores detected URLs the user removed from this
+  playlist so playlist refreshes do not silently re-enable them.
+
+- Up to five detected URLs are enabled automatically.
+- Larger header lists are treated as provider catalogs. The importer keeps all
+  candidates in `detectedEpgUrls`, but auto-enables only recommended URLs whose
+  `guides/<country>` path matches playlist hints such as `tvg-country` or the
+  country suffix in `tvg-id` (`channel.ua`). Language hints are used only when no
+  country hints are present. If no recommendation can be made, the importer
+  falls back to the first five detected URLs so generic provider catalogs still
+  produce usable local EPG sources instead of silently enabling none.
+- Recommendations are capped so a malformed or global provider list cannot
+  start dozens of XMLTV downloads during playlist import.
+
+These URLs are playlist-scoped by default:
+
+- `libs/m3u-state` auto-fetches enabled `epgUrls` when M3U playlists are
+  loaded, added, or refreshed, using the same EPG progress/import pipeline as
+  Settings-managed XMLTV URLs. Before fetching, playlist URLs already present in
+  global Settings are filtered out so the same XMLTV URL is not downloaded
+  twice. Within a running session, the effect remembers the last fetchable URL
+  set per playlist and only re-fetches when that URL set changes; metadata-only
+  edits such as renaming a playlist or hiding groups do not re-download local
+  EPG sources. When the local URL set expands, only newly added fetchable URLs
+  are downloaded; disabling or removing one source does not re-download the
+  remaining sources. Explicit playlist refreshes bypass that session fetch key
+  and re-download the current fetchable local EPG URLs. Partial metadata updates
+  that omit `epgUrls` preserve the previous fetch key, while an explicit empty
+  `epgUrls` list clears it. Add/update metadata effects trigger playlist-local
+  EPG fetches only after the playlist persistence call succeeds, and metadata
+  updates that do not include any EPG source fields do not evaluate the fetch
+  plan.
+- The Electron EPG database stores `source_url` on imported programs so current
+  program lookups can ask for the active playlist's EPG sources first. Existing
+  databases backfill this column from `epg_channels.source_url` once, in bounded
+  batches, after the scoped indexes are created. When multiple EPG files reuse
+  the same XMLTV channel id, the channel row keeps its original `source_url`
+  attribution instead of being overwritten by the last imported source; program
+  scoping remains source-specific through `epg_programs.source_url`.
+- `ChannelListContainerComponent` enables EPG rows when either global settings
+  URLs or the active M3U playlist has `epgUrls`. EPG availability refreshes are
+  debounced so several playlist-local XMLTV imports completing close together
+  coalesce into one visible-channel EPG refresh. The visible channel list also
+  refreshes when the effective EPG source context changes, so a playlist whose
+  `epgUrls` arrive after the channels are rendered does not wait for the next
+  periodic refresh before showing current programs. A successful EPG import
+  clears current-program lookup caches before publishing availability, so an
+  early "no current program" lookup cannot mask freshly imported rows until the
+  TTL expires.
+- Scoped lookups fall back only to Settings-managed EPG URLs for channels
+  missing from the playlist-declared source. Playlist-local sources from other
+  playlists are not treated as global fallback sources. Single-channel current
+  program lookups include the source URL set in their cache and in-flight keys,
+  so playlist-local and global lookups deduplicate without reusing the wrong
+  source scope. Batch current-program lookups use the same source-scoped
+  per-channel TTL cache and order-insensitive in-flight batch deduplication
+  before reaching IPC; missing exact channel-id matches are resolved with batched
+  case-insensitive id/display-name candidate queries rather than a per-channel
+  fallback loop.
+  When upgrading an existing database whose historical programs have no
+  `source_url`, scoped program and metadata queries try those legacy unscoped
+  rows only after the requested source scope returns no result, so old EPG data
+  remains visible without taking precedence over freshly imported scoped data.
+  Channel metadata lookups use the same playlist-first, Settings-managed
+  fallback strategy so icons and display names can still come from global EPG
+  sources when the playlist-local guide only supplies programs. If multiple EPG
+  sources reuse the same XMLTV channel id, channel metadata and display-name
+  fallback lookups treat a channel as source-scoped when either the channel row
+  itself or matching programs are tagged with the requested `source_url`.
+- The playlist details dialog shows enabled EPG URLs with explicit actions to
+  refresh, remove, or add a source to global Settings. It also allows adding one
+  or more manual playlist-local sources and indicates when additional detected
+  candidates were not auto-enabled. Removing a playlist-local source also
+  clears programs tagged with that `source_url` and prunes only orphaned channel
+  rows for that same source before saving the playlist metadata change, so a
+  failed cleanup keeps the source enabled and visible. Shared XMLTV channel ids
+  from other sources are preserved. Detected playlist sources are not silently
+  promoted to global settings.
+
 ### Performance Optimizations
 
 | Optimization                  | Implementation                                            |
@@ -291,7 +383,7 @@ EPG lookup keys use the same precedence in both program and icon paths:
 
 ## EPG Integration
 
-### EpgService (libs/services/)
+### EpgService (`@iptvnator/epg/data-access`)
 
 ```typescript
 class EpgService {
@@ -303,12 +395,14 @@ class EpgService {
 
     // Batch fetch current programs
     getCurrentProgramsForChannels(
-        channelIds: string[]
+        channelIds: string[],
+        options?: { sourceUrls?: string[] }
     ): Observable<Map<string, EpgProgram>>;
 
     // Batch fetch XMLTV channel metadata for logo fallback
     getChannelMetadataForChannels(
-        channelIds: string[]
+        channelIds: string[],
+        options?: { sourceUrls?: string[] }
     ): Observable<Map<string, EpgChannelMetadata | null>>;
 
     // Observables

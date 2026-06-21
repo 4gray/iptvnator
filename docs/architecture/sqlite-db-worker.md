@@ -346,6 +346,14 @@ Keep worker lifecycle state out of the IPC registration layer. Add new EPG DB
 lookup behavior to `epg-query.service.ts`; add new EPG worker/progress behavior
 to `epg-worker.service.ts`.
 
+EPG fetch workers use an inactivity watchdog, not a fixed maximum import
+duration. `EpgWorkerService` starts the watchdog when the worker is created,
+refreshes it when the worker becomes ready, and refreshes it again whenever an
+`EPG_PROGRESS` event increases the channel or program counters. This lets very
+large XMLTV imports continue for longer than the nominal timeout as long as the
+parser/database pipeline is still making progress, while still terminating a
+worker that stops emitting progress.
+
 ## UI Behavior Changes
 
 ### Search
@@ -511,6 +519,7 @@ covers:
 5. case-insensitive EPG program lookup fallbacks
 6. metadata lookup precedence for exact/case-insensitive id and display name
 7. malformed EPG row filtering
+8. active EPG fetches keep running when worker progress keeps moving
 
 `apps/electron-backend/src/app/workers/worker-runtime-paths.spec.ts` covers:
 

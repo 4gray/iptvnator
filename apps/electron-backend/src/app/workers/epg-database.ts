@@ -11,7 +11,8 @@ export class EpgDatabase {
     private readonly knownChannelIds = new Set<string>();
     private readonly insertChannelStmt: BetterSqlite3.Statement;
     private readonly insertProgramStmt: BetterSqlite3.Statement;
-    private readonly deleteChannelsStmt: BetterSqlite3.Statement;
+    private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
 
     constructor(Database: typeof BetterSqlite3) {
         this.db = new Database(getIptvnatorDatabasePath());
@@ -26,17 +27,26 @@ export class EpgDatabase {
                 display_name = excluded.display_name,
                 icon_url = excluded.icon_url,
                 url = excluded.url,
-                source_url = excluded.source_url,
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
 
         this.insertProgramStmt = this.db.prepare(`
-            INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
-        this.deleteChannelsStmt = this.db.prepare(`
-            DELETE FROM epg_channels WHERE source_url = ?
+        this.deleteProgramsForSourceStmt = this.db.prepare(`
+            DELETE FROM epg_programs WHERE source_url = ?
+        `);
+
+        this.deleteOrphanChannelsForSourceStmt = this.db.prepare(`
+            DELETE FROM epg_channels
+            WHERE source_url = ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM epg_programs
+                  WHERE epg_programs.channel_id = epg_channels.id
+              )
         `);
     }
 
@@ -52,7 +62,8 @@ export class EpgDatabase {
     ): void {
         const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
             if (clearFirst) {
-                this.deleteChannelsStmt.run(sourceUrl);
+                this.deleteProgramsForSourceStmt.run(sourceUrl);
+                this.deleteOrphanChannelsForSourceStmt.run(sourceUrl);
                 this.knownChannelIds.clear();
             }
 
@@ -79,7 +90,7 @@ export class EpgDatabase {
     /**
      * Insert programs for channels already seen during the current parse.
      */
-    insertPrograms(programs: ParsedProgram[]): number {
+    insertPrograms(programs: ParsedProgram[], sourceUrl: string): number {
         let insertedCount = 0;
 
         const insertMany = this.db.transaction((programs: ParsedProgram[]) => {
@@ -103,7 +114,8 @@ export class EpgDatabase {
                         category,
                         iconUrl,
                         rating,
-                        episodeNum
+                        episodeNum,
+                        sourceUrl
                     );
                     insertedCount++;
                 } catch {
@@ -139,6 +151,49 @@ export class EpgDatabaseClearOperation {
             this.db.exec('ROLLBACK');
             throw error;
         }
+    }
+
+    close(): void {
+        this.db.close();
+    }
+}
+
+export class EpgDatabaseSourceClearOperation {
+    private readonly db: BetterSqlite3.Database;
+    private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
+
+    constructor(Database: typeof BetterSqlite3) {
+        this.db = new Database(getIptvnatorDatabasePath());
+        this.db.pragma('busy_timeout = 5000');
+
+        this.deleteProgramsForSourceStmt = this.db.prepare(`
+            DELETE FROM epg_programs WHERE source_url = ?
+        `);
+
+        this.deleteOrphanChannelsForSourceStmt = this.db.prepare(`
+            DELETE FROM epg_channels
+            WHERE source_url = ?
+              AND NOT EXISTS (
+                  SELECT 1
+                  FROM epg_programs
+                  WHERE epg_programs.channel_id = epg_channels.id
+              )
+        `);
+    }
+
+    run(sourceUrl: string): void {
+        const normalizedSourceUrl = sourceUrl.trim();
+        if (!normalizedSourceUrl) {
+            return;
+        }
+
+        const clearSource = this.db.transaction((url: string) => {
+            this.deleteProgramsForSourceStmt.run(url);
+            this.deleteOrphanChannelsForSourceStmt.run(url);
+        });
+
+        clearSource(normalizedSourceUrl);
     }
 
     close(): void {

@@ -375,6 +375,7 @@ export class ElectronService extends DataService {
                         _id: data.id,
                     },
                     playlistId: data.id,
+                    refreshEpg: true,
                 })
             );
 

@@ -33,15 +33,30 @@ export default class EpgEvents {
 
         ipcMain.handle(
             'GET_CHANNEL_PROGRAMS',
-            async (_event, args: { channelId: string }) => {
-                return this.handleGetChannelPrograms(args.channelId);
+            async (
+                _event,
+                args: { channelId: string; options?: { sourceUrls?: string[] } }
+            ) => {
+                return this.handleGetChannelPrograms(
+                    args.channelId,
+                    args.options
+                );
             }
         );
 
         ipcMain.handle(
             'GET_CURRENT_PROGRAMS_BATCH',
-            async (_event, args: { channelIds: string[] }) => {
-                return this.handleGetCurrentProgramsBatch(args.channelIds);
+            async (
+                _event,
+                args: {
+                    channelIds: string[];
+                    options?: { sourceUrls?: string[] };
+                }
+            ) => {
+                return this.handleGetCurrentProgramsBatch(
+                    args.channelIds,
+                    args.options
+                );
             }
         );
 
@@ -51,8 +66,17 @@ export default class EpgEvents {
 
         ipcMain.handle(
             'EPG_GET_CHANNEL_METADATA',
-            async (_event, args: { channelIds: string[] }) => {
-                return this.handleGetChannelMetadata(args.channelIds);
+            async (
+                _event,
+                args: {
+                    channelIds: string[];
+                    options?: { sourceUrls?: string[] };
+                }
+            ) => {
+                return this.handleGetChannelMetadata(
+                    args.channelIds,
+                    args.options
+                );
             }
         );
 
@@ -83,6 +107,14 @@ export default class EpgEvents {
             await this.clearEpgData();
             return { success: true };
         });
+
+        ipcMain.handle(
+            'EPG_CLEAR_SOURCE',
+            async (_event, args: { sourceUrl: string }) => {
+                await this.clearEpgDataForSource(args.sourceUrl);
+                return { success: true };
+            }
+        );
 
         ipcMain.handle(
             'EPG_CHECK_FRESHNESS',
@@ -252,15 +284,17 @@ export default class EpgEvents {
     }
 
     private static async handleGetChannelPrograms(
-        channelId: string
+        channelId: string,
+        options?: { sourceUrls?: string[] }
     ): Promise<EpgProgram[]> {
-        return epgQueryService.getChannelPrograms(channelId);
+        return epgQueryService.getChannelPrograms(channelId, options);
     }
 
     private static async handleGetCurrentProgramsBatch(
-        channelIds: string[]
+        channelIds: string[],
+        options?: { sourceUrls?: string[] }
     ): Promise<Record<string, EpgProgram | null>> {
-        return epgQueryService.getCurrentProgramsBatch(channelIds);
+        return epgQueryService.getCurrentProgramsBatch(channelIds, options);
     }
 
     private static async handleGetAllChannels(): Promise<{
@@ -271,9 +305,10 @@ export default class EpgEvents {
     }
 
     private static async handleGetChannelMetadata(
-        channelIds: string[]
+        channelIds: string[],
+        options?: { sourceUrls?: string[] }
     ): Promise<Record<string, EpgChannelMetadata | null>> {
-        return epgQueryService.getChannelMetadata(channelIds);
+        return epgQueryService.getChannelMetadata(channelIds, options);
     }
 
     private static async handleGetChannelsByRange(
@@ -292,5 +327,9 @@ export default class EpgEvents {
 
     static async clearEpgData(): Promise<void> {
         return epgWorkerService.clearEpgData();
+    }
+
+    static async clearEpgDataForSource(sourceUrl: string): Promise<void> {
+        return epgWorkerService.clearEpgDataForSource(sourceUrl);
     }
 }
