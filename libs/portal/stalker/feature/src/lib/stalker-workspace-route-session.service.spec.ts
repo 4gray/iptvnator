@@ -1,7 +1,7 @@
 import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { NavigationEnd, Router } from '@angular/router';
-import { Subject, of } from 'rxjs';
+import { EMPTY, Subject, of } from 'rxjs';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
@@ -17,15 +17,23 @@ const ACTIVE_PLAYLIST: PlaylistMeta = {
     title: 'Test Stalker',
 } as PlaylistMeta;
 
+const FULL_STALKER_PLAYLIST: PlaylistMeta = {
+    ...ACTIVE_PLAYLIST,
+    isFullStalkerPortal: true,
+    stalkerSerialNumber: 'CUSTOMSN123',
+    stalkerDeviceId1: 'DEVICE-ID-1',
+    stalkerDeviceId2: 'DEVICE-ID-2',
+    stalkerSignature1: 'SIGNATURE-1',
+    stalkerSignature2: 'SIGNATURE-2',
+} as PlaylistMeta;
+
 async function flushEffects(): Promise<void> {
     await Promise.resolve();
     await Promise.resolve();
 }
 
 function getStalkerSectionFromUrl(url: string): string | null {
-    const match = url.match(
-        /^\/workspace\/stalker\/[^/]+\/([^/?]+)(?:\/|$)/
-    );
+    const match = url.match(/^\/workspace\/stalker\/[^/]+\/([^/?]+)(?:\/|$)/);
 
     return match?.[1] ?? null;
 }
@@ -147,5 +155,49 @@ describe('StalkerWorkspaceRouteSession', () => {
         expect(stalkerStore.setSelectedCategory).toHaveBeenCalledWith(null);
         expect(stalkerStore.clearSelectedItem).toHaveBeenCalled();
         expect(stalkerStore.setSearchPhrase).toHaveBeenCalledWith('');
+    });
+
+    it('loads the full Stalker playlist when the active route meta lacks auth fields', async () => {
+        activePlaylist.set(ACTIVE_PLAYLIST);
+        playlistsService.getPlaylistById.mockReturnValue(
+            of(FULL_STALKER_PLAYLIST)
+        );
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+            PLAYLIST_ID
+        );
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
+    });
+
+    it('falls back to the active playlist when the full playlist lookup completes empty', async () => {
+        activePlaylist.set(ACTIVE_PLAYLIST);
+        playlistsService.getPlaylistById.mockReturnValue(EMPTY);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(playlistsService.getPlaylistById).toHaveBeenCalledWith(
+            PLAYLIST_ID
+        );
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            ACTIVE_PLAYLIST
+        );
+    });
+
+    it('uses active Stalker playlist metadata directly when the portal mode is explicit', async () => {
+        activePlaylist.set(FULL_STALKER_PLAYLIST);
+
+        TestBed.inject(StalkerWorkspaceRouteSession);
+        await flushEffects();
+
+        expect(playlistsService.getPlaylistById).not.toHaveBeenCalled();
+        expect(stalkerStore.setCurrentPlaylist).toHaveBeenCalledWith(
+            FULL_STALKER_PLAYLIST
+        );
     });
 });

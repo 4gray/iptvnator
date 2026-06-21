@@ -125,6 +125,12 @@ blank fields are not generated or forwarded to `get_profile`.
 - Generated MAG-like identity remains a future explicit setting. It must not be
   the default because strict portals can bind accounts to the first device
   fingerprint they receive.
+- Stalker workspace routes must initialize `StalkerStore` from a playlist object
+  with an explicit `isFullStalkerPortal` mode. If the active route metadata is a
+  lightweight playlist record without that field, the route session must load the
+  full playlist by id before category/content resources run. Stalker auth
+  metadata is independent from M3U playlist EPG metadata and must not depend on
+  M3U-specific EPG fields.
 
 ## Live TV and Radio
 

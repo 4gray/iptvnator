@@ -16,6 +16,7 @@ import {
     StalkerStore,
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaylistsService } from '@iptvnator/services';
+import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 
 @Injectable()
 export class StalkerWorkspaceRouteSession {
@@ -64,11 +65,7 @@ export class StalkerWorkspaceRouteSession {
             this.stalkerStore.setSelectedCategory(null);
             this.stalkerStore.clearSelectedItem();
 
-            const playlist =
-                this.playlistContext.activePlaylist() ??
-                (await firstValueFrom(
-                    this.playlistsService.getPlaylistById(playlistId)
-                ));
+            const playlist = await this.resolveStalkerPlaylist(playlistId);
             await this.stalkerStore.setCurrentPlaylist(playlist);
         }
 
@@ -105,6 +102,33 @@ export class StalkerWorkspaceRouteSession {
             this.stalkerStore.clearSelectedItem();
             this.stalkerStore.setSearchPhrase('');
         }
+    }
+
+    private async resolveStalkerPlaylist(
+        playlistId: string
+    ): Promise<PlaylistMeta | undefined> {
+        const activePlaylist = this.playlistContext.activePlaylist();
+
+        if (this.hasExplicitStalkerPortalMode(playlistId, activePlaylist)) {
+            return activePlaylist;
+        }
+
+        const storedPlaylist = await firstValueFrom(
+            this.playlistsService.getPlaylistById(playlistId),
+            { defaultValue: null }
+        );
+
+        return storedPlaylist ?? activePlaylist ?? undefined;
+    }
+
+    private hasExplicitStalkerPortalMode(
+        playlistId: string,
+        playlist: PlaylistMeta | null
+    ): playlist is PlaylistMeta {
+        return (
+            playlist?._id === playlistId &&
+            playlist.isFullStalkerPortal !== undefined
+        );
     }
 }
 
