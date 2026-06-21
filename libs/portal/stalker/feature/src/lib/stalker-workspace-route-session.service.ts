@@ -113,13 +113,12 @@ export class StalkerWorkspaceRouteSession {
             return activePlaylist;
         }
 
-        return (
-            (await firstValueFrom(
-                this.playlistsService.getPlaylistById(playlistId)
-            )) ??
-            activePlaylist ??
-            undefined
+        const storedPlaylist = await firstValueFrom(
+            this.playlistsService.getPlaylistById(playlistId),
+            { defaultValue: null }
         );
+
+        return storedPlaylist ?? activePlaylist ?? undefined;
     }
 
     private hasExplicitStalkerPortalMode(
