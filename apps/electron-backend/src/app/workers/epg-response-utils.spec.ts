@@ -1,4 +1,7 @@
-import { shouldGunzipEpgResponse } from './epg-response-utils';
+import {
+    getEpgResponseContentEncoding,
+    shouldGunzipEpgResponse,
+} from './epg-response-utils';
 
 describe('shouldGunzipEpgResponse', () => {
     it('returns true for original .gz URLs', () => {
@@ -69,5 +72,47 @@ describe('shouldGunzipEpgResponse', () => {
                 url: 'https://example.com/guide.xml',
             })
         ).toBe(false);
+    });
+});
+
+describe('getEpgResponseContentEncoding', () => {
+    it('detects Brotli transfer encoding from response headers', () => {
+        expect(
+            getEpgResponseContentEncoding({
+                'content-encoding': 'br',
+            })
+        ).toBe('br');
+    });
+
+    it('detects gzip transfer encoding from response headers', () => {
+        expect(
+            getEpgResponseContentEncoding(
+                new Headers([['content-encoding', 'gzip']])
+            )
+        ).toBe('gzip');
+    });
+
+    it('detects deflate transfer encoding from response headers', () => {
+        expect(
+            getEpgResponseContentEncoding({
+                'Content-Encoding': 'deflate',
+            })
+        ).toBe('deflate');
+    });
+
+    it('ignores unsupported transfer encodings', () => {
+        expect(
+            getEpgResponseContentEncoding({
+                'content-encoding': 'zstd',
+            })
+        ).toBe(null);
+    });
+
+    it('returns the outermost supported transfer encoding first', () => {
+        expect(
+            getEpgResponseContentEncoding({
+                'content-encoding': 'gzip, br',
+            })
+        ).toBe('br');
     });
 });

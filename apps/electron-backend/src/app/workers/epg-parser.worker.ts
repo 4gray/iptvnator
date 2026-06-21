@@ -6,10 +6,13 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { Readable } from 'stream';
 import { parentPort, workerData } from 'worker_threads';
-import { createGunzip } from 'zlib';
 import { EpgDatabase, EpgDatabaseClearOperation } from './epg-database';
+import { createDecodedEpgStream } from './epg-stream-decoder';
 import { StreamingEpgParser } from './epg-streaming-parser';
-import { shouldGunzipEpgResponse } from './epg-response-utils';
+import {
+    getEpgResponseContentEncoding,
+    shouldGunzipEpgResponse,
+} from './epg-response-utils';
 import {
     isPrivateNetworkUrlAccessAllowed,
     UnsafeUrlError,
@@ -130,6 +133,9 @@ async function fetchAndParseEpgStreaming(
             headers: response.headers,
             url: responseUrl,
         });
+        const contentEncoding = getEpgResponseContentEncoding(
+            response.headers
+        );
 
         if (responseUrl && responseUrl !== url) {
             console.log(
@@ -142,6 +148,12 @@ async function fetchAndParseEpgStreaming(
             loggerLabel,
             `EPG response detected as gzipped: ${isGzipped}`
         );
+        if (contentEncoding) {
+            console.log(
+                loggerLabel,
+                `EPG response content-encoding: ${contentEncoding}`
+            );
+        }
 
         if (response.status < 200 || response.status >= 300) {
             throw new Error(`HTTP error! status: ${response.status}`);
@@ -175,18 +187,11 @@ async function fetchAndParseEpgStreaming(
         );
 
         return new Promise((resolve, reject) => {
-            let dataStream: Readable = response.data;
-
-            if (isGzipped) {
-                const gunzip = createGunzip();
-                dataStream = response.data.pipe(gunzip);
-
-                gunzip.on('error', (err) => {
-                    console.error(loggerLabel, 'Gunzip error:', err);
-                    epgDb.close();
-                    reject(err);
-                });
-            }
+            const dataStream = createDecodedEpgStream(
+                response.data,
+                response.headers,
+                isGzipped
+            );
 
             dataStream.on('data', (chunk: Buffer) => {
                 try {

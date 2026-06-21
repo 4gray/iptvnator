@@ -1,8 +1,16 @@
-type HeaderReader =
+export type HeaderReader =
     | Record<string, unknown>
     | {
           get(name: string): unknown;
       };
+
+export type EpgResponseContentEncoding = 'br' | 'gzip' | 'deflate';
+
+const SUPPORTED_CONTENT_ENCODINGS: readonly EpgResponseContentEncoding[] = [
+    'br',
+    'gzip',
+    'deflate',
+];
 
 function getHeaderValue(headers: HeaderReader, name: string): string | null {
     const value =
@@ -25,6 +33,31 @@ function hasGzipPath(url: string | null | undefined): boolean {
     } catch {
         return url.toLowerCase().endsWith('.gz');
     }
+}
+
+export function getEpgResponseContentEncoding(
+    headers: HeaderReader
+): EpgResponseContentEncoding | null {
+    const contentEncoding = getEpgResponseContentEncodings(headers).at(0);
+
+    return contentEncoding ?? null;
+}
+
+export function getEpgResponseContentEncodings(
+    headers: HeaderReader
+): EpgResponseContentEncoding[] {
+    return (
+        getHeaderValue(headers, 'content-encoding')
+            ?.toLowerCase()
+            .split(',')
+            .map((encoding) => encoding.trim())
+            .filter((encoding): encoding is EpgResponseContentEncoding =>
+                SUPPORTED_CONTENT_ENCODINGS.includes(
+                    encoding as EpgResponseContentEncoding
+                )
+            )
+            .reverse() ?? []
+    );
 }
 
 /**
