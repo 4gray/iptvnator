@@ -1,0 +1,112 @@
+:host {
+    display: contents;
+}
+
+.ferrite-controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 8px 12px;
+    color: #fff;
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.7),
+        rgba(0, 0, 0, 0)
+    );
+    // Auto-hide: faded + non-interactive until the container reveals it on pointer activity.
+    opacity: 0;
+    transform: translateY(8px);
+    pointer-events: none;
+    transition:
+        opacity 0.2s ease,
+        transform 0.2s ease;
+
+    &.visible {
+        opacity: 1;
+        transform: translateY(0);
+        pointer-events: auto;
+    }
+
+    .ctl-btn {
+        color: #fff;
+        flex: 0 0 auto;
+    }
+
+    .ctl-vol {
+        width: 110px;
+        flex: 0 0 auto;
+    }
+
+    .ctl-deint {
+        flex: 0 0 auto;
+        height: 28px;
+        min-width: 96px; // don't collapse to just the chevron
+        border: 0;
+        border-radius: 4px;
+        padding: 0 6px;
+        background: rgba(255, 255, 255, 0.12);
+        color: #fff;
+        // Render the native dropdown popup in dark mode so the options aren't white-on-white.
+        color-scheme: dark;
+        font: 0.75rem/1 system-ui, sans-serif;
+        cursor: pointer;
+
+        // Explicit option colours as a fallback for browsers that don't honour color-scheme on the popup.
+        option {
+            background: #1f1f1f;
+            color: #fff;
+        }
+    }
+
+    .ctl-deint-warn {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        flex: 0 0 auto;
+        font-size: 0.6875rem;
+        // Amber "warn" — the app has no theme warn token; this matches the
+        // literal amber used for warning states elsewhere (e.g. playlist-switcher).
+        color: #ff9800;
+        white-space: nowrap;
+    }
+
+    .ctl-spacer {
+        flex: 1 1 auto;
+    }
+
+    .ctl-seek {
+        flex: 1 1 auto;
+        min-width: 80px;
+    }
+
+    .ctl-time {
+        flex: 0 0 auto;
+        font-size: 0.6875rem;
+        font-variant-numeric: tabular-nums;
+        opacity: 0.85;
+        white-space: nowrap;
+    }
+
+    .ctl-live {
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 0.75rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        // LIVE uses the app's shared "on-air" red role (same token audio-player uses).
+        color: var(--app-live-color, #ff8f8f);
+    }
+
+    .ctl-live-dot {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--app-live-color, #ff8f8f);
+    }
+}
