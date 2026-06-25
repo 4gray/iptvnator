@@ -28,7 +28,9 @@ export class PlayerService {
             player === VideoPlayer.VideoJs ||
             player === VideoPlayer.Html5Player ||
             player === VideoPlayer.ArtPlayer ||
-            player === VideoPlayer.EmbeddedMpv
+            player === VideoPlayer.EmbeddedMpv ||
+            // Ferrite renders inline to a canvas (never an external player launch).
+            player === VideoPlayer.Ferrite
         );
     }
 

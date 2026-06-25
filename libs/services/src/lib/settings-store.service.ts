@@ -216,7 +216,10 @@ export const SettingsStore = signalStore(
                 store.player() === VideoPlayer.VideoJs ||
                 store.player() === VideoPlayer.Html5Player ||
                 store.player() === VideoPlayer.ArtPlayer ||
-                store.player() === VideoPlayer.EmbeddedMpv
+                store.player() === VideoPlayer.EmbeddedMpv ||
+                // Ferrite is an inline (canvas) web player, never an external launch — it must
+                // gate shouldUseInlinePlayer() so the web-player-view ladder routes to it.
+                store.player() === VideoPlayer.Ferrite
             );
         },
 

@@ -47,13 +47,22 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
         priority: 92,
     },
     {
+        id: 'switch-player-ferrite',
+        player: VideoPlayer.Ferrite,
+        icon: 'play_circle',
+        nameKey: 'SETTINGS.PLAYER_FERRITE',
+        keywords: ['player', 'ferrite', 'wasm', 'hevc'],
+        desktopOnly: false,
+        priority: 93,
+    },
+    {
         id: 'switch-player-mpv',
         player: VideoPlayer.MPV,
         icon: 'play_circle_outline',
         nameKey: 'SETTINGS.PLAYER_MPV',
         keywords: ['player', 'mpv', 'external'],
         desktopOnly: true,
-        priority: 93,
+        priority: 94,
     },
     {
         id: 'switch-player-vlc',
@@ -62,7 +71,7 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
         nameKey: 'SETTINGS.PLAYER_VLC',
         keywords: ['player', 'vlc', 'external'],
         desktopOnly: true,
-        priority: 94,
+        priority: 95,
     },
 ];
 
