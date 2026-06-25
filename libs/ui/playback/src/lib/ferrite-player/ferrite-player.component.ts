@@ -123,10 +123,12 @@ export class FerritePlayerComponent implements OnDestroy {
     protected readonly currentTime = signal(0);
     protected readonly duration = signal(0);
 
-    // Keys the template <canvas> by source URL so a channel zap recreates the element — a canvas that
-    // was handed to the present worker via transferControlToOffscreen() can never be re-attached.
+    // Keys the template <canvas> by the EFFECTIVE source URL (url + epgParams, matching playChannel) so
+    // a channel zap — or an epgParams-only change — recreates the element. A canvas handed to the
+    // present worker via transferControlToOffscreen() can never be re-attached.
     protected readonly canvasKey = computed(() => {
-        const url = this.channel()?.url;
+        const channel = this.channel();
+        const url = channel?.url ? channel.url + (channel.epgParams ?? '') : '';
         return url ? [url] : [];
     });
 

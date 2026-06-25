@@ -118,9 +118,12 @@ export function startFerriteSession(opts: FerriteSessionOptions): FerritePlayer 
 }
 
 /**
- * Stop a ferrite session via the mpegts lifecycle the host uses (pause → unload → detach → destroy),
- * OUTSIDE the Angular zone. Best-effort: a teardown throw is reported, not propagated, so a play/stop
- * cycle never crashes the host. `detachMediaElement` kicks off the async pthread-pool reap.
+ * Stop a ferrite session, OUTSIDE the Angular zone. `destroy()` is the facade's single canonical
+ * teardown: it stops playback, terminates the decode + present workers (releasing the transferred
+ * OffscreenCanvas + the GPU/decoder resources, and reaping the pthread pool), and clears ALL event
+ * listeners — including a still-pending VOD resume `MEDIA_INFO` handler, so no stale callback can fire
+ * a `seek()` against a torn-down session. Best-effort: a teardown throw is reported, not propagated,
+ * so a play/stop cycle never crashes the host.
  */
 export function stopFerriteSession(
     player: FerritePlayer,
@@ -129,9 +132,6 @@ export function stopFerriteSession(
 ): void {
     zone.runOutsideAngular(() => {
         try {
-            player.pause();
-            player.unload();
-            player.detachMediaElement();
             player.destroy();
         } catch (err) {
             onError?.('teardown error', err);

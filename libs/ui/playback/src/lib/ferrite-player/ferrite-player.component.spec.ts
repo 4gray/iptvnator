@@ -162,6 +162,31 @@ describe('FerritePlayerComponent', () => {
         expect(firstPlayer.destroy).toHaveBeenCalled();
     });
 
+    it('recreates the canvas when only epgParams changes (same base url)', () => {
+        start('http://example.com/live.ts');
+        const firstCanvas = fixture.nativeElement.querySelector('canvas');
+        const firstPlayer = lastPlayer();
+
+        // Same base url, different epgParams → the EFFECTIVE url (url + epgParams) changes, so the
+        // canvas must be recreated; otherwise the new session would re-attach a transferred element
+        // and render black. Regression for the canvasKey omitting epgParams.
+        fixture.componentRef.setInput('channel', {
+            id: 'x',
+            url: 'http://example.com/live.ts',
+            name: 'x',
+            epgParams: '?token=abc',
+        } as Channel);
+        fixture.detectChanges();
+
+        const secondCanvas = fixture.nativeElement.querySelector('canvas');
+        const secondPlayer = lastPlayer();
+
+        expect(secondCanvas).not.toBe(firstCanvas);
+        expect(secondPlayer).not.toBe(firstPlayer);
+        expect(secondPlayer.attachedCanvas).toBe(secondCanvas);
+        expect(firstPlayer.destroy).toHaveBeenCalled();
+    });
+
     it('passes isLive through to createPlayer for both live and VOD', () => {
         start('http://example.com/live.ts', { isLive: true });
         expect(createPlayerMock).toHaveBeenLastCalledWith(
@@ -207,15 +232,14 @@ describe('FerritePlayerComponent', () => {
         ).toBe(true);
     });
 
-    it('tears down the player on destroy', () => {
+    it('tears down the player on destroy via destroy()', () => {
         start('http://example.com/a.ts');
         const player = lastPlayer();
 
         fixture.destroy();
 
-        expect(player.pause).toHaveBeenCalled();
-        expect(player.unload).toHaveBeenCalled();
-        expect(player.detachMediaElement).toHaveBeenCalled();
+        // destroy() is the facade's single full teardown (stops playback, terminates the workers +
+        // releases the transferred canvas, and clears all listeners) — no separate pause/unload/detach.
         expect(player.destroy).toHaveBeenCalled();
     });
 });
