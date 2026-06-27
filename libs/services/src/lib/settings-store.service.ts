@@ -23,7 +23,7 @@ import {
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
-    streamFormat: StreamFormat.M3u8StreamFormat,
+    streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
     showCaptions: false,

@@ -102,6 +102,7 @@ class StubEpgListComponent {
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
     readonly controlledArchiveDays = input<number | null>(null);
     readonly archivePlaybackAvailable = input<boolean | null>(null);
+    readonly activeProgram = input<EpgProgram | null>(null);
     readonly selectedDate = input<string | null>(null);
     readonly showDateNavigator = input(true);
     readonly programActivated = output<EpgProgramActivationEvent>();
@@ -112,7 +113,16 @@ class StubEpgListComponent {
     selector: 'app-live-epg-panel',
     standalone: true,
     template: `
+        <div class="live-epg-panel-label">{{ summaryLabelKey() }}</div>
         <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
+        <button
+            class="live-epg-panel-return"
+            type="button"
+            [hidden]="!showReturnToLive()"
+            (click)="returnToLive.emit()"
+        >
+            Return to live
+        </button>
         <ng-content />
     `,
 })
@@ -120,10 +130,13 @@ class StubLiveEpgPanelComponent {
     readonly collapsed = input(false);
     readonly summary = input<LiveEpgPanelSummary | null>(null);
     readonly loading = input(false);
+    readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
     readonly showDateNavigator = input(false);
     readonly selectedDate = input<string | null>(null);
+    readonly showReturnToLive = input(false);
     readonly collapsedChange = output<boolean>();
     readonly dateNavigation = output<'next' | 'prev'>();
+    readonly returnToLive = output<void>();
 }
 
 @Directive({
@@ -684,6 +697,10 @@ describe('LiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('.live-epg-panel-summary')
                 .textContent
         ).toContain('Current Show');
+        expect(
+            fixture.nativeElement.querySelector('.live-epg-panel-label')
+                .textContent
+        ).toContain('EPG.CURRENT_PROGRAM');
     });
 
     it('uses currentEpgItem instead of assuming the first schedule item is current', () => {
@@ -746,6 +763,7 @@ describe('LiveStreamLayoutComponent', () => {
         expect(xtreamUrlService.resolveCatchupUrl).toHaveBeenCalledWith(
             'playlist-1',
             {
+                allowedOutputFormats: undefined,
                 serverUrl: 'http://demo.example',
                 username: 'demo',
                 password: 'secret',
@@ -760,6 +778,199 @@ describe('LiveStreamLayoutComponent', () => {
             'Channel 101 - Archived Show',
             'channel-101.png'
         );
+        expect(component.activePlayback()).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/timeshift.ts',
+                isLive: false,
+            })
+        );
+    });
+
+    it('shows the active archive program in the live EPG panel summary', async () => {
+        const archivedProgram: EpgProgram = {
+            start: '2026-04-04T10:00:00.000Z',
+            stop: '2026-04-04T11:00:00.000Z',
+            channel: 'channel-101',
+            title: 'Archived Show',
+            desc: null,
+            category: null,
+            startTimestamp: 1775296800,
+            stopTimestamp: 1775300400,
+        };
+        epgItems.set([
+            buildEpgItem(
+                'archived',
+                'Archived Show',
+                archivedProgram.start,
+                archivedProgram.stop
+            ),
+        ]);
+        currentEpgItem.set(
+            buildEpgItem(
+                'current',
+                'Current Show',
+                '2026-04-05T11:30:00.000Z',
+                '2026-04-05T12:30:00.000Z'
+            )
+        );
+
+        component.playLive(sampleChannel);
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: archivedProgram,
+        });
+        fixture.detectChanges();
+
+        const panel = fixture.debugElement.query(
+            By.directive(StubLiveEpgPanelComponent)
+        );
+        expect(panel.componentInstance.summary()).toEqual(
+            expect.objectContaining({
+                title: 'Archived Show',
+                start: '2026-04-04T10:00:00.000Z',
+                stop: '2026-04-04T11:00:00.000Z',
+            })
+        );
+        expect(panel.componentInstance.summaryLabelKey()).toBe(
+            'EPG.ARCHIVE_PLAYBACK'
+        );
+        expect(panel.componentInstance.showReturnToLive()).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector('.live-epg-panel-summary')
+                .textContent
+        ).toContain('Archived Show');
+        expect(
+            fixture.nativeElement.querySelector('.live-epg-panel-summary')
+                .textContent
+        ).not.toContain('Current Show');
+    });
+
+    it('returns archive playback to the selected live stream from the panel action', async () => {
+        const archivedProgram: EpgProgram = {
+            start: '2026-04-04T10:00:00.000Z',
+            stop: '2026-04-04T11:00:00.000Z',
+            channel: 'channel-101',
+            title: 'Archived Show',
+            desc: null,
+            category: null,
+            startTimestamp: 1775296800,
+            stopTimestamp: 1775300400,
+        };
+        currentEpgItem.set(
+            buildEpgItem(
+                'current',
+                'Current Show',
+                '2026-04-05T11:30:00.000Z',
+                '2026-04-05T12:30:00.000Z'
+            )
+        );
+
+        component.playLive(sampleChannel);
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: archivedProgram,
+        });
+        fixture.detectChanges();
+
+        const panel = fixture.debugElement.query(
+            By.directive(StubLiveEpgPanelComponent)
+        );
+        panel.componentInstance.returnToLive.emit();
+        fixture.detectChanges();
+
+        expect(component.activeCatchupProgram()).toBeNull();
+        expect(component.activePlayback()).toEqual(
+            expect.objectContaining({
+                streamUrl: 'https://example.com/live.ts',
+                isLive: true,
+            })
+        );
+        expect(panel.componentInstance.summary()?.title).toBe('Current Show');
+        expect(panel.componentInstance.summaryLabelKey()).toBe(
+            'EPG.CURRENT_PROGRAM'
+        );
+        expect(panel.componentInstance.showReturnToLive()).toBe(false);
+    });
+
+    it('publishes the active archive program in remote-control status', async () => {
+        const archivedProgram: EpgProgram = {
+            start: '2026-04-04T10:00:00.000Z',
+            stop: '2026-04-04T11:00:00.000Z',
+            channel: 'channel-101',
+            title: 'Archived Show',
+            desc: null,
+            category: null,
+            startTimestamp: 1775296800,
+            stopTimestamp: 1775300400,
+        };
+        currentEpgItem.set(
+            buildEpgItem(
+                'current',
+                'Current Show',
+                '2026-04-05T11:30:00.000Z',
+                '2026-04-05T12:30:00.000Z'
+            )
+        );
+        const updateRemoteControlStatus = window.electron
+            ?.updateRemoteControlStatus as jest.Mock;
+
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+        updateRemoteControlStatus.mockClear();
+
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: archivedProgram,
+        });
+        fixture.detectChanges();
+
+        expect(updateRemoteControlStatus).toHaveBeenLastCalledWith(
+            expect.objectContaining({
+                epgTitle: 'Archived Show',
+                epgStart: '2026-04-04T10:00:00.000Z',
+                epgEnd: '2026-04-04T11:00:00.000Z',
+            })
+        );
+    });
+
+    it('passes the active catchup program to the EPG list until live playback resumes', async () => {
+        const archivedProgram: EpgProgram = {
+            start: '2026-04-04T10:00:00.000Z',
+            stop: '2026-04-04T11:00:00.000Z',
+            channel: 'channel-101',
+            title: 'Archived Show',
+            desc: null,
+            category: null,
+            startTimestamp: 1775296800,
+            stopTimestamp: 1775300400,
+        };
+        epgItems.set([
+            buildEpgItem(
+                '1',
+                'Archived Show',
+                archivedProgram.start,
+                archivedProgram.stop
+            ),
+        ]);
+
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: archivedProgram,
+        });
+        fixture.detectChanges();
+
+        let epgList = fixture.debugElement.query(
+            By.directive(StubEpgListComponent)
+        );
+        expect(epgList.componentInstance.activeProgram()).toEqual(
+            archivedProgram
+        );
+
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+
+        epgList = fixture.debugElement.query(By.directive(StubEpgListComponent));
+        expect(epgList.componentInstance.activeProgram()).toBeNull();
     });
 
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {

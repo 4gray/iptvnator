@@ -177,6 +177,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         this.epgItems().map((program) => this.toControlledEpgProgram(program))
     );
     private readonly currentTimeMs = signal(Date.now());
+    readonly activeCatchupProgram = signal<EpgProgram | null>(null);
     readonly controlledArchiveDays = computed(() =>
         Math.max(
             0,
@@ -215,7 +216,17 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     );
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
-        this.toLiveEpgPanelSummary(this.currentEpgItem())
+        this.toLiveEpgPanelSummary(
+            this.activeCatchupProgram() ?? this.currentEpgItem()
+        )
+    );
+    readonly liveEpgPanelSummaryLabelKey = computed(() =>
+        this.activeCatchupProgram()
+            ? 'EPG.ARCHIVE_PLAYBACK'
+            : 'EPG.CURRENT_PROGRAM'
+    );
+    readonly showReturnToLive = computed(
+        () => this.activeCatchupProgram() !== null
     );
     readonly liveChannelSortLabel = computed(() =>
         getPortalChannelSortModeLabel(this.liveChannelSortMode())
@@ -352,7 +363,8 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             const selectedContentType = this.xtreamStore.selectedContentType();
             const selectedItem = this.xtreamStore.selectedItem();
             const channels = this.getVisibleChannels();
-            const currentProgram = this.currentEpgItem();
+            const activeProgram =
+                this.activeCatchupProgram() ?? this.currentEpgItem();
 
             if (selectedContentType !== 'live' || !selectedItem?.xtream_id) {
                 remoteControl.updateRemoteControlStatus({
@@ -373,9 +385,9 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
                 isLiveView: true,
                 channelName: selectedItem.title ?? selectedItem.name,
                 channelNumber: currentIndex >= 0 ? currentIndex + 1 : undefined,
-                epgTitle: currentProgram?.title,
-                epgStart: currentProgram?.start,
-                epgEnd: currentProgram?.stop ?? currentProgram?.end,
+                epgTitle: activeProgram?.title,
+                epgStart: activeProgram?.start,
+                epgEnd: this.getProgramStop(activeProgram),
                 supportsVolume: false,
             });
         });
@@ -426,6 +438,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         startPlayback = !this.settingsStore.openStreamOnDoubleClick()
     ) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
         // store no-op.
@@ -514,6 +527,15 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
 
     onLiveEpgSelectedDateChange(selectedDate: string): void {
         this.selectedLiveEpgDate.set(selectedDate);
+    }
+
+    returnToLivePlayback(): void {
+        const selectedItem = this.selectedLiveItem();
+        if (!selectedItem?.xtream_id) {
+            return;
+        }
+
+        this.playLive(selectedItem, true);
     }
 
     ngOnDestroy(): void {
@@ -622,6 +644,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
+                allowedOutputFormats: playlist.allowedOutputFormats,
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,
@@ -632,10 +655,12 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             playlist.serverTimezone
         );
 
+        this.activeCatchupProgram.set(program);
         this.activePlayback.set({
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),
             thumbnail: item.poster_url ?? item.stream_icon ?? null,
+            isLive: false,
         });
         if (this.usesEmbeddedPlayer()) {
             return;
@@ -668,7 +693,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     }
 
     private toLiveEpgPanelSummary(
-        program: EpgItem | null | undefined
+        program: EpgItem | EpgProgram | null | undefined
     ): LiveEpgPanelSummary | null {
         if (!program) {
             return null;
@@ -677,8 +702,21 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         return {
             title: program.title,
             start: program.start,
-            stop: program.stop ?? program.end,
+            stop: this.getProgramStop(program),
         };
+    }
+
+    private getProgramStop(
+        program: EpgItem | EpgProgram | null | undefined
+    ): string | undefined {
+        if (!program) {
+            return undefined;
+        }
+
+        return (
+            program.stop ??
+            ('end' in program ? (program.end ?? undefined) : undefined)
+        );
     }
 
     private get remoteControlBridge(): Window['electron'] | undefined {

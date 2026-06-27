@@ -80,7 +80,7 @@ export class MockRouter {
 
 const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
-    streamFormat: StreamFormat.M3u8StreamFormat,
+    streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
     showCaptions: false,

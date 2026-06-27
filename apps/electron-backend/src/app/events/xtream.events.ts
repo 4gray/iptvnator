@@ -11,7 +11,7 @@ import {
     normalizeXtreamServerUrl,
 } from '@iptvnator/shared/interfaces';
 import { emitPortalDebugEvent } from './portal-debug.events';
-import { assertRemoteUrlAllowed, UnsafeUrlError } from './url-safety';
+import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
 export default class XtreamEvents {
@@ -299,51 +299,51 @@ ipcMain.handle(
             method?: 'GET' | 'HEAD';
         }
     ) => {
-        // Probe URLs must be http(s), but may target private/LAN Xtream hosts
-        // for self-hosted setups. Redirects stay disabled below so a validated
-        // URL cannot bounce to a different private target.
-        try {
-            await assertRemoteUrlAllowed(payload.url, {
-                allowPrivateNetworks: true,
-            });
-        } catch (error) {
-            return {
-                status: 0,
-                url: payload.url,
-                error:
-                    error instanceof UnsafeUrlError
-                        ? error.message
-                        : 'Invalid URL',
-            };
-        }
-
+        const method = payload.method ?? 'HEAD';
         const config: AxiosRequestConfig = {
-            method: payload.method ?? 'HEAD',
+            method,
             url: payload.url,
             headers: {
                 'User-Agent':
                     'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                ...(method === 'GET' ? { Range: 'bytes=0-4095' } : {}),
             },
             timeout: 10000,
-            // SSRF hardening: do NOT follow redirects. assertRemoteUrlAllowed
-            // validated payload.url, but a validated public host could 3xx to an
-            // internal address that would never be re-checked. validateStatus
-            // below returns the 3xx as the probe result instead of following it.
-            maxRedirects: 0,
+            responseType: method === 'GET' ? 'stream' : undefined,
             validateStatus: () => true,
         };
 
         try {
-            const response = await axios(config);
+            const response = await requestWithValidatedRedirects(
+                payload.url,
+                config,
+                {
+                    allowPrivateNetworkRedirects: false,
+                    allowPrivateNetworks: true,
+                    pinAllowedPrivateNetworkHosts: true,
+                }
+            );
+            const responseBody = response.data as
+                | { destroy?: () => void }
+                | undefined;
+            responseBody?.destroy?.();
             return {
                 status: response.status,
-                url: payload.url,
+                url: response.config?.url ?? payload.url,
             };
         } catch (error) {
             if (axios.isAxiosError(error) && error.response) {
                 return {
                     status: error.response.status,
                     url: payload.url,
+                };
+            }
+
+            if (error instanceof UnsafeUrlError) {
+                return {
+                    status: 0,
+                    url: payload.url,
+                    error: error.message,
                 };
             }
 

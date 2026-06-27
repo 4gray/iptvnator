@@ -65,10 +65,36 @@ and private-network checks.
 ## Playback URL Formats
 
 When account info includes `user_info.allowed_output_formats`, the current
-Xtream playlist keeps those formats for the active session. Live stream URL
-construction falls back to the first provider-allowed format when the selected
-application format is not allowed by the portal.
+Xtream playlist keeps those formats for the active session. The default
+application format is `auto`: live stream URL construction chooses `m3u8` when
+the provider allows HLS, falls back to `ts` when MPEG-TS is the only known
+standard format, and otherwise uses the first provider-advertised format. If
+the provider does not advertise output formats, `auto` falls back to `m3u8`.
+Manual `ts` and `m3u8` settings remain supported; when a manual setting is not
+allowed by the portal, URL construction falls back to the first
+provider-allowed format.
 
 If stored Xtream playback credentials contain an invalid server URL or blank
 username/password, stream URL construction returns an empty URL instead of
 throwing during playback.
+
+## Catch-Up Playback URLs
+
+Xtream-compatible portals differ on archive playback URL shape. IPTVnator
+supports these catch-up variants:
+
+1. REST-style `/timeshift/{username}/{password}/{duration}/{start}/{streamId}.ts`
+   and `.m3u8`.
+2. Legacy `/streaming/timeshift.php?username=...&password=...&stream=...&start=...&duration=...`
+   with optional `extension=ts` or `extension=m3u8`.
+
+Electron probes concrete catch-up variants before caching a playlist-level
+choice. The cache key includes the playlist id and the normalized
+`allowed_output_formats` advertised by the provider, so a catch-up variant
+detected before account capabilities are known cannot force stale MPEG-TS URLs
+after the portal later reports HLS-only playback. The probe uses a short range
+`GET`, follows only validated redirects, and accepts only `200` or `206` as
+playable. MPEG-TS is preferred before HLS when the provider allows it because
+some portals return a valid HLS manifest while the first media segment fails in
+Chromium/video.js. PWA fallback keeps the REST MPEG-TS URL when no Electron
+probe API is available.

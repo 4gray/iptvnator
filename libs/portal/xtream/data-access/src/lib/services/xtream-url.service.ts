@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import {
     normalizeXtreamServerUrl,
+    StreamFormat,
     XtreamSerieEpisode,
     XtreamVodDetails,
 } from '@iptvnator/shared/interfaces';
@@ -31,7 +32,32 @@ type XtreamVodStreamLike = XtreamVodDetails & {
     readonly stream_id?: number;
 };
 
-type XtreamCatchupScheme = 'rest' | 'legacy';
+const XTREAM_CATCHUP_SCHEME = {
+    LEGACY: 'legacy',
+    REST: 'rest',
+} as const;
+
+type XtreamCatchupScheme =
+    (typeof XTREAM_CATCHUP_SCHEME)[keyof typeof XTREAM_CATCHUP_SCHEME];
+
+const XTREAM_CATCHUP_VARIANT = {
+    LEGACY: 'legacy',
+    LEGACY_M3U8: 'legacy:m3u8',
+    LEGACY_TS: 'legacy:ts',
+    REST_M3U8: 'rest:m3u8',
+    REST_TS: 'rest:ts',
+} as const;
+
+type XtreamCatchupVariant =
+    (typeof XTREAM_CATCHUP_VARIANT)[keyof typeof XTREAM_CATCHUP_VARIANT];
+
+const XTREAM_CATCHUP_EXTENSIONS = {
+    M3U8: 'm3u8',
+    TS: 'ts',
+} as const;
+
+type XtreamCatchupExtension =
+    (typeof XTREAM_CATCHUP_EXTENSIONS)[keyof typeof XTREAM_CATCHUP_EXTENSIONS];
 
 interface NormalizedXtreamCredentials {
     password: string;
@@ -48,7 +74,7 @@ type XtreamProbeApi = {
     ) => Promise<{ status: number }>;
 };
 
-const XTREAM_CATCHUP_SCHEME_KEY_PREFIX = 'xtream-catchup-scheme:';
+const XTREAM_CATCHUP_VARIANT_KEY_PREFIX = 'xtream-catchup-variant:v4:';
 
 /**
  * Service for constructing Xtream stream URLs.
@@ -60,11 +86,11 @@ export class XtreamUrlService {
     private readonly settingsStore = inject(SettingsStore);
     private readonly catchupSchemeCache = new Map<
         string,
-        XtreamCatchupScheme
+        XtreamCatchupVariant
     >();
     private readonly catchupSchemeRequests = new Map<
         string,
-        Promise<XtreamCatchupScheme>
+        Promise<XtreamCatchupVariant>
     >();
 
     /**
@@ -83,7 +109,9 @@ export class XtreamUrlService {
 
         const streamFormat = this.resolveLiveStreamFormat(
             credentials,
-            format ?? this.settingsStore.streamFormat() ?? 'ts'
+            format ??
+                this.settingsStore.streamFormat() ??
+                StreamFormat.AutoStreamFormat
         );
         return `${normalizedCredentials.serverUrl}/live/${normalizedCredentials.username}/${normalizedCredentials.password}/${xtreamId}.${streamFormat}`;
     }
@@ -131,7 +159,7 @@ export class XtreamUrlService {
         streamId: number,
         startTimestamp: number,
         stopTimestamp: number,
-        scheme: XtreamCatchupScheme,
+        scheme: XtreamCatchupScheme | XtreamCatchupVariant,
         serverTimezone?: string
     ): string {
         const normalizedCredentials = this.normalizeCredentials(credentials);
@@ -147,8 +175,10 @@ export class XtreamUrlService {
             startTimestamp,
             serverTimezone
         );
+        const variant = this.normalizeCatchupVariant(scheme);
+        const extension = this.getCatchupVariantExtension(variant);
 
-        if (scheme === 'legacy') {
+        if (variant.startsWith(XTREAM_CATCHUP_SCHEME.LEGACY)) {
             const params = new URLSearchParams({
                 username: normalizedCredentials.rawUsername,
                 password: normalizedCredentials.rawPassword,
@@ -156,10 +186,13 @@ export class XtreamUrlService {
                 start: timeString,
                 duration: String(durationMinutes),
             });
+            if (extension) {
+                params.set('extension', extension);
+            }
             return `${normalizedCredentials.serverUrl}/streaming/timeshift.php?${params.toString()}`;
         }
 
-        return `${normalizedCredentials.serverUrl}/timeshift/${normalizedCredentials.username}/${normalizedCredentials.password}/${durationMinutes}/${timeString}/${streamId}.ts`;
+        return `${normalizedCredentials.serverUrl}/timeshift/${normalizedCredentials.username}/${normalizedCredentials.password}/${durationMinutes}/${timeString}/${streamId}.${extension ?? XTREAM_CATCHUP_EXTENSIONS.TS}`;
     }
 
     async resolveCatchupUrl(
@@ -170,7 +203,7 @@ export class XtreamUrlService {
         stopTimestamp: number,
         serverTimezone?: string
     ): Promise<string> {
-        const scheme = await this.getCatchupScheme(
+        const variant = await this.getCatchupVariant(
             playlistId,
             credentials,
             streamId,
@@ -184,29 +217,33 @@ export class XtreamUrlService {
             streamId,
             startTimestamp,
             stopTimestamp,
-            scheme,
+            variant,
             serverTimezone
         );
     }
 
-    private async getCatchupScheme(
+    private async getCatchupVariant(
         playlistId: string,
         credentials: XtreamCredentials,
         streamId: number,
         startTimestamp: number,
         stopTimestamp: number,
         serverTimezone?: string
-    ): Promise<XtreamCatchupScheme> {
-        const cacheKey = `${XTREAM_CATCHUP_SCHEME_KEY_PREFIX}${playlistId}`;
+    ): Promise<XtreamCatchupVariant> {
+        const cacheKey = this.getCatchupVariantCacheKey(
+            playlistId,
+            credentials
+        );
         const cached = this.catchupSchemeCache.get(cacheKey);
         if (cached) {
-            return cached;
+            return this.normalizeCatchupVariant(cached);
         }
 
         const persisted = await this.databaseService.getAppState(cacheKey);
-        if (persisted === 'rest' || persisted === 'legacy') {
-            this.catchupSchemeCache.set(cacheKey, persisted);
-            return persisted;
+        const persistedVariant = this.parseCatchupVariant(persisted);
+        if (persistedVariant) {
+            this.catchupSchemeCache.set(cacheKey, persistedVariant);
+            return persistedVariant;
         }
 
         const inFlightRequest = this.catchupSchemeRequests.get(cacheKey);
@@ -214,7 +251,7 @@ export class XtreamUrlService {
             return inFlightRequest;
         }
 
-        const request = this.detectCatchupScheme(
+        const request = this.detectCatchupVariant(
             cacheKey,
             credentials,
             streamId,
@@ -229,52 +266,41 @@ export class XtreamUrlService {
         return request;
     }
 
-    private async detectCatchupScheme(
+    private async detectCatchupVariant(
         cacheKey: string,
         credentials: XtreamCredentials,
         streamId: number,
         startTimestamp: number,
         stopTimestamp: number,
         serverTimezone?: string
-    ): Promise<XtreamCatchupScheme> {
-        const restUrl = this.constructCatchupUrl(
-            credentials,
-            streamId,
-            startTimestamp,
-            stopTimestamp,
-            'rest',
-            serverTimezone
-        );
-        const legacyUrl = this.constructCatchupUrl(
-            credentials,
-            streamId,
-            startTimestamp,
-            stopTimestamp,
-            'legacy',
-            serverTimezone
-        );
+    ): Promise<XtreamCatchupVariant> {
+        for (const variant of this.getCatchupVariantCandidates(credentials)) {
+            const url = this.constructCatchupUrl(
+                credentials,
+                streamId,
+                startTimestamp,
+                stopTimestamp,
+                variant,
+                serverTimezone
+            );
+            if (!url) {
+                continue;
+            }
 
-        if (!restUrl || !legacyUrl) {
-            return 'rest';
+            const status = await this.probeCatchupUrl(url);
+            if (this.isAcceptedCatchupProbeStatus(status)) {
+                this.catchupSchemeCache.set(cacheKey, variant);
+                await this.databaseService.setAppState(cacheKey, variant);
+                return variant;
+            }
         }
 
-        const restStatus = await this.probeCatchupUrl(restUrl);
-        let detectedScheme: XtreamCatchupScheme;
-
-        if (this.isAcceptedCatchupProbeStatus(restStatus)) {
-            detectedScheme = 'rest';
-        } else {
-            const legacyStatus = await this.probeCatchupUrl(legacyUrl);
-            detectedScheme = this.isAcceptedCatchupProbeStatus(legacyStatus)
-                ? 'legacy'
-                : restStatus === 404
-                  ? 'legacy'
-                  : 'rest';
-        }
-
-        this.catchupSchemeCache.set(cacheKey, detectedScheme);
-        await this.databaseService.setAppState(cacheKey, detectedScheme);
-        return detectedScheme;
+        this.catchupSchemeCache.set(cacheKey, XTREAM_CATCHUP_VARIANT.REST_TS);
+        await this.databaseService.setAppState(
+            cacheKey,
+            XTREAM_CATCHUP_VARIANT.REST_TS
+        );
+        return XTREAM_CATCHUP_VARIANT.REST_TS;
     }
 
     private async probeCatchupUrl(url: string): Promise<number> {
@@ -286,7 +312,7 @@ export class XtreamUrlService {
         }
 
         try {
-            const result = await probeUrl(url, 'HEAD');
+            const result = await probeUrl(url, 'GET');
             return Number(result?.status ?? 0);
         } catch {
             return 0;
@@ -294,12 +320,121 @@ export class XtreamUrlService {
     }
 
     private isAcceptedCatchupProbeStatus(status: number): boolean {
+        return status === 200 || status === 206;
+    }
+
+    private getCatchupVariantCandidates(
+        credentials: XtreamCredentials
+    ): XtreamCatchupVariant[] {
+        const variants: XtreamCatchupVariant[] = [];
+
+        for (const extension of this.getPreferredCatchupExtensions(
+            credentials
+        )) {
+            variants.push(
+                extension === XTREAM_CATCHUP_EXTENSIONS.M3U8
+                    ? XTREAM_CATCHUP_VARIANT.REST_M3U8
+                    : XTREAM_CATCHUP_VARIANT.REST_TS
+            );
+            variants.push(
+                extension === XTREAM_CATCHUP_EXTENSIONS.M3U8
+                    ? XTREAM_CATCHUP_VARIANT.LEGACY_M3U8
+                    : XTREAM_CATCHUP_VARIANT.LEGACY_TS
+            );
+        }
+
+        variants.push(XTREAM_CATCHUP_VARIANT.LEGACY);
+
+        return [...new Set(variants)];
+    }
+
+    private getPreferredCatchupExtensions(
+        credentials: XtreamCredentials
+    ): XtreamCatchupExtension[] {
+        const allowedFormats =
+            this.getNormalizedAllowedOutputFormats(credentials);
+        const formats =
+            allowedFormats && allowedFormats.length > 0
+                ? allowedFormats
+                : [
+                      XTREAM_CATCHUP_EXTENSIONS.M3U8,
+                      XTREAM_CATCHUP_EXTENSIONS.TS,
+                  ];
+
+        const preferred = [
+            XTREAM_CATCHUP_EXTENSIONS.TS,
+            XTREAM_CATCHUP_EXTENSIONS.M3U8,
+        ].filter((format) => formats.includes(format));
+
+        return preferred.length > 0
+            ? preferred
+            : [XTREAM_CATCHUP_EXTENSIONS.TS];
+    }
+
+    private getCatchupVariantCacheKey(
+        playlistId: string,
+        credentials: XtreamCredentials
+    ): string {
+        const allowedFormats =
+            this.getNormalizedAllowedOutputFormats(credentials);
+        const formatSignature =
+            allowedFormats && allowedFormats.length > 0
+                ? [...new Set(allowedFormats)]
+                      .sort()
+                      .map((format) => encodeURIComponent(format))
+                      .join(',')
+                : 'unknown';
+
+        return `${XTREAM_CATCHUP_VARIANT_KEY_PREFIX}${playlistId}:formats:${formatSignature}`;
+    }
+
+    private getNormalizedAllowedOutputFormats(
+        credentials: XtreamCredentials
+    ): string[] | undefined {
+        const allowedFormats = credentials.allowedOutputFormats
+            ?.map((format) => format.trim().toLowerCase())
+            .filter(Boolean);
+
+        return allowedFormats && allowedFormats.length > 0
+            ? allowedFormats
+            : undefined;
+    }
+
+    private normalizeCatchupVariant(
+        scheme: XtreamCatchupScheme | XtreamCatchupVariant
+    ): XtreamCatchupVariant {
         return (
-            (status >= 200 && status < 400) ||
-            status === 401 ||
-            status === 403 ||
-            status === 405
+            this.parseCatchupVariant(scheme) ?? XTREAM_CATCHUP_VARIANT.REST_TS
         );
+    }
+
+    private parseCatchupVariant(
+        value: string | null
+    ): XtreamCatchupVariant | null {
+        const variants = Object.values(XTREAM_CATCHUP_VARIANT);
+        return variants.includes(value as XtreamCatchupVariant)
+            ? (value as XtreamCatchupVariant)
+            : null;
+    }
+
+    private getCatchupVariantExtension(
+        variant: XtreamCatchupVariant
+    ): XtreamCatchupExtension | null {
+        if (
+            variant === XTREAM_CATCHUP_VARIANT.REST_M3U8 ||
+            variant === XTREAM_CATCHUP_VARIANT.LEGACY_M3U8
+        ) {
+            return XTREAM_CATCHUP_EXTENSIONS.M3U8;
+        }
+
+        if (
+            variant === XTREAM_CATCHUP_VARIANT.REST_TS ||
+            variant === XTREAM_CATCHUP_VARIANT.LEGACY_TS
+        ) {
+            return XTREAM_CATCHUP_EXTENSIONS.TS;
+        }
+
+        return null;
     }
 
     private normalizeCredentials(
@@ -331,16 +466,37 @@ export class XtreamUrlService {
         credentials: XtreamCredentials,
         requestedFormat: string
     ): string {
-        const requested = requestedFormat.trim();
-        const allowedFormats = credentials.allowedOutputFormats
-            ?.map((format) => format.trim())
-            .filter(Boolean);
+        const requested = requestedFormat.trim().toLowerCase();
+        const allowedFormats =
+            this.getNormalizedAllowedOutputFormats(credentials);
+
+        if (!requested || requested === StreamFormat.AutoStreamFormat) {
+            return this.resolveAutoLiveStreamFormat(allowedFormats);
+        }
 
         if (allowedFormats?.length && !allowedFormats.includes(requested)) {
             return allowedFormats[0];
         }
 
         return requested;
+    }
+
+    private resolveAutoLiveStreamFormat(
+        allowedFormats: string[] | undefined
+    ): string {
+        if (!allowedFormats?.length) {
+            return StreamFormat.M3u8StreamFormat;
+        }
+
+        if (allowedFormats.includes(StreamFormat.M3u8StreamFormat)) {
+            return StreamFormat.M3u8StreamFormat;
+        }
+
+        if (allowedFormats.includes(StreamFormat.TsStreamFormat)) {
+            return StreamFormat.TsStreamFormat;
+        }
+
+        return allowedFormats[0];
     }
 
     private formatCatchupStartTime(

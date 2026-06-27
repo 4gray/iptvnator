@@ -48,10 +48,13 @@ export class LiveEpgPanelComponent {
     readonly collapsed = input(false);
     readonly summary = input<LiveEpgPanelSummary | null>(null);
     readonly loading = input(false);
+    readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
     readonly showDateNavigator = input(false);
     readonly selectedDate = input<string | null>(null);
+    readonly showReturnToLive = input(false);
     readonly collapsedChange = output<boolean>();
     readonly dateNavigation = output<EpgDateNavigationDirection>();
+    readonly returnToLive = output<void>();
 
     private readonly translate = inject(TranslateService);
     private readonly currentTimeMs = signal(Date.now());

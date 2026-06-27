@@ -599,6 +599,8 @@
         "TRUST_TLS_HOST_TITLE": "Trust invalid certificate?",
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
+        "ARCHIVE_PLAYBACK": "Archief afspelen",
+        "RETURN_TO_LIVE": "Terug naar live",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"
     },

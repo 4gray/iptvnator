@@ -22,6 +22,9 @@ export class EpgListItemComponent {
     /** Whether the program is currently live */
     @Input() isLive = false;
 
+    /** Whether the program is the active playback target */
+    @Input() isActive = false;
+
     /** Whether archive playback is available for the program */
     @Input() showArchiveBadge = false;
 

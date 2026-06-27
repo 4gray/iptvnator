@@ -15,10 +15,13 @@ import {
             [collapsed]="collapsed"
             [summary]="summary"
             [loading]="loading"
+            [summaryLabelKey]="summaryLabelKey"
             [showDateNavigator]="showDateNavigator"
             [selectedDate]="selectedDate"
+            [showReturnToLive]="showReturnToLive"
             (collapsedChange)="collapsed = $event"
             (dateNavigation)="dateDirection = $event"
+            (returnToLive)="returnToLiveCount = returnToLiveCount + 1"
         >
             <div class="projected-content">Projected EPG</div>
         </app-live-epg-panel>
@@ -27,9 +30,12 @@ import {
 class HostComponent {
     collapsed = false;
     loading = false;
+    summaryLabelKey = 'EPG.CURRENT_PROGRAM';
     showDateNavigator = false;
+    showReturnToLive = false;
     selectedDate = '2026-04-05';
     dateDirection: 'next' | 'prev' | null = null;
+    returnToLiveCount = 0;
     summary: LiveEpgPanelSummary | null = {
         title: 'Current Show',
         start: '2026-04-05T11:30:00.000Z',
@@ -67,6 +73,10 @@ describe('LiveEpgPanelComponent', () => {
             fixture.nativeElement.querySelector('.live-epg-panel__title')
                 .textContent
         ).toContain('Current Show');
+        expect(
+            fixture.nativeElement.querySelector('.live-epg-panel__label')
+                .textContent
+        ).toContain('EPG.CURRENT_PROGRAM');
         expect(
             fixture.nativeElement.querySelector(
                 '.live-epg-panel__progress-fill'
@@ -138,5 +148,26 @@ describe('LiveEpgPanelComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.live-epg-panel__date-nav')
         ).toBeNull();
+    });
+
+    it('renders archive playback state and emits return-to-live requests', () => {
+        fixture.componentInstance.summaryLabelKey = 'EPG.ARCHIVE_PLAYBACK';
+        fixture.componentInstance.showReturnToLive = true;
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('.live-epg-panel__label')
+                .textContent
+        ).toContain('EPG.ARCHIVE_PLAYBACK');
+
+        const returnButton = fixture.nativeElement.querySelector(
+            '.live-epg-panel__return-live'
+        ) as HTMLButtonElement | null;
+        expect(returnButton).not.toBeNull();
+        expect(returnButton?.textContent).toContain('EPG.RETURN_TO_LIVE');
+
+        returnButton?.click();
+
+        expect(fixture.componentInstance.returnToLiveCount).toBe(1);
     });
 });
