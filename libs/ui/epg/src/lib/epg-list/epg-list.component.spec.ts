@@ -24,6 +24,7 @@ registerLocaleData(localeDe, 'de');
 class StubEpgListItemComponent {
     readonly item = input<EpgProgram>();
     readonly isLive = input(false);
+    readonly isActive = input(false);
     readonly showArchiveBadge = input(false);
 }
 
@@ -227,6 +228,42 @@ describe('EpgListComponent', () => {
             fixture.nativeElement.querySelectorAll('.program-item.clickable')
                 .length
         ).toBe(2);
+    });
+
+    it('highlights an externally active archived program without marking the live program active', () => {
+        const programs = buildPrograms();
+        fixture.componentRef.setInput('controlledPrograms', programs);
+        fixture.componentRef.setInput('archivePlaybackAvailable', true);
+        fixture.componentRef.setInput('activeProgram', programs[0]);
+
+        fixture.detectChanges();
+
+        const rows = fixture.nativeElement.querySelectorAll('.program-item');
+
+        expect(rows[0].classList).toContain('active');
+        expect(rows[1].classList).toContain('current-program');
+        expect(rows[1].classList).not.toContain('active');
+    });
+
+    it('exposes playable rows as keyboard-activatable buttons', () => {
+        const programs = buildPrograms();
+        const emitted: unknown[] = [];
+        component.programActivated.subscribe((event) => emitted.push(event));
+        fixture.componentRef.setInput('controlledPrograms', programs);
+        fixture.componentRef.setInput('archivePlaybackAvailable', true);
+
+        fixture.detectChanges();
+
+        const archivedRow = fixture.nativeElement.querySelector(
+            '.program-item.clickable'
+        ) as HTMLElement;
+        archivedRow.dispatchEvent(
+            new KeyboardEvent('keydown', { key: 'Enter', bubbles: true })
+        );
+
+        expect(archivedRow.getAttribute('role')).toBe('button');
+        expect(archivedRow.getAttribute('tabindex')).toBe('0');
+        expect(emitted).toEqual([{ program: programs[0], type: 'timeshift' }]);
     });
 
     it('updates the selected-day header when the app language changes', () => {

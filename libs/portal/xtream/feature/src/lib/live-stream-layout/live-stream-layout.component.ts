@@ -268,6 +268,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly activeStreamUrl = computed(
         () => this.activePlayback()?.streamUrl ?? ''
     );
+    readonly activeCatchupProgram = signal<EpgProgram | null>(null);
     favorites = new Map<number, boolean>();
 
     constructor() {
@@ -426,6 +427,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         startPlayback = !this.settingsStore.openStreamOnDoubleClick()
     ) {
         const streamUrl = this.xtreamStore.constructStreamUrl(item);
+        this.activeCatchupProgram.set(null);
         // Keep both root/recently-added playback and same-category replays in
         // sync with the category rail. For already-selected channels this is a
         // store no-op.
@@ -633,6 +635,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
             playlist.serverTimezone
         );
 
+        this.activeCatchupProgram.set(program);
         this.activePlayback.set({
             streamUrl: catchupUrl,
             title: this.getCatchupPlaybackTitle(item, program),

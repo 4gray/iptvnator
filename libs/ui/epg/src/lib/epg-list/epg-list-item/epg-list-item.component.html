@@ -10,6 +10,7 @@
 @if (showArchiveBadge) {
     <span
         class="archive-playback badge"
+        [class.archive-playback--active]="isActive"
         [matTooltip]="'EPG.TIMESHIFT_AVAILABLE' | translate"
     >
         <mat-icon class="archive-playback__icon" aria-hidden="true"

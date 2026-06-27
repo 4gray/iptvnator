@@ -102,6 +102,7 @@ class StubEpgListComponent {
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
     readonly controlledArchiveDays = input<number | null>(null);
     readonly archivePlaybackAvailable = input<boolean | null>(null);
+    readonly activeProgram = input<EpgProgram | null>(null);
     readonly selectedDate = input<string | null>(null);
     readonly showDateNavigator = input(true);
     readonly programActivated = output<EpgProgramActivationEvent>();
@@ -761,6 +762,46 @@ describe('LiveStreamLayoutComponent', () => {
             'Channel 101 - Archived Show',
             'channel-101.png'
         );
+    });
+
+    it('passes the active catchup program to the EPG list until live playback resumes', async () => {
+        const archivedProgram: EpgProgram = {
+            start: '2026-04-04T10:00:00.000Z',
+            stop: '2026-04-04T11:00:00.000Z',
+            channel: 'channel-101',
+            title: 'Archived Show',
+            desc: null,
+            category: null,
+            startTimestamp: 1775296800,
+            stopTimestamp: 1775300400,
+        };
+        epgItems.set([
+            buildEpgItem(
+                '1',
+                'Archived Show',
+                archivedProgram.start,
+                archivedProgram.stop
+            ),
+        ]);
+
+        await component.onProgramActivated({
+            type: 'timeshift',
+            program: archivedProgram,
+        });
+        fixture.detectChanges();
+
+        let epgList = fixture.debugElement.query(
+            By.directive(StubEpgListComponent)
+        );
+        expect(epgList.componentInstance.activeProgram()).toEqual(
+            archivedProgram
+        );
+
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+
+        epgList = fixture.debugElement.query(By.directive(StubEpgListComponent));
+        expect(epgList.componentInstance.activeProgram()).toBeNull();
     });
 
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {

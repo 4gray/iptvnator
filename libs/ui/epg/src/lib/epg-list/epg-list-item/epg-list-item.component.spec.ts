@@ -93,4 +93,17 @@ describe('EpgListItemComponent', () => {
         expect(chip.textContent).toContain('Play');
         expect(icon.textContent.trim()).toBe('replay');
     });
+
+    it('marks the archive playback chip as active when the program is active', () => {
+        fixture = TestBed.createComponent(EpgListItemComponent);
+        component = fixture.componentInstance;
+        component.item = EPG_PROGRAM_ITEM;
+        component.showArchiveBadge = true;
+        component.isActive = true;
+        fixture.detectChanges();
+
+        const chip = fixture.nativeElement.querySelector('.archive-playback');
+
+        expect(chip.classList).toContain('archive-playback--active');
+    });
 });

@@ -55,6 +55,7 @@ export class EpgListComponent {
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
     readonly controlledArchiveDays = input<number | null>(null);
     readonly archivePlaybackAvailable = input<boolean | null>(null);
+    readonly activeProgram = input<EpgProgram | null>(null);
     readonly selectedDateInput = input<string | null>(null, {
         alias: 'selectedDate',
     });
@@ -235,6 +236,11 @@ export class EpgListComponent {
         this.timeNow.set(new Date().toISOString());
     }
 
+    activateProgramFromKeyboard(event: Event, program: EpgProgram): void {
+        event.preventDefault();
+        this.activateProgram(program);
+    }
+
     canActivateProgram(program: EpgProgram): boolean {
         return (
             this.isProgramPlaying(program) ||
@@ -276,6 +282,13 @@ export class EpgListComponent {
         const archiveLimit = Date.parse(this.timeshiftUntil());
 
         return stop < now && start >= archiveLimit;
+    }
+
+    isProgramActive(program: EpgProgram): boolean {
+        const activeProgram = this.activeProgram();
+        return activeProgram
+            ? areProgramsSame(program, activeProgram)
+            : this.isProgramPlaying(program);
     }
 
     private findCurrentProgram(programs: EpgProgram[]): EpgProgram | undefined {
@@ -401,4 +414,14 @@ function getProgramDateKey(
     }
 
     return format(new Date(programTimeMs), EPG_DATE_KEY_FORMAT);
+}
+
+function areProgramsSame(left: EpgProgram, right: EpgProgram): boolean {
+    return (
+        (left.channel ?? '') === (right.channel ?? '') &&
+        getProgramTimeMs(left.start, left.startTimestamp) ===
+            getProgramTimeMs(right.start, right.startTimestamp) &&
+        getProgramTimeMs(left.stop, left.stopTimestamp) ===
+            getProgramTimeMs(right.stop, right.stopTimestamp)
+    );
 }

@@ -45,6 +45,7 @@
                             <app-epg-list-item
                                 [item]="program"
                                 [isLive]="isProgramPlaying(program)"
+                                [isActive]="isProgramActive(program)"
                                 [showArchiveBadge]="
                                     canPlayArchivedProgram(program)
                                 "
@@ -73,13 +74,23 @@
                     <div
                         class="program-item clickable"
                         [class.current-program]="isProgramPlaying(program)"
-                        [class.active]="isProgramPlaying(program)"
+                        [class.archive-program]="
+                            canPlayArchivedProgram(program)
+                        "
+                        [class.active]="isProgramActive(program)"
+                        role="button"
+                        tabindex="0"
                         (click)="activateProgram(program)"
+                        (keydown.enter)="activateProgram(program)"
+                        (keydown.space)="
+                            activateProgramFromKeyboard($event, program)
+                        "
                     >
                         <div class="program-meta">
                             <app-epg-list-item
                                 [item]="program"
                                 [isLive]="isProgramPlaying(program)"
+                                [isActive]="isProgramActive(program)"
                                 [showArchiveBadge]="
                                     canPlayArchivedProgram(program)
                                 "

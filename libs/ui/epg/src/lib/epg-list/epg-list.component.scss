@@ -56,6 +56,7 @@
 }
 
 .program-item {
+    position: relative;
     display: flex;
     flex-direction: column;
     gap: 5px;
@@ -116,6 +117,47 @@
                 var(--app-selection-color) 10%,
                 transparent
             );
+        }
+
+        &:focus-visible {
+            outline: 2px solid var(--app-selection-border);
+            outline-offset: 2px;
+            background: color-mix(
+                in srgb,
+                var(--app-selection-color) 8%,
+                transparent
+            );
+
+            &::before,
+            & + .program-item::before {
+                display: none;
+            }
+        }
+    }
+
+    &.archive-program {
+        &::after {
+            content: '';
+            position: absolute;
+            inset-block: 12px;
+            inset-inline-start: 0;
+            width: 3px;
+            border-radius: 999px;
+            background: var(--app-selection-color);
+            opacity: 0.48;
+            transform: scaleY(0.68);
+            transition:
+                opacity 0.15s ease,
+                transform 0.15s ease,
+                box-shadow 0.15s ease;
+        }
+
+        &:hover::after,
+        &:focus-visible::after,
+        &.active::after {
+            opacity: 1;
+            transform: scaleY(1);
+            box-shadow: 0 0 12px -4px var(--app-selection-glow);
         }
     }
 
