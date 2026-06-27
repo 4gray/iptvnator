@@ -72,3 +72,20 @@ application format is not allowed by the portal.
 If stored Xtream playback credentials contain an invalid server URL or blank
 username/password, stream URL construction returns an empty URL instead of
 throwing during playback.
+
+## Catch-Up Playback URLs
+
+Xtream-compatible portals differ on archive playback URL shape. IPTVnator
+supports these catch-up variants:
+
+1. REST-style `/timeshift/{username}/{password}/{duration}/{start}/{streamId}.ts`
+   and `.m3u8`.
+2. Legacy `/streaming/timeshift.php?username=...&password=...&stream=...&start=...&duration=...`
+   with optional `extension=ts` or `extension=m3u8`.
+
+Electron probes concrete catch-up variants before caching a playlist-level
+choice. The probe uses a short range `GET`, follows only validated redirects,
+and accepts only `200` or `206` as playable. MPEG-TS is preferred before HLS
+when the provider allows it because some portals return a valid HLS manifest
+while the first media segment fails in Chromium/video.js. PWA fallback keeps the
+REST MPEG-TS URL when no Electron probe API is available.

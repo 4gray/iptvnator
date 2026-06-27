@@ -109,35 +109,111 @@ describe('XtreamUrlService', () => {
     });
 
     it('detects the legacy catchup scheme once and then uses the cached result', async () => {
+        const tsOnlyCredentials: XtreamCredentials = {
+            ...credentials,
+            allowedOutputFormats: ['ts'],
+        };
         const xtreamProbeUrl = jest
             .fn()
             .mockResolvedValueOnce({ status: 404 })
-            .mockResolvedValueOnce({ status: 302 });
+            .mockResolvedValueOnce({ status: 206 });
         window.electron = {
             xtreamProbeUrl,
         } as typeof window.electron;
 
         const firstUrl = await service.resolveCatchupUrl(
             'playlist-1',
-            credentials,
+            tsOnlyCredentials,
             101,
             1775296800,
             1775300400
         );
         const secondUrl = await service.resolveCatchupUrl(
             'playlist-1',
-            credentials,
+            tsOnlyCredentials,
             101,
             1775296800,
             1775300400
         );
 
         expect(firstUrl).toContain('/streaming/timeshift.php?');
+        expect(firstUrl).toContain('extension=ts');
         expect(secondUrl).toBe(firstUrl);
         expect(xtreamProbeUrl).toHaveBeenCalledTimes(2);
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-scheme:playlist-1',
-            'legacy'
+            'xtream-catchup-variant:v3:playlist-1',
+            'legacy:ts'
+        );
+    });
+
+    it('prefers playable legacy MPEG-TS catchup before HLS for video.js compatible playlists', async () => {
+        const xtreamProbeUrl = jest.fn(async (url: string) => ({
+            status:
+                url.includes('/streaming/timeshift.php?') &&
+                url.includes('extension=ts')
+                    ? 206
+                    : 0,
+        }));
+        window.electron = {
+            xtreamProbeUrl,
+        } as typeof window.electron;
+
+        const catchupUrl = await service.resolveCatchupUrl(
+            'playlist-hls',
+            {
+                ...credentials,
+                allowedOutputFormats: ['m3u8', 'ts'],
+            },
+            45,
+            1782532800,
+            1782534600,
+            'UTC'
+        );
+
+        expect(catchupUrl).toContain('/streaming/timeshift.php?');
+        expect(catchupUrl).toContain('stream=45');
+        expect(catchupUrl).toContain('start=2026-06-27%3A04-00');
+        expect(catchupUrl).toContain('duration=30');
+        expect(catchupUrl).toContain('extension=ts');
+        expect(xtreamProbeUrl).toHaveBeenCalledWith(
+            expect.stringContaining('/timeshift/'),
+            'GET'
+        );
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-catchup-variant:v3:playlist-hls',
+            'legacy:ts'
+        );
+    });
+
+    it('falls back to legacy HLS catchup when MPEG-TS probes fail', async () => {
+        const xtreamProbeUrl = jest.fn(async (url: string) => ({
+            status:
+                url.includes('/streaming/timeshift.php?') &&
+                url.includes('extension=m3u8')
+                    ? 200
+                    : 0,
+        }));
+        window.electron = {
+            xtreamProbeUrl,
+        } as typeof window.electron;
+
+        const catchupUrl = await service.resolveCatchupUrl(
+            'playlist-hls-only',
+            {
+                ...credentials,
+                allowedOutputFormats: ['m3u8', 'ts'],
+            },
+            45,
+            1782532800,
+            1782534600,
+            'UTC'
+        );
+
+        expect(catchupUrl).toContain('/streaming/timeshift.php?');
+        expect(catchupUrl).toContain('extension=m3u8');
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-catchup-variant:v3:playlist-hls-only',
+            'legacy:m3u8'
         );
     });
 

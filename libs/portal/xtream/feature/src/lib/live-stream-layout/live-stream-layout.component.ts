@@ -622,6 +622,7 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
         const catchupUrl = await this.xtreamUrlService.resolveCatchupUrl(
             playlist.id,
             {
+                allowedOutputFormats: playlist.allowedOutputFormats,
                 serverUrl: playlist.serverUrl,
                 username: playlist.username,
                 password: playlist.password,

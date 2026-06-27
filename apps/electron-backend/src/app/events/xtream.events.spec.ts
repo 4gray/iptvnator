@@ -86,6 +86,54 @@ describe('XtreamEvents session cancellation', () => {
         expect(requestedUrl.searchParams.get('username')).toBe('user');
     });
 
+    it('follows validated redirects for range GET media probes', async () => {
+        const probeHandler = registeredHandlers.get('XTREAM_PROBE_URL');
+        const destroyProbeBody = jest.fn();
+        expect(probeHandler).toBeDefined();
+
+        axiosMock
+            .mockImplementationOnce((config: { url?: string }) =>
+                Promise.resolve({
+                    status: 302,
+                    headers: { location: '/media.ts' },
+                    config,
+                })
+            )
+            .mockImplementationOnce((config: { url?: string }) =>
+                Promise.resolve({
+                    status: 206,
+                    headers: {},
+                    data: { destroy: destroyProbeBody },
+                    config,
+                })
+            );
+
+        const result = (await probeHandler?.(
+            {},
+            {
+                url: 'http://localhost:3211/streaming/timeshift.php?stream=45',
+                method: 'GET',
+            }
+        )) as { status: number; url: string };
+
+        expect(result.status).toBe(206);
+        expect(result.url).toBe('http://localhost:3211/media.ts');
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+        const firstRequest = axiosMock.mock.calls[0][0] as {
+            headers?: Record<string, string>;
+            maxRedirects?: number;
+            method?: string;
+            responseType?: string;
+        };
+        expect(firstRequest.method).toBe('GET');
+        expect(firstRequest.headers).toEqual(
+            expect.objectContaining({ Range: 'bytes=0-4095' })
+        );
+        expect(firstRequest.maxRedirects).toBe(0);
+        expect(firstRequest.responseType).toBe('stream');
+        expect(destroyProbeBody).toHaveBeenCalledTimes(1);
+    });
+
     it('aborts requests that were registered with only a session id', async () => {
         const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
         const cancelHandler = registeredHandlers.get(XTREAM_CANCEL_SESSION);

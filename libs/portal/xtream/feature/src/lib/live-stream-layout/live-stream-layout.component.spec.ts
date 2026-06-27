@@ -746,6 +746,7 @@ describe('LiveStreamLayoutComponent', () => {
         expect(xtreamUrlService.resolveCatchupUrl).toHaveBeenCalledWith(
             'playlist-1',
             {
+                allowedOutputFormats: undefined,
                 serverUrl: 'http://demo.example',
                 username: 'demo',
                 password: 'secret',
