@@ -184,11 +184,16 @@ Command palette behavior is shell-owned but view-extensible:
    visibility — a navigation command like `Open sources` is invisible while
    the user is on `/workspace/sources` but the id stays in storage so it
    reappears in the recent section after navigating away.
-7. Five "Switch player to X" commands are registered globally by
-   `WorkspacePlayerCommandsContributor`. The MPV/VLC entries are visible only
-   in Electron, and the entry matching the current `SettingsStore.player()`
-   value is disabled. The new player setting applies to the next playback
-   session; an existing stream is not re-mounted.
+7. Six "Switch player to X" commands are registered globally by
+   `WorkspacePlayerCommandsContributor` (VideoJS, HTML5, ArtPlayer, Embedded
+   MPV, MPV, VLC). Each command carries a `requires` flag gating its
+   visibility: the MPV/VLC ("managed-external") entries are visible only when
+   `RuntimeCapabilitiesService.supportsManagedExternalPlayers` is true, and the
+   Embedded MPV ("embedded-mpv") entry is visible only after an async
+   `window.electron.getEmbeddedMpvSupport()` check resolves to `supported`
+   (mirroring the Settings dropdown gate). The entry matching the current
+   `SettingsStore.player()` value is disabled. The new player setting applies
+   to the next playback session; an existing stream is not re-mounted.
 
 Keyboard shortcut help is shell-owned:
 
