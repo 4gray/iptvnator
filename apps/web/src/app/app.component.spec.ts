@@ -4,7 +4,10 @@ import { Router } from '@angular/router';
 import { Actions } from '@ngrx/effects';
 import { MockStore, provideMockStore } from '@ngrx/store/testing';
 import { TranslateService } from '@ngx-translate/core';
-import { EpgRuntimeBridgeService, EpgService } from '@iptvnator/epg/data-access';
+import {
+    EpgRuntimeBridgeService,
+    EpgService,
+} from '@iptvnator/epg/data-access';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
 import { MockProvider } from 'ng-mocks';
 import { EMPTY, of } from 'rxjs';
@@ -35,7 +38,7 @@ class MockSettingsService {
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
     epgUrl: [],
-    streamFormat: StreamFormat.M3u8StreamFormat,
+    streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
     showCaptions: false,

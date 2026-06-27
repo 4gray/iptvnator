@@ -91,7 +91,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         (player) => {
             fixture.componentRef.setInput('form', createForm(player));
             fixture.componentRef.setInput('isDesktop', true);
-            fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
+            fixture.componentRef.setInput(
+                'supportsManagedExternalPlayers',
+                true
+            );
             fixture.detectChanges();
 
             expect(
@@ -128,11 +131,29 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).not.toBeNull();
     });
 
+    it('offers automatic Xtream stream format selection', async () => {
+        fixture.detectChanges();
+
+        fixture.nativeElement
+            .querySelector('[data-test-id="select-stream-format"]')
+            .click();
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        const option = document.body.querySelector('[data-test-id="auto"]');
+
+        expect(option).not.toBeNull();
+        expect(option?.textContent).toContain('auto');
+    });
+
     it('keeps the double-click option visible when path settings are unavailable', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
         fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', false);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            false
+        );
         fixture.detectChanges();
 
         expect(
@@ -173,7 +194,10 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows MPV bundle guidance and the IINA executable tip for desktop MPV playback', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', true);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain(
@@ -193,7 +217,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
         fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', false);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            false
+        );
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).not.toContain(
@@ -212,7 +239,10 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows VLC bundle guidance without the IINA tip for desktop VLC playback', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
         fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', true);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).toContain(
@@ -232,7 +262,10 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
         fixture.componentRef.setInput('isDesktop', true);
         fixture.componentRef.setInput('supportsManagedExternalPlayers', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', false);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            false
+        );
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).not.toContain(
@@ -247,7 +280,10 @@ describe('SettingsPlaybackSectionComponent', () => {
 
     it('does not show external-player path guidance for embedded players', () => {
         fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', true);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
         fixture.detectChanges();
 
         expect(fixture.nativeElement.textContent).not.toContain(
@@ -266,7 +302,10 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows MPV command-line arguments only when MPV is selected', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', true);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
         fixture.detectChanges();
 
         expect(
@@ -292,7 +331,10 @@ describe('SettingsPlaybackSectionComponent', () => {
     it('shows VLC command-line arguments only when VLC is selected', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.VLC));
         fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('supportsExternalPlayerPathSettings', true);
+        fixture.componentRef.setInput(
+            'supportsExternalPlayerPathSettings',
+            true
+        );
         fixture.detectChanges();
 
         expect(
@@ -319,7 +361,7 @@ describe('SettingsPlaybackSectionComponent', () => {
 function createForm(player = VideoPlayer.VideoJs): FormGroup {
     return new FormGroup({
         player: new FormControl(player),
-        streamFormat: new FormControl(StreamFormat.M3u8StreamFormat),
+        streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
         mpvPlayerPath: new FormControl(''),

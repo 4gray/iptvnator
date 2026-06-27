@@ -1,6 +1,7 @@
 import { inject, Injectable } from '@angular/core';
 import {
     normalizeXtreamServerUrl,
+    StreamFormat,
     XtreamSerieEpisode,
     XtreamVodDetails,
 } from '@iptvnator/shared/interfaces';
@@ -108,7 +109,9 @@ export class XtreamUrlService {
 
         const streamFormat = this.resolveLiveStreamFormat(
             credentials,
-            format ?? this.settingsStore.streamFormat() ?? 'ts'
+            format ??
+                this.settingsStore.streamFormat() ??
+                StreamFormat.AutoStreamFormat
         );
         return `${normalizedCredentials.serverUrl}/live/${normalizedCredentials.username}/${normalizedCredentials.password}/${xtreamId}.${streamFormat}`;
     }
@@ -322,7 +325,9 @@ export class XtreamUrlService {
     ): XtreamCatchupVariant[] {
         const variants: XtreamCatchupVariant[] = [];
 
-        for (const extension of this.getPreferredCatchupExtensions(credentials)) {
+        for (const extension of this.getPreferredCatchupExtensions(
+            credentials
+        )) {
             variants.push(
                 extension === XTREAM_CATCHUP_EXTENSIONS.M3U8
                     ? XTREAM_CATCHUP_VARIANT.REST_M3U8
@@ -372,7 +377,9 @@ export class XtreamUrlService {
         );
     }
 
-    private parseCatchupVariant(value: string | null): XtreamCatchupVariant | null {
+    private parseCatchupVariant(
+        value: string | null
+    ): XtreamCatchupVariant | null {
         const variants = Object.values(XTREAM_CATCHUP_VARIANT);
         return variants.includes(value as XtreamCatchupVariant)
             ? (value as XtreamCatchupVariant)
@@ -428,16 +435,38 @@ export class XtreamUrlService {
         credentials: XtreamCredentials,
         requestedFormat: string
     ): string {
-        const requested = requestedFormat.trim();
+        const requested = requestedFormat.trim().toLowerCase();
         const allowedFormats = credentials.allowedOutputFormats
-            ?.map((format) => format.trim())
+            ?.map((format) => format.trim().toLowerCase())
             .filter(Boolean);
+
+        if (!requested || requested === StreamFormat.AutoStreamFormat) {
+            return this.resolveAutoLiveStreamFormat(allowedFormats);
+        }
 
         if (allowedFormats?.length && !allowedFormats.includes(requested)) {
             return allowedFormats[0];
         }
 
         return requested;
+    }
+
+    private resolveAutoLiveStreamFormat(
+        allowedFormats: string[] | undefined
+    ): string {
+        if (!allowedFormats?.length) {
+            return StreamFormat.M3u8StreamFormat;
+        }
+
+        if (allowedFormats.includes(StreamFormat.M3u8StreamFormat)) {
+            return StreamFormat.M3u8StreamFormat;
+        }
+
+        if (allowedFormats.includes(StreamFormat.TsStreamFormat)) {
+            return StreamFormat.TsStreamFormat;
+        }
+
+        return allowedFormats[0];
     }
 
     private formatCatchupStartTime(

@@ -1,7 +1,8 @@
-import { signal } from '@angular/core';
+import { signal, WritableSignal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
 import { DatabaseService, SettingsStore } from '@iptvnator/services';
 import {
+    StreamFormat,
     XtreamSerieEpisode,
     XtreamVodDetails,
 } from '@iptvnator/shared/interfaces';
@@ -14,6 +15,7 @@ describe('XtreamUrlService', () => {
         getAppState: jest.Mock<Promise<string | null>, [string]>;
         setAppState: jest.Mock<Promise<void>, [string, string]>;
     };
+    let streamFormat: WritableSignal<StreamFormat>;
 
     const credentials: XtreamCredentials = {
         serverUrl: 'http://demo.example',
@@ -23,6 +25,7 @@ describe('XtreamUrlService', () => {
     const originalElectron = window.electron;
 
     beforeEach(() => {
+        streamFormat = signal(StreamFormat.TsStreamFormat);
         databaseService = {
             getAppState: jest.fn().mockResolvedValue(null),
             setAppState: jest.fn().mockResolvedValue(undefined),
@@ -35,7 +38,7 @@ describe('XtreamUrlService', () => {
                 {
                     provide: SettingsStore,
                     useValue: {
-                        streamFormat: signal('ts'),
+                        streamFormat,
                     },
                 },
             ],
@@ -71,6 +74,50 @@ describe('XtreamUrlService', () => {
         );
 
         expect(url).toBe('http://demo.example/live/demo/secret/101.m3u8');
+    });
+
+    it('auto-selects HLS for live streams when the provider allows it', () => {
+        streamFormat.set(StreamFormat.AutoStreamFormat);
+
+        const url = service.constructLiveUrl(
+            {
+                ...credentials,
+                allowedOutputFormats: ['ts', 'm3u8'],
+            },
+            101
+        );
+
+        expect(url).toBe('http://demo.example/live/demo/secret/101.m3u8');
+    });
+
+    it('auto-selects MPEG-TS for live streams when it is the only provider format', () => {
+        streamFormat.set(StreamFormat.AutoStreamFormat);
+
+        const url = service.constructLiveUrl(
+            {
+                ...credentials,
+                allowedOutputFormats: ['ts'],
+            },
+            101
+        );
+
+        expect(url).toBe('http://demo.example/live/demo/secret/101.ts');
+    });
+
+    it('uses HLS as the auto live-stream fallback when provider formats are unknown', () => {
+        streamFormat.set(StreamFormat.AutoStreamFormat);
+
+        const url = service.constructLiveUrl(credentials, 101);
+
+        expect(url).toBe('http://demo.example/live/demo/secret/101.m3u8');
+    });
+
+    it('keeps the manual live-stream format override when provider formats are unknown', () => {
+        streamFormat.set(StreamFormat.TsStreamFormat);
+
+        const url = service.constructLiveUrl(credentials, 101);
+
+        expect(url).toBe('http://demo.example/live/demo/secret/101.ts');
     });
 
     it('returns empty stream URLs instead of throwing for invalid stored server URLs', () => {

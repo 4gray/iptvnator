@@ -32,7 +32,7 @@ export function createSettingsForm(
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
-        streamFormat: StreamFormat.M3u8StreamFormat,
+        streamFormat: StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: false,
         language: Language.ENGLISH,
         showCaptions: false,
@@ -101,7 +101,7 @@ export function createSettingsFromFormValue(
 
     return {
         player: value.player ?? VideoPlayer.VideoJs,
-        streamFormat: value.streamFormat ?? StreamFormat.M3u8StreamFormat,
+        streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,
         showCaptions: value.showCaptions ?? false,
