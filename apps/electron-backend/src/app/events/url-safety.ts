@@ -24,6 +24,11 @@ export interface RemoteUrlPolicy {
      * origin; cross-origin redirects must still resolve to public addresses.
      */
     allowPrivateNetworkRedirects?: boolean;
+    /**
+     * When true together with allowPrivateNetworks, hostnames are still resolved
+     * for socket pinning. Private/reserved resolved addresses are accepted.
+     */
+    pinAllowedPrivateNetworkHosts?: boolean;
     /** Injectable DNS resolver. Defaults to `dns.lookup`; overridable in tests. */
     resolveHostname?: (hostname: string) => Promise<readonly string[]>;
 }
@@ -219,11 +224,38 @@ export async function validateRemoteUrl(
         throw new UnsafeUrlError('URL credentials are not supported');
     }
 
+    const hostname = normalizeHostname(url.hostname);
     if (policy.allowPrivateNetworks) {
-        return { url };
+        if (!policy.pinAllowedPrivateNetworkHosts) {
+            return { url };
+        }
+
+        if (isIP(hostname) !== 0) {
+            return { url, addresses: [hostname] };
+        }
+
+        const resolveHostname =
+            policy.resolveHostname ?? defaultResolveHostname;
+        let addresses: readonly string[];
+        try {
+            addresses = await resolveHostname(hostname);
+        } catch {
+            throw new UnsafeUrlError('URL host could not be resolved');
+        }
+
+        if (
+            addresses.length === 0 ||
+            addresses.some((address) => isIP(normalizeHostname(address)) === 0)
+        ) {
+            throw new UnsafeUrlError('URL host could not be resolved');
+        }
+
+        return {
+            url,
+            addresses: addresses.map((address) => normalizeHostname(address)),
+        };
     }
 
-    const hostname = normalizeHostname(url.hostname);
     if (isLocalHostname(hostname) || isPrivateOrReservedIp(hostname)) {
         throw new UnsafeUrlError(
             'URL points to a private or local network address'

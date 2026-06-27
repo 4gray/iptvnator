@@ -147,7 +147,10 @@ function getRedirectValidationPolicy(
 
     const parsedUrl = new URL(currentUrl);
     if (parsedUrl.origin === initialOrigin) {
-        return policy;
+        return {
+            ...policy,
+            pinAllowedPrivateNetworkHosts: false,
+        };
     }
 
     return {
@@ -173,6 +176,7 @@ export async function requestWithValidatedRedirects<T = unknown>(
     let currentUrl = rawUrl;
     let requestConfig = { ...config };
     let initialOrigin: string | undefined;
+    let initialAddresses: readonly string[] | undefined;
 
     for (let redirectCount = 0; ; redirectCount += 1) {
         const validatedTarget = await validateRemoteUrl(
@@ -180,11 +184,22 @@ export async function requestWithValidatedRedirects<T = unknown>(
             getRedirectValidationPolicy(currentUrl, initialOrigin, policy)
         );
         const validatedUrl = validatedTarget.url;
-        initialOrigin ??= validatedUrl.origin;
+        const isInitialRequest = !initialOrigin;
+        if (isInitialRequest) {
+            initialOrigin = validatedUrl.origin;
+            initialAddresses = validatedTarget.addresses;
+        }
+        const addresses =
+            !isInitialRequest &&
+            policy.allowPrivateNetworks &&
+            policy.allowPrivateNetworkRedirects === false &&
+            validatedUrl.origin === initialOrigin
+                ? initialAddresses
+                : validatedTarget.addresses;
         const pinnedConfig = pinRequestToValidatedAddresses(
             requestConfig,
             validatedUrl,
-            validatedTarget.addresses
+            addresses
         );
         const response = await axios<T>({
             ...pinnedConfig,

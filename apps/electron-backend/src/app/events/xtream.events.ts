@@ -320,6 +320,7 @@ ipcMain.handle(
                 {
                     allowPrivateNetworkRedirects: false,
                     allowPrivateNetworks: true,
+                    pinAllowedPrivateNetworkHosts: true,
                 }
             );
             const responseBody = response.data as

@@ -204,6 +204,54 @@ describe('requestWithValidatedRedirects', () => {
         expect(axiosMock).toHaveBeenCalledTimes(1);
     });
 
+    it('reuses the initially validated addresses for same-origin redirects when private redirect access is disabled', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: '/media.ts' },
+            })
+            .mockResolvedValueOnce({
+                status: 206,
+                headers: {},
+                data: 'ok',
+            });
+        const { factory, lookups } = createCapturingAgentFactory();
+        const resolveHostname = jest.fn(async () => ['93.184.216.34']);
+
+        const response = await requestWithValidatedRedirects(
+            'https://portal.example/start',
+            { agentFactory: factory, method: 'GET' },
+            {
+                allowPrivateNetworkRedirects: false,
+                allowPrivateNetworks: true,
+                pinAllowedPrivateNetworkHosts: true,
+                resolveHostname,
+            }
+        );
+
+        const resolvePinnedAddress = async (callIndex: number) => {
+            return new Promise<string | LookupAddress[]>((resolve, reject) => {
+                lookups[callIndex](
+                    'portal.example',
+                    { all: false, family: 0 } as LookupOptions,
+                    (error, address) => {
+                        if (error) {
+                            reject(error);
+                            return;
+                        }
+                        resolve(address);
+                    }
+                );
+            });
+        };
+
+        expect(response.status).toBe(206);
+        expect(resolveHostname).toHaveBeenCalledTimes(1);
+        expect(factory.createHttpsAgent).toHaveBeenCalledTimes(2);
+        await expect(resolvePinnedAddress(0)).resolves.toBe('93.184.216.34');
+        await expect(resolvePinnedAddress(1)).resolves.toBe('93.184.216.34');
+    });
+
     it('revalidates and repins every redirect hop', async () => {
         axiosMock
             .mockResolvedValueOnce({

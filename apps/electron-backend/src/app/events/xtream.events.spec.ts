@@ -142,14 +142,14 @@ describe('XtreamEvents session cancellation', () => {
             status: 302,
             headers: { location: 'http://127.0.0.1/admin' },
             config: {
-                url: 'https://portal.example/streaming/timeshift.php?stream=45',
+                url: 'http://localhost:3211/streaming/timeshift.php?stream=45',
             },
         });
 
         const result = (await probeHandler?.(
             {},
             {
-                url: 'https://portal.example/streaming/timeshift.php?stream=45',
+                url: 'http://localhost:3211/streaming/timeshift.php?stream=45',
                 method: 'GET',
             }
         )) as { error?: string; status: number; url: string };
@@ -157,7 +157,7 @@ describe('XtreamEvents session cancellation', () => {
         expect(result).toEqual({
             error: 'URL points to a private or local network address',
             status: 0,
-            url: 'https://portal.example/streaming/timeshift.php?stream=45',
+            url: 'http://localhost:3211/streaming/timeshift.php?stream=45',
         });
         expect(axiosMock).toHaveBeenCalledTimes(1);
     });

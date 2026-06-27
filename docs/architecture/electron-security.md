@@ -134,11 +134,13 @@ support, but still require HTTP(S), reject embedded credentials, and validate
 redirects.
 
 Callers that allow private-network provider URLs but only need redirects within
-the same provider origin should pass `allowPrivateNetworkRedirects: false` to
-the validated Axios helper. This keeps same-origin LAN redirects working while
-requiring cross-origin redirects to resolve to public addresses, so a
-provider-controlled URL cannot bounce the Electron main process to another
-private or loopback host.
+the same provider origin should pass both `allowPrivateNetworkRedirects: false`
+and `pinAllowedPrivateNetworkHosts: true` to the validated Axios helper. This
+keeps same-origin LAN redirects working, reuses the initially resolved addresses
+for same-origin redirect hops, and requires cross-origin redirects to resolve to
+public addresses. A provider-controlled URL cannot bounce the Electron main
+process to another private or loopback host or rebind the same hostname between
+redirect hops.
 
 Remote playlist TLS certificates are validated by default. The
 renderer can persist a host-scoped invalid-certificate trust decision for a
