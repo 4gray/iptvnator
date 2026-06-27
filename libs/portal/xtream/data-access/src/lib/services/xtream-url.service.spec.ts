@@ -188,8 +188,54 @@ describe('XtreamUrlService', () => {
         expect(secondUrl).toBe(firstUrl);
         expect(xtreamProbeUrl).toHaveBeenCalledTimes(2);
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v3:playlist-1',
+            'xtream-catchup-variant:v4:playlist-1:formats:ts',
             'legacy:ts'
+        );
+    });
+
+    it('redetects catchup variants when provider output formats become known', async () => {
+        const xtreamProbeUrl = jest.fn(async (url: string) => ({
+            status:
+                url.includes('/streaming/timeshift.php?') &&
+                url.includes('extension=ts')
+                    ? 206
+                    : url.includes('/streaming/timeshift.php?') &&
+                        url.includes('extension=m3u8')
+                      ? 200
+                      : 0,
+        }));
+        window.electron = {
+            xtreamProbeUrl,
+        } as typeof window.electron;
+
+        const initialUrl = await service.resolveCatchupUrl(
+            'playlist-format-refresh',
+            credentials,
+            101,
+            1775296800,
+            1775300400
+        );
+        const refreshedUrl = await service.resolveCatchupUrl(
+            'playlist-format-refresh',
+            {
+                ...credentials,
+                allowedOutputFormats: ['m3u8'],
+            },
+            101,
+            1775296800,
+            1775300400
+        );
+
+        expect(initialUrl).toContain('extension=ts');
+        expect(refreshedUrl).toContain('extension=m3u8');
+        expect(xtreamProbeUrl).toHaveBeenCalledTimes(4);
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-catchup-variant:v4:playlist-format-refresh:formats:unknown',
+            'legacy:ts'
+        );
+        expect(databaseService.setAppState).toHaveBeenCalledWith(
+            'xtream-catchup-variant:v4:playlist-format-refresh:formats:m3u8',
+            'legacy:m3u8'
         );
     });
 
@@ -227,7 +273,7 @@ describe('XtreamUrlService', () => {
             'GET'
         );
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v3:playlist-hls',
+            'xtream-catchup-variant:v4:playlist-hls:formats:m3u8,ts',
             'legacy:ts'
         );
     });
@@ -259,7 +305,7 @@ describe('XtreamUrlService', () => {
         expect(catchupUrl).toContain('/streaming/timeshift.php?');
         expect(catchupUrl).toContain('extension=m3u8');
         expect(databaseService.setAppState).toHaveBeenCalledWith(
-            'xtream-catchup-variant:v3:playlist-hls-only',
+            'xtream-catchup-variant:v4:playlist-hls-only:formats:m3u8,ts',
             'legacy:m3u8'
         );
     });

@@ -74,7 +74,7 @@ type XtreamProbeApi = {
     ) => Promise<{ status: number }>;
 };
 
-const XTREAM_CATCHUP_VARIANT_KEY_PREFIX = 'xtream-catchup-variant:v3:';
+const XTREAM_CATCHUP_VARIANT_KEY_PREFIX = 'xtream-catchup-variant:v4:';
 
 /**
  * Service for constructing Xtream stream URLs.
@@ -230,7 +230,10 @@ export class XtreamUrlService {
         stopTimestamp: number,
         serverTimezone?: string
     ): Promise<XtreamCatchupVariant> {
-        const cacheKey = `${XTREAM_CATCHUP_VARIANT_KEY_PREFIX}${playlistId}`;
+        const cacheKey = this.getCatchupVariantCacheKey(
+            playlistId,
+            credentials
+        );
         const cached = this.catchupSchemeCache.get(cacheKey);
         if (cached) {
             return this.normalizeCatchupVariant(cached);
@@ -348,9 +351,8 @@ export class XtreamUrlService {
     private getPreferredCatchupExtensions(
         credentials: XtreamCredentials
     ): XtreamCatchupExtension[] {
-        const allowedFormats = credentials.allowedOutputFormats
-            ?.map((format) => format.trim().toLowerCase())
-            .filter(Boolean);
+        const allowedFormats =
+            this.getNormalizedAllowedOutputFormats(credentials);
         const formats =
             allowedFormats && allowedFormats.length > 0
                 ? allowedFormats
@@ -367,6 +369,35 @@ export class XtreamUrlService {
         return preferred.length > 0
             ? preferred
             : [XTREAM_CATCHUP_EXTENSIONS.TS];
+    }
+
+    private getCatchupVariantCacheKey(
+        playlistId: string,
+        credentials: XtreamCredentials
+    ): string {
+        const allowedFormats =
+            this.getNormalizedAllowedOutputFormats(credentials);
+        const formatSignature =
+            allowedFormats && allowedFormats.length > 0
+                ? [...new Set(allowedFormats)]
+                      .sort()
+                      .map((format) => encodeURIComponent(format))
+                      .join(',')
+                : 'unknown';
+
+        return `${XTREAM_CATCHUP_VARIANT_KEY_PREFIX}${playlistId}:formats:${formatSignature}`;
+    }
+
+    private getNormalizedAllowedOutputFormats(
+        credentials: XtreamCredentials
+    ): string[] | undefined {
+        const allowedFormats = credentials.allowedOutputFormats
+            ?.map((format) => format.trim().toLowerCase())
+            .filter(Boolean);
+
+        return allowedFormats && allowedFormats.length > 0
+            ? allowedFormats
+            : undefined;
     }
 
     private normalizeCatchupVariant(
@@ -436,9 +467,8 @@ export class XtreamUrlService {
         requestedFormat: string
     ): string {
         const requested = requestedFormat.trim().toLowerCase();
-        const allowedFormats = credentials.allowedOutputFormats
-            ?.map((format) => format.trim().toLowerCase())
-            .filter(Boolean);
+        const allowedFormats =
+            this.getNormalizedAllowedOutputFormats(credentials);
 
         if (!requested || requested === StreamFormat.AutoStreamFormat) {
             return this.resolveAutoLiveStreamFormat(allowedFormats);

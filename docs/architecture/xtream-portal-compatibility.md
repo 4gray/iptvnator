@@ -89,8 +89,12 @@ supports these catch-up variants:
    with optional `extension=ts` or `extension=m3u8`.
 
 Electron probes concrete catch-up variants before caching a playlist-level
-choice. The probe uses a short range `GET`, follows only validated redirects,
-and accepts only `200` or `206` as playable. MPEG-TS is preferred before HLS
-when the provider allows it because some portals return a valid HLS manifest
-while the first media segment fails in Chromium/video.js. PWA fallback keeps the
-REST MPEG-TS URL when no Electron probe API is available.
+choice. The cache key includes the playlist id and the normalized
+`allowed_output_formats` advertised by the provider, so a catch-up variant
+detected before account capabilities are known cannot force stale MPEG-TS URLs
+after the portal later reports HLS-only playback. The probe uses a short range
+`GET`, follows only validated redirects, and accepts only `200` or `206` as
+playable. MPEG-TS is preferred before HLS when the provider allows it because
+some portals return a valid HLS manifest while the first media segment fails in
+Chromium/video.js. PWA fallback keeps the REST MPEG-TS URL when no Electron
+probe API is available.
