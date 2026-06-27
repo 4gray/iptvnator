@@ -132,6 +132,30 @@ function pinRequestToValidatedAddresses(
     };
 }
 
+function getRedirectValidationPolicy(
+    currentUrl: string,
+    initialOrigin: string | undefined,
+    policy: RemoteUrlPolicy
+): RemoteUrlPolicy {
+    if (
+        !initialOrigin ||
+        !policy.allowPrivateNetworks ||
+        policy.allowPrivateNetworkRedirects !== false
+    ) {
+        return policy;
+    }
+
+    const parsedUrl = new URL(currentUrl);
+    if (parsedUrl.origin === initialOrigin) {
+        return policy;
+    }
+
+    return {
+        ...policy,
+        allowPrivateNetworks: false,
+    };
+}
+
 /**
  * Runs an Axios request while validating the initial URL and every redirect.
  * Redirects are followed manually so each target passes through the same
@@ -148,10 +172,15 @@ export async function requestWithValidatedRedirects<T = unknown>(
         ((status: number) => status >= 200 && status < 300);
     let currentUrl = rawUrl;
     let requestConfig = { ...config };
+    let initialOrigin: string | undefined;
 
     for (let redirectCount = 0; ; redirectCount += 1) {
-        const validatedTarget = await validateRemoteUrl(currentUrl, policy);
+        const validatedTarget = await validateRemoteUrl(
+            currentUrl,
+            getRedirectValidationPolicy(currentUrl, initialOrigin, policy)
+        );
         const validatedUrl = validatedTarget.url;
+        initialOrigin ??= validatedUrl.origin;
         const pinnedConfig = pinRequestToValidatedAddresses(
             requestConfig,
             validatedUrl,

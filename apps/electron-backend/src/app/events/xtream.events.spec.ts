@@ -134,6 +134,34 @@ describe('XtreamEvents session cancellation', () => {
         expect(destroyProbeBody).toHaveBeenCalledTimes(1);
     });
 
+    it('rejects private cross-origin redirects for range GET media probes', async () => {
+        const probeHandler = registeredHandlers.get('XTREAM_PROBE_URL');
+        expect(probeHandler).toBeDefined();
+
+        axiosMock.mockResolvedValueOnce({
+            status: 302,
+            headers: { location: 'http://127.0.0.1/admin' },
+            config: {
+                url: 'https://portal.example/streaming/timeshift.php?stream=45',
+            },
+        });
+
+        const result = (await probeHandler?.(
+            {},
+            {
+                url: 'https://portal.example/streaming/timeshift.php?stream=45',
+                method: 'GET',
+            }
+        )) as { error?: string; status: number; url: string };
+
+        expect(result).toEqual({
+            error: 'URL points to a private or local network address',
+            status: 0,
+            url: 'https://portal.example/streaming/timeshift.php?stream=45',
+        });
+        expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
     it('aborts requests that were registered with only a session id', async () => {
         const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
         const cancelHandler = registeredHandlers.get(XTREAM_CANCEL_SESSION);

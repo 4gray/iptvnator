@@ -133,6 +133,13 @@ configured Xtream, Stalker, and playlist providers retain private-network
 support, but still require HTTP(S), reject embedded credentials, and validate
 redirects.
 
+Callers that allow private-network provider URLs but only need redirects within
+the same provider origin should pass `allowPrivateNetworkRedirects: false` to
+the validated Axios helper. This keeps same-origin LAN redirects working while
+requiring cross-origin redirects to resolve to public addresses, so a
+provider-controlled URL cannot bounce the Electron main process to another
+private or loopback host.
+
 Remote playlist TLS certificates are validated by default. The
 renderer can persist a host-scoped invalid-certificate trust decision for a
 playlist or EPG source host. The `IPTVNATOR_ALLOW_INSECURE_TLS=1` escape hatch

@@ -155,6 +155,55 @@ describe('requestWithValidatedRedirects', () => {
         expect(requestConfig).not.toHaveProperty('agentFactory');
     });
 
+    it('allows same-origin private redirects when private redirect access is disabled', async () => {
+        axiosMock
+            .mockResolvedValueOnce({
+                status: 302,
+                headers: { location: '/media.ts' },
+            })
+            .mockResolvedValueOnce({
+                status: 206,
+                headers: {},
+                data: 'ok',
+            });
+
+        const response = await requestWithValidatedRedirects(
+            'http://192.168.1.10/start',
+            { method: 'GET' },
+            {
+                allowPrivateNetworkRedirects: false,
+                allowPrivateNetworks: true,
+            }
+        );
+
+        expect(response.status).toBe(206);
+        expect(axiosMock).toHaveBeenCalledTimes(2);
+        expect(axiosMock.mock.calls[1][0].url).toBe(
+            'http://192.168.1.10/media.ts'
+        );
+    });
+
+    it('rejects cross-origin private redirects when private redirect access is disabled', async () => {
+        axiosMock.mockResolvedValueOnce({
+            status: 302,
+            headers: { location: 'http://127.0.0.1/admin' },
+        });
+
+        await expect(
+            requestWithValidatedRedirects(
+                'http://192.168.1.10/start',
+                { method: 'GET' },
+                {
+                    allowPrivateNetworkRedirects: false,
+                    allowPrivateNetworks: true,
+                }
+            )
+        ).rejects.toMatchObject({
+            message: 'URL points to a private or local network address',
+        });
+        expect(axiosMock).toHaveBeenCalledTimes(1);
+    });
+
     it('revalidates and repins every redirect hop', async () => {
         axiosMock
             .mockResolvedValueOnce({

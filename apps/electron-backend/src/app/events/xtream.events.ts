@@ -317,7 +317,10 @@ ipcMain.handle(
             const response = await requestWithValidatedRedirects(
                 payload.url,
                 config,
-                { allowPrivateNetworks: true }
+                {
+                    allowPrivateNetworkRedirects: false,
+                    allowPrivateNetworks: true,
+                }
             );
             const responseBody = response.data as
                 | { destroy?: () => void }

@@ -19,6 +19,11 @@ export class UnsafeUrlError extends Error {
 export interface RemoteUrlPolicy {
     /** When true, private/reserved targets are permitted (default false). */
     allowPrivateNetworks?: boolean;
+    /**
+     * When false, allowPrivateNetworks only applies to the initially validated
+     * origin; cross-origin redirects must still resolve to public addresses.
+     */
+    allowPrivateNetworkRedirects?: boolean;
     /** Injectable DNS resolver. Defaults to `dns.lookup`; overridable in tests. */
     resolveHostname?: (hostname: string) => Promise<readonly string[]>;
 }
