@@ -22,7 +22,7 @@
 
         <div class="live-epg-panel__summary" role="status">
             <span class="live-epg-panel__label">
-                {{ 'EPG.CURRENT_PROGRAM' | translate }}
+                {{ summaryLabelKey() | translate }}
             </span>
 
             <div class="live-epg-panel__program-line">
@@ -57,6 +57,22 @@
                 }
             </div>
         </div>
+
+        @if (showReturnToLive()) {
+            <button
+                mat-button
+                class="live-epg-panel__return-live"
+                type="button"
+                (click)="returnToLive.emit()"
+                [attr.aria-label]="'EPG.RETURN_TO_LIVE' | translate"
+                [matTooltip]="'EPG.RETURN_TO_LIVE' | translate"
+            >
+                <mat-icon>live_tv</mat-icon>
+                <span class="live-epg-panel__return-live-text">
+                    {{ 'EPG.RETURN_TO_LIVE' | translate }}
+                </span>
+            </button>
+        }
 
         @if (showDateNavigator()) {
             @if (!collapsed()) {
