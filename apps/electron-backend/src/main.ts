@@ -112,7 +112,6 @@ export default class Main {
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
-        void appUpdateService.checkForUpdatesOnStartup();
 
         // Set main window for downloads and reset stale downloads
         if (App.mainWindow) {
@@ -123,6 +122,12 @@ export default class Main {
         if (isStartupTraceEnabled()) {
             trace('startup', 'reset-stale-downloads:done');
         }
+
+        // Load the renderer only after IPC handlers are registered. On slower
+        // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
+        // before the main process has installed handlers.
+        await App.loadMainWindow();
+        void appUpdateService.checkForUpdatesOnStartup();
 
         if (isStartupTraceEnabled()) {
             trace('startup', 'bootstrap-events:done');
