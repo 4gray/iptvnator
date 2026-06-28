@@ -35,7 +35,7 @@
     <!-- program list -->
     <div id="program-list" class="app-scrollbar" #programList>
         @if (items.length > 0) {
-            @for (program of items; track program.start) {
+            @for (program of items; track trackProgram($index, program)) {
                 @if (!canActivateProgram(program)) {
                     <div
                         class="program-item"
