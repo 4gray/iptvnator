@@ -40,6 +40,10 @@ export const defaultStalkerPortalName = 'Mock Stalker Portal';
 export const defaultXtreamUsername = 'user1';
 export const defaultXtreamPassword = 'pass1';
 export const defaultStalkerMacAddress = '00:1A:79:00:00:01';
+const electronAppCloseTimeoutMs = Number(
+    process.env['IPTVNATOR_E2E_CLOSE_TIMEOUT_MS'] ?? '10000'
+);
+const electronAppKillWaitMs = 2000;
 
 export type PortalProvider = 'stalker' | 'xtream';
 
@@ -170,9 +174,54 @@ export async function closeElectronApp(
     app: LaunchedElectronApp
 ): Promise<void> {
     try {
-        await app.electronApp.close();
+        const closePromise = app.electronApp.close();
+        const closed = await waitForPromiseWithTimeout(
+            closePromise,
+            electronAppCloseTimeoutMs
+        );
+
+        if (closed) {
+            return;
+        }
+
+        console.warn(
+            `Electron app did not close within ${electronAppCloseTimeoutMs}ms; killing process`
+        );
+        const childProcess = app.electronApp.process();
+
+        if (!childProcess.killed) {
+            childProcess.kill();
+        }
+
+        await waitForPromiseWithTimeout(
+            closePromise.catch(() => undefined),
+            electronAppKillWaitMs
+        );
     } catch (error) {
         console.warn('Failed to close Electron app cleanly:', error);
+    }
+}
+
+async function waitForPromiseWithTimeout(
+    promise: Promise<unknown>,
+    timeoutMs: number
+): Promise<boolean> {
+    let timeoutId: NodeJS.Timeout | undefined;
+
+    try {
+        return await Promise.race([
+            promise.then(() => true),
+            new Promise<boolean>((resolvePromise) => {
+                timeoutId = setTimeout(
+                    () => resolvePromise(false),
+                    timeoutMs
+                );
+            }),
+        ]);
+    } finally {
+        if (timeoutId) {
+            clearTimeout(timeoutId);
+        }
     }
 }
 
