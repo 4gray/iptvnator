@@ -226,6 +226,8 @@ export class AppUpdateService {
     private readonly releases: CachedGitHubRelease[] = [];
     private loadedReleasePages = 0;
     private loadedAllReleases = false;
+    private checkForUpdatesPromise: Promise<ElectronBridgeAppUpdateStatus> | null =
+        null;
     private status: ElectronBridgeAppUpdateStatus;
 
     constructor(private readonly options: AppUpdateServiceOptions) {
@@ -256,6 +258,18 @@ export class AppUpdateService {
     }
 
     async checkForUpdates(): Promise<ElectronBridgeAppUpdateStatus> {
+        if (this.checkForUpdatesPromise) {
+            return this.checkForUpdatesPromise;
+        }
+
+        this.checkForUpdatesPromise = this.runCheckForUpdates().finally(() => {
+            this.checkForUpdatesPromise = null;
+        });
+
+        return this.checkForUpdatesPromise;
+    }
+
+    private async runCheckForUpdates(): Promise<ElectronBridgeAppUpdateStatus> {
         if (!this.isPackaged) {
             this.setStatus({
                 status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,

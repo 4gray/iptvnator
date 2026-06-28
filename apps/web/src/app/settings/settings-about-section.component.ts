@@ -97,7 +97,7 @@ export class SettingsAboutSectionComponent {
             case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded:
                 return 'SETTINGS.APP_UPDATE_DOWNLOADED';
             case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported:
-                return 'SETTINGS.APP_UPDATE_MANUAL_AVAILABLE';
+                return 'SETTINGS.APP_UPDATE_IDLE';
             case ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error:
                 return 'SETTINGS.APP_UPDATE_ERROR';
             default:

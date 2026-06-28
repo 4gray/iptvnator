@@ -98,4 +98,19 @@ describe('SettingsAboutSectionComponent app updates', () => {
         expect(getButton(fixture, 'app-update-open-release')).toBeTruthy();
         expect(openManual).toHaveBeenCalledTimes(1);
     });
+
+    it('uses a neutral status label before unsupported packages have checked GitHub releases', () => {
+        configureComponent(fixture, {
+            currentVersion: '0.22.0',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator/releases/latest',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        });
+
+        expect(fixture.componentInstance.appUpdateStatusLabelKey()).toBe(
+            'SETTINGS.APP_UPDATE_IDLE'
+        );
+        expect(getButton(fixture, 'app-update-open-release')).toBeTruthy();
+    });
 });

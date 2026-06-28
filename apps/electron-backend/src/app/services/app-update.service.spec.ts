@@ -145,6 +145,35 @@ describe('AppUpdateService', () => {
         );
     });
 
+    it('deduplicates concurrent update checks', async () => {
+        const { service, updater } = createService();
+        let resolveCheck: ((value: unknown) => void) | undefined;
+        updater.checkForUpdates.mockImplementationOnce(
+            () =>
+                new Promise((resolve) => {
+                    resolveCheck = resolve;
+                })
+        );
+
+        const firstCheck = service.checkForUpdates();
+        const secondCheck = service.checkForUpdates();
+
+        expect(updater.checkForUpdates).toHaveBeenCalledTimes(1);
+        expect(service.getStatus().status).toBe(
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking
+        );
+
+        resolveCheck?.(null);
+        await expect(Promise.all([firstCheck, secondCheck])).resolves.toEqual([
+            service.getStatus(),
+            service.getStatus(),
+        ]);
+
+        await service.checkForUpdates();
+
+        expect(updater.checkForUpdates).toHaveBeenCalledTimes(2);
+    });
+
     it('checks packaged non-AppImage Linux builds through GitHub manual fallback', async () => {
         const fetcher = createReleaseFetcher();
         const { service, updater } = createService({
