@@ -37,6 +37,7 @@ import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     CoverSize,
+    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
     Language,
     StreamFormat,
@@ -398,13 +399,21 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     openAppUpdateReleaseNotes(): void {
+        const status = this.appUpdateStatus();
+        const isUpdateRelease =
+            status?.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available ||
+            status?.status ===
+                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading ||
+            status?.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded;
+
         this.matDialog.open(AppUpdateReleaseNotesDialogComponent, {
             autoFocus: false,
             data: {
+                ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
                 initialVersion:
-                    this.appUpdateStatus()?.latestVersion ??
-                    this.appUpdateStatus()?.release?.version ??
-                    this.appUpdateStatus()?.currentVersion,
+                    status?.latestVersion ??
+                    status?.release?.version ??
+                    status?.currentVersion,
             },
             maxWidth: 'calc(100vw - 32px)',
             restoreFocus: true,

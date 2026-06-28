@@ -31,7 +31,10 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
             providers: [
                 {
                     provide: MAT_DIALOG_DATA,
-                    useValue: { initialVersion: '0.23.0' },
+                    useValue: {
+                        fallbackToLatest: true,
+                        initialVersion: '0.23.0',
+                    },
                 },
                 {
                     provide: MatDialogRef,
@@ -53,6 +56,7 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
         fixture.detectChanges();
 
         expect(window.electron.getAppUpdateReleaseNotes).toHaveBeenCalledWith({
+            fallbackToLatest: true,
             version: '0.23.0',
         });
         expect(

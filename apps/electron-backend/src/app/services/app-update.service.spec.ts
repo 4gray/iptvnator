@@ -139,6 +139,26 @@ describe('AppUpdateService', () => {
         expect(updaterFactory).not.toHaveBeenCalled();
     });
 
+    it('uses the build app version instead of the Electron runtime version', () => {
+        const service = new AppUpdateService({
+            app: {
+                getVersion: () => '41.7.2',
+                isPackaged: false,
+            },
+            appVersion: '0.22.0',
+            getMainWindow: () => createWindow(),
+            updater: jest.fn(() => new FakeUpdater()),
+        });
+
+        expect(service.getStatus()).toEqual({
+            currentVersion: '0.22.0',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator/releases/latest',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        });
+    });
+
     it('checks GitHub releases without resolving the updater on unsupported packaged Linux builds', async () => {
         const fetcher = createReleaseFetcher();
         const updaterFactory = jest.fn(() => new FakeUpdater());
@@ -330,6 +350,22 @@ describe('AppUpdateService', () => {
             tagName: 'v0.22.0',
         });
         expect(newer.tagName).toBe('v0.23.0');
+    });
+
+    it('falls back to latest stable release notes when a local dev version is unpublished', async () => {
+        const fetcher = createReleaseFetcher();
+        const { service } = createService({ fetcher, isPackaged: false });
+
+        await expect(
+            service.getReleaseNotes({
+                fallbackToLatest: true,
+                version: '0.25.0',
+            })
+        ).resolves.toMatchObject({
+            bodyMarkdown: '## New\n\nFresh build',
+            tagName: 'v0.24.0',
+            version: '0.24.0',
+        });
     });
 
     it('stores available release details from updater events', () => {

@@ -104,6 +104,7 @@ type ReleaseFetcher = (
 
 export interface AppUpdateServiceOptions {
     app: AppUpdateAppAdapter;
+    appVersion?: string;
     updater: AppUpdaterAdapterProvider;
     getMainWindow: () => AppUpdateWindow | null | undefined;
     platform?: NodeJS.Platform;
@@ -182,6 +183,13 @@ function isVersionGreaterThan(candidate: string, current: string): boolean {
     return false;
 }
 
+function resolveCurrentVersion(
+    app: AppUpdateAppAdapter,
+    appVersion: string | undefined
+): string {
+    return normalizeVersion(appVersion) || normalizeVersion(app.getVersion());
+}
+
 function toReleaseInfo(
     release: CachedGitHubRelease
 ): ElectronBridgeAppUpdateRelease {
@@ -234,7 +242,10 @@ export class AppUpdateService {
     private status: ElectronBridgeAppUpdateStatus;
 
     constructor(private readonly options: AppUpdateServiceOptions) {
-        this.currentVersion = options.app.getVersion();
+        this.currentVersion = resolveCurrentVersion(
+            options.app,
+            options.appVersion
+        );
         this.isPackaged = options.app.isPackaged;
         this.supportedSelfUpdate = isSelfUpdateSupported(
             options.app.isPackaged,
@@ -312,11 +323,18 @@ export class AppUpdateService {
     async getReleaseNotes(
         request: ElectronBridgeAppUpdateReleaseNotesRequest = {}
     ): Promise<ElectronBridgeAppUpdateReleaseNotes> {
-        await this.ensureReleasePageLoaded(1);
+        const canFallbackToLatest =
+            !request.direction && (!request.version || request.fallbackToLatest);
+
+        if (canFallbackToLatest) {
+            await this.ensureFirstStableReleaseLoaded();
+        } else {
+            await this.ensureReleasePageLoaded(1);
+        }
 
         let index = await this.findReleaseIndex(request.version);
 
-        if (index === -1 && !request.version) {
+        if (index === -1 && canFallbackToLatest) {
             index = 0;
         }
 

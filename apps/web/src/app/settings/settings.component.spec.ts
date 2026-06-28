@@ -518,6 +518,7 @@ describe('SettingsComponent', () => {
             expect.objectContaining({
                 data: {
                     initialVersion: DEFAULT_APP_UPDATE_STATUS.currentVersion,
+                    fallbackToLatest: true,
                 },
             })
         );

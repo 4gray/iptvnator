@@ -21,10 +21,12 @@ import { marked } from 'marked';
 import {
     ElectronBridgeAppUpdateReleaseNotes,
     ElectronBridgeAppUpdateReleaseNotesDirection,
+    ElectronBridgeAppUpdateReleaseNotesRequest,
 } from '@iptvnator/shared/interfaces';
 
 export interface AppUpdateReleaseNotesDialogData {
     initialVersion?: string;
+    fallbackToLatest?: boolean;
 }
 
 @Component({
@@ -212,16 +214,30 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
         const version = direction
             ? this.notes()?.tagName
             : this.data.initialVersion;
+        const fallbackToLatest = direction
+            ? undefined
+            : this.data.fallbackToLatest;
 
         this.loading.set(true);
         this.error.set(null);
 
         try {
+            const request: ElectronBridgeAppUpdateReleaseNotesRequest = {};
+
+            if (direction) {
+                request.direction = direction;
+            }
+
+            if (version) {
+                request.version = version;
+            }
+
+            if (fallbackToLatest) {
+                request.fallbackToLatest = true;
+            }
+
             this.notes.set(
-                await window.electron.getAppUpdateReleaseNotes({
-                    direction,
-                    version,
-                })
+                await window.electron.getAppUpdateReleaseNotes(request)
             );
         } catch (error) {
             this.error.set(error instanceof Error ? error.message : String(error));
