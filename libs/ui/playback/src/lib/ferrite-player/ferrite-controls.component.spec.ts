@@ -183,6 +183,22 @@ describe('FerriteControlsComponent', () => {
         ).not.toBeNull();
     });
 
+    it('always renders the dyna (audio dynamics) select', () => {
+        // Audio is always decoded on both tiers, so Dyna is not tier-gated.
+        setInputs({ deintSupported: false });
+        expect(fixture.debugElement.query(By.css('.ctl-dyna'))).not.toBeNull();
+    });
+
+    it('emits dynaChange from the dyna select', () => {
+        setInputs({ dynaMode: 0 });
+        const events = collect<number>(component.dynaChange);
+
+        const select = fixture.debugElement.query(By.css('.ctl-dyna'));
+        select.triggerEventHandler('ngModelChange', 2);
+
+        expect(events).toEqual([2]);
+    });
+
     it('emits seekTo once on release when scrubbing, following the drag value', () => {
         setInputs({ live: false, duration: 200, currentTime: 10 });
         const events = collect<number>(component.seekTo);

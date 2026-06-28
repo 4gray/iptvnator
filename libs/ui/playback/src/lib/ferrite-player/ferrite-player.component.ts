@@ -111,6 +111,8 @@ export class FerritePlayerComponent implements OnDestroy {
     // lights the "deint n/a" warning from the DEINT_FAILED event (which carries the live failed state).
     protected readonly deintMode = signal(1);
     protected readonly deintFailed = signal(false);
+    // Audio-dynamics ("Dyna") control (0=line, 1=RF, 2=night); always shown; reset per stream like deint.
+    protected readonly dynaMode = signal(0);
     // `dbgTier` carries the facade's authoritative decode tier (`player.tier`, fed by the MEDIA_INFO
     // wiring), not a cosmetic label — so gating the deint select on it is sound: deint is a
     // software-avfilter feature, unavailable on the WebCodecs/HW tier.
@@ -206,6 +208,7 @@ export class FerritePlayerComponent implements OnDestroy {
         this.dbgFormat.set('—');
         this.deintMode.set(1); // auto — the worker's default for the new stream
         this.deintFailed.set(false);
+        this.dynaMode.set(0); // line — the facade's setDrc default for the new stream
 
         // Create + wire + start the session (player creation runs outside the Angular zone — see
         // ferrite-session.ts). The component owns only the signal/output sinks it writes into.
@@ -273,6 +276,12 @@ export class FerritePlayerComponent implements OnDestroy {
     protected onDeintChange(mode: number): void {
         this.deintMode.set(mode);
         this.player?.setDeint(mode);
+    }
+
+    /** Audio-dynamics ("Dyna") override (0=line, 1=RF, 2=night) → facade setDrc(); applies to both tiers. */
+    protected onDynaChange(mode: number): void {
+        this.dynaMode.set(mode);
+        this.player?.setDrc(mode);
     }
 
     /** Seek to `seconds` (VOD only — a no-op on a non-seekable/live source inside the facade). */

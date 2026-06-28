@@ -42,7 +42,8 @@
         flex: 0 0 auto;
     }
 
-    .ctl-deint {
+    .ctl-deint,
+    .ctl-dyna {
         flex: 0 0 auto;
         height: 28px;
         min-width: 96px; // don't collapse to just the chevron

@@ -35,6 +35,7 @@ class FakePlayer {
     destroy = jest.fn();
     seek = jest.fn();
     setDeint = jest.fn();
+    setDrc = jest.fn();
     on = jest.fn((event: string, cb: (...args: unknown[]) => void) => {
         const list = this.handlers.get(event) ?? [];
         list.push(cb);

@@ -17,11 +17,13 @@
         [deintSupported]="deintSupported()"
         [deintMode]="deintMode()"
         [deintFailed]="deintFailed()"
+        [dynaMode]="dynaMode()"
         (playToggle)="togglePlay()"
         (muteToggle)="toggleMute()"
         (volumeInput)="onVolumeInput($event)"
         (fullscreenToggle)="toggleFullscreen()"
         (deintChange)="onDeintChange($event)"
+        (dynaChange)="onDynaChange($event)"
         (seekTo)="onSeek($event)"
     />
 

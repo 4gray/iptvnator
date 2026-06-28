@@ -113,6 +113,24 @@ import {
                 }
             }
 
+            <select
+                class="ctl-dyna"
+                [ngModel]="dynaMode()"
+                (ngModelChange)="dynaChange.emit($event)"
+                [matTooltip]="'FERRITE_PLAYER.DYNA' | translate"
+                [attr.aria-label]="'FERRITE_PLAYER.DYNA_MODE' | translate"
+            >
+                <option [ngValue]="0">
+                    {{ 'FERRITE_PLAYER.DYNA_LINE' | translate }}
+                </option>
+                <option [ngValue]="1">
+                    {{ 'FERRITE_PLAYER.DYNA_RF' | translate }}
+                </option>
+                <option [ngValue]="2">
+                    {{ 'FERRITE_PLAYER.DYNA_NIGHT' | translate }}
+                </option>
+            </select>
+
             @if (live()) {
                 <span class="ctl-live">
                     <span class="ctl-live-dot"></span>
@@ -183,12 +201,14 @@ export class FerriteControlsComponent {
     readonly deintSupported = input(false);
     readonly deintMode = input(1);
     readonly deintFailed = input(false);
+    readonly dynaMode = input(0);
 
     readonly playToggle = output<void>();
     readonly muteToggle = output<void>();
     readonly volumeInput = output<number>();
     readonly fullscreenToggle = output<void>();
     readonly deintChange = output<number>();
+    readonly dynaChange = output<number>();
     readonly seekTo = output<number>();
 
     // Shared M:SS / H:MM:SS formatter (single source of truth across the playback lib).
