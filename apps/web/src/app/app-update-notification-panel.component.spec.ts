@@ -65,7 +65,9 @@ describe('AppUpdateNotificationPanelComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector('[data-test-id="app-update-notification"]')
+            fixture.nativeElement.querySelector(
+                '[data-test-id="app-update-notification"]'
+            )
         ).not.toBeNull();
     });
 
@@ -86,7 +88,9 @@ describe('AppUpdateNotificationPanelComponent', () => {
             })
         );
         expect(
-            fixture.nativeElement.querySelector('[data-test-id="app-update-notification"]')
+            fixture.nativeElement.querySelector(
+                '[data-test-id="app-update-notification"]'
+            )
         ).not.toBeNull();
     });
 
@@ -102,5 +106,35 @@ describe('AppUpdateNotificationPanelComponent', () => {
         await fixture.whenStable();
 
         expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('labels unsupported platform action as a GitHub release link', () => {
+        const open = jest.spyOn(window, 'open').mockImplementation(() => null);
+        statusHandler?.({
+            ...availableStatus,
+            supportedSelfUpdate: false,
+        });
+        fixture.detectChanges();
+
+        const button = fixture.nativeElement.querySelector(
+            '[data-test-id="app-update-notification-download"]'
+        ) as HTMLButtonElement;
+
+        expect(button.textContent).toContain(
+            'SETTINGS.APP_UPDATE_OPEN_RELEASE'
+        );
+        expect(button.querySelector('mat-icon')?.textContent?.trim()).toBe(
+            'open_in_new'
+        );
+
+        button.click();
+
+        expect(window.electron.downloadAppUpdate).not.toHaveBeenCalled();
+        expect(open).toHaveBeenCalledWith(
+            availableStatus.manualDownloadUrl,
+            '_blank',
+            'noreferrer'
+        );
+        open.mockRestore();
     });
 });

@@ -1,4 +1,11 @@
-import { Component, computed, OnDestroy, OnInit, signal, inject } from '@angular/core';
+import {
+    Component,
+    computed,
+    OnDestroy,
+    OnInit,
+    signal,
+    inject,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
@@ -46,7 +53,10 @@ import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-rele
                         }}
                     </strong>
                     @if (status()?.progress; as progress) {
-                        <progress [value]="progress.percent" max="100"></progress>
+                        <progress
+                            [value]="progress.percent"
+                            max="100"
+                        ></progress>
                     }
                 </div>
 
@@ -76,13 +86,14 @@ import { AppUpdateReleaseNotesDialogComponent } from './settings/app-update-rele
                             mat-flat-button
                             type="button"
                             [disabled]="
-                                status()?.status === appUpdateStatuses.Downloading
+                                status()?.status ===
+                                appUpdateStatuses.Downloading
                             "
                             (click)="downloadUpdate()"
                             data-test-id="app-update-notification-download"
                         >
-                            <mat-icon>download</mat-icon>
-                            {{ 'SETTINGS.APP_UPDATE_DOWNLOAD' | translate }}
+                            <mat-icon>{{ primaryActionIcon() }}</mat-icon>
+                            {{ primaryActionLabelKey() | translate }}
                         </button>
                     }
                 </div>
@@ -174,6 +185,16 @@ export class AppUpdateNotificationPanelComponent implements OnInit, OnDestroy {
         this.status()?.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
             ? 'SETTINGS.APP_UPDATE_DOWNLOADED'
             : 'SETTINGS.APP_UPDATE_AVAILABLE'
+    );
+    readonly primaryActionLabelKey = computed(() =>
+        this.status()?.supportedSelfUpdate === false
+            ? 'SETTINGS.APP_UPDATE_OPEN_RELEASE'
+            : 'SETTINGS.APP_UPDATE_DOWNLOAD'
+    );
+    readonly primaryActionIcon = computed(() =>
+        this.status()?.supportedSelfUpdate === false
+            ? 'open_in_new'
+            : 'download'
     );
     readonly isVisible = computed(() => {
         const status = this.status();

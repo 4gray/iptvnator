@@ -176,6 +176,37 @@ describe('AppUpdateService', () => {
         });
     });
 
+    it('loads additional GitHub release pages when the first page has no stable releases', async () => {
+        const prereleasePage = Array.from({ length: 10 }, (_, index) => ({
+            ...githubReleases[2],
+            name: `v0.25.${index}-beta`,
+            tag_name: `v0.25.${index}-beta`,
+        }));
+        const fetcher = createReleaseFetcher([
+            prereleasePage,
+            [githubReleases[0]],
+        ]);
+        const { service } = createService({
+            env: {},
+            fetcher,
+            platform: 'linux',
+        });
+
+        await service.checkForUpdates();
+
+        expect(fetcher).toHaveBeenCalledTimes(2);
+        expect(
+            fetcher.mock.calls.map(([url]) =>
+                new URL(url).searchParams.get('page')
+            )
+        ).toEqual(['1', '2']);
+        expect(service.getStatus()).toMatchObject({
+            latestVersion: '0.24.0',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
+            supportedSelfUpdate: false,
+        });
+    });
+
     it('starts a packaged startup check without downloading automatically', async () => {
         const { service, updater } = createService();
 

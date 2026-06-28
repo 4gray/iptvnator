@@ -439,7 +439,7 @@ export class AppUpdateService {
     }
 
     private async checkGitHubReleaseForManualUpdate(): Promise<void> {
-        await this.ensureReleasePageLoaded(1);
+        await this.ensureFirstStableReleaseLoaded();
         const latestRelease = this.releases[0];
 
         if (!latestRelease) {
@@ -465,6 +465,12 @@ export class AppUpdateService {
             release: toReleaseInfo(latestRelease),
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
         });
+    }
+
+    private async ensureFirstStableReleaseLoaded(): Promise<void> {
+        while (!this.loadedAllReleases && this.releases.length === 0) {
+            await this.ensureReleasePageLoaded(this.loadedReleasePages + 1);
+        }
     }
 
     private async findReleaseIndex(
