@@ -81,6 +81,24 @@ describe('SettingsAboutSectionComponent app updates', () => {
         expect(install).toHaveBeenCalledTimes(1);
     });
 
+    it('shows release notes for the current version when no update is available', () => {
+        const openNotes = jest.fn();
+        fixture.componentInstance.openAppUpdateReleaseNotes.subscribe(openNotes);
+        configureComponent(fixture, {
+            currentVersion: '0.22.0',
+            latestVersion: '0.22.0',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator/releases/latest',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
+            supportedSelfUpdate: true,
+        });
+
+        getButton(fixture, 'app-update-release-notes')?.click();
+
+        expect(getButton(fixture, 'app-update-release-notes')).toBeTruthy();
+        expect(openNotes).toHaveBeenCalledTimes(1);
+    });
+
     it('emits a manual release request for unsupported Linux packages', () => {
         const openManual = jest.fn();
         fixture.componentInstance.openManualAppUpdate.subscribe(openManual);

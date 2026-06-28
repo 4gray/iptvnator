@@ -403,7 +403,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
             data: {
                 initialVersion:
                     this.appUpdateStatus()?.latestVersion ??
-                    this.appUpdateStatus()?.release?.version,
+                    this.appUpdateStatus()?.release?.version ??
+                    this.appUpdateStatus()?.currentVersion,
             },
             maxWidth: 'calc(100vw - 32px)',
             restoreFocus: true,
