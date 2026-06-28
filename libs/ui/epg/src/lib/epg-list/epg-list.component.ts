@@ -20,16 +20,22 @@ import { normalizeDateLocale } from '@iptvnator/pipes';
 import { Store } from '@ngrx/store';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { EpgActions, selectActive } from '@iptvnator/m3u-state';
-import { format, subDays } from 'date-fns';
+import { subDays } from 'date-fns';
 import { startWith } from 'rxjs';
 import { Channel, EpgChannel, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
-    EPG_DATE_KEY_FORMAT,
     EpgDateNavigationDirection,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '../epg-date';
 import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
+import {
+    areProgramsSame,
+    buildScrollContextKey,
+    getProgramDateKey,
+    getProgramTimeMs,
+    trackProgram,
+} from './epg-list.utils';
 
 export interface EpgProgramActivationEvent {
     program: EpgProgram;
@@ -62,6 +68,7 @@ export class EpgListComponent {
     readonly showDateNavigator = input(true);
     readonly programActivated = output<EpgProgramActivationEvent>();
     readonly selectedDateChange = output<string>();
+    readonly trackProgram = trackProgram;
 
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
@@ -241,19 +248,6 @@ export class EpgListComponent {
         this.activateProgram(program);
     }
 
-    trackProgram(index: number, program: EpgProgram): string {
-        const start = getProgramTimeMs(program.start, program.startTimestamp);
-        const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
-
-        return [
-            program.channel ?? '',
-            Number.isFinite(start) ? start : program.start,
-            Number.isFinite(stop) ? stop : program.stop,
-            program.title ?? '',
-            index,
-        ].join('|');
-    }
-
     canActivateProgram(program: EpgProgram): boolean {
         return (
             this.isProgramPlaying(program) ||
@@ -383,58 +377,4 @@ export class EpgListComponent {
             });
         }
     }
-}
-
-function buildScrollContextKey(
-    channel: Channel | null,
-    programs: EpgProgram[]
-): string | null {
-    if (!channel && programs.length === 0) {
-        return null;
-    }
-
-    const channelKey =
-        channel?.tvg?.id || channel?.name || channel?.url || 'unknown-channel';
-    const programKey = programs
-        .map(
-            (program) =>
-                `${getProgramTimeMs(program.start, program.startTimestamp)}-${getProgramTimeMs(program.stop, program.stopTimestamp)}`
-        )
-        .join('|');
-
-    return `${channelKey}:${programKey}`;
-}
-
-function getProgramTimeMs(
-    isoValue: string,
-    timestampValue?: number | null
-): number {
-    if (Number.isFinite(timestampValue) && Number(timestampValue) > 0) {
-        return Number(timestampValue) * 1000;
-    }
-
-    return Date.parse(isoValue);
-}
-
-function getProgramDateKey(
-    isoValue: string,
-    timestampValue?: number | null
-): string {
-    const programTimeMs = getProgramTimeMs(isoValue, timestampValue);
-
-    if (!Number.isFinite(programTimeMs)) {
-        return '';
-    }
-
-    return format(new Date(programTimeMs), EPG_DATE_KEY_FORMAT);
-}
-
-function areProgramsSame(left: EpgProgram, right: EpgProgram): boolean {
-    return (
-        (left.channel ?? '') === (right.channel ?? '') &&
-        getProgramTimeMs(left.start, left.startTimestamp) ===
-            getProgramTimeMs(right.start, right.startTimestamp) &&
-        getProgramTimeMs(left.stop, left.stopTimestamp) ===
-            getProgramTimeMs(right.stop, right.stopTimestamp)
-    );
 }
