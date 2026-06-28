@@ -157,6 +157,7 @@ export async function launchElectronApp(
             NODE_ENV: 'test',
         },
     });
+    attachElectronProcessDiagnostics(electronApp);
 
     const mainWindow = await findMainWindow(electronApp);
     await waitForAppReady(mainWindow);
@@ -168,6 +169,28 @@ export async function launchElectronApp(
         electronApp,
         mainWindow,
     };
+}
+
+function attachElectronProcessDiagnostics(electronApp: ElectronApplication): void {
+    if (!process.env['CI']) {
+        return;
+    }
+
+    const childProcess = electronApp.process();
+
+    childProcess.stdout?.on('data', (chunk: Buffer) => {
+        console.log(`[electron stdout] ${chunk.toString().trimEnd()}`);
+    });
+    childProcess.stderr?.on('data', (chunk: Buffer) => {
+        console.error(`[electron stderr] ${chunk.toString().trimEnd()}`);
+    });
+    childProcess.once('exit', (code, signal) => {
+        console.log(
+            `[electron process exit] code=${code ?? '<null>'} signal=${
+                signal ?? '<null>'
+            }`
+        );
+    });
 }
 
 export async function closeElectronApp(
