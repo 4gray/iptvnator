@@ -1,5 +1,5 @@
 import { createReducer } from '@ngrx/store';
-import { Channel } from '@iptvnator/shared/interfaces';
+import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import { ChannelActions } from '../actions';
 import { initialState } from '../state';
 import { channelReducers } from './channel.reducers';
@@ -27,6 +27,17 @@ describe('channelReducers', () => {
         url: 'https://example.com/live.m3u8',
     } as Channel;
 
+    const archivedProgram: EpgProgram = {
+        channel: 'sample-tvg-id',
+        start: '2026-06-28T09:00:00.000Z',
+        stop: '2026-06-28T10:00:00.000Z',
+        title: 'Archived Show',
+        desc: null,
+        category: null,
+        startTimestamp: 1782637200,
+        stopTimestamp: 1782640800,
+    };
+
     it('tracks explicit channel loading state', () => {
         const nextState = reducer(
             initialState,
@@ -49,5 +60,19 @@ describe('channelReducers', () => {
 
         expect(nextState.channels).toEqual([sampleChannel]);
         expect(nextState.channelsLoading).toBe(false);
+    });
+
+    it('clears archive playback state when a new channel becomes active', () => {
+        const nextState = reducer(
+            {
+                ...initialState,
+                activePlaybackUrl: 'https://archive.example.com/catchup.m3u8',
+                activeEpgProgram: archivedProgram,
+            },
+            ChannelActions.setActiveChannelSuccess({ channel: sampleChannel })
+        );
+
+        expect(nextState.activePlaybackUrl).toBeNull();
+        expect(nextState.activeEpgProgram).toBeUndefined();
     });
 });

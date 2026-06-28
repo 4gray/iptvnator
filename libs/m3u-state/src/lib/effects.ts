@@ -118,7 +118,10 @@ export class PlaylistEffects {
                     : null;
 
                 return playbackUrl
-                    ? EpgActions.setActivePlaybackUrl({ playbackUrl })
+                    ? EpgActions.setActivePlaybackUrl({
+                          playbackUrl,
+                          program: action.program,
+                      })
                     : EpgActions.resetActiveEpgProgram();
             })
         );

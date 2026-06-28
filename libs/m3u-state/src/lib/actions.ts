@@ -55,7 +55,10 @@ export const EpgActions = createActionGroup({
     source: 'EPG',
     events: {
         'Set Active Epg Program': props<{ program: EpgProgram }>(),
-        'Set Active Playback Url': props<{ playbackUrl: string }>(),
+        'Set Active Playback Url': props<{
+            playbackUrl: string;
+            program?: EpgProgram;
+        }>(),
         'Set Current Epg Program': props<{ program: EpgProgram }>(),
         'Reset Active Epg Program': emptyProps(),
         'Return To Live Playback': emptyProps(),

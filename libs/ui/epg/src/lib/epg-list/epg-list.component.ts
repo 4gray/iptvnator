@@ -32,6 +32,7 @@ import { EpgListItemComponent } from './epg-list-item/epg-list-item.component';
 import {
     areProgramsSame,
     buildScrollContextKey,
+    deduplicateProgramsByTimeSlot,
     getProgramDateKey,
     getProgramTimeMs,
     trackProgram,
@@ -144,17 +145,19 @@ export class EpgListComponent {
         () => this.archivePlaybackAvailable() ?? this.archiveDays() > 0
     );
     readonly filteredItems = computed(() =>
-        [...this.items()]
-            .filter(
-                (item) =>
-                    getProgramDateKey(item.start, item.startTimestamp) ===
-                    this.selectedDateKey()
-            )
-            .sort(
-                (left, right) =>
-                    getProgramTimeMs(left.start, left.startTimestamp) -
-                    getProgramTimeMs(right.start, right.startTimestamp)
-            )
+        deduplicateProgramsByTimeSlot(
+            [...this.items()]
+                .filter(
+                    (item) =>
+                        getProgramDateKey(item.start, item.startTimestamp) ===
+                        this.selectedDateKey()
+                )
+                .sort(
+                    (left, right) =>
+                        getProgramTimeMs(left.start, left.startTimestamp) -
+                        getProgramTimeMs(right.start, right.startTimestamp)
+                )
+        )
     );
 
     private scrollScheduled = false;

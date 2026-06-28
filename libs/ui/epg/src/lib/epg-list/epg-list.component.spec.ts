@@ -321,6 +321,62 @@ describe('EpgListComponent', () => {
         }
     });
 
+    it('shows one row per duplicated time slot and keeps the richer program entry', () => {
+        const sparseProgram = buildProgram(
+            'duplicate-a',
+            'World Cup Breakfast',
+            '2026-04-05T09:00:00.000Z',
+            '2026-04-05T10:00:00.000Z',
+            {
+                channel: 'channel-101',
+                desc: null,
+            }
+        );
+        const richProgram = buildProgram(
+            'duplicate-b',
+            'World Cup Breakfast',
+            '2026-04-05T09:00:00.000Z',
+            '2026-04-05T10:00:00.000Z',
+            {
+                channel: 'channel-101',
+                desc: 'A preview of the day ahead.',
+                category: 'Sports',
+            }
+        );
+        const nextProgram = buildProgram(
+            'next',
+            'World Cup Matchday',
+            '2026-04-05T10:00:00.000Z',
+            '2026-04-05T11:00:00.000Z',
+            {
+                channel: 'channel-101',
+            }
+        );
+        const emitted: unknown[] = [];
+        component.programActivated.subscribe((event) => emitted.push(event));
+        fixture.componentRef.setInput('controlledPrograms', [
+            sparseProgram,
+            richProgram,
+            nextProgram,
+        ]);
+        fixture.componentRef.setInput('archivePlaybackAvailable', true);
+
+        fixture.detectChanges();
+
+        const rows =
+            fixture.nativeElement.querySelectorAll<HTMLElement>(
+                '.program-item'
+            );
+        rows[0].click();
+
+        expect(component.filteredItems()).toEqual([
+            richProgram,
+            nextProgram,
+        ]);
+        expect(rows).toHaveLength(2);
+        expect(emitted).toEqual([{ program: richProgram, type: 'timeshift' }]);
+    });
+
     it('updates the selected-day header when the app language changes', () => {
         fixture.componentRef.setInput('controlledPrograms', buildPrograms());
         fixture.detectChanges();
@@ -389,7 +445,8 @@ function buildProgram(
     channelSuffix: string,
     title: string,
     start: string,
-    stop: string
+    stop: string,
+    overrides: Partial<EpgProgram> = {}
 ): EpgProgram {
     return {
         start,
@@ -400,6 +457,7 @@ function buildProgram(
         category: null,
         startTimestamp: Math.floor(Date.parse(start) / 1000),
         stopTimestamp: Math.floor(Date.parse(stop) / 1000),
+        ...overrides,
     };
 }
 

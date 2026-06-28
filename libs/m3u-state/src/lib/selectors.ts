@@ -22,6 +22,11 @@ export const selectActivePlaybackUrl = createSelector(
     fromPlaylistState.selectActivePlaybackUrlReducer
 );
 
+export const selectActiveEpgProgram = createSelector(
+    selectPlaylistState,
+    fromPlaylistState.selectActiveEpgProgramReducer
+);
+
 export const selectCurrentEpgProgram = createSelector(
     selectPlaylistState,
     fromPlaylistState.selectCurrentEpgProgramReducer
