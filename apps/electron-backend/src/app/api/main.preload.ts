@@ -5,6 +5,8 @@ import type {
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     ElectronBridgeApi,
+    ElectronBridgeAppUpdateStatus,
+    ElectronBridgeAppUpdateReleaseNotesRequest,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
     ElectronBridgeEpgLookupOptions,
@@ -47,6 +49,12 @@ const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
 const WINDOW_CLOSE = 'WINDOW:CLOSE';
 const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
+const APP_UPDATE_GET_STATUS = 'APP_UPDATE:GET_STATUS';
+const APP_UPDATE_CHECK = 'APP_UPDATE:CHECK';
+const APP_UPDATE_DOWNLOAD = 'APP_UPDATE:DOWNLOAD';
+const APP_UPDATE_INSTALL = 'APP_UPDATE:INSTALL';
+const APP_UPDATE_GET_RELEASE_NOTES = 'APP_UPDATE:GET_RELEASE_NOTES';
+const APP_UPDATE_STATUS_CHANGED = 'APP_UPDATE:STATUS_CHANGED';
 
 const dbSaveContentProgressListeners = new Set<
     (
@@ -292,6 +300,23 @@ const electronApi: ElectronBridgeApi = {
     },
     getAppVersion: () => ipcRenderer.invoke('get-app-version'),
     platform: process.platform,
+    getAppUpdateStatus: () => ipcRenderer.invoke(APP_UPDATE_GET_STATUS),
+    checkForAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_CHECK),
+    downloadAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_DOWNLOAD),
+    installAppUpdate: () => ipcRenderer.invoke(APP_UPDATE_INSTALL),
+    getAppUpdateReleaseNotes: (
+        request?: ElectronBridgeAppUpdateReleaseNotesRequest
+    ) => ipcRenderer.invoke(APP_UPDATE_GET_RELEASE_NOTES, request),
+    onAppUpdateStatusChange: (
+        callback: (status: ElectronBridgeAppUpdateStatus) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            status: ElectronBridgeAppUpdateStatus
+        ) => callback(status);
+        ipcRenderer.on(APP_UPDATE_STATUS_CHANGED, handler);
+        return () => ipcRenderer.off(APP_UPDATE_STATUS_CHANGED, handler);
+    },
     minimizeWindow: () => ipcRenderer.invoke(WINDOW_MINIMIZE),
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),

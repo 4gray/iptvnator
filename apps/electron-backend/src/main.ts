@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
+import { autoUpdater } from 'electron-updater';
 import fixPath from 'fix-path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';
@@ -13,6 +14,7 @@ import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
 } from './app/events/embedded-mpv.events';
 import EpgEvents from './app/events/epg.events';
+import AppUpdateEvents from './app/events/app-update.events';
 import { shutdownMpvSession } from './app/events/mpv-session.service';
 import PlayerEvents from './app/events/player.events';
 import { shutdownVlcSession } from './app/events/vlc-session.service';
@@ -23,6 +25,7 @@ import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
@@ -102,6 +105,13 @@ export default class Main {
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
+        const appUpdateService = new AppUpdateService({
+            app,
+            getMainWindow: () => App.mainWindow,
+            updater: autoUpdater,
+        });
+        AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
+        void appUpdateService.checkForUpdatesOnStartup();
 
         // Set main window for downloads and reset stale downloads
         if (App.mainWindow) {
@@ -111,11 +121,6 @@ export default class Main {
 
         if (isStartupTraceEnabled()) {
             trace('startup', 'reset-stale-downloads:done');
-        }
-
-        // initialize auto updater service
-        if (!App.isDevelopmentMode()) {
-            // UpdateEvents.initAutoUpdateService();
         }
 
         if (isStartupTraceEnabled()) {

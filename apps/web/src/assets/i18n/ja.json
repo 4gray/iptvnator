@@ -395,7 +395,22 @@
         "DASHBOARD_RAIL_SOURCES_DESCRIPTION": "Show shortcuts to your most recently used playlists and portals.",
         "DASHBOARD_RAIL_XTREAM_ADDED": "Recently added on Xtream",
         "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Show the newest Xtream movies, series, and channels.",
-        "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} of {{detected}} detected playlist EPG sources were auto-selected for import."
+        "PLAYLIST_EPG_SOURCES_AUTO_SELECTED": "{{enabled}} of {{detected}} detected playlist EPG sources were auto-selected for import.",
+        "APP_UPDATE_TITLE": "Application update",
+        "APP_UPDATE_DESCRIPTION": "Check GitHub Releases for desktop app updates.",
+        "APP_UPDATE_IDLE": "Ready to check for updates",
+        "APP_UPDATE_CHECKING": "Checking for updates…",
+        "APP_UPDATE_AVAILABLE": "Version {{version}} is available",
+        "APP_UPDATE_NOT_AVAILABLE": "You are using the latest version",
+        "APP_UPDATE_DOWNLOADING": "Downloading version {{version}}…",
+        "APP_UPDATE_DOWNLOADED": "Version {{version}} is ready to install",
+        "APP_UPDATE_MANUAL_AVAILABLE": "Version {{version}} is available for manual installation",
+        "APP_UPDATE_ERROR": "Update check failed",
+        "APP_UPDATE_CHECK": "Check again",
+        "APP_UPDATE_DOWNLOAD": "Update",
+        "APP_UPDATE_INSTALL": "Restart application",
+        "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
+        "APP_UPDATE_RELEASE_NOTES": "Release notes"
     },
     "THEMES": {
         "DARK_THEME": "ダーク",

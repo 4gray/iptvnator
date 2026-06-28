@@ -24,6 +24,99 @@
         </div>
     </div>
 
+    @if (isDesktop() && appUpdateStatus(); as updateStatus) {
+        <div class="setting-item setting-item--full-control app-update-panel">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.APP_UPDATE_TITLE' | translate }}</h4>
+                <p>{{ 'SETTINGS.APP_UPDATE_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="setting-item__control app-update-panel__control">
+                <div class="app-update-status" data-test-id="app-update-status">
+                    <strong>
+                        {{
+                            appUpdateStatusLabelKey()
+                                | translate
+                                    : {
+                                          version:
+                                              updateStatus.latestVersion ||
+                                              updateStatus.currentVersion,
+                                      }
+                        }}
+                    </strong>
+                    @if (updateStatus.error) {
+                        <span>{{ updateStatus.error }}</span>
+                    }
+                    @if (updateStatus.progress; as progress) {
+                        <progress
+                            [value]="progress.percent"
+                            max="100"
+                            data-test-id="app-update-progress"
+                        ></progress>
+                    }
+                </div>
+                <div class="app-update-actions">
+                    <button
+                        mat-stroked-button
+                        type="button"
+                        (click)="checkForAppUpdate.emit()"
+                        [disabled]="isAppUpdateBusy()"
+                        data-test-id="app-update-check"
+                    >
+                        <mat-icon>sync</mat-icon>
+                        {{ 'SETTINGS.APP_UPDATE_CHECK' | translate }}
+                    </button>
+                    @if (canDownloadAppUpdate()) {
+                        <button
+                            mat-flat-button
+                            type="button"
+                            (click)="downloadAppUpdate.emit()"
+                            data-test-id="app-update-download"
+                        >
+                            <mat-icon>download</mat-icon>
+                            {{ 'SETTINGS.APP_UPDATE_DOWNLOAD' | translate }}
+                        </button>
+                    }
+                    @if (canOpenAppUpdateReleaseNotes()) {
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            (click)="openAppUpdateReleaseNotes.emit()"
+                            data-test-id="app-update-release-notes"
+                        >
+                            <mat-icon>article</mat-icon>
+                            {{
+                                'SETTINGS.APP_UPDATE_RELEASE_NOTES'
+                                    | translate
+                            }}
+                        </button>
+                    }
+                    @if (canInstallAppUpdate()) {
+                        <button
+                            mat-flat-button
+                            type="button"
+                            (click)="installAppUpdate.emit()"
+                            data-test-id="app-update-install"
+                        >
+                            <mat-icon>restart_alt</mat-icon>
+                            {{ 'SETTINGS.APP_UPDATE_INSTALL' | translate }}
+                        </button>
+                    }
+                    @if (canOpenManualAppUpdate()) {
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            (click)="openManualAppUpdate.emit()"
+                            data-test-id="app-update-open-release"
+                        >
+                            <mat-icon>open_in_new</mat-icon>
+                            {{ 'SETTINGS.APP_UPDATE_OPEN_RELEASE' | translate }}
+                        </button>
+                    }
+                </div>
+            </div>
+        </div>
+    }
+
     @if (isDesktop()) {
         <div class="settings-note">
             <strong>{{

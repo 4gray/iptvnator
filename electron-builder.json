@@ -2,6 +2,13 @@
     "appId": "com.fourgray.iptvnator",
     "productName": "IPTVnator",
     "artifactName": "${name}-${version}-${os}-${arch}.${ext}",
+    "publish": [
+        {
+            "provider": "github",
+            "owner": "4gray",
+            "repo": "iptvnator"
+        }
+    ],
     "directories": {
         "buildResources": "dist/apps",
         "output": "dist/executables"
@@ -34,10 +41,16 @@
     },
     "extraResources": ["dist/apps/electron-backend/workers"],
     "mac": {
-        "target": {
-            "target": "dmg",
-            "arch": ["x64", "arm64"]
-        },
+        "target": [
+            {
+                "target": "dmg",
+                "arch": ["x64", "arm64"]
+            },
+            {
+                "target": "zip",
+                "arch": ["x64", "arm64"]
+            }
+        ],
         "category": "public.app-category.video",
         "forceCodeSigning": true,
         "gatekeeperAssess": false,

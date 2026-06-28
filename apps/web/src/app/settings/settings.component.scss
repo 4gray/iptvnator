@@ -203,6 +203,47 @@
     justify-content: stretch;
 }
 
+.app-update-panel__control {
+    align-items: stretch;
+    justify-content: space-between;
+    flex-wrap: wrap;
+}
+
+.app-update-status {
+    min-width: min(100%, 260px);
+    display: flex;
+    flex: 1 1 280px;
+    flex-direction: column;
+    gap: 6px;
+    color: var(--settings-muted);
+    font-size: 0.84rem;
+    line-height: 1.45;
+
+    strong {
+        color: var(--app-body-color);
+        font-size: 0.9rem;
+        font-weight: 650;
+    }
+
+    progress {
+        width: min(100%, 320px);
+        height: 8px;
+        accent-color: var(--app-selection-color);
+    }
+}
+
+.app-update-actions {
+    display: flex;
+    flex: 0 1 auto;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 8px;
+
+    button {
+        app-region: no-drag;
+    }
+}
+
 .setting-item--external-player-arguments {
     grid-template-columns: 1fr;
     gap: 10px;

@@ -37,6 +37,7 @@ import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
     CoverSize,
+    ElectronBridgeAppUpdateStatus,
     Language,
     StreamFormat,
     Theme,
@@ -82,6 +83,7 @@ import {
     buildSettingsPlaylistDeleteSummary,
 } from './settings-playlist-summary.utils';
 import { SettingsSnackbarService } from './settings-snackbar.service';
+import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 
 @Component({
     templateUrl: './settings.component.html',
@@ -186,6 +188,9 @@ export class SettingsComponent implements OnInit, OnDestroy {
 
     /** Update message to show */
     updateMessage = '';
+    readonly appUpdateStatus = signal<ElectronBridgeAppUpdateStatus | null>(
+        null
+    );
 
     /** EPG availability flag */
     epgAvailable$ = this.store.select(selectIsEpgAvailable);
@@ -228,6 +233,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
             this.playlistDeleteSummary().total > 0
     );
 
+    private unsubscribeAppUpdateStatus: (() => void) | null = null;
+
     readonly removeAllProgressLabel = computed(() => {
         return buildRemoveAllProgressLabel({
             isRemovingAllPlaylists: this.isRemovingAllPlaylists(),
@@ -251,6 +258,8 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.bindDashboardControlsEnabledState();
         void this.loadEmbeddedMpvSupport();
         this.checkAppVersion();
+        this.bindAppUpdateStatusEvents();
+        void this.loadAppUpdateStatus();
         void this.fetchLocalIpAddresses();
 
         if (!this.isDialog) {
@@ -291,7 +300,76 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     ngOnDestroy(): void {
+        this.unsubscribeAppUpdateStatus?.();
+        this.unsubscribeAppUpdateStatus = null;
         this.settingsCtx.reset();
+    }
+
+    private bindAppUpdateStatusEvents(): void {
+        if (!this.isDesktop || !window.electron?.onAppUpdateStatusChange) {
+            return;
+        }
+
+        this.unsubscribeAppUpdateStatus =
+            window.electron.onAppUpdateStatusChange((status) => {
+                this.appUpdateStatus.set(status);
+            });
+    }
+
+    private async loadAppUpdateStatus(): Promise<void> {
+        if (!this.isDesktop || !window.electron?.getAppUpdateStatus) {
+            return;
+        }
+
+        this.appUpdateStatus.set(await window.electron.getAppUpdateStatus());
+    }
+
+    async checkForAppUpdate(): Promise<void> {
+        if (!this.isDesktop || !window.electron?.checkForAppUpdate) {
+            return;
+        }
+
+        this.appUpdateStatus.set(await window.electron.checkForAppUpdate());
+    }
+
+    async downloadAppUpdate(): Promise<void> {
+        if (!this.isDesktop || !window.electron?.downloadAppUpdate) {
+            return;
+        }
+
+        this.appUpdateStatus.set(await window.electron.downloadAppUpdate());
+    }
+
+    async installAppUpdate(): Promise<void> {
+        if (!this.isDesktop || !window.electron?.installAppUpdate) {
+            return;
+        }
+
+        this.appUpdateStatus.set(await window.electron.installAppUpdate());
+    }
+
+    openManualAppUpdate(): void {
+        const manualDownloadUrl = this.appUpdateStatus()?.manualDownloadUrl;
+
+        if (!manualDownloadUrl) {
+            return;
+        }
+
+        window.open(manualDownloadUrl, '_blank', 'noreferrer');
+    }
+
+    openAppUpdateReleaseNotes(): void {
+        this.matDialog.open(AppUpdateReleaseNotesDialogComponent, {
+            autoFocus: false,
+            data: {
+                initialVersion:
+                    this.appUpdateStatus()?.latestVersion ??
+                    this.appUpdateStatus()?.release?.version,
+            },
+            maxWidth: 'calc(100vw - 32px)',
+            restoreFocus: true,
+            width: '720px',
+        });
     }
 
     /**
