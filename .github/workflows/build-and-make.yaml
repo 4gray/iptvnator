@@ -476,7 +476,7 @@ jobs:
                   # TEMPORARY MASTER ARTIFACT TEST: remove `|| github.ref == 'refs/heads/master'`
                   # after the macOS Embedded MPV artifacts are built and manually tested.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master') && '1' || '0' }}
-              run: pnpm run make:app -- --publish=never
+              run: pnpm run make:app -- --publishPolicy=never
 
             - name: Verify signed macOS app
               if: matrix.os == 'macos' && github.event_name != 'pull_request'
@@ -535,7 +535,7 @@ jobs:
                   # TEMPORARY PR TEST: change this back to '0' after manually
                   # testing the macOS PR artifact with Embedded MPV included.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && github.event_name == 'pull_request')) && '1' || '0' }}
-              run: pnpm run make:app -- --publish=never
+              run: pnpm run make:app -- --publishPolicy=never
 
             - name: Verify packaged worker layout
               shell: bash

@@ -172,7 +172,7 @@ test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     assert.ok(makeCommands.length >= 2, 'workflow must package Electron apps');
     assert.deepEqual(
         [...new Set(makeCommands)],
-        ['pnpm run make:app -- --publish=never']
+        ['pnpm run make:app -- --publishPolicy=never']
     );
 });
 
