@@ -1,0 +1,42 @@
+<div #shell class="ferrite-player-shell">
+    <!-- A transferred OffscreenCanvas can't be reused, so key the canvas by source URL: a channel zap
+         destroys the old (already-transferred) element and creates a fresh one to attach. -->
+    @for (key of canvasKey(); track key) {
+        <canvas #canvas class="ferrite-canvas"></canvas>
+    }
+
+    <app-ferrite-controls
+        [paused]="paused()"
+        [muted]="muted()"
+        [volume]="uiVolume()"
+        [fullscreen]="fullscreen()"
+        [visible]="controlsVisible()"
+        [live]="isLive()"
+        [currentTime]="currentTime()"
+        [duration]="duration()"
+        [deintSupported]="deintSupported()"
+        [deintMode]="deintMode()"
+        [deintFailed]="deintFailed()"
+        (playToggle)="togglePlay()"
+        (muteToggle)="toggleMute()"
+        (volumeInput)="onVolumeInput($event)"
+        (fullscreenToggle)="toggleFullscreen()"
+        (deintChange)="onDeintChange($event)"
+        (seekTo)="onSeek($event)"
+    />
+
+    <app-ferrite-debug-overlay
+        [visible]="dbgVisible()"
+        [isolated]="dbgIsolated"
+        [tier]="dbgTier()"
+        [format]="dbgFormat()"
+        [status]="dbgStatus()"
+        [clock]="dbgClock()"
+    />
+
+    <app-series-playback-navigation-controls
+        [navigation]="seriesNavigation()"
+        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+    />
+</div>

@@ -28,6 +28,7 @@ import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
+import { FerritePlayerComponent } from '../ferrite-player/ferrite-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
 import {
     type PlaybackDiagnostic,
@@ -55,6 +56,7 @@ type PlaybackDiagnosticDetail = {
         ArtPlayerComponent,
         ClipboardModule,
         EmbeddedMpvPlayerComponent,
+        FerritePlayerComponent,
         HtmlVideoPlayerComponent,
         MatButtonModule,
         MatIconModule,
@@ -125,11 +127,30 @@ export class WebPlayerViewComponent {
             startTime: this.startTime(),
         };
     });
-    readonly selectedPlayer = computed(
-        () =>
+    readonly selectedPlayer = computed(() => {
+        const selected =
             this.playerOverride() ??
             this.settings()?.player ??
-            VideoPlayer.VideoJs
+            VideoPlayer.VideoJs;
+        // Ferrite decodes raw MPEG-TS / MP4 / MKV containers, not HLS playlists — fall back to the
+        // default inline player for .m3u/.m3u8 sources it cannot demux.
+        if (selected === VideoPlayer.Ferrite) {
+            const ext = getPlaybackMediaExtensionFromUrl(
+                this.resolvedPlayback().streamUrl
+            );
+            if (ext === 'm3u' || ext === 'm3u8') {
+                return VideoPlayer.VideoJs;
+            }
+        }
+        return selected;
+    });
+    // Ferrite handles VOD as well as live. ferrite.js 1.0.0 added the forward-range VOD transport +
+    // seek + the SourceCapabilities descriptor, so VOD no longer needs the seek-capable inline
+    // fallback (it was gated to live-only while the vendored b4 core lacked seek). The component is
+    // fed isLive so it opens the right transport: VOD = bounded source + clean EOF, live = the
+    // reconnecting edge. This is also the path for HEVC VOD, which the browser player can't decode.
+    protected readonly playbackIsLive = computed(() =>
+        this.isLivePlayback(this.resolvedPlayback())
     );
     readonly recordingFolder = computed(
         () => this.settings()?.recordingFolder ?? ''
