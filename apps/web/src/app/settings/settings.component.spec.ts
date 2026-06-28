@@ -35,6 +35,8 @@ import {
 } from '@iptvnator/services';
 import {
     EmbeddedMpvSupport,
+    ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
+    ElectronBridgeAppUpdateStatus,
     Language,
     PlaylistMeta,
     StartupBehavior,
@@ -43,6 +45,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { SettingsComponent } from './settings.component';
+import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 
 import { signal } from '@angular/core';
 import { SettingsContextService } from '@iptvnator/workspace/shell/util';
@@ -103,6 +106,13 @@ const DEFAULT_SETTINGS = {
     preferUploadedEpgOverXtream: false,
 };
 
+const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
+    currentVersion: '0.22.0',
+    manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
+    status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle,
+    supportedSelfUpdate: true,
+};
+
 class MockSettingsStore {
     private _settings = signal(DEFAULT_SETTINGS);
 
@@ -153,8 +163,10 @@ interface SettingsSectionScrollDirectiveTestApi {
 }
 
 interface SettingsComponentPrivateTestApi {
+    loadAppUpdateStatus(): Promise<void>;
     matDialog: MatDialog;
     waitForUiFeedbackFrame(): Promise<void>;
+    waitForAppUpdateStatusRetry(): Promise<void>;
 }
 
 describe('SettingsComponent', () => {
@@ -300,9 +312,22 @@ describe('SettingsComponent', () => {
             fetchEpg: jest.fn().mockResolvedValue({ success: true }),
             forceFetchEpg: jest.fn().mockResolvedValue({ success: true }),
             getAppVersion: jest.fn().mockResolvedValue('1.0.0'),
+            getAppUpdateStatus: jest
+                .fn()
+                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
             getChannelPrograms: jest.fn().mockResolvedValue([]),
             getEpgChannelsByRange: jest.fn().mockResolvedValue([]),
             getLocalIpAddresses: jest.fn().mockResolvedValue([]),
+            checkForAppUpdate: jest
+                .fn()
+                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
+            downloadAppUpdate: jest
+                .fn()
+                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
+            installAppUpdate: jest
+                .fn()
+                .mockResolvedValue(DEFAULT_APP_UPDATE_STATUS),
+            onAppUpdateStatusChange: jest.fn(() => jest.fn()),
             openInMpv: jest.fn(),
             openInVlc: jest.fn(),
             platform: 'linux',
@@ -353,6 +378,126 @@ describe('SettingsComponent', () => {
 
     it('should create and init component', () => {
         expect(component).toBeTruthy();
+    });
+
+    it('loads the desktop app update status and subscribes to status pushes', async () => {
+        const pushedStatus: ElectronBridgeAppUpdateStatus = {
+            ...DEFAULT_APP_UPDATE_STATUS,
+            latestVersion: '0.23.0',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
+        };
+
+        await fixture.whenStable();
+        const statusHandler = (
+            window.electron.onAppUpdateStatusChange as jest.Mock
+        ).mock.calls[0][0] as (status: ElectronBridgeAppUpdateStatus) => void;
+        statusHandler(pushedStatus);
+
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
+        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(
+            1
+        );
+        expect(component.appUpdateStatus()).toEqual(pushedStatus);
+    });
+
+    it('retries the initial app update status load when IPC handlers are still starting', async () => {
+        const retriedStatus: ElectronBridgeAppUpdateStatus = {
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        };
+        await fixture.whenStable();
+        (window.electron.getAppUpdateStatus as jest.Mock)
+            .mockReset()
+            .mockRejectedValueOnce(new Error('No handler registered'))
+            .mockResolvedValueOnce(retriedStatus);
+        jest.spyOn(
+            privateApi(component),
+            'waitForAppUpdateStatusRetry'
+        ).mockResolvedValue(undefined);
+
+        await privateApi(component).loadAppUpdateStatus();
+
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(2);
+        expect(component.appUpdateStatus()).toEqual(retriedStatus);
+    });
+
+    it('waits for the desktop app update bridge method before loading status', async () => {
+        const retriedStatus: ElectronBridgeAppUpdateStatus = {
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        };
+        await fixture.whenStable();
+        delete (window.electron as Partial<typeof window.electron>)
+            .getAppUpdateStatus;
+        let retryCount = 0;
+        const getStatus = jest.fn().mockResolvedValue(retriedStatus);
+        jest.spyOn(
+            privateApi(component),
+            'waitForAppUpdateStatusRetry'
+        ).mockImplementation(async () => {
+            retryCount += 1;
+
+            if (retryCount === 1) {
+                window.electron.getAppUpdateStatus = getStatus;
+            }
+        });
+
+        await privateApi(component).loadAppUpdateStatus();
+
+        expect(retryCount).toBe(1);
+        expect(getStatus).toHaveBeenCalledTimes(1);
+        expect(component.appUpdateStatus()).toEqual(retriedStatus);
+    });
+
+    it('forwards app update actions to the desktop bridge', async () => {
+        await component.checkForAppUpdate();
+        await component.downloadAppUpdate();
+        await component.installAppUpdate();
+
+        expect(window.electron.checkForAppUpdate).toHaveBeenCalledTimes(1);
+        expect(window.electron.downloadAppUpdate).toHaveBeenCalledTimes(1);
+        expect(window.electron.installAppUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('opens the manual release URL from unsupported update status', () => {
+        const openSpy = jest.spyOn(window, 'open').mockReturnValue(null);
+        component.appUpdateStatus.set({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        });
+
+        component.openManualAppUpdate();
+
+        expect(openSpy).toHaveBeenCalledWith(
+            DEFAULT_APP_UPDATE_STATUS.manualDownloadUrl,
+            '_blank',
+            'noreferrer'
+        );
+    });
+
+    it('opens release notes dialog for the latest update version', () => {
+        const openSpy = jest
+            .spyOn(privateApi(component).matDialog, 'open')
+            .mockReturnValue(createDialogRef(false));
+        component.appUpdateStatus.set({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            latestVersion: '0.23.0',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
+        });
+
+        component.openAppUpdateReleaseNotes();
+
+        expect(openSpy).toHaveBeenCalledWith(
+            AppUpdateReleaseNotesDialogComponent,
+            expect.objectContaining({
+                data: {
+                    initialVersion: '0.23.0',
+                },
+            })
+        );
     });
 
     it('should render a compact page header outside dialog mode', () => {

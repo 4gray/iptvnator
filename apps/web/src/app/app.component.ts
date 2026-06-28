@@ -28,13 +28,19 @@ import {
     createDevLogger,
 } from '@iptvnator/shared/interfaces';
 import { SettingsService } from './services/settings.service';
+import { AppUpdateNotificationPanelComponent } from './app-update-notification-panel.component';
 
 const debugAppComponent = createDevLogger('AppComponent');
 
 @Component({
     selector: 'app-root',
     templateUrl: './app.component.html',
-    imports: [EpgProgressPanelComponent, RouterOutlet, WindowControlsComponent],
+    imports: [
+        AppUpdateNotificationPanelComponent,
+        EpgProgressPanelComponent,
+        RouterOutlet,
+        WindowControlsComponent,
+    ],
 })
 export class AppComponent implements OnInit {
     @HostBinding('class.macos-platform') get isMacOS() {

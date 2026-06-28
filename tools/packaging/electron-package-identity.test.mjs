@@ -114,6 +114,68 @@ test('Linux package identity does not expose the internal Electron backend proje
     );
 });
 
+test('GitHub Releases auto-update metadata is generated and uploaded', () => {
+    const releaseFiles = buildAndMakeWorkflow.match(
+        /files: \|\n([\s\S]*?)\n\s+env:/
+    )?.[1];
+
+    assert.ok(releaseFiles, 'release upload files block must exist');
+    assert.ok(
+        packageMetadata.dependencies?.['electron-updater'],
+        'electron-updater must be a runtime dependency because the packaged app imports it'
+    );
+    assert.deepEqual(electronBuilderConfig.publish, [
+        {
+            provider: 'github',
+            owner: '4gray',
+            repo: 'iptvnator',
+        },
+    ]);
+    assert.deepEqual(electronBuilderConfig.mac?.target, [
+        {
+            target: 'dmg',
+            arch: ['x64', 'arm64'],
+        },
+        {
+            target: 'zip',
+            arch: ['x64', 'arm64'],
+        },
+    ]);
+    assert.match(buildAndMakeWorkflow, /dist\/executables\/\*\*\/latest\.yml/);
+    assert.match(
+        buildAndMakeWorkflow,
+        /dist\/executables\/\*\*\/latest-mac\.yml/
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /dist\/executables\/\*\*\/latest-linux\*\.yml/
+    );
+    assert.match(buildAndMakeWorkflow, /dist\/executables\/\*\*\/\*\.blockmap/);
+    assert.match(buildAndMakeWorkflow, /Merge macOS updater metadata/);
+    assert.match(buildAndMakeWorkflow, /artifacts\/latest-mac\.yml/);
+    assert.doesNotMatch(
+        releaseFiles,
+        /artifacts\/macos-(?:x64|arm64)-artifacts\/latest-mac\.yml/
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /artifacts\/linux-artifacts\/latest-linux\*\.yml/
+    );
+    assert.match(
+        buildAndMakeWorkflow,
+        /artifacts\/windows-artifacts\/latest\.yml/
+    );
+
+    const makeCommands = [
+        ...buildAndMakeWorkflow.matchAll(/run: (pnpm run make:app[^\n]*)/g),
+    ].map((match) => match[1].trim());
+    assert.ok(makeCommands.length >= 2, 'workflow must package Electron apps');
+    assert.deepEqual(
+        [...new Set(makeCommands)],
+        ['pnpm run make:app -- --publishPolicy=never']
+    );
+});
+
 test('generated Electron package metadata mirrors the root package identity', async () => {
     const { buildElectronBuilderMetadata, buildElectronPackageMetadata } =
         await import('./generate-electron-builder-metadata.mjs');

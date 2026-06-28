@@ -395,7 +395,22 @@
         "DASHBOARD_RAIL_SOURCES": "Недавно использованные источники",
         "DASHBOARD_RAIL_SOURCES_DESCRIPTION": "Показывать быстрый доступ к недавно использованным плейлистам и порталам.",
         "DASHBOARD_RAIL_XTREAM_ADDED": "Недавно добавленное на Xtream",
-        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Показывать новые фильмы, сериалы и каналы Xtream."
+        "DASHBOARD_RAIL_XTREAM_ADDED_DESCRIPTION": "Показывать новые фильмы, сериалы и каналы Xtream.",
+        "APP_UPDATE_TITLE": "Обновление приложения",
+        "APP_UPDATE_DESCRIPTION": "Проверка обновлений desktop-приложения через GitHub Releases.",
+        "APP_UPDATE_IDLE": "Можно проверить обновления",
+        "APP_UPDATE_CHECKING": "Проверяем обновления…",
+        "APP_UPDATE_AVAILABLE": "Доступна версия {{version}}",
+        "APP_UPDATE_NOT_AVAILABLE": "Вы используете последнюю версию",
+        "APP_UPDATE_DOWNLOADING": "Загружается версия {{version}}…",
+        "APP_UPDATE_DOWNLOADED": "Версия {{version}} готова к установке",
+        "APP_UPDATE_MANUAL_AVAILABLE": "Версия {{version}} доступна для ручной установки",
+        "APP_UPDATE_ERROR": "Не удалось проверить обновление",
+        "APP_UPDATE_CHECK": "Проверить снова",
+        "APP_UPDATE_DOWNLOAD": "Обновить",
+        "APP_UPDATE_INSTALL": "Перезагрузить приложение",
+        "APP_UPDATE_OPEN_RELEASE": "Открыть GitHub release",
+        "APP_UPDATE_RELEASE_NOTES": "Release notes"
     },
     "THEMES": {
         "DARK_THEME": "Тёмная",

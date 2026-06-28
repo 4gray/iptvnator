@@ -198,9 +198,12 @@ function attachWindowTrace(mainWindow: Electron.BrowserWindow): void {
 export default class App {
     // Keep a global reference of the window object, if you don't, the window will
     // be closed automatically when the JavaScript object is garbage collected.
-    static mainWindow: Electron.BrowserWindow;
+    static mainWindow: Electron.BrowserWindow | null = null;
     static application: Electron.App;
     static BrowserWindow;
+    private static loadedMainWindow: Electron.BrowserWindow | null = null;
+    private static mainWindowLoadPromise: Promise<void> | null = null;
+    private static rendererLoadingEnabled = false;
 
     private static shouldOpenDevTools() {
         return process.env.ELECTRON_OPEN_DEVTOOLS === '1';
@@ -230,15 +233,21 @@ export default class App {
         App.mainWindow = null;
     }
 
+    private static startMainWindowLoad(): void {
+        void App.loadMainWindow().catch((error) => {
+            console.error('Failed to load main window:', error);
+        });
+    }
+
     private static onReady() {
         // This method will be called when Electron has finished
         // initialization and is ready to create browser windows.
         // Some APIs can only be used after this event occurs.
         if (rendererAppName) {
             App.initMainWindow();
-            void App.loadMainWindow().catch((error) => {
-                console.error('Failed to load main window:', error);
-            });
+            if (App.rendererLoadingEnabled) {
+                App.startMainWindowLoad();
+            }
         }
     }
 
@@ -247,6 +256,9 @@ export default class App {
         // dock icon is clicked and there are no other windows open.
         if (App.mainWindow === null) {
             App.onReady();
+        }
+        if (App.rendererLoadingEnabled) {
+            App.startMainWindowLoad();
         }
     }
 
@@ -363,6 +375,8 @@ export default class App {
             // in an array if your app supports multi windows, this is the time
             // when you should delete the corresponding element.
             App.mainWindow = null;
+            App.loadedMainWindow = null;
+            App.mainWindowLoadPromise = null;
         });
 
         App.mainWindow.on('close', () => {
@@ -409,20 +423,47 @@ export default class App {
         });
     }
 
-    private static async loadMainWindow(): Promise<void> {
+    private static async loadMainWindowContent(
+        mainWindow: Electron.BrowserWindow
+    ): Promise<void> {
         // load the index.html of the app.
         if (App.isDevelopmentMode()) {
-            const loadPromise = App.mainWindow.loadURL(
+            const loadPromise = mainWindow.loadURL(
                 `http://localhost:${rendererAppPort}`
             );
             if (App.shouldOpenDevTools()) {
-                App.mainWindow.webContents.openDevTools();
+                mainWindow.webContents.openDevTools();
             }
             await loadPromise;
         } else {
             await clearElectronServiceWorkerStorage();
-            await App.mainWindow.loadFile(getPackagedRendererIndexPath());
+            await mainWindow.loadFile(getPackagedRendererIndexPath());
         }
+    }
+
+    static async loadMainWindow(): Promise<void> {
+        App.rendererLoadingEnabled = true;
+
+        if (!rendererAppName || !App.mainWindow) {
+            return;
+        }
+
+        if (App.loadedMainWindow === App.mainWindow) {
+            return;
+        }
+
+        if (!App.mainWindowLoadPromise) {
+            const mainWindow = App.mainWindow;
+            App.mainWindowLoadPromise = App.loadMainWindowContent(mainWindow)
+                .then(() => {
+                    App.loadedMainWindow = mainWindow;
+                })
+                .finally(() => {
+                    App.mainWindowLoadPromise = null;
+                });
+        }
+
+        await App.mainWindowLoadPromise;
     }
 
     static main(app: Electron.App, browserWindow: typeof BrowserWindow) {
@@ -435,7 +476,11 @@ export default class App {
         App.application = app;
 
         App.application.on('window-all-closed', App.onWindowAllClosed); // Quit when all windows are closed.
-        App.application.on('ready', App.onReady); // App is ready to load data
+        if (App.application.isReady()) {
+            App.onReady();
+        } else {
+            App.application.on('ready', App.onReady); // App is ready to load data
+        }
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
             if (App.mainWindow)

@@ -4,6 +4,8 @@ jest.mock('electron', () => ({
     app: {
         getPath: jest.fn(() => '/tmp'),
         isPackaged: false,
+        isReady: jest.fn(() => false),
+        on: jest.fn(),
     },
     BrowserWindow: jest.fn(),
     Menu: {
@@ -37,28 +39,49 @@ import {
     isTrustedRendererNavigationUrl,
 } from './app';
 import App from './app';
-import { app as electronApp } from 'electron';
+import { app as electronApp, BrowserWindow, screen } from 'electron';
+import { store } from './services/store.service';
 
 type MockMainWindow = {
+    center: jest.Mock<void, []>;
+    getNormalBounds: jest.Mock<object, []>;
     loadFile: jest.Mock<Promise<void>, [string]>;
     loadURL: jest.Mock<Promise<void>, [string]>;
+    on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
+    once: jest.Mock<void, [string, (...args: unknown[]) => void]>;
+    setMenu: jest.Mock<void, [unknown]>;
+    show: jest.Mock<void, []>;
     webContents: {
+        on: jest.Mock<void, [string, (...args: unknown[]) => void]>;
         openDevTools: jest.Mock<void, []>;
+        setWindowOpenHandler: jest.Mock<void, [unknown]>;
     };
 };
 
 function createMockMainWindow(): MockMainWindow {
     return {
+        center: jest.fn<void, []>(),
+        getNormalBounds: jest.fn<object, []>().mockReturnValue({}),
         loadFile: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
         loadURL: jest.fn<Promise<void>, [string]>().mockResolvedValue(),
+        on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
+        once: jest.fn<void, [string, (...args: unknown[]) => void]>(),
+        setMenu: jest.fn<void, [unknown]>(),
+        show: jest.fn<void, []>(),
         webContents: {
+            on: jest.fn<void, [string, (...args: unknown[]) => void]>(),
             openDevTools: jest.fn<void, []>(),
+            setWindowOpenHandler: jest.fn<void, [unknown]>(),
         },
     };
 }
 
 type AppInternals = {
-    mainWindow: MockMainWindow;
+    loadedMainWindow: MockMainWindow | null;
+    mainWindow: MockMainWindow | null;
+    mainWindowLoadPromise: Promise<void> | null;
+    onReady: () => void;
+    rendererLoadingEnabled: boolean;
     loadMainWindow: () => Promise<void>;
 };
 
@@ -70,7 +93,16 @@ describe('Electron app security helpers', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         delete process.env.ELECTRON_IS_DEV;
+        const appInternals = getAppInternals();
+        appInternals.loadedMainWindow = null;
+        appInternals.mainWindow = null;
+        appInternals.mainWindowLoadPromise = null;
+        appInternals.rendererLoadingEnabled = false;
         (electronApp as unknown as { isPackaged: boolean }).isPackaged = false;
+        (screen.getPrimaryDisplay as jest.Mock).mockReturnValue({
+            workAreaSize: { height: 720, width: 1280 },
+        });
+        (store.get as jest.Mock).mockReturnValue(undefined);
     });
 
     it('creates an explicitly hardened BrowserWindow webPreferences object', () => {
@@ -173,6 +205,47 @@ describe('Electron app security helpers', () => {
         );
 
         warnSpy.mockRestore();
+    });
+
+    it('defers renderer loading until the main process explicitly enables it', async () => {
+        const appInternals = getAppInternals();
+        const mainWindow = createMockMainWindow();
+        (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+
+        appInternals.onReady();
+
+        expect(BrowserWindow).toHaveBeenCalledWith(
+            expect.objectContaining({
+                show: false,
+                webPreferences: expect.objectContaining({
+                    preload: expect.stringContaining('main.preload.js'),
+                }),
+            })
+        );
+        expect(mainWindow.loadURL).not.toHaveBeenCalled();
+        expect(mainWindow.loadFile).not.toHaveBeenCalled();
+
+        await appInternals.loadMainWindow();
+
+        expect(mainWindow.loadURL).toHaveBeenCalledWith(
+            'http://localhost:4200'
+        );
+    });
+
+    it('creates the main window immediately when Electron is already ready', () => {
+        const mainWindow = createMockMainWindow();
+        (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+        (electronApp.isReady as jest.Mock).mockReturnValue(true);
+
+        App.main(electronApp, BrowserWindow);
+
+        expect(BrowserWindow).toHaveBeenCalled();
+        expect(electronApp.on).not.toHaveBeenCalledWith(
+            'ready',
+            expect.any(Function)
+        );
+        expect(mainWindow.loadURL).not.toHaveBeenCalled();
+        expect(mainWindow.loadFile).not.toHaveBeenCalled();
     });
 
     it('clears only service worker registrations and cache storage', async () => {

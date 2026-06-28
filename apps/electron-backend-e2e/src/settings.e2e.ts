@@ -41,6 +41,30 @@ const epgFixtureXml = `<?xml version="1.0" encoding="UTF-8"?>
 `;
 
 test.describe('Electron Settings', () => {
+    test('@settings @electron shows manual app update fallback when self-update is unavailable', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+
+            await expect(app.mainWindow.getByTestId('app-update-status')).toBeVisible();
+            await expect(app.mainWindow.getByTestId('app-update-check')).toBeVisible();
+            await expect(
+                app.mainWindow.getByTestId('app-update-open-release')
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByTestId('app-update-download')
+            ).toHaveCount(0);
+            await expect(
+                app.mainWindow.getByTestId('app-update-install')
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@settings @electron gates external MPV playback behind double-click when enabled', async ({
         dataDir,
     }) => {

@@ -360,7 +360,12 @@ jobs:
                   node -e "
                     const fs = require('fs');
                     const pkg = JSON.parse(fs.readFileSync('electron-builder.json', 'utf8'));
-                    pkg.mac.target.arch = ['${{ matrix.arch }}'];
+                    const targets = Array.isArray(pkg.mac?.target) ? pkg.mac.target : [pkg.mac.target];
+                    for (const target of targets) {
+                      if (target && typeof target === 'object') {
+                        target.arch = ['${{ matrix.arch }}'];
+                      }
+                    }
                     fs.writeFileSync('electron-builder.json', JSON.stringify(pkg, null, 4));
                   "
 
@@ -471,7 +476,7 @@ jobs:
                   # TEMPORARY MASTER ARTIFACT TEST: remove `|| github.ref == 'refs/heads/master'`
                   # after the macOS Embedded MPV artifacts are built and manually tested.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master') && '1' || '0' }}
-              run: pnpm run make:app
+              run: pnpm run make:app -- --publishPolicy=never
 
             - name: Verify signed macOS app
               if: matrix.os == 'macos' && github.event_name != 'pull_request'
@@ -530,7 +535,7 @@ jobs:
                   # TEMPORARY PR TEST: change this back to '0' after manually
                   # testing the macOS PR artifact with Embedded MPV included.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && github.event_name == 'pull_request')) && '1' || '0' }}
-              run: pnpm run make:app
+              run: pnpm run make:app -- --publishPolicy=never
 
             - name: Verify packaged worker layout
               shell: bash
@@ -588,6 +593,8 @@ jobs:
                   path: |
                       dist/executables/**/*.dmg
                       dist/executables/**/*.zip
+                      dist/executables/**/latest-mac.yml
+                      dist/executables/**/*.blockmap
                   retention-days: 7
 
             - name: Upload artifacts (Linux)
@@ -602,6 +609,8 @@ jobs:
                       dist/executables/**/*.AppImage
                       dist/executables/**/*.tar.gz
                       dist/executables/**/*.pacman
+                      dist/executables/**/latest-linux*.yml
+                      dist/executables/**/*.blockmap
                   retention-days: 7
 
             - name: Upload artifacts (Flatpak)
@@ -622,6 +631,8 @@ jobs:
                       dist/executables/**/*.exe
                       dist/executables/**/*.msi
                       dist/executables/**/*.zip
+                      dist/executables/**/latest.yml
+                      dist/executables/**/*.blockmap
                   retention-days: 7
 
     create-release:
@@ -644,6 +655,119 @@ jobs:
             - name: Display structure of downloaded files
               run: ls -R artifacts
 
+            - name: Merge macOS updater metadata
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  node <<'NODE'
+                  const fs = require('fs');
+
+                  const candidates = [
+                    'artifacts/macos-x64-artifacts/latest-mac.yml',
+                    'artifacts/macos-arm64-artifacts/latest-mac.yml',
+                  ].filter((filePath) => fs.existsSync(filePath));
+
+                  if (candidates.length === 0) {
+                    console.log('No macOS update metadata found; skipping merge.');
+                    process.exit(0);
+                  }
+
+                  function extractFilesBlock(text, filePath) {
+                    const lines = text.split(/\r?\n/);
+                    const start = lines.findIndex((line) => line === 'files:');
+
+                    if (start === -1) {
+                      throw new Error(`Missing files block in ${filePath}`);
+                    }
+
+                    const block = [];
+
+                    for (let index = start + 1; index < lines.length; index += 1) {
+                      const line = lines[index];
+
+                      if (/^\S/.test(line) && line.trim() !== '') {
+                        break;
+                      }
+
+                      if (line.trim() !== '') {
+                        block.push(line);
+                      }
+                    }
+
+                    return block;
+                  }
+
+                  function splitFileEntries(block) {
+                    const entries = [];
+                    let current = [];
+
+                    for (const line of block) {
+                      if (/^\s*-\s+url:/.test(line) && current.length > 0) {
+                        entries.push(current);
+                        current = [];
+                      }
+
+                      current.push(line);
+                    }
+
+                    if (current.length > 0) {
+                      entries.push(current);
+                    }
+
+                    return entries;
+                  }
+
+                  function replaceFilesBlock(text, mergedBlock) {
+                    const lines = text.split(/\r?\n/);
+                    const start = lines.findIndex((line) => line === 'files:');
+                    let end = lines.length;
+
+                    for (let index = start + 1; index < lines.length; index += 1) {
+                      const line = lines[index];
+
+                      if (/^\S/.test(line) && line.trim() !== '') {
+                        end = index;
+                        break;
+                      }
+                    }
+
+                    return [
+                      ...lines.slice(0, start + 1),
+                      ...mergedBlock,
+                      ...lines.slice(end),
+                    ].join('\n').replace(/\n*$/, '\n');
+                  }
+
+                  const mergedEntries = [];
+                  const seenUrls = new Set();
+
+                  for (const filePath of candidates) {
+                    const text = fs.readFileSync(filePath, 'utf8');
+                    const entries = splitFileEntries(extractFilesBlock(text, filePath));
+
+                    for (const entry of entries) {
+                      const urlLine = entry.find((line) => /^\s*-\s+url:/.test(line));
+                      const url = urlLine?.replace(/^\s*-\s+url:\s*/, '').trim();
+
+                      if (!url || seenUrls.has(url)) {
+                        continue;
+                      }
+
+                      seenUrls.add(url);
+                      mergedEntries.push(...entry);
+                    }
+                  }
+
+                  const merged = replaceFilesBlock(
+                    fs.readFileSync(candidates[0], 'utf8'),
+                    mergedEntries
+                  );
+
+                  fs.writeFileSync('artifacts/latest-mac.yml', merged);
+                  console.log(`Merged ${candidates.length} macOS update metadata files.`);
+                  NODE
+
             - name: Get version from package.json
               id: package-version
               run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
@@ -659,18 +783,25 @@ jobs:
                   files: |
                       artifacts/macos-x64-artifacts/*-x64.dmg
                       artifacts/macos-x64-artifacts/*-x64.zip
+                      artifacts/macos-x64-artifacts/*.blockmap
                       artifacts/macos-arm64-artifacts/*-arm64.dmg
                       artifacts/macos-arm64-artifacts/*-arm64.zip
+                      artifacts/macos-arm64-artifacts/*.blockmap
+                      artifacts/latest-mac.yml
                       artifacts/linux-artifacts/*.AppImage
                       artifacts/linux-artifacts/*.deb
                       artifacts/linux-artifacts/*.rpm
                       artifacts/linux-artifacts/*.snap
                       artifacts/linux-artifacts/*.tar.gz
                       artifacts/linux-artifacts/*.pacman
+                      artifacts/linux-artifacts/latest-linux*.yml
+                      artifacts/linux-artifacts/*.blockmap
                       artifacts/linux-flatpak-artifacts/*.flatpak
                       artifacts/windows-artifacts/*-setup.exe
                       artifacts/windows-artifacts/*.msi
                       artifacts/windows-artifacts/*.zip
+                      artifacts/windows-artifacts/latest.yml
+                      artifacts/windows-artifacts/*.blockmap
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

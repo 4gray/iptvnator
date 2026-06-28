@@ -1,5 +1,6 @@
 import { app, BrowserWindow } from 'electron';
 import { getElectronUserDataPath } from '@iptvnator/shared/database';
+import { autoUpdater } from 'electron-updater';
 import fixPath from 'fix-path';
 import App from './app/app';
 import { initDatabase } from './app/database/connection';
@@ -13,6 +14,7 @@ import EmbeddedMpvEvents, {
     shutdownEmbeddedMpv,
 } from './app/events/embedded-mpv.events';
 import EpgEvents from './app/events/epg.events';
+import AppUpdateEvents from './app/events/app-update.events';
 import { shutdownMpvSession } from './app/events/mpv-session.service';
 import PlayerEvents from './app/events/player.events';
 import { shutdownVlcSession } from './app/events/vlc-session.service';
@@ -23,6 +25,7 @@ import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
@@ -83,12 +86,12 @@ export default class Main {
             trace('startup', 'bootstrap-events:start');
         }
 
-        // Initialize database before other events
-        await initDatabase();
-
-        if (isStartupTraceEnabled()) {
-            trace('startup', 'init-database:done');
-        }
+        const appUpdateService = new AppUpdateService({
+            app,
+            getMainWindow: () => App.mainWindow,
+            updater: () => autoUpdater,
+        });
+        AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
 
         ElectronEvents.bootstrapElectronEvents();
         WindowEvents.bootstrapWindowEvents();
@@ -107,15 +110,27 @@ export default class Main {
         if (App.mainWindow) {
             setDownloadsMainWindow(App.mainWindow);
         }
+
+        // Load the renderer only after IPC handlers are registered. On slower
+        // Linux CI hosts the renderer can otherwise invoke Electron bridge IPC
+        // before the main process has installed handlers.
+        await App.loadMainWindow();
+        void appUpdateService.checkForUpdatesOnStartup();
+
+        // Initialize the database after the first renderer load is underway so
+        // Linux Electron E2E can observe a BrowserWindow even when SQLite
+        // startup or download recovery is slow. IPC handlers call getDatabase()
+        // lazily and share the same initialization promise.
+        await initDatabase();
+
+        if (isStartupTraceEnabled()) {
+            trace('startup', 'init-database:done');
+        }
+
         await resetStaleDownloads();
 
         if (isStartupTraceEnabled()) {
             trace('startup', 'reset-stale-downloads:done');
-        }
-
-        // initialize auto updater service
-        if (!App.isDevelopmentMode()) {
-            // UpdateEvents.initAutoUpdateService();
         }
 
         if (isStartupTraceEnabled()) {

@@ -105,6 +105,12 @@
                 [isDesktop]="isDesktop"
                 [version]="version"
                 [updateMessage]="updateMessage"
+                [appUpdateStatus]="appUpdateStatus()"
+                (checkForAppUpdate)="checkForAppUpdate()"
+                (downloadAppUpdate)="downloadAppUpdate()"
+                (installAppUpdate)="installAppUpdate()"
+                (openManualAppUpdate)="openManualAppUpdate()"
+                (openAppUpdateReleaseNotes)="openAppUpdateReleaseNotes()"
             />
 
             <footer class="action-bar" data-test-id="settings-action-bar">

@@ -54,6 +54,46 @@ Do not add broad protocol allow-lists for renderer navigation. If a new
 desktop-only flow needs to open a URL outside IPTVnator, route it through the
 default browser unless the app window is deliberately meant to host that URL.
 
+## Desktop Auto Updates
+
+Desktop application updates are owned by the Electron main process. Renderer
+code talks only through the typed preload bridge:
+
+- `window.electron.getAppUpdateStatus()`
+- `window.electron.checkForAppUpdate()`
+- `window.electron.downloadAppUpdate()`
+- `window.electron.installAppUpdate()`
+- `window.electron.getAppUpdateReleaseNotes(...)`
+- `window.electron.onAppUpdateStatusChange(...)`
+
+The backend implementation lives in
+`apps/electron-backend/src/app/services/app-update.service.ts` and registers IPC
+handlers through `apps/electron-backend/src/app/events/app-update.events.ts`.
+The service uses `electron-updater` with `autoDownload = false`, so renderer
+actions explicitly ask to download and install. The main process starts one
+packaged startup check after IPC registration; it never downloads during that
+check. After a successful download, the renderer may show a restart/install
+action backed by `quitAndInstall()`.
+
+Self-update is supported only for packaged macOS builds, Windows NSIS builds,
+and Linux AppImage builds. Other Linux packages still point users to the latest
+GitHub Release through `manualDownloadUrl` because Snap, Flatpak, DEB, RPM, and
+Pacman installs have package-manager/store-specific update ownership. Packaged
+non-AppImage Linux builds may still check GitHub Releases for a newer stable
+version, but their update action remains a browser handoff to GitHub.
+
+Release notes are also fetched by the main process from the public GitHub
+Releases API. The updater service caches release pages lazily and filters out
+draft/prerelease entries before returning Markdown to the renderer. The Angular
+dialog renders that Markdown with the local Markdown renderer and Angular HTML
+sanitization; do not bypass sanitizer for release body content.
+
+Release CI must publish both installer artifacts and updater metadata generated
+by electron-builder (`latest.yml`, `latest-mac.yml`, `latest-linux*.yml`, and
+blockmap files when present). macOS must keep a signed/notarized app bundle,
+produce both `dmg` and `zip` targets, and publish a single merged
+`latest-mac.yml` containing both x64 and arm64 zip entries.
+
 ## Content Security Policy
 
 The Angular shell defines a baseline CSP in `apps/web/src/index.html`.
