@@ -241,6 +241,19 @@ export class EpgListComponent {
         this.activateProgram(program);
     }
 
+    trackProgram(index: number, program: EpgProgram): string {
+        const start = getProgramTimeMs(program.start, program.startTimestamp);
+        const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
+
+        return [
+            program.channel ?? '',
+            Number.isFinite(start) ? start : program.start,
+            Number.isFinite(stop) ? stop : program.stop,
+            program.title ?? '',
+            index,
+        ].join('|');
+    }
+
     canActivateProgram(program: EpgProgram): boolean {
         return (
             this.isProgramPlaying(program) ||

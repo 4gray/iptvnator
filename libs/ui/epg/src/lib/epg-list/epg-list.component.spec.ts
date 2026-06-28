@@ -266,6 +266,61 @@ describe('EpgListComponent', () => {
         expect(emitted).toEqual([{ program: programs[0], type: 'timeshift' }]);
     });
 
+    it('renders duplicate-start programs without duplicate track-key errors and keeps clicks bound to each row', () => {
+        const programs = [
+            buildProgram(
+                'duplicate-a',
+                'Duplicate Start A',
+                '2026-04-05T09:00:00.000Z',
+                '2026-04-05T09:30:00.000Z'
+            ),
+            buildProgram(
+                'duplicate-b',
+                'Duplicate Start B',
+                '2026-04-05T09:00:00.000Z',
+                '2026-04-05T10:00:00.000Z'
+            ),
+            buildProgram(
+                'current',
+                'Current Show',
+                '2026-04-05T11:30:00.000Z',
+                '2026-04-05T12:30:00.000Z'
+            ),
+        ];
+        const emitted: unknown[] = [];
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        component.programActivated.subscribe((event) => emitted.push(event));
+        fixture.componentRef.setInput('controlledPrograms', programs);
+        fixture.componentRef.setInput('archivePlaybackAvailable', true);
+
+        try {
+            expect(component.trackProgram(0, programs[0])).not.toBe(
+                component.trackProgram(1, programs[1])
+            );
+
+            fixture.detectChanges();
+
+            const duplicateTrackKeyError = consoleErrorSpy.mock.calls.some(
+                (args) => args.some((arg) => String(arg).includes('NG0955'))
+            );
+            const rows =
+                fixture.nativeElement.querySelectorAll<HTMLElement>(
+                    '.program-item.clickable'
+                );
+            rows[1].click();
+
+            expect(duplicateTrackKeyError).toBe(false);
+            expect(rows).toHaveLength(3);
+            expect(emitted).toEqual([
+                { program: programs[1], type: 'timeshift' },
+            ]);
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
+    });
+
     it('updates the selected-day header when the app language changes', () => {
         fixture.componentRef.setInput('controlledPrograms', buildPrograms());
         fixture.detectChanges();
