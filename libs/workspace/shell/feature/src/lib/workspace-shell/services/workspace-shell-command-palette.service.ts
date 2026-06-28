@@ -20,8 +20,7 @@ export class WorkspaceShellCommandPaletteService {
     private readonly viewCommands = inject(WorkspaceViewCommandService);
     private readonly recentCommands = inject(RecentCommandsService);
     private readonly destroyRef = inject(DestroyRef);
-    // Eager construction registers the player-switch commands via WorkspaceViewCommandService.
-    private readonly _playerCommandsBootstrap = inject(
+    private readonly playerCommands = inject(
         WorkspacePlayerCommandsContributor
     );
 
@@ -29,6 +28,7 @@ export class WorkspaceShellCommandPaletteService {
         WorkspaceCommandPaletteComponent,
         WorkspaceCommandSelection | undefined
     > | null = null;
+    private commandPaletteOpening = false;
 
     buildPaletteCommands(
         ctx: CommandBuilderContext
@@ -42,8 +42,36 @@ export class WorkspaceShellCommandPaletteService {
             return;
         }
 
+        if (this.commandPaletteOpening) {
+            return;
+        }
+
+        const embeddedMpvSupportLoad =
+            this.playerCommands.ensureEmbeddedMpvSupportLoaded();
+        if (embeddedMpvSupportLoad) {
+            this.commandPaletteOpening = true;
+            void embeddedMpvSupportLoad.finally(() => {
+                this.commandPaletteOpening = false;
+                this.openResolvedCommandPalette(ctx, initialQuery);
+            });
+            return;
+        }
+
+        this.openResolvedCommandPalette(ctx, initialQuery);
+    }
+
+    private openResolvedCommandPalette(
+        ctx: CommandBuilderContext,
+        initialQuery: string
+    ): void {
+        if (this.commandPaletteRef) {
+            return;
+        }
+
         const commands = this.buildPaletteCommands(ctx);
-        const recentIds = this.recentCommands.entries().map((entry) => entry.id);
+        const recentIds = this.recentCommands
+            .entries()
+            .map((entry) => entry.id);
         const dialogRef = this.dialog.open<
             WorkspaceCommandPaletteComponent,
             {

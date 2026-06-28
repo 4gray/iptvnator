@@ -111,6 +111,9 @@ describe('WorkspaceShellFacade', () => {
         record: jest.Mock;
         prune: jest.Mock;
     };
+    let playerCommands: {
+        ensureEmbeddedMpvSupportLoaded: jest.Mock;
+    };
     let router: {
         url: string;
         events: ReturnType<typeof of>;
@@ -217,6 +220,9 @@ describe('WorkspaceShellFacade', () => {
             entries: jest.fn().mockReturnValue([]),
             record: jest.fn(),
             prune: jest.fn(),
+        };
+        playerCommands = {
+            ensureEmbeddedMpvSupportLoaded: jest.fn(),
         };
 
         const selectSignal = jest.fn().mockReturnValue(playlistsSignal);
@@ -349,7 +355,7 @@ describe('WorkspaceShellFacade', () => {
                 },
                 {
                     provide: WorkspacePlayerCommandsContributor,
-                    useValue: {},
+                    useValue: playerCommands,
                 },
             ],
         });
@@ -878,6 +884,27 @@ describe('WorkspaceShellFacade', () => {
         facade.openCommandPalette();
 
         expect(recentCommands.record).toHaveBeenCalledWith('open-settings');
+    });
+
+    it('waits for embedded MPV support preload before opening the palette', async () => {
+        const dialog = TestBed.inject(MatDialog) as unknown as {
+            open: jest.Mock;
+        };
+        let resolveSupport!: () => void;
+        playerCommands.ensureEmbeddedMpvSupportLoaded.mockReturnValueOnce(
+            new Promise<void>((resolve) => {
+                resolveSupport = resolve;
+            })
+        );
+
+        facade.openCommandPalette();
+
+        expect(dialog.open).not.toHaveBeenCalled();
+
+        resolveSupport();
+        await Promise.resolve();
+
+        expect(dialog.open).toHaveBeenCalledTimes(1);
     });
 
     it('does not record when the palette closes without a selection', () => {
