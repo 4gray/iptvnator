@@ -85,6 +85,9 @@ import {
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 
+const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 5;
+const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 100;
+
 @Component({
     templateUrl: './settings.component.html',
     styleUrls: ['./settings.component.scss'],
@@ -321,7 +324,31 @@ export class SettingsComponent implements OnInit, OnDestroy {
             return;
         }
 
-        this.appUpdateStatus.set(await window.electron.getAppUpdateStatus());
+        for (
+            let attempt = 1;
+            attempt <= APP_UPDATE_STATUS_LOAD_ATTEMPTS;
+            attempt += 1
+        ) {
+            try {
+                this.appUpdateStatus.set(
+                    await window.electron.getAppUpdateStatus()
+                );
+                return;
+            } catch (error) {
+                if (attempt === APP_UPDATE_STATUS_LOAD_ATTEMPTS) {
+                    console.warn('Failed to load app update status:', error);
+                    return;
+                }
+
+                await this.waitForAppUpdateStatusRetry();
+            }
+        }
+    }
+
+    private async waitForAppUpdateStatusRetry(): Promise<void> {
+        await new Promise<void>((resolve) => {
+            setTimeout(resolve, APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS);
+        });
     }
 
     async checkForAppUpdate(): Promise<void> {

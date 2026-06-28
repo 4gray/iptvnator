@@ -1,12 +1,20 @@
 import { contextBridge, ipcRenderer, webUtils } from 'electron';
+import {
+    APP_UPDATE_CHECK,
+    APP_UPDATE_DOWNLOAD,
+    APP_UPDATE_GET_RELEASE_NOTES,
+    APP_UPDATE_GET_STATUS,
+    APP_UPDATE_INSTALL,
+    APP_UPDATE_STATUS_CHANGED,
+} from '@iptvnator/shared/interfaces/ipc-commands';
 import type {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
     EmbeddedMpvSession,
     EmbeddedMpvSupport,
     ElectronBridgeApi,
-    ElectronBridgeAppUpdateStatus,
     ElectronBridgeAppUpdateReleaseNotesRequest,
+    ElectronBridgeAppUpdateStatus,
     ElectronBridgeDbOperationEvent,
     ElectronBridgeDownloadStartPayload,
     ElectronBridgeEpgLookupOptions,
@@ -49,12 +57,6 @@ const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
 const WINDOW_CLOSE = 'WINDOW:CLOSE';
 const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
-const APP_UPDATE_GET_STATUS = 'APP_UPDATE:GET_STATUS';
-const APP_UPDATE_CHECK = 'APP_UPDATE:CHECK';
-const APP_UPDATE_DOWNLOAD = 'APP_UPDATE:DOWNLOAD';
-const APP_UPDATE_INSTALL = 'APP_UPDATE:INSTALL';
-const APP_UPDATE_GET_RELEASE_NOTES = 'APP_UPDATE:GET_RELEASE_NOTES';
-const APP_UPDATE_STATUS_CHANGED = 'APP_UPDATE:STATUS_CHANGED';
 
 const dbSaveContentProgressListeners = new Set<
     (

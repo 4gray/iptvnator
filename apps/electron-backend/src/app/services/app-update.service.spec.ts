@@ -35,7 +35,8 @@ const githubReleases = [
     {
         body: 'beta notes',
         draft: false,
-        html_url: 'https://github.com/4gray/iptvnator/releases/tag/v0.22.5-beta',
+        html_url:
+            'https://github.com/4gray/iptvnator/releases/tag/v0.22.5-beta',
         name: 'v0.22.5-beta',
         prerelease: true,
         published_at: '2026-06-27T00:00:00.000Z',
@@ -106,7 +107,8 @@ describe('AppUpdateService', () => {
 
         expect(service.getStatus()).toEqual({
             currentVersion: '0.22.0',
-            manualDownloadUrl: 'https://github.com/4gray/iptvnator/releases/latest',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator/releases/latest',
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
         });
@@ -159,6 +161,7 @@ describe('AppUpdateService', () => {
             expect.objectContaining({
                 headers: expect.objectContaining({
                     Accept: 'application/vnd.github+json',
+                    'User-Agent': 'iptvnator/0.22.0',
                 }),
             })
         );
@@ -261,6 +264,27 @@ describe('AppUpdateService', () => {
         });
     });
 
+    it('ignores duplicate download requests while a download is already running', async () => {
+        const { service, updater } = createService();
+        let resolveDownload: (() => void) | undefined;
+        updater.downloadUpdate.mockReturnValueOnce(
+            new Promise<string[]>((resolve) => {
+                resolveDownload = () => resolve([]);
+            })
+        );
+        service.handleUpdateAvailable({ version: '0.23.0' });
+
+        const firstDownload = service.downloadUpdate();
+        const secondStatus = await service.downloadUpdate();
+        resolveDownload?.();
+        await firstDownload;
+
+        expect(updater.downloadUpdate).toHaveBeenCalledTimes(1);
+        expect(secondStatus.status).toBe(
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading
+        );
+    });
+
     it('marks a downloaded update ready to install and installs on request', () => {
         const { service, updater } = createService();
         service.handleUpdateAvailable({ version: '0.23.0' });
@@ -269,7 +293,9 @@ describe('AppUpdateService', () => {
         const status: ElectronBridgeAppUpdateStatus = service.getStatus();
         service.installUpdate();
 
-        expect(status.status).toBe(ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded);
+        expect(status.status).toBe(
+            ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+        );
         expect(updater.quitAndInstall).toHaveBeenCalledTimes(1);
     });
 });

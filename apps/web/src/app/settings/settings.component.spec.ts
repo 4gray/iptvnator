@@ -163,8 +163,10 @@ interface SettingsSectionScrollDirectiveTestApi {
 }
 
 interface SettingsComponentPrivateTestApi {
+    loadAppUpdateStatus(): Promise<void>;
     matDialog: MatDialog;
     waitForUiFeedbackFrame(): Promise<void>;
+    waitForAppUpdateStatusRetry(): Promise<void>;
 }
 
 describe('SettingsComponent', () => {
@@ -392,8 +394,32 @@ describe('SettingsComponent', () => {
         statusHandler(pushedStatus);
 
         expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(1);
-        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(1);
+        expect(window.electron.onAppUpdateStatusChange).toHaveBeenCalledTimes(
+            1
+        );
         expect(component.appUpdateStatus()).toEqual(pushedStatus);
+    });
+
+    it('retries the initial app update status load when IPC handlers are still starting', async () => {
+        const retriedStatus: ElectronBridgeAppUpdateStatus = {
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        };
+        await fixture.whenStable();
+        (window.electron.getAppUpdateStatus as jest.Mock)
+            .mockReset()
+            .mockRejectedValueOnce(new Error('No handler registered'))
+            .mockResolvedValueOnce(retriedStatus);
+        jest.spyOn(
+            privateApi(component),
+            'waitForAppUpdateStatusRetry'
+        ).mockResolvedValue(undefined);
+
+        await privateApi(component).loadAppUpdateStatus();
+
+        expect(window.electron.getAppUpdateStatus).toHaveBeenCalledTimes(2);
+        expect(component.appUpdateStatus()).toEqual(retriedStatus);
     });
 
     it('forwards app update actions to the desktop bridge', async () => {

@@ -84,6 +84,9 @@
             "@iptvnator/shared/interfaces": [
                 "libs/shared/interfaces/src/index.ts"
             ],
+            "@iptvnator/shared/interfaces/ipc-commands": [
+                "libs/shared/interfaces/src/lib/ipc-commands.ts"
+            ],
             "@iptvnator/ui/shared-portals": [
                 "libs/ui/shared-portals/src/index.ts"
             ],

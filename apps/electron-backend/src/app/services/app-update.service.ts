@@ -48,7 +48,10 @@ interface AppUpdaterAdapter {
     downloadUpdate(): Promise<string[]>;
     quitAndInstall(isSilent?: boolean, isForceRunAfter?: boolean): void;
     on(event: 'checking-for-update', listener: () => void): this;
-    on(event: 'update-available', listener: (info: AppUpdateInfo) => void): this;
+    on(
+        event: 'update-available',
+        listener: (info: AppUpdateInfo) => void
+    ): this;
     on(
         event: 'update-not-available',
         listener: (info: AppUpdateInfo) => void
@@ -209,9 +212,9 @@ function toReleaseNotes(
 function isGitHubRelease(value: unknown): value is GitHubReleaseResponse {
     return Boolean(
         value &&
-            typeof value === 'object' &&
-            'tag_name' in value &&
-            typeof (value as GitHubReleaseResponse).tag_name === 'string'
+        typeof value === 'object' &&
+        'tag_name' in value &&
+        typeof (value as GitHubReleaseResponse).tag_name === 'string'
     );
 }
 
@@ -335,10 +338,7 @@ export class AppUpdateService {
         }
 
         if (
-            this.status.status !==
-                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available &&
-            this.status.status !==
-                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading
+            this.status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available
         ) {
             return this.getStatus();
         }
@@ -360,7 +360,8 @@ export class AppUpdateService {
     installUpdate(): ElectronBridgeAppUpdateStatus {
         if (
             this.supportedSelfUpdate &&
-            this.status.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
+            this.status.status ===
+                ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         ) {
             this.options.updater.quitAndInstall();
         }
@@ -501,6 +502,7 @@ export class AppUpdateService {
         const response = await this.releaseFetcher(url, {
             headers: {
                 Accept: 'application/vnd.github+json',
+                'User-Agent': `iptvnator/${this.currentVersion}`,
             },
         });
 
@@ -579,6 +581,9 @@ export class AppUpdateService {
             return;
         }
 
-        mainWindow.webContents.send(APP_UPDATE_STATUS_CHANGED, this.getStatus());
+        mainWindow.webContents.send(
+            APP_UPDATE_STATUS_CHANGED,
+            this.getStatus()
+        );
     }
 }

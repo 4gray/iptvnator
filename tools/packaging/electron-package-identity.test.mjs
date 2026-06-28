@@ -152,10 +152,7 @@ test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     );
     assert.match(buildAndMakeWorkflow, /dist\/executables\/\*\*\/\*\.blockmap/);
     assert.match(buildAndMakeWorkflow, /Merge macOS updater metadata/);
-    assert.match(
-        buildAndMakeWorkflow,
-        /artifacts\/latest-mac\.yml/
-    );
+    assert.match(buildAndMakeWorkflow, /artifacts\/latest-mac\.yml/);
     assert.doesNotMatch(
         releaseFiles,
         /artifacts\/macos-(?:x64|arm64)-artifacts\/latest-mac\.yml/
@@ -167,6 +164,15 @@ test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     assert.match(
         buildAndMakeWorkflow,
         /artifacts\/windows-artifacts\/latest\.yml/
+    );
+
+    const makeCommands = [
+        ...buildAndMakeWorkflow.matchAll(/run: (pnpm run make:app[^\n]*)/g),
+    ].map((match) => match[1].trim());
+    assert.ok(makeCommands.length >= 2, 'workflow must package Electron apps');
+    assert.deepEqual(
+        [...new Set(makeCommands)],
+        ['pnpm run make:app -- --publish never']
     );
 });
 
