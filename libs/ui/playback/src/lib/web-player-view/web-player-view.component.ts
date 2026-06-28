@@ -382,6 +382,8 @@ export class WebPlayerViewComponent {
                 return 'HTML5';
             case 'artplayer':
                 return 'ArtPlayer';
+            case 'ferrite':
+                return 'Ferrite';
             default:
                 return '';
         }

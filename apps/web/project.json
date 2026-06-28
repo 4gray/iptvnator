@@ -162,7 +162,7 @@
                     "buildTarget": "web:build:development"
                 },
                 "ferrite": {
-                    "buildTarget": "web:build:production",
+                    "buildTarget": "web:build:development",
                     "host": "0.0.0.0",
                     "allowedHosts": true,
                     "headers": {
