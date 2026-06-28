@@ -112,7 +112,62 @@ describe('AppUpdateService', () => {
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             supportedSelfUpdate: false,
         });
-        expect(updater.autoDownload).toBe(false);
+        expect(updater.autoDownload).toBe(true);
+    });
+
+    it('does not resolve the updater adapter outside self-update builds', async () => {
+        const updaterFactory = jest.fn(() => new FakeUpdater());
+        const service = new AppUpdateService({
+            app: {
+                getVersion: () => '0.0',
+                isPackaged: false,
+            },
+            getMainWindow: () => createWindow(),
+            updater: updaterFactory,
+        });
+
+        expect(service.getStatus()).toEqual({
+            currentVersion: '0.0',
+            manualDownloadUrl:
+                'https://github.com/4gray/iptvnator/releases/latest',
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        });
+
+        await service.checkForUpdatesOnStartup();
+
+        expect(updaterFactory).not.toHaveBeenCalled();
+    });
+
+    it('checks GitHub releases without resolving the updater on unsupported packaged Linux builds', async () => {
+        const fetcher = createReleaseFetcher();
+        const updaterFactory = jest.fn(() => new FakeUpdater());
+        const service = new AppUpdateService({
+            app: {
+                getVersion: () => '0.22.0',
+                isPackaged: true,
+            },
+            getMainWindow: () => createWindow(),
+            platform: 'linux',
+            processEnv: {},
+            releaseFetcher: fetcher,
+            updater: updaterFactory,
+        });
+
+        await service.checkForUpdates();
+
+        expect(updaterFactory).not.toHaveBeenCalled();
+        expect(fetcher).toHaveBeenCalledWith(
+            'https://api.github.com/repos/4gray/iptvnator/releases?per_page=10&page=1',
+            expect.any(Object)
+        );
+        expect(service.getStatus()).toEqual(
+            expect.objectContaining({
+                latestVersion: '0.24.0',
+                status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Available,
+                supportedSelfUpdate: false,
+            })
+        );
     });
 
     it('supports Linux self-update only for AppImage builds', () => {

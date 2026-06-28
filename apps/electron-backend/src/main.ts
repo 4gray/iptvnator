@@ -89,7 +89,7 @@ export default class Main {
         const appUpdateService = new AppUpdateService({
             app,
             getMainWindow: () => App.mainWindow,
-            updater: autoUpdater,
+            updater: () => autoUpdater,
         });
         AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
 

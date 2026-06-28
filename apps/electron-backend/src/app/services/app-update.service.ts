@@ -67,6 +67,8 @@ interface AppUpdaterAdapter {
     on(event: 'error', listener: (error: Error) => void): this;
 }
 
+type AppUpdaterAdapterProvider = AppUpdaterAdapter | (() => AppUpdaterAdapter);
+
 interface GitHubReleaseResponse {
     body?: string | null;
     draft?: boolean;
@@ -102,7 +104,7 @@ type ReleaseFetcher = (
 
 export interface AppUpdateServiceOptions {
     app: AppUpdateAppAdapter;
-    updater: AppUpdaterAdapter;
+    updater: AppUpdaterAdapterProvider;
     getMainWindow: () => AppUpdateWindow | null | undefined;
     platform?: NodeJS.Platform;
     processEnv?: NodeJS.ProcessEnv;
@@ -224,6 +226,7 @@ export class AppUpdateService {
     private readonly supportedSelfUpdate: boolean;
     private readonly releaseFetcher: ReleaseFetcher;
     private readonly releases: CachedGitHubRelease[] = [];
+    private readonly updater: AppUpdaterAdapter | null = null;
     private loadedReleasePages = 0;
     private loadedAllReleases = false;
     private checkForUpdatesPromise: Promise<ElectronBridgeAppUpdateStatus> | null =
@@ -248,9 +251,12 @@ export class AppUpdateService {
             supportedSelfUpdate: this.supportedSelfUpdate,
         };
 
-        options.updater.autoDownload = false;
-        options.updater.autoInstallOnAppQuit = false;
-        this.attachUpdaterEvents(options.updater);
+        if (this.supportedSelfUpdate) {
+            this.updater = this.resolveUpdater(options.updater);
+            this.updater.autoDownload = false;
+            this.updater.autoInstallOnAppQuit = false;
+            this.attachUpdaterEvents(this.updater);
+        }
     }
 
     getStatus(): ElectronBridgeAppUpdateStatus {
@@ -283,8 +289,8 @@ export class AppUpdateService {
         });
 
         try {
-            if (this.supportedSelfUpdate) {
-                await this.options.updater.checkForUpdates();
+            if (this.updater) {
+                await this.updater.checkForUpdates();
             } else {
                 await this.checkGitHubReleaseForManualUpdate();
             }
@@ -344,7 +350,7 @@ export class AppUpdateService {
     }
 
     async downloadUpdate(): Promise<ElectronBridgeAppUpdateStatus> {
-        if (!this.supportedSelfUpdate) {
+        if (!this.updater) {
             this.setStatus({
                 status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
             });
@@ -363,7 +369,7 @@ export class AppUpdateService {
         });
 
         try {
-            await this.options.updater.downloadUpdate();
+            await this.updater.downloadUpdate();
         } catch (error) {
             this.handleError(error);
         }
@@ -373,11 +379,11 @@ export class AppUpdateService {
 
     installUpdate(): ElectronBridgeAppUpdateStatus {
         if (
-            this.supportedSelfUpdate &&
+            this.updater &&
             this.status.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded
         ) {
-            this.options.updater.quitAndInstall();
+            this.updater.quitAndInstall();
         }
 
         return this.getStatus();
@@ -428,6 +434,12 @@ export class AppUpdateService {
             error: normalizeError(error),
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error,
         });
+    }
+
+    private resolveUpdater(
+        updater: AppUpdaterAdapterProvider
+    ): AppUpdaterAdapter {
+        return typeof updater === 'function' ? updater() : updater;
     }
 
     private attachUpdaterEvents(updater: AppUpdaterAdapter): void {
