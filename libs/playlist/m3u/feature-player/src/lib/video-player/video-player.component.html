@@ -101,15 +101,19 @@
                     <app-live-epg-panel
                         [collapsed]="isLiveEpgPanelCollapsed()"
                         [summary]="liveEpgPanelSummary()"
+                        [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
                         [showDateNavigator]="true"
                         [selectedDate]="selectedLiveEpgDate()"
+                        [showReturnToLive]="showReturnToLive()"
                         (collapsedChange)="
                             onLiveEpgPanelCollapsedChange($event)
                         "
                         (dateNavigation)="onLiveEpgDateNavigation($event)"
+                        (returnToLive)="returnToLivePlayback()"
                     >
                         <div class="epg-content">
                             <app-epg-list
+                                [activeProgram]="activeEpgProgramOrNull()"
                                 [selectedDate]="selectedLiveEpgDate()"
                                 [showDateNavigator]="false"
                                 [archivePlaybackAvailable]="
@@ -124,6 +128,7 @@
                 } @else {
                     <div class="epg-content">
                         <app-epg-list
+                            [activeProgram]="activeEpgProgramOrNull()"
                             [archivePlaybackAvailable]="
                                 archivePlaybackAvailable()
                             "

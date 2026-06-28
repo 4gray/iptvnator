@@ -33,9 +33,11 @@ import {
 } from '@iptvnator/ui/epg';
 import {
     ChannelActions,
+    EpgActions,
     PlaylistActions,
     buildExternalPlayerPayload,
     selectActive,
+    selectActiveEpgProgram,
     selectActivePlaybackUrl,
     selectChannels,
     selectChannelsLoading,
@@ -150,6 +152,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly activePlaybackUrl = this.store.selectSignal(
         selectActivePlaybackUrl
     );
+    readonly activeEpgProgram = this.store.selectSignal(
+        selectActiveEpgProgram
+    );
+    readonly activeEpgProgramOrNull = computed(
+        () => this.activeEpgProgram() ?? null
+    );
     readonly activePlaylistId = this.playlistContext.resolvedPlaylistId;
     readonly channels = this.store.selectSignal(selectChannels);
     readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
@@ -200,7 +208,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 activeChannel.tvg?.name ||
                 playbackTarget.url,
             thumbnail: activeChannel.tvg?.logo ?? null,
-            isLive: true,
+            isLive: !this.activePlaybackUrl(),
             headers: Object.keys(headers).length > 0 ? headers : undefined,
             userAgent: http['user-agent'] || undefined,
             referer: http.referrer || undefined,
@@ -237,7 +245,17 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     /** Current epg program */
     readonly epgProgram = this.store.selectSignal(selectCurrentEpgProgram);
     readonly liveEpgPanelSummary = computed(() =>
-        this.toLiveEpgPanelSummary(this.epgProgram())
+        this.toLiveEpgPanelSummary(
+            this.activeEpgProgramOrNull() ?? this.epgProgram()
+        )
+    );
+    readonly liveEpgPanelSummaryLabelKey = computed(() =>
+        this.activeEpgProgramOrNull()
+            ? 'EPG.ARCHIVE_PLAYBACK'
+            : 'EPG.CURRENT_PROGRAM'
+    );
+    readonly showReturnToLive = computed(
+        () => this.activeEpgProgramOrNull() !== null
     );
 
     /** Active M3U view (all, groups, favorites, recent) */
@@ -537,6 +555,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     onLiveEpgSelectedDateChange(selectedDate: string): void {
         this.selectedLiveEpgDate.set(selectedDate);
+    }
+
+    returnToLivePlayback(): void {
+        this.store.dispatch(EpgActions.returnToLivePlayback());
     }
 
     /**

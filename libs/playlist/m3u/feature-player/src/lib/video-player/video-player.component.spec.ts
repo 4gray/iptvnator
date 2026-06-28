@@ -17,7 +17,9 @@ import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject, of } from 'rxjs';
 import {
     ChannelActions,
+    EpgActions,
     selectActive,
+    selectActiveEpgProgram,
     selectActivePlaybackUrl,
     selectChannels,
     selectChannelsLoading,
@@ -66,10 +68,13 @@ class StubLiveEpgPanelComponent {
     readonly collapsed = input(false);
     readonly summary = input<LiveEpgPanelSummary | null>(null);
     readonly loading = input(false);
+    readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
     readonly showDateNavigator = input(false);
     readonly selectedDate = input<string | null>(null);
+    readonly showReturnToLive = input(false);
     readonly collapsedChange = output<boolean>();
     readonly dateNavigation = output<'next' | 'prev'>();
+    readonly returnToLive = output<void>();
 }
 
 @Component({
@@ -141,6 +146,7 @@ class StubWebPlayerViewComponent {
     template: '',
 })
 class StubEpgListComponent {
+    readonly activeProgram = input<EpgProgram | null>(null);
     readonly selectedDate = input<string | null>(null);
     readonly showDateNavigator = input(false);
     readonly archivePlaybackAvailable = input(false);
@@ -172,6 +178,7 @@ describe('VideoPlayerComponent', () => {
     const channels = signal<Channel[]>([]);
     const channelsLoading = signal(false);
     const currentEpgProgram = signal<EpgProgram | null>(null);
+    const activeEpgProgram = signal<EpgProgram | null>(null);
 
     const channels$ = new BehaviorSubject<Channel[]>([]);
     const activeChannel$ = new BehaviorSubject<Channel | null>(null);
@@ -211,6 +218,8 @@ describe('VideoPlayerComponent', () => {
                     return channelsLoading;
                 case selectCurrentEpgProgram:
                     return currentEpgProgram;
+                case selectActiveEpgProgram:
+                    return activeEpgProgram;
                 default:
                     return signal(null);
             }
@@ -302,6 +311,7 @@ describe('VideoPlayerComponent', () => {
         activePlaybackUrl.set(null);
         channelsLoading.set(false);
         currentEpgProgram.set(null);
+        activeEpgProgram.set(null);
         currentEpgProgram$.next(null);
         overlayMock.create.mockClear();
         overlayRef.attach.mockClear();
@@ -664,11 +674,80 @@ describe('VideoPlayerComponent', () => {
         expect(component.playbackChannel()?.url).toBe(
             'http://localhost/archive.m3u8?utc=123&lutc=456'
         );
+        expect(component.embeddedPlayback()?.isLive).toBe(false);
 
         activePlaybackUrl.set(null);
         fixture.detectChanges();
 
         expect(component.playbackChannel()?.url).toBe(sampleChannel.url);
+        expect(component.embeddedPlayback()?.isLive).toBe(true);
+    });
+
+    it('passes the active archive EPG program to the EPG list for highlighting', () => {
+        const archivedProgram: EpgProgram = {
+            channel: 'sample-tvg-id',
+            start: '2026-06-28T09:00:00.000Z',
+            stop: '2026-06-28T10:00:00.000Z',
+            title: 'Archived Show',
+            desc: null,
+            category: null,
+            startTimestamp: 1782637200,
+            stopTimestamp: 1782640800,
+        };
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        activePlaybackUrl.set('http://localhost/archive.m3u8?utc=123&lutc=456');
+        activeEpgProgram.set(archivedProgram);
+
+        fixture.detectChanges();
+
+        const epgList = fixture.debugElement.query(
+            By.directive(StubEpgListComponent)
+        );
+
+        expect(epgList.componentInstance.activeProgram()).toEqual(
+            archivedProgram
+        );
+    });
+
+    it('shows the active archive EPG program in the inline panel summary', () => {
+        const archivedProgram = buildProgram('Archived Show');
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        activePlaybackUrl.set('http://localhost/archive.m3u8?utc=123&lutc=456');
+        activeEpgProgram.set(archivedProgram);
+
+        fixture.detectChanges();
+
+        const panel = fixture.debugElement.query(
+            By.directive(StubLiveEpgPanelComponent)
+        );
+
+        expect(panel.componentInstance.summary()).toEqual(
+            expect.objectContaining({ title: 'Archived Show' })
+        );
+        expect(panel.componentInstance.summaryLabelKey()).toBe(
+            'EPG.ARCHIVE_PLAYBACK'
+        );
+        expect(panel.componentInstance.showReturnToLive()).toBe(true);
+    });
+
+    it('dispatches return-to-live from the inline EPG panel', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        activePlaybackUrl.set('http://localhost/archive.m3u8?utc=123&lutc=456');
+        activeEpgProgram.set(buildProgram('Archived Show'));
+
+        fixture.detectChanges();
+
+        const panel = fixture.debugElement.query(
+            By.directive(StubLiveEpgPanelComponent)
+        );
+        panel.componentInstance.returnToLive.emit();
+
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            EpgActions.returnToLivePlayback()
+        );
     });
 
     it('updates the outer sidebar width while grouped view requests a larger total width', () => {

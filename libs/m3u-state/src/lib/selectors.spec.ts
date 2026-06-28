@@ -1,6 +1,10 @@
 import { PlaylistMeta } from '@iptvnator/shared/interfaces';
 import { PlaylistState } from './state';
-import { selectActivePlaylist, selectChannelsLoading } from './selectors';
+import {
+    selectActiveEpgProgram,
+    selectActivePlaylist,
+    selectChannelsLoading,
+} from './selectors';
 
 describe('selectors', () => {
     const playlistOne = {
@@ -40,6 +44,23 @@ describe('selectors', () => {
                     channelsLoading: false,
                 } as PlaylistState)
             ).toBe(false);
+        });
+    });
+
+    describe('selectActiveEpgProgram', () => {
+        it('returns the active archive EPG program', () => {
+            const program = {
+                channel: 'sample-tvg-id',
+                start: '2026-06-28T09:00:00.000Z',
+                stop: '2026-06-28T10:00:00.000Z',
+                title: 'Archived Show',
+            };
+
+            expect(
+                selectActiveEpgProgram.projector({
+                    activeEpgProgram: program,
+                } as PlaylistState)
+            ).toBe(program);
         });
     });
 });

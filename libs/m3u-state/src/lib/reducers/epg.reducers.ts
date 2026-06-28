@@ -7,22 +7,32 @@ export const epgReducers = [
     on(EpgActions.setActivePlaybackUrl, (state, action): PlaylistState => ({
         ...state,
         activePlaybackUrl: action.playbackUrl,
+        activeEpgProgram: action.program,
     })),
     on(
         EpgActions.resetActiveEpgProgram,
         EpgActions.returnToLivePlayback,
         (state): PlaylistState => {
-            if (!state.active && !state.activePlaybackUrl) {
+            if (
+                !state.active &&
+                !state.activePlaybackUrl &&
+                !state.activeEpgProgram
+            ) {
                 return state;
             }
 
-            if (!state.activePlaybackUrl && !state.active?.epgParams) {
+            if (
+                !state.activePlaybackUrl &&
+                !state.activeEpgProgram &&
+                !state.active?.epgParams
+            ) {
                 return state;
             }
 
             return {
                 ...state,
                 activePlaybackUrl: null,
+                activeEpgProgram: undefined,
                 active: state.active
                     ? ({ ...state.active, epgParams: '' } as Channel)
                     : undefined,

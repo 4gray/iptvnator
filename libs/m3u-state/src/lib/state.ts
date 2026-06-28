@@ -6,6 +6,7 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 export interface PlaylistState {
     active: Channel | undefined;
     activePlaybackUrl: string | null;
+    activeEpgProgram: EpgProgram | undefined;
     currentEpgProgram: EpgProgram | undefined;
     epgAvailable: boolean;
     channelsLoading: boolean;
@@ -16,6 +17,7 @@ export interface PlaylistState {
 export const initialState: PlaylistState = {
     active: undefined,
     activePlaybackUrl: null,
+    activeEpgProgram: undefined,
     currentEpgProgram: undefined,
     epgAvailable: false,
     channelsLoading: false,
