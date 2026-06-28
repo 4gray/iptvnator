@@ -70,6 +70,27 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
         ).toContain('desktop updater');
     });
 
+    it('constrains rendered markdown images to the dialog width', async () => {
+        (
+            window.electron.getAppUpdateReleaseNotes as jest.Mock
+        ).mockResolvedValueOnce({
+            ...releaseNotes,
+            bodyMarkdown:
+                '![Application screenshot](https://example.com/screenshot.png)',
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const image = fixture.nativeElement.querySelector(
+            '[data-test-id="release-notes-body"] img'
+        ) as HTMLImageElement;
+
+        expect(image).toBeTruthy();
+        expect(image.classList).toContain('release-notes-dialog__image');
+    });
+
     it('loads previous notes lazily without closing the dialog', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
