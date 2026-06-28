@@ -4,6 +4,8 @@ jest.mock('electron', () => ({
     app: {
         getPath: jest.fn(() => '/tmp'),
         isPackaged: false,
+        isReady: jest.fn(() => false),
+        on: jest.fn(),
     },
     BrowserWindow: jest.fn(),
     Menu: {
@@ -228,6 +230,22 @@ describe('Electron app security helpers', () => {
         expect(mainWindow.loadURL).toHaveBeenCalledWith(
             'http://localhost:4200'
         );
+    });
+
+    it('creates the main window immediately when Electron is already ready', () => {
+        const mainWindow = createMockMainWindow();
+        (BrowserWindow as unknown as jest.Mock).mockReturnValue(mainWindow);
+        (electronApp.isReady as jest.Mock).mockReturnValue(true);
+
+        App.main(electronApp, BrowserWindow);
+
+        expect(BrowserWindow).toHaveBeenCalled();
+        expect(electronApp.on).not.toHaveBeenCalledWith(
+            'ready',
+            expect.any(Function)
+        );
+        expect(mainWindow.loadURL).not.toHaveBeenCalled();
+        expect(mainWindow.loadFile).not.toHaveBeenCalled();
     });
 
     it('clears only service worker registrations and cache storage', async () => {

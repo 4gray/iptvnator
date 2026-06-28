@@ -476,7 +476,11 @@ export default class App {
         App.application = app;
 
         App.application.on('window-all-closed', App.onWindowAllClosed); // Quit when all windows are closed.
-        App.application.on('ready', App.onReady); // App is ready to load data
+        if (App.application.isReady()) {
+            App.onReady();
+        } else {
+            App.application.on('ready', App.onReady); // App is ready to load data
+        }
         App.application.on('activate', App.onActivate); // App is activated
         App.application.on('before-quit', () => {
             if (App.mainWindow)
