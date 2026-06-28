@@ -86,6 +86,13 @@ export default class Main {
             trace('startup', 'bootstrap-events:start');
         }
 
+        const appUpdateService = new AppUpdateService({
+            app,
+            getMainWindow: () => App.mainWindow,
+            updater: autoUpdater,
+        });
+        AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
+
         // Initialize database before other events
         await initDatabase();
 
@@ -105,12 +112,6 @@ export default class Main {
         DatabaseEvents.bootstrapDatabaseEvents();
         EpgEvents.bootstrapEpgEvents();
         RemoteControlEvents.bootstrapRemoteControlEvents();
-        const appUpdateService = new AppUpdateService({
-            app,
-            getMainWindow: () => App.mainWindow,
-            updater: autoUpdater,
-        });
-        AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
         void appUpdateService.checkForUpdatesOnStartup();
 
         // Set main window for downloads and reset stale downloads

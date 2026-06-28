@@ -422,6 +422,35 @@ describe('SettingsComponent', () => {
         expect(component.appUpdateStatus()).toEqual(retriedStatus);
     });
 
+    it('waits for the desktop app update bridge method before loading status', async () => {
+        const retriedStatus: ElectronBridgeAppUpdateStatus = {
+            ...DEFAULT_APP_UPDATE_STATUS,
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Unsupported,
+            supportedSelfUpdate: false,
+        };
+        await fixture.whenStable();
+        delete (window.electron as Partial<typeof window.electron>)
+            .getAppUpdateStatus;
+        let retryCount = 0;
+        const getStatus = jest.fn().mockResolvedValue(retriedStatus);
+        jest.spyOn(
+            privateApi(component),
+            'waitForAppUpdateStatusRetry'
+        ).mockImplementation(async () => {
+            retryCount += 1;
+
+            if (retryCount === 1) {
+                window.electron.getAppUpdateStatus = getStatus;
+            }
+        });
+
+        await privateApi(component).loadAppUpdateStatus();
+
+        expect(retryCount).toBe(1);
+        expect(getStatus).toHaveBeenCalledTimes(1);
+        expect(component.appUpdateStatus()).toEqual(retriedStatus);
+    });
+
     it('forwards app update actions to the desktop bridge', async () => {
         await component.checkForAppUpdate();
         await component.downloadAppUpdate();

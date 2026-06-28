@@ -85,8 +85,8 @@ import {
 import { SettingsSnackbarService } from './settings-snackbar.service';
 import { AppUpdateReleaseNotesDialogComponent } from './app-update-release-notes-dialog.component';
 
-const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 5;
-const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 100;
+const APP_UPDATE_STATUS_LOAD_ATTEMPTS = 60;
+const APP_UPDATE_STATUS_LOAD_RETRY_DELAY_MS = 250;
 
 @Component({
     templateUrl: './settings.component.html',
@@ -320,28 +320,40 @@ export class SettingsComponent implements OnInit, OnDestroy {
     }
 
     private async loadAppUpdateStatus(): Promise<void> {
-        if (!this.isDesktop || !window.electron?.getAppUpdateStatus) {
+        if (!this.isDesktop) {
             return;
         }
+
+        let lastError: unknown;
 
         for (
             let attempt = 1;
             attempt <= APP_UPDATE_STATUS_LOAD_ATTEMPTS;
             attempt += 1
         ) {
-            try {
-                this.appUpdateStatus.set(
-                    await window.electron.getAppUpdateStatus()
+            const electron = window.electron;
+
+            if (electron?.getAppUpdateStatus) {
+                try {
+                    this.appUpdateStatus.set(
+                        await electron.getAppUpdateStatus()
+                    );
+                    return;
+                } catch (error) {
+                    lastError = error;
+                }
+            }
+
+            if (attempt === APP_UPDATE_STATUS_LOAD_ATTEMPTS) {
+                console.warn(
+                    'Failed to load app update status:',
+                    lastError ??
+                        new Error('Desktop app update bridge is unavailable')
                 );
                 return;
-            } catch (error) {
-                if (attempt === APP_UPDATE_STATUS_LOAD_ATTEMPTS) {
-                    console.warn('Failed to load app update status:', error);
-                    return;
-                }
-
-                await this.waitForAppUpdateStatusRetry();
             }
+
+            await this.waitForAppUpdateStatusRetry();
         }
     }
 
