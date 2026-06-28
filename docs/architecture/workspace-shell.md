@@ -189,11 +189,14 @@ Command palette behavior is shell-owned but view-extensible:
    MPV, MPV, VLC). Each command carries a `requires` flag gating its
    visibility: the MPV/VLC ("managed-external") entries are visible only when
    `RuntimeCapabilitiesService.supportsManagedExternalPlayers` is true, and the
-   Embedded MPV ("embedded-mpv") entry is visible only after an async
-   `window.electron.getEmbeddedMpvSupport()` check resolves to `supported`
-   (mirroring the Settings dropdown gate). The entry matching the current
-   `SettingsStore.player()` value is disabled. The new player setting applies
-   to the next playback session; an existing stream is not re-mounted.
+   Embedded MPV ("embedded-mpv") entry is visible only after the command
+   palette lazily preloads an async `window.electron.getEmbeddedMpvSupport()`
+   check and it resolves to `supported` (mirroring the Settings dropdown gate).
+   Do not run this Embedded MPV support check from workspace shell bootstrap:
+   supported desktop builds may load the native addon while resolving
+   capabilities. The entry matching the current `SettingsStore.player()` value
+   is disabled. The new player setting applies to the next playback session; an
+   existing stream is not re-mounted.
 
 Keyboard shortcut help is shell-owned:
 

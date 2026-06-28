@@ -86,13 +86,13 @@ export class WorkspacePlayerCommandsContributor {
     private readonly destroyRef = inject(DestroyRef);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly embeddedMpvSupported = signal(false);
+    private embeddedMpvSupportChecked = false;
+    private embeddedMpvSupportLoad: Promise<void> | null = null;
 
     constructor() {
         const unregisters = PLAYER_COMMAND_DEFS.map((def) =>
             this.viewCommands.registerCommand(this.toContribution(def))
         );
-
-        void this.loadEmbeddedMpvSupport();
 
         this.destroyRef.onDestroy(() => {
             for (const unregister of unregisters) {
@@ -101,23 +101,36 @@ export class WorkspacePlayerCommandsContributor {
         });
     }
 
-    private async loadEmbeddedMpvSupport(): Promise<void> {
+    ensureEmbeddedMpvSupportLoaded(): Promise<void> | undefined {
+        if (this.embeddedMpvSupportChecked) {
+            return undefined;
+        }
+
         if (
             !this.runtime.supportsEmbeddedMpv ||
             typeof window === 'undefined' ||
             !window.electron?.getEmbeddedMpvSupport
         ) {
-            return;
+            this.embeddedMpvSupportChecked = true;
+            return undefined;
         }
 
+        this.embeddedMpvSupportLoad ??= this.loadEmbeddedMpvSupport();
+        return this.embeddedMpvSupportLoad;
+    }
+
+    private async loadEmbeddedMpvSupport(): Promise<void> {
         try {
-            const support = await window.electron.getEmbeddedMpvSupport();
+            const support = await window.electron?.getEmbeddedMpvSupport?.();
             this.embeddedMpvSupported.set(!!support?.supported);
         } catch (error) {
             console.warn(
                 'Failed to verify embedded MPV support for the command palette.',
                 error
             );
+        } finally {
+            this.embeddedMpvSupportChecked = true;
+            this.embeddedMpvSupportLoad = null;
         }
     }
 

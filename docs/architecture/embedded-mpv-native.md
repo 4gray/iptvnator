@@ -79,7 +79,7 @@ The renderer never gets direct native-module access. It can only call the preloa
 - dispose session
 - subscribe to session updates
 
-Settings uses the preload support API only as a lightweight availability check. That check verifies platform, experiment gating, addon presence, and bundled platform runtime presence without `require()`-loading `embedded_mpv.node`. This avoids blocking Settings navigation on synchronous native-addon loading and code-signing or dynamic-linker work.
+Settings uses the preload support API as an availability and capability check. Unsupported paths return before loading the addon when platform, experiment gating, addon presence, bundled runtime presence, or the Linux `mpv` executable check fails. Supported paths load `embedded_mpv.node` so the renderer can receive capability flags from the actual addon binary. Avoid calling this support API from global workspace startup paths; use an explicit user action or idle preparation path when a renderer surface only needs to reveal optional Embedded MPV UI.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 

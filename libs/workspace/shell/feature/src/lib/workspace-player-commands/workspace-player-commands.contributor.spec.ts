@@ -50,6 +50,14 @@ describe('WorkspacePlayerCommandsContributor', () => {
         supportsManagedExternalPlayers: boolean;
         supportsEmbeddedMpv: boolean;
     };
+    let electronStub:
+        | {
+              getEmbeddedMpvSupport: jest.Mock<
+                  Promise<{ supported: boolean }>,
+                  []
+              >;
+          }
+        | undefined;
     let translate: { instant: jest.Mock; onLangChange: ReturnType<typeof of> };
 
     function bootstrap(options: {
@@ -72,7 +80,7 @@ describe('WorkspacePlayerCommandsContributor', () => {
             supportsEmbeddedMpv: options.supportsEmbeddedMpv ?? false,
         };
 
-        const electronStub = runtime.supportsEmbeddedMpv
+        electronStub = runtime.supportsEmbeddedMpv
             ? {
                   getEmbeddedMpvSupport: jest.fn().mockResolvedValue(
                       options.embeddedMpvSupportResult ?? {
@@ -153,15 +161,23 @@ describe('WorkspacePlayerCommandsContributor', () => {
         expect(resolveBoolean(embedded?.visible)).toBe(false);
     });
 
-    it('shows embedded MPV once support resolves to supported', async () => {
+    it('does not verify embedded MPV support during contributor bootstrap', () => {
         bootstrap({
+            supportsManagedExternalPlayers: true,
+            supportsEmbeddedMpv: true,
+        });
+
+        expect(electronStub?.getEmbeddedMpvSupport).not.toHaveBeenCalled();
+    });
+
+    it('shows embedded MPV once support resolves to supported', async () => {
+        const contributor = bootstrap({
             supportsManagedExternalPlayers: true,
             supportsEmbeddedMpv: true,
             embeddedMpvSupportResult: { supported: true },
         });
 
-        await Promise.resolve();
-        await Promise.resolve();
+        await contributor.ensureEmbeddedMpvSupportLoaded();
 
         const embedded = getRegistered(viewCommands).find(
             (c) => c.id === 'switch-player-embedded-mpv'
@@ -170,14 +186,13 @@ describe('WorkspacePlayerCommandsContributor', () => {
     });
 
     it('keeps embedded MPV hidden when support resolves to unsupported', async () => {
-        bootstrap({
+        const contributor = bootstrap({
             supportsManagedExternalPlayers: true,
             supportsEmbeddedMpv: true,
             embeddedMpvSupportResult: { supported: false },
         });
 
-        await Promise.resolve();
-        await Promise.resolve();
+        await contributor.ensureEmbeddedMpvSupportLoaded();
 
         const embedded = getRegistered(viewCommands).find(
             (c) => c.id === 'switch-player-embedded-mpv'
