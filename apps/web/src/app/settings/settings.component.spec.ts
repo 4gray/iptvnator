@@ -506,8 +506,10 @@ describe('SettingsComponent', () => {
             .mockReturnValue(createDialogRef(false));
         component.appUpdateStatus.set({
             ...DEFAULT_APP_UPDATE_STATUS,
-            latestVersion: undefined,
-            release: undefined,
+            latestVersion: '0.21.0',
+            release: {
+                version: '0.21.0',
+            },
             status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
         });
 

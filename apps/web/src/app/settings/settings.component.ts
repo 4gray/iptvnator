@@ -405,15 +405,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
             status?.status ===
                 ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloading ||
             status?.status === ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Downloaded;
+        const initialReleaseNotesVersion = isUpdateRelease
+            ? (status?.latestVersion ??
+              status?.release?.version ??
+              status?.currentVersion)
+            : status?.currentVersion;
 
         this.matDialog.open(AppUpdateReleaseNotesDialogComponent, {
             autoFocus: false,
             data: {
                 ...(!isUpdateRelease ? { fallbackToLatest: true } : {}),
-                initialVersion:
-                    status?.latestVersion ??
-                    status?.release?.version ??
-                    status?.currentVersion,
+                initialVersion: initialReleaseNotesVersion,
             },
             maxWidth: 'calc(100vw - 32px)',
             restoreFocus: true,
