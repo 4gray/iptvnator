@@ -63,7 +63,7 @@ export class StreamResolverService {
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
-    private readonly portalEpgTimeoutMs = 3000;
+    private readonly portalEpgTimeoutMs = 10000;
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
     private readonly xtreamEpgFailureTimestamps = new Map<string, number>();
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
@@ -410,11 +410,28 @@ export class StreamResolverService {
                 return [];
             }
 
+            // Try the full EPG endpoint first (same as the main live-view
+            // loadEpg() in with-epg.feature.ts) — many providers only
+            // support get_simple_data_table, not get_short_epg.
+            try {
+                const fullEpg = await this.xtreamApi.getFullEpg(
+                    creds,
+                    item.xtreamId,
+                    { suppressErrorLog: true }
+                );
+                if (fullEpg.length > 0) {
+                    return fullEpg;
+                }
+            } catch {
+                // getFullEpg failed — continue to short-EPG fallback below.
+            }
+
+            // Fall back to the short-EPG endpoint with a generous limit.
             return await this.fetchXtreamEpgItems(
                 item.playlistId,
                 creds,
                 item.xtreamId,
-                10
+                50
             );
         } catch {
             return [];

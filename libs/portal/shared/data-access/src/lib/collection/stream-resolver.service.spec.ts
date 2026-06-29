@@ -31,6 +31,7 @@ describe('StreamResolverService', () => {
             getPlaylistById: jest.fn(),
         };
         xtreamApi = {
+            getFullEpg: jest.fn(),
             getShortEpg: jest.fn(),
         };
         xtreamUrl = {
@@ -228,6 +229,7 @@ describe('StreamResolverService', () => {
         xtreamUrl.constructLiveUrl.mockReturnValue(
             'https://xtream.example.com/live/1'
         );
+        xtreamApi.getFullEpg.mockResolvedValue([]);
         xtreamApi.getShortEpg.mockResolvedValue([
             {
                 id: '1',
@@ -267,7 +269,7 @@ describe('StreamResolverService', () => {
                 password: 'pass',
             },
             1,
-            10,
+            50,
             {
                 suppressErrorLog: true,
             }
@@ -317,6 +319,7 @@ describe('StreamResolverService', () => {
                 password: 'pass',
             } satisfies Partial<Playlist>)
         );
+        xtreamApi.getFullEpg.mockResolvedValue([]);
         xtreamApi.getShortEpg.mockResolvedValue([]);
 
         const items = [
@@ -361,6 +364,7 @@ describe('StreamResolverService', () => {
         xtreamUrl.constructLiveUrl.mockReturnValue(
             'https://xtream.example.com/live/1'
         );
+        xtreamApi.getFullEpg.mockRejectedValue(new Error('EPG failed'));
         xtreamApi.getShortEpg.mockRejectedValue(new Error('EPG failed'));
 
         const item = {
@@ -431,7 +435,7 @@ describe('StreamResolverService', () => {
                 xtreamId: 1,
             } satisfies UnifiedCollectionItem);
 
-            await jest.advanceTimersByTimeAsync(3000);
+            await jest.advanceTimersByTimeAsync(10000);
 
             await expect(detailPromise).resolves.toMatchObject({
                 epgMode: 'portal',

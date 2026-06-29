@@ -609,6 +609,8 @@ export class UnifiedFavoritesDataService {
             categoryId: row.category_id,
             tvgId: ct === 'live' ? String(row.xtream_id) : undefined,
             rating: row.rating ?? undefined,
+            tvArchive: row.tv_archive ?? null,
+            tvArchiveDuration: row.tv_archive_duration ?? null,
             addedAt:
                 normalizeStalkerDate(row.added_at) || new Date(0).toISOString(),
             position: row.position ?? 0,
@@ -635,6 +637,8 @@ export class UnifiedFavoritesDataService {
             categoryId: item.category_id,
             tvgId: ct === 'live' ? String(item.xtream_id) : undefined,
             rating: item.rating ?? undefined,
+            tvArchive: item.tv_archive ?? null,
+            tvArchiveDuration: item.tv_archive_duration ?? null,
             addedAt:
                 normalizeStalkerDate(item.added_at ?? item.added) ||
                 new Date(0).toISOString(),
