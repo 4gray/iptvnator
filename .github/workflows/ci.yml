@@ -9,6 +9,15 @@ on:
             - master
     workflow_dispatch:
 
+# Least-privilege default token: this workflow only reads the repo.
+permissions:
+    contents: read
+
+# Cancel superseded runs on the same ref (e.g. rapid pushes to a PR).
+concurrency:
+    group: ci-${{ github.ref }}
+    cancel-in-progress: true
+
 jobs:
     unit-and-typecheck:
         name: Unit Tests and Typechecks
