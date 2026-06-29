@@ -125,12 +125,21 @@
             flex-basis 0.18s ease,
             min-height 0.18s ease;
 
+        // Inline (player visible): the guide is a compact panel below the
+        // player, not half the screen. The responsive clamp keeps the player
+        // dominant on tall screens and shrinks the panel on short ones.
+        // External player: no .epg--inline → keeps flex:1 above and fills.
+        &.epg--inline {
+            flex: 0 0 var(--epg-inline-height, clamp(180px, 36vh, 264px));
+        }
+
         &.epg-collapsed {
             flex: 0 0 56px;
             min-height: 56px;
         }
 
-        > app-live-epg-panel {
+        > app-live-epg-panel,
+        > app-epg-timeline {
             flex: 1;
             min-height: 0;
         }
@@ -144,7 +153,8 @@
         flex-direction: column;
 
         > app-epg-view,
-        > app-live-epg-panel {
+        > app-live-epg-panel,
+        > app-epg-timeline {
             flex: 1;
             min-height: 0;
         }

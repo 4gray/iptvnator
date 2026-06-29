@@ -39,7 +39,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
-    EpgListComponent,
+    EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -48,10 +48,7 @@ import {
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
-import {
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
+import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import {
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
@@ -84,8 +81,7 @@ type StalkerPlayableChannel = StalkerPortalItem & {
         AudioPlayerComponent,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
-        EpgListComponent,
-        LiveEpgPanelComponent,
+        EpgTimelineComponent,
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,

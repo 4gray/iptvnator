@@ -26,20 +26,13 @@ import {
     sortPlaylistChannelItems,
 } from '../channel-list-sort.util';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
+import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 const ALL_CHANNELS_SORT_STORAGE_KEY = 'm3u-all-channels-sort-mode';
 
-/**
- * Per-channel EPG metadata stored in a side-car map keyed by EPG lookup key.
- * Replaces the older EnrichedChannel pattern that spread-cloned every channel
- * on every progressTick (~30 s).
- */
-export interface ChannelEpgMetadata {
-    epgProgram: EpgProgram | null | undefined;
-    progressPercentage: number;
-}
+export type { ChannelEpgMetadata } from '../epg-enrichment.util';
 
 @Component({
     selector: 'app-all-channels-view',
@@ -137,18 +130,9 @@ export class AllChannelsViewComponent {
      * ~90K objects per tick on large M3U playlists.
      */
     readonly epgMetadataMap = computed(() => {
-        const epgMap = this.channelEpgMap();
-        // Read progressTick to create dependency for progress refresh
+        // Read progressTick to create a dependency for the ~30s progress refresh.
         this.progressTick();
-
-        const result = new Map<string, ChannelEpgMetadata>();
-        epgMap.forEach((program, channelId) => {
-            result.set(channelId, {
-                epgProgram: program,
-                progressPercentage: this.calculateProgress(program),
-            });
-        });
-        return result;
+        return buildChannelEpgMetadataMap(this.channelEpgMap());
     });
 
     /** Resolves the EPG lookup key the side-car map is keyed by. */
@@ -163,38 +147,6 @@ export class AllChannelsViewComponent {
      */
     getLogoForChannel(channel: Channel): string {
         return resolveChannelLogo(channel, this.channelIconMap());
-    }
-
-    /**
-     * Calculates progress percentage for an EPG program
-     */
-    private calculateProgress(
-        epgProgram: EpgProgram | null | undefined
-    ): number {
-        if (!epgProgram) {
-            return 0;
-        }
-
-        const now = Date.now();
-        const start = new Date(epgProgram.start).getTime();
-        const stop = new Date(epgProgram.stop).getTime();
-
-        // Validate start/stop are finite numbers
-        if (!Number.isFinite(start) || !Number.isFinite(stop)) {
-            return 0;
-        }
-
-        const total = stop - start;
-
-        // Bail out if duration is zero or negative
-        if (total <= 0) {
-            return 0;
-        }
-
-        // Clamp elapsed to [0, total]
-        const elapsed = Math.min(total, Math.max(0, now - start));
-
-        return Math.round((elapsed / total) * 100);
     }
 
     trackByFn(_: number, channel: Channel): string {

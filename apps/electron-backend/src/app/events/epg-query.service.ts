@@ -1,14 +1,4 @@
-import {
-    and,
-    eq,
-    gte,
-    inArray,
-    isNull,
-    lte,
-    or,
-    sql,
-    type SQL,
-} from 'drizzle-orm';
+import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
 import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
@@ -274,6 +264,32 @@ export class EpgQueryService {
                         { legacyOnly: true }
                     )
                 );
+
+                // Unscoped fallback (mirror the timeline): a candidate resolved
+                // by id/display-name but whose programmes are tagged with a
+                // source_url outside the active scope — e.g. multi-source EPG
+                // imports where epg_channels.source_url and epg_programs.source_url
+                // disagree — would otherwise stay empty in the list while the
+                // timeline (which never scopes by source) shows it. Retry only
+                // the still-unresolved resolved-candidate ids against all sources.
+                if (sourceUrls.length > 0) {
+                    const pendingCandidateIds = this.pendingCandidateIds(
+                        candidateIdsByRequestedId,
+                        result
+                    );
+                    if (pendingCandidateIds.length > 0) {
+                        this.assignCandidateCurrentProgramRows(
+                            result,
+                            candidateIdsByRequestedId,
+                            await this.selectCurrentProgramsForChannelIds(
+                                db,
+                                pendingCandidateIds,
+                                now,
+                                []
+                            )
+                        );
+                    }
+                }
             }
 
             for (const channelId of validIds) {
@@ -329,17 +345,9 @@ export class EpgQueryService {
 
             const db = await getDatabase();
             const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
-            const lowerKeys = Array.from(
-                new Set(
-                    normalizedChannelIds.map((channelId) =>
-                        channelId.toLowerCase()
-                    )
-                )
-            );
-            const lowerKeyValues = lowerKeys.map((key) => sql`${key}`);
             let candidates = await this.selectChannelMetadataCandidates(
                 db,
-                lowerKeyValues,
+                normalizedChannelIds,
                 sourceUrls
             );
             if (sourceUrls.length > 0) {
@@ -355,9 +363,7 @@ export class EpgQueryService {
                         ...candidates,
                         ...(await this.selectChannelMetadataCandidates(
                             db,
-                            missingChannelIds
-                                .map((channelId) => channelId.toLowerCase())
-                                .map((key) => sql`${key}`),
+                            missingChannelIds,
                             sourceUrls,
                             { legacyOnly: true }
                         )),
@@ -468,6 +474,24 @@ export class EpgQueryService {
         return matchedChannelIds;
     }
 
+    /**
+     * Resolved candidate ids whose requested channel still has no programme in
+     * `result` — i.e. the channel was matched to an epg_channels row but no
+     * in-scope current programme was found for it yet.
+     */
+    private pendingCandidateIds(
+        candidateIdsByRequestedId: Map<string, string>,
+        result: Record<string, EpgProgram | null>
+    ): string[] {
+        const pending = new Set<string>();
+        for (const [requestedId, candidateId] of candidateIdsByRequestedId) {
+            if (!result[requestedId]) {
+                pending.add(candidateId);
+            }
+        }
+        return Array.from(pending);
+    }
+
     private assignCandidateCurrentProgramRows(
         result: Record<string, EpgProgram | null>,
         candidateIdsByRequestedId: Map<string, string>,
@@ -557,14 +581,27 @@ export class EpgQueryService {
                 this.withProgramSourceScope(
                     and(
                         inArray(schema.epgPrograms.channelId, channelIds),
-                        lte(schema.epgPrograms.start, now),
-                        gte(schema.epgPrograms.stop, now)
+                        this.isAiringAt(now)
                     ) as SQL,
                     sourceUrls,
                     options
                 )
             )
             .limit(channelIds.length);
+    }
+
+    /**
+     * Timezone-aware "currently airing at `now`" predicate. EPG start/stop are
+     * stored as ISO strings that often carry a UTC offset (e.g. `+03:00`) while
+     * `now` is built as UTC (`new Date().toISOString()`, `…Z`). A raw string
+     * comparison is lexical and therefore wrong by the offset, so we normalize
+     * both sides with SQLite `datetime()` (which converts every form to UTC).
+     */
+    private isAiringAt(now: string): SQL {
+        return and(
+            sql`datetime(${schema.epgPrograms.start}) <= datetime(${now})`,
+            sql`datetime(${schema.epgPrograms.stop}) >= datetime(${now})`
+        ) as SQL;
     }
 
     private async selectChannelById(
@@ -658,13 +695,9 @@ export class EpgQueryService {
         sourceUrls: string[],
         options: { legacyOnly?: boolean } = {}
     ): Promise<EpgChannelMetadata[]> {
-        const lowerKeyValues = Array.from(
-            new Set(channelIds.map((channelId) => channelId.toLowerCase()))
-        ).map((key) => sql`${key}`);
-
         return this.selectChannelMetadataCandidates(
             db,
-            lowerKeyValues,
+            channelIds,
             sourceUrls,
             options
         );
@@ -672,7 +705,7 @@ export class EpgQueryService {
 
     private async selectChannelMetadataCandidates(
         db: EpgDatabase,
-        lowerKeyValues: SQL[],
+        keys: string[],
         sourceUrls: string[],
         options: { legacyOnly?: boolean } = {}
     ): Promise<EpgChannelMetadata[]> {
@@ -680,10 +713,28 @@ export class EpgQueryService {
             return [];
         }
 
+        const uniqueKeys = Array.from(new Set(keys));
+        if (uniqueKeys.length === 0) {
+            return [];
+        }
+        const rawValues = uniqueKeys.map((key) => sql`${key}`);
+        const lowerValues = Array.from(
+            new Set(uniqueKeys.map((key) => key.toLowerCase()))
+        ).map((key) => sql`${key}`);
+
+        // SQLite LOWER()/COLLATE NOCASE only fold ASCII, so for non-ASCII names
+        // (Cyrillic, Greek, …) the lowercased key never matches the stored value.
+        // Match the raw key case-sensitively too — parity with the timeline's
+        // exact display-name lookup — so those channels resolve; the LOWER()
+        // branch keeps ASCII case-insensitivity. The JS resolver
+        // (`resolveChannelMetadataCandidate`) then folds with full-Unicode
+        // toLowerCase().
         const lookupCondition = sql`
             (
-                LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerKeyValues, sql`, `)})
-                OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerKeyValues, sql`, `)})
+                ${schema.epgChannels.id} IN (${sql.join(rawValues, sql`, `)})
+                OR ${schema.epgChannels.displayName} IN (${sql.join(rawValues, sql`, `)})
+                OR LOWER(${schema.epgChannels.id}) IN (${sql.join(lowerValues, sql`, `)})
+                OR LOWER(${schema.epgChannels.displayName}) IN (${sql.join(lowerValues, sql`, `)})
             )
         `;
 

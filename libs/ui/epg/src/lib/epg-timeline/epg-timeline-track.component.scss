@@ -1,0 +1,531 @@
+$line: var(--line, rgba(255, 255, 255, 0.06));
+$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
+$surface-1: var(--surface-1, #0f141c);
+$surface-2: var(--surface-2, #161d28);
+$surface-3: var(--surface-3, #1d2533);
+$text-primary: var(--text-primary, #e7ecf3);
+$text-secondary: var(--text-secondary, #9aa3b2);
+$text-tertiary: var(--text-tertiary, #6b7384);
+$accent-blue: var(--accent-blue, #4f8eff);
+$accent-cyan: var(--accent-cyan, #5cd6ff);
+$accent-live: var(--accent-live, #ff5b6e);
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+:host {
+    box-sizing: border-box;
+    position: relative;
+    display: block;
+    height: 100%;
+    min-height: 96px;
+}
+
+:host * {
+    box-sizing: border-box;
+}
+
+/* ── grid ── */
+.epg-timeline__tick,
+.epg-timeline__daydiv {
+    position: absolute;
+    top: 0;
+    bottom: 0;
+}
+
+.epg-timeline__tick {
+    border-left: 1px solid $line;
+
+    span {
+        position: absolute;
+        top: 6px;
+        left: 7px;
+        font-family: $font-mono;
+        font-size: 10.5px;
+        color: $text-tertiary;
+    }
+}
+
+.epg-timeline__daydiv {
+    border-left: 1px solid rgba(79, 142, 255, 0.5);
+
+    span {
+        position: absolute;
+        top: 6px;
+        left: 8px;
+        font-family: $font-mono;
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.04em;
+        color: $accent-blue;
+        white-space: nowrap;
+        text-transform: uppercase;
+    }
+}
+
+/* ── blocks ── */
+.epg-timeline__block {
+    position: absolute;
+    top: 38px;
+    bottom: 18px;
+    border-radius: 11px;
+    padding: 13px 14px;
+    overflow: hidden;
+    cursor: pointer;
+    border: 1px solid $line-strong;
+    background: $surface-1;
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-start;
+    gap: 6px;
+    transform: translateZ(0);
+    backface-visibility: hidden;
+    transition:
+        transform 120ms,
+        border-color 120ms,
+        background 120ms;
+
+    &:hover {
+        transform: translate3d(0, -2px, 0);
+        border-color: $accent-blue;
+        z-index: 5;
+    }
+
+    &:focus-visible {
+        outline: 2px solid $accent-blue;
+        outline-offset: 1px;
+        z-index: 5;
+    }
+
+    &.is-past {
+        opacity: 0.52;
+        background: transparent;
+
+        &:hover {
+            opacity: 0.9;
+        }
+    }
+
+    &.is-now {
+        background: rgba(79, 142, 255, 0.1);
+        border-color: $accent-blue;
+        opacity: 1;
+
+        .epg-timeline__block-title {
+            color: #fff;
+            font-weight: 600;
+        }
+    }
+
+    &.is-playing {
+        background: rgba(79, 142, 255, 0.18);
+        border-color: $accent-blue;
+        opacity: 1;
+
+        .epg-timeline__block-title {
+            color: #fff;
+            font-weight: 600;
+        }
+    }
+
+    &.is-selected {
+        box-shadow: inset 0 0 0 2px $accent-blue;
+    }
+
+    /* short programmes get a faint amber wash so they read as "brief" */
+    &.is-short:not(.is-now):not(.is-playing) {
+        background: rgba(255, 210, 74, 0.06);
+    }
+}
+
+.epg-timeline__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    z-index: 0;
+    pointer-events: none;
+
+    &--live {
+        background: rgba(92, 214, 255, 0.12);
+        border-right: 2px solid $accent-cyan;
+    }
+}
+
+/* block-top fills the card height so the title can use every line that fits;
+   the foot is pinned at the bottom. */
+.epg-timeline__block-top {
+    position: relative;
+    z-index: 1;
+    flex: 1 1 auto;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    overflow: hidden;
+}
+
+.epg-timeline__block-foot {
+    position: relative;
+    z-index: 1;
+    flex: 0 0 auto;
+}
+
+.epg-timeline__block-time {
+    font-family: $font-mono;
+    font-size: 11px;
+    color: $text-tertiary;
+    white-space: nowrap;
+}
+
+.epg-timeline__block-title {
+    font-size: 13px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: $text-primary;
+    /* wrap onto as many lines as the card height allows, then clip (the
+       parent block-top has overflow:hidden). The generous line-clamp only
+       adds an ellipsis to genuinely long titles. */
+    display: -webkit-box;
+    -webkit-line-clamp: 8;
+    line-clamp: 8;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+/* Wide-tier cards with a short title have spare vertical room — fill it with a
+   dimmed description preview that sits under the title. Only rendered for
+   tier=wide (see template). */
+.epg-timeline__block-desc {
+    flex: 0 0 auto;
+    min-height: 0;
+    margin: 0;
+    color: $text-secondary;
+    font-size: 11px;
+    line-height: 1.35;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    overflow-wrap: anywhere;
+}
+
+/* Whole-line clipping for wide cards: lock time/title/desc with flex-shrink:0 so
+   flexbox can never shrink them to a fractional (mid-line) height — each element
+   self-clips on whole lines with an ellipsis (via -webkit-line-clamp) instead of
+   being cut mid-line by the parent's overflow:hidden. The title takes ≤2 lines,
+   the description ≤3, leaving the rest as clean empty space above the foot. */
+.epg-timeline__block[data-tier='wide'] {
+    .epg-timeline__block-time,
+    .epg-timeline__block-title,
+    .epg-timeline__block-desc {
+        flex: 0 0 auto;
+    }
+
+    .epg-timeline__block-title {
+        -webkit-line-clamp: 2;
+        line-clamp: 2;
+    }
+}
+
+/* ── content tiers (B) ── */
+/* wide & med both wrap multi-line; the difference is only the available width.
+   (No single-line override for med — short titles should use the height.) */
+
+/* narrow — vertical title, no time, centred */
+.epg-timeline__block[data-tier='narrow'] {
+    padding: 10px 3px;
+    align-items: center;
+    justify-content: center;
+
+    .epg-timeline__block-time,
+    .epg-timeline__block-foot,
+    .epg-timeline__info {
+        display: none;
+    }
+
+    .epg-timeline__block-top {
+        display: flex;
+        justify-content: center;
+        max-height: 100%;
+        overflow: hidden;
+    }
+
+    .epg-timeline__block-title {
+        writing-mode: vertical-rl;
+        transform: rotate(180deg);
+        white-space: nowrap;
+        text-overflow: ellipsis;
+        overflow: hidden;
+        max-height: 100%;
+        font-size: 11px;
+        color: $text-secondary;
+        display: block;
+        -webkit-line-clamp: initial;
+    }
+
+    &.is-now .epg-timeline__block-title,
+    &.is-playing .epg-timeline__block-title {
+        color: #fff;
+    }
+}
+
+/* micro — no text, just a marker tick */
+.epg-timeline__block[data-tier='micro'] {
+    padding: 0;
+    align-items: center;
+    justify-content: flex-start;
+    background: $surface-2;
+
+    .epg-timeline__block-top,
+    .epg-timeline__block-foot,
+    .epg-timeline__info {
+        display: none;
+    }
+
+    &::before {
+        content: '';
+        width: 3px;
+        height: 22px;
+        border-radius: 2px;
+        background: $text-tertiary;
+        margin-top: 14px;
+    }
+
+    &.is-now::before,
+    &.is-playing::before {
+        background: $accent-blue;
+    }
+}
+
+/* ── tags / actions ── */
+.epg-timeline__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: $font-mono;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+
+    &.is-now {
+        color: $accent-live;
+
+        &::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: $accent-live;
+            box-shadow: 0 0 6px $accent-live;
+        }
+    }
+
+    &.is-arch {
+        color: $accent-blue;
+    }
+}
+
+.epg-timeline__watch {
+    display: none;
+    align-items: center;
+    gap: 6px;
+    height: 27px;
+    padding: 0 11px;
+    border-radius: 999px;
+    background: $surface-2;
+    border: 1px solid $line-strong;
+    color: $text-primary;
+    font: inherit;
+    font-size: 11.5px;
+    font-weight: 600;
+    cursor: pointer;
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+
+    &:hover {
+        border-color: $accent-blue;
+        color: $accent-blue;
+    }
+}
+
+.epg-timeline__block:hover .epg-timeline__watch {
+    display: inline-flex;
+}
+
+.epg-timeline__info {
+    position: absolute;
+    top: 9px;
+    right: 9px;
+    z-index: 2;
+    width: 26px;
+    height: 26px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 7px;
+    background: rgba(8, 11, 17, 0.66);
+    color: $text-secondary;
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        opacity 120ms,
+        background 120ms,
+        color 120ms;
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+
+    &:hover {
+        background: $surface-3;
+        color: $text-primary;
+    }
+}
+
+.epg-timeline__block:hover .epg-timeline__info,
+.epg-timeline__block:focus-within .epg-timeline__info {
+    opacity: 1;
+}
+
+/* ── group-of-shorts chip (E) ── */
+.epg-timeline__group {
+    position: absolute;
+    top: 38px;
+    bottom: 18px;
+    border-radius: 11px;
+    padding: 11px 10px;
+    cursor: pointer;
+    border: 1px dashed $line-strong;
+    background: repeating-linear-gradient(
+        135deg,
+        $surface-1 0 7px,
+        $surface-2 7px 14px
+    );
+    color: $text-primary;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 2px;
+    font: inherit;
+    text-align: left;
+    overflow: hidden;
+
+    &:hover {
+        border-color: $accent-blue;
+        z-index: 5;
+    }
+}
+
+.epg-timeline__group-count {
+    font-size: 15px;
+    font-weight: 700;
+    color: $text-primary;
+}
+
+.epg-timeline__group-label {
+    font-size: 10.5px;
+    color: $text-tertiary;
+    line-height: 1.2;
+}
+
+.epg-timeline__group-hint {
+    margin-top: auto;
+    font-family: $font-mono;
+    font-size: 9px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $accent-blue;
+    white-space: nowrap;
+}
+
+/* ── playhead ── */
+.epg-timeline__playhead {
+    position: absolute;
+    top: 30px;
+    bottom: 0;
+    width: 2px;
+    background: $accent-live;
+    box-shadow: 0 0 10px rgba(255, 91, 110, 0.7);
+    z-index: 6;
+    pointer-events: none;
+
+    &::before {
+        content: '';
+        position: absolute;
+        top: -5px;
+        left: -4px;
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        background: $accent-live;
+        box-shadow: 0 0 8px $accent-live;
+    }
+
+    span {
+        position: absolute;
+        top: -22px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-family: $font-mono;
+        font-size: 9.5px;
+        font-weight: 700;
+        color: #fff;
+        background: $accent-live;
+        padding: 1px 5px;
+        border-radius: 4px;
+        white-space: nowrap;
+    }
+}
+
+/* ── hover/focus popover (C) ── */
+.epg-timeline__pop {
+    position: fixed;
+    z-index: 1200;
+    width: 248px;
+    background: $surface-1;
+    border: 1px solid $line-strong;
+    border-radius: var(--r-md, 10px);
+    box-shadow: 0 20px 44px rgba(0, 0, 0, 0.6);
+    padding: 13px 14px;
+    pointer-events: none;
+}
+
+.epg-timeline__pop-time {
+    font-family: $font-mono;
+    font-size: 10.5px;
+    color: $accent-cyan;
+    margin-bottom: 5px;
+}
+
+.epg-timeline__pop-title {
+    font-size: 13.5px;
+    font-weight: 600;
+    line-height: 1.3;
+    color: $text-primary;
+    margin-bottom: 6px;
+}
+
+.epg-timeline__pop-desc {
+    font-size: 12px;
+    color: $text-secondary;
+    line-height: 1.45;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    line-clamp: 4;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .epg-timeline__block {
+        transition: none;
+    }
+}

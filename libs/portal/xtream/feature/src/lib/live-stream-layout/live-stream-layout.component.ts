@@ -49,8 +49,8 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     EpgDateNavigationDirection,
-    EpgListComponent,
     EpgProgramActivationEvent,
+    EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -59,11 +59,7 @@ import {
     type PlaybackFallbackRequest,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
-import {
-    EpgViewComponent,
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
+import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import {
     EpgItem,
     EpgProgram,
@@ -95,9 +91,7 @@ interface XtreamLiveChannelItem {
     styleUrls: ['./live-stream-layout.component.scss'],
     providers: [LiveStreamAutoOpenStateService],
     imports: [
-        EpgListComponent,
-        EpgViewComponent,
-        LiveEpgPanelComponent,
+        EpgTimelineComponent,
         MatButtonModule,
         MatIcon,
         MatMenuModule,

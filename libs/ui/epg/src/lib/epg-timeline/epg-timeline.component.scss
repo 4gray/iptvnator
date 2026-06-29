@@ -1,0 +1,433 @@
+$line: var(--line, rgba(255, 255, 255, 0.06));
+$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
+$surface-1: var(--surface-1, #0f141c);
+$surface-2: var(--surface-2, #161d28);
+$surface-3: var(--surface-3, #1d2533);
+$text-primary: var(--text-primary, #e7ecf3);
+$text-secondary: var(--text-secondary, #9aa3b2);
+$text-tertiary: var(--text-tertiary, #6b7384);
+$accent-blue: var(--accent-blue, #4f8eff);
+$accent-cyan: var(--accent-cyan, #5cd6ff);
+$accent-live: var(--accent-live, #ff5b6e);
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+/* This app has no global border-box reset; the timeline relies on it. */
+.epg-timeline,
+.epg-timeline * {
+    box-sizing: border-box;
+}
+
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: #0a0e15;
+}
+
+.epg-timeline {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+/* ── toolbar (single header bar) ── */
+.epg-timeline__toolbar {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid $line;
+    background: $surface-1;
+    flex: 0 0 auto;
+}
+
+.epg-timeline--collapsed .epg-timeline__toolbar {
+    border-bottom: none;
+}
+
+.epg-timeline__spacer {
+    flex: 1;
+    min-width: 8px;
+}
+
+/* collapse toggle + channel name */
+.epg-timeline__collapse {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: none;
+    border: none;
+    color: $text-primary;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 7px;
+    font: inherit;
+    min-width: 0;
+    max-width: 60%;
+
+    &:hover {
+        background: $surface-2;
+    }
+}
+
+.epg-timeline__collapse-icon {
+    width: 18px;
+    height: 18px;
+    display: grid;
+    place-items: center;
+    color: $text-secondary;
+    flex: 0 0 auto;
+
+    mat-icon {
+        font-size: 18px;
+        width: 18px;
+        height: 18px;
+        transition: transform 200ms;
+    }
+}
+
+.epg-timeline--collapsed .epg-timeline__collapse-icon mat-icon {
+    transform: rotate(-90deg);
+}
+
+.epg-timeline__heading {
+    text-align: left;
+    line-height: 1.15;
+    min-width: 0;
+    overflow: hidden;
+
+    b {
+        font-size: 13px;
+        font-weight: 600;
+        display: block;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    span {
+        font-family: $font-mono;
+        font-size: 9.5px;
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        color: $text-tertiary;
+    }
+
+    /* dynamic subtitle: the now-playing / archive programme title — a readable
+       title, not the uppercase mono source label. Nested for higher specificity
+       than the generic `span` rule above. */
+    .epg-timeline__subtitle {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-family: inherit;
+        font-size: 11.5px;
+        letter-spacing: normal;
+        text-transform: none;
+        color: $text-secondary;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+
+        mat-icon {
+            flex: 0 0 auto;
+            width: 13px;
+            height: 13px;
+            font-size: 13px;
+            line-height: 13px;
+        }
+
+        &.is-arch {
+            color: $accent-cyan;
+        }
+    }
+}
+
+/* ── right-side controls ── */
+.epg-timeline__livebtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 14px;
+    border-radius: 999px;
+    background: rgba(255, 91, 110, 0.14);
+    border: 1px solid rgba(255, 91, 110, 0.32);
+    color: $accent-live;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 0 0 auto;
+
+    &::before {
+        content: '';
+        width: 7px;
+        height: 7px;
+        border-radius: 50%;
+        background: $accent-live;
+        box-shadow: 0 0 7px $accent-live;
+    }
+}
+
+.epg-timeline__jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: $surface-2;
+    border: 1px solid $line-strong;
+    color: $text-secondary;
+    font: inherit;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 0 0 auto;
+
+    mat-icon {
+        font-size: 14px;
+        width: 14px;
+        height: 14px;
+    }
+
+    &:hover {
+        color: $text-primary;
+        border-color: $accent-blue;
+    }
+}
+
+.epg-timeline__stepper {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 34px;
+    background: $surface-2;
+    border: 1px solid $line;
+    border-radius: 999px;
+    padding: 2px;
+    flex: 0 0 auto;
+}
+
+.epg-timeline__nav {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border: none;
+    border-radius: 50%;
+    background: transparent;
+    color: $text-secondary;
+    cursor: pointer;
+
+    mat-icon {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+    }
+
+    &:hover {
+        background: $surface-3;
+        color: $text-primary;
+    }
+}
+
+.epg-timeline__day {
+    font-size: 12.5px;
+    font-weight: 500;
+    padding: 0 6px;
+    min-width: 112px;
+    text-align: center;
+    line-height: 1.1;
+    color: $text-primary;
+
+    small {
+        display: block;
+        font-family: $font-mono;
+        font-size: 9px;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: $text-tertiary;
+        margin-top: 1px;
+    }
+}
+
+/* ── collapsed inline summary ── */
+.epg-timeline__summary-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-family: $font-mono;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex: 0 0 auto;
+
+    mat-icon {
+        font-size: 13px;
+        width: 13px;
+        height: 13px;
+    }
+
+    &.is-live {
+        color: $accent-live;
+
+        &::before {
+            content: '';
+            width: 6px;
+            height: 6px;
+            border-radius: 50%;
+            background: $accent-live;
+            box-shadow: 0 0 6px $accent-live;
+        }
+    }
+
+    &.is-arch {
+        color: $accent-blue;
+    }
+}
+
+.epg-timeline__summary-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+
+    &--muted {
+        color: $text-tertiary;
+        font-weight: 500;
+    }
+}
+
+.epg-timeline__summary-bar {
+    width: 84px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    flex: 0 0 auto;
+
+    i {
+        display: block;
+        height: 100%;
+        background: $accent-cyan;
+    }
+}
+
+.epg-timeline__summary-meta {
+    font-family: $font-mono;
+    font-size: 11px;
+    color: $text-tertiary;
+    flex: 0 0 auto;
+}
+
+/* ── schedule-only notice ── */
+.epg-timeline__notice {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 9px 16px;
+    background: rgba(79, 142, 255, 0.07);
+    border-bottom: 1px solid $line;
+    color: $text-secondary;
+    font-size: 12.5px;
+    flex: 0 0 auto;
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+        color: $accent-blue;
+        flex: 0 0 auto;
+    }
+}
+
+/* ── zoom slider ── */
+.epg-timeline__zoom {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 999px;
+    background: $surface-2;
+    border: 1px solid $line;
+    color: $text-tertiary;
+    flex: 0 0 auto;
+
+    mat-icon {
+        font-size: 16px;
+        width: 16px;
+        height: 16px;
+    }
+
+    input[type='range'] {
+        width: 96px;
+        accent-color: $accent-blue;
+        cursor: pointer;
+    }
+}
+
+/* ── ribbon ── */
+.epg-timeline__ribbon {
+    flex: 1 1 auto;
+    min-height: 96px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    background: #0a0e15;
+}
+
+.epg-timeline__ribbon > app-epg-timeline-track {
+    display: block;
+    height: 100%;
+}
+
+/* ── skeleton ── */
+.epg-timeline__ribbon--skeleton {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 22px 18px;
+    overflow: hidden;
+}
+
+.epg-timeline__sk {
+    height: 128px;
+    border-radius: 11px;
+    border: 1px solid $line;
+    background: linear-gradient(
+        100deg,
+        $surface-1 30%,
+        $surface-2 50%,
+        $surface-1 70%
+    );
+    background-size: 220% 100%;
+    animation: epg-timeline-shimmer 1.4s linear infinite;
+    flex: 0 0 auto;
+}
+
+@keyframes epg-timeline-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -20% 0;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .epg-timeline__sk {
+        animation: none;
+    }
+    .epg-timeline__block {
+        transition: none;
+    }
+}

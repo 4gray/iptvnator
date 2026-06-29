@@ -10,10 +10,7 @@ import {
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
-import {
-    fetchXtreamEpgFixture,
-    XtreamNormalizedEpgListing,
-} from './portal-mock-fixtures';
+import { fetchXtreamEpgFixture } from './portal-mock-fixtures';
 
 const epgPortalName = 'Xtream EPG Fixture';
 const epgCredentials = {
@@ -22,7 +19,7 @@ const epgCredentials = {
 };
 
 for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
-    test(`@epg @xtream @electron renders Xtream EPG previews and selected-channel schedule in ${timeZone}`, async ({
+    test(`@epg @xtream @electron renders Xtream EPG previews and the timeline schedule in ${timeZone}`, async ({
         dataDir,
         request,
     }) => {
@@ -57,6 +54,7 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
             ).first();
             await expect(channelRow).toBeVisible({ timeout: 20000 });
 
+            // Sidebar channel list shows the per-channel "now" programme line.
             await expect
                 .poll(async () =>
                     (
@@ -81,55 +79,42 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
                 .toBeGreaterThan(0);
 
             await channelRow.click();
-            await expect(app.mainWindow.locator('app-epg-list')).toBeVisible({
-                timeout: 20000,
-            });
+            await expect(
+                app.mainWindow.locator('app-epg-timeline')
+            ).toBeVisible({ timeout: 20000 });
 
-            const currentDateKey = formatDateKeyInZone(Date.now(), timeZone);
-            const currentDayTitles = titlesForDate(
-                fixture.fullEpg,
-                currentDateKey,
-                timeZone
-            );
-
+            // The timeline renders the full multi-day window as blocks,
+            // sorted by start time (no per-day filtering — it scrolls).
+            const allTitles = [...fixture.fullEpg]
+                .sort((a, b) => a.startTimestamp - b.startTimestamp)
+                .map((listing) => listing.title);
             await expect
-                .poll(() => visibleProgramTitles(app.mainWindow))
-                .toEqual(currentDayTitles);
+                .poll(() => timelineBlockTitles(app.mainWindow))
+                .toEqual(allTitles);
 
-            await expectCurrentProgram(
-                app.mainWindow,
-                currentProgram,
-                timeZone
-            );
-
-            const firstFutureDateKey = getFirstFutureDateKey(
-                fixture.fullEpg,
-                currentDateKey,
-                timeZone
-            );
-            expect(firstFutureDateKey).not.toBeNull();
-
-            const futureDayTitles = titlesForDate(
-                fixture.fullEpg,
-                firstFutureDateKey!,
-                timeZone
-            );
-            const nextDayClicks = dayDifference(
-                currentDateKey,
-                firstFutureDateKey!
-            );
-
-            for (let index = 0; index < nextDayClicks; index += 1) {
-                await app.mainWindow
+            // The current programme is highlighted as the "now" block.
+            await expect(
+                app.mainWindow
                     .locator(
-                        'app-live-epg-panel .next-day, app-epg-list .next-day'
+                        'app-epg-timeline .epg-timeline__block.is-now .epg-timeline__block-title'
                     )
-                    .click();
-            }
+                    .first()
+            ).toHaveText(currentProgram.title);
 
+            // The date stepper advances the day label.
+            const dayLabel = app.mainWindow
+                .locator('app-epg-timeline .epg-timeline__day small')
+                .first();
+            const beforeLabel = (await dayLabel.textContent())?.trim();
+            await app.mainWindow
+                .locator(
+                    'app-epg-timeline .epg-timeline__stepper .epg-timeline__nav'
+                )
+                .last()
+                .click();
             await expect
-                .poll(() => visibleProgramTitles(app.mainWindow))
-                .toEqual(futureDayTitles);
+                .poll(async () => (await dayLabel.textContent())?.trim())
+                .not.toBe(beforeLabel);
         } finally {
             await closeElectronApp(app);
         }
@@ -145,103 +130,13 @@ function formatTimeInZone(timestampSeconds: number, timeZone: string): string {
     }).format(new Date(timestampSeconds * 1000));
 }
 
-function formatDateKeyInZone(
-    timestampMilliseconds: number,
-    timeZone: string
-): string {
-    const parts = new Intl.DateTimeFormat('en-CA', {
-        timeZone,
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-    }).formatToParts(new Date(timestampMilliseconds));
-
-    const year = parts.find((part) => part.type === 'year')?.value;
-    const month = parts.find((part) => part.type === 'month')?.value;
-    const day = parts.find((part) => part.type === 'day')?.value;
-
-    if (!year || !month || !day) {
-        throw new Error(
-            `Failed to format a date key for timezone ${timeZone}.`
-        );
-    }
-
-    return `${year}-${month}-${day}`;
-}
-
-function titlesForDate(
-    listings: XtreamNormalizedEpgListing[],
-    dateKey: string,
-    timeZone: string
-): string[] {
-    return listings
-        .filter(
-            (listing) =>
-                formatDateKeyInZone(listing.startTimestamp * 1000, timeZone) ===
-                dateKey
-        )
-        .map((listing) => listing.title);
-}
-
-function getFirstFutureDateKey(
-    listings: XtreamNormalizedEpgListing[],
-    currentDateKey: string,
-    timeZone: string
-): string | null {
-    const uniqueDateKeys = Array.from(
-        new Set(
-            listings.map((listing) =>
-                formatDateKeyInZone(listing.startTimestamp * 1000, timeZone)
-            )
-        )
-    ).sort();
-
-    return uniqueDateKeys.find((dateKey) => dateKey > currentDateKey) ?? null;
-}
-
-function dayDifference(fromDateKey: string, toDateKey: string): number {
-    const from = Date.parse(`${fromDateKey}T00:00:00.000Z`);
-    const to = Date.parse(`${toDateKey}T00:00:00.000Z`);
-    return Math.round((to - from) / (24 * 60 * 60 * 1000));
-}
-
-async function visibleProgramTitles(
+async function timelineBlockTitles(
     page: Parameters<typeof channelItemByTitle>[0]
 ) {
     return page
-        .locator('app-epg-list .program-title')
+        .locator('app-epg-timeline .epg-timeline__block-title')
         .allInnerTexts()
         .then((titles) => titles.map((title) => title.trim()).filter(Boolean));
-}
-
-async function expectCurrentProgram(
-    page: Parameters<typeof channelItemByTitle>[0],
-    currentProgram: XtreamNormalizedEpgListing,
-    timeZone: string
-): Promise<void> {
-    const startTime = formatTimeInZone(currentProgram.startTimestamp, timeZone);
-    const stopTime = formatTimeInZone(currentProgram.stopTimestamp, timeZone);
-    const currentProgramRow = page
-        .locator('app-epg-list .program-item.current-program')
-        .first();
-
-    if (await currentProgramRow.isVisible().catch(() => false)) {
-        await expect(currentProgramRow.locator('.program-title')).toHaveText(
-            currentProgram.title
-        );
-        await expect(currentProgramRow.locator('.time')).toHaveText(
-            `${startTime}–${stopTime}`
-        );
-        return;
-    }
-
-    const summary = page.locator('app-live-epg-panel').first();
-    await expect(summary.locator('.live-epg-panel__title')).toHaveText(
-        currentProgram.title
-    );
-    await expect(summary.locator('.live-epg-panel__time')).toHaveText(
-        `${startTime} - ${stopTime}`
-    );
 }
 
 async function getProgressWidthPercent(

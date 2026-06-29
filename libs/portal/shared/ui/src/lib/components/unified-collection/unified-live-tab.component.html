@@ -72,59 +72,26 @@
         @if (!isRadioSelection() && supportsEpg) {
             <div
                 class="epg"
+                [class.epg--inline]="shouldUseInlinePlayer()"
                 [class.epg-collapsed]="
                     shouldUseInlinePlayer() && isLiveEpgPanelCollapsed()
                 "
             >
-                @if (shouldUseInlinePlayer()) {
-                    <app-live-epg-panel
-                        [collapsed]="isLiveEpgPanelCollapsed()"
-                        [summary]="liveEpgPanelSummary()"
-                        [showDateNavigator]="isM3uSelection()"
+                <div class="epg-content">
+                    <app-epg-timeline
+                        [programs]="timelinePrograms()"
+                        [channelName]="timelineChannelName()"
+                        [channelLogo]="timelineChannelLogo()"
+                        [archivePlaybackAvailable]="timelineArchiveAvailable()"
                         [selectedDate]="selectedLiveEpgDate()"
-                        (collapsedChange)="
-                            onLiveEpgPanelCollapsedChange($event)
+                        [collapsed]="
+                            shouldUseInlinePlayer() && isLiveEpgPanelCollapsed()
                         "
-                        (dateNavigation)="onLiveEpgDateNavigation($event)"
-                    >
-                        <div class="epg-content">
-                            @if (isM3uSelection()) {
-                                <app-epg-list
-                                    [controlledChannel]="currentM3uChannel()"
-                                    [controlledPrograms]="currentM3uPrograms()"
-                                    [archivePlaybackAvailable]="
-                                        currentM3uArchivePlaybackAvailable()
-                                    "
-                                    [selectedDate]="selectedLiveEpgDate()"
-                                    [showDateNavigator]="false"
-                                    (selectedDateChange)="
-                                        onLiveEpgSelectedDateChange($event)
-                                    "
-                                />
-                            } @else {
-                                <app-epg-view
-                                    [epgItems]="currentPortalEpgItems()"
-                                />
-                            }
-                        </div>
-                    </app-live-epg-panel>
-                } @else {
-                    <div class="epg-content">
-                        @if (isM3uSelection()) {
-                            <app-epg-list
-                                [controlledChannel]="currentM3uChannel()"
-                                [controlledPrograms]="currentM3uPrograms()"
-                                [archivePlaybackAvailable]="
-                                    currentM3uArchivePlaybackAvailable()
-                                "
-                            />
-                        } @else {
-                            <app-epg-view
-                                [epgItems]="currentPortalEpgItems()"
-                            />
-                        }
-                    </div>
-                }
+                        [summary]="liveEpgPanelSummary()"
+                        (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
+                        (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
+                    />
+                </div>
             </div>
         }
     } @else {

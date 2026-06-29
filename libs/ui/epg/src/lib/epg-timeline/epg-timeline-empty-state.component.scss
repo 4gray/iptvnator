@@ -1,0 +1,73 @@
+:host {
+    /* Fill the area below the toolbar and centre within THAT, instead of a fixed
+       min-height that overflowed the compact inline panel and pushed the icon /
+       text / action buttons below the visible edge. */
+    flex: 1 1 auto;
+    min-height: 0;
+    display: grid;
+    place-items: center;
+    width: 100%;
+    overflow: hidden;
+    padding: 14px 22px;
+    background: #0a0e15;
+}
+
+.epg-empty {
+    text-align: center;
+    max-width: 400px;
+
+    &__icon {
+        width: 44px;
+        height: 44px;
+        border-radius: 13px;
+        display: grid;
+        place-items: center;
+        margin: 0 auto 10px;
+        background: var(--surface-2, #161d28);
+        border: 1px solid var(--line-strong, rgba(255, 255, 255, 0.1));
+        color: var(--text-tertiary, #6b7384);
+
+        mat-icon {
+            width: 24px;
+            height: 24px;
+            font-size: 24px;
+        }
+
+        &.tone-action {
+            background: rgba(79, 142, 255, 0.12);
+            border-color: rgba(79, 142, 255, 0.3);
+            color: var(--accent-blue, #4f8eff);
+        }
+
+        &.tone-warn {
+            background: rgba(255, 91, 110, 0.1);
+            border-color: rgba(255, 91, 110, 0.28);
+            color: var(--accent-live, #ff5b6e);
+        }
+    }
+
+    &__title {
+        font-size: 15.5px;
+        font-weight: 600;
+        color: var(--text-primary, #e7ecf3);
+        margin-bottom: 5px;
+    }
+
+    &__sub {
+        font-size: 13px;
+        color: var(--text-secondary, #9aa3b2);
+        line-height: 1.45;
+    }
+
+    &__actions {
+        margin-top: 12px;
+        display: flex;
+        gap: 10px;
+        justify-content: center;
+        flex-wrap: wrap;
+
+        mat-icon {
+            margin-right: 6px;
+        }
+    }
+}

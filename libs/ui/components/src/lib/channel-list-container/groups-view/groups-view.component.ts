@@ -21,7 +21,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
-import { ChannelEpgMetadata } from '../all-channels-view/all-channels-view.component';
+import { buildChannelEpgMetadataMap } from '../epg-enrichment.util';
 import {
     PlaylistChannelSortMode,
     getPlaylistChannelSortModeLabel,
@@ -345,17 +345,9 @@ export class GroupsViewComponent {
      * spread-clone-every-channel pattern.
      */
     readonly epgMetadataMap = computed(() => {
-        const epgMap = this.channelEpgMap();
+        // Read progressTick to create a dependency for the ~30s progress refresh.
         this.progressTick();
-
-        const result = new Map<string, ChannelEpgMetadata>();
-        epgMap.forEach((program, channelId) => {
-            result.set(channelId, {
-                epgProgram: program,
-                progressPercentage: this.calculateProgress(program),
-            });
-        });
-        return result;
+        return buildChannelEpgMetadataMap(this.channelEpgMap());
     });
 
     /** Resolves the EPG lookup key the side-car map is keyed by. */
@@ -536,30 +528,6 @@ export class GroupsViewComponent {
 
         return a.key.localeCompare(b.key);
     };
-
-    private calculateProgress(
-        epgProgram: EpgProgram | null | undefined
-    ): number {
-        if (!epgProgram) {
-            return 0;
-        }
-
-        const now = Date.now();
-        const start = new Date(epgProgram.start).getTime();
-        const stop = new Date(epgProgram.stop).getTime();
-
-        if (!Number.isFinite(start) || !Number.isFinite(stop)) {
-            return 0;
-        }
-
-        const total = stop - start;
-        if (total <= 0) {
-            return 0;
-        }
-
-        const elapsed = Math.min(total, Math.max(0, now - start));
-        return Math.round((elapsed / total) * 100);
-    }
 
     private emitSidebarWidthRequest(
         navWidth: number,

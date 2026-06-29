@@ -17,8 +17,7 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import {
-    EpgDateNavigationDirection,
-    EpgListComponent,
+    EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -28,17 +27,11 @@ import {
     SettingsStore,
 } from '@iptvnator/services';
 import {
-    Channel,
     EpgItem,
     EpgProgram,
     ResolvedPortalPlayback,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import {
-    EpgViewComponent,
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     PORTAL_PLAYER,
@@ -86,41 +79,23 @@ class StubGlobalFavoritesListComponent {
 }
 
 @Component({
-    selector: 'app-epg-list',
-    template: '<div class="stub-epg-list"></div>',
+    selector: 'app-epg-timeline',
+    template: '<div class="stub-epg-timeline"></div>',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
-class StubEpgListComponent {
-    readonly controlledChannel = input<Channel | null>(null);
-    readonly controlledPrograms = input<EpgProgram[] | null>(null);
-    readonly archivePlaybackAvailable = input<boolean | null>(null);
+class StubEpgTimelineComponent {
+    readonly programs = input<EpgProgram[]>([]);
+    readonly channelName = input('');
+    readonly channelLogo = input('');
+    readonly archivePlaybackAvailable = input(false);
     readonly selectedDate = input<string | null>(null);
-    readonly showDateNavigator = input(true);
-    readonly selectedDateChange = output<string>();
-}
-
-@Component({
-    selector: 'app-epg-view',
-    template: '<div class="stub-epg-view"></div>',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubEpgViewComponent {
-    readonly epgItems = input<EpgItem[]>([]);
-}
-
-@Component({
-    selector: 'app-live-epg-panel',
-    template: '<section class="stub-live-epg-panel"><ng-content /></section>',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubLiveEpgPanelComponent {
     readonly collapsed = input(false);
-    readonly summary = input<LiveEpgPanelSummary | null>(null);
-    readonly loading = input(false);
-    readonly showDateNavigator = input(false);
-    readonly selectedDate = input<string | null>(null);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    readonly summary = input<any>(null);
+    readonly summaryLabelKey = input('');
+    readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();
-    readonly dateNavigation = output<EpgDateNavigationDirection>();
+    readonly programActivated = output<EpgProgram>();
 }
 
 @Component({
@@ -217,10 +192,8 @@ describe('UnifiedLiveTabComponent', () => {
                 remove: {
                     imports: [
                         AudioPlayerComponent,
-                        EpgListComponent,
-                        EpgViewComponent,
+                        EpgTimelineComponent,
                         GlobalFavoritesListComponent,
-                        LiveEpgPanelComponent,
                         ResizableDirective,
                         WebPlayerViewComponent,
                     ],
@@ -228,10 +201,8 @@ describe('UnifiedLiveTabComponent', () => {
                 add: {
                     imports: [
                         StubAudioPlayerComponent,
-                        StubEpgListComponent,
-                        StubEpgViewComponent,
+                        StubEpgTimelineComponent,
                         StubGlobalFavoritesListComponent,
-                        StubLiveEpgPanelComponent,
                         StubResizableDirective,
                         StubWebPlayerViewComponent,
                     ],
@@ -298,10 +269,11 @@ describe('UnifiedLiveTabComponent', () => {
                 id: 'm3u-channel',
             })
         );
-        expect(
-            fixture.nativeElement.querySelector('app-epg-list')
-        ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.programs()).toEqual([buildProgram('M3U Show')]);
+        expect(timeline.archivePlaybackAvailable()).toBe(false);
     });
 
     it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
@@ -358,8 +330,9 @@ describe('UnifiedLiveTabComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
     });
 
     it('passes recent mode and favorite state to the shared live collection list', async () => {
@@ -411,7 +384,7 @@ describe('UnifiedLiveTabComponent', () => {
         subscription.unsubscribe();
     });
 
-    it('wraps inline M3U EPG in the live panel with shared date navigation', async () => {
+    it('renders inline M3U EPG in the timeline with shared date navigation', async () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         const item = buildLiveItem('m3u');
         const currentProgram = buildCurrentProgram('M3U Now');
@@ -455,29 +428,25 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const panel = fixture.debugElement.query(
-            By.directive(StubLiveEpgPanelComponent)
-        ).componentInstance as StubLiveEpgPanelComponent;
-        const epgList = fixture.debugElement.query(
-            By.directive(StubEpgListComponent)
-        ).componentInstance as StubEpgListComponent;
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
 
-        expect(panel.showDateNavigator()).toBe(true);
-        expect(panel.summary()).toEqual(
+        expect(timeline.summary()).toEqual(
             expect.objectContaining({ title: 'M3U Now' })
         );
-        expect(epgList.showDateNavigator()).toBe(false);
-        expect(epgList.selectedDate()).toBe(getTodayEpgDateKey());
-
-        panel.dateNavigation.emit('next');
-        fixture.detectChanges();
+        expect(timeline.programs()).toEqual([currentProgram]);
+        expect(timeline.selectedDate()).toBe(getTodayEpgDateKey());
 
         const nextDate = shiftEpgDateKey(getTodayEpgDateKey(), 'next');
+        timeline.selectedDateChange.emit(nextDate);
+        fixture.detectChanges();
+
         expect(component.selectedLiveEpgDate()).toBe(nextDate);
-        expect(epgList.selectedDate()).toBe(nextDate);
+        expect(timeline.selectedDate()).toBe(nextDate);
     });
 
-    it('wraps inline portal EPG in the live panel without date navigation', async () => {
+    it('renders inline portal EPG in the timeline and flows collapse state through', async () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         const item = buildLiveItem('xtream');
         streamResolver.resolveLiveDetail.mockResolvedValue({
@@ -501,23 +470,25 @@ describe('UnifiedLiveTabComponent', () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
-        const panel = fixture.debugElement.query(
-            By.directive(StubLiveEpgPanelComponent)
-        ).componentInstance as StubLiveEpgPanelComponent;
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
 
-        expect(panel.showDateNavigator()).toBe(false);
-        expect(panel.summary()).toEqual(
+        expect(timeline.summary()).toEqual(
             expect.objectContaining({ title: 'Xtream Now' })
         );
-        expect(
-            fixture.nativeElement.querySelector('app-epg-view')
-        ).not.toBeNull();
+        expect(timeline.programs()).toEqual([
+            expect.objectContaining({ title: 'Xtream Now' }),
+        ]);
+        expect(timeline.archivePlaybackAvailable()).toBe(false);
+        expect(timeline.collapsed()).toBe(false);
 
-        panel.collapsedChange.emit(true);
+        timeline.collapsedChange.emit(true);
         fixture.detectChanges();
 
         expect(component.isLiveEpgPanelCollapsed()).toBe(true);
         expect(localStorage.getItem('live-epg-panel-state')).toBe('collapsed');
+        expect(timeline.collapsed()).toBe(true);
     });
 
     it('uses the shared web player wrapper for inline live playback diagnostics', async () => {
@@ -700,8 +671,9 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
     });
 
     it('renders inline audio for Stalker radio items and skips external playback', async () => {
@@ -754,8 +726,9 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
 
         const audioPlayer = fixture.debugElement.query(
             By.directive(StubAudioPlayerComponent)
@@ -789,10 +762,13 @@ describe('UnifiedLiveTabComponent', () => {
         await fixture.whenStable();
 
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
-        expect(
-            fixture.nativeElement.querySelector('app-epg-view')
-        ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.programs()).toEqual([
+            expect.objectContaining({ title: 'Xtream Show' }),
+        ]);
+        expect(timeline.archivePlaybackAvailable()).toBe(false);
     });
 
     it('renders shared EPG view for Stalker items and records recent history', async () => {
@@ -819,9 +795,12 @@ describe('UnifiedLiveTabComponent', () => {
         await fixture.whenStable();
 
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
-        expect(
-            fixture.nativeElement.querySelector('app-epg-view')
-        ).not.toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.programs()).toEqual([
+            expect.objectContaining({ title: 'Stalker Show' }),
+        ]);
     });
 
     it('does not restart auto-open while the same live item is still resolving', async () => {

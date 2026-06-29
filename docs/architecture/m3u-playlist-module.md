@@ -21,8 +21,8 @@ The M3U playlist module provides:
 │          libs/playlist/m3u/feature-player/src/lib/video-player/     │
 ├─────────────────────────────────────────────────────────────────────┤
 │  ┌─────────────┐  ┌──────────────────────┐  ┌────────────────────┐ │
-│  │   Sidebar   │  │    Video Player      │  │   EPG List         │ │
-│  │             │  │  (ArtPlayer/Video.js)│  │   (Right drawer)   │ │
+│  │   Sidebar   │  │    Video Player      │  │  EPG Timeline      │ │
+│  │             │  │  (ArtPlayer/Video.js)│  │  (panel below)     │ │
 │  │ ┌─────────┐ │  │                      │  │                    │ │
 │  │ │Channel  │ │  │                      │  │                    │ │
 │  │ │List     │ │  │                      │  │                    │ │
@@ -251,6 +251,122 @@ EPG lookup keys use the same precedence in both program and icon paths:
 2. `tvg-name`
 3. channel name
 
+All four collection tabs (all-channels, groups, favorites, recent) share a single
+EPG-enrichment implementation in `channel-list-container/epg-enrichment.util.ts`,
+fed the same `channelEpgMap`/`channelIconMap` from the container — there is no
+per-tab EPG logic:
+
+- `calculateEpgProgress(program, now?)` — clamped, **rounded** progress in
+  `[0, 100]`, guarded against missing/invalid timestamps and zero-length
+  programmes (never returns `NaN`).
+- `resolveChannelEpgProgram(channel, channelEpgMap)` — the current programme for
+  a channel by its lookup key (used by the per-item recent view).
+- `buildChannelEpgMetadataMap(channelEpgMap, now?)` — the side-car
+  `key → {epgProgram, progressPercentage}` map (used by all-channels/groups/
+  favorites). Callers read their `progressTick()` signal first so the computed
+  re-runs on the ~30s tick.
+
+### EPG Timeline Panel
+
+The programme guide under the player is a horizontal **timeline ribbon**
+(`app-epg-timeline`, `libs/ui/epg/src/lib/epg-timeline/`) shared by all four live
+surfaces: the M3U video player, the unified live tab, and the Xtream and Stalker
+live-stream layouts. It replaces the former vertical `app-epg-list` /
+`app-epg-view`.
+
+- **One channel, preloaded window.** The panel always shows a single channel.
+  Each provider returns a multi-day window in roughly one call (M3U
+  `GET_CHANNEL_PROGRAMS`; Stalker `get_epg_info`; Xtream `get_simple_data_table`),
+  so the whole ribbon is rendered up front and day navigation is **scroll within
+  the loaded window** — no per-day lazy fetch. The date stepper / "Now" jump
+  scroll the ribbon; the day label follows the scroll position.
+- **Auto-focus on channel select.** When a channel's EPG (re)loads or the ribbon
+  (re)mounts, the timeline centres the **currently airing programme** in the
+  viewport **instantly** (`behavior: 'auto'`, no scroll animation) — selecting a
+  channel lands on "now" without the user pressing the Now button. The jump is
+  deduped by programme-set identity (`programsFocusKey`), so the 30s now-tick,
+  zoom changes, or a host re-emitting the same data never re-jump the viewport;
+  switching channels (or returning after viewing an empty-day channel) re-centres.
+  The explicit "Now" button still animates (`behavior: 'smooth'`) since it is a
+  deliberate user action. See `EpgTimelineComponent.maybeAutoFocus` /
+  `focusCurrentProgram`.
+- **Controlled component.** `app-epg-timeline` is presentation-only: it takes
+  `programs`, `archivePlaybackAvailable`, `archiveDays`, `activeProgram`,
+  `isLivePlayback`, `loading`, `emptyReason`, `selectedDate`, `collapsed`,
+  `summary` and emits `programActivated`, `returnToLive`, `selectedDateChange`,
+  `openEpgSettings`, `retry`, `collapsedChange`. The host layout owns playback,
+  persists the collapse state (`liveEpgPanelState` in localStorage), and (for
+  the M3U player) the `EpgActions.setCurrentEpgProgram` / `setEpgAvailableFlag`
+  / `setActiveEpgProgram` dispatches. The timeline owns the **single** panel
+  bar — collapse chevron + channel name on the left, return-to-live / jump /
+  date stepper on the right — and the collapsed inline summary; the former
+  `app-live-epg-panel` wrapper has been removed from the live layouts.
+- **Dynamic bar subtitle.** Under the channel name the bar shows the
+  **now-playing programme title** when expanded and a `summary` exists
+  (`.epg-timeline__subtitle`) — readable title style, not the uppercase mono
+  label. During timeshift it switches to the archive programme with a `history`
+  icon and cyan accent (`.is-arch`). It falls back to the static `sourceLabel`
+  (`Timeline` / `Xtream` / `Stalker Portal`) only when collapsed or when the
+  channel has no programme.
+- **State-aware toolbar controls.** The right-side controls are **hidden** (not
+  disabled) when they cannot act, so a channel with no EPG shows a clean bar
+  instead of dead controls: `showRibbonControls()` gates "Now" + zoom to the
+  `ribbon` state only (nothing to jump to or zoom otherwise), and
+  `showDateStepper()` keeps the date stepper for `ribbon` **and** `empty-day`
+  (the only states where the channel has EPG on some day), hiding it for the
+  no-EPG-anywhere states and while loading. Return-to-live is a playback control
+  (`!isLivePlayback()`) and is independent of EPG state.
+- **State-driven affordances.** Blocks are coloured past / now / future, with a
+  red "now" playhead. Catch-up "Watch" appears on past blocks only when
+  `archivePlaybackAvailable` (Xtream `tv_archive`, M3U `catchup-*`); Stalker is
+  schedule-only (dimmed past + a notice, no false buttons). The "i" button opens
+  the shared `app-epg-item-description` dialog with a state-aware action.
+- **Empty / error states.** `emptyReason` selects one of six states
+  (`loading` skeleton, `empty-day`, `channel-unmapped`, `provider-no-epg`,
+  `m3u-needs-setup`, `error`) via `app-epg-timeline-empty-state`. Icon tone is
+  neutral for info, blue for actionable, red for errors; an action button is
+  shown only when one really exists. The empty-state host `flex: 1`-fills the
+  area below the toolbar and centres within **that** (compact icon/title/sub),
+  rather than a fixed `min-height` that used to overflow the compact inline panel
+  and push the icon/text — and the `empty-day` action buttons — below the visible
+  edge. `empty-day` itself is decided by `hasProgramsForDateKey`, which is
+  **overlap-based** (a programme counts for a day when `[start, stop)` intersects
+  it, end-exclusive) — so a film that starts the previous evening and runs past
+  midnight still keeps the ribbon on "today" while it airs, matching the sidebar
+  (which matches by "airing now"); a start-date-only check used to drop to
+  `empty-day` after midnight even though the programme was on air.
+- **Short-programme strategy.** In a proportional ribbon a 5-minute programme
+  would be an unreadable sliver, so `buildTimelineRenderItems`
+  (`epg-timeline.utils.ts`) applies a layered fix: (A) a **minimum block width**
+  (`TIMELINE_MIN_BLOCK_WIDTH_PX`); (B) width-adaptive **content tiers** —
+  `wide` (title + time, 3-line clamp) → `med` (one-line ellipsis) → `narrow`
+  (**vertical title**, no time) → `micro` (just a marker); (C) a **hover/focus
+  popover** revealing the full title + time + description for any non-`wide`
+  block (it flips above the block when the panel is near the screen bottom);
+  (D) a px-per-minute **zoom** slider (tick density adapts via
+  `timelineTickStepForScale`); and (E) **grouping** of ≥4 consecutive short
+  (<10 min) programmes into one dashed "N short" chip when zoomed out
+  (`scale < TIMELINE_GROUP_ZOOM_MAX`), expanded by clicking it. The ribbon
+  canvas lives in the child `app-epg-timeline-track`; the parent owns the
+  scroller, toolbar (incl. the zoom slider) and state.
+- **Panel height & titles.** Block titles wrap onto as many lines as the card
+  height allows and are clipped (not single-line ellipsis); the foot ("ON NOW"
+  tag / "Watch") stays pinned at the bottom. With an inline player the guide is
+  a compact panel (`.epg.epg--inline` → `flex: 0 0 clamp(180px, 36vh, 264px)`
+  in `_portal-layout.scss`) so the player stays dominant; with an external
+  player the guide keeps `flex: 1` and fills the whole content area.
+- **Wide-tier description preview.** When a block is the `wide` tier (rendered
+  width ≥ `132px`, i.e. long programmes and/or zoomed in) **and** the programme
+  has a `desc`, a dimmed (`--text-secondary`) preview of the description renders
+  under the title (`.epg-timeline__block-desc`). Gated to `wide` only, so
+  narrower cards and the moderate default zoom stay clean; the full description
+  still lives in the hover popover for every tier. To avoid ugly mid-line cuts,
+  wide-tier `time`/`title`/`desc` use `flex-shrink: 0` so flexbox can never
+  shrink them to a fractional height: each self-clips on **whole lines** with an
+  ellipsis via `-webkit-line-clamp` (title ≤ 2 lines, description ≤ 3) instead of
+  being cut mid-line by the parent's `overflow: hidden`. At the usual inline
+  panel height the title + 3-line preview fit without the parent clipping at all.
+
 ### Playlist-Declared EPG Sources
 
 Some M3U providers declare XMLTV sources in the playlist header instead of
@@ -321,8 +437,25 @@ These URLs are playlist-scoped by default:
   source scope. Batch current-program lookups use the same source-scoped
   per-channel TTL cache and order-insensitive in-flight batch deduplication
   before reaching IPC; missing exact channel-id matches are resolved with batched
-  case-insensitive id/display-name candidate queries rather than a per-channel
-  fallback loop.
+  id/display-name candidate queries rather than a per-channel fallback loop.
+  Those candidate queries match the **raw key case-sensitively** as well as via
+  `LOWER()`: SQLite's `LOWER()`/`COLLATE NOCASE` only fold ASCII, so for non-ASCII
+  names (Cyrillic, Greek, …) a `LOWER()`-only match would miss channels whose
+  M3U name and EPG `display_name` share the same casing — the raw exact match
+  keeps parity with the timeline's single-channel exact-display-name lookup, and
+  the JS `resolveChannelMetadataCandidate` then folds with full-Unicode
+  `toLowerCase()`. The "airing now" window is compared with timezone-aware SQLite
+  `datetime()` on both sides (`EpgQueryService.isAiringAt`), not raw string
+  comparison: stored EPG timestamps often carry an offset (e.g. `+03:00`) while
+  `now` is built as UTC (`…Z`), so a lexical compare would be wrong by the offset
+  and surface a stale (or no) current programme. After the scoped + legacy
+  candidate queries, any candidate that resolved by id/display-name but still has
+  no in-scope current programme is retried once **unscoped** (all sources),
+  mirroring the timeline's own unscoped `getChannelPrograms` lookup. This keeps
+  the channel-list "now" line consistent with the timeline when a channel's row
+  and its programmes carry different `source_url` values (shared XMLTV ids across
+  multiple imports), where the channel resolves in scope but its programmes are
+  tagged with a source that is not currently enabled.
   When upgrading an existing database whose historical programs have no
   `source_url`, scoped program and metadata queries try those legacy unscoped
   rows only after the requested source scope returns no result, so old EPG data

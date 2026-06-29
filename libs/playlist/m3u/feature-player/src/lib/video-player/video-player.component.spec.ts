@@ -25,6 +25,7 @@ import {
     selectChannelsLoading,
     selectCurrentEpgProgram,
 } from '@iptvnator/m3u-state';
+import { EpgService } from '@iptvnator/epg/data-access';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
@@ -55,27 +56,6 @@ jest.unstable_mockModule('video.js', () => ({
 jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
-
-@Component({
-    selector: 'app-live-epg-panel',
-    standalone: true,
-    template: `
-        <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
-        <ng-content />
-    `,
-})
-class StubLiveEpgPanelComponent {
-    readonly collapsed = input(false);
-    readonly summary = input<LiveEpgPanelSummary | null>(null);
-    readonly loading = input(false);
-    readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
-    readonly showDateNavigator = input(false);
-    readonly selectedDate = input<string | null>(null);
-    readonly showReturnToLive = input(false);
-    readonly collapsedChange = output<boolean>();
-    readonly dateNavigation = output<'next' | 'prev'>();
-    readonly returnToLive = output<void>();
-}
 
 @Component({
     selector: 'app-channel-list-loading-state',
@@ -121,6 +101,7 @@ class StubAudioPlayerComponent {
     readonly url = input('');
     readonly icon = input('');
     readonly channelName = input('');
+    readonly channelLogo = input('');
     readonly volume = input<number | null>(null);
     readonly volumeChange = output<number>();
 }
@@ -141,16 +122,33 @@ class StubWebPlayerViewComponent {
 }
 
 @Component({
-    selector: 'app-epg-list',
+    selector: 'app-epg-timeline',
     standalone: true,
     template: '',
 })
-class StubEpgListComponent {
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly selectedDate = input<string | null>(null);
-    readonly showDateNavigator = input(false);
+class StubEpgTimelineComponent {
+    readonly programs = input<EpgProgram[]>([]);
+    readonly channelName = input('');
+    readonly channelLogo = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly archiveDays = input(0);
+    readonly activeProgram = input<EpgProgram | null>(null);
+    readonly isLivePlayback = input(true);
+    readonly loading = input(false);
+    readonly emptyReason = input<string | null>(null);
+    readonly selectedDate = input<string | null>(null);
+    readonly collapsed = input(false);
+    readonly summary = input<LiveEpgPanelSummary | null>(null);
+    readonly summaryLabelKey = input('');
+    readonly programActivated = output<{
+        program?: EpgProgram;
+        type: 'timeshift' | 'live';
+    }>();
+    readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
+    readonly openEpgSettings = output<void>();
+    readonly retry = output<void>();
+    readonly collapsedChange = output<boolean>();
 }
 
 @Directive({
@@ -183,6 +181,11 @@ describe('VideoPlayerComponent', () => {
     const channels$ = new BehaviorSubject<Channel[]>([]);
     const activeChannel$ = new BehaviorSubject<Channel | null>(null);
     const currentEpgProgram$ = new BehaviorSubject<EpgProgram | null>(null);
+    const epgPrograms$ = new BehaviorSubject<EpgProgram[]>([]);
+    const epgServiceMock = {
+        currentEpgPrograms$: epgPrograms$.asObservable(),
+        getChannelMetadataForChannels: () => of(new Map()),
+    };
 
     const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
     const showCaptions = signal(false);
@@ -313,6 +316,7 @@ describe('VideoPlayerComponent', () => {
         currentEpgProgram.set(null);
         activeEpgProgram.set(null);
         currentEpgProgram$.next(null);
+        epgPrograms$.next([]);
         overlayMock.create.mockClear();
         overlayRef.attach.mockClear();
         overlayRef.dispose.mockClear();
@@ -368,6 +372,10 @@ describe('VideoPlayerComponent', () => {
                     useValue: playlistsServiceMock,
                 },
                 {
+                    provide: EpgService,
+                    useValue: epgServiceMock,
+                },
+                {
                     provide: PlaylistContextFacade,
                     useValue: {
                         resolvedPlaylistId: playlistId,
@@ -405,8 +413,7 @@ describe('VideoPlayerComponent', () => {
                         AsyncPipe,
                         StubAudioPlayerComponent,
                         StubChannelListLoadingStateComponent,
-                        StubEpgListComponent,
-                        StubLiveEpgPanelComponent,
+                        StubEpgTimelineComponent,
                         StubPortalEmptyStateComponent,
                         StubResizableDirective,
                         StubSidebarComponent,
@@ -458,7 +465,7 @@ describe('VideoPlayerComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(
-            fixture.nativeElement.querySelector('app-epg-list')
+            fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
     });
 
@@ -478,7 +485,7 @@ describe('VideoPlayerComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
         expect(headerContext.action()).toBeNull();
     });
 
@@ -549,7 +556,7 @@ describe('VideoPlayerComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(
-            fixture.nativeElement.querySelector('app-epg-list')
+            fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
     });
 
@@ -561,11 +568,8 @@ describe('VideoPlayerComponent', () => {
 
         expect(fixture.nativeElement.querySelector('.video-player')).toBeNull();
         expect(
-            fixture.nativeElement.querySelector('app-epg-list')
+            fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-live-epg-panel')
-        ).toBeNull();
         expect(
             fixture.nativeElement
                 .querySelector('.epg')
@@ -633,18 +637,37 @@ describe('VideoPlayerComponent', () => {
                 .querySelector('.epg')
                 .classList.contains('epg-collapsed')
         ).toBe(true);
+
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.collapsed()).toBe(true);
     });
 
-    it('persists live EPG panel toggle changes', () => {
-        component.onLiveEpgPanelCollapsedChange(true);
+    it('persists live EPG panel toggle changes from the timeline', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+
+        fixture.detectChanges();
+
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+
+        timeline.componentInstance.collapsedChange.emit(true);
+        fixture.detectChanges();
 
         expect(component.isLiveEpgPanelCollapsed()).toBe(true);
+        expect(timeline.componentInstance.collapsed()).toBe(true);
         expect(localStorage.getItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY)).toBe(
             'collapsed'
         );
 
-        component.onLiveEpgPanelCollapsedChange(false);
+        timeline.componentInstance.collapsedChange.emit(false);
+        fixture.detectChanges();
 
+        expect(component.isLiveEpgPanelCollapsed()).toBe(false);
+        expect(timeline.componentInstance.collapsed()).toBe(false);
         expect(localStorage.getItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY)).toBe(
             'expanded'
         );
@@ -658,10 +681,15 @@ describe('VideoPlayerComponent', () => {
 
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.live-epg-panel-summary')
-                .textContent
-        ).toContain('Current Show');
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.summary()).toEqual(
+            expect.objectContaining({ title: 'Current Show' })
+        );
+        expect(timeline.componentInstance.summaryLabelKey()).toBe(
+            'EPG.CURRENT_PROGRAM'
+        );
     });
 
     it('uses the active playback override url when archive playback is active', () => {
@@ -702,7 +730,7 @@ describe('VideoPlayerComponent', () => {
         fixture.detectChanges();
 
         const epgList = fixture.debugElement.query(
-            By.directive(StubEpgListComponent)
+            By.directive(StubEpgTimelineComponent)
         );
 
         expect(epgList.componentInstance.activeProgram()).toEqual(
@@ -719,17 +747,17 @@ describe('VideoPlayerComponent', () => {
 
         fixture.detectChanges();
 
-        const panel = fixture.debugElement.query(
-            By.directive(StubLiveEpgPanelComponent)
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
         );
 
-        expect(panel.componentInstance.summary()).toEqual(
+        expect(timeline.componentInstance.summary()).toEqual(
             expect.objectContaining({ title: 'Archived Show' })
         );
-        expect(panel.componentInstance.summaryLabelKey()).toBe(
+        expect(timeline.componentInstance.summaryLabelKey()).toBe(
             'EPG.ARCHIVE_PLAYBACK'
         );
-        expect(panel.componentInstance.showReturnToLive()).toBe(true);
+        expect(timeline.componentInstance.isLivePlayback()).toBe(false);
     });
 
     it('dispatches return-to-live from the inline EPG panel', () => {
@@ -740,10 +768,10 @@ describe('VideoPlayerComponent', () => {
 
         fixture.detectChanges();
 
-        const panel = fixture.debugElement.query(
-            By.directive(StubLiveEpgPanelComponent)
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
         );
-        panel.componentInstance.returnToLive.emit();
+        timeline.componentInstance.returnToLive.emit();
 
         expect(storeMock.dispatch).toHaveBeenCalledWith(
             EpgActions.returnToLivePlayback()

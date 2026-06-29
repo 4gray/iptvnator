@@ -10,7 +10,7 @@ import {
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { EpgListComponent } from '@iptvnator/ui/epg';
+import { EpgTimelineComponent } from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
@@ -23,10 +23,6 @@ import {
 } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
-import {
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
 import { StalkerLiveStreamLayoutComponent } from './stalker-live-stream-layout.component';
 
 @Component({
@@ -74,36 +70,33 @@ class StubAudioPlayerComponent {
 }
 
 @Component({
-    selector: 'app-epg-list',
-    standalone: true,
-    template: '',
-})
-class StubEpgListComponent {
-    readonly controlledChannel = input<unknown>(null);
-    readonly controlledPrograms = input<EpgProgram[] | null>(null);
-    readonly controlledArchiveDays = input<number | null>(null);
-    readonly archivePlaybackAvailable = input<boolean | null>(null);
-    readonly selectedDate = input<string | null>(null);
-    readonly showDateNavigator = input(true);
-    readonly selectedDateChange = output<string>();
-}
-
-@Component({
-    selector: 'app-live-epg-panel',
+    selector: 'app-epg-timeline',
     standalone: true,
     template: `
         <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
-        <ng-content />
     `,
 })
-class StubLiveEpgPanelComponent {
-    readonly collapsed = input(false);
-    readonly summary = input<LiveEpgPanelSummary | null>(null);
+class StubEpgTimelineComponent {
+    readonly programs = input<EpgProgram[]>([]);
+    readonly channelName = input('');
+    readonly channelLogo = input('');
+    readonly sourceLabel = input('');
+    readonly archivePlaybackAvailable = input(false);
+    readonly archiveDays = input(0);
+    readonly activeProgram = input<EpgProgram | null>(null);
+    readonly isLivePlayback = input(false);
     readonly loading = input(false);
-    readonly showDateNavigator = input(false);
+    readonly emptyReason = input<string>('none');
     readonly selectedDate = input<string | null>(null);
+    readonly collapsed = input(false);
+    readonly summary = input<{ title?: string } | null>(null);
+    readonly summaryLabelKey = input('');
+    readonly selectedDateChange = output<string>();
+    readonly programActivated = output<EpgProgram>();
+    readonly returnToLive = output<void>();
+    readonly openEpgSettings = output<void>();
+    readonly retry = output<void>();
     readonly collapsedChange = output<boolean>();
-    readonly dateNavigation = output<'next' | 'prev'>();
 }
 
 @Component({
@@ -348,8 +341,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     imports: [
                         ChannelListItemComponent,
                         AudioPlayerComponent,
-                        EpgListComponent,
-                        LiveEpgPanelComponent,
+                        EpgTimelineComponent,
                         PortalEmptyStateComponent,
                         ResizableDirective,
                         TranslatePipe,
@@ -360,8 +352,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     imports: [
                         StubChannelListItemComponent,
                         StubAudioPlayerComponent,
-                        StubEpgListComponent,
-                        StubLiveEpgPanelComponent,
+                        StubEpgTimelineComponent,
                         StubPortalEmptyStateComponent,
                         StubResizableDirective,
                         MockPipe(
@@ -388,7 +379,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector('app-epg-list')
+            fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
         expect(
             fixture.nativeElement.querySelector('.load-more-epg')
@@ -412,10 +403,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(
-            fixture.nativeElement.querySelector('app-live-epg-panel')
-        ).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
     });
 
     it('restores the collapsed live EPG panel state after embedded playback starts', async () => {
@@ -434,6 +422,11 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 .querySelector('.epg')
                 .classList.contains('epg-collapsed')
         ).toBe(true);
+
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.collapsed()).toBe(true);
     });
 
     it('persists live EPG panel toggle changes', () => {
@@ -451,16 +444,17 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         );
     });
 
-    it('does not render the collapsible panel for external playback', async () => {
+    it('does not collapse the timeline for external playback', async () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
 
         await component.playChannel(itvChannels()[0]);
         await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('app-live-epg-panel')
-        ).toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.collapsed()).toBe(false);
         expect(
             fixture.nativeElement
                 .querySelector('.epg')
@@ -564,7 +558,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         );
     });
 
-    it('renders the current EPG program in the collapsible panel summary', async () => {
+    it('provides the current EPG program to the timeline collapsed summary', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
 
@@ -572,10 +566,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         await fixture.whenStable();
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.live-epg-panel-summary')
-                .textContent
-        ).toContain('Current Show');
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        ).componentInstance as StubEpgTimelineComponent;
+        expect(timeline.summary()?.title).toBe('Current Show');
     });
 
     it('does not reset live channels when loading the next lazy page', async () => {
@@ -649,7 +643,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(ensureBulkItvEpg).not.toHaveBeenCalled();
         expect(fetchChannelEpg).not.toHaveBeenCalled();
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
