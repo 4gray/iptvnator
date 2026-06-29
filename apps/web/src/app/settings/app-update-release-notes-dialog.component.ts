@@ -5,6 +5,7 @@ import {
     OnInit,
     SecurityContext,
     signal,
+    ViewEncapsulation,
 } from '@angular/core';
 import { DatePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
@@ -21,10 +22,29 @@ import { marked } from 'marked';
 import {
     ElectronBridgeAppUpdateReleaseNotes,
     ElectronBridgeAppUpdateReleaseNotesDirection,
+    ElectronBridgeAppUpdateReleaseNotesRequest,
 } from '@iptvnator/shared/interfaces';
+
+const RELEASE_NOTES_IMAGE_CLASS = 'release-notes-dialog__image';
 
 export interface AppUpdateReleaseNotesDialogData {
     initialVersion?: string;
+    fallbackToLatest?: boolean;
+}
+
+function decorateReleaseNotesHtml(html: string): string {
+    if (typeof document === 'undefined') {
+        return html;
+    }
+
+    const template = document.createElement('template');
+    template.innerHTML = html;
+
+    template.content.querySelectorAll('img').forEach((image) => {
+        image.classList.add(RELEASE_NOTES_IMAGE_CLASS);
+    });
+
+    return template.innerHTML;
 }
 
 @Component({
@@ -37,6 +57,7 @@ export interface AppUpdateReleaseNotesDialogData {
         DatePipe,
         TranslatePipe,
     ],
+    encapsulation: ViewEncapsulation.None,
     template: `
         <h2 mat-dialog-title>
             {{ 'SETTINGS.APP_UPDATE_RELEASE_NOTES' | translate }}
@@ -175,6 +196,16 @@ export interface AppUpdateReleaseNotesDialogData {
                 padding: 1px 4px;
                 background: var(--app-hover-overlay);
             }
+
+            .release-notes-dialog__body img,
+            .release-notes-dialog__image {
+                display: block;
+                box-sizing: border-box;
+                max-width: 100%;
+                height: auto;
+                margin: 16px auto;
+                object-fit: contain;
+            }
         `,
     ],
 })
@@ -193,8 +224,10 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
     readonly renderedMarkdown = computed(() => {
         const markdown = this.notes()?.bodyMarkdown ?? '';
         const html = marked.parse(markdown, { async: false }) as string;
+        const sanitizedHtml =
+            this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
 
-        return this.sanitizer.sanitize(SecurityContext.HTML, html) ?? '';
+        return decorateReleaseNotesHtml(sanitizedHtml);
     });
 
     ngOnInit(): void {
@@ -212,16 +245,30 @@ export class AppUpdateReleaseNotesDialogComponent implements OnInit {
         const version = direction
             ? this.notes()?.tagName
             : this.data.initialVersion;
+        const fallbackToLatest = direction
+            ? undefined
+            : this.data.fallbackToLatest;
 
         this.loading.set(true);
         this.error.set(null);
 
         try {
+            const request: ElectronBridgeAppUpdateReleaseNotesRequest = {};
+
+            if (direction) {
+                request.direction = direction;
+            }
+
+            if (version) {
+                request.version = version;
+            }
+
+            if (fallbackToLatest) {
+                request.fallbackToLatest = true;
+            }
+
             this.notes.set(
-                await window.electron.getAppUpdateReleaseNotes({
-                    direction,
-                    version,
-                })
+                await window.electron.getAppUpdateReleaseNotes(request)
             );
         } catch (error) {
             this.error.set(error instanceof Error ? error.message : String(error));

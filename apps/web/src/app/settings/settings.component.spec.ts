@@ -500,6 +500,32 @@ describe('SettingsComponent', () => {
         );
     });
 
+    it('opens release notes dialog for the current version when no update is available', () => {
+        const openSpy = jest
+            .spyOn(privateApi(component).matDialog, 'open')
+            .mockReturnValue(createDialogRef(false));
+        component.appUpdateStatus.set({
+            ...DEFAULT_APP_UPDATE_STATUS,
+            latestVersion: '0.21.0',
+            release: {
+                version: '0.21.0',
+            },
+            status: ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable,
+        });
+
+        component.openAppUpdateReleaseNotes();
+
+        expect(openSpy).toHaveBeenCalledWith(
+            AppUpdateReleaseNotesDialogComponent,
+            expect.objectContaining({
+                data: {
+                    initialVersion: DEFAULT_APP_UPDATE_STATUS.currentVersion,
+                    fallbackToLatest: true,
+                },
+            })
+        );
+    });
+
     it('should render a compact page header outside dialog mode', () => {
         const nativeElement = fixture.nativeElement as HTMLElement;
 

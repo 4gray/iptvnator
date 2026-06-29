@@ -31,7 +31,10 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
             providers: [
                 {
                     provide: MAT_DIALOG_DATA,
-                    useValue: { initialVersion: '0.23.0' },
+                    useValue: {
+                        fallbackToLatest: true,
+                        initialVersion: '0.23.0',
+                    },
                 },
                 {
                     provide: MatDialogRef,
@@ -53,6 +56,7 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
         fixture.detectChanges();
 
         expect(window.electron.getAppUpdateReleaseNotes).toHaveBeenCalledWith({
+            fallbackToLatest: true,
             version: '0.23.0',
         });
         expect(
@@ -64,6 +68,27 @@ describe('AppUpdateReleaseNotesDialogComponent', () => {
                 '[data-test-id="release-notes-body"] strong'
             )?.textContent
         ).toContain('desktop updater');
+    });
+
+    it('constrains rendered markdown images to the dialog width', async () => {
+        (
+            window.electron.getAppUpdateReleaseNotes as jest.Mock
+        ).mockResolvedValueOnce({
+            ...releaseNotes,
+            bodyMarkdown:
+                '![Application screenshot](https://example.com/screenshot.png)',
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        const image = fixture.nativeElement.querySelector(
+            '[data-test-id="release-notes-body"] img'
+        ) as HTMLImageElement;
+
+        expect(image).toBeTruthy();
+        expect(image.classList).toContain('release-notes-dialog__image');
     });
 
     it('loads previous notes lazily without closing the dialog', async () => {

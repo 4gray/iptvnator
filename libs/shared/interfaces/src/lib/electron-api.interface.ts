@@ -198,6 +198,7 @@ export type ElectronBridgeAppUpdateReleaseNotesDirection = 'previous' | 'next';
 export interface ElectronBridgeAppUpdateReleaseNotesRequest {
     version?: string;
     direction?: ElectronBridgeAppUpdateReleaseNotesDirection;
+    fallbackToLatest?: boolean;
 }
 
 export interface ElectronBridgeAppUpdateReleaseNotes {

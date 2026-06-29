@@ -64,13 +64,8 @@ export class SettingsAboutSectionComponent {
         const status = this.appUpdateStatus();
 
         return Boolean(
-            status?.latestVersion &&
-                status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Idle &&
-                status.status !==
-                    ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking &&
-                status.status !==
-                    ELECTRON_BRIDGE_APP_UPDATE_STATUSES.NotAvailable &&
-                status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Error
+            status?.currentVersion &&
+                status.status !== ELECTRON_BRIDGE_APP_UPDATE_STATUSES.Checking
         );
     });
 
