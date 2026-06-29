@@ -369,14 +369,19 @@ export class UnifiedLiveTabComponent {
                 event.program
             );
             if (catchupUrl) {
-                this.activeDetail.set({
+                const updatedDetail = {
                     ...detail,
                     playback: {
                         ...detail.playback,
                         streamUrl: catchupUrl,
-                        isLive: false,
                     },
-                });
+                };
+                this.activeDetail.set(updatedDetail);
+                if (this.shouldOpenExternalPlayback(updatedDetail, true)) {
+                    this.portalPlayer.openResolvedPlayback(
+                        updatedDetail.playback
+                    );
+                }
             }
             return;
         }
@@ -414,14 +419,19 @@ export class UnifiedLiveTabComponent {
                 stopTimestamp
             );
             if (catchupUrl) {
-                this.activeDetail.set({
+                const updatedDetail = {
                     ...detail,
                     playback: {
                         ...detail.playback,
                         streamUrl: catchupUrl,
-                        isLive: false,
                     },
-                });
+                };
+                this.activeDetail.set(updatedDetail);
+                if (this.shouldOpenExternalPlayback(updatedDetail, true)) {
+                    this.portalPlayer.openResolvedPlayback(
+                        updatedDetail.playback
+                    );
+                }
             }
         } catch {
             // Keep current playback going if catchup fails.
