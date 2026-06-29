@@ -366,32 +366,15 @@ describe('EpgEvents', () => {
 
     it('falls back to case-insensitive channel id lookup for EPG programs', async () => {
         const select = jest.fn();
-        const programLimitExact = jest.fn().mockResolvedValue([]);
         const channelLimit = jest
             .fn()
             .mockResolvedValue([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }]);
-        const programLimitResolved = jest.fn().mockResolvedValue([
-            {
-                id: 1,
-                channelId: 'BBC.ONE.UK',
-                start: '2026-04-14T10:00:00Z',
-                stop: '2026-04-14T11:00:00Z',
-                title: 'News',
-                description: null,
-                category: null,
-                iconUrl: null,
-                rating: null,
-                episodeNum: null,
-            },
-        ]);
 
         const from = jest
             .fn()
             .mockReturnValueOnce({
                 where: jest.fn().mockReturnValue({
-                    orderBy: jest.fn().mockReturnValue({
-                        limit: programLimitExact,
-                    }),
+                    orderBy: jest.fn().mockResolvedValue([] as any[]),
                 }),
             })
             .mockReturnValueOnce({
@@ -401,9 +384,20 @@ describe('EpgEvents', () => {
             })
             .mockReturnValueOnce({
                 where: jest.fn().mockReturnValue({
-                    orderBy: jest.fn().mockReturnValue({
-                        limit: programLimitResolved,
-                    }),
+                    orderBy: jest.fn().mockResolvedValue([
+                        {
+                            id: 1,
+                            channelId: 'BBC.ONE.UK',
+                            start: '2026-04-14T10:00:00Z',
+                            stop: '2026-04-14T11:00:00Z',
+                            title: 'News',
+                            description: null,
+                            category: null,
+                            iconUrl: null,
+                            rating: null,
+                            episodeNum: null,
+                        },
+                    ]),
                 }),
             });
 
@@ -466,13 +460,11 @@ describe('EpgEvents', () => {
         const from = jest.fn();
         const where = jest.fn();
         const orderBy = jest.fn();
-        const limit = jest.fn();
 
         select.mockImplementation(() => ({ from }));
         from.mockReturnValue({ where });
         where.mockReturnValue({ orderBy });
-        orderBy.mockReturnValue({ limit });
-        limit.mockResolvedValue([
+        orderBy.mockResolvedValue([
             {
                 id: 1,
                 channelId: 'id2e2cd03c90ad',

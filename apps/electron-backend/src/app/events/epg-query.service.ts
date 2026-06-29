@@ -509,8 +509,7 @@ export class EpgQueryService {
                     sourceUrls
                 )
             )
-            .orderBy(schema.epgPrograms.start)
-            .limit(500);
+            .orderBy(schema.epgPrograms.start);
     }
 
     private async selectLegacyChannelPrograms(
@@ -532,8 +531,7 @@ export class EpgQueryService {
                     { legacyOnly: true }
                 )
             )
-            .orderBy(schema.epgPrograms.start)
-            .limit(500);
+            .orderBy(schema.epgPrograms.start);
     }
 
     private async selectCurrentProgramsForChannelIds(

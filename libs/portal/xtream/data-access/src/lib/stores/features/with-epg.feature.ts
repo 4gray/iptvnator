@@ -119,6 +119,10 @@ export function withEpg() {
                  * if the Xtream provider returns no programs and the channel
                  * has an `epg_channel_id`. The order is reversed when the user
                  * sets `preferUploadedEpgOverXtream`.
+                 *
+                 * When both Xtream full-EPG and XMLTV are empty, the short-EPG
+                 * endpoint (`get_short_epg`) is tried as a last resort — many
+                 * providers support it even when the full endpoint is unavailable.
                  */
                 async loadEpg(): Promise<EpgItem[]> {
                     if (!supportsEpg()) {
@@ -147,13 +151,28 @@ export function withEpg() {
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
                     try {
-                        const epgItems =
+                        let epgItems =
                             await fallbackService.resolveCurrentEpg({
                                 epgChannelId: selectedItem.epg_channel_id,
                                 preferUploaded: preferUploaded(),
                                 fetchProvider: () =>
                                     fetchFullProvider(credentials, xtreamId),
                             });
+
+                        // Last resort: short-EPG endpoint with a generous
+                        // limit. Many Xtream providers don't implement
+                        // get_simple_data_table but *do* support get_short_epg.
+                        if (epgItems.length === 0) {
+                            const shortEpg = await apiService.getShortEpg(
+                                credentials,
+                                xtreamId,
+                                200,
+                                { suppressErrorLog: true }
+                            );
+                            if (Array.isArray(shortEpg)) {
+                                epgItems = shortEpg;
+                            }
+                        }
 
                         patchState(store, {
                             epgItems,
