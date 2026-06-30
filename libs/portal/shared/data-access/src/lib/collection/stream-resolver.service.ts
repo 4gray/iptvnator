@@ -410,6 +410,20 @@ export class StreamResolverService {
                 return [];
             }
 
+            // Check uploaded XMLTV EPG first using the provider's EPG channel
+            // identifier (epg_channel_id from the content table), not the
+            // xtream_id. This respects the user's preferUploadedEpgOverXtream
+            // setting the same way the main live-view loadEpg() does.
+            const epgKey = item.epgChannelId?.trim();
+            if (this.supportsProgramLookup && epgKey) {
+                const uploaded = await this.epgBridge
+                    .getChannelPrograms(epgKey)
+                    .catch(() => null);
+                if (uploaded && uploaded.length > 0) {
+                    return this.mapProgramsToEpgItems(uploaded);
+                }
+            }
+
             // Try the full EPG endpoint first (same as the main live-view
             // loadEpg() in with-epg.feature.ts) — many providers only
             // support get_simple_data_table, not get_short_epg.
@@ -584,19 +598,40 @@ export class StreamResolverService {
                 }
 
                 try {
-                    const items = await this.fetchXtreamEpgItems(
-                        playlistId,
-                        creds,
-                        channel.xtreamId,
-                        2
-                    );
                     const nowSeconds = Math.floor(now / 1000);
-                    const currentItem =
-                        items.find(
-                            (item) =>
-                                Number(item.start_timestamp) <= nowSeconds &&
-                                nowSeconds < Number(item.stop_timestamp)
-                        ) ?? null;
+                    let currentItem: EpgItem | null = null;
+
+                    // Check uploaded XMLTV EPG first.
+                    const epgChannelKey = channel.epgChannelId?.trim();
+                    if (this.supportsProgramLookup && epgChannelKey) {
+                        const uploaded = await this.epgBridge
+                            .getChannelPrograms(epgChannelKey)
+                            .catch(() => null);
+                        if (uploaded && uploaded.length > 0) {
+                            const items = this.mapProgramsToEpgItems(uploaded);
+                            currentItem =
+                                items.find(
+                                    (item) =>
+                                        Number(item.start_timestamp) <= nowSeconds &&
+                                        nowSeconds < Number(item.stop_timestamp)
+                                ) ?? null;
+                        }
+                    }
+
+                    if (!currentItem) {
+                        const items = await this.fetchXtreamEpgItems(
+                            playlistId,
+                            creds,
+                            channel.xtreamId,
+                            2
+                        );
+                        currentItem =
+                            items.find(
+                                (item) =>
+                                    Number(item.start_timestamp) <= nowSeconds &&
+                                    nowSeconds < Number(item.stop_timestamp)
+                            ) ?? null;
+                    }
                     const epgKey =
                         channel.tvgId?.trim() || channel.name?.trim();
 

@@ -56,6 +56,8 @@ export interface UnifiedCollectionItem {
     /** Xtream DB content id — used for reorder / remove IPC */
     contentId?: number;
 
+    /** Stable EPG channel identifier from the provider (used for XMLTV matching) */
+    epgChannelId?: string | null;
     /** Whether the Xtream provider has timeshift / archive enabled for this stream */
     tvArchive?: number | null;
     /** Timeshift / archive window in hours (Xtream) */

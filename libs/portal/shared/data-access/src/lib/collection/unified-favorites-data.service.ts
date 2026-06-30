@@ -611,6 +611,7 @@ export class UnifiedFavoritesDataService {
             rating: row.rating ?? undefined,
             tvArchive: row.tv_archive ?? null,
             tvArchiveDuration: row.tv_archive_duration ?? null,
+            epgChannelId: row.epg_channel_id ?? null,
             addedAt:
                 normalizeStalkerDate(row.added_at) || new Date(0).toISOString(),
             position: row.position ?? 0,
@@ -639,6 +640,7 @@ export class UnifiedFavoritesDataService {
             rating: item.rating ?? undefined,
             tvArchive: item.tv_archive ?? null,
             tvArchiveDuration: item.tv_archive_duration ?? null,
+            epgChannelId: item.epg_channel_id ?? null,
             addedAt:
                 normalizeStalkerDate(item.added_at ?? item.added) ||
                 new Date(0).toISOString(),

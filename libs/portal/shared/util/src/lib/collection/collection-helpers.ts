@@ -13,6 +13,7 @@ export interface XtreamFavoriteRow {
     readonly rating?: string | null;
     readonly tv_archive?: number | null;
     readonly tv_archive_duration?: number | null;
+    readonly epg_channel_id?: string | null;
     readonly added_at?: string | null;
     readonly position?: number | null;
 }
