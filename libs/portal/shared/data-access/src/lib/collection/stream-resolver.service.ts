@@ -1,6 +1,6 @@
 import { inject, Injectable } from '@angular/core';
 import { firstValueFrom } from 'rxjs';
-import { DataService, PlaylistsService } from '@iptvnator/services';
+import { DataService, PlaylistsService, SettingsStore } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     Channel,
@@ -60,6 +60,7 @@ export class StreamResolverService {
     private readonly xtreamApi = inject(XtreamApiService);
     private readonly xtreamUrl = inject(XtreamUrlService);
     private readonly dataService = inject(DataService);
+    private readonly settingsStore = inject(SettingsStore);
     private readonly epgBridge = inject(EpgRuntimeBridgeService);
     private readonly stalkerSession = inject(StalkerSessionService);
     private readonly m3uEpgTimeoutMs = 3000;
@@ -410,9 +411,13 @@ export class StreamResolverService {
                 return [];
             }
 
-            // 1) Check uploaded XMLTV EPG via the provider's epg_channel_id.
+            // 1) Check uploaded XMLTV EPG via the provider's epg_channel_id,
+            //    but only when the user has opted into it — the setting defaults
+            //    to false (prefer Xtream API), matching the live-view loadEpg().
+            const preferXmltv =
+                this.settingsStore.preferUploadedEpgOverXtream?.() ?? false;
             const epgKey = item.epgChannelId?.trim();
-            if (this.supportsProgramLookup && epgKey) {
+            if (preferXmltv && this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
                     .getChannelPrograms(epgKey)
                     .catch(() => null);

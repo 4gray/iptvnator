@@ -503,17 +503,36 @@ export class EpgQueryService {
         return matchedCandidateIds;
     }
 
+    private readonly EPG_WINDOW_START_DAYS = 14;
+    private readonly EPG_WINDOW_END_DAYS = 2;
+
+    private epgTimeWindow(): { start: string; end: string } {
+        const now = new Date();
+        const start = new Date(
+            now.getTime() - this.EPG_WINDOW_START_DAYS * 24 * 60 * 60 * 1000
+        ).toISOString();
+        const end = new Date(
+            now.getTime() + this.EPG_WINDOW_END_DAYS * 24 * 60 * 60 * 1000
+        ).toISOString();
+        return { start, end };
+    }
+
     private async selectChannelPrograms(
         db: EpgDatabase,
         channelId: string,
         sourceUrls: string[]
     ): Promise<EpgProgramRow[]> {
+        const { start, end } = this.epgTimeWindow();
         return db
             .select()
             .from(schema.epgPrograms)
             .where(
                 this.withProgramSourceScope(
-                    eq(schema.epgPrograms.channelId, channelId),
+                    and(
+                        eq(schema.epgPrograms.channelId, channelId),
+                        gte(schema.epgPrograms.stop, start),
+                        lte(schema.epgPrograms.start, end)
+                    ) as SQL,
                     sourceUrls
                 )
             )
@@ -529,12 +548,17 @@ export class EpgQueryService {
             return [];
         }
 
+        const { start, end } = this.epgTimeWindow();
         return db
             .select()
             .from(schema.epgPrograms)
             .where(
                 this.withProgramSourceScope(
-                    eq(schema.epgPrograms.channelId, channelId),
+                    and(
+                        eq(schema.epgPrograms.channelId, channelId),
+                        gte(schema.epgPrograms.stop, start),
+                        lte(schema.epgPrograms.start, end)
+                    ) as SQL,
                     sourceUrls,
                     { legacyOnly: true }
                 )
