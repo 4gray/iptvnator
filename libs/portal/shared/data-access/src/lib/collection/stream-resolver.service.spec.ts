@@ -45,6 +45,7 @@ describe('StreamResolverService', () => {
         };
         epgBridge = {
             getChannelPrograms: jest.fn(),
+            getEpgMapping: jest.fn().mockResolvedValue(null),
             supportsProgramLookup: true,
         };
 
@@ -345,7 +346,7 @@ describe('StreamResolverService', () => {
                 password: 'pass',
             },
             1,
-            2,
+            5,
             {
                 suppressErrorLog: true,
             }

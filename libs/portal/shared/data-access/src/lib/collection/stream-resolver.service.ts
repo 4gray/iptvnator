@@ -67,7 +67,7 @@ export class StreamResolverService {
     private readonly xtreamEpgCache = new Map<string, XtreamEpgCacheEntry>();
     private readonly xtreamEpgFailureTimestamps = new Map<string, number>();
     private readonly xtreamEpgCacheTtlMs = 60 * 1000;
-    private readonly xtreamEpgFailureCooldownMs = 60 * 1000;
+    private readonly xtreamEpgFailureCooldownMs = 30 * 1000;
 
     private get supportsProgramLookup(): boolean {
         return this.epgBridge.supportsProgramLookup;
@@ -410,10 +410,7 @@ export class StreamResolverService {
                 return [];
             }
 
-            // Check uploaded XMLTV EPG first using the provider's EPG channel
-            // identifier (epg_channel_id from the content table), not the
-            // xtream_id. This respects the user's preferUploadedEpgOverXtream
-            // setting the same way the main live-view loadEpg() does.
+            // 1) Check uploaded XMLTV EPG via the provider's epg_channel_id.
             const epgKey = item.epgChannelId?.trim();
             if (this.supportsProgramLookup && epgKey) {
                 const uploaded = await this.epgBridge
@@ -424,7 +421,22 @@ export class StreamResolverService {
                 }
             }
 
-            // Try the full EPG endpoint first (same as the main live-view
+            // 2) Fall back to manual mapping table (xtream_id → epgChannelId).
+            if (this.supportsProgramLookup && item.xtreamId) {
+                const mapping = await this.epgBridge
+                    .getEpgMapping(String(item.xtreamId))
+                    .catch(() => null);
+                if (mapping?.epgChannelId) {
+                    const mapped = await this.epgBridge
+                        .getChannelPrograms(mapping.epgChannelId)
+                        .catch(() => null);
+                    if (mapped && mapped.length > 0) {
+                        return this.mapProgramsToEpgItems(mapped);
+                    }
+                }
+            }
+
+            // 3) Try the full EPG endpoint (same as the main live-view
             // loadEpg() in with-epg.feature.ts) — many providers only
             // support get_simple_data_table, not get_short_epg.
             try {
@@ -591,30 +603,50 @@ export class StreamResolverService {
             return;
         }
 
-        await Promise.all(
-            channels.map(async (channel) => {
-                if (!channel.xtreamId) {
-                    return;
-                }
+        // Limit concurrency to avoid overwhelming the provider with
+        // simultaneous EPG requests when loading a large channel list.
+        const concurrency = 3;
+        const pending: Promise<void>[] = [];
+        const iterator = channels.entries();
+
+        const enqueueNext = async (): Promise<void> => {
+            for (;;) {
+                const entry = iterator.next();
+                if (entry.done) return;
+                const [, channel] = entry.value;
+                if (!channel.xtreamId) continue;
 
                 try {
                     const nowSeconds = Math.floor(now / 1000);
                     let currentItem: EpgItem | null = null;
 
-                    // Check uploaded XMLTV EPG first.
+                    // 1) Try uploaded XMLTV EPG via the provider's epg_channel_id.
                     const epgChannelKey = channel.epgChannelId?.trim();
                     if (this.supportsProgramLookup && epgChannelKey) {
-                        const uploaded = await this.epgBridge
-                            .getChannelPrograms(epgChannelKey)
-                            .catch(() => null);
-                        if (uploaded && uploaded.length > 0) {
-                            const items = this.mapProgramsToEpgItems(uploaded);
-                            currentItem =
-                                items.find(
-                                    (item) =>
-                                        Number(item.start_timestamp) <= nowSeconds &&
-                                        nowSeconds < Number(item.stop_timestamp)
-                                ) ?? null;
+                        currentItem = await this.findCurrentInXmltv(
+                            epgChannelKey, nowSeconds
+                        );
+                    }
+
+                    // 2) Fall back to manual mapping (epg_channel_mappings table).
+                    // Try all possible keys the user might have used when saving:
+                    // xtream_id (from favorites dialog), tvgId, name.
+                    if (!currentItem && this.supportsProgramLookup) {
+                        const candidateKeys = [
+                            channel.xtreamId ? String(channel.xtreamId) : null,
+                            channel.tvgId?.trim() || null,
+                            channel.name?.trim() || null,
+                        ].filter(Boolean);
+                        for (const key of candidateKeys) {
+                            const mapping = await this.epgBridge
+                                .getEpgMapping(key!)
+                                .catch(() => null);
+                            if (mapping?.epgChannelId) {
+                                currentItem = await this.findCurrentInXmltv(
+                                    mapping.epgChannelId, nowSeconds
+                                );
+                                if (currentItem) break;
+                            }
                         }
                     }
 
@@ -623,7 +655,7 @@ export class StreamResolverService {
                             playlistId,
                             creds,
                             channel.xtreamId,
-                            2
+                            5
                         );
                         currentItem =
                             items.find(
@@ -663,8 +695,14 @@ export class StreamResolverService {
                         epgMap.set(epgKey, null);
                     }
                 }
-            })
-        );
+            }
+        };
+
+        // Start limited concurrent workers.
+        for (let i = 0; i < concurrency; i++) {
+            pending.push(enqueueNext());
+        }
+        await Promise.all(pending);
     }
 
     private getXtreamEpgCacheKey(
@@ -974,5 +1012,23 @@ export class StreamResolverService {
 
     private isHttpUrl(value: string): boolean {
         return value.startsWith('http://') || value.startsWith('https://');
+    }
+
+    /** Look up the current program for an EPG channel ID from uploaded XMLTV. */
+    private async findCurrentInXmltv(
+        epgChannelId: string,
+        nowSeconds: number
+    ): Promise<EpgItem | null> {
+        if (!this.supportsProgramLookup || !epgChannelId) return null;
+        const programs = await this.epgBridge
+            .getChannelPrograms(epgChannelId)
+            .catch(() => null);
+        if (!programs || programs.length === 0) return null;
+        const items = this.mapProgramsToEpgItems(programs);
+        return items.find(
+            (item) =>
+                Number(item.start_timestamp) <= nowSeconds &&
+                nowSeconds < Number(item.stop_timestamp)
+        ) ?? null;
     }
 }

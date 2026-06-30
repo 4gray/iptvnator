@@ -499,6 +499,7 @@
         "REMOVE_FAVORITE": "Remove from favorites",
         "ADD_FAVORITE": "Add to favorites",
         "SHOW_DETAILS": "Show channel details",
+        "MAP_EPG": "Map EPG channel",
         "FAVORITES_UPDATED": "Favorites were updated!",
         "SELECT_CHANNEL_PLAYBACK": "Please select a channel to start playback",
         "SORT_BY": "Sort by",
@@ -618,6 +619,17 @@
         "RETURN_TO_LIVE": "Return to live",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel"
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Map EPG Channel",
+        "SUBTITLE": "Manually select an EPG channel for \"{channelName}\"",
+        "SEARCH_PLACEHOLDER": "Search EPG channels...",
+        "CURRENT_MAPPING": "Current mapping",
+        "NO_MAPPING": "No EPG mapping set",
+        "SAVE": "Save mapping",
+        "REMOVE": "Remove mapping",
+        "CLOSE": "Close",
+        "NO_RESULTS": "No EPG channels found"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

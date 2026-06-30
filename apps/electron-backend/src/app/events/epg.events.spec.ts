@@ -370,36 +370,48 @@ describe('EpgEvents', () => {
             .fn()
             .mockResolvedValue([{ id: 'BBC.ONE.UK', displayName: 'BBC One' }]);
 
+        const resolveMapping = {
+            where: jest.fn().mockReturnValue({
+                limit: jest.fn().mockResolvedValue([] as any[]),
+            }),
+        };
+        const resolvePrograms = (data: any[]) => ({
+            where: jest.fn().mockReturnValue({
+                orderBy: jest.fn().mockResolvedValue(data),
+            }),
+        });
+
         const from = jest
             .fn()
-            .mockReturnValueOnce({
-                where: jest.fn().mockReturnValue({
-                    orderBy: jest.fn().mockResolvedValue([] as any[]),
-                }),
-            })
+            // 1. resolveChannelId in EpgEvents (epg_channel_mappings)
+            .mockReturnValueOnce(resolveMapping)
+            // 2. getMapping in epg-query (epg_channel_mappings)
+            .mockReturnValueOnce(resolveMapping)
+            // 3. getMapping fallback (content table, still no mapping)
+            .mockReturnValueOnce(resolveMapping)
+            // 4. selectChannelPrograms (first attempt, returns [])
+            .mockReturnValueOnce(resolvePrograms([]))
+            // 5. selectChannelById (finds 'BBC.ONE.UK')
             .mockReturnValueOnce({
                 where: jest.fn().mockReturnValue({
                     limit: channelLimit,
                 }),
             })
-            .mockReturnValueOnce({
-                where: jest.fn().mockReturnValue({
-                    orderBy: jest.fn().mockResolvedValue([
-                        {
-                            id: 1,
-                            channelId: 'BBC.ONE.UK',
-                            start: '2026-04-14T10:00:00Z',
-                            stop: '2026-04-14T11:00:00Z',
-                            title: 'News',
-                            description: null,
-                            category: null,
-                            iconUrl: null,
-                            rating: null,
-                            episodeNum: null,
-                        },
-                    ]),
-                }),
-            });
+            // 6. selectChannelPrograms (second attempt, returns data)
+            .mockReturnValueOnce(resolvePrograms([
+                {
+                    id: 1,
+                    channelId: 'BBC.ONE.UK',
+                    start: '2026-04-14T10:00:00Z',
+                    stop: '2026-04-14T11:00:00Z',
+                    title: 'News',
+                    description: null,
+                    category: null,
+                    iconUrl: null,
+                    rating: null,
+                    episodeNum: null,
+                },
+            ]));
 
         select.mockImplementation(() => ({ from }));
 
