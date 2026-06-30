@@ -79,11 +79,13 @@ The renderer never gets direct native-module access. It can only call the preloa
 - dispose session
 - subscribe to session updates
 
-Settings uses the preload support API as an availability and capability check. Unsupported paths return before loading the addon when platform, experiment gating, addon presence, bundled runtime presence, or the Linux `mpv` executable check fails. Supported paths load `embedded_mpv.node` so the renderer can receive capability flags from the actual addon binary. Avoid calling this support API from global workspace startup paths; use an explicit user action or idle preparation path when a renderer surface only needs to reveal optional Embedded MPV UI.
+Settings uses the preload support API only as a lightweight availability check. That check verifies platform, experiment gating, addon presence, and bundled platform runtime presence without `require()`-loading `embedded_mpv.node`. This avoids blocking Settings navigation on synchronous native-addon loading and code-signing or dynamic-linker work.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
-The MPV video surface is a native platform view, not a normal DOM element, so CSS `z-index` cannot reliably place DOM on top of it. The shipped approach inverts the problem: the libmpv surface is composited **below** the Electron WebContents (`NSWindowBelow`), so the entire web layer — controls, menus, dialogs — paints on top and receives input normally. The video is revealed through a transparent "tunnel": while a frame is on screen the player's ancestor elements are made see-through, and a single global backdrop (`EmbeddedMpvImmersiveService` + `embedded-mpv-immersive-backdrop`) paints an opaque field with one transparent hole at the measured video rect. The native surface stays full-bleed; the hole — not the surface — is what the user perceives as "the video", and the inline `app-player-controls` float over it as ordinary DOM. See [player-controls-refactor.md](./player-controls-refactor.md) for the full immersive design and the rejected child-window/docked alternatives.
+The MPV video surface is a native platform view/window, not a normal DOM element. Do not place critical Angular overlays on top of the video viewport and expect CSS `z-index` to win. The embedded MPV controls use a compositor-safe control dock below the native viewport instead of a true overlay on top of the native video surface.
+
+The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
 
 ## Resume And Track Handling
 
@@ -135,31 +137,24 @@ mpv's own caveats apply: the output container is inferred from the target extens
 
 ## Renderer Architecture And Reactivity
 
-The cross-engine controls layer (the engine-agnostic `PlayerController`
-contract, the shared `app-player-controls` component, the
-`EmbeddedMpvControlsAdapter` / `WebVideoControlsAdapter`, the feature flags, and
-the background-playback readiness analysis) is documented in
-[player-controls-contract.md](./player-controls-contract.md). This section
-covers the embedded-MPV-specific native/session internals.
-
 The Angular side of the embedded MPV player is intentionally split so the player component stays a view-only orchestrator. The renderer files live under `libs/ui/playback/src/lib/embedded-mpv-player/`:
 
-- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns the bounds-sync (resize/scroll/RAF), exposes `setBoundsProvider` / `triggerBoundsSync` / `setFill`, and delegates transport/track/recording commands to `EmbeddedMpvCommandRunner`.
-- `embedded-mpv-command-runner.ts` — `EmbeddedMpvCommandRunner`: the imperative IPC command surface (`togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `startRecording`, `stopRecording`) with optimistic snapshot reconciliation.
-- `embedded-mpv-session-factory.ts` — pure session-snapshot constructors (`createLoadingSession`, `createAttachingSession`, `createErrorSession`) and `waitForStartupPaint`.
-- `embedded-mpv-compositor.ts` — `measureBounds(host)` and bounds helpers that keep the native surface aligned with the Angular layout.
-- `embedded-mpv-immersive.service.ts` — single owner of the transparency tunnel: `active` / `fullscreen` / `rect` signals plus the `body.embedded-mpv-immersive` / `body.embedded-mpv-fullscreen` classes.
-- `embedded-mpv-immersive-backdrop.component.ts` — renders one opaque field with a transparent hole at the measured video rect (panels stay opaque; only the hole shows video).
-- `embedded-mpv-labels.ts` — label/format helpers (`formatTime`, audio/subtitle/speed/aspect/volume labels) and the preset constants.
-- `embedded-mpv-stalled-tracker.ts` — `EmbeddedMpvStalledTracker` driving the "taking longer than expected" state.
-- `embedded-mpv-controls.adapter.ts` — `EmbeddedMpvControlsAdapter`, the `PlayerController` implementation bound by `app-player-controls`.
-- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, dblclick), a window-state subscription that reconciles OS-initiated fullscreen exits, and the `effect()`s (immersive activation, bounds→backdrop rect, session lifecycle, time/ended bridging).
+- `embedded-mpv-format.utils.ts` — pure helpers (`formatTime`, `audioTrackLabel`, `subtitleTrackLabel`, `speedLabel`, `aspectLabel`, `volumeIcon`, `volumeLabel`, `readStoredVolume`, `persistVolume`, `measureBounds`) and preset constants (`SPEED_PRESETS`, `ASPECT_PRESETS`, `HIDDEN_BOUNDS`, `MENU_OPEN_BOTTOM_CUTOUT_PX`).
+- `embedded-mpv-shortcuts.ts` — `EmbeddedMpvShortcuts` class with `attach(handlers)` / `detach()`. Owns the document keydown listener and routes through a callback interface; the component supplies the callbacks. Listens for Space/K (toggle), F (fullscreen), arrow keys (seek/volume), M (mute), Escape (close popovers).
+- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/`afterAllClosed` for dialog-shaped overlays and falls back to a `MutationObserver` on the CDK overlay container for any remaining backdrop-bearing CDK overlays. The native MPV video host is hidden off-screen while a modal is open so DOM dialogs can paint above it.
+- `embedded-mpv-ui-state.ts` — `EmbeddedMpvMenuState` (single-open popover state machine with `volumeOpen`, `audioOpen`, `subtitleOpen`, `speedOpen`, `aspectOpen` signals plus `anyOpen` computed; `toggle`/`open`/`close`/`closeAll` helpers) and `EmbeddedMpvFeedback` (transient overlay that auto-clears after a configurable delay; used for keypress feedback).
+- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` service that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns bounds-sync (resize, scroll, overlay state), and exposes the imperative IPC surface (`startSession`, `togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `startRecording`, `stopRecording`, `retry`).
+- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and three `effect()`s.
 
-### Shipped path: immersive overlay
+### Bounds compositing strategy
 
-The shipped embedded-MPV player composites the libmpv surface **below** the WebContents (`NSWindowBelow`) and keeps it **always full-bleed** — the controller's default `measureBounds` provider; there are no docked or cutout bound shapes. Because the web layer is on top, modals, popovers, and the inline `app-player-controls` all paint and receive input normally — no off-screen "hide the surface" trick is needed. The app stays opaque via the single global backdrop with a transparent hole at the video rect (`EmbeddedMpvImmersiveService` + `embedded-mpv-immersive-backdrop`). The `setBoundsProvider` hook remains for a future docked / bottom-mini-bar mode but is unused on the current full-bleed path. The full immersive design, and the rationale for choosing it over the earlier (rejected) child-window and docked-above approaches, are documented in [player-controls-refactor.md](./player-controls-refactor.md).
+The native video host paints outside the normal DOM stacking model, so any DOM region it covers cannot reliably receive pointer events and any CSS `z-index` competition is unwinnable. The component compensates with a single `boundsProvider(host)` closure on the controller that returns one of three bound shapes, evaluated each time the active bounds-sync runs:
 
-Fullscreen uses real macOS **native fullscreen** of the Electron window (`setMainWindowFullScreen` → `win.setFullScreen`) via the player-controls `PlayerFullscreenController` delegate — not DOM `requestFullscreen`. On enter the native surface is put in autoresize "fill" mode with its render frozen during macOS's snapshot transition (the last frame scales cleanly; the video briefly pauses, as the HTML5 player also does), and OS-initiated exits (green button / Ctrl+Cmd+F / ESC) are reconciled through the window-state bridge. See `player-controls-refactor.md` for the full fullscreen choreography.
+- **Modal overlay open** (any MatDialog, including the command palette) → `HIDDEN_BOUNDS`. The MPV video host moves off-screen so the dialog has the full window.
+- **Control popover open** (any of the menu states above) → host bounds with `MENU_OPEN_BOTTOM_CUTOUT_PX` (300 px) removed from the bottom. The popover region becomes DOM-receiving while video keeps playing in the upper region.
+- **Idle** → full host bounds.
+
+The viewport DOM element also reserves `--embedded-mpv-controls-height` (64 px) at the bottom when controls are enabled, so the controls strip itself is always DOM and always reachable for hover-to-reveal even before the popover-cutout takes effect.
 
 ### Reactivity rules (signals and effects)
 
