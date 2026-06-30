@@ -622,7 +622,7 @@
     },
     "EPG_MAPPING_DIALOG": {
         "TITLE": "Map EPG Channel",
-        "SUBTITLE": "Manually select an EPG channel for \"{channelName}\"",
+        "SUBTITLE": "Manually select an EPG channel for \"{{channelName}}\"",
         "SEARCH_PLACEHOLDER": "Search EPG channels...",
         "CURRENT_MAPPING": "Current mapping",
         "NO_MAPPING": "No EPG mapping set",
