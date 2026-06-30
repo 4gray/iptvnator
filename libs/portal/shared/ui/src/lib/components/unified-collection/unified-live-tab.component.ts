@@ -13,7 +13,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
-import { isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
+import {
+    getM3uArchiveDays,
+    isM3uCatchupPlaybackSupported,
+} from '@iptvnator/shared/m3u-utils';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -162,6 +165,18 @@ export class UnifiedLiveTabComponent {
     readonly timelineArchiveAvailable = computed(
         () =>
             this.isM3uSelection() && this.currentM3uArchivePlaybackAvailable()
+    );
+    /**
+     * Catch-up window (days) for the active M3U channel, so the timeline can
+     * gate "Watch" to programmes inside it. Without this the timeline defaults
+     * `archiveDays` to 0 (treated as unlimited) and offers catch-up on
+     * programmes older than the channel's real `catchup-days`/`timeshift`/
+     * `tvg-rec` window. 0 for portal selections (archive is M3U-only here).
+     */
+    readonly timelineArchiveDays = computed(() =>
+        this.timelineArchiveAvailable()
+            ? getM3uArchiveDays(this.currentM3uChannel())
+            : 0
     );
     readonly activeRadioChannel = computed(() => {
         const channel = this.activeDetail()?.channel ?? null;

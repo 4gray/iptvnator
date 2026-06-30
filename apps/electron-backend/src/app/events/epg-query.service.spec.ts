@@ -366,6 +366,20 @@ describe('EpgQueryService', () => {
         );
     });
 
+    it('chunks the candidate lookup to bound SQL parameters for large batches', async () => {
+        // Each candidate-lookup query binds every key up to 4× (raw/lower ×
+        // id/displayName), so a large batch is split to stay under SQLite's
+        // SQLITE_LIMIT_VARIABLE_NUMBER.
+        const select = jest.fn(() => createSelectChain([], []));
+        getDatabase.mockResolvedValue({ select });
+
+        const ids = Array.from({ length: 600 }, (_, i) => `ch-${i}`);
+        await service.getChannelMetadata(ids); // no sourceUrls → candidate lookup only
+
+        // 600 unique keys → ceil(600 / 500) = 2 chunked candidate-lookup queries.
+        expect(select).toHaveBeenCalledTimes(2);
+    });
+
     it('scopes channel metadata by program source ownership for shared channels', async () => {
         const whereCalls: unknown[] = [];
         const select = jest.fn(() => createSelectChain([], whereCalls));

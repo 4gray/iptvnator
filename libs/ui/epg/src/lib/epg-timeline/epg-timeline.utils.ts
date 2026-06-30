@@ -390,7 +390,14 @@ export function buildTimelineRenderItems(
     };
 
     for (const block of blocks) {
-        if (allowGroup && block.durationMin < TIMELINE_SHORT_MAX_MIN) {
+        // Never fold the on-air programme into a "N short" group chip — that
+        // drops its `when: 'now'` highlight and leaves the auto-focused viewport
+        // centred on a chip with no visible "now" state. Keep it standalone.
+        if (
+            allowGroup &&
+            block.durationMin < TIMELINE_SHORT_MAX_MIN &&
+            block.when !== 'now'
+        ) {
             run.push(block);
             continue;
         }

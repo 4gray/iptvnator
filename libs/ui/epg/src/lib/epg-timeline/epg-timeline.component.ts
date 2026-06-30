@@ -288,19 +288,23 @@ export class EpgTimelineComponent {
         programs: readonly EpgProgram[]
     ): void {
         const key = programsFocusKey(programs);
-        // No ribbon yet (loading / empty / empty-day) → forget the last focus so
-        // the next time a ribbon mounts we re-center, even when returning to the
-        // same channel. This also avoids recording a key before the ribbon
-        // exists, which would dedupe out the real focus and reintroduce flakiness.
-        if (!scroller || !key) {
-            this.lastFocusKey = null;
+        // Skip (without clearing lastFocusKey) when there's no ribbon yet, no
+        // programmes, or we've already focused this channel. Re-running for the
+        // same channel — e.g. when the ribbon remounts after the user navigates
+        // to another day — must NOT re-focus, or `commitDay(today)` below would
+        // snap the view back to today and trap the user on an empty day.
+        if (!scroller || !key || key === this.lastFocusKey) {
             return;
         }
-        if (key === this.lastFocusKey) {
+        const todayKey = getTodayEpgDateKey();
+        // Only auto-focus when today actually has a programme to centre on.
+        // Otherwise (today empty, data on other days) leave the user's day
+        // navigation alone instead of forcing the view back to an empty today.
+        if (!hasProgramsForDateKey(programs, todayKey)) {
             return;
         }
         this.lastFocusKey = key;
-        this.commitDay(getTodayEpgDateKey());
+        this.commitDay(todayKey);
         // Instant: land already centred, no annoying scroll animation.
         this.focusCurrentProgram(false);
     }

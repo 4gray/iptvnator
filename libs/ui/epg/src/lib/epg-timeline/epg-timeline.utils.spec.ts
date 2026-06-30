@@ -245,6 +245,41 @@ describe('epg-timeline.utils', () => {
             expect(grouped.filter((i) => i.kind === 'block')).toHaveLength(1);
         });
 
+        it('keeps the on-air programme out of a short-run group chip', () => {
+            // Four past 5-min shorts then the on-air short. The old behaviour
+            // folded all five into one chip and lost the `when: 'now'` highlight.
+            const mk = (
+                sh: number,
+                sm: number,
+                eh: number,
+                em: number
+            ): ReturnType<typeof program> =>
+                program(localIso(2026, 6, 28, sh, sm), localIso(2026, 6, 28, eh, em));
+            const programs = [
+                mk(11, 38, 11, 43),
+                mk(11, 43, 11, 48),
+                mk(11, 48, 11, 53),
+                mk(11, 53, 11, 58),
+                mk(11, 58, 12, 3), // on air — NOW is 12:00
+            ];
+            const axis = buildTimelineAxis(programs, NOW);
+            const blocks = buildTimelineBlocks(programs, axis, NOW);
+            const items = buildTimelineRenderItems(blocks, 1, {
+                allowGroup: true,
+                nowMs: NOW,
+            });
+
+            const group = items.find(
+                (i): i is TimelineRenderGroup => i.kind === 'group'
+            );
+            expect(group?.count).toBe(4); // the four past shorts still group
+            const nowBlock = items.find(
+                (i): i is TimelineRenderBlock =>
+                    i.kind === 'block' && i.block.when === 'now'
+            );
+            expect(nowBlock).toBeDefined(); // on-air short stays a standalone block
+        });
+
         it('does not group when grouping is disallowed (zoomed in)', () => {
             const blocks = blocksFor([5, 5, 5, 5, 120]);
             const items = buildTimelineRenderItems(blocks, 4, {

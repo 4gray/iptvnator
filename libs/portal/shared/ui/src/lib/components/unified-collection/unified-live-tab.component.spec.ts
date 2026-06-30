@@ -88,6 +88,7 @@ class StubEpgTimelineComponent {
     readonly channelName = input('');
     readonly channelLogo = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly archiveDays = input(0);
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any

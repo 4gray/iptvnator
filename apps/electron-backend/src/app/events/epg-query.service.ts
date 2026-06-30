@@ -19,6 +19,14 @@ interface EpgProgramRow {
 type EpgDatabase = Awaited<ReturnType<typeof getDatabase>>;
 type EpgChannelRow = typeof schema.epgChannels.$inferSelect;
 
+/**
+ * Max channel keys per candidate-lookup query. The query binds each key up to
+ * four times (raw id / raw displayName / LOWER(id) / LOWER(displayName)), so we
+ * chunk to stay well under SQLite's `SQLITE_LIMIT_VARIABLE_NUMBER` (32766) even
+ * for very large playlists — at 500 that's ~2k bound parameters per statement.
+ */
+const CHANNEL_LOOKUP_CHUNK_SIZE = 500;
+
 export class EpgQueryService {
     constructor(private readonly loggerLabel = '[EPG Events]') {}
 
@@ -717,6 +725,29 @@ export class EpgQueryService {
         if (uniqueKeys.length === 0) {
             return [];
         }
+
+        // Chunk so the bound-parameter count stays well under SQLite's limit even
+        // for large playlists (the per-chunk query binds each key up to 4×).
+        const candidates: EpgChannelMetadata[] = [];
+        for (let i = 0; i < uniqueKeys.length; i += CHANNEL_LOOKUP_CHUNK_SIZE) {
+            candidates.push(
+                ...(await this.selectChannelMetadataCandidatesChunk(
+                    db,
+                    uniqueKeys.slice(i, i + CHANNEL_LOOKUP_CHUNK_SIZE),
+                    sourceUrls,
+                    options
+                ))
+            );
+        }
+        return candidates;
+    }
+
+    private async selectChannelMetadataCandidatesChunk(
+        db: EpgDatabase,
+        uniqueKeys: string[],
+        sourceUrls: string[],
+        options: { legacyOnly?: boolean } = {}
+    ): Promise<EpgChannelMetadata[]> {
         const rawValues = uniqueKeys.map((key) => sql`${key}`);
         const lowerValues = Array.from(
             new Set(uniqueKeys.map((key) => key.toLowerCase()))

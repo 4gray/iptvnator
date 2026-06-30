@@ -273,7 +273,10 @@ describe('EpgTimelineComponent', () => {
             expect(spy).toHaveBeenCalledTimes(1);
         });
 
-        it('re-focuses after the ribbon unmounts and the channel returns', () => {
+        it('does not re-focus the same channel when its ribbon remounts (no snap-back)', () => {
+            // Unmount + remount of the SAME channel — e.g. the user navigates from
+            // an empty day to a day with programmes — must not re-focus, or it
+            // would commit today again and snap the view back to the empty day.
             setInputs({ programs: [programAt(0, 120, 'Now')] });
             const spy = jest.spyOn(
                 component as unknown as { scrollToOffset: (...a: unknown[]) => void },
@@ -283,9 +286,36 @@ describe('EpgTimelineComponent', () => {
             const programs = component.programs();
 
             focus(scroller, programs); // focus #1
-            focus(undefined, programs); // ribbon unmounts (empty-day/loading)
-            focus(scroller, programs); // remount → focus again
+            focus(undefined, programs); // ribbon unmounts (empty-day navigation)
+            focus(scroller, programs); // remount on another day → must NOT re-focus
+            expect(spy).toHaveBeenCalledTimes(1);
+        });
+
+        it('re-focuses when the channel changes', () => {
+            const spy = jest.spyOn(
+                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
+                'scrollToOffset'
+            ).mockImplementation(() => undefined);
+            const scroller = {} as HTMLElement;
+
+            setInputs({ programs: [{ ...programAt(0, 120, 'A'), channel: 'a' }] });
+            focus(scroller);
+            setInputs({ programs: [{ ...programAt(0, 120, 'B'), channel: 'b' }] });
+            focus(scroller);
             expect(spy).toHaveBeenCalledTimes(2);
+        });
+
+        it('does not focus or snap to today when today has no programmes', () => {
+            // Programmes only three days out → today is empty; auto-focus must
+            // leave the user's day navigation alone instead of forcing today.
+            setInputs({ programs: [programAt(3 * 1440, 60)] });
+            const spy = jest.spyOn(
+                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
+                'scrollToOffset'
+            ).mockImplementation(() => undefined);
+
+            focus({} as HTMLElement);
+            expect(spy).not.toHaveBeenCalled();
         });
 
         it('skips focus entirely when the ribbon is not mounted', () => {
