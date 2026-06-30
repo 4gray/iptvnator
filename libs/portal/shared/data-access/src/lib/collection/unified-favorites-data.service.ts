@@ -261,6 +261,20 @@ export class UnifiedFavoritesDataService {
         if (
             options?.scope === 'playlist' &&
             options.playlistId &&
+            options.portalType === 'xtream'
+        ) {
+            const electron = this.electronActivityBridge;
+            const updates = this.buildXtreamPositionUpdates(items);
+            if (updates.length > 0 && electron) {
+                await electron.dbReorderGlobalFavorites(updates);
+            }
+            await this.saveOrder(items.map((item) => item.uid));
+            return;
+        }
+
+        if (
+            options?.scope === 'playlist' &&
+            options.playlistId &&
             options.portalType === 'stalker'
         ) {
             const playlist = (await firstValueFrom(
@@ -559,11 +573,19 @@ export class UnifiedFavoritesDataService {
             }
 
             const rows = await this.dbService.getFavorites(playlistId);
-            return (rows as unknown as XtreamFavoriteRow[]).map((r) => ({
-                ...this.mapXtreamRow(r),
-                playlistId,
-                playlistName: meta?.title || 'Xtream',
-            }));
+            const items = (rows as unknown as XtreamFavoriteRow[]).map(
+                (r) => ({
+                    ...this.mapXtreamRow(r),
+                    playlistId,
+                    playlistName: meta?.title || 'Xtream',
+                })
+            );
+
+            // Apply saved UID order so drag-drop reorder persists.
+            const order = await this.getSavedOrder();
+            return order.length > 0
+                ? this.applyOrder(items, order)
+                : items;
         } catch {
             return [];
         }
