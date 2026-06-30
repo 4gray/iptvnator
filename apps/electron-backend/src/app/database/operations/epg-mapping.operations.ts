@@ -100,7 +100,9 @@ export async function searchEpgChannels(
     searchTerm: string,
     limit = 50
 ): Promise<Array<{ id: string; displayName: string; iconUrl: string | null }>> {
-    const pattern = `%${searchTerm.trim()}%`;
+    // Escape LIKE wildcards so user input like "HBO%" or "_BC" is literal.
+    const escaped = searchTerm.trim().replace(/[%_]/g, '\\$&');
+    const pattern = `%${escaped}%`;
 
     return db
         .select({

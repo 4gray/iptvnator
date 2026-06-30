@@ -340,8 +340,9 @@ export default class EpgEvents {
         channelId: string,
         options?: { sourceUrls?: string[] }
     ): Promise<EpgProgram[]> {
-        const resolvedId = await this.resolveChannelId(channelId);
-        return epgQueryService.getChannelPrograms(resolvedId, options);
+        // Mapping resolution is now in epg-query.service.ts getChannelPrograms
+        // via its own getMapping call — no need to resolve here.
+        return epgQueryService.getChannelPrograms(channelId, options);
     }
 
     private static async handleGetCurrentProgramsBatch(

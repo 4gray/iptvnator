@@ -383,21 +383,19 @@ describe('EpgEvents', () => {
 
         const from = jest
             .fn()
-            // 1. resolveChannelId in EpgEvents (epg_channel_mappings)
+            // 1. getMapping in epg-query (epg_channel_mappings)
             .mockReturnValueOnce(resolveMapping)
-            // 2. getMapping in epg-query (epg_channel_mappings)
+            // 2. getMapping fallback (content table, still no mapping)
             .mockReturnValueOnce(resolveMapping)
-            // 3. getMapping fallback (content table, still no mapping)
-            .mockReturnValueOnce(resolveMapping)
-            // 4. selectChannelPrograms (first attempt, returns [])
+            // 3. selectChannelPrograms (first attempt, returns [])
             .mockReturnValueOnce(resolvePrograms([]))
-            // 5. selectChannelById (finds 'BBC.ONE.UK')
+            // 4. selectChannelById (finds 'BBC.ONE.UK')
             .mockReturnValueOnce({
                 where: jest.fn().mockReturnValue({
                     limit: channelLimit,
                 }),
             })
-            // 6. selectChannelPrograms (second attempt, returns data)
+            // 5. selectChannelPrograms (second attempt, returns data)
             .mockReturnValueOnce(resolvePrograms([
                 {
                     id: 1,

@@ -73,7 +73,6 @@ export class EpgMappingDialogComponent {
             ?.then((m) => this.currentMapping.set(m?.epgChannelId ?? null));
 
         this.search$
-        this.search$
             .pipe(
                 debounceTime(300),
                 switchMap((term) => {
@@ -112,13 +111,12 @@ export class EpgMappingDialogComponent {
 
     save(): void {
         const epgChannelId = this.selectedId();
-        if (!epgChannelId) {
-            return;
-        }
+        if (!epgChannelId) return;
 
-        this.epgBridge
-            .setEpgMapping(this.data.channelKey, epgChannelId)
-            ?.then(() => {
+        (this.epgBridge.setEpgMapping(this.data.channelKey, epgChannelId) ??
+            Promise.resolve(null))
+            .then((result) => {
+                if (result?.success === false) return;
                 this.epgService.clearCache();
                 this.dialogRef.close({
                     channelKey: this.data.channelKey,
@@ -128,9 +126,12 @@ export class EpgMappingDialogComponent {
     }
 
     removeMapping(): void {
-        this.epgBridge.deleteEpgMapping(this.data.channelKey)?.then(() => {
-            this.dialogRef.close();
-        });
+        (this.epgBridge.deleteEpgMapping(this.data.channelKey) ??
+            Promise.resolve(null))
+            .then((result) => {
+                if (result?.success === false) return;
+                this.dialogRef.close();
+            });
     }
 
     close(): void {
