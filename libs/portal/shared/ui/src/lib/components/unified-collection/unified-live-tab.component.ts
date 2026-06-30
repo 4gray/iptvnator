@@ -34,6 +34,7 @@ import {
 import {
     EpgDateNavigationDirection,
     EpgListComponent,
+    EpgProgramActivationEvent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -48,10 +49,10 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
-    EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
 } from '@iptvnator/ui/shared-portals';
+import { UnifiedLiveCatchupService } from './unified-live-catchup.service';
 
 @Component({
     selector: 'app-unified-live-tab',
@@ -61,7 +62,6 @@ import {
     imports: [
         AudioPlayerComponent,
         EpgListComponent,
-        EpgViewComponent,
         GlobalFavoritesListComponent,
         LiveEpgPanelComponent,
         MatButtonModule,
@@ -96,6 +96,7 @@ export class UnifiedLiveTabComponent {
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly destroyRef = inject(DestroyRef);
+    readonly catchupService = inject(UnifiedLiveCatchupService);
 
     readonly player = this.settingsStore.player;
     readonly supportsEpg = this.runtime.supportsEpg;
@@ -143,6 +144,14 @@ export class UnifiedLiveTabComponent {
     });
     readonly currentM3uArchivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.currentM3uChannel())
+    );
+    /** Portal EPG items converted to EpgProgram for the interactive list component. */
+    readonly currentPortalEpgPrograms = computed<EpgProgram[]>(() =>
+        this.catchupService.epgItemsToPrograms(this.currentPortalEpgItems())
+    );
+    /** Archive window (days) for the selected portal stream, or 0 if unavailable. */
+    readonly currentPortalArchiveDays = computed(() =>
+        this.catchupService.portalArchiveDays(this.catchupService.activeItem())
     );
     readonly activeRadioChannel = computed(() => {
         const channel = this.activeDetail()?.channel ?? null;
@@ -309,11 +318,30 @@ export class UnifiedLiveTabComponent {
         );
     }
 
+    async onProgramActivated(event: EpgProgramActivationEvent): Promise<void> {
+        const detail = this.activeDetail();
+        const item = this.catchupService.activeItem();
+        if (!detail) return;
+
+        const updatedDetail = await this.catchupService.onProgramActivated(
+            event,
+            detail,
+            item
+        );
+        if (!updatedDetail) return;
+
+        this.activeDetail.set(updatedDetail);
+        if (this.shouldOpenExternalPlayback(updatedDetail, true)) {
+            this.portalPlayer.openResolvedPlayback(updatedDetail.playback);
+        }
+    }
+
     onClose(): void {
         this.selectionRequestId += 1;
         this.isSelecting.set(false);
         this.activeDetail.set(null);
         this.activeUid.set(null);
+        this.catchupService.activeItem.set(null);
     }
 
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
@@ -346,6 +374,7 @@ export class UnifiedLiveTabComponent {
         this.activeUid.set(item.uid);
         this.activeDetail.set(null);
         this.isSelecting.set(true);
+        this.catchupService.activeItem.set(item);
 
         try {
             const detail =
@@ -538,4 +567,5 @@ export class UnifiedLiveTabComponent {
         const parsedDate = Date.parse(rawDate ?? '');
         return Number.isFinite(parsedDate) ? parsedDate : null;
     }
+
 }

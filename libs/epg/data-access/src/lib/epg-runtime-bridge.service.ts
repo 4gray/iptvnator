@@ -1,14 +1,16 @@
 import { inject, Injectable } from '@angular/core';
 import {
+    ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES,
     ElectronBridgeApi,
     ElectronBridgeEpgFetchResult,
+    ElectronBridgeEpgMapping,
     ElectronBridgeEpgProgress,
     ElectronBridgeEpgProgressStats,
     ElectronBridgeEpgProgressStatus,
+    ElectronBridgeEpgSearchResult,
     ElectronBridgeEpgChannelWithPrograms,
     ElectronBridgeEpgFreshnessResult,
     ElectronBridgeEpgLookupOptions,
-    ELECTRON_BRIDGE_EPG_PROGRESS_STATUSES,
     ElectronBridgeResult,
     ElectronBridgeTrustOptions,
     EpgChannelMetadata,
@@ -38,6 +40,10 @@ type EpgElectronBridge = Pick<
     | 'getEpgChannelsByRange'
     | 'onEpgProgress'
     | 'searchEpgPrograms'
+    | 'getEpgMapping'
+    | 'setEpgMapping'
+    | 'deleteEpgMapping'
+    | 'searchEpgChannels'
 >;
 
 @Injectable({ providedIn: 'root' })
@@ -78,6 +84,10 @@ export class EpgRuntimeBridgeService {
 
     get supportsProgramSearch(): boolean {
         return this.runtime.supportsEpgProgramSearch;
+    }
+
+    get supportsEpgMapping(): boolean {
+        return this.runtime.supportsEpgMapping;
     }
 
     fetchEpg(
@@ -217,6 +227,53 @@ export class EpgRuntimeBridgeService {
 
         return (
             this.bridge?.searchEpgPrograms?.(searchTerm, limit) ??
+            Promise.resolve(null)
+        );
+    }
+
+    getEpgMapping(
+        channelKey: string
+    ): Promise<ElectronBridgeEpgMapping | null> {
+        if (!this.supportsEpgMapping) {
+            return Promise.resolve(null);
+        }
+
+        return this.bridge?.getEpgMapping?.(channelKey) ?? Promise.resolve(null);
+    }
+
+    setEpgMapping(
+        channelKey: string,
+        epgChannelId: string,
+        playlistId?: string
+    ): Promise<ElectronBridgeResult | null> {
+        if (!this.supportsEpgMapping) {
+            return Promise.resolve(null);
+        }
+
+        return (
+            this.bridge?.setEpgMapping?.(channelKey, epgChannelId, playlistId) ??
+            Promise.resolve(null)
+        );
+    }
+
+    deleteEpgMapping(channelKey: string): Promise<ElectronBridgeResult | null> {
+        if (!this.supportsEpgMapping) {
+            return Promise.resolve(null);
+        }
+
+        return this.bridge?.deleteEpgMapping?.(channelKey) ?? Promise.resolve(null);
+    }
+
+    searchEpgChannels(
+        searchTerm: string,
+        limit?: number
+    ): Promise<ElectronBridgeEpgSearchResult[] | null> {
+        if (!this.supportsEpgMapping) {
+            return Promise.resolve(null);
+        }
+
+        return (
+            this.bridge?.searchEpgChannels?.(searchTerm, limit) ??
             Promise.resolve(null)
         );
     }

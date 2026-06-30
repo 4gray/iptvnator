@@ -156,6 +156,7 @@ describe('withEpg', () => {
             selectedItem: { xtream_id: 101, epg_channel_id: null },
         });
         xtreamApiService.getFullEpg.mockResolvedValue([]);
+        xtreamApiService.getShortEpg.mockResolvedValue([]);
 
         const result = await store.loadEpg();
 

@@ -27,6 +27,7 @@ import {
 } from '../channel-list-sort.util';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
+import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 const ALL_CHANNELS_SORT_STORAGE_KEY = 'm3u-all-channels-sort-mode';
@@ -248,6 +249,29 @@ export class AllChannelsViewComponent {
             data: channel,
             maxWidth: '720px',
             width: 'calc(100vw - 32px)',
+        });
+    }
+
+    openEpgMapping(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) {
+            return;
+        }
+
+        this.contextMenuTrigger().closeMenu();
+        const channelKey = resolveChannelEpgLookupKey(channel);
+        if (!channelKey) {
+            return;
+        }
+
+        this.dialog.open(EpgMappingDialogComponent, {
+            data: {
+                channelKey,
+                channelName: channel.name ?? channelKey,
+                currentMapping: null,
+            },
+            width: '500px',
+            maxHeight: '90vh',
         });
     }
 }
