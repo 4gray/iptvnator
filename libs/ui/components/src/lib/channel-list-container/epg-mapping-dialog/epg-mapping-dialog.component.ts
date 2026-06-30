@@ -130,6 +130,7 @@ export class EpgMappingDialogComponent {
             Promise.resolve(null))
             .then((result) => {
                 if (result?.success === false) return;
+                this.epgService.clearCache();
                 this.dialogRef.close();
             });
     }
