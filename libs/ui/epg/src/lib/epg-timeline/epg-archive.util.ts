@@ -1,4 +1,4 @@
-import { EpgItemDialogAction } from '../epg-list/epg-item-description/epg-item-description.component';
+import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
 import { TimelineWhen } from './epg-timeline.utils';
 
 const DAY_MS = 24 * 60 * 60_000;

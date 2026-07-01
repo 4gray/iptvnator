@@ -192,10 +192,8 @@
             "VALIDATING": "Portal wird überprüft …"
         },
         "FILTER_BY_NAME": "Nach Namen filtern",
-        "FILTER_BY_TYPE": "Playlist-Typen",
         "FILTER_AND_SORT": "Filtern & Sortieren",
         "SORT_PLAYLISTS": "Playlisten sortieren",
-        "SORT_BY": "Sortieren nach",
         "SORT_OPTIONS": {
             "NAME_ASC": "Name (A-Z)",
             "NAME_DESC": "Name (Z-A)",
@@ -483,7 +481,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Senderliste umschalten (⌘/Strg+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Nach Sender suchen",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Neue Playlist hochladen oder eine andere aussuchen",
         "ALL_CHANNELS": "Alle Sender",
         "GROUPS": "Gruppen",
@@ -557,14 +554,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Senderliste öffnen",
-        "TOGGLE_FAVORITE_FLAG": "Als Favoriten hinzufügen/entfernen",
-        "OPEN_EPG_LIST": "TV-Guide (EPG) öffnen",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view",
-        "SHOW_INFO": "Programminfo anzeigen (Taste I)"
+        "OPEN_MULTI_EPG": "Open Multi-EPG view"
     },
     "EPG": {
-        "TITLE": "Elektronischer Programmführer",
         "NEXT_DAY": "Zum nächsten Tag",
         "PREVIOUS_DAY": "Zum vorherigen Tag",
         "ZOOM_IN": "Vergrößern",
@@ -573,14 +565,9 @@
         "CLOSE_FILTER": "Filter schließen",
         "SEARCH_PROGRAMS": "Sendungen suchen",
         "CLOSE_PROGRAM_SEARCH": "Sendungssuche schließen",
-        "LIVE_NOW": "Live jetzt",
         "LIVE_STREAM": "Live stream",
-        "TIMESHIFT_AVAILABLE": "Die Timeshift-Funktion (Archiv) ist verfügbar, klicken Sie an um abzuspielen",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Archivwiedergabe nicht verfügbar",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Dieser Anbieter stellt zwar den Programmverlauf für den Sender bereit, jedoch keine abspielbare Archiv-/Catchup-Wiedergabe.",
-        "EPG_NOT_AVAILABLE_DATE": "Ups, leider ist das TV-Programm für das ausgewählte Datum nicht verfügbar",
-        "NO_GUIDE_HINT": "Versuchen Sie ein anderes Datum oder aktualisieren Sie die Playlist.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ups, leider ist das TV-Programm nicht verfügbar.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Versuchen Sie bitte die TV-Guide Einstellungen zu ändern.",
         "FETCH_EPG": "EPG-Daten werden geladen...",
         "ERROR": "Ooops, EPG konnte nicht geladen werden",
@@ -615,7 +602,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Archivwiedergabe",
-        "RETURN_TO_LIVE": "Zurück zum Live-TV",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +665,6 @@
     "MENU": {
         "OPEN": "Menü öffnen",
         "SUPPORT_ARIA": "IPTVnator auf GitHub unterstützen",
-        "SETTINGS": "Einstellungen",
         "SETTINGS_ARIA": "Einstellungen öffnen",
         "BUG_REPORT": "Fehler melden",
         "WHAT_IS_NEW": "Was ist neu",
@@ -804,10 +789,7 @@
             "SEARCH": "Suche",
             "RECENT": "Zuletzt angesehen",
             "RECENTLY_ADDED": "Kürzlich hinzugefügt",
-            "FAVORITES": "Favoriten",
-            "HOME": "Startseite",
-            "PLAYLIST_INFO": "Playlist-Info",
-            "ACCOUNT_INFO": "Account-Info"
+            "FAVORITES": "Favoriten"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

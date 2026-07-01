@@ -5,7 +5,7 @@ import {
     EpgItemDescriptionComponent,
     EpgItemDialogAction,
     EpgItemDialogData,
-} from './epg-list/epg-item-description/epg-item-description.component';
+} from './epg-item-description/epg-item-description.component';
 
 /**
  * Opens the shared programme-details dialog and returns the chosen action.

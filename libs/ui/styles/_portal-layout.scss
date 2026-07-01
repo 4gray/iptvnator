@@ -138,7 +138,6 @@
             min-height: 56px;
         }
 
-        > app-live-epg-panel,
         > app-epg-timeline {
             flex: 1;
             min-height: 0;
@@ -152,8 +151,6 @@
         display: flex;
         flex-direction: column;
 
-        > app-epg-view,
-        > app-live-epg-panel,
         > app-epg-timeline {
             flex: 1;
             min-height: 0;

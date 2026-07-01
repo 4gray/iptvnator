@@ -30,7 +30,7 @@ import {
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import { EpgItemDescriptionComponent } from '../epg-list/epg-item-description/epg-item-description.component';
+import { EpgItemDescriptionComponent } from '../epg-item-description/epg-item-description.component';
 import { COMPONENT_OVERLAY_REF } from './overlay-ref.token';
 
 type MultiEpgChannel = ElectronBridgeEpgChannelWithPrograms;

@@ -11,7 +11,7 @@ import {
 import { MatIcon } from '@angular/material/icon';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslatePipe } from '@ngx-translate/core';
-import { areProgramsSame } from '../epg-list/epg-list.utils';
+import { areProgramsSame } from '../epg-program.utils';
 import {
     TimelineBlock,
     TimelineDayDivider,

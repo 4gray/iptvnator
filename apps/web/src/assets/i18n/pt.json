@@ -192,10 +192,8 @@
             "VALIDATING": "Validando portal..."
         },
         "FILTER_BY_NAME": "Filtrar por nome",
-        "FILTER_BY_TYPE": "Filtrar por tipo",
         "FILTER_AND_SORT": "Filtrar e ordenar",
         "SORT_PLAYLISTS": "Ordenar playlists",
-        "SORT_BY": "Ordenar por",
         "SORT_OPTIONS": {
             "NAME_ASC": "Nome (A-Z)",
             "NAME_DESC": "Nome (Z-A)",
@@ -483,7 +481,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Alternar lista de canais (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Pesquisar canal",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Enviar ou selecionar outra playlist",
         "ALL_CHANNELS": "Todos os canais",
         "GROUPS": "Grupos",
@@ -557,14 +554,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Abrir lista de canais",
-        "TOGGLE_FAVORITE_FLAG": "Alternar sinalizador de favorito",
-        "OPEN_EPG_LIST": "Abrir lista de EPG",
-        "OPEN_MULTI_EPG": "Abrir visualização Multi-EPG",
-        "SHOW_INFO": "Mostrar informações do programa (pressione I)"
+        "OPEN_MULTI_EPG": "Abrir visualização Multi-EPG"
     },
     "EPG": {
-        "TITLE": "Guia Eletrônico de Programação",
         "NEXT_DAY": "Próximo dia",
         "PREVIOUS_DAY": "Dia anterior",
         "ZOOM_IN": "Mais zoom",
@@ -573,14 +565,9 @@
         "CLOSE_FILTER": "Fechar filtro",
         "SEARCH_PROGRAMS": "Pesquisar programas",
         "CLOSE_PROGRAM_SEARCH": "Fechar pesquisa de programas",
-        "LIVE_NOW": "Ao vivo agora",
         "LIVE_STREAM": "Transmissão ao vivo",
-        "TIMESHIFT_AVAILABLE": "Timeshift está disponível, clique para reproduzir",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Reprodução de arquivo indisponível",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Este provedor expõe o histórico de programação do canal, mas não disponibiliza reprodução de arquivo/Catchup.",
-        "EPG_NOT_AVAILABLE_DATE": "Ooops, EPG não está disponível para a data selecionada",
-        "NO_GUIDE_HINT": "Tente uma data diferente ou atualize a lista de reprodução.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ooops, EPG não está disponível para este canal.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Adicione/altere a URL da lista de EPG nas configurações do aplicativo.",
         "FETCH_EPG": "Buscando dados do EPG...",
         "ERROR": "Ooops, EPG não pôde ser carregado.",
@@ -615,7 +602,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Reprodução do arquivo",
-        "RETURN_TO_LIVE": "Voltar ao vivo",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +665,6 @@
     "MENU": {
         "OPEN": "Abrir menu",
         "SUPPORT_ARIA": "Apoie o IPTVnator no GitHub",
-        "SETTINGS": "Configurações",
         "SETTINGS_ARIA": "Abrir configurações",
         "BUG_REPORT": "Reportar um bug",
         "WHAT_IS_NEW": "O que há de novo",
@@ -804,10 +789,7 @@
             "SEARCH": "Pesquisar",
             "RECENT": "Recente",
             "RECENTLY_ADDED": "Adicionados recentemente",
-            "FAVORITES": "Favoritos",
-            "HOME": "Início",
-            "PLAYLIST_INFO": "Informações da playlist",
-            "ACCOUNT_INFO": "Informações da conta"
+            "FAVORITES": "Favoritos"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {
