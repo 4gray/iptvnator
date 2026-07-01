@@ -17,16 +17,36 @@ pnpm nx show projects --withTarget e2e
 | ---------------------------------- | ----------------------------------- |
 | Angular renderer entry points      | `pnpm run typecheck:web`            |
 | Electron main process entry points | `pnpm run typecheck:backend`        |
-| Curated CI unit suite              | `pnpm run test:unit:ci`             |
+| Full unit suite (all projects)     | `pnpm run test:unit:ci`             |
 | EPG data access                    | `pnpm nx test epg-data-access`      |
 | Workspace shell utilities          | `pnpm nx test workspace-shell-util` |
 | Shared SQLite schema/connection    | `pnpm nx test database`             |
 | Packaging metadata                 | `pnpm nx test packaging`            |
 
+## Lint
+
+```bash
+pnpm run lint                 # nx run-many --target=lint --all
+pnpm nx lint <project>        # single project
+```
+
+The CI workflow (`.github/workflows/ci.yml`) runs lint for every project on
+each PR. This enforces `@nx/enforce-module-boundaries` (scope/domain/type tag
+constraints), the legacy bare-alias ban, and the `max-lines` file-size rule
+(hard maximum 400 lines per TypeScript file). Files that predate the
+`max-lines` rule are baselined in `tools/eslint/max-lines-baseline.mjs`; after
+splitting a baselined file below the limit, regenerate the list with
+`node tools/eslint/generate-max-lines-baseline.mjs`. Never add new files to
+the baseline.
+
 ## Coverage Tiers
 
 Use `tools/coverage/coverage-policy.json` as the source of truth for coverage
-ownership.
+ownership. Every project with a `test` target must be classified in a tier;
+`pnpm run coverage:policy:check` (part of `coverage:ci`) fails CI when a new
+project is missing from the policy or a listed project no longer exists.
+CI runs Tier A with coverage (uploaded to Codecov) and Tier B/C tests without
+coverage.
 
 | Tier | Rule | Validation |
 | --- | --- | --- |

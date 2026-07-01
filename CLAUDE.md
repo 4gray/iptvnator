@@ -191,12 +191,20 @@ Before finishing behavior changes or bug fixes, follow `Regression Prevention An
 ### Linting
 
 ```bash
-# Lint frontend
-nx lint web
+# Lint all projects (what CI enforces on every PR)
+pnpm run lint
 
-# Lint backend
+# Lint a single project
+nx lint web
 nx lint electron-backend
 ```
+
+CI runs lint for every project (`.github/workflows/ci.yml`). This enforces the
+Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
+rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
+are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
+with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
+Never add new files to the baseline.
 
 ### Documentation And Wiki Export
 
