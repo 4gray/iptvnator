@@ -105,6 +105,19 @@ export class UnifiedLiveTabComponent {
     );
 
     readonly activeDetail = signal<ResolvedLiveCollectionDetail | null>(null);
+    /** Snapshot of the live (non-catchup) detail, captured before catchup modifies activeDetail. */
+    private readonly priorDetail = signal<ResolvedLiveCollectionDetail | null>(
+        null
+    );
+    /** The archived EPG program the user selected for catchup playback. */
+    readonly archiveProgram = signal<EpgProgram | null>(null);
+    /** True when archive/catchup playback is active and the user can return to live. */
+    readonly showReturnToLive = computed(() => this.priorDetail() !== null);
+    readonly archiveLabelKey = computed(() =>
+        this.showReturnToLive()
+            ? 'EPG.ARCHIVE_PLAYBACK'
+            : 'EPG.CURRENT_PROGRAM'
+    );
     readonly activeUid = signal<string | null>(null);
     readonly isSelecting = signal(false);
     readonly epgMap = signal<Map<string, EpgProgram | null>>(new Map());
@@ -168,6 +181,10 @@ export class UnifiedLiveTabComponent {
     );
     readonly liveEpgPanelSummary = computed(() => {
         this.progressTick();
+        const archiveProg = this.archiveProgram();
+        if (archiveProg) {
+            return this.toLiveEpgPanelSummary(archiveProg);
+        }
         return this.getLiveEpgPanelSummary(this.activeDetail());
     });
 
@@ -330,10 +347,31 @@ export class UnifiedLiveTabComponent {
         );
         if (!updatedDetail) return;
 
+        if (event.type === 'timeshift') {
+            // Snapshot the live detail before switching to catchup so we can
+            // restore it on "Return to Live".
+            if (!this.priorDetail()) {
+                this.priorDetail.set(detail);
+            }
+            this.archiveProgram.set(event.program);
+        } else {
+            // Live program clicked — clear any active archive state.
+            this.priorDetail.set(null);
+            this.archiveProgram.set(null);
+        }
+
         this.activeDetail.set(updatedDetail);
         if (this.shouldOpenExternalPlayback(updatedDetail, true)) {
             this.portalPlayer.openResolvedPlayback(updatedDetail.playback);
         }
+    }
+
+    returnToLive(): void {
+        const prior = this.priorDetail();
+        if (!prior) return;
+        this.priorDetail.set(null);
+        this.archiveProgram.set(null);
+        this.activeDetail.set(prior);
     }
 
     onClose(): void {
@@ -342,6 +380,7 @@ export class UnifiedLiveTabComponent {
         this.activeDetail.set(null);
         this.activeUid.set(null);
         this.catchupService.activeItem.set(null);
+        this.priorDetail.set(null);
     }
 
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
