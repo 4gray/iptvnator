@@ -4,7 +4,7 @@
     "sourceRoot": "libs/workspace/shell/util/src",
     "prefix": "lib",
     "projectType": "library",
-    "tags": ["scope:workspace", "domain:workspace", "type:util"],
+    "tags": ["scope:workspace", "domain:workspace", "type:data-access"],
     "targets": {
         "test": {
             "executor": "@nx/jest:jest",
