@@ -389,7 +389,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 this.store.dispatch(
                     EpgActions.setCurrentEpgProgram({ program: currentProgram })
                 );
-            } else {
+            } else if (!this.activePlaybackUrl()) {
+                // No live programme right now. Only clear stale EPG state when
+                // NOT in catch-up/timeshift: resetActiveEpgProgram also nulls
+                // activePlaybackUrl, so firing it on every 30s tick would knock
+                // the user out of an in-progress archive playback whenever the
+                // channel has an EPG gap at the current clock time.
                 this.store.dispatch(EpgActions.resetActiveEpgProgram());
             }
         });

@@ -929,6 +929,38 @@ describe('VideoPlayerComponent', () => {
             })
         );
     });
+
+    it('does not reset active timeshift on the now-tick during an EPG gap', () => {
+        // In catch-up (activePlaybackUrl set) with programmes that don't cover
+        // "now", the 30s tick must NOT dispatch resetActiveEpgProgram — that
+        // reducer nulls activePlaybackUrl and would silently drop the user back
+        // to the live stream every 30 seconds.
+        syncStoreState(sampleChannel);
+        activePlaybackUrl.set('http://localhost/catchup.m3u8');
+        fixture.detectChanges();
+        storeMock.dispatch.mockClear();
+
+        epgPrograms$.next([buildProgram('Earlier')]); // no programme airing now
+        fixture.detectChanges();
+
+        expect(storeMock.dispatch).not.toHaveBeenCalledWith(
+            EpgActions.resetActiveEpgProgram()
+        );
+    });
+
+    it('still clears stale EPG state on the now-tick when playing live', () => {
+        syncStoreState(sampleChannel);
+        activePlaybackUrl.set(null); // live, not timeshift
+        fixture.detectChanges();
+        storeMock.dispatch.mockClear();
+
+        epgPrograms$.next([buildProgram('Earlier')]);
+        fixture.detectChanges();
+
+        expect(storeMock.dispatch).toHaveBeenCalledWith(
+            EpgActions.resetActiveEpgProgram()
+        );
+    });
 });
 
 function buildProgram(title: string): EpgProgram {
