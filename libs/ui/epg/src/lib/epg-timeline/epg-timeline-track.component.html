@@ -1,0 +1,134 @@
+@for (tick of ticks(); track tick.ms) {
+    <div class="epg-timeline__tick" [style.left.px]="tick.offsetMin * scale()">
+        <span>{{ tick.ms | date: 'HH:mm' }}</span>
+    </div>
+}
+@for (divider of dividers(); track divider.ms) {
+    <div
+        class="epg-timeline__daydiv"
+        [style.left.px]="divider.offsetMin * scale()"
+    >
+        <span>{{
+            divider.dayMs | date: 'EEE d MMM' : '' : currentLocale()
+        }}</span>
+    </div>
+}
+
+@for (item of items(); track item.key) {
+    @if (item.kind === 'group') {
+        <button
+            type="button"
+            class="epg-timeline__group"
+            [style.left.px]="item.leftPx"
+            [style.width.px]="item.widthPx"
+            (click)="groupExpand.emit(item)"
+        >
+            <span class="epg-timeline__group-count">{{ item.count }}</span>
+            <span class="epg-timeline__group-label">{{
+                'EPG.TIMELINE.GROUP_SHORT' | translate
+            }}</span>
+            <span class="epg-timeline__group-hint">{{
+                'EPG.TIMELINE.GROUP_EXPAND' | translate
+            }}</span>
+        </button>
+    } @else {
+        <div
+            class="epg-timeline__block"
+            [attr.data-tier]="item.tier"
+            [class.is-past]="item.block.when === 'past'"
+            [class.is-now]="item.block.when === 'now'"
+            [class.is-future]="item.block.when === 'future'"
+            [class.is-playing]="isPlaying(item)"
+            [class.is-selected]="isSelected(item)"
+            [class.is-short]="item.block.durationMin < 10"
+            [style.left.px]="item.leftPx"
+            [style.width.px]="item.widthPx"
+            (click)="blockClick.emit(item.block)"
+            (keydown.enter)="onBlockActivate($event, item.block)"
+            (mouseenter)="onBlockEnter(item, $event)"
+            (mouseleave)="onBlockLeave()"
+            (focusin)="onBlockEnter(item, $event)"
+            (focusout)="onBlockLeave()"
+            tabindex="0"
+            role="button"
+            [attr.aria-label]="item.block.program.title"
+        >
+            @if (item.block.when === 'now') {
+                <div
+                    class="epg-timeline__fill epg-timeline__fill--live"
+                    [style.width.%]="item.nowFillPercent"
+                ></div>
+            }
+
+            <div class="epg-timeline__block-top">
+                <div class="epg-timeline__block-time">
+                    {{ item.block.startMs | date: 'HH:mm' }} –
+                    {{ item.block.stopMs | date: 'HH:mm' }}
+                </div>
+                <div class="epg-timeline__block-title">
+                    {{ item.block.program.title }}
+                </div>
+                @if (item.tier === 'wide' && item.block.program.desc) {
+                    <p class="epg-timeline__block-desc">
+                        {{ item.block.program.desc }}
+                    </p>
+                }
+            </div>
+
+            <div class="epg-timeline__block-foot">
+                @if (item.block.when === 'now') {
+                    <span class="epg-timeline__tag is-now">{{
+                        'EPG.TIMELINE.ON_NOW' | translate
+                    }}</span>
+                } @else if (isPlaying(item)) {
+                    <span class="epg-timeline__tag is-arch">{{
+                        'EPG.TIMELINE.FROM_ARCHIVE' | translate
+                    }}</span>
+                } @else if (item.canCatchUp) {
+                    <button
+                        type="button"
+                        class="epg-timeline__watch"
+                        (click)="watchClick.emit(item.block); $event.stopPropagation()"
+                    >
+                        <mat-icon>replay</mat-icon>
+                        {{ 'EPG.TIMELINE.WATCH' | translate }}
+                    </button>
+                }
+            </div>
+
+            <button
+                type="button"
+                class="epg-timeline__info"
+                [attr.aria-label]="
+                    'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                "
+                (click)="infoClick.emit(item.block); $event.stopPropagation()"
+            >
+                <mat-icon>info_outline</mat-icon>
+            </button>
+        </div>
+    }
+}
+
+<div class="epg-timeline__playhead" [style.left.px]="playheadLeftPx()">
+    <span>{{ nowLabel() }}</span>
+</div>
+
+@let pop = popover();
+@if (pop) {
+    <div
+        class="epg-timeline__pop"
+        [style.left.px]="pop.left"
+        [style.top.px]="pop.top"
+        role="tooltip"
+    >
+        <div class="epg-timeline__pop-time">
+            {{ pop.startMs | date: 'HH:mm' }} – {{ pop.stopMs | date: 'HH:mm' }} ·
+            {{ pop.durationMin }} {{ 'EPG.TIMELINE.MINUTES_SHORT' | translate }}
+        </div>
+        <div class="epg-timeline__pop-title">{{ pop.title }}</div>
+        @if (pop.desc) {
+            <div class="epg-timeline__pop-desc">{{ pop.desc }}</div>
+        }
+    </div>
+}

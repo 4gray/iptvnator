@@ -12,10 +12,13 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import { ChannelDetailsDialogComponent } from '../channel-details-dialog/channel-details-dialog.component';
 import { resolveChannelLogo } from '../channel-logo-fallback.util';
+import {
+    calculateEpgProgress,
+    resolveChannelEpgProgram,
+} from '../epg-enrichment.util';
 import { ChannelListItemComponent } from '../channel-list-item/channel-list-item.component';
 
 export interface RecentViewItem {
@@ -82,34 +85,17 @@ export class RecentViewComponent {
         this.progressTick();
 
         return recentItems.map(({ channel, viewedAt }) => {
-            const channelId = resolveChannelEpgLookupKey(channel);
-            const epgProgram = channelId ? epgMap.get(channelId) : null;
+            const epgProgram = resolveChannelEpgProgram(channel, epgMap);
 
             return {
                 channel,
                 viewedAt,
                 epgProgram,
                 logo: resolveChannelLogo(channel, iconMap),
-                progressPercentage: this.calculateProgress(epgProgram),
+                progressPercentage: calculateEpgProgress(epgProgram),
             };
         });
     });
-
-    private calculateProgress(
-        epgProgram: EpgProgram | null | undefined
-    ): number {
-        if (!epgProgram) {
-            return 0;
-        }
-
-        const now = new Date().getTime();
-        const start = new Date(epgProgram.start).getTime();
-        const stop = new Date(epgProgram.stop).getTime();
-        const total = stop - start;
-        const elapsed = now - start;
-
-        return Math.min(100, Math.max(0, (elapsed / total) * 100));
-    }
 
     trackByFn(_: number, item: RecentViewItem): string {
         return item.channel?.url;

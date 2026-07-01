@@ -12,7 +12,7 @@ import {
     inject,
     signal,
 } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -21,21 +21,27 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
+import {
+    getM3uArchiveDays,
+    isM3uCatchupPlaybackSupported,
+} from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     COMPONENT_OVERLAY_REF,
     EpgDateNavigationDirection,
-    EpgListComponent,
+    EpgProgramActivationEvent,
+    EpgTimelineComponent,
     getTodayEpgDateKey,
     MultiEpgContainerComponent,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
+import { EpgService } from '@iptvnator/epg/data-access';
 import {
     ChannelActions,
     EpgActions,
     PlaylistActions,
     buildExternalPlayerPayload,
+    resolveChannelEpgLookupKey,
     selectActive,
     selectActiveEpgProgram,
     selectActivePlaybackUrl,
@@ -47,10 +53,13 @@ import {
     firstValueFrom,
     Observable,
     Subscription,
+    catchError,
     combineLatest,
     filter,
     map,
+    of,
     startWith,
+    switchMap,
     take,
 } from 'rxjs';
 import {
@@ -74,10 +83,7 @@ import {
     SidebarComponent,
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
-import {
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
+import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import { ChannelListLoadingStateComponent } from '@iptvnator/ui/components';
 import {
     DataService,
@@ -116,8 +122,7 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
         AudioPlayerComponent,
         ChannelListLoadingStateComponent,
         CommonModule,
-        EpgListComponent,
-        LiveEpgPanelComponent,
+        EpgTimelineComponent,
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
@@ -141,6 +146,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
     private readonly storage = inject(StorageMap);
     private readonly store = inject(Store);
+    private readonly epgService = inject(EpgService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService
@@ -164,6 +170,46 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
+    /** Full multi-day programme window for the active channel (timeline). */
+    readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
+        initialValue: [] as EpgProgram[],
+    });
+    // Shared helper skips blank strings (`tvg-rec=""` is a common default that
+    // `??` would not fall through), so a channel with only `timeshift`/
+    // `catchup-days` still gets its real window instead of 0 (unbounded).
+    readonly epgArchiveDays = computed(() =>
+        getM3uArchiveDays(this.activeChannel())
+    );
+    readonly timelineChannelName = computed(
+        () => this.activeChannel()?.name ?? ''
+    );
+    /** Channel logo from the EPG feed (M3U playlists often lack tvg-logo). */
+    private readonly epgChannelLogo = toSignal(
+        toObservable(this.activeChannel).pipe(
+            switchMap((channel) => {
+                const key = channel
+                    ? resolveChannelEpgLookupKey(channel)
+                    : '';
+                if (!key) {
+                    return of('');
+                }
+                return this.epgService
+                    .getChannelMetadataForChannels([key])
+                    .pipe(
+                        map(
+                            (metadata) =>
+                                metadata.get(key)?.iconUrl?.trim() || ''
+                        ),
+                        catchError(() => of(''))
+                    );
+            })
+        ),
+        { initialValue: '' }
+    );
+    readonly timelineChannelLogo = computed(
+        () => this.activeChannel()?.tvg?.logo?.trim() || this.epgChannelLogo()
+    );
+    private readonly epgNowMs = signal(Date.now());
     readonly playbackChannel = computed<Channel | null>(() => {
         const activeChannel = this.activeChannel();
         if (!activeChannel) {
@@ -307,6 +353,50 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
                 player: this.settingsStore.player(),
                 showCaptions: this.settingsStore.showCaptions(),
             };
+        });
+
+        // Keep "now" fresh so EPG state re-evaluates over time.
+        effect((onCleanup) => {
+            const intervalId = window.setInterval(
+                () => this.epgNowMs.set(Date.now()),
+                30_000
+            );
+            onCleanup(() => clearInterval(intervalId));
+        });
+
+        // Mirror the legacy uncontrolled epg-list store side effects so the
+        // toolbar, summary and diagnostics keep reflecting the live programme.
+        effect(() => {
+            const channel = this.activeChannel();
+            const nowMs = this.epgNowMs();
+
+            // The old uncontrolled <app-epg-list> only existed (and only
+            // dispatched these) while a non-radio channel was active and EPG
+            // was supported. Outside that window it dispatched nothing, so the
+            // flag/current-program held their last value. Preserve that to
+            // avoid clobbering EPG state on radio/no-channel.
+            if (!channel || channel.radio === 'true' || !this.supportsEpg) {
+                return;
+            }
+
+            const programs = this.epgPrograms();
+            this.store.dispatch(
+                EpgActions.setEpgAvailableFlag({ value: programs.length > 0 })
+            );
+
+            const currentProgram = findCurrentEpgProgram(programs, nowMs);
+            if (currentProgram) {
+                this.store.dispatch(
+                    EpgActions.setCurrentEpgProgram({ program: currentProgram })
+                );
+            } else if (!this.activePlaybackUrl()) {
+                // No live programme right now. Only clear stale EPG state when
+                // NOT in catch-up/timeshift: resetActiveEpgProgram also nulls
+                // activePlaybackUrl, so firing it on every 30s tick would knock
+                // the user out of an in-progress archive playback whenever the
+                // channel has an EPG gap at the current clock time.
+                this.store.dispatch(EpgActions.resetActiveEpgProgram());
+            }
         });
 
         effect(() => {
@@ -559,6 +649,16 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
 
     returnToLivePlayback(): void {
         this.store.dispatch(EpgActions.returnToLivePlayback());
+    }
+
+    onTimelineProgramActivated(event: EpgProgramActivationEvent): void {
+        if (event.type === 'live') {
+            this.returnToLivePlayback();
+            return;
+        }
+        this.store.dispatch(
+            EpgActions.setActiveEpgProgram({ program: event.program })
+        );
     }
 
     /**
@@ -943,4 +1043,22 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             run: () => this.openMultiEpgView(),
         });
     }
+}
+
+function findCurrentEpgProgram(
+    programs: EpgProgram[],
+    nowMs: number
+): EpgProgram | undefined {
+    return programs.find((program) => {
+        const start = epgTimeMs(program.start, program.startTimestamp);
+        const stop = epgTimeMs(program.stop, program.stopTimestamp);
+        return nowMs >= start && nowMs <= stop;
+    });
+}
+
+function epgTimeMs(isoValue: string, timestamp?: number | null): number {
+    if (Number.isFinite(timestamp) && Number(timestamp) > 0) {
+        return Number(timestamp) * 1000;
+    }
+    return Date.parse(isoValue);
 }

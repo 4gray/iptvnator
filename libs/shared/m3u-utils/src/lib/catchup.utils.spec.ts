@@ -66,6 +66,20 @@ describe('catchup.utils', () => {
         ).toBe(7);
     });
 
+    it('skips a blank tvg-rec and uses a real timeshift value', () => {
+        // `tvg-rec=""` is a common parser default; a nullish (`??`) chain would
+        // stop on it and yield 0 (unbounded window). The non-blank helper skips
+        // it and returns the real timeshift days.
+        expect(
+            getM3uArchiveDays({
+                ...baseChannel,
+                catchup: undefined,
+                timeshift: '7',
+                tvg: { ...baseChannel.tvg, rec: '' },
+            })
+        ).toBe(7);
+    });
+
     it('supports legacy same-stream shift playback when catchup type is shift', () => {
         expect(isM3uCatchupPlaybackSupported(baseChannel)).toBe(true);
         expect(resolveM3uCatchupUrl(baseChannel, archivedProgram, 1_775_820_000))

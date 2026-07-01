@@ -108,40 +108,12 @@
         @if (supportsEpg) {
             <div
                 class="epg"
+                [class.epg--inline]="isEmbeddedPlayer"
                 [class.epg-collapsed]="
                     isEmbeddedPlayer && isLiveEpgPanelCollapsed()
                 "
             >
-                @if (isEmbeddedPlayer) {
-                    <app-live-epg-panel
-                        [collapsed]="isLiveEpgPanelCollapsed()"
-                        [summary]="liveEpgPanelSummary()"
-                        [loading]="isLoadingEpg()"
-                        [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
-                        [showDateNavigator]="true"
-                        [selectedDate]="selectedLiveEpgDate()"
-                        [showReturnToLive]="showReturnToLive()"
-                        (collapsedChange)="
-                            onLiveEpgPanelCollapsedChange($event)
-                        "
-                        (dateNavigation)="onLiveEpgDateNavigation($event)"
-                        (returnToLive)="returnToLivePlayback()"
-                    >
-                        <ng-container
-                            *ngTemplateOutlet="
-                                epgPanelContent;
-                                context: { unifiedDateNavigator: true }
-                            "
-                        />
-                    </app-live-epg-panel>
-                } @else {
-                    <ng-container
-                        *ngTemplateOutlet="
-                            epgPanelContent;
-                            context: { unifiedDateNavigator: false }
-                        "
-                    />
-                }
+                <ng-container *ngTemplateOutlet="epgPanelContent" />
             </div>
         }
     } @else if (!showLiveChannelSidebar()) {
@@ -198,49 +170,26 @@
     }
 </div>
 
-<ng-template #epgPanelContent let-unifiedDateNavigator="unifiedDateNavigator">
+<ng-template #epgPanelContent>
     <div class="epg-content">
-        @if (isLoadingEpg()) {
-            <div class="loading-indicator">
-                <mat-spinner diameter="24" />
-            </div>
-        } @else if (isElectron && controlledEpgPrograms().length > 0) {
-            @if (showArchiveUnavailableNotice()) {
-                <div class="archive-unavailable-banner" role="status">
-                    <div class="archive-unavailable-banner__title">
-                        {{
-                            'EPG.ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE' | translate
-                        }}
-                    </div>
-                    <div class="archive-unavailable-banner__description">
-                        {{
-                            'EPG.ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION'
-                                | translate
-                        }}
-                    </div>
-                </div>
-            }
-            <app-epg-list
-                [controlledPrograms]="controlledEpgPrograms()"
-                [controlledArchiveDays]="controlledArchiveDays()"
-                [archivePlaybackAvailable]="archivePlaybackAvailable()"
-                [activeProgram]="activeCatchupProgram()"
-                [selectedDate]="
-                    unifiedDateNavigator ? selectedLiveEpgDate() : null
-                "
-                [showDateNavigator]="!unifiedDateNavigator"
-                (programActivated)="onProgramActivated($event)"
-                (selectedDateChange)="
-                    unifiedDateNavigator && onLiveEpgSelectedDateChange($event)
-                "
-            />
-        } @else if (!isElectron && epgItems().length > 0) {
-            <app-epg-view [epgItems]="epgItems()" />
-        } @else {
-            <app-portal-empty-state
-                icon="event_busy"
-                [message]="'EPG.EPG_NOT_AVAILABLE_CHANNEL_TITLE' | translate"
-            />
-        }
+        <app-epg-timeline
+            [programs]="controlledEpgPrograms()"
+            [channelName]="activePlayback()?.title ?? ''"
+            [channelLogo]="activePlayback()?.thumbnail ?? ''"
+            [sourceLabel]="'Xtream'"
+            [archivePlaybackAvailable]="archivePlaybackAvailable()"
+            [archiveDays]="controlledArchiveDays()"
+            [activeProgram]="activeCatchupProgram()"
+            [isLivePlayback]="!showReturnToLive()"
+            [loading]="isLoadingEpg()"
+            [selectedDate]="selectedLiveEpgDate()"
+            [collapsed]="usesEmbeddedPlayer() && isLiveEpgPanelCollapsed()"
+            [summary]="liveEpgPanelSummary()"
+            [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
+            (programActivated)="onProgramActivated($event)"
+            (returnToLive)="returnToLivePlayback()"
+            (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
+            (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
+        />
     </div>
 </ng-template>

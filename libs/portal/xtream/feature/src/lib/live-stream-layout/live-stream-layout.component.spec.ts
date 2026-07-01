@@ -23,13 +23,12 @@ import {
     XtreamStore,
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
-import { EpgListComponent, EpgProgramActivationEvent } from '@iptvnator/ui/epg';
-import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import {
-    EpgViewComponent,
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
+    EpgProgramActivationEvent,
+    EpgTimelineComponent,
+    EpgTimelineSummary,
+} from '@iptvnator/ui/epg';
+import { WebPlayerViewComponent } from '@iptvnator/ui/playback';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
 import { GridListComponent } from '@iptvnator/portal/shared/ui';
 import { PortalChannelsListComponent } from '../portal-channels-list/portal-channels-list.component';
@@ -85,58 +84,31 @@ class StubWebPlayerViewComponent {
 }
 
 @Component({
-    selector: 'app-epg-view',
-    standalone: true,
-    template: '',
-})
-class StubEpgViewComponent {
-    readonly epgItems = input<EpgItem[]>([]);
-}
-
-@Component({
-    selector: 'app-epg-list',
-    standalone: true,
-    template: '',
-})
-class StubEpgListComponent {
-    readonly controlledPrograms = input<EpgProgram[] | null>(null);
-    readonly controlledArchiveDays = input<number | null>(null);
-    readonly archivePlaybackAvailable = input<boolean | null>(null);
-    readonly activeProgram = input<EpgProgram | null>(null);
-    readonly selectedDate = input<string | null>(null);
-    readonly showDateNavigator = input(true);
-    readonly programActivated = output<EpgProgramActivationEvent>();
-    readonly selectedDateChange = output<string>();
-}
-
-@Component({
-    selector: 'app-live-epg-panel',
+    selector: 'app-epg-timeline',
     standalone: true,
     template: `
         <div class="live-epg-panel-label">{{ summaryLabelKey() }}</div>
         <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
-        <button
-            class="live-epg-panel-return"
-            type="button"
-            [hidden]="!showReturnToLive()"
-            (click)="returnToLive.emit()"
-        >
-            Return to live
-        </button>
-        <ng-content />
     `,
 })
-class StubLiveEpgPanelComponent {
-    readonly collapsed = input(false);
-    readonly summary = input<LiveEpgPanelSummary | null>(null);
+class StubEpgTimelineComponent {
+    readonly programs = input<EpgProgram[]>([]);
+    readonly channelName = input('');
+    readonly channelLogo = input('');
+    readonly sourceLabel = input('');
+    readonly archivePlaybackAvailable = input(false);
+    readonly archiveDays = input(0);
+    readonly activeProgram = input<EpgProgram | null>(null);
+    readonly isLivePlayback = input(true);
     readonly loading = input(false);
-    readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
-    readonly showDateNavigator = input(false);
     readonly selectedDate = input<string | null>(null);
-    readonly showReturnToLive = input(false);
-    readonly collapsedChange = output<boolean>();
-    readonly dateNavigation = output<'next' | 'prev'>();
+    readonly collapsed = input(false);
+    readonly summary = input<EpgTimelineSummary | null>(null);
+    readonly summaryLabelKey = input('');
+    readonly programActivated = output<EpgProgramActivationEvent>();
     readonly returnToLive = output<void>();
+    readonly selectedDateChange = output<string>();
+    readonly collapsedChange = output<boolean>();
 }
 
 @Directive({
@@ -329,9 +301,7 @@ describe('LiveStreamLayoutComponent', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
-                        EpgListComponent,
-                        EpgViewComponent,
-                        LiveEpgPanelComponent,
+                        EpgTimelineComponent,
                         GridListComponent,
                         PortalChannelsListComponent,
                         ResizableDirective,
@@ -341,9 +311,7 @@ describe('LiveStreamLayoutComponent', () => {
                 },
                 add: {
                     imports: [
-                        StubEpgListComponent,
-                        StubEpgViewComponent,
-                        StubLiveEpgPanelComponent,
+                        StubEpgTimelineComponent,
                         StubGridListComponent,
                         StubPortalChannelsListComponent,
                         StubResizableDirective,
@@ -387,9 +355,8 @@ describe('LiveStreamLayoutComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector('app-epg-list')
+            fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('hides the EPG panel in browser/PWA playback', () => {
@@ -407,10 +374,8 @@ describe('LiveStreamLayoutComponent', () => {
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
         expect(
-            fixture.nativeElement.querySelector('app-live-epg-panel')
+            fixture.nativeElement.querySelector('app-epg-timeline')
         ).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('restores the collapsed live EPG panel state for embedded playback', () => {
@@ -423,6 +388,10 @@ describe('LiveStreamLayoutComponent', () => {
         fixture.detectChanges();
 
         expect(component.isLiveEpgPanelCollapsed()).toBe(true);
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.collapsed()).toBe(true);
         expect(
             fixture.nativeElement
                 .querySelector('.epg')
@@ -430,30 +399,39 @@ describe('LiveStreamLayoutComponent', () => {
         ).toBe(true);
     });
 
-    it('persists live EPG panel toggle changes', () => {
-        component.onLiveEpgPanelCollapsedChange(true);
+    it('persists live EPG panel toggle changes from the timeline', () => {
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        timeline.componentInstance.collapsedChange.emit(true);
 
         expect(component.isLiveEpgPanelCollapsed()).toBe(true);
         expect(localStorage.getItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY)).toBe(
             'collapsed'
         );
 
-        component.onLiveEpgPanelCollapsedChange(false);
+        timeline.componentInstance.collapsedChange.emit(false);
 
+        expect(component.isLiveEpgPanelCollapsed()).toBe(false);
         expect(localStorage.getItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY)).toBe(
             'expanded'
         );
     });
 
-    it('does not render the collapsible panel for external playback', () => {
+    it('keeps the EPG timeline expanded for external playback', () => {
         portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
 
         component.playLive(sampleChannel);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('app-live-epg-panel')
-        ).toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline).not.toBeNull();
+        expect(timeline.componentInstance.collapsed()).toBe(false);
         expect(
             fixture.nativeElement
                 .querySelector('.epg')
@@ -821,20 +799,20 @@ describe('LiveStreamLayoutComponent', () => {
         });
         fixture.detectChanges();
 
-        const panel = fixture.debugElement.query(
-            By.directive(StubLiveEpgPanelComponent)
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
         );
-        expect(panel.componentInstance.summary()).toEqual(
+        expect(timeline.componentInstance.summary()).toEqual(
             expect.objectContaining({
                 title: 'Archived Show',
                 start: '2026-04-04T10:00:00.000Z',
                 stop: '2026-04-04T11:00:00.000Z',
             })
         );
-        expect(panel.componentInstance.summaryLabelKey()).toBe(
+        expect(timeline.componentInstance.summaryLabelKey()).toBe(
             'EPG.ARCHIVE_PLAYBACK'
         );
-        expect(panel.componentInstance.showReturnToLive()).toBe(true);
+        expect(timeline.componentInstance.isLivePlayback()).toBe(false);
         expect(
             fixture.nativeElement.querySelector('.live-epg-panel-summary')
                 .textContent
@@ -872,10 +850,10 @@ describe('LiveStreamLayoutComponent', () => {
         });
         fixture.detectChanges();
 
-        const panel = fixture.debugElement.query(
-            By.directive(StubLiveEpgPanelComponent)
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
         );
-        panel.componentInstance.returnToLive.emit();
+        timeline.componentInstance.returnToLive.emit();
         fixture.detectChanges();
 
         expect(component.activeCatchupProgram()).toBeNull();
@@ -885,11 +863,11 @@ describe('LiveStreamLayoutComponent', () => {
                 isLive: true,
             })
         );
-        expect(panel.componentInstance.summary()?.title).toBe('Current Show');
-        expect(panel.componentInstance.summaryLabelKey()).toBe(
+        expect(timeline.componentInstance.summary()?.title).toBe('Current Show');
+        expect(timeline.componentInstance.summaryLabelKey()).toBe(
             'EPG.CURRENT_PROGRAM'
         );
-        expect(panel.componentInstance.showReturnToLive()).toBe(false);
+        expect(timeline.componentInstance.isLivePlayback()).toBe(true);
     });
 
     it('publishes the active archive program in remote-control status', async () => {
@@ -959,18 +937,20 @@ describe('LiveStreamLayoutComponent', () => {
         });
         fixture.detectChanges();
 
-        let epgList = fixture.debugElement.query(
-            By.directive(StubEpgListComponent)
+        let epgTimeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
         );
-        expect(epgList.componentInstance.activeProgram()).toEqual(
+        expect(epgTimeline.componentInstance.activeProgram()).toEqual(
             archivedProgram
         );
 
         component.playLive(sampleChannel);
         fixture.detectChanges();
 
-        epgList = fixture.debugElement.query(By.directive(StubEpgListComponent));
-        expect(epgList.componentInstance.activeProgram()).toBeNull();
+        epgTimeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(epgTimeline.componentInstance.activeProgram()).toBeNull();
     });
 
     it('starts external playback from remote channel navigation when double-click opening is enabled', () => {
@@ -1025,9 +1005,12 @@ describe('LiveStreamLayoutComponent', () => {
         component.playLive(nonArchiveChannel);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.archive-unavailable-banner')
-        ).not.toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(
+            false
+        );
     });
 
     it('hides the archive-unavailable notice when archive playback is available', () => {
@@ -1050,9 +1033,10 @@ describe('LiveStreamLayoutComponent', () => {
         component.playLive(sampleChannel);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.archive-unavailable-banner')
-        ).toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(true);
     });
 
     it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {
@@ -1221,9 +1205,12 @@ describe('LiveStreamLayoutComponent', () => {
         component.playLive(nonArchiveChannel);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector('.archive-unavailable-banner')
-        ).toBeNull();
+        const timeline = fixture.debugElement.query(
+            By.directive(StubEpgTimelineComponent)
+        );
+        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(
+            false
+        );
     });
 });
 

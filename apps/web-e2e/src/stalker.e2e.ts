@@ -238,8 +238,7 @@ test('@stalker PWA hides EPG for ITV channel', async ({ page }) => {
     await expect(page.locator('app-web-player-view')).toBeVisible({
         timeout: 20_000,
     });
-    await expect(page.locator('app-epg-list')).toHaveCount(0);
-    await expect(page.locator('app-live-epg-panel')).toHaveCount(0);
+    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgInfoRequests).toHaveLength(0);
     expect(shortEpgRequests).toHaveLength(0);
 });
@@ -292,7 +291,7 @@ test('@stalker radio — stations use the inline audio player without EPG', asyn
     await restoreButton.click();
     await expect(stations.first()).toBeVisible();
 
-    await expect(page.locator('app-epg-list')).toHaveCount(0);
+    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgRequests).toHaveLength(0);
 });
 
@@ -325,11 +324,11 @@ test('@stalker PWA skips bulk EPG across channel switches', async ({
 
     await channels.first().click();
     await expect(channels.first()).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-list')).toHaveCount(0);
+    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
 
     await channels.nth(1).click();
     await expect(channels.nth(1)).toHaveClass(/active/, { timeout: 20_000 });
-    await expect(page.locator('app-epg-list')).toHaveCount(0);
+    await expect(page.locator('app-epg-timeline')).toHaveCount(0);
     expect(epgInfoRequests).toHaveLength(0);
     expect(shortEpgRequests).toHaveLength(0);
 });

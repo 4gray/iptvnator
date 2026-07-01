@@ -140,37 +140,12 @@
             @let canCollapseEpgPanel = !!streamUrl() && isEmbeddedPlayer;
             <div
                 class="epg"
+                [class.epg--inline]="canCollapseEpgPanel"
                 [class.epg-collapsed]="
                     canCollapseEpgPanel && isLiveEpgPanelCollapsed()
                 "
             >
-                @if (canCollapseEpgPanel) {
-                    <app-live-epg-panel
-                        [collapsed]="isLiveEpgPanelCollapsed()"
-                        [summary]="liveEpgPanelSummary()"
-                        [loading]="isLoadingEpg()"
-                        [showDateNavigator]="true"
-                        [selectedDate]="selectedLiveEpgDate()"
-                        (collapsedChange)="
-                            onLiveEpgPanelCollapsedChange($event)
-                        "
-                        (dateNavigation)="onLiveEpgDateNavigation($event)"
-                    >
-                        <ng-container
-                            *ngTemplateOutlet="
-                                epgPanelContent;
-                                context: { unifiedDateNavigator: true }
-                            "
-                        />
-                    </app-live-epg-panel>
-                } @else {
-                    <ng-container
-                        *ngTemplateOutlet="
-                            epgPanelContent;
-                            context: { unifiedDateNavigator: false }
-                        "
-                    />
-                }
+                <ng-container *ngTemplateOutlet="epgPanelContent" />
             </div>
         }
     } @else {
@@ -181,25 +156,26 @@
     }
 </div>
 
-<ng-template #epgPanelContent let-unifiedDateNavigator="unifiedDateNavigator">
+<ng-template #epgPanelContent>
     <div class="epg-content">
-        @if (isLoadingEpg()) {
-            <div class="loading-indicator">
-                <mat-spinner diameter="24" />
-            </div>
-        } @else {
-            <app-epg-list
-                [controlledChannel]="controlledChannel()"
-                [controlledPrograms]="activeEpgPrograms()"
-                [controlledArchiveDays]="0"
-                [selectedDate]="
-                    unifiedDateNavigator ? selectedLiveEpgDate() : null
-                "
-                [showDateNavigator]="!unifiedDateNavigator"
-                (selectedDateChange)="
-                    unifiedDateNavigator && onLiveEpgSelectedDateChange($event)
-                "
-            />
-        }
+        <app-epg-timeline
+            [programs]="activeEpgPrograms()"
+            [channelName]="controlledChannel()?.name ?? activePlaybackTitle()"
+            [channelLogo]="activePlaybackArtwork()"
+            [sourceLabel]="'Stalker Portal'"
+            [archivePlaybackAvailable]="false"
+            [archiveDays]="0"
+            [loading]="isLoadingEpg()"
+            [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
+            [selectedDate]="selectedLiveEpgDate()"
+            [collapsed]="
+                !!streamUrl() &&
+                usesEmbeddedPlayer() &&
+                isLiveEpgPanelCollapsed()
+            "
+            [summary]="liveEpgPanelSummary()"
+            (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
+            (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
+        />
     </div>
 </ng-template>

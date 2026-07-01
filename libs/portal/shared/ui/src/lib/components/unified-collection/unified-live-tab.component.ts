@@ -13,7 +13,10 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
-import { isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
+import {
+    getM3uArchiveDays,
+    isM3uCatchupPlaybackSupported,
+} from '@iptvnator/shared/m3u-utils';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -33,7 +36,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import {
     EpgDateNavigationDirection,
-    EpgListComponent,
+    EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
@@ -47,11 +50,7 @@ import {
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
-import {
-    EpgViewComponent,
-    LiveEpgPanelComponent,
-    LiveEpgPanelSummary,
-} from '@iptvnator/ui/shared-portals';
+import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 
 @Component({
     selector: 'app-unified-live-tab',
@@ -60,10 +59,8 @@ import {
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AudioPlayerComponent,
-        EpgListComponent,
-        EpgViewComponent,
+        EpgTimelineComponent,
         GlobalFavoritesListComponent,
-        LiveEpgPanelComponent,
         MatButtonModule,
         MatIconModule,
         MatProgressSpinnerModule,
@@ -143,6 +140,43 @@ export class UnifiedLiveTabComponent {
     });
     readonly currentM3uArchivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.currentM3uChannel())
+    );
+    /** Portal EPG items normalised to the timeline programme shape. */
+    readonly currentPortalEpgPrograms = computed<EpgProgram[]>(() =>
+        this.currentPortalEpgItems().map((item) => toEpgProgram(item))
+    );
+    readonly timelinePrograms = computed<EpgProgram[]>(() =>
+        this.isM3uSelection()
+            ? this.currentM3uPrograms()
+            : this.currentPortalEpgPrograms()
+    );
+    readonly timelineChannelName = computed(
+        () =>
+            this.currentM3uChannel()?.name ??
+            this.activeDetail()?.playback?.title ??
+            ''
+    );
+    readonly timelineChannelLogo = computed(
+        () =>
+            this.currentM3uChannel()?.tvg?.logo ??
+            this.activeDetail()?.playback?.thumbnail ??
+            ''
+    );
+    readonly timelineArchiveAvailable = computed(
+        () =>
+            this.isM3uSelection() && this.currentM3uArchivePlaybackAvailable()
+    );
+    /**
+     * Catch-up window (days) for the active M3U channel, so the timeline can
+     * gate "Watch" to programmes inside it. Without this the timeline defaults
+     * `archiveDays` to 0 (treated as unlimited) and offers catch-up on
+     * programmes older than the channel's real `catchup-days`/`timeshift`/
+     * `tvg-rec` window. 0 for portal selections (archive is M3U-only here).
+     */
+    readonly timelineArchiveDays = computed(() =>
+        this.timelineArchiveAvailable()
+            ? getM3uArchiveDays(this.currentM3uChannel())
+            : 0
     );
     readonly activeRadioChannel = computed(() => {
         const channel = this.activeDetail()?.channel ?? null;
@@ -538,4 +572,23 @@ export class UnifiedLiveTabComponent {
         const parsedDate = Date.parse(rawDate ?? '');
         return Number.isFinite(parsedDate) ? parsedDate : null;
     }
+}
+
+/** Normalise a portal EPG item into the flat timeline programme shape. */
+function toEpgProgram(item: EpgItem): EpgProgram {
+    return {
+        start: item.start,
+        stop: item.stop ?? item.end,
+        channel: item.channel_id ?? item.id,
+        title: item.title,
+        desc: item.description ?? null,
+        category: null,
+        startTimestamp: toTimestampSeconds(item.start_timestamp),
+        stopTimestamp: toTimestampSeconds(item.stop_timestamp),
+    };
+}
+
+function toTimestampSeconds(value: string | null | undefined): number | null {
+    const parsed = Number.parseInt(String(value ?? ''), 10);
+    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
