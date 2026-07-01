@@ -21,7 +21,10 @@ import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
-import { isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
+import {
+    getM3uArchiveDays,
+    isM3uCatchupPlaybackSupported,
+} from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     COMPONENT_OVERLAY_REF,
@@ -171,12 +174,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
     });
-    readonly epgArchiveDays = computed(() => {
-        const channel = this.activeChannel();
-        const value =
-            channel?.tvg?.rec ?? channel?.timeshift ?? channel?.catchup?.days;
-        return Math.max(0, Number(value ?? 0) || 0);
-    });
+    // Shared helper skips blank strings (`tvg-rec=""` is a common default that
+    // `??` would not fall through), so a channel with only `timeshift`/
+    // `catchup-days` still gets its real window instead of 0 (unbounded).
+    readonly epgArchiveDays = computed(() =>
+        getM3uArchiveDays(this.activeChannel())
+    );
     readonly timelineChannelName = computed(
         () => this.activeChannel()?.name ?? ''
     );
