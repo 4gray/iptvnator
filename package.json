@@ -103,6 +103,7 @@
         "lodash": "4.18.1",
         "marked": "18.0.5",
         "mpegts.js": "1.8.0",
+        "ms": "2.1.3",
         "ngx-indexed-db": "21.0.0",
         "ngx-skeleton-loader": "11.3.0",
         "rxjs": "7.8.2",

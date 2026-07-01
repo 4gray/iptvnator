@@ -3,9 +3,10 @@ import { createRequire } from 'module';
 import path from 'path';
 
 import { buildElectronBuilderMetadata } from './generate-electron-builder-metadata.mjs';
+import { inspectPackagedDependencyClosure } from './asar-dependency-closure.mjs';
 
 const require = createRequire(import.meta.url);
-const { extractFile } = require('@electron/asar');
+const { extractFile, listPackage } = require('@electron/asar');
 const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
@@ -547,6 +548,68 @@ function verifySnapPackagingConfig(errors) {
     }
 }
 
+function verifyPackagedDependencyClosure(resourceDir, errors) {
+    const asarPath = path.join(resourceDir, 'app.asar');
+
+    if (!fileExists(asarPath)) {
+        // Missing archive is already reported by verifyPackagedPackageMetadata.
+        return;
+    }
+
+    let inspection;
+
+    try {
+        inspection = inspectPackagedDependencyClosure(asarPath, {
+            listPackage,
+            extractFile,
+        });
+    } catch (error) {
+        errors.push(
+            `Unable to inspect packaged app archive ${asarPath}: ${error.message}`
+        );
+        return;
+    }
+
+    const { missing, packageCount, manifestReadFailures } = inspection;
+
+    // A packaged app always ships node_modules, so an empty audit means the
+    // guard itself failed (e.g. path-separator handling), not a healthy asar.
+    if (packageCount === 0) {
+        errors.push(
+            `Dependency-closure guard found no node_modules packages in ${asarPath}; the audit cannot have run against the real archive contents.`
+        );
+        return;
+    }
+
+    if (manifestReadFailures.length > 0) {
+        errors.push(
+            [
+                `Dependency-closure guard could not read ${manifestReadFailures.length} package manifest(s) in ${asarPath}:`,
+                ...manifestReadFailures.map(
+                    (failure) => `- ${failure.packageDir}: ${failure.message}`
+                ),
+            ].join('\n')
+        );
+    }
+
+    if (missing.length === 0) {
+        return;
+    }
+
+    const details = missing
+        .map((entry) => `- ${entry.dependency} (required by ${entry.requiredBy})`)
+        .join('\n');
+
+    errors.push(
+        [
+            `Packaged app.asar is missing runtime node_modules in ${asarPath}.`,
+            "electron-builder's pnpm collector likely dropped a deduplicated transitive dependency.",
+            'Fix it by declaring the missing package as a direct dependency in package.json (see issue #1103).',
+            details,
+        ].join('\n')
+    );
+}
+
 function verifyResourceDir(resourceDir) {
     const missingWorkers = workerFiles.filter(
         (workerFile) =>
@@ -563,6 +626,7 @@ function verifyResourceDir(resourceDir) {
     const errors = [];
 
     verifyPackagedPackageMetadata(resourceDir, errors);
+    verifyPackagedDependencyClosure(resourceDir, errors);
 
     if (missingWorkers.length > 0) {
         errors.push(
