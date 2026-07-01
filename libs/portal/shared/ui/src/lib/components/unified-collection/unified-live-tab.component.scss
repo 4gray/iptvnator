@@ -67,8 +67,7 @@
     display: flex;
     flex-direction: column;
 
-    > app-epg-view,
-    > app-epg-list {
+    > app-epg-timeline {
         flex: 1;
         min-height: 0;
     }

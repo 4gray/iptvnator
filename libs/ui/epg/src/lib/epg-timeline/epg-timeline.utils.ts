@@ -1,7 +1,7 @@
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { addDays, addMinutes, startOfDay } from 'date-fns';
 import { parseEpgDateKey } from '../epg-date';
-import { getProgramDateKey, getProgramTimeMs } from '../epg-list/epg-list.utils';
+import { getProgramDateKey, getProgramTimeMs } from '../epg-program.utils';
 
 export const TIMELINE_MINUTE_MS = 60_000;
 /** Pixels per minute on the ribbon (matches the prototype's SCALE). */

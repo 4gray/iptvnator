@@ -192,10 +192,8 @@
             "VALIDATING": "正在驗證入口網站..."
         },
         "FILTER_BY_NAME": "依名稱篩選",
-        "FILTER_BY_TYPE": "播放清單類型",
         "FILTER_AND_SORT": "篩選與排序",
         "SORT_PLAYLISTS": "排序播放清單",
-        "SORT_BY": "排序依據",
         "SORT_OPTIONS": {
             "NAME_ASC": "名稱（A-Z）",
             "NAME_DESC": "名稱（Z-A）",
@@ -483,7 +481,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "切換頻道列表 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "搜尋頻道",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上傳或選擇其他播放清單",
         "ALL_CHANNELS": "所有頻道",
         "GROUPS": "群組",
@@ -557,14 +554,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "打開頻道列表",
-        "TOGGLE_FAVORITE_FLAG": "切換我的最愛標記",
-        "OPEN_EPG_LIST": "開啟 EPG 列表",
-        "OPEN_MULTI_EPG": "開啟多 EPG 視圖",
-        "SHOW_INFO": "顯示節目資訊（按 I 鍵）"
+        "OPEN_MULTI_EPG": "開啟多 EPG 視圖"
     },
     "EPG": {
-        "TITLE": "電子節目指南",
         "NEXT_DAY": "下一天",
         "PREVIOUS_DAY": "上一天",
         "ZOOM_IN": "放大",
@@ -573,14 +565,9 @@
         "CLOSE_FILTER": "關閉篩選",
         "SEARCH_PROGRAMS": "搜尋節目",
         "CLOSE_PROGRAM_SEARCH": "關閉節目搜尋",
-        "LIVE_NOW": "現在播放",
         "LIVE_STREAM": "現場直播",
-        "TIMESHIFT_AVAILABLE": "時間平移功能可用，點選以播放",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "無法播放存檔內容",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "此供應商有提供本頻道的歷史節目表，但未提供可播放的存檔／Catchup 播放功能。",
-        "EPG_NOT_AVAILABLE_DATE": "抱歉，選擇的日期上 EPG 無法使用",
-        "NO_GUIDE_HINT": "嘗試其他日期或重新整理播放清單。",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "抱歉，此頻道上的 EPG 無法使用。",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "請在應用程式設定中增加/更改 EPG 列表的URL。",
         "FETCH_EPG": "取得 EPG 資料...",
         "ERROR": "抱歉，無法載入 EPG。",
@@ -615,7 +602,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "回看播放",
-        "RETURN_TO_LIVE": "返回直播",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +665,6 @@
     "MENU": {
         "OPEN": "開啟選單",
         "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
-        "SETTINGS": "設定",
         "SETTINGS_ARIA": "開啟設定",
         "BUG_REPORT": "回報問題",
         "WHAT_IS_NEW": "更新內容",
@@ -804,10 +789,7 @@
             "SEARCH": "搜尋",
             "RECENT": "最近觀看",
             "RECENTLY_ADDED": "最近新增",
-            "FAVORITES": "我的最愛",
-            "HOME": "首頁",
-            "PLAYLIST_INFO": "播放清單資訊",
-            "ACCOUNT_INFO": "帳戶資訊"
+            "FAVORITES": "我的最愛"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

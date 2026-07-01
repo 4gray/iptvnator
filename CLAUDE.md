@@ -697,7 +697,6 @@ No formal migration system yet. Schema changes are applied via raw SQL in `conne
 **State Management**:
 
 - Use NgRx for global application state (playlists)
-- Use component stores (`@ngrx/component-store`) for feature-specific state
 - Use NgRx signals for reactive data streams
 
 <!-- nx configuration start-->

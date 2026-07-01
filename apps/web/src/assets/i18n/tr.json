@@ -192,10 +192,8 @@
             "VALIDATING": "Portal doğrulanıyor..."
         },
         "FILTER_BY_NAME": "İsime göre filtrele",
-        "FILTER_BY_TYPE": "Türe göre filtrele",
         "FILTER_AND_SORT": "Filtrele ve Sırala",
         "SORT_PLAYLISTS": "Oynatma listelerini sırala",
-        "SORT_BY": "Sıralama ölçütü",
         "SORT_OPTIONS": {
             "NAME_ASC": "İsim (A-Z)",
             "NAME_DESC": "İsim (Z-A)",
@@ -483,7 +481,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Kanal listesini aç/kapat (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Kanal ara",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Dosya yükle veya başka bir oynatma listesi seçin",
         "ALL_CHANNELS": "Tüm kanallar",
         "GROUPS": "Gruplar",
@@ -557,14 +554,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Kanal listesini aç",
-        "TOGGLE_FAVORITE_FLAG": "Favori işaretini değiştir",
-        "OPEN_EPG_LIST": "EPG listesini aç",
-        "OPEN_MULTI_EPG": "Çoklu EPG görünümünü aç",
-        "SHOW_INFO": "Program bilgisini göster (I tuşuna basın)"
+        "OPEN_MULTI_EPG": "Çoklu EPG görünümünü aç"
     },
     "EPG": {
-        "TITLE": "Elektronik Program Rehberi",
         "NEXT_DAY": "Sonraki gün",
         "PREVIOUS_DAY": "Önceki gün",
         "ZOOM_IN": "Yakınlaştır",
@@ -573,14 +565,9 @@
         "CLOSE_FILTER": "Filtreyi kapat",
         "SEARCH_PROGRAMS": "Programları ara",
         "CLOSE_PROGRAM_SEARCH": "Program aramayı kapat",
-        "LIVE_NOW": "Şu an canlı",
         "LIVE_STREAM": "Canlı yayın",
-        "TIMESHIFT_AVAILABLE": "Zaman kaydırma mevcut, tıklayarak oynat",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Arşiv oynatma kullanılamıyor",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Bu sağlayıcı kanal için yayın akışı geçmişini sunar, ancak oynatılabilir arşiv/Catchup oynatma sunmaz.",
-        "EPG_NOT_AVAILABLE_DATE": "Üzgünüz, seçilen tarih için EPG mevcut değil",
-        "NO_GUIDE_HINT": "Başka bir tarih deneyin veya oynatma listesini yenileyin.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Üzgünüz, bu kanal için EPG mevcut değil.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Lütfen uygulamanın ayarlarında EPG listesi URL'sini ekleyin veya değiştirin.",
         "FETCH_EPG": "EPG verileri alınıyor...",
         "ERROR": "Üzgünüz, EPG yüklenemedi.",
@@ -615,7 +602,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Arşiv oynatma",
-        "RETURN_TO_LIVE": "Canlı yayına dön",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +665,6 @@
     "MENU": {
         "OPEN": "Menüyü aç",
         "SUPPORT_ARIA": "IPTVnator'u GitHub'da destekleyin",
-        "SETTINGS": "Ayarlar",
         "SETTINGS_ARIA": "Ayarları aç",
         "BUG_REPORT": "Hata bildir",
         "WHAT_IS_NEW": "Yeni ne var?",
@@ -804,10 +789,7 @@
             "SEARCH": "Ara",
             "RECENT": "Son İzlenenler",
             "RECENTLY_ADDED": "Yeni Eklenenler",
-            "FAVORITES": "Favoriler",
-            "HOME": "Ana Sayfa",
-            "PLAYLIST_INFO": "Oynatma Listesi Bilgisi",
-            "ACCOUNT_INFO": "Hesap Bilgisi"
+            "FAVORITES": "Favoriler"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {
