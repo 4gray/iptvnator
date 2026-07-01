@@ -125,6 +125,9 @@ importers:
       epg-parser:
         specifier: ^0.1.6
         version: 0.1.6
+      ferrite.js:
+        specifier: ^1.3.4
+        version: 1.3.4
       fix-path:
         specifier: 5.0.0
         version: 5.0.0
@@ -6981,6 +6984,10 @@ packages:
     peerDependenciesMeta:
       picomatch:
         optional: true
+
+  ferrite.js@1.3.4:
+    resolution: {integrity: sha512-dF4TuBNfAGtu0AsVB6mp0rgDAx2B5lbBZG7g9beECgFCMqJ6waUNavEBWwSfWrdLup+Ysv6AncR8uw2IzR7kfg==}
+    engines: {node: '>=18'}
 
   figures@2.0.0:
     resolution: {integrity: sha512-Oa2M9atig69ZkfwiApY8F2Yy+tzMbazyvqv21R0NsSC8floSOC09BbT1ITWAdoMGQvJ/aZnR1KMwdx9tvHnTNA==}
@@ -19863,6 +19870,8 @@ snapshots:
   fdir@6.5.0(picomatch@4.0.4):
     optionalDependencies:
       picomatch: 4.0.4
+
+  ferrite.js@1.3.4: {}
 
   figures@2.0.0:
     dependencies:

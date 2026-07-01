@@ -26,7 +26,17 @@
                 "assets": [
                     "apps/web/src/favicon.ico",
                     "apps/web/src/assets",
-                    "apps/web/src/manifest.webmanifest"
+                    "apps/web/src/manifest.webmanifest",
+                    {
+                        "glob": "ferrite.{mjs,wasm}",
+                        "input": "node_modules/ferrite.js/assets",
+                        "output": "assets"
+                    },
+                    {
+                        "glob": "{worker,present-worker,audio-worker,demux-worker}.js",
+                        "input": "node_modules/ferrite.js/dist",
+                        "output": "assets"
+                    }
                 ],
                 "styles": [
                     "apps/web/src/styles.scss",
@@ -150,6 +160,13 @@
                 },
                 "development": {
                     "buildTarget": "web:build:development"
+                },
+                "ferrite": {
+                    "buildTarget": "web:build:development",
+                    "headers": {
+                        "Cross-Origin-Opener-Policy": "same-origin",
+                        "Cross-Origin-Embedder-Policy": "credentialless"
+                    }
                 }
             },
             "defaultConfiguration": "development",
