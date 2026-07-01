@@ -73,7 +73,7 @@
             color: var(--mat-sys-on-surface-variant);
             background: var(--mat-sys-surface-container);
             padding: 2px 8px;
-            border-radius: 999px;
+            border-radius: var(--app-radius-pill);
         }
     }
 }

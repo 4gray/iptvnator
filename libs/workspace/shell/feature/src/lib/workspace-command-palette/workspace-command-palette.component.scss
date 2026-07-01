@@ -10,7 +10,7 @@
     background: var(--app-widget-bg);
     color: var(--mat-sys-on-surface);
     border: 1px solid var(--app-separator);
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     box-shadow:
         0 24px 48px -28px rgba(0, 0, 0, 0.5),
         0 10px 24px -18px rgba(0, 0, 0, 0.35);

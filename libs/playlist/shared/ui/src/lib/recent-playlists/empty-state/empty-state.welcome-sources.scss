@@ -81,7 +81,7 @@
             rgba(37, 99, 235, 0.04)
         );
         border: 1px solid rgba(96, 165, 250, 0.2);
-        border-radius: 16px;
+        border-radius: var(--app-radius-xl);
         transition:
             transform 0.2s ease,
             box-shadow 0.2s ease,
@@ -143,7 +143,7 @@
         font-size: 0.7rem;
         font-weight: 500;
         padding: 3px 9px;
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
         background: rgba(96, 165, 250, 0.14);
         color: #93c5fd;
         border: 1px solid rgba(96, 165, 250, 0.22);
@@ -159,7 +159,7 @@
         font-weight: 500;
         font-size: 0.875rem;
         padding: 8px 18px;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         box-shadow: 0 4px 12px rgba(59, 130, 246, 0.25);
         transition:
             transform 0.2s ease,

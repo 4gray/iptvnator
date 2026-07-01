@@ -40,7 +40,7 @@
     gap: 8px;
     padding: 0 10px;
     min-height: 36px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
     background: var(--app-search-bg, var(--mat-sys-surface-container));
     cursor: text;
@@ -104,7 +104,7 @@
     min-height: 200px;
     overflow-y: auto;
     border: 1px solid var(--mat-sys-outline-variant);
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
 }
 
 .group-item {

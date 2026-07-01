@@ -12,7 +12,7 @@
     gap: 12px;
     padding: 8px 10px 8px 12px;
     border: 1px solid transparent;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: transparent;
     color: inherit;
     cursor: pointer;
@@ -27,6 +27,14 @@
 
     &:hover {
         background: color-mix(in srgb, currentColor 8%, transparent);
+        border-color: color-mix(in srgb, currentColor 12%, transparent);
+    }
+
+    &:focus-visible {
+        outline: none;
+        border-color: var(--app-selection-border);
+        box-shadow: 0 0 0 2px
+            color-mix(in srgb, var(--app-selection-color) 45%, transparent);
     }
 
     &.active {
@@ -68,7 +76,7 @@
     width: 44px;
     height: 44px;
     flex-shrink: 0;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     display: grid;
     place-items: center;
     overflow: hidden;
@@ -156,7 +164,7 @@
     width: 100%;
     height: 6px;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background-color: rgba(127, 127, 127, 0.28);
     background-image: linear-gradient(
         180deg,
@@ -205,18 +213,25 @@
     button {
         width: 32px;
         height: 32px;
-        /* border-radius: 10px; */
+        border-radius: var(--app-radius-sm);
         color: inherit;
         opacity: 0.76;
         transition:
             opacity 0.15s ease,
             background-color 0.15s ease,
+            box-shadow 0.15s ease,
             transform 0.15s ease;
 
         &:hover {
             opacity: 1;
             background: color-mix(in srgb, currentColor 10%, transparent);
-            /* transform: translateY(-1px); */
+        }
+
+        &:focus-visible {
+            outline: none;
+            opacity: 1;
+            box-shadow: 0 0 0 2px
+                color-mix(in srgb, var(--app-selection-color) 45%, transparent);
         }
     }
 

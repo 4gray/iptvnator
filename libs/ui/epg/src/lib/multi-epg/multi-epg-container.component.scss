@@ -142,7 +142,7 @@ $gradient-header: linear-gradient(
         padding: 0 12px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid $border-subtle;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         transition: all 0.2s ease;
 
         &:focus-within {
@@ -245,7 +245,7 @@ $gradient-header: linear-gradient(
         padding: 0 12px;
         background: rgba(255, 255, 255, 0.05);
         border: 1px solid $border-subtle;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         transition: all 0.2s ease;
 
         &:focus-within {
@@ -323,7 +323,7 @@ $gradient-header: linear-gradient(
         overflow-y: auto;
         background: $bg-elevated;
         border: 1px solid $border-medium;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         z-index: 10000;
 
@@ -418,7 +418,7 @@ $gradient-header: linear-gradient(
         padding: 24px 16px;
         background: $bg-elevated;
         border: 1px solid $border-medium;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
         z-index: 10000;
         display: flex;

@@ -225,7 +225,7 @@
         width: 100%;
         aspect-ratio: 2 / 3;
         object-fit: cover;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         box-shadow: var(--poster-shadow);
         background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
         transition: transform 0.3s ease;
@@ -234,7 +234,7 @@
     &__placeholder {
         width: 100%;
         aspect-ratio: 2 / 3;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         background: linear-gradient(135deg, #3a3a3a 0%, #2a2a2a 100%);
         display: flex;
         flex-direction: column;
@@ -436,7 +436,7 @@
         background: #fff;
         color: #141414;
         border: none;
-        border-radius: 16px;
+        border-radius: var(--app-radius-xl);
         cursor: pointer;
         transition: all 0.2s ease;
 

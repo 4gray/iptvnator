@@ -33,7 +33,7 @@
 .live-epg-panel__toggle {
     width: 40px;
     height: 40px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     color: var(--mat-sys-on-surface-variant);
     app-region: no-drag;
 
@@ -99,7 +99,7 @@
     min-width: 0;
     height: 36px;
     padding-inline: 10px 12px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     color: var(--app-selection-color);
     background: color-mix(
         in srgb,
@@ -144,7 +144,7 @@
     button {
         width: 40px;
         height: 40px;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         color: var(--mat-sys-on-surface-variant);
 
         &:hover:not([disabled]) {
@@ -173,7 +173,7 @@
     max-width: 150px;
     height: 36px;
     padding-inline: 10px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     color: var(--mat-sys-on-surface-variant);
     background: color-mix(in srgb, currentColor 7%, transparent);
     app-region: no-drag;
@@ -201,7 +201,7 @@
     bottom: 5px;
     height: 4px;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(in srgb, var(--mat-sys-on-surface) 14%, transparent);
 }
 

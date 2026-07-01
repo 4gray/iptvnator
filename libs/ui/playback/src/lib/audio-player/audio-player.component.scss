@@ -76,7 +76,7 @@
 .artwork {
     max-width: 220px;
     max-height: 220px;
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     overflow: hidden;
     background: var(--mat-sys-surface-container);
     box-shadow:
@@ -150,7 +150,7 @@
     text-transform: uppercase;
     color: var(--mat-sys-on-surface-variant);
     padding: 3px 12px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     border: 1px solid var(--mat-sys-outline-variant);
     background: color-mix(in srgb, var(--mat-sys-surface-container) 60%, transparent);
     backdrop-filter: blur(6px);
@@ -278,7 +278,7 @@
     .artwork {
         max-width: 160px;
         max-height: 160px;
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
 
         img { max-width: 160px; max-height: 160px; }
     }
@@ -292,7 +292,7 @@
     .artwork {
         max-width: 120px;
         max-height: 120px;
-        border-radius: 12px;
+        border-radius: var(--app-radius-lg);
 
         img { max-width: 120px; max-height: 120px; }
     }

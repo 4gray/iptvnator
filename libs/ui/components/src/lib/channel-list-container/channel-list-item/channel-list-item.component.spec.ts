@@ -112,6 +112,31 @@ describe('ChannelListItemComponent', () => {
         expect(activated).toHaveBeenCalledTimes(1);
     });
 
+    it('exposes a keyboard-focusable row with an accessible name', () => {
+        fixture.componentRef.setInput('name', 'Cartoon Network');
+        fixture.detectChanges();
+
+        const row: HTMLElement =
+            fixture.nativeElement.querySelector('.channel-list-item');
+
+        expect(row.getAttribute('role')).toBe('button');
+        expect(row.getAttribute('tabindex')).toBe('0');
+        expect(row.getAttribute('aria-label')).toBe('Cartoon Network');
+    });
+
+    it('activates on Enter/Space keydown like a click', () => {
+        const clicked = jest.fn();
+        fixture.componentInstance.clicked.subscribe(clicked);
+
+        const preventDefault = jest.fn();
+        fixture.componentInstance.onKeydownActivate({
+            preventDefault,
+        } as unknown as KeyboardEvent);
+
+        expect(preventDefault).toHaveBeenCalled();
+        expect(clicked).toHaveBeenCalledTimes(1);
+    });
+
     it('emits a context menu request on right click when details are enabled', () => {
         fixture.componentRef.setInput('name', 'News One');
         fixture.componentRef.setInput('showDetailsContextMenu', true);

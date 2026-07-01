@@ -25,7 +25,7 @@
     display: grid;
     gap: 14px;
     padding: 24px 24px 20px;
-    border-radius: 24px;
+    border-radius: var(--app-radius-2xl);
     border: 1px solid var(--app-separator, rgba(255, 255, 255, 0.12));
     background:
         linear-gradient(
@@ -60,7 +60,7 @@
     align-items: center;
     justify-content: center;
     padding: 6px 12px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     border: 1px solid rgba(120, 220, 255, 0.24);
     background: rgba(120, 220, 255, 0.08);
     color: rgba(164, 233, 255, 1);
@@ -107,12 +107,12 @@
 .workspace-loading-overlay__action {
     justify-self: center;
     min-width: 180px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 :host ::ng-deep .workspace-loading-overlay__card .mat-mdc-progress-bar {
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 @keyframes workspace-loading-overlay-enter {

@@ -14,7 +14,7 @@
     gap: 12px;
     padding: 8px 10px 8px 12px;
     border: 1px solid transparent;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: transparent;
     box-sizing: border-box;
     overflow: hidden;
@@ -37,7 +37,7 @@
     width: 44px;
     height: 44px;
     flex-shrink: 0;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
 
     .compact & {
         width: 38px;
@@ -56,20 +56,20 @@
 
 .channel-name-skeleton {
     height: 11px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     max-width: 100%;
 }
 
 .epg-title-skeleton {
     height: 9px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     max-width: 100%;
 }
 
 .epg-progress-skeleton {
     height: 6px;
     width: 100%;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 .action-buttons-skeleton {
@@ -83,7 +83,7 @@
 .action-button-skeleton {
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
 }
 
 @container (max-width: 360px) {

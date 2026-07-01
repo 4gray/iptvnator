@@ -14,7 +14,7 @@
     gap: 6px;
     padding: 5px;
     border: 1px solid var(--mat-sys-outline-variant, rgba(255, 255, 255, 0.16));
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--mat-sys-surface, #101010) 76%,

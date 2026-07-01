@@ -5,9 +5,15 @@
     [cdkDragDisabled]="!isDraggable()"
     cdkDragPreviewContainer="parent"
     [class.active]="selected()"
+    role="button"
+    tabindex="0"
+    [attr.aria-label]="name()"
+    [attr.aria-pressed]="selected()"
     (click)="onClick($event)"
     (dblclick)="onDoubleClick()"
     (contextmenu)="onContextMenu($event)"
+    (keydown.enter)="onKeydownActivate($event)"
+    (keydown.space)="onKeydownActivate($event)"
     data-test-id="channel-item"
 >
     @if (isDraggable()) {
@@ -77,6 +83,9 @@
                     [matTooltip]="
                         'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
                     "
+                    [attr.aria-label]="
+                        'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+                    "
                     (click)="showProgramDescription(program, $event)"
                 >
                     <mat-icon>info</mat-icon>
@@ -87,6 +96,12 @@
                     mat-icon-button
                     class="favorite-button"
                     [matTooltip]="
+                        (isFavorite()
+                            ? 'CHANNELS.REMOVE_FAVORITE'
+                            : 'CHANNELS.ADD_FAVORITE'
+                        ) | translate
+                    "
+                    [attr.aria-label]="
                         (isFavorite()
                             ? 'CHANNELS.REMOVE_FAVORITE'
                             : 'CHANNELS.ADD_FAVORITE'
@@ -104,6 +119,7 @@
                     mat-icon-button
                     class="favorite-button"
                     [matTooltip]="auxActionTooltip()"
+                    [attr.aria-label]="auxActionTooltip()"
                     (click)="onAuxActionClick($event)"
                 >
                     <mat-icon>{{ auxActionIcon() }}</mat-icon>

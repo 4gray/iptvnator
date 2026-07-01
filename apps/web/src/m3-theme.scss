@@ -53,6 +53,17 @@ $dark-theme: mat.define-theme(
 html {
     @include mat.all-component-themes($light-theme);
 
+    // ── Shape scale (theme-independent) ───────────────────────────────────
+    // Central radius tokens so surfaces, list rows, inputs and the future
+    // advanced player control panel share one consistent rounding language.
+    --app-radius-xs: 6px;
+    --app-radius-sm: 8px;
+    --app-radius-md: 10px;
+    --app-radius-lg: 12px;
+    --app-radius-xl: 16px;
+    --app-radius-2xl: 20px;
+    --app-radius-pill: 999px;
+
     // ── Light theme design tokens ─────────────────────────────────────────
     --app-shell-bg: #eef0f3;
     --app-rail-bg: #eef0f3;
@@ -91,6 +102,12 @@ html {
 
     // Content area
     --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
+
+    // Soft elevation scale — modern, low-contrast shadows for cards & panels
+    --app-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.04),
+        0 4px 12px rgba(0, 0, 0, 0.05);
+    --app-shadow-raised: 0 2px 6px rgba(0, 0, 0, 0.06),
+        0 6px 16px -8px rgba(0, 0, 0, 0.16);
 
     // Widget surfaces — no borders, layered backgrounds
     --app-widget-bg: #ffffff;
@@ -167,6 +184,12 @@ html {
         // Content area
         --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);
 
+        // Soft elevation scale — deeper on dark graphite surfaces
+        --app-shadow-soft: 0 1px 2px rgba(0, 0, 0, 0.25),
+            0 6px 16px rgba(0, 0, 0, 0.28);
+        --app-shadow-raised: 0 3px 8px rgba(0, 0, 0, 0.32),
+            0 10px 24px -10px rgba(0, 0, 0, 0.5);
+
         // Widget surfaces — NO border, surface contrast does the work
         // Widgets sit on content-bg (#161a22), so widget-bg is notably lighter
         --app-widget-bg: #1e2330;
@@ -213,7 +236,7 @@ html {
         --mdc-outlined-text-field-outline-color: var(--app-widget-header-border);
         --mdc-outlined-text-field-hover-outline-color: var(--app-muted-color);
         --mdc-outlined-text-field-focus-outline-color: var(--app-selection-color);
-        --mdc-outlined-text-field-container-shape: 10px;
+        --mdc-outlined-text-field-container-shape: var(--app-radius-md);
         --mdc-outlined-text-field-label-text-color: var(--app-muted-color);
         --mdc-outlined-text-field-input-text-color: var(--app-heading-color);
         --mdc-outlined-text-field-caret-color: var(--app-selection-color);
@@ -227,7 +250,7 @@ html {
     // locked to the light-mode value at html-level inheritance.
     .mat-form-field-appearance-outline .mat-mdc-text-field-wrapper {
         background: color-mix(in srgb, var(--app-widget-bg) 85%, white 7%);
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
     }
 
     .mat-mdc-form-field .mat-mdc-input-element,

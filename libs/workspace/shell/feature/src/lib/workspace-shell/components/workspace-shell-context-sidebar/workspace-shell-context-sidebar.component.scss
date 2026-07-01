@@ -57,3 +57,37 @@
     min-height: 0;
     overflow: hidden;
 }
+
+// ─── Responsive behaviour ──────────────────────────────────────────────────
+// ResizableDirective writes the panel width as an inline style, which a plain
+// `width` rule can never override. `max-width` is NOT set inline, so it still
+// reins the panel in on narrow windows: the sidebar keeps its user-chosen
+// width until the window gets tight, then gracefully shrinks. Padding and gap
+// tighten in step so labels stay readable (nav rows already ellipsis-truncate).
+@media (max-width: 1024px) {
+    .context-panel {
+        max-width: 42vw;
+    }
+}
+
+@media (max-width: 780px) {
+    .context-panel {
+        max-width: 36vw;
+        padding: 10px 8px;
+        gap: 4px;
+    }
+
+    .context-panel--route,
+    .context-panel--sources {
+        padding: 10px 8px 8px 10px;
+    }
+}
+
+@media (max-width: 640px) {
+    // Shell stacks the rail/header/body vertically here; keep the sidebar
+    // usable but compact so the content pane keeps most of the width.
+    .context-panel {
+        max-width: 46vw;
+        padding: 8px;
+    }
+}

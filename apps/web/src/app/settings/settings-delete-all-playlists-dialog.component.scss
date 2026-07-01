@@ -44,7 +44,7 @@
     padding: 10px 12px;
     border: 1px solid
         color-mix(in srgb, var(--mat-sys-outline) 46%, transparent);
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     background: color-mix(
         in srgb,
         var(--mat-sys-surface-container) 84%,
@@ -80,7 +80,7 @@
 
 .settings-delete-dialog__hint {
     padding: 12px 14px;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     background: color-mix(
         in srgb,
         var(--app-selection-surface) 32%,

@@ -36,7 +36,7 @@
     gap: 10px;
     padding: 10px 14px 16px;
     border: 1px solid rgba(255, 255, 255, 0.06);
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.035), rgba(255, 255, 255, 0)),
         rgba(127, 127, 127, 0.045);
@@ -93,7 +93,7 @@
 
 .epg-item__badge {
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     font-size: 0.68rem;
     line-height: 1.4;
     font-weight: 700;
@@ -108,7 +108,7 @@
     margin-inline-start: auto;
     width: 34px;
     height: 34px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     color: inherit;
     opacity: 0.76;
     transition:
@@ -149,7 +149,7 @@
     width: 100%;
     height: 6px;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background-color: rgba(127, 127, 127, 0.28);
     background-image: linear-gradient(
         180deg,
@@ -181,7 +181,7 @@
 .epg-empty {
     padding: 22px;
     border: 1px dashed rgba(255, 255, 255, 0.12);
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     text-align: center;
     font-size: 0.88rem;
     opacity: 0.66;

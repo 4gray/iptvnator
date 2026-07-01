@@ -111,7 +111,7 @@
     padding: 10px 18px;
     color: var(--mat-sys-on-surface);
     background: color-mix(in srgb, #000 65%, transparent);
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     font-size: 0.95rem;
     font-variant-numeric: tabular-nums;
     pointer-events: none;
@@ -153,7 +153,7 @@
     color: var(--mat-sys-on-surface);
     background: var(--embedded-mpv-glass);
     border: 1px solid var(--embedded-mpv-border);
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     backdrop-filter: blur(14px);
     font-size: 0.85rem;
     line-height: 1.4;
@@ -313,7 +313,7 @@
 /* WebKit / Chromium — track shows played portion via linear-gradient. */
 .embedded-mpv-player__slider::-webkit-slider-runnable-track {
     height: 4px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: linear-gradient(
         to right,
         var(--embedded-mpv-accent) var(--slider-progress),
@@ -352,13 +352,13 @@
 /* Firefox — native ::-moz-range-progress for played portion. */
 .embedded-mpv-player__slider::-moz-range-track {
     height: 4px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--embedded-mpv-track);
 }
 
 .embedded-mpv-player__slider::-moz-range-progress {
     height: 4px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--embedded-mpv-accent);
 }
 
@@ -388,7 +388,7 @@
     color: var(--mat-sys-on-surface);
     background: var(--embedded-mpv-glass);
     border: 1px solid var(--embedded-mpv-border);
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
     backdrop-filter: blur(18px);
 }
@@ -465,7 +465,7 @@
     color: var(--mat-sys-on-surface);
     background: transparent;
     border: 0;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     cursor: pointer;
     font: inherit;
     text-align: left;

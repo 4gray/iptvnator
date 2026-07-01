@@ -20,7 +20,7 @@
         margin-bottom: 4px;
         padding: 14px 16px;
         border: 1px solid color-mix(in srgb, var(--tag-border) 85%, transparent);
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
         background: linear-gradient(
             180deg,
             color-mix(in srgb, var(--surface-bg) 86%, transparent) 0%,

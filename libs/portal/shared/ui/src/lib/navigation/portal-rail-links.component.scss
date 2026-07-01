@@ -11,7 +11,7 @@
         min-height: 28px;
         height: 28px;
         padding: 0 !important;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         margin: 2px 0;
         display: flex;
         justify-content: center;
@@ -45,7 +45,7 @@ nav.flex .portal-rail-link {
     height: 44px;
     padding: 0;
     gap: 0;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -88,7 +88,7 @@ nav.flex .portal-rail-link.active::after {
     transform: translateY(-50%);
     width: 4px;
     height: 20px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--app-selection-color);
     box-shadow: 0 0 10px var(--app-selection-glow);
 }

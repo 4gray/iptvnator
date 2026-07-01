@@ -17,7 +17,7 @@
     height: 44px;
     padding: 0;
     gap: 0;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     position: relative;
     display: inline-flex;
     align-items: center;
@@ -93,7 +93,7 @@
     transform: translateY(-50%);
     width: 4px;
     height: 20px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--rail-link-active-icon, var(--app-selection-color));
     box-shadow: 0 0 10px var(--rail-link-active-glow, var(--app-selection-glow));
 }

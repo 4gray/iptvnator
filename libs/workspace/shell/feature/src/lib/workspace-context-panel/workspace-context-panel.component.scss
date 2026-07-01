@@ -32,6 +32,10 @@
         font-weight: 600;
         letter-spacing: -0.01em;
         color: var(--mat-sys-on-surface);
+        min-width: 0;
+        overflow: hidden;
+        white-space: nowrap;
+        text-overflow: ellipsis;
     }
 }
 
@@ -71,7 +75,7 @@
     gap: 4px;
     margin-top: 5px;
     padding: 2px 0;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--mat-sys-surface-container);
     color: var(--mat-sys-on-surface-variant);
     font-size: 0.72rem;
@@ -98,7 +102,7 @@
     margin: 0 6px 6px;
     padding: 0 10px;
     min-height: 36px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
     background: var(--app-search-bg, var(--mat-sys-surface-container));
     flex-shrink: 0;
@@ -194,7 +198,7 @@ app-workspace-context-category-view {
     gap: 10px;
     min-height: 36px;
     padding: 0 10px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: color-mix(
         in srgb,
         var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 88%,
@@ -242,19 +246,19 @@ app-workspace-context-category-view {
 .context-skeleton__dot {
     width: 12px;
     height: 12px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 .context-skeleton__label {
     height: 9px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 .context-skeleton__count {
     justify-self: end;
     width: 22px;
     height: 9px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 @keyframes context-skeleton-shimmer {

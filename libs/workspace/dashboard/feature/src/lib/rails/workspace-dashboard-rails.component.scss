@@ -44,7 +44,7 @@
     padding: 16px;
     text-decoration: none;
     color: inherit;
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     overflow: hidden;
     isolation: isolate;
     background: var(--app-widget-header-bg, #232840);
@@ -188,7 +188,7 @@
     z-index: 2;
     width: var(--hero-poster-width);
     aspect-ratio: 2 / 3;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     overflow: hidden;
     background: var(--app-widget-bg, #1e2330);
     border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.1));
@@ -380,7 +380,7 @@
     display: block;
     height: 4px;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--app-on-surface, #e6e1e5) 14%,
@@ -417,7 +417,7 @@
     margin-top: 12px;
     height: 4px;
     width: min(320px, 70%);
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--app-on-surface, #e6e1e5) 14%,
@@ -434,7 +434,7 @@
     display: block;
     height: 100%;
     background: var(--app-selection-color, #78adff);
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     transition: width 0.4s ease;
 }
 
@@ -465,7 +465,7 @@
     align-items: center;
     gap: 6px;
     padding: 10px 20px 10px 14px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--app-selection-color, #78adff);
     color: var(--app-selection-on-color, #071225);
     font-size: 0.875rem;
@@ -518,7 +518,7 @@
     grid-template-columns: minmax(0, 160px) minmax(0, 1fr);
     gap: 24px;
     padding: 20px;
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     background: var(--app-widget-header-bg, #232840);
     border: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.08));
 }
@@ -527,7 +527,7 @@
     @extend %skeleton-shimmer;
     width: 160px;
     aspect-ratio: 2 / 3;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     align-self: center;
 }
 
@@ -543,7 +543,7 @@
     @extend %skeleton-shimmer;
     width: 60%;
     height: 28px;
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
 }
 
 .rails-page__skeleton-hero-title--short {
@@ -562,7 +562,7 @@
     @extend %skeleton-shimmer;
     width: 160px;
     height: 36px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     margin-top: 14px;
 }
 
@@ -578,7 +578,7 @@
     @extend %skeleton-shimmer;
     width: 180px;
     height: 22px;
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
 }
 
 .rails-page__skeleton-track {
@@ -595,7 +595,7 @@
     flex: 0 0 var(--cover-rail-width, 172px);
     width: var(--cover-rail-width, 172px);
     aspect-ratio: 2 / 3;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {

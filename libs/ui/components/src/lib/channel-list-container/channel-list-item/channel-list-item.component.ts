@@ -96,6 +96,11 @@ export class ChannelListItemComponent {
         this.clicked.emit();
     }
 
+    onKeydownActivate(event: Event): void {
+        event.preventDefault();
+        this.clicked.emit();
+    }
+
     onDoubleClick(): void {
         this.activated.emit();
     }

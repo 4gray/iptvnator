@@ -55,7 +55,7 @@
 .toggle-placeholder {
     height: 43px;
     width: 120px;
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     background: color-mix(in srgb, var(--mat-sys-on-surface) 6%, transparent);
 
     &--scope {

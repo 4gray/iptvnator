@@ -36,7 +36,7 @@
     min-height: 48px;
     padding: 8px 10px;
     gap: 10px;
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     box-shadow:
         0 12px 28px rgba(15, 23, 42, 0.16),
         inset 0 1px 0 rgba(255, 255, 255, 0.18);
@@ -44,7 +44,7 @@
     .external-playback-dock__artwork {
         width: 38px;
         height: 38px;
-        border-radius: 12px;
+        border-radius: var(--app-radius-lg);
     }
 
     .external-playback-dock__title {
@@ -61,7 +61,7 @@
     height: 48px;
     padding: 0;
     border: 0;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     overflow: hidden;
     background: color-mix(in srgb, var(--mat-sys-surface-container-highest) 92%, transparent);
     box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.18);
@@ -113,7 +113,7 @@
     display: inline-flex;
     align-items: center;
     height: 18px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--mat-sys-surface-container-highest) 80%,
@@ -175,7 +175,7 @@
 }
 
 .external-playback-dock__button {
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     white-space: nowrap;
 }
 

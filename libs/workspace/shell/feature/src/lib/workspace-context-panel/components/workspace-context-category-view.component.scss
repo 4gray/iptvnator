@@ -13,7 +13,7 @@
 .context-inline-status {
     margin: 0 4px 8px;
     padding: 8px 12px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: color-mix(
         in srgb,
         var(--app-selection-surface, var(--mat-sys-surface-container)) 72%,
@@ -49,7 +49,7 @@
     overflow: hidden;
     width: 22px;
     height: 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
