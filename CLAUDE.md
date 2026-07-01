@@ -2,6 +2,8 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+> The process sections below (Plan Mode, Documentation After Changes, Regression Prevention, Agent Bootstrap, Electron CDP Debugging) are mirrored in `AGENTS.md`, which is the canonical copy for agent workflows. When updating one, keep the other in sync.
+
 ## Plan Mode
 
 - When Claude Code is in Plan Mode and produces a final `<proposed_plan>`, it must also save that finalized plan as a Markdown file in the repo-root `.plans/` directory.
@@ -18,6 +20,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
     1. `README.md` for top-level developer or user workflows
     2. `docs/architecture/` for architecture, ownership, and behavior contracts
     3. the nearest module `README.md` for local usage or behavior
+- Keep this file (`CLAUDE.md`) itself up to date. It is a living document: whenever a change touches something it describes — monorepo structure (new/moved/renamed apps or libs), routes, database schema/tables, stores and their features, key components, commands, environment behavior, or coding conventions — update the affected `CLAUDE.md` sections as part of the same task, and keep the mirrored process sections in `AGENTS.md` in sync.
+- When adding a new feature area, check whether the Architecture or Key Features sections of `CLAUDE.md` describe the surrounding area; if they do, reflect the addition there instead of leaving the description stale.
+- Do not let `CLAUDE.md` drift: a stale path or route in this file poisons the context of every future agent session. If you notice an outdated claim while working, fix it (or flag it in the final summary) even if it is unrelated to the current task.
 - Repo docs are canonical even when they were originally drafted by an LLM. External wiki pages are derivative or synthesis content unless explicitly promoted back into the repo.
 - The external wiki sync is one-way by default: repo docs -> external wiki `_repo-context/`.
 - If repo docs changed and `IPTVNATOR_WIKI_VAULT` is configured, run `pnpm wiki:export --mode changed` after the doc update.
@@ -110,6 +115,8 @@ nx run electron-backend:make
 - The workspace is configured to always launch Electron with: `--remote-debugging-port=9222`
 - Use CDP clients (Chrome DevTools Protocol tools) against: `127.0.0.1:9222`
 - When the task is Electron automation/debugging, use the `electron` skill
+- Do not auto-open DevTools during normal CDP automation. In development, DevTools is opt-in via `ELECTRON_OPEN_DEVTOOLS=1`.
+- If DevTools is open, `agent-browser --cdp 9222 ...` may attach to the DevTools page instead of the IPTVnator window (symptoms: `tab list` shows `about:blank`, empty snapshots, black screenshots). Inspect targets with `curl http://127.0.0.1:9222/json/list` and connect directly to the app page's `webSocketDebuggerUrl`.
 
 For startup tracing or white-screen debugging:
 
@@ -214,17 +221,39 @@ pnpm wiki:export --mode changed
 
 This is an Nx monorepo with the following structure:
 
-- **apps/web** - Angular application (frontend)
+- **apps/web** - Angular application (frontend, shared by Electron and PWA)
 - **apps/electron-backend** - Electron main process
-- **apps/web-e2e** - Playwright end-to-end tests
+- **apps/web-backend** - HTTP backend for the self-hosted PWA (`/parse`, `/parse-xml`, `/xtream`, `/stalker` CORS proxy endpoints)
+- **apps/remote-control-web** - Mobile remote-control web app served by the Electron backend
+- **apps/web-e2e** - Playwright E2E tests against the web app
+- **apps/electron-backend-e2e** - Playwright E2E tests against the Electron app
+- **apps/stalker-mock-server** - Mock Stalker/Ministra portal for dev and E2E
+- **apps/xtream-mock-server** - Mock Xtream Codes API for dev and E2E
+- **apps/website** - Astro + Tailwind landing page and blog
 - **libs/** - Shared libraries:
-    - **m3u-state** - NgRx state management for playlists
-    - **services** - Abstract DataService and implementations
-    - **shared/interfaces** - TypeScript interfaces and types
+    - **epg/data-access** - EPG services, runtime bridge, program normalization
+    - **m3u-state** - NgRx state management for M3U playlists
+    - **playlist/import/feature** - Playlist import flows (file/URL/text upload, Xtream and Stalker import dialogs)
+    - **playlist/m3u/feature-player** - M3U video player page and `/workspace/playlists/:id` routes
+    - **playlist/shared/{ui,util}** - Shared playlist UI and utilities
+    - **portal/xtream/{data-access,feature}** - XtreamStore, services, data sources; routed Xtream components
+    - **portal/stalker/{data-access,feature}** - StalkerStore and routed Stalker components
+    - **portal/catalog/feature** - Portal catalog UI
+    - **portal/downloads/feature** - Download manager UI
+    - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
+    - **services** - Abstract DataService contract and shared app services
+    - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
+    - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
-    - **ui/components** - Reusable UI components
+    - **shared/testing** - Shared test helpers
+    - **ui/components** - Reusable UI components (incl. channel list)
+    - **ui/epg** - EPG UI (timeline ribbon, multi-EPG, progress panel, program dialogs)
+    - **ui/playback** - Player UI (video/audio players)
     - **ui/pipes** - Angular pipes
+    - **ui/remote-control** - Remote-control UI pieces
     - **ui/shared-portals** - Portal-related UI components
+    - **ui/styles** - Shared styles/theme
+    - **workspace/{shell,dashboard}** - Workspace shell (layout/navigation) and dashboard
 
 ### Frontend Architecture (Angular)
 
@@ -273,29 +302,38 @@ The Xtream Codes module uses NgRx Signal Store with a layered architecture:
 File structure:
 
 ```
-apps/web/src/app/xtream-electron/
-├── stores/
-│   ├── features/
-│   │   ├── with-portal.feature.ts      # Playlist & portal status
-│   │   ├── with-content.feature.ts     # Categories & streams
-│   │   ├── with-selection.feature.ts   # UI selection & pagination
-│   │   ├── with-search.feature.ts      # Search functionality
-│   │   ├── with-epg.feature.ts         # EPG data
-│   │   ├── with-player.feature.ts      # Stream URLs & player
+libs/portal/xtream/
+├── data-access/src/lib/
+│   ├── stores/
+│   │   ├── features/
+│   │   │   ├── with-portal.feature.ts             # Playlist & portal status
+│   │   │   ├── with-content.feature.ts            # Categories & streams
+│   │   │   ├── with-selection.feature.ts          # UI selection & pagination
+│   │   │   ├── with-search.feature.ts             # Search functionality
+│   │   │   ├── with-epg.feature.ts                # EPG data
+│   │   │   ├── with-player.feature.ts             # Stream URLs & player
+│   │   │   ├── with-playback-positions.feature.ts # Resume/playback positions
+│   │   │   └── index.ts
+│   │   ├── xtream.store.ts                        # Facade composing all features
 │   │   └── index.ts
-│   ├── xtream.store.ts                 # Facade composing all features
-│   └── index.ts
-├── services/
-│   ├── xtream-api.service.ts           # Xtream Codes API calls
-│   ├── xtream-url.service.ts           # Stream URL construction
-│   └── index.ts
-├── data-sources/
-│   ├── xtream-data-source.interface.ts # Abstract interface + types
-│   ├── electron-xtream-data-source.ts  # DB-first implementation
-│   ├── pwa-xtream-data-source.ts       # API-only implementation
-│   └── index.ts                        # Factory provider
-└── with-favorites.feature.ts           # Favorites (existing)
-└── with-recent-items.ts                # Recently viewed (existing)
+│   ├── services/
+│   │   ├── xtream-api.service.ts                  # Xtream Codes API calls
+│   │   ├── xtream-url.service.ts                  # Stream URL construction
+│   │   ├── favorites.service.ts                   # Favorites persistence
+│   │   ├── epg-queue.service.ts                   # EPG fetch queueing
+│   │   ├── xtream-xmltv-fallback.service.ts       # XMLTV fallback EPG
+│   │   └── index.ts
+│   ├── data-sources/
+│   │   ├── xtream-data-source.interface.ts        # Abstract interface + types
+│   │   ├── electron-xtream-data-source.ts         # DB-first implementation
+│   │   ├── pwa-xtream-data-source.ts              # API-only implementation
+│   │   └── index.ts                               # provideXtreamDataSource() factory
+│   ├── with-favorites.feature.ts                  # Favorites feature
+│   └── with-recent-items.ts                       # Recently viewed feature
+└── feature/src/lib/                               # Routed components
+    ├── xtream-feature.routes.ts                   # createXtreamRoutes(): /workspace/xtreams/:id tree
+    ├── live-stream-layout/, vod-details/, serial-details/, ...
+    └── global-search-results/                     # Global search (Electron-only route)
 ```
 
 Key patterns:
@@ -318,19 +356,20 @@ The M3U playlist module handles traditional M3U/M3U8 playlists with support for 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                         VIDEO PLAYER PAGE                            │
-│                    apps/web/src/app/home/video-player/              │
+│        libs/playlist/m3u/feature-player/src/lib/video-player/       │
 ├─────────────────────────────────────────────────────────────────────┤
-│  ┌─────────────┐  ┌──────────────────────┐  ┌────────────────────┐ │
-│  │   Sidebar   │  │    Video Player      │  │   EPG List         │ │
-│  │             │  │  (ArtPlayer/Video.js)│  │   (Right drawer)   │ │
-│  │ ┌─────────┐ │  │                      │  │                    │ │
-│  │ │Channel  │ │  │                      │  │                    │ │
-│  │ │List     │ │  │                      │  │                    │ │
-│  │ │Container│ │  │                      │  │                    │ │
-│  │ └─────────┘ │  │                      │  │                    │ │
-│  └─────────────┘  └──────────────────────┘  └────────────────────┘ │
+│  ┌─────────────┐  ┌───────────────────────────────────────────────┐│
+│  │   Sidebar   │  │        Video Player (ArtPlayer/Video.js)      ││
+│  │ ┌─────────┐ │  │                                               ││
+│  │ │Channel  │ │  ├───────────────────────────────────────────────┤│
+│  │ │List     │ │  │  EPG timeline ribbon (app-epg-timeline)       ││
+│  │ │Container│ │  │  horizontal, under the player                 ││
+│  │ └─────────┘ │  └───────────────────────────────────────────────┘│
+│  └─────────────┘                                                    │
 └─────────────────────────────────────────────────────────────────────┘
 ```
+
+The live EPG panel is a horizontal **timeline ribbon** under the player (`app-epg-timeline`, `libs/ui/epg/src/lib/epg-timeline/`), not a right-side drawer (reworked in PR #1102). See `docs/architecture/m3u-playlist-module.md` for the timeline's controllers and scroll behavior.
 
 **Radio Channel Layout** (when `channel.radio === 'true'`):
 
@@ -364,9 +403,10 @@ Channel List Component Structure (parent coordinator pattern):
 ```
 libs/ui/components/src/lib/channel-list-container/
 ├── channel-list-container.component.ts   # Parent - shared state coordinator
-├── all-channels-tab/                      # Virtual scroll + debounced search
-├── groups-tab/                            # Expansion panels + infinite scroll
-├── favorites-tab/                         # CDK drag-drop reordering
+├── all-channels-view/                     # Virtual scroll + debounced search
+├── groups-view/                           # Expansion panels + infinite scroll
+├── favorites-view/                        # CDK drag-drop reordering
+├── recent-view/                           # Recently viewed channels
 └── channel-list-item/                     # Individual channel display
 ```
 
@@ -375,7 +415,7 @@ Key patterns:
 - **EnrichedChannel**: Pre-computed EPG data attached to channels for performance
 - **Parent coordinator**: Manages shared signals (`channelEpgMap`, `progressTick`, `favoriteIds`)
 - **Virtual scrolling**: CDK virtual scroll for 90,000+ channel lists
-- **Infinite scroll**: IntersectionObserver in groups tab loads 50 items at a time
+- **Infinite scroll**: IntersectionObserver in groups view loads 50 items at a time
 - **Global progress tick**: Single 30s interval instead of per-item intervals
 
 State management via NgRx (`libs/m3u-state/`):
@@ -387,13 +427,16 @@ State management via NgRx (`libs/m3u-state/`):
 
 See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
-**Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`
+**Routing**: Lazy-loaded routes in `apps/web/src/app/app.routes.ts`. All user-facing routes are nested under the workspace shell (`/workspace/...`); `/` redirects into the workspace.
 
-- Home/playlists overview: `/`
-- Video player: `/playlists/:id` or `/iptv`
-- Xtream Codes: `/xtreams/:id` (different routes for Electron vs web)
-- Stalker portal: `/portals/:id`
-- Settings: `/settings`
+- Dashboard: `/workspace/dashboard`; sources overview: `/workspace/sources`
+- M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `:view`) — routes in `libs/playlist/m3u/feature-player`
+- Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
+- Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
+- Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
+- Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
+- Downloads: `/workspace/downloads`
+- Settings: `/workspace/settings` (`/settings` redirects there)
 
 **Service Architecture** (Factory Pattern):
 
@@ -404,17 +447,17 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 - Factory function `DataFactory()` in `apps/web/src/app/app.config.ts` determines which implementation to inject:
     ```typescript
     if (window.electron) {
-        return new ElectronService();
+        return inject(ElectronService);
     }
-    return new PwaService();
+    return inject(PwaService);
     ```
 
 **Data Storage (Environment-Specific)**:
 
-- **Electron**: libSQL/SQLite database via Drizzle ORM
+- **Electron**: SQLite database via Drizzle ORM (`better-sqlite3` driver)
     - Location: `~/.iptvnator/databases/iptvnator.db`
     - Full-featured relational database with foreign keys and indexes
-    - Supports local file or remote Turso instance via env vars
+    - Canonical schema and connection live in `libs/shared/database`
 - **PWA (Web)**: IndexedDB via `ngx-indexed-db`
     - Browser-based NoSQL storage
     - Same schema structure but implemented in IndexedDB
@@ -526,17 +569,22 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 **Database**:
 
-- **ORM**: Drizzle ORM with libSQL (local SQLite file or remote Turso)
+- **ORM**: Drizzle ORM with `better-sqlite3` (local SQLite file)
 - **Location**: `~/.iptvnator/databases/iptvnator.db` (avoids spaces in path)
-- **Schema** (`apps/electron-backend/src/app/database/schema.ts`):
+- **Schema** (`libs/shared/database/src/lib/schema.ts` — canonical; `apps/electron-backend/src/app/database/schema.ts` is a backwards-compat re-export shim):
     - `playlists` - Playlist metadata (M3U, Xtream, Stalker)
     - `categories` - Content categories (live, movies, series)
     - `content` - Streams/VOD/series items
     - `favorites` - User favorites
     - `recentlyViewed` - Watch history
-- **Connection**: `apps/electron-backend/src/app/database/connection.ts`
-    - Auto-creates tables on init
-    - Supports local file or remote via env vars (`LIBSQL_URL`, `LIBSQL_AUTH_TOKEN`)
+    - `epgChannels`, `epgPrograms` - Persisted EPG data
+    - `playbackPositions` - Resume positions
+    - `downloads` - Download manager state
+    - `appState` - Key-value app state (also tracks one-off data migrations)
+- **Connection**: `libs/shared/database/src/lib/connection.ts`
+    - `createTables()` auto-creates tables on init (`CREATE TABLE IF NOT EXISTS`)
+    - Provides full read-write access for `electron-backend` and a read-only mode
+    - A root `drizzle.config.ts` configures Drizzle Kit tooling (points at the schema via the compat shim)
 
 **IPC Communication**:
 
@@ -554,9 +602,11 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
 
-**Workers**:
+**Workers** (`apps/electron-backend/src/app/workers/`):
 
-- EPG parsing runs in worker thread: `apps/electron-backend/src/app/workers/epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
+- EPG parsing: `epg-parser.worker.ts`; main-process worker lifecycle is coordinated from `apps/electron-backend/src/app/events/epg-worker.service.ts`
+- Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`)
+- Playlist refresh: `playlist-refresh.worker.ts`
 
 ### Key Features
 
@@ -595,7 +645,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 **Internationalization**:
 
-- Uses `@ngx-translate` with 16 language files in `apps/web/src/assets/i18n/`
+- Uses `@ngx-translate` with 18 language files in `apps/web/src/assets/i18n/`
 
 ## Development Notes
 
@@ -616,9 +666,9 @@ IPTVnator supports both Electron (desktop app) and PWA (web browser) to provide 
 **Environment-Specific Behavior**:
 
 - `app.config.ts` - `DataFactory()` selects DataService implementation based on environment
-- `app.routes.ts` - Different routes for Xtream portals (Electron uses Tauri-based routes, PWA uses standard routes)
+- `app.routes.ts` - Same `/workspace/...` route tree in both environments; guards keep Electron-only routes (e.g. global search) out of the PWA
 - Storage layer switches automatically:
-    - Electron → libSQL/Drizzle ORM → `~/.iptvnator/databases/iptvnator.db`
+    - Electron → SQLite/Drizzle ORM → `~/.iptvnator/databases/iptvnator.db`
     - PWA → IndexedDB → Browser storage
 - External player support (MPV/VLC) only available in Electron
 - File system operations only available in Electron (uploading playlists from disk)
@@ -676,7 +726,7 @@ The Electron backend depends on the web app being built first:
 
 ### Database Migrations
 
-No formal migration system yet. Schema changes are applied via raw SQL in `connection.ts` `createTables()` function using `CREATE TABLE IF NOT EXISTS`.
+No formal migration system yet. Schema changes are applied via raw SQL in the `createTables()` function in `libs/shared/database/src/lib/connection.ts` using `CREATE TABLE IF NOT EXISTS`. One-off data migrations run guarded by keys stored in the `appState` table.
 
 ### Common Patterns
 
@@ -691,12 +741,13 @@ No formal migration system yet. Schema changes are applied via raw SQL in `conne
 
 1. Add type to `libs/shared/interfaces/src/lib/playlist.interface.ts`
 2. Create event handler in `apps/electron-backend/src/app/events/`
-3. Add UI in `apps/web/src/app/home/`
+3. Add the import flow in `libs/playlist/import/feature/` (add-playlist dialog + per-source import components) and surface it on the dashboard (`libs/workspace/dashboard/`) if needed
 4. Update database schema if needed
 
 **State Management**:
 
-- Use NgRx for global application state (playlists)
+- Use NgRx for global application state (M3U playlists, `libs/m3u-state`)
+- Use NgRx Signal Store with `signalStoreFeature()` composition for portal/feature state (XtreamStore, StalkerStore)
 - Use NgRx signals for reactive data streams
 
 <!-- nx configuration start-->
