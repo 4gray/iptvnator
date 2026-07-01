@@ -1,0 +1,224 @@
+$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
+$surface-1: var(--surface-1, #0f141c);
+$surface-2: var(--surface-2, #161d28);
+$surface-3: var(--surface-3, #1d2533);
+$text-primary: var(--text-primary, #e7ecf3);
+$text-secondary: var(--text-secondary, #9aa3b2);
+$text-tertiary: var(--text-tertiary, #6b7384);
+$accent-blue: var(--accent-blue, #4f8eff);
+$accent-cyan: var(--accent-cyan, #5cd6ff);
+$accent-live: var(--accent-live, #ff5b6e);
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+:host {
+    box-sizing: border-box;
+    display: grid;
+    grid-template-columns: 92px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 11px 18px 11px 22px;
+    position: relative;
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background 120ms ease;
+    outline: none;
+}
+:host *,
+:host *::before {
+    box-sizing: border-box;
+}
+:host(:hover) {
+    background: $surface-1;
+}
+
+.time {
+    font-family: $font-mono;
+    font-size: 12px;
+    color: $text-tertiary;
+    white-space: nowrap;
+}
+.time-now {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 7px;
+    font-family: $font-mono;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $accent-live;
+}
+.time-now::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $accent-live;
+    box-shadow: 0 0 6px $accent-live;
+}
+
+.body {
+    min-width: 0;
+}
+.title {
+    font-size: 14px;
+    font-weight: 500;
+    color: $text-primary;
+    line-height: 1.3;
+}
+.desc {
+    font-size: 12.5px;
+    color: $text-tertiary;
+    margin-top: 3px;
+    line-height: 1.4;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 54ch;
+}
+.g-now-bar {
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+    margin-top: 8px;
+    max-width: 320px;
+    overflow: hidden;
+}
+.g-now-bar > i {
+    display: block;
+    height: 100%;
+    background: $accent-cyan;
+}
+.playtag {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    margin-top: 8px;
+    font-family: $font-mono;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $accent-blue;
+}
+.playtag mat-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+}
+
+.aux {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+.nowtag {
+    font-size: 12px;
+    color: $text-tertiary;
+    padding-right: 4px;
+    white-space: nowrap;
+}
+.icbtn {
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    display: grid;
+    place-items: center;
+    border: none;
+    background: transparent;
+    color: $text-secondary;
+    cursor: pointer;
+    opacity: 0;
+    transition:
+        opacity 120ms,
+        background 120ms,
+        color 120ms;
+}
+.icbtn mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+}
+:host(:hover) .icbtn,
+:host(:focus-within) .icbtn {
+    opacity: 1;
+}
+.icbtn:hover {
+    background: $surface-3;
+    color: $text-primary;
+}
+.watch {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 30px;
+    padding: 0 13px;
+    border-radius: 999px;
+    border: 1px solid $line-strong;
+    background: $surface-2;
+    color: $text-primary;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    white-space: nowrap;
+}
+.watch mat-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+}
+.watch:hover {
+    border-color: $accent-blue;
+    color: $accent-blue;
+}
+
+/* ── PAST — dimmed ── */
+:host([data-when='past']) .time,
+:host([data-when='past']) .title {
+    color: $text-secondary;
+}
+:host([data-when='past']) .title {
+    font-weight: 400;
+}
+:host([data-when='past']:hover) .time,
+:host([data-when='past']:hover) .title {
+    color: $text-primary;
+}
+
+/* ── NOW — accent bar + fill ── */
+:host([data-when='now']) {
+    align-items: start;
+    background: rgba(79, 142, 255, 0.08);
+    border-left-color: #4f8eff;
+}
+:host([data-when='now']) .time {
+    color: $accent-blue;
+}
+:host([data-when='now']) .title {
+    color: #fff;
+    font-weight: 600;
+}
+:host([data-when='now']) .desc {
+    color: $text-secondary;
+}
+
+/* ── PLAYING from archive — distinct from now ── */
+:host(.playing) {
+    background: rgba(79, 142, 255, 0.13);
+    border-left-color: #4f8eff;
+}
+:host(.playing) .title {
+    color: #fff;
+    font-weight: 600;
+}
+:host(.playing) .watch {
+    border-color: $accent-blue;
+    background: rgba(79, 142, 255, 0.18);
+    color: $accent-blue;
+}
+
+/* ── SELECTED (focus) — ring only, independent of temporal/playing state ── */
+:host(.sel) {
+    box-shadow: inset 0 0 0 1px rgba(79, 142, 255, 0.55);
+}

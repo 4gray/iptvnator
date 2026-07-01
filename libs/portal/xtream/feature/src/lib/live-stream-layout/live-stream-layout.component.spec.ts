@@ -24,6 +24,7 @@ import {
     XtreamUrlService,
 } from '@iptvnator/portal/xtream/data-access';
 import {
+    EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
     EpgTimelineSummary,
@@ -83,8 +84,10 @@ class StubWebPlayerViewComponent {
     readonly externalFallbackRequested = output<unknown>();
 }
 
+// Matches both live-panel selectors so the host's timeline ↔ list swap can be
+// asserted by tag name; both branches share the identical contract.
 @Component({
-    selector: 'app-epg-timeline',
+    selector: 'app-epg-timeline, app-epg-list-view',
     standalone: true,
     template: `
         <div class="live-epg-panel-label">{{ summaryLabelKey() }}</div>
@@ -195,6 +198,9 @@ describe('LiveStreamLayoutComponent', () => {
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
+        // Reset in beforeEach: the store is module-scoped, so a test failure
+        // before an in-test restore must not leak 'list' into siblings.
+        epgViewMode: signal<'timeline' | 'list'>('timeline'),
     };
 
     const originalElectron = window.electron;
@@ -202,6 +208,7 @@ describe('LiveStreamLayoutComponent', () => {
     beforeEach(async () => {
         jest.useFakeTimers();
         jest.setSystemTime(fixedNow);
+        settingsStore.epgViewMode.set('timeline');
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
@@ -301,6 +308,7 @@ describe('LiveStreamLayoutComponent', () => {
             .overrideComponent(LiveStreamLayoutComponent, {
                 remove: {
                     imports: [
+                        EpgListViewComponent,
                         EpgTimelineComponent,
                         GridListComponent,
                         PortalChannelsListComponent,
@@ -357,6 +365,28 @@ describe('LiveStreamLayoutComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
+    });
+
+    it('swaps the timeline for the list view when epgViewMode is "list"', () => {
+        settingsStore.epgViewMode.set('list');
+
+        component.playLive(sampleChannel);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-epg-list-view')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
+        // Taller inline panel for the list view (see _portal-layout.scss).
+        expect(
+            fixture.nativeElement
+                .querySelector('.epg')
+                ?.classList.contains('epg--list')
+        ).toBe(true);
+
+        settingsStore.epgViewMode.set('timeline'); // restore for sibling tests
     });
 
     it('hides the EPG panel in browser/PWA playback', () => {

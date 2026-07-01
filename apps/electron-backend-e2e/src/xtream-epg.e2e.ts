@@ -4,9 +4,12 @@ import {
     clickCategoryByNameExact,
     closeElectronApp,
     expect,
+    goToDashboard,
     launchElectronApp,
+    openSettings,
     openWorkspaceSection,
     resetMockServers,
+    saveSettings,
     test,
     waitForXtreamWorkspaceReady,
 } from './electron-test-fixtures';
@@ -120,6 +123,64 @@ for (const timeZone of ['UTC', 'Europe/Berlin'] as const) {
         }
     });
 }
+
+test('@epg @xtream @electron renders the vertical list view when the setting is "list"', async ({
+    dataDir,
+    request,
+}) => {
+    await resetMockServers(request, ['xtream']);
+    const fixture = await fetchXtreamEpgFixture(request, epgCredentials);
+    const currentProgram = fixture.shortEpg[0];
+    if (!currentProgram) {
+        throw new Error(
+            'Expected the Xtream EPG fixture to include a current program.'
+        );
+    }
+    const app = await launchElectronApp(dataDir);
+
+    try {
+        // Opt into the list view first (from the fresh workspace) so the portal
+        // → Live TV → channel flow afterwards mirrors the timeline test exactly.
+        await openSettings(app.mainWindow);
+        await app.mainWindow
+            .locator('[data-test-id="epg-view-mode-list"]')
+            .click();
+        await saveSettings(app.mainWindow);
+        await goToDashboard(app.mainWindow);
+
+        await addXtreamPortal(app.mainWindow, {
+            name: `${epgPortalName} List`,
+            username: epgCredentials.username,
+            password: epgCredentials.password,
+        });
+        await waitForXtreamWorkspaceReady(app.mainWindow);
+        await openWorkspaceSection(app.mainWindow, 'Live TV');
+        await clickCategoryByNameExact(app.mainWindow, fixture.categoryName);
+        const channelRow = channelItemByTitle(
+            app.mainWindow,
+            fixture.stream.name ?? ''
+        ).first();
+        await expect(channelRow).toBeVisible({ timeout: 20000 });
+        await channelRow.click();
+
+        // The list view renders instead of the timeline.
+        await expect(app.mainWindow.locator('app-epg-list-view')).toBeVisible({
+            timeout: 20000,
+        });
+        await expect(
+            app.mainWindow.locator('app-epg-timeline')
+        ).toHaveCount(0);
+
+        // The on-air programme is the highlighted "now" row.
+        await expect(
+            app.mainWindow
+                .locator('app-epg-list-view .g-row[data-when="now"] .title')
+                .first()
+        ).toHaveText(currentProgram.title);
+    } finally {
+        await closeElectronApp(app);
+    }
+});
 
 function formatTimeInZone(timestampSeconds: number, timeZone: string): string {
     return new Intl.DateTimeFormat('en-US', {

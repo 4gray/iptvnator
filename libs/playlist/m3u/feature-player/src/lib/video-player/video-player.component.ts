@@ -29,6 +29,7 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     COMPONENT_OVERLAY_REF,
     EpgDateNavigationDirection,
+    EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
@@ -122,6 +123,7 @@ const M3U_SIDEBAR_DEFAULT_WIDTH = 460;
         AudioPlayerComponent,
         ChannelListLoadingStateComponent,
         CommonModule,
+        EpgListViewComponent,
         EpgTimelineComponent,
         MatButtonModule,
         MatIconModule,
@@ -273,6 +275,10 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         restoreLiveEpgPanelState()
     );
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
+    /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
+    readonly epgViewMode = computed(
+        () => this.settingsStore.epgViewMode?.() ?? 'timeline'
+    );
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );

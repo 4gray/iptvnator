@@ -49,6 +49,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import {
     EpgDateNavigationDirection,
+    EpgListViewComponent,
     EpgProgramActivationEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
@@ -91,6 +92,7 @@ interface XtreamLiveChannelItem {
     styleUrls: ['./live-stream-layout.component.scss'],
     providers: [LiveStreamAutoOpenStateService],
     imports: [
+        EpgListViewComponent,
         EpgTimelineComponent,
         MatButtonModule,
         MatIcon,
@@ -207,6 +209,10 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
+    );
+    /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
+    readonly epgViewMode = computed(
+        () => this.settingsStore.epgViewMode?.() ?? 'timeline'
     );
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>

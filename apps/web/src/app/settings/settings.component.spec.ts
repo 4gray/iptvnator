@@ -104,6 +104,7 @@ const DEFAULT_SETTINGS = {
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
+    epgViewMode: 'timeline',
 };
 
 const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {
@@ -1292,6 +1293,23 @@ describe('SettingsComponent', () => {
         expect(component.settingsForm.value.coverSize).toBe('large');
         expect(mockStore.updateSettings).toHaveBeenCalledWith({
             coverSize: 'large',
+        });
+    });
+
+    it('updates the EPG view mode through the epg section output', () => {
+        const mockStore = settingsStore as unknown as MockSettingsStore;
+        const listButton = (
+            fixture.nativeElement as HTMLElement
+        ).querySelector(
+            '[data-test-id="epg-view-mode-list"]'
+        ) as HTMLButtonElement;
+
+        listButton.click();
+        fixture.detectChanges();
+
+        expect(component.settingsForm.value.epgViewMode).toBe('list');
+        expect(mockStore.updateSettings).toHaveBeenCalledWith({
+            epgViewMode: 'list',
         });
     });
 

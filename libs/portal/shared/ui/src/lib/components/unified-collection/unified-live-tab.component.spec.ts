@@ -17,6 +17,7 @@ import {
     WebPlayerViewComponent,
 } from '@iptvnator/ui/playback';
 import {
+    EpgListViewComponent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
@@ -78,8 +79,10 @@ class StubGlobalFavoritesListComponent {
     readonly removeRequested = output<UnifiedFavoriteChannel>();
 }
 
+// Matches both live-panel selectors so the host's timeline ↔ list swap can be
+// asserted by tag name; both branches share the identical contract.
 @Component({
-    selector: 'app-epg-timeline',
+    selector: 'app-epg-timeline, app-epg-list-view',
     template: '<div class="stub-epg-timeline"></div>',
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
@@ -127,6 +130,7 @@ describe('UnifiedLiveTabComponent', () => {
     let fixture: ComponentFixture<UnifiedLiveTabComponent>;
     let component: UnifiedLiveTabComponent;
     let player: ReturnType<typeof signal<VideoPlayer>>;
+    let epgViewMode: ReturnType<typeof signal<'timeline' | 'list'>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
@@ -160,6 +164,7 @@ describe('UnifiedLiveTabComponent', () => {
             recordLivePlayback: jest.fn(),
         };
         player = signal(VideoPlayer.VideoJs);
+        epgViewMode = signal<'timeline' | 'list'>('timeline');
         portalPlayer = {
             isEmbeddedPlayer: jest.fn().mockReturnValue(false),
             openResolvedPlayback: jest.fn(),
@@ -184,6 +189,7 @@ describe('UnifiedLiveTabComponent', () => {
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
                         player,
+                        epgViewMode,
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
@@ -193,6 +199,7 @@ describe('UnifiedLiveTabComponent', () => {
                 remove: {
                     imports: [
                         AudioPlayerComponent,
+                        EpgListViewComponent,
                         EpgTimelineComponent,
                         GlobalFavoritesListComponent,
                         ResizableDirective,
@@ -445,6 +452,44 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(component.selectedLiveEpgDate()).toBe(nextDate);
         expect(timeline.selectedDate()).toBe(nextDate);
+    });
+
+    it('swaps the timeline for the list view when epgViewMode is "list"', async () => {
+        epgViewMode.set('list');
+        const item = buildLiveItem('xtream');
+        streamResolver.resolveLiveDetail.mockResolvedValue({
+            epgMode: 'portal',
+            playback: {
+                streamUrl: 'https://example.com/xtream.m3u8',
+                title: 'Xtream Live',
+            },
+            epgItems: [buildCurrentEpgItem('Xtream Now')],
+        });
+        recentData.recordLivePlayback.mockResolvedValue({
+            ...item,
+            viewedAt: '2026-03-26T12:00:00.000Z',
+        });
+
+        fixture.componentRef.setInput('items', [item]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        await component.onChannelSelected(component.channelsForList()[0]);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(
+            fixture.nativeElement.querySelector('app-epg-list-view')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
+        // Taller inline panel for the list view (see _portal-layout.scss).
+        expect(
+            fixture.nativeElement
+                .querySelector('.epg')
+                ?.classList.contains('epg--list')
+        ).toBe(true);
     });
 
     it('renders inline portal EPG in the timeline and flows collapse state through', async () => {

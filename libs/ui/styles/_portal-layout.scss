@@ -133,13 +133,21 @@
             flex: 0 0 var(--epg-inline-height, clamp(180px, 36vh, 264px));
         }
 
+        // Vertical list view (epgViewMode = 'list'): rows need more height to
+        // be useful — raise the inline clamp only. Sets just the variable, so
+        // the later `.epg-collapsed` flex rule still wins when collapsed.
+        &.epg--list {
+            --epg-inline-height: clamp(280px, 46vh, 430px);
+        }
+
         &.epg-collapsed {
             flex: 0 0 56px;
             min-height: 56px;
         }
 
         > app-live-epg-panel,
-        > app-epg-timeline {
+        > app-epg-timeline,
+        > app-epg-list-view {
             flex: 1;
             min-height: 0;
         }
@@ -154,7 +162,8 @@
 
         > app-epg-view,
         > app-live-epg-panel,
-        > app-epg-timeline {
+        > app-epg-timeline,
+        > app-epg-list-view {
             flex: 1;
             min-height: 0;
         }

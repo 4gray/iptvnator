@@ -43,6 +43,7 @@ const DEFAULT_SETTINGS: Settings = {
     downloadFolder: '',
     recordingFolder: '',
     coverSize: 'medium',
+    epgViewMode: 'timeline',
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
     preferUploadedEpgOverXtream: false,
     trustedPrivateNetworkEpgUrls: [],
@@ -173,6 +174,8 @@ export const SettingsStore = signalStore(
                     store.recordingFolder?.() ??
                     DEFAULT_SETTINGS.recordingFolder,
                 coverSize: store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
+                epgViewMode:
+                    store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
                 dashboardRails: normalizeDashboardRailsSettings(
                     store.dashboardRails?.()
                 ),

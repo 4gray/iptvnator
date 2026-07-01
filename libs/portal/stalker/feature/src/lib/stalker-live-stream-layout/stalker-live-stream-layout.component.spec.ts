@@ -10,7 +10,10 @@ import {
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
-import { EpgTimelineComponent } from '@iptvnator/ui/epg';
+import {
+    EpgListViewComponent,
+    EpgTimelineComponent,
+} from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ChannelListItemComponent } from '@iptvnator/ui/components';
@@ -69,8 +72,10 @@ class StubAudioPlayerComponent {
     readonly channelSwitchRequested = output<'next' | 'previous'>();
 }
 
+// Matches both live-panel selectors so the host's timeline ↔ list swap can be
+// asserted by tag name; both branches share the identical contract.
 @Component({
-    selector: 'app-epg-timeline',
+    selector: 'app-epg-timeline, app-epg-list-view',
     standalone: true,
     template: `
         <div class="live-epg-panel-summary">{{ summary()?.title }}</div>
@@ -230,10 +235,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
+        epgViewMode: signal<'timeline' | 'list'>('timeline'),
     };
     const originalElectron = window.electron;
 
     beforeEach(async () => {
+        // The store mock is module-scoped: reset so a failed test can't leak
+        // 'list' into siblings.
+        settingsStore.epgViewMode.set('timeline');
         window.electron = {
             platform: 'darwin',
             updateRemoteControlStatus: jest.fn(),
@@ -341,6 +350,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                     imports: [
                         ChannelListItemComponent,
                         AudioPlayerComponent,
+                        EpgListViewComponent,
                         EpgTimelineComponent,
                         PortalEmptyStateComponent,
                         ResizableDirective,
@@ -384,6 +394,27 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.load-more-epg')
         ).toBeNull();
+    });
+
+    it('swaps the timeline for the list view when epgViewMode is "list"', () => {
+        settingsStore.epgViewMode.set('list');
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-epg-list-view')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
+        // Taller inline panel for the list view (see _portal-layout.scss).
+        expect(
+            fixture.nativeElement
+                .querySelector('.epg')
+                ?.classList.contains('epg--list')
+        ).toBe(true);
+
+        settingsStore.epgViewMode.set('timeline'); // restore for sibling tests
     });
 
     it('does not request or render EPG in browser/PWA playback', async () => {
