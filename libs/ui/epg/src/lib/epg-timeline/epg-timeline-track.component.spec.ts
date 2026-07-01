@@ -150,4 +150,29 @@ describe('EpgTimelineTrackComponent', () => {
         fixture.componentRef.setInput('selectedKey', item.block.key);
         expect(component.isSelected(item)).toBe(true);
     });
+
+    it('activates the block on Enter only when the block itself is focused', () => {
+        const item = renderBlock();
+        const emitted: unknown[] = [];
+        component.blockClick.subscribe((b) => emitted.push(b));
+
+        const node = {} as EventTarget;
+        // Enter with the block itself as the target → activates.
+        component.onBlockActivate(
+            { target: node, currentTarget: node } as unknown as Event,
+            item.block
+        );
+        expect(emitted).toHaveLength(1);
+
+        // Enter bubbled up from a nested watch/info button → ignored, so a
+        // keyboard user gets the button's own action, not timeshift playback.
+        component.onBlockActivate(
+            {
+                target: {} as EventTarget,
+                currentTarget: node,
+            } as unknown as Event,
+            item.block
+        );
+        expect(emitted).toHaveLength(1);
+    });
 });

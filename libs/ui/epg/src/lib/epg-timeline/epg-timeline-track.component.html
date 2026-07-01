@@ -44,7 +44,7 @@
             [style.left.px]="item.leftPx"
             [style.width.px]="item.widthPx"
             (click)="blockClick.emit(item.block)"
-            (keydown.enter)="blockClick.emit(item.block)"
+            (keydown.enter)="onBlockActivate($event, item.block)"
             (mouseenter)="onBlockEnter(item, $event)"
             (mouseleave)="onBlockLeave()"
             (focusin)="onBlockEnter(item, $event)"

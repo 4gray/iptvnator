@@ -87,6 +87,18 @@ export class EpgTimelineTrackComponent {
         return this.activeKey() === item.key;
     }
 
+    /**
+     * Emit block activation for keyboard Enter only when the block itself is
+     * focused. Enter on a nested watch/info button bubbles here too — ignore it
+     * so keyboard users get the button's own action, matching mouse clicks
+     * (which `stopPropagation()` on those buttons).
+     */
+    onBlockActivate(event: Event, block: TimelineBlock): void {
+        if (event.target === event.currentTarget) {
+            this.blockClick.emit(block);
+        }
+    }
+
     onBlockEnter(item: TimelineRenderBlock, event: Event): void {
         if (item.tier === 'wide') {
             this.popover.set(null);
