@@ -77,6 +77,12 @@ export function buildEpgListRows(
         if (!Number.isFinite(startMs) || !Number.isFinite(stopMs)) {
             return false;
         }
+        // Drop malformed programmes (stop not after start) — same as the
+        // timeline's buildTimelineBlocks; they would render impossible time
+        // ranges and could even be offered as catch-up playable.
+        if (stopMs <= startMs) {
+            return false;
+        }
         return startMs < dayEndMs && stopMs > dayStartMs;
     });
 

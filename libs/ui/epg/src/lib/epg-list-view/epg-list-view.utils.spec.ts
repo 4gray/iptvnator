@@ -120,6 +120,24 @@ describe('buildEpgListRows', () => {
         );
     });
 
+    it('drops malformed programmes whose stop is not after their start', () => {
+        // Same as the timeline's buildTimelineBlocks: zero/negative durations
+        // from bad provider data must not render (or become catch-up playable).
+        const zeroDuration = programAt(-60, 0, 'Zero');
+        const negativeDuration = {
+            ...programAt(-60, 60, 'Negative'),
+            stop: new Date(NOW - 120 * 60_000).toISOString(),
+        };
+        const rows = buildEpgListRows(
+            [zeroDuration, negativeDuration, programAt(-30, 60, 'Now')],
+            TODAY,
+            NOW,
+            DEFAULT_OPTS
+        );
+
+        expect(rows.map((r) => r.program.title)).toEqual(['Now']);
+    });
+
     it('deduplicates programmes sharing a time slot, keeping the richer one', () => {
         const rows = buildEpgListRows(
             [
