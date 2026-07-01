@@ -6,6 +6,8 @@ import {
 import {
     buildTimelineAxis,
     buildTimelineBlocks,
+    hasProgramsForDateKey,
+    TIMELINE_MINUTE_MS,
 } from './epg-timeline.utils';
 
 function programAt(
@@ -73,6 +75,8 @@ describe('TimelineScrollController', () => {
                 nowMs: () => nowMs,
                 viewDayKey: () => 'today',
                 commitDay: commitDaySpy,
+                hasProgramsForDay: (dayKey) =>
+                    hasProgramsForDateKey(programs, dayKey),
             });
             scrollSpy = jest
                 .spyOn(controller, 'scrollToOffset')
@@ -137,6 +141,65 @@ describe('TimelineScrollController', () => {
         it('skips focus entirely when the ribbon is not mounted', () => {
             focus(undefined, [programAt(0, 120, 'Now')]);
             expect(scrollSpy).not.toHaveBeenCalled();
+        });
+    });
+
+    describe('onRibbonScroll (gap-day handling)', () => {
+        let rafSpy: jest.SpyInstance;
+        let nowMs: number;
+        let programs: EpgProgram[];
+        let scroller: { scrollLeft: number; clientWidth: number };
+
+        beforeEach(() => {
+            rafSpy = jest
+                .spyOn(window, 'requestAnimationFrame')
+                .mockImplementation((cb: FrameRequestCallback) => {
+                    cb(0);
+                    return 1;
+                });
+            nowMs = Date.now();
+            programs = [programAt(0, 120, 'Now')];
+            // Centre the viewport on "now" (today) — a real, in-axis day-key.
+            const axis = buildTimelineAxis(programs, nowMs);
+            scroller = {
+                scrollLeft: (nowMs - axis.startMs) / TIMELINE_MINUTE_MS,
+                clientWidth: 0,
+            };
+        });
+
+        afterEach(() => rafSpy.mockRestore());
+
+        function controllerWith(
+            hasProgramsForDay: (dayKey: string) => boolean,
+            commitDay: jest.Mock
+        ): TimelineScrollController {
+            return new TimelineScrollController({
+                ribbon: () => scroller as unknown as HTMLElement,
+                scale: () => 1,
+                axis: () => buildTimelineAxis(programs, nowMs),
+                blocks: () =>
+                    buildTimelineBlocks(
+                        programs,
+                        buildTimelineAxis(programs, nowMs),
+                        nowMs
+                    ),
+                nowMs: () => nowMs,
+                viewDayKey: () => 'today',
+                commitDay,
+                hasProgramsForDay,
+            });
+        }
+
+        it('commits the centred day when it has programmes', () => {
+            const commitDay = jest.fn();
+            controllerWith(() => true, commitDay).onRibbonScroll();
+            expect(commitDay).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not commit a gap day (keeps the ribbon mounted mid-scroll)', () => {
+            const commitDay = jest.fn();
+            controllerWith(() => false, commitDay).onRibbonScroll();
+            expect(commitDay).not.toHaveBeenCalled();
         });
     });
 });

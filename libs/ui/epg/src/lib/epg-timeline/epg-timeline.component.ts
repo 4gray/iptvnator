@@ -121,9 +121,8 @@ export class EpgTimelineComponent {
 
     private readonly nowMs = signal(Date.now());
     readonly selectedKey = signal<string | null>(null);
-    /** Day centred in the ribbon. Seeded from the controlled `selectedDate` so a
-     * non-today date survives (re)mount and follows host changes; local
-     * navigation overrides via `commitDay`. Falls back to today when unset. */
+    /** Day centred in the ribbon, seeded from the controlled `selectedDate` so
+     * a non-today date survives (re)mount and follows host changes. */
     private readonly viewDayKey = linkedSignal(() => {
         const key = this.selectedDate()?.trim();
         return key ? key : getTodayEpgDateKey();
@@ -138,6 +137,8 @@ export class EpgTimelineComponent {
         nowMs: () => this.nowMs(),
         viewDayKey: () => this.viewDayKey(),
         commitDay: (dayKey) => this.commitDay(dayKey),
+        hasProgramsForDay: (dayKey) =>
+            hasProgramsForDateKey(this.programs(), dayKey),
     });
 
     private readonly languageTick = toSignal(

@@ -17,6 +17,8 @@ export interface TimelineScrollContext {
     readonly nowMs: () => number;
     readonly viewDayKey: () => string;
     readonly commitDay: (dayKey: string) => void;
+    /** Whether the given day-key has any programme in the loaded window. */
+    readonly hasProgramsForDay: (dayKey: string) => boolean;
 }
 
 /** Stable identity of a channel's programme set (changes when the channel does). */
@@ -90,7 +92,15 @@ export class TimelineScrollController {
                 (scroller.scrollLeft + scroller.clientWidth / 2) /
                 this.ctx.scale();
             const dayKey = dayKeyAtOffset(this.ctx.axis(), centerOffsetMin);
-            if (dayKey && dayKey !== this.ctx.viewDayKey()) {
+            // Skip gap days: committing a day with no programmes flips the host
+            // to `empty-day` and unmounts the ribbon mid-scroll, stranding the
+            // user before the later programmes. Keep the last populated day
+            // centred until they scroll into another day that has content.
+            if (
+                dayKey &&
+                dayKey !== this.ctx.viewDayKey() &&
+                this.ctx.hasProgramsForDay(dayKey)
+            ) {
                 this.ctx.commitDay(dayKey);
             }
         });
