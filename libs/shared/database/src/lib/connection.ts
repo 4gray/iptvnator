@@ -250,6 +250,15 @@ const CREATE_TABLE_STATEMENTS = [
       INSERT INTO epg_programs_fts(rowid, title, description, category)
       VALUES (new.id, new.title, new.description, new.category);
   END`,
+    // EPG channel mappings (manual user overrides)
+    `CREATE TABLE IF NOT EXISTS epg_channel_mappings (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      channel_key TEXT NOT NULL UNIQUE,
+      epg_channel_id TEXT NOT NULL,
+      playlist_id TEXT,
+      updated_at TEXT DEFAULT (datetime('now'))
+  )`,
+    `CREATE INDEX IF NOT EXISTS idx_epg_channel_mappings_playlist ON epg_channel_mappings(playlist_id)`,
     // Playback Positions table
     `CREATE TABLE IF NOT EXISTS playback_positions (
       id INTEGER PRIMARY KEY AUTOINCREMENT,

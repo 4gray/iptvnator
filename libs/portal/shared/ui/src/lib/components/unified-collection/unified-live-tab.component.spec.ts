@@ -23,7 +23,9 @@ import {
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
 import { ResizableDirective } from '@iptvnator/ui/components';
+import { XtreamUrlService } from '@iptvnator/portal/xtream/data-access';
 import {
+    PlaylistsService,
     RuntimeCapabilitiesService,
     SettingsStore,
 } from '@iptvnator/services';
@@ -35,7 +37,6 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
-    EpgViewComponent,
     LiveEpgPanelComponent,
     LiveEpgPanelSummary,
 } from '@iptvnator/ui/shared-portals';
@@ -93,19 +94,13 @@ class StubGlobalFavoritesListComponent {
 class StubEpgListComponent {
     readonly controlledChannel = input<Channel | null>(null);
     readonly controlledPrograms = input<EpgProgram[] | null>(null);
+    readonly controlledArchiveDays = input<number | null>(null);
     readonly archivePlaybackAvailable = input<boolean | null>(null);
+    readonly activeProgram = input<EpgProgram | null>(null);
     readonly selectedDate = input<string | null>(null);
     readonly showDateNavigator = input(true);
     readonly selectedDateChange = output<string>();
-}
-
-@Component({
-    selector: 'app-epg-view',
-    template: '<div class="stub-epg-view"></div>',
-    changeDetection: ChangeDetectionStrategy.OnPush,
-})
-class StubEpgViewComponent {
-    readonly epgItems = input<EpgItem[]>([]);
+    readonly programActivated = output<{ program: EpgProgram; type: 'live' | 'timeshift' }>();
 }
 
 @Component({
@@ -165,6 +160,9 @@ describe('UnifiedLiveTabComponent', () => {
         openResolvedPlayback: jest.Mock;
         openExternalPlayback: jest.Mock;
     };
+    let playlistsService: {
+        getPlaylistById: jest.Mock;
+    };
     const originalElectron = window.electron;
 
     beforeEach(async () => {
@@ -183,6 +181,15 @@ describe('UnifiedLiveTabComponent', () => {
         recentData = {
             recordLivePlayback: jest.fn(),
         };
+        playlistsService = {
+            getPlaylistById: jest.fn().mockResolvedValue({
+                _id: 'playlist-1',
+                title: 'Test Playlist',
+                serverUrl: 'http://demo.example',
+                username: 'demo',
+                password: 'secret',
+            }),
+        };
         player = signal(VideoPlayer.VideoJs);
         portalPlayer = {
             isEmbeddedPlayer: jest.fn().mockReturnValue(false),
@@ -195,6 +202,7 @@ describe('UnifiedLiveTabComponent', () => {
             providers: [
                 { provide: StreamResolverService, useValue: streamResolver },
                 { provide: UnifiedRecentDataService, useValue: recentData },
+                { provide: PlaylistsService, useValue: playlistsService },
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: {
@@ -211,6 +219,7 @@ describe('UnifiedLiveTabComponent', () => {
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
+                { provide: XtreamUrlService, useValue: { resolveCatchupUrl: jest.fn() } },
             ],
         })
             .overrideComponent(UnifiedLiveTabComponent, {
@@ -218,7 +227,6 @@ describe('UnifiedLiveTabComponent', () => {
                     imports: [
                         AudioPlayerComponent,
                         EpgListComponent,
-                        EpgViewComponent,
                         GlobalFavoritesListComponent,
                         LiveEpgPanelComponent,
                         ResizableDirective,
@@ -229,7 +237,6 @@ describe('UnifiedLiveTabComponent', () => {
                     imports: [
                         StubAudioPlayerComponent,
                         StubEpgListComponent,
-                        StubEpgViewComponent,
                         StubGlobalFavoritesListComponent,
                         StubLiveEpgPanelComponent,
                         StubResizableDirective,
@@ -301,7 +308,6 @@ describe('UnifiedLiveTabComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('skips EPG loading and hides the EPG panel in browser/PWA playback', async () => {
@@ -359,7 +365,6 @@ describe('UnifiedLiveTabComponent', () => {
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('passes recent mode and favorite state to the shared live collection list', async () => {
@@ -505,12 +510,12 @@ describe('UnifiedLiveTabComponent', () => {
             By.directive(StubLiveEpgPanelComponent)
         ).componentInstance as StubLiveEpgPanelComponent;
 
-        expect(panel.showDateNavigator()).toBe(false);
+        expect(panel.showDateNavigator()).toBe(true);
         expect(panel.summary()).toEqual(
             expect.objectContaining({ title: 'Xtream Now' })
         );
         expect(
-            fixture.nativeElement.querySelector('app-epg-view')
+            fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
 
         panel.collapsedChange.emit(true);
@@ -701,7 +706,6 @@ describe('UnifiedLiveTabComponent', () => {
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
     });
 
     it('renders inline audio for Stalker radio items and skips external playback', async () => {
@@ -755,7 +759,7 @@ describe('UnifiedLiveTabComponent', () => {
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-view')).toBeNull();
+        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
 
         const audioPlayer = fixture.debugElement.query(
             By.directive(StubAudioPlayerComponent)
@@ -790,9 +794,8 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         expect(
-            fixture.nativeElement.querySelector('app-epg-view')
+            fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-list')).toBeNull();
     });
 
     it('renders shared EPG view for Stalker items and records recent history', async () => {
@@ -820,7 +823,7 @@ describe('UnifiedLiveTabComponent', () => {
 
         expect(recentData.recordLivePlayback).toHaveBeenCalledWith(item);
         expect(
-            fixture.nativeElement.querySelector('app-epg-view')
+            fixture.nativeElement.querySelector('app-epg-list')
         ).not.toBeNull();
     });
 

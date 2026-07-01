@@ -80,12 +80,15 @@
                     <app-live-epg-panel
                         [collapsed]="isLiveEpgPanelCollapsed()"
                         [summary]="liveEpgPanelSummary()"
-                        [showDateNavigator]="isM3uSelection()"
+                        [summaryLabelKey]="archiveLabelKey()"
+                        [showReturnToLive]="showReturnToLive()"
+                        [showDateNavigator]="true"
                         [selectedDate]="selectedLiveEpgDate()"
                         (collapsedChange)="
                             onLiveEpgPanelCollapsedChange($event)
                         "
                         (dateNavigation)="onLiveEpgDateNavigation($event)"
+                        (returnToLive)="returnToLive()"
                     >
                         <div class="epg-content">
                             @if (isM3uSelection()) {
@@ -102,8 +105,21 @@
                                     "
                                 />
                             } @else {
-                                <app-epg-view
-                                    [epgItems]="currentPortalEpgItems()"
+                                <app-epg-list
+                                    [controlledPrograms]="
+                                        currentPortalEpgPrograms()
+                                    "
+                                    [controlledArchiveDays]="
+                                        currentPortalArchiveDays()
+                                    "
+                                    [selectedDate]="selectedLiveEpgDate()"
+                                    [showDateNavigator]="false"
+                                    (selectedDateChange)="
+                                        onLiveEpgSelectedDateChange($event)
+                                    "
+                                    (programActivated)="
+                                        onProgramActivated($event)
+                                    "
                                 />
                             }
                         </div>
@@ -117,10 +133,21 @@
                                 [archivePlaybackAvailable]="
                                     currentM3uArchivePlaybackAvailable()
                                 "
+                                (programActivated)="
+                                    onProgramActivated($event)
+                                "
                             />
                         } @else {
-                            <app-epg-view
-                                [epgItems]="currentPortalEpgItems()"
+                            <app-epg-list
+                                [controlledPrograms]="
+                                    currentPortalEpgPrograms()
+                                "
+                                [controlledArchiveDays]="
+                                    currentPortalArchiveDays()
+                                "
+                                (programActivated)="
+                                    onProgramActivated($event)
+                                "
                             />
                         }
                     </div>

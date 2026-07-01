@@ -261,6 +261,20 @@ export class UnifiedFavoritesDataService {
         if (
             options?.scope === 'playlist' &&
             options.playlistId &&
+            options.portalType === 'xtream'
+        ) {
+            const electron = this.electronActivityBridge;
+            const updates = this.buildXtreamPositionUpdates(items);
+            if (updates.length > 0 && electron) {
+                await electron.dbReorderGlobalFavorites(updates);
+            }
+            await this.saveOrder(items.map((item) => item.uid));
+            return;
+        }
+
+        if (
+            options?.scope === 'playlist' &&
+            options.playlistId &&
             options.portalType === 'stalker'
         ) {
             const playlist = (await firstValueFrom(
@@ -559,11 +573,19 @@ export class UnifiedFavoritesDataService {
             }
 
             const rows = await this.dbService.getFavorites(playlistId);
-            return (rows as unknown as XtreamFavoriteRow[]).map((r) => ({
-                ...this.mapXtreamRow(r),
-                playlistId,
-                playlistName: meta?.title || 'Xtream',
-            }));
+            const items = (rows as unknown as XtreamFavoriteRow[]).map(
+                (r) => ({
+                    ...this.mapXtreamRow(r),
+                    playlistId,
+                    playlistName: meta?.title || 'Xtream',
+                })
+            );
+
+            // Apply saved UID order so drag-drop reorder persists.
+            const order = await this.getSavedOrder();
+            return order.length > 0
+                ? this.applyOrder(items, order)
+                : items;
         } catch {
             return [];
         }
@@ -609,6 +631,9 @@ export class UnifiedFavoritesDataService {
             categoryId: row.category_id,
             tvgId: ct === 'live' ? String(row.xtream_id) : undefined,
             rating: row.rating ?? undefined,
+            tvArchive: row.tv_archive ?? null,
+            tvArchiveDuration: row.tv_archive_duration ?? null,
+            epgChannelId: row.epg_channel_id ?? null,
             addedAt:
                 normalizeStalkerDate(row.added_at) || new Date(0).toISOString(),
             position: row.position ?? 0,
@@ -635,6 +660,9 @@ export class UnifiedFavoritesDataService {
             categoryId: item.category_id,
             tvgId: ct === 'live' ? String(item.xtream_id) : undefined,
             rating: item.rating ?? undefined,
+            tvArchive: item.tv_archive ?? null,
+            tvArchiveDuration: item.tv_archive_duration ?? null,
+            epgChannelId: item.epg_channel_id ?? null,
             addedAt:
                 normalizeStalkerDate(item.added_at ?? item.added) ||
                 new Date(0).toISOString(),

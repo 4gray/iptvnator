@@ -186,10 +186,17 @@ export class LiveStreamLayoutComponent implements OnInit, OnDestroy {
     );
     readonly archivePlaybackAvailable = computed(() => {
         const selectedItem = this.selectedLiveItem();
-        return (
-            Number(selectedItem?.tv_archive ?? 0) === 1 &&
-            this.controlledArchiveDays() > 0
-        );
+        const tvArchive = selectedItem?.tv_archive;
+
+        // When the provider explicitly sets tv_archive=0, archives are not
+        // available.  But many providers omit the field entirely, so we only
+        // treat an explicit 0 as "no"; undefined/null falls through to the
+        // duration check below so catchup can work without the boolean flag.
+        if (tvArchive === 0) {
+            return false;
+        }
+
+        return this.controlledArchiveDays() > 0;
     });
     readonly hasPastPrograms = computed(() => {
         const now = this.currentTimeMs();
