@@ -10,6 +10,33 @@ on:
     workflow_dispatch:
 
 jobs:
+    lint:
+        name: Lint
+        runs-on: ubuntu-latest
+        timeout-minutes: 30
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Install pnpm
+              uses: pnpm/action-setup@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+                  cache: 'pnpm'
+
+            - name: Install dependencies
+              run: pnpm install --frozen-lockfile
+
+            - name: Lint all projects
+              run: pnpm nx run-many --target=lint --all --parallel=3 --output-style=static
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
     unit-and-typecheck:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest
@@ -39,6 +66,18 @@ jobs:
 
             - name: Run Tier A unit coverage suite
               run: pnpm run coverage:ci
+              env:
+                  CI: true
+                  NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
+
+            - name: Run Tier B/C unit tests without coverage
+              run: |
+                  projects="$(node tools/coverage/check-coverage-policy.mjs --list-non-tier-a)"
+                  if [ -n "$projects" ]; then
+                      pnpm nx run-many --target=test --projects "$projects" --parallel=3 --output-style=static
+                  else
+                      echo "No Tier B/C projects with a test target."
+                  fi
               env:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
