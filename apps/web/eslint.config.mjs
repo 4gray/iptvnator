@@ -2,6 +2,9 @@ import nx from '@nx/eslint-plugin';
 import baseConfig from '../../eslint.config.mjs';
 
 export default [
+    // Generated emscripten engine glue shipped as a runtime asset (ferrite WASM player). It is
+    // not authored source — exclude it from linting (one-line minified output trips no-var etc.).
+    { ignores: ['**/assets/ferrite.mjs'] },
     ...baseConfig,
     ...nx.configs['flat/angular'],
     ...nx.configs['flat/angular-template'],

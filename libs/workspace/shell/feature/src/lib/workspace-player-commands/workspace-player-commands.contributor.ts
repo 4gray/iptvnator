@@ -75,6 +75,16 @@ const PLAYER_COMMAND_DEFS: readonly PlayerCommandDefinition[] = [
         requires: 'managed-external',
         priority: 95,
     },
+    {
+        // Ferrite is a pure web/inline player (canvas + WASM/WebCodecs) → no native requirement.
+        id: 'switch-player-ferrite',
+        player: VideoPlayer.Ferrite,
+        icon: 'play_circle',
+        nameKey: 'SETTINGS.PLAYER_FERRITE',
+        keywords: ['player', 'ferrite', 'wasm', 'hevc'],
+        requires: 'none',
+        priority: 96,
+    },
 ];
 
 @Injectable({ providedIn: 'root' })

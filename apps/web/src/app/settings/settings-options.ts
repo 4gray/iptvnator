@@ -83,6 +83,10 @@ export const SETTINGS_EMBEDDED_PLAYER_OPTIONS: SettingsPlayerOption[] = [
         id: VideoPlayer.ArtPlayer,
         labelKey: 'SETTINGS.PLAYER_ARTPLAYER',
     },
+    {
+        id: VideoPlayer.Ferrite,
+        labelKey: 'SETTINGS.PLAYER_FERRITE',
+    },
 ];
 
 export interface SettingsSectionVisibility {
