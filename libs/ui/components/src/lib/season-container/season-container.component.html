@@ -98,10 +98,11 @@
                             role="button"
                             tabindex="0"
                             (click)="selectEpisode(episode)"
-                            (keydown.enter)="selectEpisode(episode)"
+                            (keydown.enter)="
+                                onEpisodeKeydownActivate($event, episode)
+                            "
                             (keydown.space)="
-                                $event.preventDefault();
-                                selectEpisode(episode)
+                                onEpisodeKeydownActivate($event, episode)
                             "
                             [class.episode-card--watched]="
                                 isEpisodeWatched(episode)
@@ -268,10 +269,11 @@
                             role="button"
                             tabindex="0"
                             (click)="selectEpisode(episode)"
-                            (keydown.enter)="selectEpisode(episode)"
+                            (keydown.enter)="
+                                onEpisodeKeydownActivate($event, episode)
+                            "
                             (keydown.space)="
-                                $event.preventDefault();
-                                selectEpisode(episode)
+                                onEpisodeKeydownActivate($event, episode)
                             "
                             [class.episode-list-item--watched]="
                                 isEpisodeWatched(episode)

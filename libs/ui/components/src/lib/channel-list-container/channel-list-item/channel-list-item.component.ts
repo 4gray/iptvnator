@@ -97,6 +97,12 @@ export class ChannelListItemComponent {
     }
 
     onKeydownActivate(event: Event): void {
+        if (event.target !== event.currentTarget) {
+            // Ignore Enter/Space bubbling up from a descendant action button
+            // (favorite, info, aux) — it has its own click/keyboard handling.
+            return;
+        }
+
         event.preventDefault();
         this.clicked.emit();
     }

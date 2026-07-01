@@ -8,7 +8,7 @@
     role="button"
     tabindex="0"
     [attr.aria-label]="name()"
-    [attr.aria-pressed]="selected()"
+    [attr.aria-current]="selected() || null"
     (click)="onClick($event)"
     (dblclick)="onDoubleClick()"
     (contextmenu)="onContextMenu($event)"

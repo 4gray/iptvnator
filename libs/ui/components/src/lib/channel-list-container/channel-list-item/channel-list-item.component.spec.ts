@@ -137,6 +137,23 @@ describe('ChannelListItemComponent', () => {
         expect(clicked).toHaveBeenCalledTimes(1);
     });
 
+    it('does not activate the row when a keydown bubbles up from a descendant action button', () => {
+        fixture.componentRef.setInput('name', 'Cartoon Network');
+        fixture.componentRef.setInput('showFavoriteButton', true);
+        fixture.detectChanges();
+
+        const clicked = jest.fn();
+        fixture.componentInstance.clicked.subscribe(clicked);
+
+        const favoriteButton: HTMLElement =
+            fixture.nativeElement.querySelector('.favorite-button');
+        favoriteButton.dispatchEvent(
+            new KeyboardEvent('keydown', { key: ' ', bubbles: true })
+        );
+
+        expect(clicked).not.toHaveBeenCalled();
+    });
+
     it('emits a context menu request on right click when details are enabled', () => {
         fixture.componentRef.setInput('name', 'News One');
         fixture.componentRef.setInput('showDetailsContextMenu', true);
