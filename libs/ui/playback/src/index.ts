@@ -4,6 +4,7 @@ export * from './lib/embedded-mpv-player/embedded-mpv-overlay-visibility.service
 export * from './lib/embedded-mpv-player/embedded-mpv-player.component';
 export * from './lib/embedded-mpv-player/embedded-mpv-session-controller';
 export * from './lib/external-player-info-dialog/external-player-info-dialog.component';
+export * from './lib/ferrite-player/ferrite-player.component';
 export * from './lib/html-video-player/html-video-player.component';
 export * from './lib/playback-diagnostics/playback-diagnostics.util';
 export * from './lib/portal-inline-player/portal-inline-player.component';

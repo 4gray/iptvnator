@@ -4,7 +4,7 @@ This document records the current contract for embedded playback in portal detai
 
 ## Summary
 
-- Embedded web players are `videojs`, `html5`, and `artplayer`.
+- Embedded web players are `videojs`, `html5`, `artplayer`, and `ferrite` (a canvas + WebAssembly software/WebCodecs HEVC decoder for the no-hardware-HEVC case; requires a cross-origin-isolated context).
 - `embedded-mpv` exists as a hidden desktop experimental harness backed by a native MPV addon. macOS and Windows use in-process `libmpv`; Linux uses an X11/Xwayland child window with an out-of-process `mpv --wid` backend.
 - Controlled external players are `mpv` and `vlc`.
 - macOS `.app` bundle paths are resolved only for real MPV/VLC apps. IINA may
@@ -82,6 +82,20 @@ Current limitation:
 - because of that, the setting is auto-sanitized back to the default inline player unless support detection reports that the experimental runtime is available
 - this follows the rollout gate: keep the native work in-tree, but do not leave it user-facing until playback, resize, focus, and packaging are stable
 
+## Ferrite Player (WASM HEVC)
+
+`ferrite` is a fourth inline web player backed by the [`ferrite.js`](https://www.npmjs.com/package/ferrite.js) npm package — a canvas + WebAssembly video player shaped as an mpegts.js-style drop-in. It exists for the no-hardware-HEVC case: where `<video>`/MSE and the other inline players cannot software-decode HEVC, ferrite decodes it on worker threads (software FFmpeg-WASM) or via WebCodecs when the browser hardware-decodes the codec.
+
+Current contract:
+
+- shared setting id: `ferrite`; selectable in Settings → Player and via the workspace command palette.
+- renderer host: `libs/ui/playback/src/lib/ferrite-player/ferrite-player.component.ts` — same `WebPlayerViewComponent` I/O as the other inline players, but renders to a transferred `<canvas>` via the facade's `attachCanvas` (the template keys the canvas by source URL so a channel zap recreates the element; a transferred OffscreenCanvas cannot be re-attached).
+- handles both live and VOD: the `isLive` input drives the source transport (live = reconnecting edge + latency-sync; VOD = bounded forward-range + finite duration + clean EOF, with seek bar and `startTime` resume).
+- supported by the bundled engine: MPEG-TS, MP4/MOV, Matroska containers (probed by content, not URL extension); H.264 / HEVC / MPEG-2 video; AAC / AC-3 / E-AC-3 / MP2 / MP3 audio. HLS (`.m3u`/`.m3u8`) is NOT decoded by ferrite — `web-player-view` falls back to the default inline player for those sources.
+- requires a **cross-origin-isolated** context (COOP `same-origin` + COEP `credentialless`/`require-corp`) for `SharedArrayBuffer`. Under Electron's `file://` the context is never isolated, so the facade degrades to an explicit unsupported-codec error that the diagnostics surface classifies — ferrite is effectively a PWA / web-deployment feature. The `web` serve target's opt-in `ferrite` configuration enables the headers for local development (`pnpm nx serve web --configuration=ferrite`); the default serve is unchanged.
+- the engine artifacts (`ferrite.{mjs,wasm}`) and the two worker chunks are copied from `node_modules/ferrite.js` into the served assets dir by the `web` build's asset globs and fed to the facade as same-origin `workerUrl`/`presentWorkerUrl` (esbuild does not rewrite the package's internal `new Worker(new URL(...))` from `node_modules`).
+- ships on-canvas controls (play/mute/volume/fullscreen, a VOD seek bar, a software-tier Off/Auto/Bwdif deinterlace select, and an audio-dynamics "Dyna" select — Line/RF/Night, driving the facade's `setDrc`) and a long-press diagnostic overlay whose `isolated` row diagnoses a missing COOP/COEP deployment on a devtools-less device.
+
 ## Components
 
 Shared inline player shell:
@@ -151,8 +165,8 @@ Xtream and Stalker series detail views own current-episode state and pass a
 
 Current contract:
 
-- Video.js, HTML5, ArtPlayer, and embedded MPV emit `playbackEnded` only for
-  real media EOF/`ended` events.
+- Video.js, HTML5, ArtPlayer, Ferrite, and embedded MPV emit `playbackEnded`
+  only for real media EOF/`ended` events.
 - Teardown, replacement, manual close, player reload, idle state, and playback
   errors must not emit `playbackEnded`.
 - Series previous/next controls render only when the series navigation payload is

@@ -619,6 +619,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 **Video Players**:
 
 - Built-in HTML5 player with HLS.js or Video.js
+- Ferrite (web/PWA): a canvas + WebAssembly software decoder with an automatic WebCodecs hardware tier, for software HEVC on browsers without a hardware HEVC decoder. Requires a cross-origin-isolated context (COOP/COEP); the engine + its four self-contained worker chunks are bundled as same-origin assets. Component: `libs/ui/playback/src/lib/ferrite-player/`.
 - External players: MPV, VLC (via IPC to Electron backend)
 - Embedded MPV (experimental, macOS only): renders libmpv into a custom Cocoa view inside the Electron window. Because the standard `--wid` path is bypassed, mpv's own screensaver inhibition does not apply, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever any session's status is `playing`, and releases it on pause, dispose, or shutdown. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`.
 

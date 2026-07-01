@@ -12,6 +12,8 @@ export enum VideoPlayer {
     MPV = 'mpv',
     VLC = 'vlc',
     ArtPlayer = 'artplayer',
+    /** Ferrite — canvas + WASM software/WebCodecs decoder (inline web/PWA player). */
+    Ferrite = 'ferrite',
 }
 
 export enum StartupBehavior {

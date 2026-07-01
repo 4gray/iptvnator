@@ -1,0 +1,45 @@
+:host {
+    display: contents;
+}
+
+.ferrite-debug {
+    position: absolute;
+    top: 10px;
+    left: 10px;
+    z-index: 3;
+    min-width: 180px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: rgba(0, 0, 0, 0.78);
+    color: #e0e0e0;
+    font-family: monospace;
+    font-size: 0.72rem;
+    line-height: 1.5;
+    pointer-events: none; // diagnostic readout only — never steals the surface's pointer events
+
+    .ferrite-debug-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 12px;
+
+        span {
+            opacity: 0.7;
+        }
+
+        b {
+            font-weight: 600;
+            text-align: right;
+            word-break: break-word;
+        }
+
+        // "ok" green — the app has no theme success token; this matches the
+        // literal green used for success states elsewhere in the app.
+        b.ok {
+            color: #69f0ae;
+        }
+
+        b.bad {
+            color: var(--mat-sys-error);
+        }
+    }
+}
