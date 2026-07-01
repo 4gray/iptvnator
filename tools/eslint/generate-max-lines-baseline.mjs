@@ -25,7 +25,7 @@ function collectTsFiles(dir, results) {
                 collectTsFiles(path.join(dir, entry.name), results);
             }
         } else if (
-            entry.name.endsWith('.ts') &&
+            (entry.name.endsWith('.ts') || entry.name.endsWith('.tsx')) &&
             !entry.name.endsWith('.d.ts')
         ) {
             results.push(path.join(dir, entry.name));

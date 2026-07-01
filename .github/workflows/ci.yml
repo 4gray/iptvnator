@@ -70,14 +70,8 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
-            - name: Run Tier B/C unit tests without coverage
-              run: |
-                  projects="$(node tools/coverage/check-coverage-policy.mjs --list-non-tier-a)"
-                  if [ -n "$projects" ]; then
-                      pnpm nx run-many --target=test --projects "$projects" --parallel=3 --output-style=static
-                  else
-                      echo "No Tier B/C projects with a test target."
-                  fi
+            - name: Run Tier B/C validation commands
+              run: node tools/coverage/check-coverage-policy.mjs --run-non-tier-a
               env:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false

@@ -44,9 +44,11 @@ the baseline.
 Use `tools/coverage/coverage-policy.json` as the source of truth for coverage
 ownership. Every project with a `test` target must be classified in a tier;
 `pnpm run coverage:policy:check` (part of `coverage:ci`) fails CI when a new
-project is missing from the policy or a listed project no longer exists.
-CI runs Tier A with coverage (uploaded to Codecov) and Tier B/C tests without
-coverage.
+project is missing from the policy, a listed project no longer exists, or a
+Tier A entry has no test target. CI runs Tier A with coverage (uploaded to
+Codecov) and each Tier B/C project's `validationCommand` (falling back to
+`nx test`) without coverage; projects with an `e2e` target are skipped there
+because the E2E workflow already runs them on every PR.
 
 | Tier | Rule | Validation |
 | --- | --- | --- |
