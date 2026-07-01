@@ -556,10 +556,10 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
         return;
     }
 
-    let missing;
+    let inspection;
 
     try {
-        missing = inspectPackagedDependencyClosure(asarPath, {
+        inspection = inspectPackagedDependencyClosure(asarPath, {
             listPackage,
             extractFile,
         });
@@ -568,6 +568,28 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
             `Unable to inspect packaged app archive ${asarPath}: ${error.message}`
         );
         return;
+    }
+
+    const { missing, packageCount, manifestReadFailures } = inspection;
+
+    // A packaged app always ships node_modules, so an empty audit means the
+    // guard itself failed (e.g. path-separator handling), not a healthy asar.
+    if (packageCount === 0) {
+        errors.push(
+            `Dependency-closure guard found no node_modules packages in ${asarPath}; the audit cannot have run against the real archive contents.`
+        );
+        return;
+    }
+
+    if (manifestReadFailures.length > 0) {
+        errors.push(
+            [
+                `Dependency-closure guard could not read ${manifestReadFailures.length} package manifest(s) in ${asarPath}:`,
+                ...manifestReadFailures.map(
+                    (failure) => `- ${failure.packageDir}: ${failure.message}`
+                ),
+            ].join('\n')
+        );
     }
 
     if (missing.length === 0) {

@@ -15,6 +15,8 @@
  * so the core logic stays pure and unit-testable without a real archive.
  */
 
+import path from 'node:path';
+
 const PACKAGE_MANIFEST = 'package.json';
 const NODE_MODULES_SEGMENT = '/node_modules/';
 
@@ -62,24 +64,29 @@ export function collectAsarPackageDirs(asarEntries) {
 
 /**
  * Mirrors Node's upward node_modules resolution across the packaged tree, which
- * is what electron-builder's hoisting produces. Returns the resolved package
+ * is what electron-builder's hoisting produces. Walks every ancestor directory
+ * (not just node_modules boundaries) so a dependency hoisted to the archive
+ * root still resolves for a package that lives under an app subdirectory such
+ * as `/electron-backend/node_modules/foo`. Returns the resolved package
  * directory or null when the dependency is absent.
  */
 export function resolvePackagedDependency(fromDir, dependencyName, packageDirs) {
     let current = fromDir;
 
     while (true) {
-        const candidate = `${current}/node_modules/${dependencyName}`;
-        if (packageDirs.has(candidate)) {
-            return candidate;
+        // Node never looks inside `.../node_modules/node_modules`.
+        if (!current.endsWith(NODE_MODULES_SEGMENT.slice(0, -1))) {
+            const candidate = `${current}/node_modules/${dependencyName}`;
+            if (packageDirs.has(candidate)) {
+                return candidate;
+            }
         }
 
-        const boundary = current.lastIndexOf('/node_modules/');
-        if (boundary === -1) {
+        if (current === '') {
             return null;
         }
 
-        current = current.slice(0, boundary);
+        current = current.slice(0, current.lastIndexOf('/'));
     }
 }
 
@@ -114,9 +121,19 @@ export function findMissingPackagedDependencies(packageDirs, readManifest) {
         const optionalDependencies = new Set(
             Object.keys(manifest.optionalDependencies ?? {})
         );
+        // Packages sometimes list a host-provided peer (e.g. `electron`) in
+        // `dependencies` as well so package managers install it during
+        // development; at runtime the host supplies it, so its absence from
+        // the archive is not a packaging defect.
+        const peerDependencies = new Set(
+            Object.keys(manifest.peerDependencies ?? {})
+        );
 
         for (const dependencyName of Object.keys(manifest.dependencies ?? {})) {
-            if (optionalDependencies.has(dependencyName)) {
+            if (
+                optionalDependencies.has(dependencyName) ||
+                peerDependencies.has(dependencyName)
+            ) {
                 continue;
             }
 
@@ -141,22 +158,44 @@ export function findMissingPackagedDependencies(packageDirs, readManifest) {
 /**
  * Inspects a real `app.asar` for missing runtime dependencies. `listPackage` and
  * `extractFile` are injected (normally from `@electron/asar`).
+ *
+ * `@electron/asar` builds listing entries and resolves lookup paths with the
+ * HOST separator: on Windows `listPackage` returns entries like
+ * `\node_modules\debug\package.json` and `extractFile` splits its path on
+ * `path.sep`. The pure helpers above are posix-only, so listings are normalized
+ * to posix and lookup paths converted back to the host separator (`pathSep` is
+ * injectable for tests). Without this the guard silently audited nothing on
+ * Windows.
+ *
+ * Returns `{ missing, packageCount, manifestReadFailures }` so callers can
+ * reject a vacuous pass: a packaged app always ships node_modules, so
+ * `packageCount === 0` or read failures indicate the guard itself is broken,
+ * not a healthy archive.
  */
 export function inspectPackagedDependencyClosure(
     asarPath,
-    { listPackage, extractFile }
+    { listPackage, extractFile, pathSep = path.sep }
 ) {
-    const packageDirs = collectAsarPackageDirs(listPackage(asarPath));
+    const toPosix = (value) =>
+        pathSep === '\\' ? value.replaceAll('\\', '/') : value;
+    const toHostPath = (value) =>
+        pathSep === '\\' ? value.replaceAll('/', '\\') : value;
+
+    const packageDirs = collectAsarPackageDirs(
+        listPackage(asarPath).map(toPosix)
+    );
     const manifestCache = new Map();
+    const manifestReadFailures = [];
 
     const readManifest = (packageDir) => {
         if (manifestCache.has(packageDir)) {
             return manifestCache.get(packageDir);
         }
 
-        const relativePath =
+        const relativePath = toHostPath(
             (packageDir === '' ? '' : `${packageDir.slice(1)}/`) +
-            PACKAGE_MANIFEST;
+                PACKAGE_MANIFEST
+        );
 
         let manifest = null;
 
@@ -164,7 +203,11 @@ export function inspectPackagedDependencyClosure(
             manifest = JSON.parse(
                 extractFile(asarPath, relativePath).toString('utf8')
             );
-        } catch {
+        } catch (error) {
+            manifestReadFailures.push({
+                packageDir,
+                message: error.message,
+            });
             manifest = null;
         }
 
@@ -172,5 +215,11 @@ export function inspectPackagedDependencyClosure(
         return manifest;
     };
 
-    return findMissingPackagedDependencies(packageDirs, readManifest);
+    const missing = findMissingPackagedDependencies(packageDirs, readManifest);
+
+    return {
+        missing,
+        packageCount: packageDirs.size,
+        manifestReadFailures,
+    };
 }
