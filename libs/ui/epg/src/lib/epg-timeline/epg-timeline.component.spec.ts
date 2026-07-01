@@ -23,6 +23,13 @@ function programAt(
     };
 }
 
+/** Local yyyy-MM-dd day-key for a programme start (matches the component). */
+function localDateKey(iso: string): string {
+    const d = new Date(iso);
+    const pad = (n: number) => String(n).padStart(2, '0');
+    return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+}
+
 describe('EpgTimelineComponent', () => {
     let fixture: ComponentFixture<EpgTimelineComponent>;
     let component: EpgTimelineComponent;
@@ -84,6 +91,26 @@ describe('EpgTimelineComponent', () => {
         // A programme three days from now: today has nothing.
         setInputs({ programs: [programAt(3 * 1440, 60)] });
         expect(component.renderState()).toBe('empty-day');
+    });
+
+    it('honours a controlled non-today selectedDate instead of resetting to today', () => {
+        // Data three days out (today empty). Without honouring the controlled
+        // input the panel would show empty-day for today; with it, the ribbon
+        // renders on the host-selected day.
+        const future = programAt(3 * 1440, 60);
+        setInputs({
+            programs: [future],
+            selectedDate: localDateKey(future.start),
+        });
+        expect(component.renderState()).toBe('ribbon');
+    });
+
+    it('follows a programmatic selectedDate change from the host', () => {
+        const future = programAt(3 * 1440, 60);
+        setInputs({ programs: [future] });
+        expect(component.renderState()).toBe('empty-day'); // viewing today
+        setInputs({ selectedDate: localDateKey(future.start) });
+        expect(component.renderState()).toBe('ribbon'); // followed the host
     });
 
     it('shows the ribbon controls (Now + zoom) only while a ribbon renders', () => {

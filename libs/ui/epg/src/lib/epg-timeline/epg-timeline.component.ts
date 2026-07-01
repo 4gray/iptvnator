@@ -7,6 +7,7 @@ import {
     ElementRef,
     inject,
     input,
+    linkedSignal,
     output,
     signal,
     untracked,
@@ -120,8 +121,13 @@ export class EpgTimelineComponent {
 
     private readonly nowMs = signal(Date.now());
     readonly selectedKey = signal<string | null>(null);
-    /** Day currently centred in the ribbon viewport. */
-    private readonly viewDayKey = signal(getTodayEpgDateKey());
+    /** Day centred in the ribbon. Seeded from the controlled `selectedDate` so a
+     * non-today date survives (re)mount and follows host changes; local
+     * navigation overrides via `commitDay`. Falls back to today when unset. */
+    private readonly viewDayKey = linkedSignal(() => {
+        const key = this.selectedDate()?.trim();
+        return key ? key : getTodayEpgDateKey();
+    });
 
     /** Ribbon scrolling + channel-select auto-focus, extracted from the view. */
     private readonly scroll = new TimelineScrollController({
