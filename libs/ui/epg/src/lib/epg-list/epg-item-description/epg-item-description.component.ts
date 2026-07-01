@@ -11,7 +11,7 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 
 export type EpgItemDialogAction = 'live' | 'timeshift';
 
-type EpgItemDialogData = EpgProgram & {
+export type EpgItemDialogData = EpgProgram & {
     channelName?: string | null;
     channel_name?: string | null;
     display_name?: string | null;

@@ -274,6 +274,22 @@ surfaces: the M3U video player, the unified live tab, and the Xtream and Stalker
 live-stream layouts. It replaces the former vertical `app-epg-list` /
 `app-epg-view`.
 
+The component stays presentation-focused; the reusable, view-agnostic pieces
+(so a future list view can share them) are split out and re-exported from
+`@iptvnator/ui/epg`:
+
+- `epg-timeline.utils.ts` (axis/blocks/date helpers) + `epg-timeline-render.util.ts`
+  (short-programme tiers, grouping, zoom bounds) — the ribbon geometry.
+- `epg-archive.util.ts` — catch-up gating (`isWithinArchiveWindow`,
+  `canCatchUpProgramme`, `epgDialogActionFor`) off `when`/`startMs` primitives.
+- `epg-summary.util.ts` — `EpgTimelineSummary` + collapsed-summary progress maths
+  (`summaryProgress` / `summaryMinutesLeft` / …).
+- `epg-programme-dialog.service.ts` — `EpgProgrammeDialogService`, opens the
+  shared details dialog and returns the chosen `live` / `timeshift` action.
+- `epg-timeline-scroll.controller.ts` — `TimelineScrollController` (ribbon
+  scrolling + channel-select auto-focus); timeline-specific, kept out of the
+  component so it stays under the line ceiling.
+
 - **One channel, preloaded window.** The panel always shows a single channel.
   Each provider returns a multi-day window in roughly one call (M3U
   `GET_CHANNEL_PROGRAMS`; Stalker `get_epg_info`; Xtream `get_simple_data_table`),
@@ -288,8 +304,8 @@ live-stream layouts. It replaces the former vertical `app-epg-list` /
   zoom changes, or a host re-emitting the same data never re-jump the viewport;
   switching channels (or returning after viewing an empty-day channel) re-centres.
   The explicit "Now" button still animates (`behavior: 'smooth'`) since it is a
-  deliberate user action. See `EpgTimelineComponent.maybeAutoFocus` /
-  `focusCurrentProgram`.
+  deliberate user action. See `TimelineScrollController.maybeAutoFocus` /
+  `focusCurrentProgram` in `epg-timeline-scroll.controller.ts`.
 - **Controlled component.** `app-epg-timeline` is presentation-only: it takes
   `programs`, `archivePlaybackAvailable`, `archiveDays`, `activeProgram`,
   `isLivePlayback`, `loading`, `emptyReason`, `selectedDate`, `collapsed`,

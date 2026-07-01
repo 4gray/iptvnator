@@ -1,0 +1,128 @@
+import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { getTodayEpgDateKey, parseEpgDateKey } from '../epg-date';
+import {
+    dayKeyAtOffset,
+    hasProgramsForDateKey,
+    TIMELINE_MINUTE_MS,
+    TimelineAxis,
+    TimelineBlock,
+} from './epg-timeline.utils';
+
+/** Accessors the controller reads from the host timeline component's signals. */
+export interface TimelineScrollContext {
+    readonly ribbon: () => HTMLElement | undefined;
+    readonly scale: () => number;
+    readonly axis: () => TimelineAxis;
+    readonly blocks: () => readonly TimelineBlock[];
+    readonly nowMs: () => number;
+    readonly viewDayKey: () => string;
+    readonly commitDay: (dayKey: string) => void;
+}
+
+/** Stable identity of a channel's programme set (changes when the channel does). */
+export function programsFocusKey(programs: readonly EpgProgram[]): string {
+    if (programs.length === 0) {
+        return '';
+    }
+    const first = programs[0];
+    const last = programs[programs.length - 1];
+    return `${first.channel ?? ''}|${programs.length}|${first.start}|${last.stop}`;
+}
+
+/**
+ * Owns the ribbon's horizontal scrolling and the channel-select auto-focus,
+ * keeping that stateful logic out of the presentation component. Instantiated
+ * with accessors to the component's signals.
+ */
+export class TimelineScrollController {
+    private scrollFrame = 0;
+    private lastFocusKey: string | null = null;
+
+    constructor(private readonly ctx: TimelineScrollContext) {}
+
+    /** Centre the current programme (or "now" if none airing) in the viewport. */
+    focusCurrentProgram(smooth: boolean): void {
+        const axis = this.ctx.axis();
+        const current = this.ctx.blocks().find((block) => block.when === 'now');
+        const targetMs = current
+            ? (current.startMs + current.stopMs) / 2
+            : this.ctx.nowMs();
+        const offsetMin = (targetMs - axis.startMs) / TIMELINE_MINUTE_MS;
+        this.scrollToOffset(offsetMin, 0.5, smooth);
+    }
+
+    scrollToDateKey(dateKey: string, frac: number): void {
+        const axis = this.ctx.axis();
+        const noonMs =
+            parseEpgDateKey(dateKey).getTime() + 12 * 60 * TIMELINE_MINUTE_MS;
+        const offsetMin = (noonMs - axis.startMs) / TIMELINE_MINUTE_MS;
+        this.scrollToOffset(offsetMin, frac);
+    }
+
+    scrollToOffset(offsetMin: number, frac: number, smooth = true): void {
+        requestAnimationFrame(() => {
+            const scroller = this.ctx.ribbon();
+            if (!scroller) {
+                return;
+            }
+            const left =
+                offsetMin * this.ctx.scale() - scroller.clientWidth * frac;
+            scroller.scrollTo({
+                left: Math.max(0, left),
+                behavior: smooth ? 'smooth' : 'auto',
+            });
+        });
+    }
+
+    /** Update the centred day as the ribbon scrolls (rAF-throttled). */
+    onRibbonScroll(): void {
+        if (this.scrollFrame) {
+            return;
+        }
+        this.scrollFrame = requestAnimationFrame(() => {
+            this.scrollFrame = 0;
+            const scroller = this.ctx.ribbon();
+            if (!scroller) {
+                return;
+            }
+            const centerOffsetMin =
+                (scroller.scrollLeft + scroller.clientWidth / 2) /
+                this.ctx.scale();
+            const dayKey = dayKeyAtOffset(this.ctx.axis(), centerOffsetMin);
+            if (dayKey && dayKey !== this.ctx.viewDayKey()) {
+                this.ctx.commitDay(dayKey);
+            }
+        });
+    }
+
+    /**
+     * Centre the current programme when a channel's EPG (re)loads or the ribbon
+     * (re)mounts. Deduped by programme-set identity so the 30s "now" tick, zoom
+     * changes, or a host re-emitting the same data never re-jump the viewport.
+     */
+    maybeAutoFocus(
+        scroller: HTMLElement | undefined,
+        programs: readonly EpgProgram[]
+    ): void {
+        const key = programsFocusKey(programs);
+        // Skip (without clearing lastFocusKey) when there's no ribbon yet, no
+        // programmes, or we've already focused this channel. Re-running for the
+        // same channel — e.g. when the ribbon remounts after the user navigates
+        // to another day — must NOT re-focus, or `commitDay(today)` below would
+        // snap the view back to today and trap the user on an empty day.
+        if (!scroller || !key || key === this.lastFocusKey) {
+            return;
+        }
+        const todayKey = getTodayEpgDateKey();
+        // Only auto-focus when today actually has a programme to centre on.
+        // Otherwise (today empty, data on other days) leave the user's day
+        // navigation alone instead of forcing the view back to an empty today.
+        if (!hasProgramsForDateKey(programs, todayKey)) {
+            return;
+        }
+        this.lastFocusKey = key;
+        this.ctx.commitDay(todayKey);
+        // Instant: land already centred, no annoying scroll animation.
+        this.focusCurrentProgram(false);
+    }
+}

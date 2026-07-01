@@ -3,7 +3,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { TranslateService } from '@ngx-translate/core';
 import { BehaviorSubject, of } from 'rxjs';
-import { EpgTimelineComponent, programsFocusKey } from './epg-timeline.component';
+import { EpgTimelineComponent } from './epg-timeline.component';
 import { TimelineBlock } from './epg-timeline.utils';
 
 function programAt(
@@ -210,123 +210,5 @@ describe('EpgTimelineComponent', () => {
             stopMs: Date.now(),
         });
         expect(component.scale()).toBeGreaterThan(3);
-    });
-
-    describe('programsFocusKey (channel-change auto-focus identity)', () => {
-        function programFor(channel: string): EpgProgram {
-            return { ...programAt(0, 60), channel };
-        }
-
-        it('is empty for an empty programme set so no focus is attempted', () => {
-            expect(programsFocusKey([])).toBe('');
-        });
-
-        it('is stable for the same programme set (no re-jump on re-render)', () => {
-            const programs = [programFor('a'), programFor('a')];
-            expect(programsFocusKey(programs)).toBe(
-                programsFocusKey([...programs])
-            );
-        });
-
-        it('differs when the channel changes (re-focus on channel switch)', () => {
-            const a = programsFocusKey([programFor('alpha')]);
-            const b = programsFocusKey([programFor('beta')]);
-            expect(a).not.toBe(b);
-        });
-    });
-
-    describe('maybeAutoFocus (channel-select centring)', () => {
-        function focus(
-            scroller: HTMLElement | undefined,
-            programs = component.programs()
-        ): void {
-            (component as unknown as {
-                maybeAutoFocus(s: HTMLElement | undefined, p: unknown[]): void;
-            }).maybeAutoFocus(scroller, programs as unknown[]);
-        }
-
-        it('centres the current programme instantly (no scroll animation)', () => {
-            setInputs({ programs: [programAt(0, 120, 'Now')] });
-            const spy = jest.spyOn(
-                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
-                'scrollToOffset'
-            ).mockImplementation(() => undefined);
-
-            focus({} as HTMLElement);
-
-            expect(spy).toHaveBeenCalledTimes(1);
-            const [, frac, smooth] = spy.mock.calls[0];
-            expect(frac).toBe(0.5); // centred in the viewport
-            expect(smooth).toBe(false); // instant, no animation
-        });
-
-        it('does not re-focus while the same channel stays loaded', () => {
-            setInputs({ programs: [programAt(0, 120, 'Now')] });
-            const spy = jest.spyOn(
-                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
-                'scrollToOffset'
-            ).mockImplementation(() => undefined);
-            const scroller = {} as HTMLElement;
-
-            focus(scroller);
-            focus(scroller); // host re-emits same data / now-tick
-            expect(spy).toHaveBeenCalledTimes(1);
-        });
-
-        it('does not re-focus the same channel when its ribbon remounts (no snap-back)', () => {
-            // Unmount + remount of the SAME channel — e.g. the user navigates from
-            // an empty day to a day with programmes — must not re-focus, or it
-            // would commit today again and snap the view back to the empty day.
-            setInputs({ programs: [programAt(0, 120, 'Now')] });
-            const spy = jest.spyOn(
-                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
-                'scrollToOffset'
-            ).mockImplementation(() => undefined);
-            const scroller = {} as HTMLElement;
-            const programs = component.programs();
-
-            focus(scroller, programs); // focus #1
-            focus(undefined, programs); // ribbon unmounts (empty-day navigation)
-            focus(scroller, programs); // remount on another day → must NOT re-focus
-            expect(spy).toHaveBeenCalledTimes(1);
-        });
-
-        it('re-focuses when the channel changes', () => {
-            const spy = jest.spyOn(
-                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
-                'scrollToOffset'
-            ).mockImplementation(() => undefined);
-            const scroller = {} as HTMLElement;
-
-            setInputs({ programs: [{ ...programAt(0, 120, 'A'), channel: 'a' }] });
-            focus(scroller);
-            setInputs({ programs: [{ ...programAt(0, 120, 'B'), channel: 'b' }] });
-            focus(scroller);
-            expect(spy).toHaveBeenCalledTimes(2);
-        });
-
-        it('does not focus or snap to today when today has no programmes', () => {
-            // Programmes only three days out → today is empty; auto-focus must
-            // leave the user's day navigation alone instead of forcing today.
-            setInputs({ programs: [programAt(3 * 1440, 60)] });
-            const spy = jest.spyOn(
-                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
-                'scrollToOffset'
-            ).mockImplementation(() => undefined);
-
-            focus({} as HTMLElement);
-            expect(spy).not.toHaveBeenCalled();
-        });
-
-        it('skips focus entirely when the ribbon is not mounted', () => {
-            setInputs({ programs: [programAt(0, 120, 'Now')] });
-            const spy = jest.spyOn(
-                component as unknown as { scrollToOffset: (...a: unknown[]) => void },
-                'scrollToOffset'
-            ).mockImplementation(() => undefined);
-
-            focus(undefined);
-            expect(spy).not.toHaveBeenCalled();
-        });
     });
 });

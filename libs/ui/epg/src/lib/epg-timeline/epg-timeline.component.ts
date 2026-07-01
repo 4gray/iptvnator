@@ -13,7 +13,6 @@ import {
     viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatTooltip } from '@angular/material/tooltip';
 import { normalizeDateLocale } from '@iptvnator/pipes';
@@ -26,15 +25,26 @@ import {
     parseEpgDateKey,
     shiftEpgDateKey,
 } from '../epg-date';
-import {
-    EpgItemDialogAction,
-    EpgItemDescriptionComponent,
-} from '../epg-list/epg-item-description/epg-item-description.component';
+import { EpgItemDialogAction } from '../epg-list/epg-item-description/epg-item-description.component';
 import type { EpgProgramActivationEvent } from '../epg-list/epg-list.component';
+import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
+import {
+    EpgTimelineSummary,
+    formatClockTime,
+    summaryHasTimeRange,
+    summaryHasTitle,
+    summaryMinutesLeft,
+    summaryProgress,
+} from './epg-summary.util';
+import {
+    canCatchUpProgramme,
+    epgDialogActionFor,
+} from './epg-archive.util';
 import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
+import { TimelineScrollController } from './epg-timeline-scroll.controller';
 import { EpgTimelineTrackComponent } from './epg-timeline-track.component';
 import {
     buildTimelineAxis,
@@ -42,7 +52,6 @@ import {
     buildTimelineDayDividers,
     buildTimelineRenderItems,
     buildTimelineTicks,
-    dayKeyAtOffset,
     hasProgramsForDateKey,
     nearestDateKeyWithPrograms,
     TIMELINE_DEFAULT_SCALE,
@@ -59,13 +68,7 @@ import {
 
 type RenderState = 'loading' | 'ribbon' | EpgTimelineEmptyReason;
 
-/** Collapsed-summary payload (structurally matches the legacy panel summary). */
-export interface EpgTimelineSummary {
-    readonly title?: string | null;
-    readonly start?: string | number | Date | null;
-    readonly stop?: string | number | Date | null;
-    readonly progress?: number | null;
-}
+export type { EpgTimelineSummary } from './epg-summary.util';
 
 @Component({
     selector: 'app-epg-timeline',
@@ -104,7 +107,7 @@ export class EpgTimelineComponent {
     readonly retry = output<void>();
     readonly collapsedChange = output<boolean>();
 
-    private readonly dialog = inject(MatDialog);
+    private readonly programmeDialog = inject(EpgProgrammeDialogService);
     private readonly translate = inject(TranslateService);
 
     readonly ribbon = viewChild<ElementRef<HTMLElement>>('ribbon');
@@ -119,9 +122,17 @@ export class EpgTimelineComponent {
     readonly selectedKey = signal<string | null>(null);
     /** Day currently centred in the ribbon viewport. */
     private readonly viewDayKey = signal(getTodayEpgDateKey());
-    private scrollFrame = 0;
-    /** Identity of the programme set we last auto-focused, to avoid re-jumps. */
-    private lastFocusKey: string | null = null;
+
+    /** Ribbon scrolling + channel-select auto-focus, extracted from the view. */
+    private readonly scroll = new TimelineScrollController({
+        ribbon: () => this.ribbon()?.nativeElement,
+        scale: () => this.scale(),
+        axis: () => this.axis(),
+        blocks: () => this.blocks(),
+        nowMs: () => this.nowMs(),
+        viewDayKey: () => this.viewDayKey(),
+        commitDay: (dayKey) => this.commitDay(dayKey),
+    });
 
     private readonly languageTick = toSignal(
         this.translate.onLangChange.pipe(startWith(null)),
@@ -172,10 +183,7 @@ export class EpgTimelineComponent {
         if (scale < 3) return 'EPG.TIMELINE.ZOOM_HOURS';
         return 'EPG.TIMELINE.ZOOM_DETAIL';
     });
-    readonly nowLabel = computed(() => {
-        const date = new Date(this.nowMs());
-        return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
-    });
+    readonly nowLabel = computed(() => formatClockTime(this.nowMs()));
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
     readonly isViewToday = computed(
@@ -225,37 +233,16 @@ export class EpgTimelineComponent {
     });
 
     // ── collapsed-summary state ──
-    readonly hasSummary = computed(() => {
-        const title = this.summary()?.title;
-        return typeof title === 'string' && title.trim().length > 0;
-    });
-    readonly hasTimeRange = computed(() => {
-        const summary = this.summary();
-        return !!summary?.start || !!summary?.stop;
-    });
-    readonly progress = computed(() => {
-        const summary = this.summary();
-        if (!summary) {
-            return null;
-        }
-        const explicit = Number(summary.progress);
-        if (Number.isFinite(explicit)) {
-            return clampPercent(explicit);
-        }
-        const startMs = toTimeMs(summary.start);
-        const stopMs = toTimeMs(summary.stop);
-        if (startMs === null || stopMs === null || stopMs <= startMs) {
-            return null;
-        }
-        return clampPercent(((this.nowMs() - startMs) / (stopMs - startMs)) * 100);
-    });
-    readonly minutesLeft = computed(() => {
-        const stopMs = toTimeMs(this.summary()?.stop);
-        if (stopMs === null) {
-            return null;
-        }
-        return Math.max(0, Math.round((stopMs - this.nowMs()) / 60_000));
-    });
+    readonly hasSummary = computed(() => summaryHasTitle(this.summary()));
+    readonly hasTimeRange = computed(() =>
+        summaryHasTimeRange(this.summary())
+    );
+    readonly progress = computed(() =>
+        summaryProgress(this.summary(), this.nowMs())
+    );
+    readonly minutesLeft = computed(() =>
+        summaryMinutesLeft(this.summary(), this.nowMs())
+    );
 
     constructor() {
         effect((onCleanup) => {
@@ -274,39 +261,8 @@ export class EpgTimelineComponent {
         effect(() => {
             const scroller = this.ribbon()?.nativeElement;
             const programs = this.programs();
-            untracked(() => this.maybeAutoFocus(scroller, programs));
+            untracked(() => this.scroll.maybeAutoFocus(scroller, programs));
         });
-    }
-
-    /**
-     * Centre the current programme when a channel's EPG (re)loads or the ribbon
-     * (re)mounts. Deduped by programme-set identity so the 30s "now" tick, zoom
-     * changes, or a host re-emitting the same data never re-jump the viewport.
-     */
-    private maybeAutoFocus(
-        scroller: HTMLElement | undefined,
-        programs: readonly EpgProgram[]
-    ): void {
-        const key = programsFocusKey(programs);
-        // Skip (without clearing lastFocusKey) when there's no ribbon yet, no
-        // programmes, or we've already focused this channel. Re-running for the
-        // same channel — e.g. when the ribbon remounts after the user navigates
-        // to another day — must NOT re-focus, or `commitDay(today)` below would
-        // snap the view back to today and trap the user on an empty day.
-        if (!scroller || !key || key === this.lastFocusKey) {
-            return;
-        }
-        const todayKey = getTodayEpgDateKey();
-        // Only auto-focus when today actually has a programme to centre on.
-        // Otherwise (today empty, data on other days) leave the user's day
-        // navigation alone instead of forcing the view back to an empty today.
-        if (!hasProgramsForDateKey(programs, todayKey)) {
-            return;
-        }
-        this.lastFocusKey = key;
-        this.commitDay(todayKey);
-        // Instant: land already centred, no annoying scroll animation.
-        this.focusCurrentProgram(false);
     }
 
     toggleCollapsed(): void {
@@ -338,14 +294,16 @@ export class EpgTimelineComponent {
         const axis = this.axis();
         const centreMs = (group.startMs + group.stopMs) / 2;
         const offsetMin = (centreMs - axis.startMs) / TIMELINE_MINUTE_MS;
-        this.scrollToOffset(offsetMin, 0.5);
+        this.scroll.scrollToOffset(offsetMin, 0.5);
     }
 
     canCatchUp(block: TimelineBlock): boolean {
-        return (
-            this.archivePlaybackAvailable() &&
-            block.when === 'past' &&
-            this.isWithinArchiveWindow(block)
+        return canCatchUpProgramme(
+            block.when,
+            block.startMs,
+            this.archivePlaybackAvailable(),
+            this.archiveDays(),
+            this.nowMs()
         );
     }
 
@@ -372,22 +330,15 @@ export class EpgTimelineComponent {
     }
 
     openDetails(block: TimelineBlock): void {
-        const primaryAction = this.dialogActionFor(block);
-        const archiveUnavailableNote =
-            block.when === 'past' && !this.archivePlaybackAvailable();
-
-        this.dialog
-            .open(EpgItemDescriptionComponent, {
-                width: '540px',
-                data: {
-                    ...block.program,
-                    channelName: this.channelName(),
-                    channelLogo: this.channelLogo(),
-                    primaryAction,
-                    archiveUnavailableNote,
-                },
+        this.programmeDialog
+            .open({
+                ...block.program,
+                channelName: this.channelName(),
+                channelLogo: this.channelLogo(),
+                primaryAction: this.dialogActionFor(block),
+                archiveUnavailableNote:
+                    block.when === 'past' && !this.archivePlaybackAvailable(),
             })
-            .afterClosed()
             .subscribe((result: EpgItemDialogAction | undefined) => {
                 if (result === 'live') {
                     this.returnToLive.emit();
@@ -404,13 +355,13 @@ export class EpgTimelineComponent {
     stepDay(direction: EpgDateNavigationDirection): void {
         const nextKey = shiftEpgDateKey(this.viewDayKey(), direction);
         this.commitDay(nextKey);
-        this.scrollToDateKey(nextKey, 0.5);
+        this.scroll.scrollToDateKey(nextKey, 0.5);
     }
 
     jumpToNow(): void {
         this.commitDay(getTodayEpgDateKey());
         // Deliberate user action → animate so the movement reads.
-        this.focusCurrentProgram(true);
+        this.scroll.focusCurrentProgram(true);
     }
 
     jumpToNearestDay(): void {
@@ -420,27 +371,12 @@ export class EpgTimelineComponent {
         );
         if (nearest) {
             this.commitDay(nearest);
-            this.scrollToDateKey(nearest, 0.5);
+            this.scroll.scrollToDateKey(nearest, 0.5);
         }
     }
 
     onRibbonScroll(): void {
-        if (this.scrollFrame) {
-            return;
-        }
-        this.scrollFrame = requestAnimationFrame(() => {
-            this.scrollFrame = 0;
-            const scroller = this.ribbon()?.nativeElement;
-            if (!scroller) {
-                return;
-            }
-            const centerOffsetMin =
-                (scroller.scrollLeft + scroller.clientWidth / 2) / this.scale();
-            const dayKey = dayKeyAtOffset(this.axis(), centerOffsetMin);
-            if (dayKey && dayKey !== this.viewDayKey()) {
-                this.commitDay(dayKey);
-            }
-        });
+        this.scroll.onRibbonScroll();
     }
 
     private commitDay(dayKey: string): void {
@@ -452,86 +388,6 @@ export class EpgTimelineComponent {
     }
 
     private dialogActionFor(block: TimelineBlock): EpgItemDialogAction | null {
-        if (block.when === 'now') {
-            return 'live';
-        }
-        if (this.canCatchUp(block)) {
-            return 'timeshift';
-        }
-        return null;
+        return epgDialogActionFor(block.when, this.canCatchUp(block));
     }
-
-    private isWithinArchiveWindow(block: TimelineBlock): boolean {
-        const days = this.archiveDays();
-        if (days <= 0) {
-            return true; // capability flagged but no explicit window
-        }
-        const limitMs = this.nowMs() - days * 24 * 60 * TIMELINE_MINUTE_MS;
-        return block.startMs >= limitMs;
-    }
-
-    /** Centre the current programme (or "now" if none airing) in the viewport. */
-    private focusCurrentProgram(smooth: boolean): void {
-        const axis = this.axis();
-        const current = this.blocks().find((block) => block.when === 'now');
-        const targetMs = current
-            ? (current.startMs + current.stopMs) / 2
-            : this.nowMs();
-        const offsetMin = (targetMs - axis.startMs) / TIMELINE_MINUTE_MS;
-        this.scrollToOffset(offsetMin, 0.5, smooth);
-    }
-
-    private scrollToDateKey(dateKey: string, frac: number): void {
-        const axis = this.axis();
-        const noonMs = parseEpgDateKey(dateKey).getTime() + 12 * 60 * TIMELINE_MINUTE_MS;
-        const offsetMin = (noonMs - axis.startMs) / TIMELINE_MINUTE_MS;
-        this.scrollToOffset(offsetMin, frac);
-    }
-
-    private scrollToOffset(offsetMin: number, frac: number, smooth = true): void {
-        requestAnimationFrame(() => {
-            const scroller = this.ribbon()?.nativeElement;
-            if (!scroller) {
-                return;
-            }
-            const left = offsetMin * this.scale() - scroller.clientWidth * frac;
-            scroller.scrollTo({
-                left: Math.max(0, left),
-                behavior: smooth ? 'smooth' : 'auto',
-            });
-        });
-    }
-}
-
-/** Stable identity of a channel's programme set (changes when the channel does). */
-export function programsFocusKey(programs: readonly EpgProgram[]): string {
-    if (programs.length === 0) {
-        return '';
-    }
-    const first = programs[0];
-    const last = programs[programs.length - 1];
-    return `${first.channel ?? ''}|${programs.length}|${first.start}|${last.stop}`;
-}
-
-function pad(value: number): string {
-    return String(value).padStart(2, '0');
-}
-
-function clampPercent(value: number): number {
-    return Math.min(100, Math.max(0, value));
-}
-
-function toTimeMs(
-    value: string | number | Date | null | undefined
-): number | null {
-    if (value === null || value === undefined || value === '') {
-        return null;
-    }
-    const parsed =
-        value instanceof Date
-            ? value.getTime()
-            : typeof value === 'number'
-              ? value
-              : Date.parse(value);
-    return Number.isFinite(parsed) ? parsed : null;
 }
