@@ -1,0 +1,61 @@
+@let r = row();
+
+<div class="time">
+    <span class="time-range"
+        >{{ r.startMs | date: 'HH:mm' }} – {{ r.stopMs | date: 'HH:mm' }}</span
+    >
+    @if (r.when === 'now') {
+        <span class="time-now">{{ 'EPG.TIMELINE.ON_NOW' | translate }}</span>
+    }
+</div>
+
+<div class="body">
+    <div class="title">{{ r.program.title }}</div>
+    @if (r.program.desc) {
+        <div class="desc">{{ r.program.desc }}</div>
+    }
+
+    @if (r.when === 'now' && r.progress !== null) {
+        <div class="g-now-bar" aria-hidden="true">
+            <i [style.width.%]="r.progress"></i>
+        </div>
+    }
+    @if (isPlaying()) {
+        <div class="playtag">
+            <mat-icon>play_arrow</mat-icon>
+            {{ 'EPG.TIMELINE.FROM_ARCHIVE' | translate }}
+        </div>
+    }
+</div>
+
+<div class="aux">
+    @if (r.when === 'now') {
+        @if (minutesLeft() !== null) {
+            <span class="nowtag"
+                >{{ minutesLeft() }}
+                {{ 'EPG.TIMELINE.MINUTES_LEFT' | translate }}</span
+            >
+        }
+    } @else if (r.canCatchUp) {
+        <button
+            type="button"
+            class="watch"
+            (click)="onWatch($event)"
+            [attr.aria-label]="'EPG.TIMELINE.WATCH_FROM_START' | translate"
+        >
+            <mat-icon>replay</mat-icon>
+            {{ 'EPG.TIMELINE.WATCH' | translate }}
+        </button>
+    }
+
+    <button
+        type="button"
+        class="icbtn"
+        (click)="onInfo($event)"
+        [attr.aria-label]="
+            'EPG.PROGRAM_DIALOG.SHOW_PROGRAM_DETAILS' | translate
+        "
+    >
+        <mat-icon>info_outline</mat-icon>
+    </button>
+</div>

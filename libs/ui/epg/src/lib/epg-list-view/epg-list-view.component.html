@@ -1,0 +1,217 @@
+@let state = renderState();
+
+<div
+    class="guide"
+    [class.guide--no-archive]="!archivePlaybackAvailable()"
+    [class.is-collapsed]="collapsed()"
+>
+    <!-- toolbar: collapse + channel on the left, live/jump/stepper on the right -->
+    <div class="g-head">
+        <button
+            type="button"
+            class="g-collapse"
+            (click)="toggleCollapsed()"
+            [attr.aria-expanded]="!collapsed()"
+            [attr.aria-label]="
+                (collapsed() ? 'EPG.EXPAND_PANEL' : 'EPG.COLLAPSE_PANEL')
+                    | translate
+            "
+        >
+            <span class="cc"><mat-icon>keyboard_arrow_down</mat-icon></span>
+            <span class="gt">
+                <b>{{ channelName() }}</b>
+                <span class="src">{{ sourceLabel() }}</span>
+            </span>
+        </button>
+
+        <span class="g-spacer"></span>
+
+        @if (collapsed()) {
+            <!-- collapsed inline summary lives IN the toolbar row: hosts clamp
+                 the collapsed panel to 56px, so a block below it would be
+                 clipped (mirrors the timeline's collapsed layout). -->
+            @if (loading()) {
+                <span class="cn-title cn-title--muted">{{
+                    'EPG.LOADING' | translate
+                }}</span>
+            } @else if (hasSummary()) {
+                @if (isLivePlayback()) {
+                    <span class="cn-tag live">{{
+                        'EPG.TIMELINE.ON_NOW' | translate
+                    }}</span>
+                    <span class="cn-title">{{ summary()?.title }}</span>
+                    @if (progress() !== null) {
+                        <span class="cn-bar" aria-hidden="true"
+                            ><i [style.width.%]="progress()"></i
+                        ></span>
+                    }
+                    @if (minutesLeft() !== null) {
+                        <span class="cn-meta"
+                            >{{ minutesLeft() }}
+                            {{ 'EPG.TIMELINE.MINUTES_LEFT' | translate }}</span
+                        >
+                    }
+                } @else {
+                    <span class="cn-tag arch">
+                        <mat-icon>play_arrow</mat-icon>
+                        {{ 'EPG.ARCHIVE_PLAYBACK' | translate }}
+                    </span>
+                    <span class="cn-title">{{ summary()?.title }}</span>
+                    @if (hasTimeRange()) {
+                        <span class="cn-meta"
+                            >{{ summary()?.start | date: 'HH:mm' }} –
+                            {{ summary()?.stop | date: 'HH:mm' }}</span
+                        >
+                    }
+                }
+            } @else {
+                <span class="cn-title cn-title--muted">{{
+                    'EPG.NO_PROGRAM_INFO' | translate
+                }}</span>
+            }
+        } @else {
+            @if (!isLivePlayback()) {
+                <button
+                    type="button"
+                    class="g-livebtn"
+                    (click)="returnToLive.emit()"
+                >
+                    {{ 'EPG.TIMELINE.RETURN_TO_LIVE' | translate }}
+                </button>
+            }
+            @if (showJump()) {
+                <button
+                    type="button"
+                    class="g-jump"
+                    (click)="jumpToNow()"
+                    [matTooltip]="'EPG.TIMELINE.JUMP_NOW' | translate"
+                >
+                    <mat-icon>my_location</mat-icon>
+                    {{ 'EPG.TIMELINE.NOW' | translate }}
+                </button>
+            }
+            @if (showDateStepper()) {
+                <div class="g-date">
+                    <button
+                        type="button"
+                        class="nav"
+                        [attr.aria-label]="'EPG.PREVIOUS_DAY' | translate"
+                        (click)="stepDay('prev')"
+                    >
+                        <mat-icon>chevron_left</mat-icon>
+                    </button>
+                    <div class="d">
+                        <span>
+                            @if (isViewToday()) {
+                                {{ 'EPG.TIMELINE.TODAY' | translate }}
+                            } @else {
+                                {{
+                                    viewDate()
+                                        | date: 'EEE' : '' : currentLocale()
+                                }}
+                            }
+                        </span>
+                        <small>{{
+                            viewDate() | date: 'EEE, d MMM' : '' : currentLocale()
+                        }}</small>
+                    </div>
+                    <button
+                        type="button"
+                        class="nav"
+                        [attr.aria-label]="'EPG.NEXT_DAY' | translate"
+                        (click)="stepDay('next')"
+                    >
+                        <mat-icon>chevron_right</mat-icon>
+                    </button>
+                </div>
+            }
+        }
+    </div>
+
+    @if (!collapsed()) {
+        <!-- schedule-only notice (provider exposes history but no catch-up) -->
+        @if (state === 'list' && !archivePlaybackAvailable()) {
+            <div class="g-notice" role="note">
+                <mat-icon>info</mat-icon>
+                <span>{{ 'EPG.TIMELINE.SCHEDULE_ONLY_NOTICE' | translate }}</span>
+            </div>
+        }
+
+        @switch (state) {
+            @case ('loading') {
+                <div class="g-list g-list--skeleton">
+                    @for (row of skeletonRows; track $index) {
+                        <div class="sk-row">
+                            <span class="sk-time"></span>
+                            <span class="sk-title"></span>
+                        </div>
+                    }
+                </div>
+            }
+            @case ('list') {
+                <div class="g-listwrap">
+                    <!-- In normal flow (not an overlay): when it appears it
+                         pushes the list down instead of covering the topmost
+                         programme row. -->
+                    @if (nowStripVisible() && nowRow(); as now) {
+                        <button
+                            type="button"
+                            class="g-nowstrip"
+                            (click)="jumpToNow()"
+                        >
+                            <span class="ns-dot" aria-hidden="true"></span>
+                            <span class="ns-lbl">{{
+                                'EPG.TIMELINE.ON_NOW' | translate
+                            }}</span>
+                            <span class="ns-title">{{ now.program.title }}</span>
+                            @if (now.progress !== null) {
+                                <span class="ns-bar" aria-hidden="true"
+                                    ><i [style.width.%]="now.progress"></i
+                                ></span>
+                            }
+                            @if (nowRowMinutesLeft() !== null) {
+                                <span class="ns-left"
+                                    >{{ nowRowMinutesLeft() }}
+                                    {{
+                                        'EPG.TIMELINE.MINUTES_SHORT' | translate
+                                    }}</span
+                                >
+                            }
+                            <span class="ns-jump">
+                                <mat-icon>arrow_upward</mat-icon>
+                                {{ 'EPG.TIMELINE.NOW' | translate }}
+                            </span>
+                        </button>
+                    }
+                    <div
+                        #list
+                        class="g-list app-scrollbar"
+                        (scroll)="onListScroll()"
+                    >
+                        @for (row of rows(); track row.key) {
+                            <app-epg-list-view-row
+                                [row]="row"
+                                [selected]="row.key === selectedKey()"
+                                [currentLocale]="currentLocale()"
+                                [nowMs]="nowMs()"
+                                (activate)="onRowActivate(row)"
+                                (watch)="onWatch(row)"
+                                (info)="openDetails(row)"
+                            />
+                        }
+                    </div>
+                </div>
+            }
+            @default {
+                <app-epg-timeline-empty-state
+                    [reason]="emptyStateReason()"
+                    [hasOtherDays]="hasOtherDays()"
+                    (jumpToday)="jumpToNow()"
+                    (jumpNearest)="jumpToNearestDay()"
+                    (openSettings)="openEpgSettings.emit()"
+                    (retry)="retry.emit()"
+                />
+            }
+        }
+    }
+</div>

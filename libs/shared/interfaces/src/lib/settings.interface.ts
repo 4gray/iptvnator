@@ -21,6 +21,9 @@ export enum StartupBehavior {
 
 export type CoverSize = 'small' | 'medium' | 'large';
 
+/** Rendering of the live EPG panel under the player. */
+export type EpgViewMode = 'timeline' | 'list';
+
 export interface DashboardRailsSettings {
     hero: boolean;
     continueWatching: boolean;
@@ -103,6 +106,8 @@ export interface Settings {
     recordingFolder?: string;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
+    /** Live EPG panel layout: horizontal timeline (default) or vertical list */
+    epgViewMode?: EpgViewMode;
     /** Per-rail dashboard visibility preferences. Missing keys default on. */
     dashboardRails?: DashboardRailsSettings;
     /**

@@ -1,5 +1,6 @@
 import {
     CoverSize,
+    EpgViewMode,
     StartupBehavior,
     Theme,
     VideoPlayer,
@@ -30,6 +31,12 @@ export interface StartupBehaviorOption {
 
 export interface CoverSizeOption {
     value: CoverSize;
+    icon: string;
+    labelKey: string;
+}
+
+export interface EpgViewModeOption {
+    value: EpgViewMode;
     icon: string;
     labelKey: string;
 }
