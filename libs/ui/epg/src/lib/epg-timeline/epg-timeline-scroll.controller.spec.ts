@@ -54,10 +54,12 @@ describe('TimelineScrollController', () => {
         let programs: EpgProgram[];
         let controller: TimelineScrollController;
         let scrollSpy: jest.SpyInstance;
+        let commitDaySpy: jest.Mock;
 
         beforeEach(() => {
             programs = [];
             const nowMs = Date.now();
+            commitDaySpy = jest.fn();
             controller = new TimelineScrollController({
                 ribbon: () => undefined,
                 scale: () => 1,
@@ -70,7 +72,7 @@ describe('TimelineScrollController', () => {
                     ),
                 nowMs: () => nowMs,
                 viewDayKey: () => 'today',
-                commitDay: () => undefined,
+                commitDay: commitDaySpy,
             });
             scrollSpy = jest
                 .spyOn(controller, 'scrollToOffset')
@@ -102,16 +104,16 @@ describe('TimelineScrollController', () => {
             expect(scrollSpy).toHaveBeenCalledTimes(1);
         });
 
-        it('does not re-focus the same channel when its ribbon remounts (no snap-back)', () => {
-            // Unmount + remount of the SAME channel — e.g. the user navigates from
-            // an empty day to a day with programmes — must not re-focus, or it
-            // would commit today again and snap the view back to the empty day.
+        it('restores position when the same channel ribbon remounts (collapse then expand)', () => {
+            // Collapse → expand recreates the ribbon as a *new* element at
+            // scrollLeft 0, so re-centre the viewed programme — but WITHOUT
+            // committing a day, so a user parked on another day is not snapped.
             const p = [programAt(0, 120, 'Now')];
-            const scroller = {} as HTMLElement;
-            focus(scroller, p); // focus #1
-            focus(undefined, p); // ribbon unmounts (empty-day navigation)
-            focus(scroller, p); // remount on another day → must NOT re-focus
-            expect(scrollSpy).toHaveBeenCalledTimes(1);
+            focus({} as HTMLElement, p); // initial mount → focus #1
+            focus(undefined, p); // collapse: ribbon unmounts
+            focus({} as HTMLElement, p); // expand: new element → restore
+            expect(scrollSpy).toHaveBeenCalledTimes(2);
+            expect(commitDaySpy).toHaveBeenCalledTimes(1); // only the initial focus
         });
 
         it('re-focuses when the channel changes', () => {
@@ -123,9 +125,13 @@ describe('TimelineScrollController', () => {
 
         it('does not focus or snap to today when today has no programmes', () => {
             // Programmes only three days out → today is empty; auto-focus must
-            // leave the user's day navigation alone instead of forcing today.
-            focus({} as HTMLElement, [programAt(3 * 1440, 60)]);
+            // leave the user's day navigation alone instead of forcing today —
+            // even across a collapse/expand remount (a new scroller element).
+            const p = [programAt(3 * 1440, 60)];
+            focus({} as HTMLElement, p);
+            focus({} as HTMLElement, p); // remount → still no focus/snap
             expect(scrollSpy).not.toHaveBeenCalled();
+            expect(commitDaySpy).not.toHaveBeenCalled();
         });
 
         it('skips focus entirely when the ribbon is not mounted', () => {

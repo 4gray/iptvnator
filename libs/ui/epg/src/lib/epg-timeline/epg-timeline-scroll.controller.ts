@@ -37,6 +37,7 @@ export function programsFocusKey(programs: readonly EpgProgram[]): string {
 export class TimelineScrollController {
     private scrollFrame = 0;
     private lastFocusKey: string | null = null;
+    private lastScroller: HTMLElement | null = null;
 
     constructor(private readonly ctx: TimelineScrollContext) {}
 
@@ -51,12 +52,12 @@ export class TimelineScrollController {
         this.scrollToOffset(offsetMin, 0.5, smooth);
     }
 
-    scrollToDateKey(dateKey: string, frac: number): void {
+    scrollToDateKey(dateKey: string, frac: number, smooth = true): void {
         const axis = this.ctx.axis();
         const noonMs =
             parseEpgDateKey(dateKey).getTime() + 12 * 60 * TIMELINE_MINUTE_MS;
         const offsetMin = (noonMs - axis.startMs) / TIMELINE_MINUTE_MS;
-        this.scrollToOffset(offsetMin, frac);
+        this.scrollToOffset(offsetMin, frac, smooth);
     }
 
     scrollToOffset(offsetMin: number, frac: number, smooth = true): void {
@@ -105,12 +106,22 @@ export class TimelineScrollController {
         programs: readonly EpgProgram[]
     ): void {
         const key = programsFocusKey(programs);
-        // Skip (without clearing lastFocusKey) when there's no ribbon yet, no
-        // programmes, or we've already focused this channel. Re-running for the
-        // same channel — e.g. when the ribbon remounts after the user navigates
-        // to another day — must NOT re-focus, or `commitDay(today)` below would
-        // snap the view back to today and trap the user on an empty day.
-        if (!scroller || !key || key === this.lastFocusKey) {
+        // Nothing to centre without a ribbon or programmes.
+        if (!scroller || !key) {
+            return;
+        }
+        if (key === this.lastFocusKey) {
+            // Same channel already focused. A *new* scroller element means the
+            // ribbon was unmounted then remounted (e.g. the inline panel was
+            // collapsed and re-expanded), which resets scrollLeft to 0 — restore
+            // the viewed day without committing a different day, so the user
+            // lands back on their programme rather than the far-left of the
+            // guide. The same element (data re-emit / now-tick) is left alone so
+            // we never yank the viewport out from under the user.
+            if (scroller !== this.lastScroller) {
+                this.lastScroller = scroller;
+                this.restorePosition();
+            }
             return;
         }
         const todayKey = getTodayEpgDateKey();
@@ -121,8 +132,22 @@ export class TimelineScrollController {
             return;
         }
         this.lastFocusKey = key;
+        this.lastScroller = scroller;
         this.ctx.commitDay(todayKey);
         // Instant: land already centred, no annoying scroll animation.
         this.focusCurrentProgram(false);
+    }
+
+    /**
+     * Re-centre the currently-viewed day after the ribbon remounts (which resets
+     * scrollLeft). Restores "now" for today, otherwise the viewed day — never
+     * commits a different day, so a user parked on another day stays there.
+     */
+    private restorePosition(): void {
+        if (this.ctx.viewDayKey() === getTodayEpgDateKey()) {
+            this.focusCurrentProgram(false);
+        } else {
+            this.scrollToDateKey(this.ctx.viewDayKey(), 0.5, false);
+        }
     }
 }
