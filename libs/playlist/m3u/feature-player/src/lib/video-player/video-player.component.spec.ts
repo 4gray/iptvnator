@@ -389,7 +389,7 @@ describe('VideoPlayerComponent', () => {
                     useValue: {
                         player,
                         showCaptions,
-                        epgViewMode,
+                        resolvedEpgViewMode: epgViewMode,
                     },
                 },
                 {

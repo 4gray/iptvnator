@@ -194,9 +194,7 @@ export class UnifiedLiveTabComponent {
         () => this.liveEpgPanelState() === 'collapsed'
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
-    readonly epgViewMode = computed(
-        () => this.settingsStore.epgViewMode?.() ?? 'timeline'
-    );
+    readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly liveEpgPanelSummary = computed(() => {
         this.progressTick();
         return this.getLiveEpgPanelSummary(this.activeDetail());

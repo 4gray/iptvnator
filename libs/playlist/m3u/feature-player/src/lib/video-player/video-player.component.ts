@@ -276,9 +276,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     );
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
-    readonly epgViewMode = computed(
-        () => this.settingsStore.epgViewMode?.() ?? 'timeline'
-    );
+    readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );

@@ -1,24 +1,20 @@
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgListScrollController } from './epg-list-scroll.controller';
-import { EpgListRow } from './epg-list-view.utils';
 
-function rowAt(when: EpgListRow['when'], key = `${when}-row`): EpgListRow {
-    const startMs = Date.now();
+function programAt(
+    startOffsetMin: number,
+    durationMin: number,
+    channel = 'ch'
+): EpgProgram {
+    const start = new Date(Date.now() + startOffsetMin * 60_000);
+    const stop = new Date(start.getTime() + durationMin * 60_000);
     return {
-        program: {
-            start: new Date(startMs).toISOString(),
-            stop: new Date(startMs + 60 * 60_000).toISOString(),
-            channel: 'ch',
-            title: 'P',
-            desc: null,
-            category: null,
-        },
-        key,
-        startMs,
-        stopMs: startMs + 60 * 60_000,
-        when,
-        progress: when === 'now' ? 50 : null,
-        isActive: false,
-        canCatchUp: false,
+        start: start.toISOString(),
+        stop: stop.toISOString(),
+        channel,
+        title: 'P',
+        desc: null,
+        category: null,
     };
 }
 
@@ -26,6 +22,8 @@ describe('EpgListScrollController (channel-select auto-scroll)', () => {
     let controller: EpgListScrollController;
     let scrollSpy: jest.SpyInstance;
     let rafSpy: jest.SpyInstance;
+    let hasProgramsToday: jest.Mock;
+    let commitToday: jest.Mock;
 
     beforeEach(() => {
         rafSpy = jest
@@ -34,14 +32,19 @@ describe('EpgListScrollController (channel-select auto-scroll)', () => {
                 cb(0);
                 return 1;
             });
+        hasProgramsToday = jest.fn(() => true);
+        commitToday = jest.fn();
         controller = new EpgListScrollController({
             list: () => undefined,
             isViewToday: () => true,
             setNowStripVisible: () => undefined,
+            hasProgramsToday,
+            commitToday,
         });
         scrollSpy = jest
             .spyOn(controller, 'scrollNowIntoView')
             .mockImplementation(() => undefined);
+        jest.spyOn(controller, 'focusNowAfterRender');
         jest.spyOn(controller, 'updateNowStrip').mockImplementation(
             () => undefined
         );
@@ -52,17 +55,25 @@ describe('EpgListScrollController (channel-select auto-scroll)', () => {
     });
 
     it('scrolls the now row into view instantly on first load', () => {
-        controller.maybeAutoScroll({} as HTMLElement, [rowAt('now')], true, 'ch');
+        controller.maybeAutoScroll(
+            {} as HTMLElement,
+            [programAt(0, 120)],
+            true,
+            'ch'
+        );
 
         expect(scrollSpy).toHaveBeenCalledTimes(1);
         expect(scrollSpy).toHaveBeenCalledWith(false); // instant, no animation
     });
 
-    it('does not re-scroll while the same channel stays loaded (now-tick / re-emit)', () => {
+    it('does not re-scroll while the same set stays loaded (now-tick / rollover)', () => {
+        // The 30s tick reclassifies past/now/future at every programme
+        // boundary, but the programme SET is unchanged — the viewport must
+        // stay put.
         const list = {} as HTMLElement;
-        const rows = [rowAt('now')];
-        controller.maybeAutoScroll(list, rows, true, 'ch');
-        controller.maybeAutoScroll(list, rows, true, 'ch');
+        const programs = [programAt(-30, 60), programAt(30, 60)];
+        controller.maybeAutoScroll(list, programs, true, 'ch');
+        controller.maybeAutoScroll(list, programs, true, 'ch');
 
         expect(scrollSpy).toHaveBeenCalledTimes(1);
         // The dedup path still refreshes the now-strip — layout can change
@@ -71,54 +82,67 @@ describe('EpgListScrollController (channel-select auto-scroll)', () => {
     });
 
     it('restores the now row when the same channel list remounts (collapse then expand)', () => {
-        const rows = [rowAt('now')];
-        controller.maybeAutoScroll({} as HTMLElement, rows, true, 'ch'); // mount
-        controller.maybeAutoScroll(undefined, rows, true, 'ch'); // collapsed
-        controller.maybeAutoScroll({} as HTMLElement, rows, true, 'ch'); // expand
+        const programs = [programAt(0, 120)];
+        controller.maybeAutoScroll({} as HTMLElement, programs, true, 'ch'); // mount
+        controller.maybeAutoScroll(undefined, programs, true, 'ch'); // collapsed
+        controller.maybeAutoScroll({} as HTMLElement, programs, true, 'ch'); // expand
 
         expect(scrollSpy).toHaveBeenCalledTimes(2);
-    });
-
-    it('does not re-scroll when the on-air programme rolls over within the same set', () => {
-        // The 30s tick reclassifies `when` at every programme boundary; the
-        // programme SET is unchanged, so the viewport must stay put.
-        const list = {} as HTMLElement;
-        const a = rowAt('now', 'a');
-        const b = {
-            ...rowAt('future', 'b'),
-            startMs: a.stopMs,
-            stopMs: a.stopMs + 3_600_000,
-        };
-        controller.maybeAutoScroll(list, [a, b], true, 'ch');
-
-        const rolled = [
-            { ...a, when: 'past' as const },
-            { ...b, when: 'now' as const },
-        ];
-        controller.maybeAutoScroll(list, rolled, true, 'ch');
-
-        expect(scrollSpy).toHaveBeenCalledTimes(1);
     });
 
     it('re-scrolls when the channel changes', () => {
         const list = {} as HTMLElement;
-        controller.maybeAutoScroll(list, [rowAt('now', 'a')], true, 'alpha');
-        controller.maybeAutoScroll(list, [rowAt('now', 'b')], true, 'beta');
+        controller.maybeAutoScroll(list, [programAt(0, 120, 'a')], true, 'a');
+        controller.maybeAutoScroll(list, [programAt(0, 120, 'b')], true, 'b');
 
         expect(scrollSpy).toHaveBeenCalledTimes(2);
     });
 
-    it('leaves a non-today day alone (no snap back to now)', () => {
-        controller.maybeAutoScroll({} as HTMLElement, [rowAt('now')], false, 'ch');
+    it('returns to today when a new channel arrives while parked on another day', () => {
+        // Channel switch while the user navigated to yesterday: the new set
+        // must reset the view to today (when today has data) — otherwise the
+        // new channel opens on the stale day (timeline parity).
+        controller.maybeAutoScroll(
+            {} as HTMLElement,
+            [programAt(0, 120, 'b')],
+            false,
+            'b'
+        );
 
-        expect(scrollSpy).not.toHaveBeenCalled();
+        expect(commitToday).toHaveBeenCalledTimes(1);
+        expect(scrollSpy).toHaveBeenCalledTimes(1);
     });
 
-    it('does nothing without an on-air row or a mounted list', () => {
-        controller.maybeAutoScroll({} as HTMLElement, [rowAt('past')], true, 'ch');
-        controller.maybeAutoScroll(undefined, [rowAt('now')], true, 'ch');
+    it('leaves day navigation alone while the set is unchanged', () => {
+        // Same channel, user steps to yesterday: same set key → no snap back.
+        const list = {} as HTMLElement;
+        const programs = [programAt(0, 120)];
+        controller.maybeAutoScroll(list, programs, true, 'ch');
+        controller.maybeAutoScroll(list, programs, false, 'ch');
+
+        expect(commitToday).not.toHaveBeenCalled();
+        expect(scrollSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not take over when the new set has nothing airing today', () => {
+        hasProgramsToday.mockReturnValue(false);
+        const programs = [programAt(3 * 1440, 60)];
+        controller.maybeAutoScroll({} as HTMLElement, programs, false, 'ch');
+
+        expect(commitToday).not.toHaveBeenCalled();
+        expect(scrollSpy).not.toHaveBeenCalled();
+
+        // The key was not stored — a later, fuller load retries the focus.
+        hasProgramsToday.mockReturnValue(true);
+        controller.maybeAutoScroll({} as HTMLElement, programs, true, 'ch');
+        expect(scrollSpy).toHaveBeenCalledTimes(1);
+    });
+
+    it('does nothing for an empty programme set', () => {
+        controller.maybeAutoScroll({} as HTMLElement, [], true, 'ch');
 
         expect(scrollSpy).not.toHaveBeenCalled();
+        expect(commitToday).not.toHaveBeenCalled();
     });
 });
 
@@ -129,6 +153,8 @@ describe('EpgListScrollController (now-strip visibility)', () => {
             list: () => list as HTMLElement,
             isViewToday: () => true,
             setNowStripVisible: (value) => (visible = value),
+            hasProgramsToday: () => true,
+            commitToday: () => undefined,
         });
         controller.updateNowStrip();
         return visible;
@@ -180,6 +206,8 @@ describe('EpgListScrollController (scroll target maths)', () => {
             list: () => list,
             isViewToday: () => true,
             setNowStripVisible: () => undefined,
+            hasProgramsToday: () => true,
+            commitToday: () => undefined,
         });
 
         controller.scrollNowIntoView(false);

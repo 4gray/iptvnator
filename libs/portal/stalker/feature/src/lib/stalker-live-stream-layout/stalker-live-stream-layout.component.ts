@@ -194,9 +194,7 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
         () => this.liveEpgPanelState() === 'collapsed'
     );
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
-    readonly epgViewMode = computed(
-        () => this.settingsStore.epgViewMode?.() ?? 'timeline'
-    );
+    readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())

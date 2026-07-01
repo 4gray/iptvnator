@@ -1,7 +1,8 @@
-import { inject } from '@angular/core';
+import { computed, inject } from '@angular/core';
 import {
     patchState,
     signalStore,
+    withComputed,
     withHooks,
     withMethods,
     withState,
@@ -11,6 +12,7 @@ import { firstValueFrom } from 'rxjs';
 import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
     ElectronBridgeTrustOptions,
+    EpgViewMode,
     Language,
     Settings,
     StartupBehavior,
@@ -92,6 +94,16 @@ function scheduleEmbeddedMpvPrepare(): void {
 export const SettingsStore = signalStore(
     { providedIn: 'root' },
     withState<Settings>(DEFAULT_SETTINGS),
+    withComputed((store) => ({
+        /**
+         * Live EPG panel layout with the `'timeline'` default applied — the
+         * single source of truth for the four live hosts, so the fallback is
+         * not duplicated per call-site.
+         */
+        resolvedEpgViewMode: computed<EpgViewMode>(
+            () => store.epgViewMode?.() ?? 'timeline'
+        ),
+    })),
     withMethods((store, storage = inject(StorageMap)) => ({
         async loadSettings() {
             try {

@@ -200,7 +200,7 @@ describe('LiveStreamLayoutComponent', () => {
         openStreamOnDoubleClick: signal(false),
         // Reset in beforeEach: the store is module-scoped, so a test failure
         // before an in-test restore must not leak 'list' into siblings.
-        epgViewMode: signal<'timeline' | 'list'>('timeline'),
+        resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
     };
 
     const originalElectron = window.electron;
@@ -208,7 +208,7 @@ describe('LiveStreamLayoutComponent', () => {
     beforeEach(async () => {
         jest.useFakeTimers();
         jest.setSystemTime(fixedNow);
-        settingsStore.epgViewMode.set('timeline');
+        settingsStore.resolvedEpgViewMode.set('timeline');
         localStorage.removeItem(LIVE_CHANNEL_SORT_STORAGE_KEY);
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         localStorage.removeItem(LIVE_SIDEBAR_STATE_STORAGE_KEY);
@@ -368,7 +368,7 @@ describe('LiveStreamLayoutComponent', () => {
     });
 
     it('swaps the timeline for the list view when epgViewMode is "list"', () => {
-        settingsStore.epgViewMode.set('list');
+        settingsStore.resolvedEpgViewMode.set('list');
 
         component.playLive(sampleChannel);
         fixture.detectChanges();
@@ -386,7 +386,7 @@ describe('LiveStreamLayoutComponent', () => {
                 ?.classList.contains('epg--list')
         ).toBe(true);
 
-        settingsStore.epgViewMode.set('timeline'); // restore for sibling tests
+        settingsStore.resolvedEpgViewMode.set('timeline'); // restore for sibling tests
     });
 
     it('hides the EPG panel in browser/PWA playback', () => {

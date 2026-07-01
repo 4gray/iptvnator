@@ -189,7 +189,7 @@ describe('UnifiedLiveTabComponent', () => {
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
                         player,
-                        epgViewMode,
+                        resolvedEpgViewMode: epgViewMode,
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },

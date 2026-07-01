@@ -235,14 +235,14 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
-        epgViewMode: signal<'timeline' | 'list'>('timeline'),
+        resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
     };
     const originalElectron = window.electron;
 
     beforeEach(async () => {
         // The store mock is module-scoped: reset so a failed test can't leak
         // 'list' into siblings.
-        settingsStore.epgViewMode.set('timeline');
+        settingsStore.resolvedEpgViewMode.set('timeline');
         window.electron = {
             platform: 'darwin',
             updateRemoteControlStatus: jest.fn(),
@@ -397,7 +397,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
     });
 
     it('swaps the timeline for the list view when epgViewMode is "list"', () => {
-        settingsStore.epgViewMode.set('list');
+        settingsStore.resolvedEpgViewMode.set('list');
 
         fixture.detectChanges();
 
@@ -414,7 +414,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 ?.classList.contains('epg--list')
         ).toBe(true);
 
-        settingsStore.epgViewMode.set('timeline'); // restore for sibling tests
+        settingsStore.resolvedEpgViewMode.set('timeline'); // restore for sibling tests
     });
 
     it('does not request or render EPG in browser/PWA playback', async () => {

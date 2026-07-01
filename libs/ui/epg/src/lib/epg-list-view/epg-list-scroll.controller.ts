@@ -1,4 +1,5 @@
-import { EpgListRow } from './epg-list-view.utils';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { programsFocusKey } from '../epg-timeline/epg-timeline-scroll.controller';
 
 export interface EpgListScrollDeps {
     /** The scrollable `.g-list` element (undefined before first render). */
@@ -7,6 +8,10 @@ export interface EpgListScrollDeps {
     readonly isViewToday: () => boolean;
     /** Toggle the sticky now-strip's visibility. */
     readonly setNowStripVisible: (visible: boolean) => void;
+    /** Whether the loaded window has any programme airing today. */
+    readonly hasProgramsToday: () => boolean;
+    /** Commit today as the viewed day (emits `selectedDateChange`). */
+    readonly commitToday: () => void;
 }
 
 /**
@@ -22,34 +27,34 @@ export class EpgListScrollController {
     constructor(private readonly deps: EpgListScrollDeps) {}
 
     /**
-     * Scroll the on-air row into view once per channel/EPG load, today only.
-     * A *new* list element under an unchanged key means the body was unmounted
-     * and remounted (the inline panel was collapsed and re-expanded), which
-     * resets scrollTop to 0 — restore the now-row instead of stranding the user
-     * at the top of the day. The same element (data re-emit / 30s now-tick) is
-     * left alone so the viewport is never yanked out from under the user.
+     * Scroll the on-air row into view once per channel/EPG (re)load. Keyed by
+     * the FULL programme-set identity (`programsFocusKey`, like the timeline) —
+     * stable across day navigation, 30s now-ticks, and programme rollovers, so
+     * the viewport is never yanked out from under the user. A *new* list
+     * element under an unchanged key means the body was unmounted and
+     * remounted (the inline panel was collapsed and re-expanded), which resets
+     * scrollTop to 0 — restore the now-row instead of stranding the user at
+     * the top of the day.
+     *
+     * When a NEW programme set arrives while the user is parked on another day
+     * (a channel switch), commit today first — otherwise the new channel opens
+     * on the stale day, possibly with nothing to show (timeline parity).
      */
     maybeAutoScroll(
         list: HTMLElement | undefined,
-        rows: EpgListRow[],
+        programs: readonly EpgProgram[],
         today: boolean,
         channel: string
     ): void {
-        if (!list || !today) {
+        const setKey = programsFocusKey(programs);
+        if (!setKey) {
             return;
         }
-        const now = rows.find((row) => row.when === 'now');
-        if (!now) {
-            return;
-        }
-        // Programme-SET identity (like the timeline's `programsFocusKey`), NOT
-        // the on-air row's key: the latter changes at every programme rollover
-        // (the 30s tick reclassifies `when`), which would re-trigger the scroll
-        // and yank the viewport away from wherever the user scrolled to.
-        const first = rows[0];
-        const last = rows[rows.length - 1];
-        const key = `${channel}|${rows.length}|${first.startMs}|${last.stopMs}`;
+        const key = `${channel}|${setKey}`;
         if (key === this.autoScrollKey) {
+            if (!list) {
+                return;
+            }
             if (list !== this.lastList) {
                 this.lastList = list;
                 this.focusNowAfterRender();
@@ -61,8 +66,17 @@ export class EpgListScrollController {
             }
             return;
         }
+        // New programme set. Only take over when today actually has
+        // programmes; otherwise leave the user's day navigation alone (and
+        // don't store the key, so a later fuller load retries).
+        if (!this.deps.hasProgramsToday()) {
+            return;
+        }
         this.autoScrollKey = key;
-        this.lastList = list;
+        this.lastList = list ?? null;
+        if (!today) {
+            this.deps.commitToday();
+        }
         this.focusNowAfterRender();
     }
 

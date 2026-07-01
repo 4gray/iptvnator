@@ -3,14 +3,12 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
-    effect,
     ElementRef,
     inject,
     input,
     linkedSignal,
     output,
     signal,
-    untracked,
     viewChild,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
@@ -47,6 +45,7 @@ import {
 } from '../epg-timeline/epg-timeline.utils';
 import { EpgListScrollController } from './epg-list-scroll.controller';
 import { EpgListViewRowComponent } from './epg-list-view-row/epg-list-view-row.component';
+import { registerEpgListViewEffects } from './epg-list-view.effects';
 import { buildEpgListRows, EpgListRow } from './epg-list-view.utils';
 
 type RenderState = 'loading' | 'list' | EpgTimelineEmptyReason;
@@ -191,33 +190,20 @@ export class EpgListViewComponent {
         list: () => this.list()?.nativeElement,
         isViewToday: () => this.isViewToday(),
         setNowStripVisible: (visible) => this.nowStripVisible.set(visible),
+        hasProgramsToday: () =>
+            hasProgramsForDateKey(this.programs(), getTodayEpgDateKey()),
+        commitToday: () => this.commitDay(getTodayEpgDateKey()),
     });
 
     constructor() {
-        // 30s tick reclassifies past/now/future and refreshes progress. This is
-        // a controlled component (activeProgram/isLivePlayback come from the
-        // host), so the tick never clobbers active archive playback.
-        effect((onCleanup) => {
-            const intervalId = window.setInterval(
-                () => this.nowMs.set(Date.now()),
-                30_000
-            );
-            onCleanup(() => clearInterval(intervalId));
-        });
-
-        // Auto-focus the on-air row when a channel's EPG (re)loads or the list
-        // (re)mounts (collapse → expand) while viewing today — the vertical
-        // analogue of the ribbon's auto-focus. Tracks the `list` viewChild so a
-        // remount re-triggers; deduped inside the controller so 30s ticks and
-        // data re-emits don't re-jump.
-        effect(() => {
-            const list = this.list()?.nativeElement;
-            const rows = this.rows();
-            const today = this.isViewToday();
-            const channel = this.channelName();
-            untracked(() =>
-                this.scroll.maybeAutoScroll(list, rows, today, channel)
-            );
+        registerEpgListViewEffects({
+            nowMs: this.nowMs,
+            list: () => this.list()?.nativeElement,
+            rows: () => this.rows(),
+            programs: () => this.programs(),
+            isViewToday: () => this.isViewToday(),
+            channelName: () => this.channelName(),
+            scroll: this.scroll,
         });
     }
 
