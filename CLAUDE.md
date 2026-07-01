@@ -251,7 +251,7 @@ This is an Nx monorepo with the following structure:
     - **ui/playback** - Player UI (video/audio players)
     - **ui/pipes** - Angular pipes
     - **ui/remote-control** - Remote-control UI pieces
-    - **ui/shared-portals** - Portal-related UI components
+    - **ui/shared-portals** - Shared portal types (`LiveEpgPanelSummary`)
     - **ui/styles** - Shared styles/theme
     - **workspace/{shell,dashboard}** - Workspace shell (layout/navigation) and dashboard
 

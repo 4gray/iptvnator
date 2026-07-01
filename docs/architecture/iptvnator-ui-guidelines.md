@@ -28,10 +28,10 @@ Use it when changing existing views or introducing new list-based UI in the work
   `libs/ui/components/src/lib/channel-list-container/channel-list-item/channel-list-item.component.html`
 - Channel row styles:
   `libs/ui/components/src/lib/channel-list-container/channel-list-item/channel-list-item.component.scss`
-- Shared EPG pane:
-  `libs/ui/shared-portals/src/lib/epg-view/epg-view.component.html`
-- Shared EPG pane styles:
-  `libs/ui/shared-portals/src/lib/epg-view/epg-view.component.scss`
+- Shared EPG timeline:
+  `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.html`
+- Shared EPG timeline styles:
+  `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.scss`
 - Shared list selection style:
   `apps/web/src/nav-list.scss`
 - Theme tokens:
