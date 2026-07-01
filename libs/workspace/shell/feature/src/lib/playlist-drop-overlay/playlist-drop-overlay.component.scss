@@ -38,7 +38,7 @@
         rgba(37, 99, 235, 0.08)
     );
     border: 2px dashed rgba(96, 165, 250, 0.55);
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     box-shadow: 0 20px 60px rgba(0, 0, 0, 0.45);
     color: #f1f5f9;
     animation: drop-overlay-scale 0.18s ease-out;
@@ -64,7 +64,7 @@
     justify-content: center;
     width: 64px;
     height: 64px;
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     background: linear-gradient(135deg, #3b82f6, #2563eb);
     box-shadow: 0 8px 22px rgba(59, 130, 246, 0.45);
     margin-bottom: 4px;

@@ -95,7 +95,15 @@
                         @let episodeInfo = getEpisodeInfo(episode);
                         <article
                             class="episode-card"
+                            role="button"
+                            tabindex="0"
                             (click)="selectEpisode(episode)"
+                            (keydown.enter)="
+                                onEpisodeKeydownActivate($event, episode)
+                            "
+                            (keydown.space)="
+                                onEpisodeKeydownActivate($event, episode)
+                            "
                             [class.episode-card--watched]="
                                 isEpisodeWatched(episode)
                             "
@@ -258,7 +266,15 @@
                         @let episodeInfo = getEpisodeInfo(episode);
                         <article
                             class="episode-list-item"
+                            role="button"
+                            tabindex="0"
                             (click)="selectEpisode(episode)"
+                            (keydown.enter)="
+                                onEpisodeKeydownActivate($event, episode)
+                            "
+                            (keydown.space)="
+                                onEpisodeKeydownActivate($event, episode)
+                            "
                             [class.episode-list-item--watched]="
                                 isEpisodeWatched(episode)
                             "

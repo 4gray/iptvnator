@@ -24,7 +24,7 @@
 }
 
 :host ::ng-deep .search-bar div {
-    border-radius: 20px;
+    border-radius: var(--app-radius-2xl);
 }
 
 :host ::ng-deep .search-bar div[matformfieldlineripple],

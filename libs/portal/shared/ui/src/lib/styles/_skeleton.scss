@@ -11,7 +11,7 @@
     position: relative;
     width: 100%;
     aspect-ratio: 2 / 3;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     overflow: hidden;
     background: color-mix(
         in srgb,
@@ -32,7 +32,7 @@
     right: 8px;
     width: 34px;
     height: 14px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 56%,
@@ -49,7 +49,7 @@
 
 .grid-skeleton-line {
     height: 9px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
@@ -95,7 +95,7 @@
 .list-skeleton-avatar {
     width: 40px;
     height: 40px;
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     flex-shrink: 0;
     background: color-mix(
         in srgb,

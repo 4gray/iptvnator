@@ -37,7 +37,7 @@ mat-card:hover {
             position: relative;
             width: 100%;
             box-sizing: border-box;
-            border-radius: 10px;
+            border-radius: var(--app-radius-md);
             overflow: hidden;
             aspect-ratio: 2 / 3; // maintain poster ratio
             background: var(--mat-sys-surface-container-high);
@@ -47,7 +47,7 @@ mat-card:hover {
             width: 100%;
             height: 100%;
             object-fit: cover;
-            border-radius: 10px;
+            border-radius: var(--app-radius-md);
             display: block;
             // No hardcoded light bg — uses parent container bg
             background: transparent;
@@ -60,7 +60,7 @@ mat-card:hover {
             display: grid;
             place-items: center;
             color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
-            border-radius: 10px;
+            border-radius: var(--app-radius-md);
 
             mat-icon {
                 width: clamp(28px, 20%, 42px);
@@ -145,7 +145,7 @@ mat-card:hover {
     color: #4ade80; // green-400, readable across themes
     font-size: 0.72rem;
     font-weight: 600;
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     display: flex;
     justify-content: center;
     align-items: center;

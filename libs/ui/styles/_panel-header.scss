@@ -55,6 +55,6 @@
     color: $color;
     background: $background;
     padding: $padding;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     flex-shrink: 0;
 }

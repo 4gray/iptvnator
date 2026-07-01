@@ -35,7 +35,7 @@
 .channel-dialog__eyebrow-mark {
     width: 8px;
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--mat-sys-primary);
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
 }
@@ -57,7 +57,7 @@
 .channel-dialog__logo {
     width: 48px;
     height: 48px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     object-fit: contain;
     background: var(--mat-sys-surface-container);
     border: 1px solid var(--app-separator);
@@ -94,7 +94,7 @@
     justify-content: center;
     min-height: 26px;
     padding: 0 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     border: 1px solid var(--app-separator);
     background: var(--mat-sys-surface-container);
     color: var(--app-body-color, var(--mat-sys-on-surface));
@@ -133,7 +133,7 @@
     display: grid;
     gap: 4px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     border: 1px solid var(--app-widget-border, transparent);
     background: var(--app-widget-bg, var(--mat-sys-surface-container));
     box-shadow: var(--app-widget-shadow, none);
@@ -147,7 +147,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
     color: var(--mat-sys-primary);
 
@@ -207,7 +207,7 @@
     align-items: flex-start;
     gap: 8px;
     padding: 10px 10px 10px 14px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     border: 1px solid var(--app-separator);
     background: var(--mat-sys-surface-container);
 
@@ -237,7 +237,7 @@
     display: grid;
     gap: 14px;
     padding: 16px;
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     border: 1px solid var(--app-widget-border, transparent);
     background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
     box-shadow: var(--app-widget-shadow, none);
@@ -347,7 +347,7 @@
 
 .channel-dialog__close {
     min-width: 100px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 // ─── Responsive breakpoints ─────────────────────────────────────────────────

@@ -19,7 +19,7 @@
         min-height: 28px;
         height: 28px;
         padding: 0 !important;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         margin: 2px 0;
         display: flex;
         justify-content: center;
@@ -78,7 +78,7 @@ a.mat-mdc-list-item.mdc-list-item {
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     background: var(--mat-sys-surface-container);
     color: var(--mat-sys-on-surface-variant);
     border: 1px solid var(--mat-sys-outline-variant);

@@ -285,7 +285,7 @@
     );
     border: 1px solid
         color-mix(in srgb, var(--mat-sys-outline-variant) 60%, transparent);
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
 }
 
 .theme-switcher__option {
@@ -501,7 +501,7 @@
     padding: 12px 14px;
     border: 1px solid
         color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     background: color-mix(
         in srgb,
         var(--mat-sys-surface-container-low) 88%,
@@ -550,7 +550,7 @@
     justify-content: center;
     width: 40px;
     height: 40px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: color-mix(
         in srgb,
         var(--mat-sys-surface-container-high) 82%,
@@ -623,7 +623,7 @@
 .settings-note {
     margin: 12px 18px 18px;
     padding: 10px 12px;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     font-size: 0.84rem;
     background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
     border: 1px solid
@@ -642,7 +642,7 @@
     padding: 14px 16px;
     background: var(--settings-item-danger-bg);
     border: 1px solid var(--settings-item-danger-border);
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     grid-template-columns: 1fr;
     gap: 14px;
 }
@@ -672,7 +672,7 @@
     gap: 8px;
     min-height: 34px;
     padding: 4px 6px 4px 12px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: color-mix(
         in srgb,
         var(--mat-sys-surface-container-high) 78%,
@@ -704,7 +704,7 @@
         min-width: 26px;
         height: 22px;
         padding: 0 8px;
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
         background: color-mix(
             in srgb,
             var(--mat-sys-on-surface) 10%,
@@ -773,7 +773,7 @@
     margin-top: 12px;
     margin-bottom: 2px;
     box-shadow: none;
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     padding: 12px;
     border-top: 1px solid var(--settings-action-bar-border);
     justify-content: space-between;
@@ -787,7 +787,7 @@
     color: var(--app-selection-on-color, #fff);
     font-weight: 500;
     padding: 0 20px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     box-shadow: 0 4px 14px
         color-mix(in srgb, var(--app-selection-color) 28%, transparent);
     transition:
@@ -835,7 +835,7 @@
 
     .settings-page-header {
         padding: 12px 14px;
-        border-radius: 16px;
+        border-radius: var(--app-radius-xl);
     }
 
     .setting-item {
@@ -883,7 +883,7 @@
         position: static;
         flex-direction: column-reverse;
         align-items: stretch;
-        border-radius: 16px;
+        border-radius: var(--app-radius-xl);
         box-shadow: none;
         width: 100%;
         margin-left: 0;

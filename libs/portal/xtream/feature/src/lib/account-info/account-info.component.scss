@@ -35,7 +35,7 @@
 .account-dialog__eyebrow-mark {
     width: 8px;
     height: 8px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--app-provider-xtream, var(--mat-sys-primary));
     box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 14%, transparent);
 }
@@ -43,7 +43,7 @@
 .account-dialog__eyebrow-divider {
     width: 3px;
     height: 3px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: currentColor;
     opacity: 0.5;
 }
@@ -84,7 +84,7 @@
     justify-content: center;
     min-height: 28px;
     padding: 0 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     border: 1px solid var(--app-separator);
     background: var(--mat-sys-surface-container);
     color: var(--app-body-color, var(--mat-sys-on-surface));
@@ -116,7 +116,7 @@
 
 .account-dialog__message {
     padding: 10px 14px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     border: 1px solid var(--app-separator);
     background: var(--mat-sys-surface-container);
     line-height: 1.5;
@@ -134,7 +134,7 @@
     display: grid;
     gap: 6px;
     padding: 12px 14px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     border: 1px solid var(--app-widget-border, transparent);
     background: var(--app-widget-bg, var(--mat-sys-surface-container));
     box-shadow: var(--app-widget-shadow, none);
@@ -149,7 +149,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     background: color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 12%, transparent);
     color: var(--app-provider-xtream, var(--mat-sys-primary));
 
@@ -179,7 +179,7 @@
     position: relative;
     overflow: hidden;
     height: 4px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--app-separator);
 }
 
@@ -208,7 +208,7 @@
     display: grid;
     gap: 14px;
     padding: 16px;
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     border: 1px solid var(--app-widget-border, transparent);
     background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
     box-shadow: var(--app-widget-shadow, none);
@@ -319,7 +319,7 @@
     align-items: center;
     min-height: 28px;
     padding: 0 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     border: 1px solid color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 16%, transparent);
     background: color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 8%, transparent);
     color: var(--app-body-color, var(--mat-sys-on-surface));
@@ -345,7 +345,7 @@
     justify-items: center;
     gap: 12px;
     padding: 36px 20px;
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     border: 1px dashed var(--app-separator);
     background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
     text-align: center;
@@ -369,7 +369,7 @@
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
     color: var(--mat-sys-error);
 }
@@ -382,7 +382,7 @@
 .account-skeleton {
     position: relative;
     overflow: hidden;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: var(--app-separator);
 }
 
@@ -402,7 +402,7 @@
 
 .account-skeleton--stat {
     min-height: 110px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
 }
 
 .account-skeleton--heading {
@@ -431,7 +431,7 @@
 
 .account-dialog__close {
     min-width: 100px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
 }
 
 @keyframes account-dialog-shimmer {

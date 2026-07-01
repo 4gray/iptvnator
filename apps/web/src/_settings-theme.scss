@@ -158,7 +158,7 @@
         flex-direction: column;
         gap: 14px;
         padding: 18px;
-        border-radius: 18px;
+        border-radius: var(--app-radius-2xl);
         border: 1px solid color-mix(in srgb, #ff4d6d 26%, transparent);
         background:
             radial-gradient(
@@ -207,7 +207,7 @@
         justify-content: center;
         width: 44px;
         height: 44px;
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
         background: linear-gradient(135deg, #ff4d6d, #ff8b5e);
         color: #fff;
         box-shadow:
@@ -255,7 +255,7 @@
         align-items: center;
         gap: 12px;
         padding: 10px 14px;
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
         border: 1px solid transparent;
         text-decoration: none;
         color: #fff;
@@ -288,7 +288,7 @@
         justify-content: center;
         width: 34px;
         height: 34px;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         background: rgba(255, 255, 255, 0.18);
         color: #fff;
         flex: 0 0 auto;

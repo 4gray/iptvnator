@@ -46,6 +46,12 @@
             border-color: rgba(255, 255, 255, 0.2);
         }
 
+        &:focus-visible {
+            outline: none;
+            color: var(--text-primary);
+            box-shadow: 0 0 0 2px var(--accent-color);
+        }
+
         mat-icon {
             font-size: 18px;
             width: 18px;
@@ -56,7 +62,7 @@
     .view-toggle {
         mat-button-toggle-group {
             border: 1px solid rgba(255, 255, 255, 0.1);
-            border-radius: 6px;
+            border-radius: var(--app-radius-xs);
             overflow: hidden;
             background: rgba(255, 255, 255, 0.03);
 
@@ -120,7 +126,7 @@
     margin: 0 auto;
     padding: 32px 28px;
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0.03)),
         radial-gradient(circle at top, rgba(255, 255, 255, 0.06), transparent 60%);
@@ -194,7 +200,7 @@
     padding: 12px;
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     cursor: pointer;
     transition: all 0.2s ease;
     text-align: left;
@@ -208,6 +214,17 @@
         background: rgba(255, 255, 255, 0.1);
         transform: translateY(-2px);
         border-color: rgba(255, 255, 255, 0.15);
+
+        .season-card__arrow {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    &:focus-visible {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 2px var(--accent-color);
 
         .season-card__arrow {
             opacity: 1;
@@ -309,7 +326,7 @@
 // Episode Card
 .episode-card {
     background: rgba(255, 255, 255, 0.03);
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     overflow: hidden;
     cursor: pointer;
     transition: all 0.2s ease;
@@ -382,10 +399,24 @@
         }
     }
 
+    &:focus-visible {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 2px var(--accent-color);
+
+        .episode-card__overlay {
+            opacity: 1;
+        }
+
+        .episode-card__play {
+            transform: scale(1);
+        }
+    }
+
     &__thumbnail {
         position: relative;
         aspect-ratio: 16 / 9;
-        background: #000;
+        background: var(--app-content-bg);
         overflow: hidden;
 
         img {
@@ -414,7 +445,11 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: linear-gradient(135deg, #2a2a2a 0%, #1a1a1a 100%);
+        background: linear-gradient(
+            135deg,
+            var(--app-widget-header-bg) 0%,
+            var(--app-content-bg) 100%
+        );
         color: var(--text-muted);
 
         mat-icon {
@@ -460,6 +495,13 @@
                 background: rgba(0, 0, 0, 0.8);
             }
 
+            &:focus-visible {
+                outline: none;
+                color: white;
+                background: rgba(0, 0, 0, 0.8);
+                box-shadow: 0 0 0 2px var(--accent-color);
+            }
+
             mat-icon {
                 font-size: 20px;
                 width: 20px;
@@ -485,7 +527,8 @@
         }
     }
 
-    &:hover {
+    &:hover,
+    &:focus-within {
         .episode-card__actions {
             opacity: 1;
         }
@@ -554,7 +597,7 @@
         display: inline-block;
         padding: 1px 6px;
         background: rgba(255, 255, 255, 0.08);
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
     }
 }
 
@@ -572,18 +615,25 @@
     gap: 16px;
     padding: 12px 16px;
     background: rgba(255, 255, 255, 0.02);
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     cursor: pointer;
     transition: all 0.15s ease;
     border: 1px solid transparent;
 
-    &:hover {
+    &:hover,
+    &:focus-within {
         background: rgba(255, 255, 255, 0.06);
         border-color: rgba(255, 255, 255, 0.08);
 
         .episode-list-item__actions {
             opacity: 1;
         }
+    }
+
+    &:focus-visible {
+        outline: none;
+        border-color: var(--accent-color);
+        box-shadow: 0 0 0 2px var(--accent-color);
     }
 
     &--watched {
@@ -611,7 +661,7 @@
         min-width: 36px;
         height: 36px;
         background: rgba(255, 255, 255, 0.06);
-        border-radius: 6px;
+        border-radius: var(--app-radius-xs);
         font-size: 0.875rem;
         font-weight: 600;
         color: var(--text-secondary);
@@ -665,7 +715,7 @@
         color: var(--text-muted);
         padding: 2px 8px;
         background: rgba(255, 255, 255, 0.06);
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
     }
 
     &__progress-text {
@@ -674,7 +724,7 @@
         color: var(--mat-sys-primary);
         padding: 2px 8px;
         background: color-mix(in srgb, var(--mat-sys-primary) 15%, transparent);
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
     }
 
     &__description {
@@ -725,6 +775,12 @@
             &:hover {
                 color: var(--text-primary);
                 background: rgba(255, 255, 255, 0.1);
+            }
+
+            &:focus-visible {
+                outline: none;
+                color: var(--text-primary);
+                box-shadow: 0 0 0 2px var(--accent-color);
             }
 
             &.play-btn {

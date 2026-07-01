@@ -16,7 +16,7 @@
     align-items: center;
     gap: 4px;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     font-size: 0.7rem;
     font-weight: 600;
     letter-spacing: 0.03em;

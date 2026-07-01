@@ -114,7 +114,7 @@
             color: var(--app-selection-on-color, white);
             font-weight: 500;
             padding: 10px 24px;
-            border-radius: 10px;
+            border-radius: var(--app-radius-md);
             text-transform: none;
             letter-spacing: 0.01em;
             box-shadow: 0 4px 14px var(--app-selection-glow);

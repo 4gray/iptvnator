@@ -2,7 +2,7 @@
     display: block;
     --rail-card-width: var(--cover-rail-width, 172px);
     --rail-gap: var(--cover-gap, 14px);
-    --rail-radius: 12px;
+    --rail-radius: var(--app-radius-lg);
 }
 
 .rail {
@@ -38,7 +38,7 @@
     align-items: center;
     gap: 2px;
     padding: 4px 8px 4px 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     font-size: 0.78rem;
     font-weight: 500;
     line-height: 1;
@@ -544,7 +544,7 @@
     flex: 0 0 auto;
     width: 40px;
     height: 40px;
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     background: var(--app-content-bg, #161a22);
     display: flex;
     align-items: center;

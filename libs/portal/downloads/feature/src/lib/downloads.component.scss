@@ -95,7 +95,7 @@
         background: var(--mat-sys-primary);
         color: var(--mat-sys-on-primary);
         padding: 0.125rem 0.5rem;
-        border-radius: 12px;
+        border-radius: var(--app-radius-lg);
         font-size: 0.75rem;
         font-weight: 600;
     }
@@ -112,7 +112,7 @@
             transparent
         );
         border: 1px solid var(--mat-sys-outline-variant);
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         box-shadow: inset 0 1px 0
             color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
 
@@ -209,7 +209,7 @@
         min-width: 0;
         min-height: 124px;
         padding: 1rem;
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
         background: color-mix(
             in srgb,
             var(--app-widget-bg, var(--mat-sys-surface-container-high)) 88%,
@@ -223,7 +223,7 @@
         @extend %downloads-skeleton-shimmer;
         width: 64px;
         height: 90px;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
     }
 
@@ -239,7 +239,7 @@
         @extend %downloads-skeleton-shimmer;
         width: min(70%, 280px);
         height: 13px;
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
 
         &--short {
             width: min(48%, 190px);
@@ -255,7 +255,7 @@
             @extend %downloads-skeleton-shimmer;
             width: 88px;
             height: 20px;
-            border-radius: 999px;
+            border-radius: var(--app-radius-pill);
 
             &:last-child {
                 width: 132px;
@@ -267,7 +267,7 @@
         @extend %downloads-skeleton-shimmer;
         width: 100%;
         height: 6px;
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
         margin-top: 0.05rem;
     }
 
@@ -304,7 +304,7 @@
             --app-widget-bg,
             var(--mat-sys-surface-container-high)
         );
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
         border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
         box-shadow: var(--app-widget-shadow, none);
         transition:
@@ -338,7 +338,7 @@
         &-poster {
             width: 64px;
             height: 90px;
-            border-radius: 10px;
+            border-radius: var(--app-radius-md);
             overflow: hidden;
             flex-shrink: 0;
             background: var(
@@ -408,7 +408,7 @@
             gap: 0.35rem;
             font-weight: 500;
             padding: 2px 8px;
-            border-radius: 12px;
+            border-radius: var(--app-radius-lg);
             background: var(
                 --app-widget-header-bg,
                 var(--mat-sys-surface-container-high)
@@ -450,7 +450,7 @@
                 monospace;
             background: transparent;
             padding: 2px 8px;
-            border-radius: 12px;
+            border-radius: var(--app-radius-lg);
         }
 
         &-error {
@@ -462,7 +462,7 @@
                 transparent
             );
             padding: 2px 8px;
-            border-radius: 12px;
+            border-radius: var(--app-radius-lg);
         }
 
         &-actions {
@@ -517,7 +517,7 @@
         background: var(--mat-sys-primary);
         color: var(--mat-sys-on-primary);
         padding: 0.125rem 0.5rem;
-        border-radius: 6px;
+        border-radius: var(--app-radius-xs);
         font-size: 0.7rem;
         font-weight: 700;
         text-transform: uppercase;

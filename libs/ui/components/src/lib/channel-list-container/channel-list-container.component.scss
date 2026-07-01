@@ -31,7 +31,7 @@
 .empty-source-state__icon-wrapper {
     width: 64px;
     height: 64px;
-    border-radius: 20px;
+    border-radius: var(--app-radius-2xl);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.08), rgba(255, 255, 255, 0)),
         rgba(127, 127, 127, 0.1);

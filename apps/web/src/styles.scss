@@ -58,7 +58,7 @@
             var(--app-muted-color) 70%,
             transparent
         );
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
         border: 2px solid transparent;
         background-clip: content-box;
         min-height: 32px;
@@ -83,7 +83,7 @@
     color: var(--app-muted-color, #8891a4);
     font-variant-numeric: tabular-nums;
     padding: 2px 8px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     background: color-mix(
         in srgb,
         var(--app-muted-color, #8891a4) 18%,
@@ -172,7 +172,7 @@ textarea,
 
     ::-webkit-scrollbar-thumb {
         background-color: var(--mat-sys-outline-variant);
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
 
         &:hover {
             background-color: var(--mat-sys-outline);
@@ -199,7 +199,7 @@ textarea,
 .workspace-command-palette-overlay .mat-mdc-dialog-surface {
     background: transparent;
     box-shadow: none;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     padding: 0;
     overflow: visible;
 }
@@ -213,7 +213,7 @@ textarea,
 .workspace-shortcuts-overlay .mat-mdc-dialog-surface {
     background: transparent;
     box-shadow: none;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     padding: 0;
     overflow: visible;
 }

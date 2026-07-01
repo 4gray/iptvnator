@@ -16,7 +16,7 @@
 
 @mixin content-card {
     cursor: pointer;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     overflow: hidden;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
 
@@ -28,7 +28,7 @@
 
 @mixin thumbnail-wrapper {
     position: relative;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     overflow: hidden;
 
     .poster {

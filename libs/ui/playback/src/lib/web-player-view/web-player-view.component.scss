@@ -52,7 +52,7 @@ app-html-video-player {
     gap: 8px;
     padding: 5px 11px;
     border: 1px solid rgb(255 174 66 / 42%);
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     background: rgb(255 148 35 / 15%);
     color: #ffb24c;
     font-size: 0.78rem;
@@ -109,7 +109,7 @@ app-html-video-player {
     margin-top: 12px;
     padding: 4px 8px;
     border: 1px solid rgb(255 255 255 / 12%);
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     background: rgb(255 255 255 / 5%);
     color: rgb(255 255 255 / 68%);
     font-size: 0.78rem;
@@ -133,7 +133,7 @@ app-html-video-player {
     gap: 12px;
     padding: 12px 16px;
     border: 1px solid rgb(255 255 255 / 13%);
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     background: rgb(0 0 0 / 22%);
     color: #f5f5f5;
     cursor: pointer;
@@ -273,7 +273,7 @@ app-html-video-player {
     margin: 12px 0 0;
     padding: 12px;
     border: 1px solid rgb(255 255 255 / 10%);
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     background: rgb(255 255 255 / 5%);
     color: rgb(255 255 255 / 68%);
     font-size: 0.78rem;

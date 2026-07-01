@@ -25,7 +25,7 @@
     min-width: 160px;
     max-width: 560px;
     height: 36px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
     background: var(--app-search-bg, var(--mat-sys-surface-container));
     display: flex;
@@ -56,7 +56,7 @@
         max-width: 200px;
         padding: 0 10px;
         height: 24px;
-        border-radius: 999px;
+        border-radius: var(--app-radius-pill);
         display: inline-flex;
         align-items: center;
         justify-content: center;
@@ -171,7 +171,7 @@
     button,
     a {
         color: var(--mat-sys-on-surface-variant);
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         transition:
             color 0.15s ease,
             background 0.15s ease;

@@ -141,6 +141,26 @@ describe('SeasonContainerComponent', () => {
         ).toBeNull();
     });
 
+    it('does not select the episode when a keydown bubbles up from a descendant action button', () => {
+        const episode = createEpisode();
+        setRequiredInputs({ '1': [episode] });
+        fixture.detectChanges();
+
+        fixture.nativeElement.querySelector('.season-card').click();
+        fixture.detectChanges();
+
+        const episodeClicked = jest.fn();
+        component.episodeClicked.subscribe(episodeClicked);
+
+        const toggleWatchedButton: HTMLElement =
+            fixture.nativeElement.querySelector('.toggle-watched-btn');
+        toggleWatchedButton.dispatchEvent(
+            new KeyboardEvent('keydown', { key: ' ', bubbles: true })
+        );
+
+        expect(episodeClicked).not.toHaveBeenCalled();
+    });
+
     it('clears a stale selected season when the input seasons change', () => {
         const episode = createEpisode();
 

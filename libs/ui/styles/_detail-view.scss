@@ -181,7 +181,7 @@
         background-position: 0% 50%;
         color: var(--play-btn-fg);
         border: 1px solid var(--play-btn-border);
-        border-radius: 16px;
+        border-radius: var(--app-radius-xl);
         box-shadow: var(--play-btn-shadow);
         cursor: pointer;
         transition:
@@ -257,7 +257,7 @@
             justify-content: center;
             width: 34px;
             height: 34px;
-            border-radius: 999px;
+            border-radius: var(--app-radius-pill);
             background: var(--play-icon-shell-bg);
             border: 1px solid var(--play-icon-shell-border);
             box-shadow:
@@ -490,7 +490,7 @@
             width: 100%;
             max-width: 560px;
             aspect-ratio: 16 / 9;
-            border-radius: 8px;
+            border-radius: var(--app-radius-sm);
             overflow: hidden;
             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
 

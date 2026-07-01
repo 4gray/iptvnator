@@ -58,7 +58,7 @@
     color: var(--mat-sys-primary);
     background: color-mix(in srgb, var(--mat-sys-primary) 10%, var(--mat-sys-surface-container-high));
     padding: 4px 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     box-shadow:
         inset 0 0 0 1px color-mix(in srgb, var(--mat-sys-primary) 30%, transparent),
         0 1px 3px rgba(0, 0, 0, 0.18);

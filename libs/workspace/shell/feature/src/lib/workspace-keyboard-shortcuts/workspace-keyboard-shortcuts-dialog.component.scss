@@ -40,7 +40,7 @@
         ),
         var(--shortcut-surface);
     border: 1px solid var(--shortcut-border);
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     box-shadow: 0 22px 70px color-mix(in srgb, black 34%, transparent);
     overflow: hidden;
 }
@@ -71,7 +71,7 @@
     background: color-mix(in srgb, var(--shortcut-accent) 14%, transparent);
     border: 1px solid
         color-mix(in srgb, var(--shortcut-accent) 28%, transparent);
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
 
     mat-icon {
         width: 24px;
@@ -115,7 +115,7 @@
         var(--shortcut-surface) 18%
     );
     border: 1px solid var(--shortcut-border);
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     font-size: 0.76rem;
     font-weight: 650;
     line-height: 1;
@@ -147,7 +147,7 @@
     min-width: 0;
     background: var(--shortcut-panel-bg);
     border: 1px solid var(--shortcut-border);
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     overflow: hidden;
 }
 
@@ -267,7 +267,7 @@
     color: var(--shortcut-text);
     background: var(--shortcut-key-bg);
     border: 1px solid var(--shortcut-border);
-    border-radius: 6px;
+    border-radius: var(--app-radius-xs);
     box-shadow:
         inset 0 -2px 0 var(--shortcut-key-shadow),
         0 1px 0 color-mix(in srgb, white 28%, transparent);

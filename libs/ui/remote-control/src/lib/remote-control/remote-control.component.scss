@@ -1,4 +1,7 @@
 :host {
+    // Self-contained tokens — this component ships inside apps/remote-control-web,
+    // a standalone bundle that never loads apps/web/src/m3-theme.scss, so it has
+    // no --app-* variables to read. Keep a fixed dark "device" skin here instead.
     --bg-0: #0a1016;
     --bg-1: #111c26;
     --bg-2: #1c2d3b;
@@ -24,7 +27,11 @@
     justify-content: center;
     background:
         radial-gradient(circle at 12% 8%, rgba(255, 200, 92, 0.18), transparent 35%),
-        radial-gradient(circle at 85% 0%, rgba(46, 196, 255, 0.28), transparent 45%),
+        radial-gradient(
+            circle at 85% 0%,
+            color-mix(in srgb, var(--accent) 28%, transparent),
+            transparent 45%
+        ),
         linear-gradient(145deg, var(--bg-0), var(--bg-1) 58%, var(--bg-2));
     color: var(--ink);
     font-family: 'Avenir Next', 'Trebuchet MS', 'Segoe UI', sans-serif;
@@ -42,7 +49,7 @@
     height: 8px;
     border-radius: 50%;
     background: var(--danger);
-    box-shadow: 0 0 10px rgba(255, 89, 109, 0.7);
+    box-shadow: 0 0 10px color-mix(in srgb, var(--danger) 70%, transparent);
 }
 
 .status-dot.is-active {
@@ -56,8 +63,8 @@
     border: 1px solid var(--line);
     background: linear-gradient(
         155deg,
-        rgba(17, 39, 56, 0.92),
-        rgba(15, 29, 42, 0.86)
+        color-mix(in srgb, var(--bg-2) 92%, transparent),
+        color-mix(in srgb, var(--bg-1) 86%, transparent)
     );
     box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
@@ -103,14 +110,14 @@
 .now-card__program {
     margin-top: 8px;
     font-size: 13px;
-    color: #b6d5ea;
+    color: var(--ink-dim);
 }
 
 .cluster {
     border: 1px solid var(--line);
     border-radius: 18px;
     padding: 10px;
-    background: rgba(9, 21, 31, 0.72);
+    background: color-mix(in srgb, var(--bg-0) 72%, transparent);
 }
 
 .cluster__title {
@@ -128,9 +135,13 @@
     position: relative;
     border-radius: 50%;
     overflow: hidden;
-    border: 1px solid rgba(97, 166, 214, 0.38);
+    border: 1px solid color-mix(in srgb, var(--accent) 38%, transparent);
     background:
-        radial-gradient(circle at 50% 32%, rgba(46, 196, 255, 0.24), transparent 56%),
+        radial-gradient(
+            circle at 50% 32%,
+            color-mix(in srgb, var(--accent) 24%, transparent),
+            transparent 56%
+        ),
         linear-gradient(180deg, rgba(255, 255, 255, 0.09), rgba(255, 255, 255, 0.01));
 }
 
@@ -157,6 +168,12 @@
     opacity: 0.45;
 }
 
+.touchpad__button:focus-visible {
+    outline: none;
+    background: var(--accent-soft);
+    box-shadow: inset 0 0 0 2px var(--accent);
+}
+
 .touchpad__button--up {
     top: 0;
 }
@@ -173,8 +190,8 @@
     width: 72px;
     height: 72px;
     border-radius: 50%;
-    border: 1px solid rgba(167, 218, 255, 0.35);
-    background: rgba(9, 23, 34, 0.9);
+    border: 1px solid color-mix(in srgb, var(--accent) 35%, transparent);
+    background: color-mix(in srgb, var(--bg-0) 90%, transparent);
     display: grid;
     place-items: center;
     font-size: 24px;
@@ -184,13 +201,13 @@
 .digit-display {
     margin-bottom: 8px;
     border-radius: 12px;
-    border: 1px dashed rgba(167, 218, 255, 0.5);
+    border: 1px dashed color-mix(in srgb, var(--accent) 50%, transparent);
     padding: 10px;
     text-align: center;
     font-family: 'Courier New', monospace;
     font-size: 20px;
     letter-spacing: 0.16em;
-    color: #d5eeff;
+    color: var(--ink);
 }
 
 .keypad {
@@ -202,8 +219,8 @@
 .keypad__key {
     height: 46px;
     border-radius: 12px;
-    border: 1px solid rgba(167, 218, 255, 0.34);
-    background: rgba(15, 38, 55, 0.84);
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+    background: color-mix(in srgb, var(--bg-1) 84%, transparent);
     color: var(--ink);
     font-size: 16px;
     font-weight: 700;
@@ -211,11 +228,16 @@
 
 .keypad__key:active:not(:disabled) {
     transform: translateY(1px);
-    background: rgba(29, 67, 94, 0.94);
+    background: color-mix(in srgb, var(--bg-2) 94%, transparent);
 }
 
 .keypad__key:disabled {
     opacity: 0.45;
+}
+
+.keypad__key:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
 }
 
 .keypad__key--alt {
@@ -224,7 +246,11 @@
 }
 
 .keypad__key--go {
-    background: linear-gradient(140deg, #16a8df, #2ec4ff);
+    background: linear-gradient(
+        140deg,
+        var(--accent),
+        color-mix(in srgb, var(--accent) 70%, white 30%)
+    );
     color: #042130;
 }
 
@@ -237,8 +263,8 @@
 .volume-row__button {
     min-height: 40px;
     border-radius: 10px;
-    border: 1px solid rgba(167, 218, 255, 0.34);
-    background: rgba(15, 38, 55, 0.84);
+    border: 1px solid color-mix(in srgb, var(--accent) 34%, transparent);
+    background: color-mix(in srgb, var(--bg-1) 84%, transparent);
     color: var(--ink);
     font-size: 12px;
     font-weight: 700;
@@ -246,25 +272,34 @@
 }
 
 .volume-row__button--mute {
-    border-color: rgba(255, 129, 143, 0.45);
+    border-color: color-mix(in srgb, var(--danger) 45%, transparent);
 }
 
 .volume-row__button:disabled {
     opacity: 0.45;
 }
 
+.volume-row__button:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 2px var(--accent);
+}
+
 .volume-meter {
     margin-top: 10px;
     height: 10px;
     border-radius: 999px;
-    background: rgba(255, 255, 255, 0.1);
+    background: color-mix(in srgb, var(--ink) 10%, transparent);
     overflow: hidden;
 }
 
 .volume-meter__fill {
     height: 100%;
     border-radius: inherit;
-    background: linear-gradient(90deg, #1fa8de, #42e8ff);
+    background: linear-gradient(
+        90deg,
+        var(--accent),
+        color-mix(in srgb, var(--accent) 60%, white 40%)
+    );
     transition: width 180ms ease;
 }
 
@@ -276,16 +311,16 @@
 
 .remote__error {
     border-radius: 12px;
-    border: 1px solid rgba(255, 117, 132, 0.5);
-    background: rgba(78, 12, 24, 0.65);
-    color: #ffd9de;
+    border: 1px solid color-mix(in srgb, var(--danger) 50%, transparent);
+    background: color-mix(in srgb, var(--danger) 18%, var(--bg-1));
+    color: var(--ink);
     font-size: 13px;
     padding: 10px 12px;
 }
 
 .remote__footer {
     text-align: center;
-    color: rgba(213, 238, 255, 0.72);
+    color: var(--ink-dim);
     font-size: 12px;
     padding-bottom: 10px;
 }

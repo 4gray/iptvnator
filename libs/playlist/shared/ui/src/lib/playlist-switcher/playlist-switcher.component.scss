@@ -10,7 +10,7 @@
     width: 100%;
     box-sizing: border-box;
     padding: 4px 8px 4px 4px;
-    border-radius: 10px;
+    border-radius: var(--app-radius-md);
     cursor: pointer;
     transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
     background: color-mix(in srgb, var(--app-on-surface) 5%, transparent);
@@ -52,7 +52,7 @@
 .trigger-icon-container {
     width: 30px;
     height: 30px;
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -179,7 +179,7 @@
         calc(100vw - 24px)
     ) !important;
     margin-top: -1px !important;
-    border-radius: 0 0 12px 12px !important;
+    border-radius: 0 0 var(--app-radius-lg) var(--app-radius-lg) !important;
     border: 1px solid var(--mat-sys-outline) !important;
     border-top: 0 !important;
     overflow: hidden !important;
@@ -254,7 +254,7 @@
         var(--app-on-surface) 6%,
         transparent
     );
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     border: 1px solid transparent;
     transition: all 0.2s ease;
 }
@@ -311,7 +311,7 @@
 .type-filter-chip {
     height: 24px;
     padding: 0 10px;
-    border-radius: 999px;
+    border-radius: var(--app-radius-pill);
     border: 1px solid
         color-mix(in srgb, var(--mat-sys-outline-variant) 72%, transparent);
     background: color-mix(
@@ -448,7 +448,7 @@
     justify-content: center;
     width: 36px;
     height: 36px;
-    border-radius: 8px;
+    border-radius: var(--app-radius-sm);
     background: color-mix(
         in srgb,
         var(--app-on-surface) 6%,
@@ -597,7 +597,7 @@
         width: 100%;
         padding: 8px 10px;
         border: none;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         background: transparent;
         color: var(--mat-sys-on-surface-variant);
         font: inherit;

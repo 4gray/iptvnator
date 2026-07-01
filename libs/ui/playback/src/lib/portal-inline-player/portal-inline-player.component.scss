@@ -8,7 +8,7 @@
     gap: 14px;
     padding: 18px;
     margin-top: 8px;
-    border-radius: 18px;
+    border-radius: var(--app-radius-2xl);
     border: 1px solid rgba(20, 20, 20, 0.08);
     background:
         linear-gradient(180deg, rgba(255, 255, 255, 0.78), rgba(255, 250, 245, 0.92)),
@@ -74,7 +74,7 @@
     min-height: 320px;
     max-height: min(70vh, 720px);
     aspect-ratio: 16 / 9;
-    border-radius: 14px;
+    border-radius: var(--app-radius-xl);
     background: #000;
 }
 

@@ -154,7 +154,7 @@
         font-weight: 500;
         font-size: clamp(0.875rem, 1.8vh, 1rem);
         padding: 10px 28px;
-        border-radius: 12px;
+        border-radius: var(--app-radius-lg);
         box-shadow: 0 4px 16px rgba(59, 130, 246, 0.3);
         transition:
             transform 0.2s ease,
@@ -204,7 +204,7 @@
             rgba(37, 99, 235, 0.04)
         );
         border: 1px solid rgba(96, 165, 250, 0.18);
-        border-radius: 14px;
+        border-radius: var(--app-radius-xl);
         backdrop-filter: blur(8px);
         transform: rotate(-2deg);
         transform-origin: center;

@@ -153,6 +153,18 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         this.episodeClicked.emit(episode);
     }
 
+    onEpisodeKeydownActivate(event: Event, episode: XtreamSerieEpisode): void {
+        if (event.target !== event.currentTarget) {
+            // Ignore Enter/Space bubbling up from a descendant action button
+            // (download, play-local, toggle-watched) — it has its own click
+            // and keyboard handling.
+            return;
+        }
+
+        event.preventDefault();
+        this.selectEpisode(episode);
+    }
+
     toggleWatched(event: Event, episode: XtreamSerieEpisode) {
         event.stopPropagation();
         if (!this.playlistId()) {

@@ -15,7 +15,7 @@
     justify-content: center;
     gap: 8px;
     padding: 36px 24px 28px;
-    border-radius: 16px;
+    border-radius: var(--app-radius-xl);
     border: 1.5px dashed
         color-mix(in srgb, var(--app-body-color) 30%, transparent);
     background: color-mix(in srgb, var(--app-shell-bg) 55%, transparent);
@@ -111,7 +111,7 @@
     align-items: center;
     gap: 12px;
     padding: 14px 14px 14px 16px;
-    border-radius: 12px;
+    border-radius: var(--app-radius-lg);
     background: color-mix(in srgb, var(--app-shell-bg) 85%, transparent);
     box-shadow: inset 0 0 0 1px var(--app-widget-header-border);
 
@@ -122,7 +122,7 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        border-radius: 10px;
+        border-radius: var(--app-radius-md);
         background: color-mix(
             in srgb,
             var(--app-selection-color) 16%,
@@ -166,7 +166,7 @@
         background: transparent;
         width: 32px;
         height: 32px;
-        border-radius: 8px;
+        border-radius: var(--app-radius-sm);
         display: inline-flex;
         align-items: center;
         justify-content: center;
