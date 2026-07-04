@@ -582,6 +582,48 @@ app-season-tabs {
         flex-shrink: 0;
     }
 
+    // Compact 16:9 episode still (only when the season has distinct
+    // per-episode art); the episode number rides on the image.
+    &__thumb {
+        position: relative;
+        flex-shrink: 0;
+        width: 96px;
+        height: 54px;
+        border-radius: 6px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+    }
+
+    &__thumb-placeholder {
+        color: var(--text-muted);
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+    }
+
+    &__thumb-number {
+        position: absolute;
+        bottom: 3px;
+        right: 3px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 600;
+        line-height: 1.5;
+        padding: 0 5px;
+        border-radius: 3px;
+    }
+
     &__content {
         flex: 1;
         min-width: 0;

@@ -155,6 +155,23 @@ export class SeasonContainerComponent implements OnInit {
     );
     private lastAutoSelectKey: string | null = null;
 
+    /**
+     * Show thumbnails in the list view only when episodes have genuinely
+     * distinct stills (TMDB or per-episode provider art). When every episode
+     * carries the same image (providers often repeat the series poster) a
+     * column of identical pictures is worse than the plain number square.
+     */
+    readonly listThumbnailsEnabled = computed(() => {
+        const episodes = this.selectedSeasonEpisodes();
+        const images = episodes
+            .map((episode) => this.getEpisodeInfo(episode)?.movie_image)
+            .filter((image): image is string => !!image);
+        if (images.length === 0) {
+            return false;
+        }
+        return episodes.length === 1 || new Set(images).size > 1;
+    });
+
     readonly selectedSeasonDescription = computed(() => {
         const selected = this.selectedSeason();
         if (!selected) {

@@ -330,6 +330,61 @@ describe('SeasonContainerComponent', () => {
         ).toBeNull();
     });
 
+    it('shows list thumbnails when episode images are distinct', () => {
+        setRequiredInputs({
+            '1': [
+                createEpisode({
+                    id: '101',
+                    info: { plot: 'a', movie_image: 'still-1.jpg' } as never,
+                }),
+                createEpisode({
+                    id: '102',
+                    episode_num: 2,
+                    info: { plot: 'b', movie_image: 'still-2.jpg' } as never,
+                }),
+            ],
+        });
+        component.setViewMode('list');
+        fixture.detectChanges();
+
+        expect(component.listThumbnailsEnabled()).toBe(true);
+        expect(
+            fixture.nativeElement.querySelectorAll('.episode-list-item__thumb')
+                .length
+        ).toBe(2);
+        expect(
+            fixture.nativeElement.querySelector('.episode-list-item__number')
+        ).toBeNull();
+    });
+
+    it('keeps the number square when every episode repeats the same image', () => {
+        setRequiredInputs({
+            '1': [
+                createEpisode({
+                    id: '101',
+                    info: { plot: 'a', movie_image: 'poster.jpg' } as never,
+                }),
+                createEpisode({
+                    id: '102',
+                    episode_num: 2,
+                    info: { plot: 'b', movie_image: 'poster.jpg' } as never,
+                }),
+            ],
+        });
+        component.setViewMode('list');
+        fixture.detectChanges();
+
+        expect(component.listThumbnailsEnabled()).toBe(false);
+        expect(
+            fixture.nativeElement.querySelector('.episode-list-item__thumb')
+        ).toBeNull();
+        expect(
+            fixture.nativeElement.querySelectorAll(
+                '.episode-list-item__number'
+            ).length
+        ).toBe(2);
+    });
+
     it('renders the season description for the selected season', () => {
         fixture.componentRef.setInput('seasonDescriptions', {
             '1': 'Season one overview',

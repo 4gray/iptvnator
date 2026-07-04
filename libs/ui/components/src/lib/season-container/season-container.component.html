@@ -296,9 +296,36 @@
                                 isEpisodePlayingInline(episode)
                             "
                         >
-                            <div class="episode-list-item__number">
-                                {{ episode.episode_num }}
-                            </div>
+                            @if (listThumbnailsEnabled()) {
+                                <div class="episode-list-item__thumb">
+                                    @if (episodeInfo?.movie_image) {
+                                        <img
+                                            [src]="
+                                                episodeInfo?.movie_image ?? ''
+                                            "
+                                            (error)="
+                                                $event.target.src =
+                                                    './assets/images/default-episode.png'
+                                            "
+                                            alt="Episode thumbnail"
+                                            loading="lazy"
+                                        />
+                                    } @else {
+                                        <mat-icon
+                                            class="episode-list-item__thumb-placeholder"
+                                            >play_circle_outline</mat-icon
+                                        >
+                                    }
+                                    <span
+                                        class="episode-list-item__thumb-number"
+                                        >{{ episode.episode_num }}</span
+                                    >
+                                </div>
+                            } @else {
+                                <div class="episode-list-item__number">
+                                    {{ episode.episode_num }}
+                                </div>
+                            }
                             <div class="episode-list-item__content">
                                 <div class="episode-list-item__header">
                                     <h4 class="episode-list-item__title">
