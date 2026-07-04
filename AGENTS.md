@@ -30,11 +30,8 @@ This file provides guidance to coding agents working in this repository.
 - Keep the root `CLAUDE.md` and this file up to date. They are living documents: whenever a change touches something they describe — monorepo structure (new/moved/renamed apps or libs), routes, database schema/tables, stores and their features, key components, commands, environment behavior, or coding conventions — update the affected sections as part of the same task, and keep the process sections mirrored between `AGENTS.md` and `CLAUDE.md` in sync.
 - When adding a new feature area, check whether the Architecture or Key Features sections of `CLAUDE.md` describe the surrounding area; if they do, reflect the addition there instead of leaving the description stale.
 - Do not let `CLAUDE.md` or `AGENTS.md` drift: a stale path or route in these files poisons the context of every future agent session. If you notice an outdated claim while working, fix it (or flag it in the final summary) even if it is unrelated to the current task.
-- Repo docs are canonical even when they were originally drafted by an LLM. External wiki pages are derivative or synthesis content unless explicitly promoted back into the repo.
-- The external wiki sync is one-way by default: repo docs -> external wiki `_repo-context/`.
-- If repo docs changed and `IPTVNATOR_WIKI_VAULT` is configured, run `pnpm wiki:export --mode changed` after the doc update.
-- The wiki exporter only owns `_repo-context/` in the external vault. It must never overwrite repo docs or maintained wiki pages outside that folder.
-- Final task summaries should state whether docs were updated, which doc changed, and whether wiki export ran, was skipped, or failed.
+- Repo docs are canonical even when they were originally drafted by an LLM.
+- Final task summaries should state whether docs were updated and which doc changed.
 
 ## Regression Prevention And Test Updates
 
