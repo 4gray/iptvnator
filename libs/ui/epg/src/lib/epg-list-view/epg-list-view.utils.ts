@@ -5,7 +5,7 @@ import {
     areProgramsSame,
     deduplicateProgramsByTimeSlot,
     getProgramTimeMs,
-} from '../epg-list/epg-list.utils';
+} from '../epg-program.utils';
 import { canCatchUpProgramme } from '../epg-timeline/epg-archive.util';
 import {
     classifyTimelineWhen,

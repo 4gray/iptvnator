@@ -598,8 +598,8 @@ class EpgService {
 
 | Component                     | Purpose                              |
 | ----------------------------- | ------------------------------------ |
-| `EpgListComponent`            | Timeline view for single channel     |
-| `EpgListItemComponent`        | Individual program in timeline       |
+| `EpgTimelineComponent`        | Horizontal timeline for one channel  |
+| `EpgListViewComponent`        | Vertical single-day list alternative |
 | `EpgItemDescriptionComponent` | Program details dialog               |
 | `MultiEpgContainerComponent`  | Grid view of all channels' schedules |
 

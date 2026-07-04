@@ -118,7 +118,6 @@ export const maxLinesBaseline = [
     'libs/ui/components/src/lib/channel-list-container/groups-view/groups-view.component.spec.ts',
     'libs/ui/components/src/lib/channel-list-container/groups-view/groups-view.component.ts',
     'libs/ui/components/src/lib/season-container/season-container.component.ts',
-    'libs/ui/epg/src/lib/epg-list/epg-list.component.spec.ts',
     'libs/ui/epg/src/lib/multi-epg/multi-epg-container.component.ts',
     'libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-player.component.ts',
     'libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-session-controller.ts',

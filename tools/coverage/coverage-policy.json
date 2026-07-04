@@ -185,13 +185,6 @@
                 "e2eTags": ["@playback", "@m3u"]
             },
             {
-                "name": "shared-portals",
-                "root": "libs/ui/shared-portals",
-                "sourceRoot": "libs/ui/shared-portals/src",
-                "validationCommand": "pnpm nx test shared-portals",
-                "e2eTags": ["@xtream", "@stalker"]
-            },
-            {
                 "name": "workspace-dashboard-data-access",
                 "root": "libs/workspace/dashboard/data-access",
                 "sourceRoot": "libs/workspace/dashboard/data-access/src",
@@ -277,6 +270,11 @@
                 "name": "remote-control",
                 "root": "libs/ui/remote-control",
                 "reason": "No unit specs yet; validate through remote-control flows or add focused tests when behavior changes directly."
+            },
+            {
+                "name": "shared-portals",
+                "root": "libs/ui/shared-portals",
+                "reason": "Type-only library after the dead epg-view/live-epg-panel components were removed; only the LiveEpgPanelSummary interface remains, so there is no runtime code to unit test."
             }
         ]
     },

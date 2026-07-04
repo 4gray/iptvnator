@@ -259,7 +259,7 @@ This is an Nx monorepo with the following structure:
     - **ui/playback** - Player UI (video/audio players)
     - **ui/pipes** - Angular pipes
     - **ui/remote-control** - Remote-control UI pieces
-    - **ui/shared-portals** - Portal-related UI components
+    - **ui/shared-portals** - Shared portal types (`LiveEpgPanelSummary`)
     - **ui/styles** - Shared styles/theme
     - **workspace/{shell,dashboard}** - Workspace shell (layout/navigation) and dashboard
 
@@ -757,7 +757,6 @@ No formal migration system yet. Schema changes are applied via raw SQL in the `c
 - Use NgRx for global application state (M3U playlists, `libs/m3u-state`)
 - Use NgRx Signal Store with `signalStoreFeature()` composition for portal/feature state (XtreamStore, StalkerStore)
 - Use NgRx signals for reactive data streams
-- `@ngrx/component-store` is listed in `package.json` but unused in the codebase — do not introduce new usages
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->

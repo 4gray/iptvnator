@@ -192,10 +192,8 @@
             "VALIDATING": "Проверка портала…"
         },
         "FILTER_BY_NAME": "Фильтровать по имени",
-        "FILTER_BY_TYPE": "Типы плейлистов",
         "FILTER_AND_SORT": "Фильтр и сортировка",
         "SORT_PLAYLISTS": "Сортировать плейлисты",
-        "SORT_BY": "Сортировать по",
         "SORT_OPTIONS": {
             "NAME_ASC": "Имени (А-Я)",
             "NAME_DESC": "Имени (Я-А)",
@@ -487,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Переключить список каналов (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Поиск каналов",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузить или выбрать другой плейлист",
         "ALL_CHANNELS": "Все каналы",
         "GROUPS": "Группы",
@@ -561,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Открыть список каналов",
-        "TOGGLE_FAVORITE_FLAG": "Избранный",
-        "OPEN_EPG_LIST": "Открыть программу (EPG)",
-        "OPEN_MULTI_EPG": "Открыть Multi-EPG вид",
-        "SHOW_INFO": "Показать информацию о программе (нажмите I)"
+        "OPEN_MULTI_EPG": "Открыть Multi-EPG вид"
     },
     "EPG": {
-        "TITLE": "Электронный программный гид",
         "NEXT_DAY": "Следующий день",
         "PREVIOUS_DAY": "Предыдущий день",
         "ZOOM_IN": "Увеличить",
@@ -577,14 +569,9 @@
         "CLOSE_FILTER": "Закрыть фильтр",
         "SEARCH_PROGRAMS": "Поиск программ",
         "CLOSE_PROGRAM_SEARCH": "Закрыть поиск программ",
-        "LIVE_NOW": "Сейчас",
         "LIVE_STREAM": "Прямая трансляция",
-        "TIMESHIFT_AVAILABLE": "Доступна функция архива (timeshift). Нажмите на передачу для воспроизведения.",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Воспроизведение архива недоступно",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Этот провайдер предоставляет историю программы для канала, но не предоставляет воспроизводимый архив/catch-up.",
-        "EPG_NOT_AVAILABLE_DATE": "Ой, программа на этот день, к сожалению, отсутствует.",
-        "NO_GUIDE_HINT": "Попробуйте другую дату или обновите плейлист.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Программа для этого канала недоступна.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Попробуйте изменить или обновить ссылку на EPG в настройках приложения.",
         "FETCH_EPG": "Загружаю программу ТВ-передач (EPG)...",
         "ERROR": "Ой, не удалось загрузить программу каналов (EPG)",
@@ -619,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Архивная запись",
-        "RETURN_TO_LIVE": "Вернуться к эфиру",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -683,7 +669,6 @@
     "MENU": {
         "OPEN": "Открыть меню",
         "SUPPORT_ARIA": "Поддержать IPTVnator на GitHub",
-        "SETTINGS": "Настройки",
         "SETTINGS_ARIA": "Открыть настройки",
         "BUG_REPORT": "Сообщить об ошибке",
         "WHAT_IS_NEW": "Что нового?",
@@ -808,10 +793,7 @@
             "SEARCH": "Поиск",
             "RECENT": "Недавние",
             "RECENTLY_ADDED": "Недавно добавленные",
-            "FAVORITES": "Избранное",
-            "HOME": "Домой",
-            "PLAYLIST_INFO": "Информация о плейлисте",
-            "ACCOUNT_INFO": "Информация об аккаунте"
+            "FAVORITES": "Избранное"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

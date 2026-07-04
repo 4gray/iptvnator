@@ -1,5 +1,5 @@
-export * from './lib/epg-list/epg-list.component';
-export * from './lib/epg-list/epg-item-description/epg-item-description.component';
+export * from './lib/epg-item-description/epg-item-description.component';
+export * from './lib/epg-program-activation-event';
 export * from './lib/epg-list-view/epg-list-view.component';
 export * from './lib/epg-list-view/epg-list-view-row/epg-list-view-row.component';
 export * from './lib/epg-list-view/epg-list-view.utils';

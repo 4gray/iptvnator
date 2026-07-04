@@ -14,7 +14,7 @@ Stalker now uses two EPG paths with different purposes:
 
 - The active channel EPG panel uses `get_epg_info` as a bulk endpoint, fetches a
   7-day window once per playlist session, caches programs by channel id, and
-  renders the selected channel through the shared `app-epg-list` component.
+  renders the selected channel through the shared `app-epg-timeline` component.
 - Channel rows no longer send preview EPG requests during initial category load.
   They stay empty until bulk EPG has been fetched once, then derive their
   current program and progress bar from the cached bulk map.
@@ -39,7 +39,7 @@ date-navigator UI used in the M3U/Xtream flows.
 │         │                  ensureBulkItvEpg(168)                           │
 │         │                  selectedItvEpgPrograms()                        │
 │         ▼                        │                                          │
-│  current program preview         ├── bulk hit → app-epg-list               │
+│  current program preview         ├── bulk hit → app-epg-timeline               │
 │  after first bulk load           └── empty/unsupported → short fallback    │
 └────────────────────────────────────────────────────────────────────────────┘
                    │                                │
@@ -166,7 +166,7 @@ Key mapped fields:
 
 ### Active panel data (`get_epg_info` / fallback) → `EpgProgram`
 
-The active panel uses controlled `EpgProgram[]` because `app-epg-list` filters
+The active panel uses controlled `EpgProgram[]` because `app-epg-timeline` filters
 and groups by day.
 
 Normalization rules:
@@ -183,10 +183,9 @@ Normalization rules:
 | File                                                                                                                 | Purpose                                                         |
 | -------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
 | `libs/portal/stalker/data-access/src/lib/stores/features/with-stalker-epg.feature.ts`                                | bulk cache and fallback handling                                |
-| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`             | active-channel EPG loading and controlled `app-epg-list` wiring |
+| `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.ts`             | active-channel EPG loading and controlled `app-epg-timeline` wiring |
 | `libs/portal/stalker/feature/src/lib/stalker-live-stream-layout/stalker-live-stream-layout.component.html`           | active panel template                                           |
-| `libs/portal/stalker/feature/src/lib/stalker-collection-channels-list/stalker-collection-channels-list.component.ts` | row preview loading                                             |
-| `libs/ui/shared-portals/src/lib/epg-list/epg-list.component.ts`                                                      | shared controlled EPG list with date navigator                  |
+| `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.ts`                    | shared controlled EPG timeline with date navigator                  |
 
 ### Store API
 
@@ -210,7 +209,7 @@ playlists.
 1. User activates a live channel
 2. The component ensures playback link resolution as before
 3. The component calls `ensureBulkItvEpg(168)` on first use for the playlist
-4. `selectedItvEpgPrograms()` feeds `app-epg-list`
+4. `selectedItvEpgPrograms()` feeds `app-epg-timeline`
 5. If the selected channel has no bulk programs, the component falls back to
    `get_short_epg`
 
@@ -267,5 +266,5 @@ is available.
 ## Future Enhancements
 
 - add cache refresh / invalidation for long-running live sessions
-- add Stalker catch-up support to `app-epg-list` once the playback flow exists
+- add Stalker catch-up support to `app-epg-timeline` once the playback flow exists
 - optionally add category-level prefetch timing metrics for bulk EPG

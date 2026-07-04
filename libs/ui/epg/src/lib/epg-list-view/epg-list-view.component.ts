@@ -24,8 +24,8 @@ import {
     parseEpgDateKey,
     shiftEpgDateKey,
 } from '../epg-date';
-import { EpgItemDialogAction } from '../epg-list/epg-item-description/epg-item-description.component';
-import type { EpgProgramActivationEvent } from '../epg-list/epg-list.component';
+import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
+import type { EpgProgramActivationEvent } from '../epg-program-activation-event';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { epgDialogActionFor } from '../epg-timeline/epg-archive.util';
 import {

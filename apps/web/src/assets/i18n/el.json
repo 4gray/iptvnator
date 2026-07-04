@@ -192,10 +192,8 @@
             "VALIDATING": "Επικύρωση πύλης..."
         },
         "FILTER_BY_NAME": "Φιλτράρισμα κατά όνομα",
-        "FILTER_BY_TYPE": "Τύποι λιστών αναπαραγωγής",
         "FILTER_AND_SORT": "Φιλτράρισμα & Ταξινόμηση",
         "SORT_PLAYLISTS": "Ταξινόμηση λιστών αναπαραγωγής",
-        "SORT_BY": "Ταξινόμηση κατά",
         "SORT_OPTIONS": {
             "NAME_ASC": "Όνομα (A-Z)",
             "NAME_DESC": "Όνομα (Z-A)",
@@ -487,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Εναλλαγή λίστας καναλιών (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Αναζήτηση καναλιού",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Μεταφορτώστε ή επιλέξτε άλλη λίστα αναπαραγωγής",
         "ALL_CHANNELS": "Όλα τα κανάλια",
         "GROUPS": "Ομάδες",
@@ -561,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Άνοιγμα λίστας καναλιών",
-        "TOGGLE_FAVORITE_FLAG": "Εναλλαγή σημαίας αγαπημένων",
-        "OPEN_EPG_LIST": "Άνοιγμα λίστας EPG",
-        "OPEN_MULTI_EPG": "Άνοιγμα προβολής Πολλαπλού EPG",
-        "SHOW_INFO": "Εμφάνιση πληροφοριών προγράμματος (Πατήστε το I)"
+        "OPEN_MULTI_EPG": "Άνοιγμα προβολής Πολλαπλού EPG"
     },
     "EPG": {
-        "TITLE": "Ηλεκτρονικός Οδηγός Προγράμματος",
         "NEXT_DAY": "Επόμενη μέρα",
         "PREVIOUS_DAY": "Προηγούμενη ημέρα",
         "ZOOM_IN": "Μεγέθυνση",
@@ -577,14 +569,9 @@
         "CLOSE_FILTER": "Κλείσιμο φίλτρου",
         "SEARCH_PROGRAMS": "Αναζήτηση προγραμμάτων",
         "CLOSE_PROGRAM_SEARCH": "Κλείσιμο αναζήτησης προγραμμάτων",
-        "LIVE_NOW": "Ζωντανά τώρα",
         "LIVE_STREAM": "Ζωντανή ροή",
-        "TIMESHIFT_AVAILABLE": "Η χρονική μετατόπιση είναι διαθέσιμη, κάντε κλικ για αναπαραγωγή.",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Η αναπαραγωγή αρχείου δεν είναι διαθέσιμη",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Αυτός ο πάροχος εκθέτει ιστορικό προγράμματος για το κανάλι, αλλά δεν παρέχει αναπαραγωγή αρχείου/catch-up.",
-        "EPG_NOT_AVAILABLE_DATE": "Ωχ, το EPG δεν είναι διαθέσιμο για την επιλεγμένη ημερομηνία",
-        "NO_GUIDE_HINT": "Δοκιμάστε άλλη ημερομηνία ή ανανεώστε τη λίστα αναπαραγωγής.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Ωχ, το EPG δεν είναι διαθέσιμο για αυτό το κανάλι.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Προσθέστε/αλλάξτε τη διεύθυνση URL της λίστας EPG στις ρυθμίσεις της εφαρμογής.",
         "FETCH_EPG": "Ανάκτηση δεδομένων EPG...",
         "ERROR": "Ωχ, δεν ήταν δυνατή η φόρτωση του EPG.",
@@ -619,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Αναπαραγωγή αρχείου",
-        "RETURN_TO_LIVE": "Επιστροφή στη ζωντανή ροή",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -683,7 +669,6 @@
     "MENU": {
         "OPEN": "Άνοιγμα μενού",
         "SUPPORT_ARIA": "Υποστήριξη του IPTVnator στο GitHub",
-        "SETTINGS": "Ρυθμίσεις",
         "SETTINGS_ARIA": "Άνοιγμα ρυθμίσεων",
         "BUG_REPORT": "Αναφορά σφάλματος",
         "WHAT_IS_NEW": "Τι νέο υπάρχει",
@@ -808,10 +793,7 @@
             "SEARCH": "Αναζήτηση",
             "RECENT": "Πρόσφατα",
             "RECENTLY_ADDED": "Πρόσφατα προστέθηκε",
-            "FAVORITES": "Αγαπημένα",
-            "HOME": "Αρχικό",
-            "PLAYLIST_INFO": "Πληροφορίες λίστας αναπαραγωγής",
-            "ACCOUNT_INFO": "Πληροφορίες λογαριασμού"
+            "FAVORITES": "Αγαπημένα"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

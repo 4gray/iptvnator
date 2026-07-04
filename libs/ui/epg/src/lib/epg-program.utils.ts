@@ -1,59 +1,6 @@
 import { format } from 'date-fns';
-import type { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
-import { EPG_DATE_KEY_FORMAT } from '../epg-date';
-
-export function trackProgram(index: number, program: EpgProgram): string {
-    const start = getProgramTimeMs(program.start, program.startTimestamp);
-    const stop = getProgramTimeMs(program.stop, program.stopTimestamp);
-
-    return [
-        program.channel ?? '',
-        Number.isFinite(start) ? start : program.start,
-        Number.isFinite(stop) ? stop : program.stop,
-        program.title ?? '',
-        index,
-    ].join('|');
-}
-
-export function deduplicateProgramsByTimeSlot(
-    programs: EpgProgram[]
-): EpgProgram[] {
-    const programsByTimeSlot = new Map<string, EpgProgram>();
-
-    for (const program of programs) {
-        const timeSlotKey = buildProgramTimeSlotKey(program);
-        const existingProgram = programsByTimeSlot.get(timeSlotKey);
-
-        programsByTimeSlot.set(
-            timeSlotKey,
-            existingProgram
-                ? selectMoreInformativeProgram(existingProgram, program)
-                : program
-        );
-    }
-
-    return Array.from(programsByTimeSlot.values());
-}
-
-export function buildScrollContextKey(
-    channel: Channel | null,
-    programs: EpgProgram[]
-): string | null {
-    if (!channel && programs.length === 0) {
-        return null;
-    }
-
-    const channelKey =
-        channel?.tvg?.id || channel?.name || channel?.url || 'unknown-channel';
-    const programKey = programs
-        .map(
-            (program) =>
-                `${getProgramTimeMs(program.start, program.startTimestamp)}-${getProgramTimeMs(program.stop, program.stopTimestamp)}`
-        )
-        .join('|');
-
-    return `${channelKey}:${programKey}`;
-}
+import type { EpgProgram } from '@iptvnator/shared/interfaces';
+import { EPG_DATE_KEY_FORMAT } from './epg-date';
 
 export function getProgramTimeMs(
     isoValue: string,
@@ -77,6 +24,26 @@ export function getProgramDateKey(
     }
 
     return format(new Date(programTimeMs), EPG_DATE_KEY_FORMAT);
+}
+
+export function deduplicateProgramsByTimeSlot(
+    programs: EpgProgram[]
+): EpgProgram[] {
+    const programsByTimeSlot = new Map<string, EpgProgram>();
+
+    for (const program of programs) {
+        const timeSlotKey = buildProgramTimeSlotKey(program);
+        const existingProgram = programsByTimeSlot.get(timeSlotKey);
+
+        programsByTimeSlot.set(
+            timeSlotKey,
+            existingProgram
+                ? selectMoreInformativeProgram(existingProgram, program)
+                : program
+        );
+    }
+
+    return Array.from(programsByTimeSlot.values());
 }
 
 export function areProgramsSame(
