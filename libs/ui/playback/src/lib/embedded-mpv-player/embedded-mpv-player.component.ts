@@ -2,9 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     ElementRef,
-    EventEmitter,
     OnDestroy,
-    Output,
     computed,
     effect,
     inject,
@@ -18,6 +16,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     EmbeddedMpvAudioTrack,
     ResolvedPortalPlayback,
@@ -44,12 +43,12 @@ import {
     speedLabel,
     subtitleTrackLabel,
     volumeIcon,
-    volumeLabel,
 } from './embedded-mpv-format.utils';
 
 const HIDE_CONTROLS_DELAY_MS = 2500;
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 const VOLUME_POPOVER_CLOSE_DELAY_MS = 220;
+const VIEWPORT_CLICK_PAUSE_DELAY_MS = 250;
 
 @Component({
     selector: 'app-embedded-mpv-player',
@@ -60,6 +59,7 @@ const VOLUME_POPOVER_CLOSE_DELAY_MS = 220;
         MatIconModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        TranslatePipe,
     ],
     providers: [EmbeddedMpvSessionController],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -73,7 +73,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly recordingFolder = input('');
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
 
-    @Output() timeUpdate = new EventEmitter<{
+    readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
@@ -84,6 +84,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private readonly overlayVisibility = inject(
         EmbeddedMpvOverlayVisibilityService
     );
+    private readonly translate = inject(TranslateService);
     private readonly controller = inject(EmbeddedMpvSessionController);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
@@ -149,24 +150,35 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly statusLabel = computed(() => {
         const session = this.session();
         if (session?.status === 'error') {
-            return session.error ?? 'Embedded MPV playback failed.';
+            return (
+                session.error ??
+                this.translate.instant('EMBEDDED_MPV.PLAYER.PLAYBACK_FAILED')
+            );
         }
         if (!this.support()) {
-            return 'Checking embedded MPV support...';
+            return this.translate.instant(
+                'EMBEDDED_MPV.PLAYER.CHECKING_SUPPORT'
+            );
         }
         if (!this.isSupported()) {
             return (
                 this.support()?.reason ??
-                'Embedded MPV is not available in this environment.'
+                this.translate.instant('EMBEDDED_MPV.PLAYER.NOT_AVAILABLE')
             );
         }
         if (!session || session.status === 'loading') {
-            return 'Loading stream…';
+            return this.translate.instant(
+                'EMBEDDED_MPV.PLAYER.LOADING_STREAM'
+            );
         }
         return '';
     });
     readonly fullscreenLabel = computed(() =>
-        this.isFullscreen() ? 'Exit fullscreen' : 'Enter fullscreen'
+        this.translate.instant(
+            this.isFullscreen()
+                ? 'EMBEDDED_MPV.PLAYER.EXIT_FULLSCREEN'
+                : 'EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN'
+        )
     );
     readonly audioTracks = computed(() => this.session()?.audioTracks ?? []);
     readonly hasAudioTracks = computed(() => this.audioTracks().length > 1);
@@ -184,9 +196,21 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         () => this.session()?.aspectOverride ?? 'no'
     );
     readonly volumeIcon = computed(() => volumeIcon(this.volume()));
-    readonly volumeLabel = computed(() => volumeLabel(this.volume()));
-    readonly timelineValue = computed(() =>
-        Math.max(0, this.session()?.positionSeconds ?? 0)
+    readonly volumeLabel = computed(() =>
+        this.translate.instant('EMBEDDED_MPV.PLAYER.VOLUME_LABEL', {
+            percent: Math.round(this.volume() * 100),
+        })
+    );
+    /**
+     * Non-null while the user drags the timeline: the slider and time label
+     * preview this value locally and the single seek IPC call is deferred to
+     * the release (`change`) event instead of firing per drag pixel.
+     */
+    readonly scrubPosition = signal<number | null>(null);
+    readonly timelineValue = computed(
+        () =>
+            this.scrubPosition() ??
+            Math.max(0, this.session()?.positionSeconds ?? 0)
     );
     readonly controlsAreVisible = computed(
         () =>
@@ -250,6 +274,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private controlsHideTimer: number | null = null;
     private volumeCloseTimer: number | null = null;
     private recordingMessageTimer: number | null = null;
+    private viewportClickTimer: number | null = null;
     private lastEndedSessionId: string | null = null;
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
@@ -427,10 +452,40 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         this.clearRecordingMessageTimer();
         this.clearControlsHideTimer();
+        this.clearViewportClickTimer();
+    }
+
+    private clearViewportClickTimer(): void {
+        if (this.viewportClickTimer !== null) {
+            window.clearTimeout(this.viewportClickTimer);
+            this.viewportClickTimer = null;
+        }
     }
 
     onPlayerInteraction(): void {
         this.revealControls();
+    }
+
+    onViewportClick(event: MouseEvent): void {
+        const target = event.target as HTMLElement | null;
+        if (target?.closest('button, input, [role="slider"]')) {
+            return;
+        }
+        if (this.menus.anyOpen()) {
+            this.menus.closeAll();
+            return;
+        }
+        if (this.isLoading() || this.isErrored() || this.stalled()) {
+            return;
+        }
+        // The pause is deferred so a double-click (fullscreen) can cancel it;
+        // pause feedback is the transport icon in the dock — the native video
+        // surface paints over any DOM overlay we could flash here.
+        this.clearViewportClickTimer();
+        this.viewportClickTimer = window.setTimeout(() => {
+            this.viewportClickTimer = null;
+            void this.togglePaused();
+        }, VIEWPORT_CLICK_PAUSE_DELAY_MS);
     }
 
     onPlayerDblClick(event: MouseEvent): void {
@@ -438,6 +493,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         if (target?.closest('button, input, [role="slider"]')) {
             return;
         }
+        this.clearViewportClickTimer();
         void this.toggleFullscreen();
     }
 
@@ -492,9 +548,16 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.nextEpisodeRequested.emit();
     }
 
-    async onTimelineInput(event: Event): Promise<void> {
+    onTimelineInput(event: Event): void {
         this.revealControls();
+        this.scrubPosition.set(
+            Number((event.target as HTMLInputElement).value)
+        );
+    }
+
+    async onTimelineCommit(event: Event): Promise<void> {
         const target = Number((event.target as HTMLInputElement).value);
+        this.scrubPosition.set(null);
         await this.controller.seekTo(target);
     }
 
@@ -532,7 +595,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         if (current > 0) {
             this.mutedVolume = current;
             this.applyVolume(0);
-            this.feedback.flash('volume_off', 'Muted');
+            this.feedback.flash(
+                'volume_off',
+                this.translate.instant('EMBEDDED_MPV.PLAYER.MUTED')
+            );
         } else {
             const restored = this.mutedVolume || 0.5;
             this.applyVolume(restored);
@@ -598,16 +664,31 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         if (this.isRecording()) {
             const recording = await this.controller.stopRecording();
             if (recording?.targetPath) {
-                this.setRecordingMessage(`Saved to ${recording.targetPath}`, {
-                    autoDismiss: true,
-                });
-                this.feedback.flash('check_circle', 'Recording saved', 1200);
+                this.setRecordingMessage(
+                    this.translate.instant('EMBEDDED_MPV.PLAYER.SAVED_TO', {
+                        path: recording.targetPath,
+                    }),
+                    {
+                        autoDismiss: true,
+                    }
+                );
+                this.feedback.flash(
+                    'check_circle',
+                    this.translate.instant(
+                        'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
+                    ),
+                    1200
+                );
             } else if (recording?.error) {
                 this.setRecordingMessage(recording.error);
-                this.feedback.flash('error_outline', 'Recording failed', 1200);
+                this.flashRecordingFailed();
             } else {
-                this.setRecordingMessage('Recording failed to stop.');
-                this.feedback.flash('error_outline', 'Recording failed', 1200);
+                this.setRecordingMessage(
+                    this.translate.instant(
+                        'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_STOP'
+                    )
+                );
+                this.flashRecordingFailed();
             }
             this.scheduleControlsHide();
             return;
@@ -619,14 +700,30 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             this.playback().title
         );
         if (recording?.active) {
-            this.feedback.flash('fiber_manual_record', 'Recording', 900);
+            this.feedback.flash(
+                'fiber_manual_record',
+                this.translate.instant('EMBEDDED_MPV.PLAYER.RECORDING'),
+                900
+            );
         } else if (recording?.error) {
             this.setRecordingMessage(recording.error);
-            this.feedback.flash('error_outline', 'Recording failed', 1200);
+            this.flashRecordingFailed();
         } else {
-            this.setRecordingMessage('Recording failed to start.');
-            this.feedback.flash('error_outline', 'Recording failed', 1200);
+            this.setRecordingMessage(
+                this.translate.instant(
+                    'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_START'
+                )
+            );
+            this.flashRecordingFailed();
         }
+    }
+
+    private flashRecordingFailed(): void {
+        this.feedback.flash(
+            'error_outline',
+            this.translate.instant('EMBEDDED_MPV.PLAYER.RECORDING_FAILED'),
+            1200
+        );
     }
 
     retry(): void {
@@ -634,10 +731,31 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     formatTime = formatTime;
-    trackLabel = audioTrackLabel;
-    subtitleLabel = subtitleTrackLabel;
+    trackLabel = (track: EmbeddedMpvAudioTrack, index: number) =>
+        audioTrackLabel(track, index, {
+            fallback: this.translate.instant(
+                'EMBEDDED_MPV.PLAYER.AUDIO_TRACK_FALLBACK',
+                { index: index + 1 }
+            ),
+            defaultLabel: this.translate.instant(
+                'EMBEDDED_MPV.PLAYER.TRACK_DEFAULT'
+            ),
+        });
+    subtitleLabel = (track: EmbeddedMpvAudioTrack, index: number) =>
+        subtitleTrackLabel(track, index, {
+            fallback: this.translate.instant(
+                'EMBEDDED_MPV.PLAYER.SUBTITLE_TRACK_FALLBACK',
+                { index: index + 1 }
+            ),
+            defaultLabel: this.translate.instant(
+                'EMBEDDED_MPV.PLAYER.TRACK_DEFAULT'
+            ),
+        });
     speedLabel = speedLabel;
-    aspectLabel = aspectLabel;
+    aspectLabel = (aspect: string) =>
+        aspect === 'no'
+            ? this.translate.instant('EMBEDDED_MPV.PLAYER.ASPECT_DEFAULT')
+            : aspectLabel(aspect);
 
     private setRecordingMessage(
         message: string | null,

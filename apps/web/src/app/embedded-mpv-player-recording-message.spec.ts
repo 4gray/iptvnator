@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import {
     EmbeddedMpvOverlayVisibilityService,
@@ -31,7 +32,7 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
         } as unknown as typeof window.electron;
 
         await TestBed.configureTestingModule({
-            imports: [EmbeddedMpvPlayerHostComponent],
+            imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: EmbeddedMpvOverlayVisibilityService,
@@ -43,6 +44,17 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
                 set: { template: '' },
             })
             .compileComponents();
+
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            EMBEDDED_MPV: {
+                PLAYER: {
+                    SAVED_TO: 'Saved to {{path}}',
+                    RECORDING_SAVED: 'Recording saved',
+                },
+            },
+        });
+        translate.use('en');
 
         fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
         fixture.detectChanges();
