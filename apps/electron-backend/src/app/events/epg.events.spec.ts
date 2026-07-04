@@ -280,6 +280,11 @@ describe('EpgEvents', () => {
         releaseFetchTerminate();
         await flushPromises();
         expect(cleared).toBe(true);
+
+        // Settle the interrupted fetch so its 1s timeout cannot fire (and
+        // log) after the suite has finished.
+        fetchWorker.emit('exit', 1);
+        await flushPromises();
     });
 
     it('clears one EPG source through a worker and allows it to be fetched again', async () => {
