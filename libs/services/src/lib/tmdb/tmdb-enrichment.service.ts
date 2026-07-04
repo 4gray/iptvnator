@@ -1,15 +1,12 @@
 import { Injectable, inject } from '@angular/core';
 import { TmdbMediaType } from '@iptvnator/shared/interfaces';
-import { SettingsStore } from '../settings-store.service';
 import { TmdbApiService } from './tmdb-api.service';
 import { TmdbCacheService } from './tmdb-cache.service';
 import {
-    DEFAULT_TMDB_API_KEY,
     TMDB_DETAILS_CACHE_TTL_MS,
     TMDB_MATCH_CACHE_TTL_MS,
     TMDB_NEGATIVE_MATCH_CACHE_TTL_MS,
     tmdbSearchLanguageForTitle,
-    toTmdbLanguage,
 } from './tmdb-config';
 import {
     buildDetailsLookupKey,
@@ -19,13 +16,15 @@ import {
     parseProviderTmdbId,
     pickConfidentMatch,
 } from './tmdb-matcher';
+import { TmdbPersonService } from './tmdb-person.service';
+import { TmdbRuntimeService } from './tmdb-runtime.service';
+import { TmdbSeasonService } from './tmdb-season.service';
 import {
     TmdbDetails,
     TmdbEnrichmentQuery,
     TmdbEpisode,
     TmdbMovieDetails,
     TmdbPersonDetails,
-    TmdbSeasonDetails,
     TmdbTvDetails,
 } from './tmdb.types';
 
@@ -34,15 +33,21 @@ import {
  * TMDB id (trusting the provider's tmdb_id, else a confidence-gated title
  * search), fetches localized details with credits, and caches every step.
  * Any failure returns `null` — detail views always render provider data.
+ *
+ * Person and season lookups live in {@link TmdbPersonService} and
+ * {@link TmdbSeasonService}; the delegating methods here keep the store
+ * glue talking to a single facade.
  */
 @Injectable({ providedIn: 'root' })
 export class TmdbEnrichmentService {
-    private readonly settingsStore = inject(SettingsStore);
+    private readonly runtime = inject(TmdbRuntimeService);
     private readonly api = inject(TmdbApiService);
     private readonly cache = inject(TmdbCacheService);
+    private readonly person = inject(TmdbPersonService);
+    private readonly season = inject(TmdbSeasonService);
 
     isEnabled(): boolean {
-        return Boolean(this.settingsStore.tmdb?.()?.enabled && this.apiKey());
+        return this.runtime.isEnabled();
     }
 
     async enrichMovie(
@@ -55,108 +60,17 @@ export class TmdbEnrichmentService {
         return (await this.enrich('tv', query)) as TmdbTvDetails | null;
     }
 
-    /**
-     * Episode list of one season (names, overviews, stills, air dates) in
-     * the app language. Fetched lazily when a season is opened and cached
-     * like details payloads. Returns `null` when enrichment is off or the
-     * request fails — episode lists then stay provider-only.
-     */
     async getSeasonEpisodes(
         tmdbId: number,
         seasonNumber: number
     ): Promise<TmdbEpisode[] | null> {
-        if (!this.isEnabled()) {
-            return null;
-        }
-
-        try {
-            const language = this.language();
-            const lookupKey = `id:${tmdbId}|season:${seasonNumber}`;
-
-            const cached = await this.cache.get('tv', lookupKey, language);
-            if (
-                this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
-                cached?.payload
-            ) {
-                try {
-                    const season = JSON.parse(
-                        cached.payload
-                    ) as TmdbSeasonDetails;
-                    return season.episodes ?? [];
-                } catch {
-                    // Corrupt cache row — fall through to a fresh fetch
-                }
-            }
-
-            const season = await this.api.getSeasonDetails(
-                tmdbId,
-                seasonNumber,
-                language,
-                this.apiKey()
-            );
-
-            await this.cache.set({
-                mediaType: 'tv',
-                lookupKey,
-                language,
-                tmdbId,
-                payload: JSON.stringify(season),
-            });
-
-            return season.episodes ?? [];
-        } catch (error) {
-            console.warn('TMDB season enrichment failed:', error);
-            return null;
-        }
+        return this.season.getSeasonEpisodes(tmdbId, seasonNumber);
     }
 
-    /**
-     * Person details with the full combined filmography, in the app
-     * language. Cached like details payloads under the 'person' media
-     * type.
-     */
     async getPersonDetails(
         personId: number
     ): Promise<TmdbPersonDetails | null> {
-        if (!this.isEnabled() || !Number.isInteger(personId) || personId <= 0) {
-            return null;
-        }
-
-        try {
-            const language = this.language();
-            const lookupKey = `person:${personId}`;
-
-            const cached = await this.cache.get('person', lookupKey, language);
-            if (
-                this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
-                cached?.payload
-            ) {
-                try {
-                    return JSON.parse(cached.payload) as TmdbPersonDetails;
-                } catch {
-                    // Corrupt cache row — fall through to a fresh fetch
-                }
-            }
-
-            const person = await this.api.getPersonDetails(
-                personId,
-                language,
-                this.apiKey()
-            );
-
-            await this.cache.set({
-                mediaType: 'person',
-                lookupKey,
-                language,
-                tmdbId: personId,
-                payload: JSON.stringify(person),
-            });
-
-            return person;
-        } catch (error) {
-            console.warn('TMDB person enrichment failed:', error);
-            return null;
-        }
+        return this.person.getPersonDetails(personId);
     }
 
     private async enrich(
@@ -204,7 +118,7 @@ export class TmdbEnrichmentService {
         const year = query.year ?? extractYear(null, query.title);
         const cacheLanguage = tmdbSearchLanguageForTitle(
             variants[0],
-            this.settingsStore.language()
+            this.runtime.appLanguage()
         );
         const lookupKey = buildSearchLookupKey(variants[0], year);
 
@@ -230,7 +144,7 @@ export class TmdbEnrichmentService {
             // in pickConfidentMatch instead.
             const language = tmdbSearchLanguageForTitle(
                 variant,
-                this.settingsStore.language()
+                this.runtime.appLanguage()
             );
             const results =
                 mediaType === 'movie'
@@ -238,13 +152,13 @@ export class TmdbEnrichmentService {
                           variant,
                           null,
                           language,
-                          this.apiKey()
+                          this.runtime.apiKey()
                       )
                     : await this.api.searchTv(
                           variant,
                           null,
                           language,
-                          this.apiKey()
+                          this.runtime.apiKey()
                       );
 
             match = pickConfidentMatch(
@@ -272,7 +186,7 @@ export class TmdbEnrichmentService {
         mediaType: TmdbMediaType,
         tmdbId: number
     ): Promise<TmdbDetails | null> {
-        const language = this.language();
+        const language = this.runtime.language();
         const lookupKey = buildDetailsLookupKey(tmdbId);
 
         const cached = await this.cache.get(mediaType, lookupKey, language);
@@ -292,9 +206,13 @@ export class TmdbEnrichmentService {
                 ? await this.api.getMovieDetails(
                       tmdbId,
                       language,
-                      this.apiKey()
+                      this.runtime.apiKey()
                   )
-                : await this.api.getTvDetails(tmdbId, language, this.apiKey());
+                : await this.api.getTvDetails(
+                      tmdbId,
+                      language,
+                      this.runtime.apiKey()
+                  );
 
         await this.cache.set({
             mediaType,
@@ -305,15 +223,5 @@ export class TmdbEnrichmentService {
         });
 
         return details;
-    }
-
-    private apiKey(): string {
-        return (
-            this.settingsStore.tmdb?.()?.apiKey?.trim() || DEFAULT_TMDB_API_KEY
-        );
-    }
-
-    private language(): string {
-        return toTmdbLanguage(this.settingsStore.language());
     }
 }

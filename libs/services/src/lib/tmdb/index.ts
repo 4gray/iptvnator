@@ -6,4 +6,7 @@ export * from './tmdb-episode-merge';
 export * from './tmdb-matcher';
 export * from './tmdb-merge';
 export * from './tmdb-person';
+export * from './tmdb-person.service';
+export * from './tmdb-runtime.service';
+export * from './tmdb-season.service';
 export * from './tmdb.types';

@@ -1,11 +1,15 @@
 import { Injectable } from '@angular/core';
 import { TmdbCacheEntry, TmdbCacheMediaType } from '@iptvnator/shared/interfaces';
 
+/** PWA in-memory cache ceiling — details payloads are a few KB each */
+const MEMORY_CACHE_MAX_ENTRIES = 300;
+
 /**
  * Environment-aware cache for TMDB lookups.
  *
  * - Electron: persists via the `tmdb_metadata` SQLite table (IPC bridge)
- * - PWA: session-scoped in-memory map (phase 1 baseline)
+ * - PWA: session-scoped in-memory LRU map capped at
+ *   {@link MEMORY_CACHE_MAX_ENTRIES} entries
  *
  * Freshness (TTL) is decided by the caller via {@link isFresh} so different
  * row kinds (details vs. negative match) can use different TTLs.
@@ -43,11 +47,15 @@ export class TmdbCacheService {
             }
         }
 
-        return (
-            this.memoryCache.get(
-                this.memoryKey(mediaType, lookupKey, language)
-            ) ?? null
-        );
+        const key = this.memoryKey(mediaType, lookupKey, language);
+        const entry = this.memoryCache.get(key);
+        if (entry) {
+            // LRU touch: Map preserves insertion order, so re-inserting
+            // moves the entry to the "most recently used" end
+            this.memoryCache.delete(key);
+            this.memoryCache.set(key, entry);
+        }
+        return entry ?? null;
     }
 
     async set(entry: TmdbCacheEntry): Promise<void> {
@@ -66,10 +74,20 @@ export class TmdbCacheService {
             return;
         }
 
-        this.memoryCache.set(
-            this.memoryKey(entry.mediaType, entry.lookupKey, entry.language),
-            stamped
+        const key = this.memoryKey(
+            entry.mediaType,
+            entry.lookupKey,
+            entry.language
         );
+        this.memoryCache.delete(key);
+        this.memoryCache.set(key, stamped);
+        while (this.memoryCache.size > MEMORY_CACHE_MAX_ENTRIES) {
+            const oldest = this.memoryCache.keys().next().value;
+            if (oldest === undefined) {
+                break;
+            }
+            this.memoryCache.delete(oldest);
+        }
     }
 
     isFresh(entry: TmdbCacheEntry | null, ttlMs: number): boolean {

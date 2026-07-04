@@ -60,10 +60,8 @@ import {
 import {
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
-    TmdbEnrichmentService,
-    mergeEpisodesWithTmdb,
-    type TmdbEpisode,
 } from '@iptvnator/services';
+import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,
@@ -89,6 +87,7 @@ import {
         SeasonContainerComponent,
         MatIcon,
     ],
+    providers: [StalkerSeriesTmdbSeasonsService],
 })
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
@@ -121,15 +120,7 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     readonly selectedItem = this.stalkerStore.selectedItem;
 
-    /**
-     * TMDB episode data per opened season, keyed by `${tmdbId}|${seasonKey}`
-     * so entries from a previously shown series can never leak into the
-     * current one. Filled lazily in onSeasonSelected.
-     */
-    private readonly tmdbSeasonEpisodes = signal<
-        ReadonlyMap<string, TmdbEpisode[]>
-    >(new Map());
-    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+    private readonly tmdbSeasons = inject(StalkerSeriesTmdbSeasonsService);
 
     /**
      * Track VOD series seasons with their loaded episodes
@@ -298,20 +289,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             // Overlay lazily fetched TMDB episode data (real names,
             // overviews, stills) — a no-op while nothing is fetched
-            const tmdbEpisodes = this.tmdbSeasonEpisodes();
-            const tmdbId = this.displayItem()?.info?.tmdb_id;
-            if (!tmdbId || tmdbEpisodes.size === 0) {
-                return base;
-            }
-
-            const merged: Record<string, XtreamSerieEpisode[]> = {};
-            for (const [seasonKey, episodes] of Object.entries(base)) {
-                const forSeason = tmdbEpisodes.get(`${tmdbId}|${seasonKey}`);
-                merged[seasonKey] = forSeason?.length
-                    ? mergeEpisodesWithTmdb(episodes, forSeason)
-                    : episodes;
-            }
-            return merged;
+            return this.tmdbSeasons.overlay(
+                base,
+                this.displayItem()?.info?.tmdb_id
+            );
         }
     );
 
@@ -339,7 +320,11 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * For VOD Series, triggers lazy loading of episodes.
      */
     onSeasonSelected(seasonKey: string) {
-        void this.fetchTmdbSeason(seasonKey);
+        void this.tmdbSeasons.fetchSeason(
+            this.displayItem()?.info?.tmdb_id,
+            seasonKey,
+            this.mappedSeasons()[seasonKey]
+        );
 
         if (!this.isVodSeries()) return;
 
@@ -351,40 +336,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (season && season.episodes.length === 0) {
             this.loadEpisodesForSeason(season);
         }
-    }
-
-    /**
-     * Lazily pulls the TMDB episode list for an opened season; a no-op
-     * without a show-level TMDB match or with enrichment disabled.
-     */
-    private async fetchTmdbSeason(seasonKey: string): Promise<void> {
-        const tmdbId = this.displayItem()?.info?.tmdb_id;
-        if (!tmdbId) {
-            return;
-        }
-
-        const mapKey = `${tmdbId}|${seasonKey}`;
-        if (this.tmdbSeasonEpisodes().has(mapKey)) {
-            return;
-        }
-
-        const episodes = this.mappedSeasons()[seasonKey];
-        const seasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
-        if (!Number.isFinite(seasonNumber)) {
-            return;
-        }
-
-        const tmdbEpisodes = await this.tmdbEnrichment.getSeasonEpisodes(
-            tmdbId,
-            seasonNumber
-        );
-        if (!tmdbEpisodes?.length) {
-            return;
-        }
-
-        const next = new Map(this.tmdbSeasonEpisodes());
-        next.set(mapKey, tmdbEpisodes);
-        this.tmdbSeasonEpisodes.set(next);
     }
 
     /**
