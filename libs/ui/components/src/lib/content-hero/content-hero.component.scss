@@ -22,9 +22,7 @@
     --tag-border: rgba(0, 0, 0, 0.12);
 
     width: 100%;
-    height: 100%;
     display: block;
-    overflow: hidden;
     background: var(--surface-bg);
     color: var(--text-primary);
 }
@@ -51,7 +49,9 @@
 .hero {
     position: relative;
     width: 100%;
-    height: 100%;
+    // Natural height: the page scroll container lives outside the hero
+    // (PortalDetailShellComponent). `overflow: hidden` clips the scaled
+    // blurred backdrop fallback.
     overflow: hidden;
     background: var(
         --surface-bg
@@ -161,10 +161,9 @@
         }
     }
 
-    // Scrollable content area
+    // Content area (page scroll lives in the surrounding detail shell)
     &__content {
-        position: absolute;
-        inset: 0;
+        position: relative;
         z-index: 2;
         display: flex;
         gap: 32px;
@@ -172,16 +171,7 @@
         padding: 140px 40px 60px;
         max-width: var(--content-max-width);
         margin: 0 auto;
-        overflow-y: auto;
-        overflow-x: hidden;
         box-sizing: border-box;
-
-        // Hide scrollbar but keep functionality
-        scrollbar-width: none;
-        -ms-overflow-style: none;
-        &::-webkit-scrollbar {
-            display: none;
-        }
     }
 
     // Error state
@@ -191,6 +181,7 @@
         justify-content: center;
         text-align: center;
         gap: 16px;
+        min-height: 50vh;
 
         .error-icon {
             font-size: 64px;
