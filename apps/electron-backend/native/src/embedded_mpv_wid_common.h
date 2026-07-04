@@ -145,6 +145,7 @@ struct Session {
 #ifdef __linux__
     pid_t mpvProcessId = -1;
     std::string mpvIpcSocketPath;
+    int64_t mpvTrackListCount = -1;
 #endif
 };
 
@@ -873,6 +874,71 @@ bool sendLinuxMpvCommand(
     return transactLinuxMpvIpc(socketPath, command, response);
 }
 
+std::optional<int64_t> queryLinuxMpvInteger(
+    const std::string& socketPath,
+    const std::string& propertyName)
+{
+    const auto value = queryLinuxMpvString(socketPath, propertyName);
+    if (!value || value->empty()) {
+        return std::nullopt;
+    }
+
+    char* end = nullptr;
+    const long long parsed = std::strtoll(value->c_str(), &end, 10);
+    if (!end || *end != '\0') {
+        return std::nullopt;
+    }
+
+    return static_cast<int64_t>(parsed);
+}
+
+// The hand-rolled IPC reply parser only understands scalar `data` values, so
+// the audio menu is built from `track-list/N/*` sub-properties instead of the
+// nested `track-list` node. Callers gate this behind a `track-list/count`
+// change: one scalar query per poll tick, a full walk only when tracks
+// appear or disappear.
+std::vector<AudioTrack> queryLinuxMpvAudioTracks(
+    const std::string& socketPath,
+    int64_t trackCount)
+{
+    std::vector<AudioTrack> tracks;
+    for (int64_t index = 0; index < trackCount; index += 1) {
+        const std::string prefix =
+            "track-list/" + std::to_string(index) + "/";
+        const auto type = queryLinuxMpvString(socketPath, prefix + "type");
+        if (!type || *type != "audio") {
+            continue;
+        }
+
+        const auto id = queryLinuxMpvInteger(socketPath, prefix + "id");
+        if (!id) {
+            continue;
+        }
+
+        AudioTrack track;
+        track.id = *id;
+        if (const auto title =
+                queryLinuxMpvString(socketPath, prefix + "title")) {
+            track.title = *title;
+        }
+        if (const auto language =
+                queryLinuxMpvString(socketPath, prefix + "lang")) {
+            track.language = *language;
+        }
+        if (const auto defaultFlag =
+                queryLinuxMpvBoolean(socketPath, prefix + "default")) {
+            track.defaultTrack = *defaultFlag;
+        }
+        if (const auto forcedFlag =
+                queryLinuxMpvBoolean(socketPath, prefix + "forced")) {
+            track.forced = *forcedFlag;
+        }
+        tracks.push_back(track);
+    }
+
+    return tracks;
+}
+
 void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
 {
     updateLinuxProcessState(session);
@@ -896,6 +962,20 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     const auto volume = queryLinuxMpvNumber(socketPath, "volume");
     const auto paused = queryLinuxMpvBoolean(socketPath, "pause");
     const auto path = queryLinuxMpvString(socketPath, "path");
+    const auto trackCount =
+        queryLinuxMpvInteger(socketPath, "track-list/count");
+    const auto selectedAudioTrackId = queryLinuxMpvInteger(socketPath, "aid");
+
+    int64_t cachedTrackCount = -1;
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        cachedTrackCount = session->mpvTrackListCount;
+    }
+    std::optional<std::vector<AudioTrack>> refreshedAudioTracks;
+    if (trackCount && *trackCount != cachedTrackCount) {
+        refreshedAudioTracks =
+            queryLinuxMpvAudioTracks(socketPath, *trackCount);
+    }
 
     std::lock_guard<std::mutex> lock(session->mutex);
     if (
@@ -922,6 +1002,18 @@ void refreshLinuxMpvSnapshot(const std::shared_ptr<Session>& session)
     }
     if (path && !path->empty()) {
         session->snapshot.streamUrl = *path;
+    }
+    if (trackCount && refreshedAudioTracks) {
+        session->mpvTrackListCount = *trackCount;
+        session->snapshot.audioTracks = std::move(*refreshedAudioTracks);
+    }
+    // `aid` reads back as a number when a track is selected and as a
+    // non-numeric value ("no"/false) when audio is disabled.
+    session->snapshot.selectedAudioTrackId =
+        selectedAudioTrackId ? *selectedAudioTrackId : -1;
+    for (auto& track : session->snapshot.audioTracks) {
+        track.selected =
+            track.id == session->snapshot.selectedAudioTrackId;
     }
 }
 
@@ -1030,6 +1122,7 @@ void loadLinuxProcessPlayback(
         std::lock_guard<std::mutex> lock(session->mutex);
         session->mpvProcessId = processId;
         session->mpvIpcSocketPath = ipcSocketPath;
+        session->mpvTrackListCount = -1;
         session->snapshot.positionSeconds = std::max(0.0, startTime);
         session->snapshot.durationSeconds = -1.0;
         session->snapshot.streamUrl = streamUrl;

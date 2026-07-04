@@ -453,6 +453,52 @@ function normalizeEmbeddedMpvPlatform(value) {
     return value ?? process.platform;
 }
 
+// electron-builder passes `arch` to afterPack as a builder-util Arch enum
+// value; this table mirrors that enum's declaration order.
+const ELECTRON_BUILDER_ARCH_NAMES = [
+    'ia32',
+    'x64',
+    'armv7l',
+    'arm64',
+    'universal',
+];
+
+function resolveElectronBuilderArchName(arch) {
+    if (typeof arch === 'string') {
+        return arch;
+    }
+    return ELECTRON_BUILDER_ARCH_NAMES[arch] ?? null;
+}
+
+function getEmbeddedMpvAddonArch(env = process.env) {
+    return env.IPTVNATOR_EMBEDDED_MPV_ARCH || process.arch;
+}
+
+/**
+ * The embedded MPV addon is compiled once per CI host (x64 on Linux), but
+ * electron-builder also produces arm64/armv7l Linux packages from the same
+ * dist output. Those packages must not ship a foreign-architecture
+ * `embedded_mpv.node` — it can never load and produces a cryptic error.
+ */
+function isForeignLinuxEmbeddedMpvArch(platform, targetArch, env = process.env) {
+    if (normalizeEmbeddedMpvPlatform(platform) !== 'linux') {
+        return false;
+    }
+    const archName = resolveElectronBuilderArchName(targetArch);
+    return Boolean(archName) && archName !== getEmbeddedMpvAddonArch(env);
+}
+
+// Maps electron-builder Linux output directory names (`linux-unpacked`,
+// `linux-arm64-unpacked`, ...) to the package architecture. `null` when the
+// name is not a Linux unpacked directory.
+function linuxUnpackedDirArch(unpackedDirName) {
+    const match = /^linux-(?:([a-z0-9_]+)-)?unpacked$/.exec(unpackedDirName);
+    if (!match) {
+        return null;
+    }
+    return match[1] ?? 'x64';
+}
+
 function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
     const platform = normalizeEmbeddedMpvPlatform(options.platform);
     const unpackedNativeDir = path.join(
@@ -468,6 +514,24 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         'embedded-mpv-runtime.json'
     );
     const errors = [];
+
+    if (options.foreignArch) {
+        if (fs.existsSync(addonPath)) {
+            errors.push(
+                `Embedded MPV addon must not ship in foreign-architecture Linux packages: ${addonPath}`
+            );
+        }
+        const markerPath = path.join(
+            unpackedNativeDir,
+            'embedded-mpv-unavailable.txt'
+        );
+        if (!fs.existsSync(markerPath)) {
+            errors.push(
+                `Missing embedded MPV unavailable marker for foreign-architecture package: ${markerPath}`
+            );
+        }
+        return errors;
+    }
 
     if (!fs.existsSync(addonPath)) {
         if (options.required) {
@@ -556,4 +620,8 @@ module.exports = {
     validateNoForbiddenRuntimeLinks,
     getPackagedRuntimeCandidates,
     validatePackagedEmbeddedMpv,
+    getEmbeddedMpvAddonArch,
+    isForeignLinuxEmbeddedMpvArch,
+    linuxUnpackedDirArch,
+    resolveElectronBuilderArchName,
 };

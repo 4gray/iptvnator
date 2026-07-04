@@ -217,6 +217,42 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
+    it('keeps macOS non-load async MPV command failures non-fatal', () => {
+        expect(nativeSource).toContain('pendingPlaybackLoadRequestId');
+        expect(nativeSource).toContain('reconcilePlaybackLoadReply');
+
+        // Only the loadfile/recording reconcilers may flip the session
+        // status; a rejected seek/aid/speed reply on a live stream must not
+        // surface the error UI while playback keeps running.
+        const commandReplyCase = eventCase(
+            nativeSource,
+            'MPV_EVENT_COMMAND_REPLY',
+            'MPV_EVENT_SHUTDOWN'
+        );
+        expect(commandReplyCase).toContain('reconcilePlaybackLoadReply');
+        expect(commandReplyCase).toContain('reconcileRecordingPropertyReply');
+        expect(commandReplyCase).not.toContain('SessionStatus::Error');
+    });
+
+    it('populates the Linux audio track menu from scalar track-list sub-properties', () => {
+        expect(widCommonSource).toContain(
+            'queryLinuxMpvInteger(socketPath, "track-list/count")'
+        );
+        expect(widCommonSource).toContain(
+            '"track-list/" + std::to_string(index) + "/"'
+        );
+        expect(widCommonSource).toContain('queryLinuxMpvAudioTracks');
+        expect(widCommonSource).toContain(
+            'queryLinuxMpvInteger(socketPath, "aid")'
+        );
+        // Full track walks only happen when the track count changes; the
+        // per-tick cost stays at two extra scalar queries.
+        expect(widCommonSource).toContain(
+            'if (trackCount && *trackCount != cachedTrackCount) {'
+        );
+        expect(widCommonSource).toContain('session->mpvTrackListCount = -1;');
+    });
+
     it('clears transient Windows/Linux MPV operation errors after healthy playback states', () => {
         const fileLoadedCaseStart = widCommonSource.indexOf(
             'case MPV_EVENT_FILE_LOADED:'

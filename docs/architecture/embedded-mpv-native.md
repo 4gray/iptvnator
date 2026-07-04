@@ -40,7 +40,9 @@ Linux native Wayland embedding is not implemented. When Electron is started on X
 
 ## Linux Support Matrix
 
-Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available.
+Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available, and `main.ts` appends the same switch on Linux when it is absent so direct binary/AppImage launches from a terminal behave like launcher starts. An explicit user-provided `--ozone-platform` value is never overridden.
+
+When the `mpv` executable probe fails inside a Flatpak or Snap sandbox (`FLATPAK_ID`/`SNAP` env present), the support reason explains that sandboxed packages cannot access a system mpv instead of asking the user to install it.
 
 Current release-announcement wording should stay close to this:
 
@@ -101,6 +103,8 @@ Subtitle tracks mirror the audio-track contract: same `track-list` source, same 
 
 The renderer learns which features the loaded addon binary supports through the `EmbeddedMpvSupport.capabilities` field returned from `getEmbeddedMpvSupport()`. The service probes `typeof addon.<method> === 'function'` for each optional native export. Older addon binaries with the original audio-only surface return `capabilities: { subtitles: false, playbackSpeed: false, aspectOverride: false, screenshot: false, recording: false }`, and the renderer hides the corresponding controls instead of throwing at runtime. Linux intentionally does not export libmpv-only optional controls while it uses the process-isolated `mpv --wid` backend.
 
+Linux audio-track discovery works differently from macOS/Windows because the hand-rolled JSON IPC reply parser only understands scalar `data` values: the poll loop reads `track-list/count` every tick and walks the scalar `track-list/N/{type,id,title,lang,default,forced}` sub-properties only when the count changes. The selected track is reconciled from the scalar `aid` property on every tick (`aid` reads back non-numeric when audio is disabled, which maps to "no selection"). Track switching still goes through `set_property aid` over the same socket.
+
 ## Session End And Series Navigation
 
 `EmbeddedMpvSessionStatus` includes `ended` for successful EOF only. The native addon maps `MPV_EVENT_END_FILE` to:
@@ -112,6 +116,8 @@ The renderer learns which features the loaded addon binary supports through the 
 - `closed` only for dispose/manual teardown
 
 Renderer autoplay must use `ended` only. It must not treat `closed`, `idle`, or `error` as a request to continue to the next episode.
+
+Async command/property replies are reconciled against pending request IDs on all platforms: only a failed `loadfile` reply (or a recording start/stop reply) may change the session status. A rejected seek, `aid`, or `speed` reply on a live stream records `snapshot.error` but must not flip a playing session to `error`, because playback continues.
 
 The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
 
@@ -198,6 +204,7 @@ Current development behavior:
 Current release caveat:
 
 - Release packaging requires a `vendored-lgpl` runtime manifest on macOS and Windows, and an `external-mpv-process` manifest on Linux.
+- The Linux addon is built once per CI host architecture (x64). Linux packages for other architectures (arm64, armv7l) must not ship that foreign addon: `afterPack` replaces the native directory with an `embedded-mpv-unavailable.txt` marker explaining that embedded MPV is not bundled for that architecture, and package-layout verification rejects a foreign-architecture `embedded_mpv.node` while requiring the marker.
 - macOS release packaging rejects embedded MPV binaries linked to `/opt/homebrew` or `/usr/local`.
 - Windows release packaging verifies that the platform runtime file is present when Embedded MPV is required. Linux release packaging verifies that the addon and manifest are present and that no bundled `libmpv.so` files slipped into the package.
 - Local development can opt into Homebrew `libmpv` only by setting `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`; packaged release validation rejects that runtime origin.
