@@ -50,6 +50,7 @@ import {
     createStalkerDetailViewState,
     isSelectedStalkerVodFavorite,
     isStalkerSeriesFlag,
+    normalizeStalkerEntityId,
     toggleStalkerVodFavorite,
 } from '@iptvnator/portal/stalker/data-access';
 import { StalkerVodPlaybackController } from '../stalker-vod-playback-controller';
@@ -132,8 +133,8 @@ export class StalkerSearchComponent {
     readonly selectedFilterType = signal<StalkerSearchContentType>('vod');
     private readonly favoritesRefresh = createRefreshTrigger();
 
-    itemDetails: StalkerSelectedVodItem | null = null;
-    vodDetailsItem: VodDetailsItem | null = null;
+    readonly itemDetails = signal<StalkerSelectedVodItem | null>(null);
+    readonly vodDetailsItem = signal<VodDetailsItem | null>(null);
     readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
     readonly selectedVodPosition = signal<PlaybackPositionData | null>(null);
     readonly selectedVodPlaybackPosition = computed<number | null>(
@@ -174,37 +175,44 @@ export class StalkerSearchComponent {
             }
             const contentType = params.contentType;
 
-            let token: string | undefined;
-            let serialNumber: string | undefined;
-            if ((playlist as Playlist).isFullStalkerPortal) {
-                try {
-                    const result = await this.stalkerSession.ensureToken(
-                        playlist as Playlist
-                    );
-                    token = result.token ?? undefined;
-                    serialNumber = result.serialNumber;
-                } catch (error) {
-                    this.logger.error('Failed to get stalker token', error);
-                }
-            }
+            // Mirror the catalog request shape: many Ministra portals
+            // return an empty list for get_ordered_list without the
+            // category/genre/sortby params the STB client always sends.
+            const requestParams: Record<string, string | number> = {
+                action: StalkerContentTypes[contentType].getContentAction,
+                type: contentType,
+                sortby: 'added',
+                search: params.search,
+                p: 1,
+                max_page_items: 100,
+                category: '*',
+                ...(contentType === 'vod' ? { genre: '0' } : {}),
+            };
 
-            const response =
-                await this.dataService.sendIpcEvent<StalkerSearchResponse>(
-                    STALKER_REQUEST,
-                    {
-                        url: portalUrl,
-                        macAddress,
-                        params: {
-                            action: StalkerContentTypes[contentType]
-                                .getContentAction,
-                            type: contentType,
-                            search: params.search,
-                            max_page_items: 100,
-                        },
-                        token,
-                        serialNumber,
-                    }
-                );
+            // Full portals need the handshake token. The persisted flag can
+            // be missing on the active-playlist meta object, so fall back
+            // to URL detection — otherwise the portal answers
+            // "Authorization failed." and the search looks empty.
+            const isFullPortal =
+                (playlist as Playlist).isFullStalkerPortal ??
+                this.stalkerSession.isFullStalkerPortal(portalUrl);
+
+            const response = isFullPortal
+                ? await this.stalkerSession.makeAuthenticatedRequest<StalkerSearchResponse>(
+                      {
+                          ...(playlist as Playlist),
+                          isFullStalkerPortal: true,
+                      },
+                      requestParams
+                  )
+                : await this.dataService.sendIpcEvent<StalkerSearchResponse>(
+                      STALKER_REQUEST,
+                      {
+                          url: portalUrl,
+                          macAddress,
+                          params: requestParams,
+                      }
+                  );
             const items = response.js?.data || [];
             return items.map((item: StalkerVodSource) =>
                 this.processItemUrls(item, portalUrl)
@@ -226,6 +234,36 @@ export class StalkerSearchComponent {
             // Re-evaluate favorite state whenever favorites resource changes.
             this.portalFavorites.value();
             this.syncSelectedVodFavorite();
+        });
+
+        // TMDB enrichment patches the STORE's selected item asynchronously;
+        // pull the enriched copy back into the local detail snapshots.
+        effect(() => {
+            const selected = this.stalkerStore.selectedItem();
+            const current = this.itemDetails();
+            if (!selected || !current || selected === current) {
+                return;
+            }
+            const selectedId = normalizeStalkerEntityId(
+                selected.id ?? selected.stream_id
+            );
+            if (
+                !selectedId ||
+                selectedId !== normalizeStalkerEntityId(current.id)
+            ) {
+                return;
+            }
+
+            const enriched = selected as StalkerSelectedVodItem;
+            this.itemDetails.set(enriched);
+            if (this.vodDetailsItem()) {
+                this.vodDetailsItem.set(
+                    createStalkerDetailViewState(
+                        enriched,
+                        this.currentPlaylist()?._id ?? ''
+                    ).vodDetailsItem
+                );
+            }
         });
     }
 
@@ -268,20 +306,22 @@ export class StalkerSearchComponent {
             !hasEmbeddedSeries &&
             isStalkerSeriesFlag(item.is_series);
 
-        this.itemDetails = buildStalkerSelectedVodItem(item, needsSeriesFetch);
+        this.itemDetails.set(
+            buildStalkerSelectedVodItem(item, needsSeriesFetch)
+        );
 
-        this.stalkerStore.setSelectedItem(this.itemDetails);
+        this.stalkerStore.setSelectedItem(this.itemDetails());
 
         switch (this.selectedFilterType()) {
             case 'vod':
                 this.stalkerStore.setSelectedContentType('vod');
                 if (!hasEmbeddedSeries && !needsSeriesFetch) {
                     const detailViewState = createStalkerDetailViewState(
-                        this.itemDetails,
+                        this.itemDetails()!,
                         this.currentPlaylist()?._id ?? ''
                     );
-                    this.itemDetails = detailViewState.itemDetails;
-                    this.vodDetailsItem = detailViewState.vodDetailsItem;
+                    this.itemDetails.set(detailViewState.itemDetails);
+                    this.vodDetailsItem.set(detailViewState.vodDetailsItem);
                     this.syncSelectedVodFavorite();
                     void this.loadSelectedVodPosition(
                         this.currentPlaylist()?._id ?? '',
@@ -289,7 +329,7 @@ export class StalkerSearchComponent {
                     );
                 } else {
                     const cleared = clearStalkerDetailViewState();
-                    this.vodDetailsItem = cleared.vodDetailsItem;
+                    this.vodDetailsItem.set(cleared.vodDetailsItem);
                     this.isSelectedVodFavorite.set(false);
                     this.selectedVodPosition.set(null);
                 }
@@ -343,8 +383,8 @@ export class StalkerSearchComponent {
 
     onVodBack(): void {
         const cleared = clearStalkerDetailViewState();
-        this.itemDetails = cleared.itemDetails;
-        this.vodDetailsItem = cleared.vodDetailsItem;
+        this.itemDetails.set(cleared.itemDetails);
+        this.vodDetailsItem.set(cleared.vodDetailsItem);
         this.isSelectedVodFavorite.set(false);
         this.selectedVodPosition.set(null);
         this.closeInlinePlayer();
@@ -378,7 +418,7 @@ export class StalkerSearchComponent {
     }
 
     private syncSelectedVodFavorite(): void {
-        const item = this.vodDetailsItem;
+        const item = this.vodDetailsItem();
         this.isSelectedVodFavorite.set(
             isSelectedStalkerVodFavorite(
                 item,
@@ -389,8 +429,8 @@ export class StalkerSearchComponent {
 
     inlineDetail() {
         return createStalkerInlineDetailState(
-            this.itemDetails,
-            this.vodDetailsItem,
+            this.itemDetails(),
+            this.vodDetailsItem(),
             this.selectedFilterType() === 'series' ? 'series' : 'vod'
         );
     }

@@ -41,6 +41,13 @@ const playbackData = {
     contentType: 'vod',
     positionSeconds: 120,
 };
+const tmdbCacheEntry = {
+    mediaType: 'movie',
+    lookupKey: 'id:603',
+    language: 'en-US',
+    tmdbId: 603,
+    payload: '{"id":603}',
+};
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
@@ -348,6 +355,24 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [playlistId, 42, 'vod'],
         channel: 'DB_CLEAR_PLAYBACK_POSITION',
         forwardedArgs: [playlistId, 42, 'vod'],
+    },
+    {
+        method: 'dbGetTmdbMetadata',
+        args: ['movie', 'id:603', 'en-US'],
+        channel: 'DB_GET_TMDB_METADATA',
+        forwardedArgs: ['movie', 'id:603', 'en-US'],
+    },
+    {
+        method: 'dbSetTmdbMetadata',
+        args: [tmdbCacheEntry],
+        channel: 'DB_SET_TMDB_METADATA',
+        forwardedArgs: [tmdbCacheEntry],
+    },
+    {
+        method: 'dbMatchTitles',
+        args: [[['The Matrix', 'Inception']][0]],
+        channel: 'DB_MATCH_TITLES',
+        forwardedArgs: [['The Matrix', 'Inception']],
     },
 ];
 

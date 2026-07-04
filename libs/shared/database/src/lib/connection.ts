@@ -294,6 +294,17 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
     `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
+    // TMDB metadata cache (details payloads + search match resolutions)
+    `CREATE TABLE IF NOT EXISTS tmdb_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      media_type TEXT NOT NULL CHECK (media_type IN ('movie', 'tv')),
+      lookup_key TEXT NOT NULL,
+      language TEXT NOT NULL,
+      tmdb_id INTEGER,
+      payload TEXT,
+      fetched_at TEXT DEFAULT (datetime('now'))
+  )`,
+    `CREATE UNIQUE INDEX IF NOT EXISTS tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)`,
 ];
 
 /**

@@ -11,6 +11,7 @@ import { XTREAM_DATA_SOURCE } from '../data-sources/xtream-data-source.interface
 import { XtreamApiService } from '../services/xtream-api.service';
 
 // Import new feature stores
+import { TmdbEnrichmentService } from '@iptvnator/services';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import {
     withContent,
@@ -21,6 +22,11 @@ import {
     withSearch,
     withSelection,
 } from './features';
+import {
+    enrichSerialSeasonWithTmdb,
+    enrichSerialSelectionWithTmdb,
+    enrichVodSelectionWithTmdb,
+} from './xtream-tmdb-enrichment';
 
 /**
  * XtreamStore - Facade composing all feature stores.
@@ -68,6 +74,7 @@ export const XtreamStore = signalStore(
     withMethods((store) => {
         const xtreamApiService = inject(XtreamApiService);
         const dataSource = inject(XTREAM_DATA_SOURCE);
+        const tmdbEnrichment = inject(TmdbEnrichmentService);
         const logger = createLogger('XtreamStore');
         const findVodCatalogItem = (vodId: string | number) =>
             store.vodStreams().find((item) => {
@@ -164,6 +171,13 @@ export const XtreamStore = signalStore(
                             xtream_id:
                                 catalogItem?.xtream_id ?? Number(params.vodId),
                         });
+                        // Async, best-effort: patches the selection with a
+                        // field-level TMDB merge once metadata arrives
+                        void enrichVodSelectionWithTmdb(
+                            store,
+                            tmdbEnrichment,
+                            params.vodId
+                        );
                     })
                     .catch((error: unknown) => {
                         logger.error('Error fetching VOD details', error);
@@ -206,6 +220,11 @@ export const XtreamStore = signalStore(
                             ...serialDetails,
                             series_id: params.serialId,
                         });
+                        void enrichSerialSelectionWithTmdb(
+                            store,
+                            tmdbEnrichment,
+                            params.serialId
+                        );
                     })
                     .catch((error: unknown) => {
                         logger.error('Error fetching series details', error);
@@ -218,6 +237,19 @@ export const XtreamStore = signalStore(
                     .finally(() => {
                         store.setIsLoadingDetails(false);
                     });
+            },
+
+            /**
+             * Lazy TMDB enrichment of one season's episodes (real names,
+             * overviews, stills). Fired by the detail view when the user
+             * opens a season; a no-op without a show-level TMDB match.
+             */
+            enrichSelectedSerialSeason(seasonKey: string): void {
+                void enrichSerialSeasonWithTmdb(
+                    store,
+                    tmdbEnrichment,
+                    seasonKey
+                );
             },
         };
     })

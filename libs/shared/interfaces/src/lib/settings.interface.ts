@@ -1,6 +1,7 @@
 import { Language } from './language.enum';
 import { StreamFormat } from './stream-format.enum';
 import { Theme } from './theme.enum';
+import { TmdbSettings } from './tmdb.interface';
 
 /**
  * Contains all types of supported video players
@@ -125,4 +126,9 @@ export interface Settings {
      * unrelated playlist or EPG hosts.
      */
     trustedInsecureTlsHosts?: string[];
+    /**
+     * Opt-in TMDB metadata enrichment for VOD/series detail views.
+     * Disabled by default because enrichment sends content titles to TMDB.
+     */
+    tmdb?: TmdbSettings;
 }

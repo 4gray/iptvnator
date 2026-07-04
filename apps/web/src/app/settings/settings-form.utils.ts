@@ -7,6 +7,7 @@ import {
 import {
     CoverSize,
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
+    DEFAULT_TMDB_SETTINGS,
     Language,
     normalizeDashboardRailsSettings,
     normalizeExternalPlayerArguments,
@@ -71,6 +72,10 @@ export function createSettingsForm(
         recordingFolder: '',
         coverSize: 'medium' as CoverSize,
         ...(supportsEpg ? { preferUploadedEpgOverXtream: false } : {}),
+        tmdb: formBuilder.group({
+            enabled: DEFAULT_TMDB_SETTINGS.enabled,
+            apiKey: DEFAULT_TMDB_SETTINGS.apiKey ?? '',
+        }),
     });
 }
 
@@ -132,6 +137,10 @@ export function createSettingsFromFormValue(
         trustedPrivateNetworkEpgUrls:
             currentSettings.trustedPrivateNetworkEpgUrls ?? [],
         trustedInsecureTlsHosts: currentSettings.trustedInsecureTlsHosts ?? [],
+        tmdb: {
+            enabled: value.tmdb?.enabled ?? DEFAULT_TMDB_SETTINGS.enabled,
+            apiKey: value.tmdb?.apiKey?.trim() ?? '',
+        },
     };
 }
 

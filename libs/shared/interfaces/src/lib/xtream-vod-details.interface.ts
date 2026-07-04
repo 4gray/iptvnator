@@ -1,3 +1,8 @@
+import {
+    TmdbEnrichedCastMember,
+    TmdbRecommendation,
+} from './tmdb.interface';
+
 export interface XtreamVodInfo {
     kinopoisk_url: string;
     tmdb_id: number | string;
@@ -29,6 +34,10 @@ export interface XtreamVodInfo {
     status?: string;
     rating_kinopoisk?: string;
     rating_imdb?: string;
+    /** Populated by TMDB enrichment; absent in raw provider responses */
+    tmdb_cast?: TmdbEnrichedCastMember[];
+    /** Populated by TMDB enrichment; matched against the catalog in views */
+    tmdb_recommendations?: TmdbRecommendation[];
 }
 
 export interface XtreamVodMovieData {

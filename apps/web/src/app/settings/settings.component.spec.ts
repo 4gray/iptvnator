@@ -104,6 +104,7 @@ const DEFAULT_SETTINGS = {
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
+    tmdb: { enabled: false, apiKey: '' },
 };
 
 const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {

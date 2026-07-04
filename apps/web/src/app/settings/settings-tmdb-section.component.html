@@ -1,0 +1,113 @@
+<section
+    class="settings-group"
+    [class.settings-group--active]="activeSection() === 'tmdb'"
+    id="tmdb"
+    [formGroup]="form()"
+>
+    <header class="settings-group__header">
+        <div class="settings-group__header-icon">
+            <mat-icon>movie</mat-icon>
+        </div>
+        <div class="settings-group__header-text">
+            <h3>{{ 'SETTINGS.TMDB' | translate }}</h3>
+            <p>{{ 'SETTINGS.TMDB_DESCRIPTION' | translate }}</p>
+        </div>
+    </header>
+
+    <div formGroupName="tmdb">
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.TMDB_ENABLE' | translate }}</h4>
+                <p>{{ 'SETTINGS.TMDB_ENABLE_DESCRIPTION' | translate }}</p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="enabled"
+                    data-test-id="tmdb-enabled"
+                ></mat-checkbox>
+            </div>
+        </div>
+
+        @if (form().value.tmdb?.enabled === true) {
+            <div class="setting-item">
+                <div class="setting-item__meta">
+                    <h4>{{ 'SETTINGS.TMDB_API_KEY' | translate }}</h4>
+                    <p>{{ 'SETTINGS.TMDB_API_KEY_DESCRIPTION' | translate }}</p>
+                    <p>
+                        <a
+                            href="https://www.themoviedb.org/settings/api"
+                            target="_blank"
+                            rel="noreferrer noopener"
+                            data-test-id="tmdb-get-key-link"
+                        >
+                            {{ 'SETTINGS.TMDB_GET_KEY_HINT' | translate }}
+                        </a>
+                    </p>
+                </div>
+                <div class="setting-item__control">
+                    <mat-form-field
+                        appearance="outline"
+                        subscriptSizing="dynamic"
+                    >
+                        <mat-label>{{
+                            'SETTINGS.TMDB_API_KEY' | translate
+                        }}</mat-label>
+                        <input
+                            matInput
+                            type="text"
+                            autocomplete="off"
+                            formControlName="apiKey"
+                            data-test-id="tmdb-api-key"
+                        />
+                    </mat-form-field>
+                    <div class="tmdb-key-test">
+                        <button
+                            mat-stroked-button
+                            type="button"
+                            [disabled]="
+                                !enteredApiKey || keyTestState() === 'testing'
+                            "
+                            (click)="testApiKey()"
+                            data-test-id="tmdb-test-key"
+                        >
+                            @if (keyTestState() === 'testing') {
+                                <mat-spinner diameter="16" />
+                            } @else {
+                                <mat-icon>network_check</mat-icon>
+                            }
+                            {{ 'SETTINGS.TMDB_TEST_BUTTON' | translate }}
+                        </button>
+                        @if (keyTestState() === 'success') {
+                            <span
+                                class="tmdb-key-test__result tmdb-key-test__result--success"
+                                data-test-id="tmdb-test-success"
+                            >
+                                <mat-icon>check_circle</mat-icon>
+                                {{ 'SETTINGS.TMDB_TEST_SUCCESS' | translate }}
+                            </span>
+                        } @else if (keyTestState() === 'error') {
+                            <span
+                                class="tmdb-key-test__result tmdb-key-test__result--error"
+                                data-test-id="tmdb-test-error"
+                            >
+                                <mat-icon>error</mat-icon>
+                                {{ 'SETTINGS.TMDB_TEST_FAILED' | translate }}
+                            </span>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+
+        <div class="setting-item setting-item--full-control">
+            <div class="setting-item__meta">
+                <img
+                    src="assets/images/tmdb-logo.svg"
+                    alt="TMDB"
+                    style="height: 20px; margin-bottom: 8px"
+                />
+                <p>{{ 'SETTINGS.TMDB_ATTRIBUTION' | translate }}</p>
+            </div>
+        </div>
+    </div>
+</section>

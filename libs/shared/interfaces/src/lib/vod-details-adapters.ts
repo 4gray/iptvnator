@@ -29,6 +29,7 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
         ratingImdb: info?.rating_imdb,
         ratingKinopoisk: info?.rating_kinopoisk,
         youtubeTrailer: info?.youtube_trailer,
+        tmdbCast: info?.tmdb_cast,
     };
 }
 
@@ -44,7 +45,8 @@ export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta 
         title: info?.o_name || info?.name || 'Unknown',
         description: info?.description,
         posterUrl: info?.movie_image,
-        backdropUrl: undefined, // Stalker doesn't provide backdrop
+        // Stalker portals never provide a backdrop; TMDB enrichment can
+        backdropUrl: info?.tmdb_backdrop,
         year: extractYear(info?.releasedate),
         genre: info?.genre,
         duration: undefined, // Stalker doesn't provide duration
@@ -53,8 +55,38 @@ export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta 
         actors: info?.actors,
         ratingImdb: info?.rating_imdb,
         ratingKinopoisk: info?.rating_kinopoisk,
-        youtubeTrailer: undefined, // Stalker doesn't provide trailers
+        // Stalker portals provide no trailers; TMDB enrichment can
+        youtubeTrailer: info?.tmdb_trailer,
+        tmdbCast: info?.tmdb_cast,
     };
+}
+
+/**
+ * Builds a YouTube embed URL from the various trailer formats providers
+ * send: a plain video id (also what TMDB supplies), a full watch URL, or a
+ * youtu.be short link. Returns `null` when no id can be extracted. Uses the
+ * privacy-enhanced youtube-nocookie host (must stay in sync with the CSP
+ * frame-src allowlist in apps/web/src/index.html).
+ */
+export function youtubeEmbedUrl(
+    trailer: string | null | undefined
+): string | null {
+    const raw = trailer?.trim();
+    if (!raw) {
+        return null;
+    }
+
+    let videoId = raw;
+    const urlMatch = raw.match(
+        /(?:youtube(?:-nocookie)?\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+    );
+    if (urlMatch) {
+        videoId = urlMatch[1];
+    }
+
+    return /^[A-Za-z0-9_-]{6,}$/.test(videoId)
+        ? `https://www.youtube-nocookie.com/embed/${videoId}`
+        : null;
 }
 
 /**

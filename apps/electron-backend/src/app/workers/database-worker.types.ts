@@ -49,6 +49,9 @@ export const DB_WORKER_OPERATIONS = [
     'DB_GET_ALL_PLAYBACK_POSITIONS',
     'DB_CLEAR_ALL_PLAYBACK_POSITIONS',
     'DB_CLEAR_PLAYBACK_POSITION',
+    'DB_GET_TMDB_METADATA',
+    'DB_SET_TMDB_METADATA',
+    'DB_MATCH_TITLES',
 ] as const;
 
 export type DbWorkerOperation = (typeof DB_WORKER_OPERATIONS)[number];

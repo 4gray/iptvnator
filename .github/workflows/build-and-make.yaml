@@ -100,6 +100,13 @@ jobs:
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
 
+            - name: Inject TMDB API key
+              # No-op when the secret is unavailable (e.g. fork PRs) — the
+              # app then requires a user-provided key for TMDB enrichment.
+              env:
+                  TMDB_API_KEY: ${{ secrets.TMDB_API_KEY }}
+              run: node tools/tmdb/inject-tmdb-key.mjs
+
             - name: Build frontend
               run: pnpm nx build web --skip-nx-cache
 

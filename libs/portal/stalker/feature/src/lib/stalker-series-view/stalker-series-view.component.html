@@ -3,6 +3,7 @@
         [title]="serial.info.name"
         [description]="serial.info.description"
         [posterUrl]="serial.info.movie_image"
+        [backdropUrl]="serial.info.tmdb_backdrop"
         (backClicked)="goBack()"
     >
         <!-- Tags: Year, Genre, Rating -->
@@ -27,10 +28,52 @@
 
         <!-- Metadata Grid -->
         <ng-container hero-meta>
-            @if (serial.info.actors) {
+            @if (serial.info.actors || serial.info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
-                    <span class="value">{{ serial.info.actors }}</span>
+                    @if (serial.info.tmdb_cast?.length) {
+                        <div class="details__cast-strip">
+                            @for (
+                                member of serial.info.tmdb_cast;
+                                track member.name
+                            ) {
+                                <span
+                                    class="details__cast-chip"
+                                    [class.details__cast-chip--clickable]="
+                                        !!member.tmdbPersonId
+                                    "
+                                    (click)="openActor(member)"
+                                    [title]="
+                                        member.character
+                                            ? member.name +
+                                              ' — ' +
+                                              member.character
+                                            : member.name
+                                    "
+                                >
+                                    @if (member.profileUrl) {
+                                        <img
+                                            class="details__cast-avatar"
+                                            [src]="member.profileUrl"
+                                            [alt]="member.name"
+                                            loading="lazy"
+                                        />
+                                    } @else {
+                                        <span
+                                            class="details__cast-avatar details__cast-avatar--fallback"
+                                        >
+                                            {{ member.name.charAt(0) }}
+                                        </span>
+                                    }
+                                    <span class="details__cast-name">{{
+                                        member.name
+                                    }}</span>
+                                </span>
+                            }
+                        </div>
+                    } @else {
+                        <span class="value">{{ serial.info.actors }}</span>
+                    }
                 </div>
             }
             @if (serial.info.director) {
@@ -111,6 +154,22 @@
                 "
                 #seasonContainer
             />
+        }
+
+        <!-- YouTube Trailer (TMDB enrichment; Stalker provides none) -->
+        @if (trailerEmbedUrl(); as trailerUrl) {
+            <div class="youtube-trailer">
+                <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+                <div class="trailer-wrapper">
+                    <iframe
+                        [src]="trailerUrl | safe"
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen
+                    ></iframe>
+                </div>
+            </div>
         }
     </app-content-hero>
 }

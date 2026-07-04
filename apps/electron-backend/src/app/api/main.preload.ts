@@ -38,6 +38,8 @@ import type {
     PortalDebugEvent,
     ResolvedPortalPlayback,
     Settings,
+    TmdbCacheEntry,
+    TmdbMediaType,
     XtreamCategory,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -755,6 +757,22 @@ const electronApi: ElectronBridgeApi = {
     dbGetAppState: (key: string) => ipcRenderer.invoke('DB_GET_APP_STATE', key),
     dbSetAppState: (key: string, value: string) =>
         ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
+    // TMDB metadata cache
+    dbGetTmdbMetadata: (
+        mediaType: TmdbMediaType,
+        lookupKey: string,
+        language: string
+    ) =>
+        ipcRenderer.invoke(
+            'DB_GET_TMDB_METADATA',
+            mediaType,
+            lookupKey,
+            language
+        ),
+    dbSetTmdbMetadata: (entry: TmdbCacheEntry) =>
+        ipcRenderer.invoke('DB_SET_TMDB_METADATA', entry),
+    dbMatchTitles: (titles: string[]) =>
+        ipcRenderer.invoke('DB_MATCH_TITLES', titles),
     // Playback Positions
     dbSavePlaybackPosition: (
         playlistId: string,
