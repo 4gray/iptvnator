@@ -1,4 +1,3 @@
-import { TestBed } from '@angular/core/testing';
 import { TmdbCacheEntry } from '@iptvnator/shared/interfaces';
 import { TmdbCacheService } from './tmdb-cache.service';
 
@@ -15,8 +14,9 @@ describe('TmdbCacheService (in-memory LRU)', () => {
     });
 
     beforeEach(() => {
-        TestBed.configureTestingModule({});
-        service = TestBed.inject(TmdbCacheService);
+        // No Angular DI dependencies — instantiate directly (the services
+        // Jest target has no @angular/core/testing available)
+        service = new TmdbCacheService();
     });
 
     it('stores and returns entries with a fetchedAt stamp', async () => {

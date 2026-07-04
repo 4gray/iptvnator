@@ -81,12 +81,12 @@ export class TmdbCacheService {
         );
         this.memoryCache.delete(key);
         this.memoryCache.set(key, stamped);
-        while (this.memoryCache.size > MEMORY_CACHE_MAX_ENTRIES) {
+        // delete-then-reinsert above means at most one entry over the cap
+        if (this.memoryCache.size > MEMORY_CACHE_MAX_ENTRIES) {
             const oldest = this.memoryCache.keys().next().value;
-            if (oldest === undefined) {
-                break;
+            if (oldest !== undefined) {
+                this.memoryCache.delete(oldest);
             }
-            this.memoryCache.delete(oldest);
         }
     }
 
