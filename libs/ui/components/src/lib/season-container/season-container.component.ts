@@ -1,16 +1,19 @@
-import { KeyValuePipe } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
-    DoCheck,
+    ElementRef,
     OnInit,
+    computed,
+    effect,
     inject,
     input,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -28,7 +31,21 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DownloadsService } from '@iptvnator/services';
 import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
-import { WatchedBadgeComponent } from '../watched-badge/watched-badge.component';
+import {
+    buildXtreamEpisodeDownloadRequest,
+    getEpisodeDownloadId,
+    isStalkerEpisode,
+} from './episode-download.util';
+import {
+    EPISODE_INFO_PLAY,
+    EpisodeInfoDialogComponent,
+    buildEpisodeInfoDialogData,
+} from './episode-info-dialog.component';
+import {
+    formatEpisodePositionText,
+    parseDuration,
+} from './episode-progress.util';
+import { SeasonTabsComponent } from './season-tabs.component';
 
 type EpisodeViewMode = 'grid' | 'list';
 const EPISODE_VIEW_MODE_KEY = 'iptvnator_episode_view_mode';
@@ -44,47 +61,28 @@ export interface SeasonContainerPlaybackToggleRequest {
     nextPosition: PlaybackPositionData | null;
 }
 
-function parseDuration(duration: string | number | undefined): number {
-    if (!duration) {
-        return 0;
-    }
-
-    if (typeof duration === 'number') {
-        return duration;
-    }
-
-    const parts = duration.split(':').map(Number);
-    if (parts.length === 3) {
-        return parts[0] * 3600 + parts[1] * 60 + parts[2];
-    }
-    if (parts.length === 2) {
-        return parts[0] * 60 + parts[1];
-    }
-
-    return Number(duration) || 0;
-}
-
 @Component({
     selector: 'app-season-container',
     templateUrl: './season-container.component.html',
     styleUrls: ['./season-container.component.scss'],
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
-        KeyValuePipe,
         MatButtonModule,
         MatButtonToggleModule,
         MatIcon,
         MatProgressSpinnerModule,
         MatTooltipModule,
         ProgressCapsuleComponent,
+        SeasonTabsComponent,
         TranslateModule,
-        WatchedBadgeComponent,
     ],
 })
-export class SeasonContainerComponent implements OnInit, DoCheck {
+export class SeasonContainerComponent implements OnInit {
     private readonly downloadsService = inject(DownloadsService);
+    private readonly dialog = inject(MatDialog);
+    private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly logger = createLogger('SeasonContainer');
-    private previousSeasonKeysSignature = '';
+    private lastEmittedSeason: string | undefined;
 
     readonly seasons = input.required<Record<string, XtreamSerieEpisode[]>>();
     readonly seriesId = input.required<number>();
@@ -97,7 +95,12 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
     readonly xtreamDownloadContext =
         input<SeasonContainerXtreamDownloadContext | null>(null);
     readonly openingEpisodeId = input<number | null>(null);
+    /** Episode currently playing in an EXTERNAL player session. */
     readonly activeEpisodeId = input<number | null>(null);
+    /** Episode currently playing in the inline player. */
+    readonly playingEpisodeId = input<number | null>(null);
+    /** Per-season descriptions (TMDB/provider), keyed by season key. */
+    readonly seasonDescriptions = input<Record<string, string> | null>(null);
 
     readonly episodeClicked = output<XtreamSerieEpisode>();
     readonly episodeDownloadRequested = output<XtreamSerieEpisode>();
@@ -107,7 +110,98 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
     readonly isElectron = this.downloadsService.isAvailable;
     readonly viewMode = signal<EpisodeViewMode>('grid');
 
-    selectedSeason: string | undefined;
+    readonly sortedSeasonKeys = computed(() =>
+        Object.keys(this.seasons()).sort((a, b) => Number(a) - Number(b))
+    );
+
+    readonly episodeCounts = computed(() => {
+        const counts: Record<string, number> = {};
+        for (const [key, episodes] of Object.entries(this.seasons())) {
+            counts[key] = episodes?.length ?? 0;
+        }
+        return counts;
+    });
+
+    readonly watchedCounts = computed(() => {
+        const counts: Record<string, number> = {};
+        for (const [key, episodes] of Object.entries(this.seasons())) {
+            counts[key] = (episodes ?? []).filter((episode) =>
+                this.isEpisodeWatched(episode)
+            ).length;
+        }
+        return counts;
+    });
+
+    /** Season key of the inline-playing episode, if it is in the loaded set. */
+    readonly playingSeasonKey = computed(() =>
+        this.findSeasonOfEpisode(this.playingEpisodeId())
+    );
+
+    /**
+     * Selected season. Auto-resolves when the season key set changes or when
+     * playback positions first arrive (priority: inline-playing episode's
+     * season → most recently updated in-progress episode's season → first
+     * season); user tab clicks write to it and stick until the auto-select
+     * key changes. Ongoing position saves do not reset the selection — only
+     * the empty→loaded transition of the positions map does.
+     */
+    readonly selectedSeason = signal<string | undefined>(undefined);
+
+    private readonly autoSelectKey = computed(
+        () =>
+            `${this.sortedSeasonKeys().join('|')}::${
+                this.playbackPositions().size > 0 ? '1' : '0'
+            }`
+    );
+    private lastAutoSelectKey: string | null = null;
+
+    /**
+     * Show thumbnails in the list view only when episodes have genuinely
+     * distinct stills (TMDB or per-episode provider art). When every episode
+     * carries the same image (providers often repeat the series poster) a
+     * column of identical pictures is worse than the plain number square.
+     */
+    readonly listThumbnailsEnabled = computed(() => {
+        const episodes = this.selectedSeasonEpisodes();
+        const images = episodes
+            .map((episode) => this.getEpisodeInfo(episode)?.movie_image)
+            .filter((image): image is string => !!image);
+        if (images.length === 0) {
+            return false;
+        }
+        return episodes.length === 1 || new Set(images).size > 1;
+    });
+
+    readonly selectedSeasonDescription = computed(() => {
+        const selected = this.selectedSeason();
+        if (!selected) {
+            return null;
+        }
+        return this.seasonDescriptions()?.[selected] ?? null;
+    });
+
+    constructor() {
+        effect(() => {
+            const key = this.autoSelectKey();
+            if (key === this.lastAutoSelectKey) {
+                return;
+            }
+            this.lastAutoSelectKey = key;
+            this.selectedSeason.set(
+                untracked(() => this.resolveAutoSeason())
+            );
+        });
+
+        // Fire the lazy-load/enrichment hooks for auto-selected seasons too —
+        // with tabs there is no initial "pick a season" click anymore.
+        effect(() => {
+            const selected = this.selectedSeason();
+            if (selected && selected !== this.lastEmittedSeason) {
+                this.lastEmittedSeason = selected;
+                this.seasonSelected.emit(selected);
+            }
+        });
+    }
 
     ngOnInit() {
         const savedMode = localStorage.getItem(
@@ -116,11 +210,6 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         if (savedMode === 'grid' || savedMode === 'list') {
             this.viewMode.set(savedMode);
         }
-        this.previousSeasonKeysSignature = this.getSeasonKeys().join('|');
-    }
-
-    ngDoCheck(): void {
-        this.syncSelectedSeason();
     }
 
     setViewMode(mode: EpisodeViewMode) {
@@ -128,29 +217,66 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         localStorage.setItem(EPISODE_VIEW_MODE_KEY, mode);
     }
 
-    compareSeasons(a: { key: string }, b: { key: string }): number {
-        return Number(a.key) - Number(b.key);
-    }
-
     hasSeasons(): boolean {
-        return this.getSeasonKeys().length > 0;
+        return this.sortedSeasonKeys().length > 0;
     }
 
     showSeriesEmptyState(): boolean {
-        return !this.selectedSeason && !this.hasSeasons();
+        return !this.hasSeasons();
     }
 
     showSeasonEmptyState(): boolean {
-        return Boolean(this.selectedSeason) && !this.selectedSeasonHasEpisodes();
+        const selected = this.selectedSeason();
+        return (
+            Boolean(selected) &&
+            (this.seasons()[selected as string]?.length ?? 0) === 0
+        );
+    }
+
+    selectedSeasonEpisodes(): XtreamSerieEpisode[] {
+        const selected = this.selectedSeason();
+        return selected ? (this.seasons()[selected] ?? []) : [];
     }
 
     selectSeason(seasonKey: string) {
-        this.selectedSeason = seasonKey;
-        this.seasonSelected.emit(seasonKey);
+        this.selectedSeason.set(seasonKey);
+    }
+
+    scrollToPlayingEpisode(): void {
+        const playingSeason = this.playingSeasonKey();
+        if (!playingSeason) {
+            return;
+        }
+        this.selectedSeason.set(playingSeason);
+        // Wait a tick so the episode list re-renders for the new season.
+        setTimeout(() => {
+            const target = this.host.nativeElement.querySelector(
+                `[data-episode-id="${this.playingEpisodeId()}"]`
+            );
+            target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        });
     }
 
     selectEpisode(episode: XtreamSerieEpisode) {
         this.episodeClicked.emit(episode);
+    }
+
+    openEpisodeInfo(event: Event, episode: XtreamSerieEpisode) {
+        event.stopPropagation();
+        this.dialog
+            .open(EpisodeInfoDialogComponent, {
+                data: buildEpisodeInfoDialogData(
+                    episode,
+                    this.selectedSeason()
+                ),
+                autoFocus: false,
+            })
+            .afterClosed()
+            .subscribe((result) => {
+                if (result === EPISODE_INFO_PLAY) {
+                    this.selectEpisode(episode);
+                }
+            });
     }
 
     toggleWatched(event: Event, episode: XtreamSerieEpisode) {
@@ -181,7 +307,9 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
                 contentXtreamId,
                 contentType: 'episode',
                 seriesXtreamId: this.seriesId(),
-                seasonNumber: Number(episode.season || this.selectedSeason || 1),
+                seasonNumber: Number(
+                    episode.season || this.selectedSeason() || 1
+                ),
                 episodeNumber: Number(episode.episode_num || 1),
                 positionSeconds: duration,
                 durationSeconds: duration,
@@ -216,70 +344,28 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         return this.activeEpisodeId() === this.getEpisodeContentId(episode);
     }
 
+    isEpisodePlayingInline(episode: XtreamSerieEpisode): boolean {
+        return this.playingEpisodeId() === this.getEpisodeContentId(episode);
+    }
+
     getEpisodeProgress(episode: XtreamSerieEpisode): number {
-        return getPortalPlaybackProgressPercent(this.getEpisodePosition(episode));
+        return getPortalPlaybackProgressPercent(
+            this.getEpisodePosition(episode)
+        );
     }
 
     getEpisodePositionText(episode: XtreamSerieEpisode): string | null {
-        if (this.isEpisodeWatched(episode)) {
-            return null;
-        }
-
-        const position = this.getEpisodePosition(episode);
-        if (!position || !position.positionSeconds) {
-            return null;
-        }
-
-        let seconds = position.positionSeconds;
-        let suffix = '';
-
-        if (position.durationSeconds && position.durationSeconds > 0) {
-            const remaining = Math.max(
-                0,
-                position.durationSeconds - position.positionSeconds
-            );
-
-            if (remaining <= 0) {
-                return null;
-            }
-
-            seconds = remaining;
-            suffix = ' left';
-        }
-
-        const hours = Math.floor(seconds / 3600);
-        const minutes = Math.floor((seconds % 3600) / 60);
-        const secs = seconds % 60;
-        const formatted = [hours, minutes, secs]
-            .map((value) => String(value).padStart(2, '0'))
-            .filter((value, index) => (index === 0 ? value !== '00' : true))
-            .join(':');
-        return `${formatted}${suffix}`;
+        return formatEpisodePositionText(this.getEpisodePosition(episode));
     }
 
-    getSeasonWatchedCount(seasonKey: string): number {
-        const episodes = this.seasons()[seasonKey];
-        if (!episodes) {
-            return 0;
-        }
-        return episodes.filter((episode) => this.isEpisodeWatched(episode)).length;
-    }
-
-    getSeasonProgressDash(seasonKey: string): string {
-        const episodes = this.seasons()[seasonKey];
-        if (!episodes || episodes.length === 0) {
-            return '0, 100';
-        }
-
-        const watched = this.getSeasonWatchedCount(seasonKey);
-        const percent = (watched / episodes.length) * 100;
-        return `${percent}, 100`;
+    getEpisodeContentId(episode: XtreamSerieEpisode): number {
+        return Number(episode.id);
     }
 
     async downloadEpisode(event: Event, episode: XtreamSerieEpisode) {
         event.stopPropagation();
 
-        if (this.isStalkerEpisode(episode)) {
+        if (isStalkerEpisode(episode)) {
             this.episodeDownloadRequested.emit(episode);
             return;
         }
@@ -289,30 +375,17 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
             return;
         }
 
-        const serverUrl = xtreamDownload.serverUrl?.replace(/\/$/, '') || '';
-        const username = xtreamDownload.username || '';
-        const password = xtreamDownload.password || '';
-        const extension = episode.container_extension || 'mp4';
-        const url = `${serverUrl}/series/${username}/${password}/${episode.id}.${extension}`;
-        const episodeInfo = this.getEpisodeInfo(episode);
-        const posterUrl = episodeInfo?.movie_image;
-        const seasonNum = episode.season || Number(this.selectedSeason) || 1;
-        const episodeNum = episode.episode_num || 1;
-        const episodeTitle = `${this.seriesTitle() || 'Series'} - S${String(
-            seasonNum
-        ).padStart(2, '0')}E${String(episodeNum).padStart(2, '0')} - ${episode.title}`;
-
-        await this.downloadsService.startDownload({
-            playlistId: this.playlistId(),
-            xtreamId: Number(episode.id),
-            contentType: 'episode',
-            title: episodeTitle,
-            url,
-            posterUrl,
-            seriesXtreamId: this.seriesId(),
-            seasonNumber: seasonNum,
-            episodeNumber: episodeNum,
-        });
+        await this.downloadsService.startDownload(
+            buildXtreamEpisodeDownloadRequest({
+                episode,
+                context: xtreamDownload,
+                playlistId: this.playlistId(),
+                seriesId: this.seriesId(),
+                seriesTitle: this.seriesTitle(),
+                fallbackSeasonKey: this.selectedSeason(),
+                posterUrl: this.getEpisodeInfo(episode)?.movie_image,
+            })
+        );
     }
 
     isEpisodeDownloaded(episode: XtreamSerieEpisode): boolean {
@@ -322,7 +395,7 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
 
         this.downloadsService.downloads();
         return this.downloadsService.isDownloaded(
-            this.getEpisodeDownloadId(episode),
+            getEpisodeDownloadId(episode),
             this.playlistId(),
             'episode'
         );
@@ -335,7 +408,7 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
 
         this.downloadsService.downloads();
         return this.downloadsService.isDownloading(
-            this.getEpisodeDownloadId(episode),
+            getEpisodeDownloadId(episode),
             this.playlistId(),
             'episode'
         );
@@ -348,7 +421,7 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         }
 
         const filePath = this.downloadsService.getDownloadedFilePath(
-            this.getEpisodeDownloadId(episode),
+            getEpisodeDownloadId(episode),
             this.playlistId(),
             'episode'
         );
@@ -358,89 +431,59 @@ export class SeasonContainerComponent implements OnInit, DoCheck {
         }
     }
 
-    private isStalkerEpisode(episode: XtreamSerieEpisode): boolean {
-        return (
-            (episode as { custom_sid?: string }).custom_sid === 'vod-series' ||
-            (episode as { custom_sid?: string }).custom_sid === 'regular-series'
-        );
-    }
-
-    private getEpisodeContentId(episode: XtreamSerieEpisode): number {
-        return Number(episode.id);
-    }
-
-    private getEpisodeDownloadId(episode: XtreamSerieEpisode): number {
-        const customSid = (episode as { custom_sid?: string }).custom_sid;
-
-        if (customSid === 'regular-series') {
-            const cmd = (episode as { originalCmd?: string }).originalCmd;
-            if (cmd) {
-                const match = cmd.match(/file_(\d+)/);
-                if (match) {
-                    return Number(match[1]);
-                }
-                return this.hashString(cmd);
-            }
-            return Number(episode.id);
-        }
-
-        if (customSid === 'vod-series') {
-            const originalId = (episode as { originalId?: string | number })
-                .originalId;
-            const numericId = Number(originalId);
-            return Number.isNaN(numericId)
-                ? this.hashString(String(originalId))
-                : numericId;
-        }
-
-        const numericId = Number(episode.id);
-        return Number.isNaN(numericId)
-            ? this.hashString(String(episode.id))
-            : numericId;
-    }
-
     private getEpisodePosition(
         episode: XtreamSerieEpisode
     ): PlaybackPositionData | undefined {
         return this.playbackPositions().get(this.getEpisodeContentId(episode));
     }
 
-    private selectedSeasonHasEpisodes(): boolean {
-        if (!this.selectedSeason) {
-            return false;
+    private findSeasonOfEpisode(episodeId: number | null): string | null {
+        if (episodeId === null) {
+            return null;
         }
-
-        return (this.seasons()[this.selectedSeason]?.length ?? 0) > 0;
+        for (const [key, episodes] of Object.entries(this.seasons())) {
+            if (
+                episodes?.some(
+                    (episode) => this.getEpisodeContentId(episode) === episodeId
+                )
+            ) {
+                return key;
+            }
+        }
+        return null;
     }
 
-    private getSeasonKeys(): string[] {
-        return Object.keys(this.seasons());
-    }
-
-    private hasSeasonKey(seasonKey: string): boolean {
-        return Object.prototype.hasOwnProperty.call(this.seasons(), seasonKey);
-    }
-
-    private syncSelectedSeason(): void {
-        const seasonKeysSignature = this.getSeasonKeys().join('|');
-        if (seasonKeysSignature === this.previousSeasonKeysSignature) {
-            return;
+    private resolveAutoSeason(): string | undefined {
+        const keys = this.sortedSeasonKeys();
+        if (keys.length === 0) {
+            return undefined;
         }
 
-        this.previousSeasonKeysSignature = seasonKeysSignature;
-
-        if (this.selectedSeason && !this.hasSeasonKey(this.selectedSeason)) {
-            this.selectedSeason = undefined;
+        const playingSeason = this.playingSeasonKey();
+        if (playingSeason) {
+            return playingSeason;
         }
+
+        const resumeSeason = this.findMostRecentInProgressSeason();
+        return resumeSeason ?? keys[0];
     }
 
-    private hashString(str: string): number {
-        let hash = 0;
-        for (let index = 0; index < str.length; index++) {
-            const char = str.charCodeAt(index);
-            hash = (hash << 5) - hash + char;
-            hash &= hash;
+    private findMostRecentInProgressSeason(): string | null {
+        let bestSeason: string | null = null;
+        let bestUpdatedAt = '';
+        for (const [key, episodes] of Object.entries(this.seasons())) {
+            for (const episode of episodes ?? []) {
+                const position = this.getEpisodePosition(episode);
+                if (!isPortalPlaybackInProgress(position)) {
+                    continue;
+                }
+                const updatedAt = position?.updatedAt ?? '';
+                if (updatedAt >= bestUpdatedAt) {
+                    bestUpdatedAt = updatedAt;
+                    bestSeason = key;
+                }
+            }
         }
-        return Math.abs(hash);
+        return bestSeason;
     }
 }

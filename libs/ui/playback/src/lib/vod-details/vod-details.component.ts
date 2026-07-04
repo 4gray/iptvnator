@@ -9,7 +9,12 @@ import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import {
+    DetailActionsTemplateDirective,
+    DetailMetaTemplateDirective,
+    DetailTagsTemplateDirective,
+    PortalDetailShellComponent,
+} from '@iptvnator/ui/components';
 import { Router } from '@angular/router';
 import {
     ExternalPlayerSession,
@@ -48,8 +53,11 @@ import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inli
     templateUrl: './vod-details.component.html',
     styleUrls: ['../styles/detail-view.scss'],
     imports: [
-        ContentHeroComponent,
+        DetailActionsTemplateDirective,
+        DetailMetaTemplateDirective,
+        DetailTagsTemplateDirective,
         MatIcon,
+        PortalDetailShellComponent,
         PortalInlinePlayerComponent,
         SafePipe,
         TranslatePipe,

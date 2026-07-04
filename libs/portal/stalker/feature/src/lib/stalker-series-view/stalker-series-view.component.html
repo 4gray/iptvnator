@@ -1,13 +1,15 @@
 @if (displayItem(); as serial) {
-    <app-content-hero
+    <app-portal-detail-shell
         [title]="serial.info.name"
         [description]="serial.info.description"
         [posterUrl]="serial.info.movie_image"
         [backdropUrl]="serial.info.tmdb_backdrop"
+        [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
+        (closePlayerRequested)="closeInlinePlayer()"
     >
         <!-- Tags: Year, Genre, Rating -->
-        <ng-container hero-tags>
+        <ng-template appDetailTags>
             @if (serial.info.releasedate) {
                 <span class="details__tag">{{ serial.info.releasedate }}</span>
             }
@@ -24,10 +26,10 @@
                     KP {{ serial.info.rating_kinopoisk }}
                 </span>
             }
-        </ng-container>
+        </ng-template>
 
         <!-- Metadata Grid -->
-        <ng-container hero-meta>
+        <ng-template appDetailMeta>
             @if (serial.info.actors || serial.info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
@@ -84,10 +86,10 @@
                     <span class="value">{{ serial.info.director }}</span>
                 </div>
             }
-        </ng-container>
+        </ng-template>
 
         <!-- Action Buttons -->
-        <ng-container hero-actions>
+        <ng-template appDetailActions>
             @if (quickStartAction(); as action) {
                 <button
                     class="play-btn"
@@ -113,15 +115,17 @@
                 </button>
             }
             <app-favorites-button [itemId]="serial.id" [item]="serial" />
-        </ng-container>
+        </ng-template>
 
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
+                detail-player
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
+                (backClicked)="goBack()"
                 (streamUrlCopied)="showCopyNotification()"
                 (playbackEnded)="handleInlinePlaybackEnded()"
                 (previousEpisodeRequested)="playPreviousEpisode()"
@@ -135,6 +139,7 @@
         <!-- Seasons & Episodes -->
         @if (mappedSeasons()) {
             <app-season-container
+                detail-episodes
                 [seasons]="mappedSeasons()"
                 [seriesId]="toSeriesId(serial.id)"
                 [playlistId]="stalkerStore.currentPlaylist()?._id ?? ''"
@@ -142,9 +147,13 @@
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"
+                [playingEpisodeId]="
+                    inlinePlayback()?.contentInfo?.contentXtreamId ?? null
+                "
+                [seasonDescriptions]="seasonDescriptions()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
-                    isCurrentSeasonLoading(seasonContainer?.selectedSeason)
+                    isCurrentSeasonLoading(seasonContainer?.selectedSeason())
                 "
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"
@@ -156,20 +165,22 @@
             />
         }
 
-        <!-- YouTube Trailer (TMDB enrichment; Stalker provides none) -->
-        @if (trailerEmbedUrl(); as trailerUrl) {
-            <div class="youtube-trailer">
-                <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
-                <div class="trailer-wrapper">
-                    <iframe
-                        [src]="trailerUrl | safe"
-                        title="YouTube video player"
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        referrerpolicy="strict-origin-when-cross-origin"
-                        allowfullscreen
-                    ></iframe>
+        <div detail-extras>
+            <!-- YouTube Trailer (TMDB enrichment; Stalker provides none) -->
+            @if (trailerEmbedUrl(); as trailerUrl) {
+                <div class="youtube-trailer">
+                    <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+                    <div class="trailer-wrapper">
+                        <iframe
+                            [src]="trailerUrl | safe"
+                            title="YouTube video player"
+                            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                            referrerpolicy="strict-origin-when-cross-origin"
+                            allowfullscreen
+                        ></iframe>
+                    </div>
                 </div>
-            </div>
-        }
-    </app-content-hero>
+            }
+        </div>
+    </app-portal-detail-shell>
 }

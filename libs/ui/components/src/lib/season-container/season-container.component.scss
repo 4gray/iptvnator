@@ -26,33 +26,6 @@
         letter-spacing: -0.01em;
     }
 
-    .back-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--text-secondary);
-        font-size: 0.8125rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        padding: 6px 12px;
-        border-radius: 4px;
-
-        &:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-
     .view-toggle {
         mat-button-toggle-group {
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -170,140 +143,17 @@
     }
 }
 
-// Grid Layouts
-.seasons-grid,
+// Grid Layout
 .episodes-grid {
     display: grid;
     gap: 12px;
     width: 100%;
-}
-
-.seasons-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
-.episodes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-}
-
-// Season Card
-.season-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    position: relative;
-    overflow: hidden;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-family: inherit;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.1);
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.15);
-
-        .season-card__arrow {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    &__progress-ring {
-        position: relative;
-        width: 42px;
-        height: 42px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-
-        svg {
-            width: 100%;
-            height: 100%;
-            transform: rotate(-90deg);
-        }
-
-        .progress-ring__bg {
-            fill: none;
-            stroke: rgba(255, 255, 255, 0.1);
-            stroke-width: 3;
-        }
-
-        .progress-ring__fill {
-            fill: none;
-            stroke: var(--accent-color);
-            stroke-width: 3;
-            stroke-linecap: round;
-            transition: stroke-dasharray 0.5s ease-out;
-        }
-
-        .season-card__number {
-            position: absolute;
-            font-size: 1rem !important;
-            color: var(--text-primary);
-            font-weight: 700;
-            opacity: 1;
-            margin: 0;
-            padding: 0;
-            background: transparent;
-        }
-    }
-
-    &__info {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    &__label {
-        font-size: 0.9375rem !important;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-    &__progress-text {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-
-    &__episodes {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-
-    &__arrow {
-        opacity: 0;
-        transform: translateX(-5px);
-        transition: all 0.2s ease;
-        color: var(--text-muted);
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-
-    &--has-episodes {
-        /* background: rgba(var(--accent-color-rgb), 0.1);
-        border-color: rgba(var(--accent-color-rgb), 0.3); */
-
-        .season-card__number {
-            color: var(--text-primary);
-        }
-
-        /* .season-card__label {
-            color: var(--accent-color);
-        } */
-    }
+app-season-tabs {
+    display: block;
+    margin-bottom: 16px;
 }
 
 // Episode Card
@@ -352,20 +202,77 @@
         background: color-mix(in srgb, var(--mat-sys-tertiary-container) 18%, transparent);
     }
 
-    // Watched state
+    // Playing in the inline player
+    &--playing {
+        border-color: color-mix(in srgb, var(--mat-sys-primary) 70%, transparent);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
+    }
+
+    // Watched state — the sole indicator is the watched toggle on the
+    // thumbnail (plus the dimmed card); no extra checkmarks elsewhere.
     &--watched {
         opacity: 0.7;
 
         &:hover {
             opacity: 1;
         }
+    }
 
-        .episode-card__title::after {
-            content: ' ✓';
-            color: var(--mat-sys-tertiary);
-            font-weight: bold;
-            margin-left: 4px;
+    // Watched indicator + toggle in one control, top-left on the artwork.
+    // Watched: always visible, green (the old badge look). Unwatched: ghost
+    // circle revealed on card hover.
+    &__watched-toggle {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        z-index: 2;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.75);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        opacity: 0;
+        transition:
+            opacity 0.2s ease,
+            background 0.2s ease,
+            color 0.2s ease;
+
+        mat-icon {
+            font-size: 17px;
+            width: 17px;
+            height: 17px;
+            line-height: 17px;
         }
+
+        &:hover {
+            color: white;
+            background: rgba(0, 0, 0, 0.85);
+        }
+
+        &:focus-visible {
+            opacity: 1;
+        }
+
+        &--watched {
+            opacity: 1;
+            color: white;
+            background: rgba(70, 211, 105, 0.9);
+            border-color: transparent;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+            &:hover {
+                color: white;
+                background: rgba(70, 211, 105, 1);
+            }
+        }
+    }
+
+    &:hover .episode-card__watched-toggle {
+        opacity: 1;
     }
 
     &:hover {
@@ -447,23 +354,27 @@
         display: flex;
         gap: 4px;
 
-        .download-btn,
-        .toggle-watched-btn {
-            color: rgba(255, 255, 255, 0.7);
-            background: rgba(0, 0, 0, 0.5);
-            width: 32px;
-            height: 32px;
-            padding: 4px;
+        .download-btn {
+            color: rgba(255, 255, 255, 0.75);
+            background: rgba(0, 0, 0, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.14);
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
 
             &:hover {
                 color: white;
-                background: rgba(0, 0, 0, 0.8);
+                background: rgba(0, 0, 0, 0.85);
             }
 
             mat-icon {
-                font-size: 20px;
-                width: 20px;
-                height: 20px;
+                font-size: 17px;
+                width: 17px;
+                height: 17px;
+                line-height: 17px;
             }
         }
 
@@ -526,15 +437,68 @@
         padding: 12px;
     }
 
+    &__title-row {
+        display: flex;
+        align-items: flex-start;
+        gap: 4px;
+        margin-bottom: 4px;
+    }
+
     &__title {
+        flex: 1;
+        min-width: 0;
         font-size: 0.875rem;
         font-weight: 600;
-        margin: 0 0 4px 0;
+        margin: 0;
         color: var(--text-primary);
         line-height: 1.4;
         white-space: nowrap;
         overflow: hidden;
         text-overflow: ellipsis;
+    }
+
+    // "About the episode" lives with the text, not on the artwork: a quiet
+    // ghost button at the end of the title row, revealed on card hover.
+    &__info-btn {
+        flex: none;
+        width: 22px;
+        height: 22px;
+        padding: 0;
+        margin: -1px -2px 0 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: var(--text-muted);
+        opacity: 0;
+        transition:
+            opacity 0.2s ease,
+            color 0.2s ease;
+
+        mat-icon {
+            font-size: 17px;
+            width: 17px;
+            height: 17px;
+            line-height: 17px;
+        }
+
+        &:hover {
+            color: var(--text-primary);
+        }
+
+        &:focus-visible {
+            opacity: 1;
+        }
+
+        // The default 48px MDC touch target would swallow clicks on the
+        // title around this tiny button (card click = play).
+        ::ng-deep .mat-mdc-button-touch-target {
+            width: 100%;
+            height: 100%;
+        }
+    }
+
+    &:hover .episode-card__info-btn {
+        opacity: 1;
     }
 
     &__plot {
@@ -616,6 +580,48 @@
         font-weight: 600;
         color: var(--text-secondary);
         flex-shrink: 0;
+    }
+
+    // Compact 16:9 episode still (only when the season has distinct
+    // per-episode art); the episode number rides on the image.
+    &__thumb {
+        position: relative;
+        flex-shrink: 0;
+        width: 96px;
+        height: 54px;
+        border-radius: 6px;
+        overflow: hidden;
+        background: rgba(255, 255, 255, 0.05);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+
+        img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            display: block;
+        }
+    }
+
+    &__thumb-placeholder {
+        color: var(--text-muted);
+        font-size: 22px;
+        width: 22px;
+        height: 22px;
+    }
+
+    &__thumb-number {
+        position: absolute;
+        bottom: 3px;
+        right: 3px;
+        background: rgba(0, 0, 0, 0.8);
+        color: white;
+        font-size: 0.65rem;
+        font-weight: 600;
+        line-height: 1.5;
+        padding: 0 5px;
+        border-radius: 3px;
     }
 
     &__content {
@@ -755,6 +761,11 @@
     &--active-external {
         border-color: color-mix(in srgb, var(--mat-sys-tertiary) 46%, transparent);
         background: color-mix(in srgb, var(--mat-sys-tertiary-container) 12%, transparent);
+    }
+
+    &--playing {
+        border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
+        background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
     }
 
     // Always show actions on touch devices

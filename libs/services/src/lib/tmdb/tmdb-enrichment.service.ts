@@ -25,6 +25,7 @@ import {
     TmdbEpisode,
     TmdbMovieDetails,
     TmdbPersonDetails,
+    TmdbSeasonDetails,
     TmdbTvDetails,
 } from './tmdb.types';
 
@@ -65,6 +66,18 @@ export class TmdbEnrichmentService {
         seasonNumber: number
     ): Promise<TmdbEpisode[] | null> {
         return this.season.getSeasonEpisodes(tmdbId, seasonNumber);
+    }
+
+    /**
+     * Full season payload (overview + episodes) in the app language, using
+     * the same cache rows as `getSeasonEpisodes`. Returns `null` when
+     * enrichment is off or the request fails.
+     */
+    async getSeason(
+        tmdbId: number,
+        seasonNumber: number
+    ): Promise<TmdbSeasonDetails | null> {
+        return this.season.getSeason(tmdbId, seasonNumber);
     }
 
     async getPersonDetails(

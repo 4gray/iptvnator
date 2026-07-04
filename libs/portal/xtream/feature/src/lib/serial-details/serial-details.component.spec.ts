@@ -22,21 +22,6 @@ import { of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
 
 @Component({
-    selector: 'app-content-hero',
-    standalone: true,
-    template: '<ng-content />',
-})
-class StubContentHeroComponent {
-    readonly title = input<string | undefined>(undefined);
-    readonly description = input<string | undefined>(undefined);
-    readonly posterUrl = input<string | undefined>(undefined);
-    readonly backdropUrl = input<string | undefined>(undefined);
-    readonly isLoading = input(false);
-    readonly errorMessage = input<string | null>(null);
-    readonly backClicked = output<void>();
-}
-
-@Component({
     selector: 'app-season-container',
     standalone: true,
     template: '<div data-testid="season-container"></div>',
@@ -50,6 +35,8 @@ class StubSeasonContainerComponent {
     readonly xtreamDownloadContext = input<unknown>(null);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
+    readonly playingEpisodeId = input<number | null>(null);
+    readonly seasonDescriptions = input<unknown>(null);
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
 }
@@ -239,7 +226,6 @@ describe('SerialDetailsComponent', () => {
             .overrideComponent(SerialDetailsComponent, {
                 remove: {
                     imports: [
-                        ContentHeroComponent,
                         MatIcon,
                         PortalInlinePlayerComponent,
                         SeasonContainerComponent,
@@ -248,7 +234,6 @@ describe('SerialDetailsComponent', () => {
                 },
                 add: {
                     imports: [
-                        StubContentHeroComponent,
                         StubMatIconComponent,
                         StubPortalInlinePlayerComponent,
                         StubSeasonContainerComponent,
@@ -334,8 +319,8 @@ describe('SerialDetailsComponent', () => {
         expect(() => fixture.detectChanges()).not.toThrow();
 
         const hero = fixture.debugElement.query(
-            By.directive(StubContentHeroComponent)
-        ).componentInstance as StubContentHeroComponent;
+            By.directive(ContentHeroComponent)
+        ).componentInstance as ContentHeroComponent;
         expect(hero.backdropUrl()).toBeUndefined();
     });
 

@@ -7,8 +7,9 @@ import {
 import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 
 /**
- * Component-scoped holder for lazily fetched TMDB episode data in the
- * Stalker series view (provide it in the component's `providers`).
+ * Component-scoped holder for lazily fetched TMDB season data (episode
+ * lists and season overviews) in the Stalker series view (provide it in
+ * the component's `providers`).
  *
  * Entries are keyed by `${tmdbId}|${seasonKey}` so data from a previously
  * shown series can never leak into the current one.
@@ -20,6 +21,9 @@ export class StalkerSeriesTmdbSeasonsService {
     private readonly episodesByKey = signal<
         ReadonlyMap<string, TmdbEpisode[]>
     >(new Map());
+    private readonly overviewsByKey = signal<ReadonlyMap<string, string>>(
+        new Map()
+    );
 
     /**
      * Overlays fetched TMDB episode data (real names, overviews, stills)
@@ -46,9 +50,29 @@ export class StalkerSeriesTmdbSeasonsService {
     }
 
     /**
-     * Lazily pulls the TMDB episode list for an opened season; a no-op
-     * without a show-level TMDB match, with enrichment disabled, or when
-     * the season was already fetched.
+     * Season overviews for the season tabs, keyed by season key of the
+     * given show. Reads a signal, so callers can use it in a `computed`.
+     */
+    descriptions(tmdbId: number | null | undefined): Record<string, string> {
+        const overviews = this.overviewsByKey();
+        if (!tmdbId || overviews.size === 0) {
+            return {};
+        }
+
+        const prefix = `${tmdbId}|`;
+        const descriptions: Record<string, string> = {};
+        for (const [mapKey, overview] of overviews) {
+            if (mapKey.startsWith(prefix)) {
+                descriptions[mapKey.slice(prefix.length)] = overview;
+            }
+        }
+        return descriptions;
+    }
+
+    /**
+     * Lazily pulls the TMDB season (episode list + overview) for an opened
+     * season; a no-op without a show-level TMDB match, with enrichment
+     * disabled, or when the season was already fetched.
      */
     async fetchSeason(
         tmdbId: number | null | undefined,
@@ -69,16 +93,26 @@ export class StalkerSeriesTmdbSeasonsService {
             return;
         }
 
-        const tmdbEpisodes = await this.tmdbEnrichment.getSeasonEpisodes(
+        const season = await this.tmdbEnrichment.getSeason(
             tmdbId,
             seasonNumber
         );
-        if (!tmdbEpisodes?.length) {
+        if (!season) {
+            return;
+        }
+
+        if (season.overview) {
+            const overviews = new Map(this.overviewsByKey());
+            overviews.set(mapKey, season.overview);
+            this.overviewsByKey.set(overviews);
+        }
+
+        if (!season.episodes?.length) {
             return;
         }
 
         const next = new Map(this.episodesByKey());
-        next.set(mapKey, tmdbEpisodes);
+        next.set(mapKey, season.episodes);
         this.episodesByKey.set(next);
     }
 }

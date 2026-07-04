@@ -1,14 +1,16 @@
 @let item = selectedItem();
 @if (item && item.info) {
     @let info = item.info;
-    <app-content-hero
+    <app-portal-detail-shell
         [title]="info.name"
         [description]="info.plot"
         [posterUrl]="info.cover"
         [backdropUrl]="getBackdropUrl(info)"
+        [playbackActive]="!!inlinePlayback()"
         (backClicked)="goBack()"
+        (closePlayerRequested)="closeInlinePlayer()"
     >
-        <ng-container hero-tags>
+        <ng-template appDetailTags>
             @if (info.releaseDate) {
                 <span class="details__tag">{{
                     info.releaseDate | slice: 0 : 4
@@ -27,9 +29,9 @@
                     ⭐ {{ info.rating }}
                 </span>
             }
-        </ng-container>
+        </ng-template>
 
-        <ng-container hero-meta>
+        <ng-template appDetailMeta>
             @if (info.cast || info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
@@ -83,9 +85,9 @@
                     <span class="value">{{ info.director }}</span>
                 </div>
             }
-        </ng-container>
+        </ng-template>
 
-        <ng-container hero-actions>
+        <ng-template appDetailActions>
             @if (quickStartAction(); as action) {
                 <button
                     class="play-btn"
@@ -122,15 +124,17 @@
                     {{ 'PORTALS.REMOVE_FROM_FAVORITES' | translate }}
                 </button>
             }
-        </ng-container>
+        </ng-template>
 
         @if (inlinePlayback(); as playback) {
             <app-portal-inline-player
+                detail-player
                 [playback]="playback"
                 [episodeMetadata]="inlineEpisodeMetadata()"
                 [seriesNavigation]="inlineSeriesNavigation()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
+                (backClicked)="goBack()"
                 (streamUrlCopied)="showCopyNotification()"
                 (playbackEnded)="handleInlinePlaybackEnded()"
                 (previousEpisodeRequested)="playPreviousEpisode()"
@@ -142,6 +146,7 @@
         }
 
         <app-season-container
+            detail-episodes
             [seasons]="item.episodes"
             [seriesId]="item.series_id"
             [playlistId]="currentPlaylistId()"
@@ -150,50 +155,56 @@
             [xtreamDownloadContext]="xtreamDownloadContext()"
             [openingEpisodeId]="openingEpisodeId()"
             [activeEpisodeId]="activeEpisodeId()"
+            [playingEpisodeId]="
+                inlinePlayback()?.contentInfo?.contentXtreamId ?? null
+            "
+            [seasonDescriptions]="seasonDescriptions()"
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
             (seasonSelected)="onSeasonSelected($event)"
         />
 
-        @if (similarItems().length) {
-            <section class="details__similar" data-test-id="tmdb-similar">
-                <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
-                <div class="details__similar-strip">
-                    @for (similar of similarItems(); track similar.id) {
-                        <button
-                            type="button"
-                            class="details__similar-card"
-                            [title]="similar.title"
-                            (click)="openSimilar(similar)"
-                        >
-                            @if (similar.posterUrl) {
-                                <img
-                                    class="details__similar-poster"
-                                    [src]="similar.posterUrl"
-                                    [alt]="similar.title"
-                                    loading="lazy"
-                                />
-                            } @else {
-                                <span
-                                    class="details__similar-poster details__similar-poster--fallback"
-                                >
-                                    {{ similar.title.charAt(0) }}
+        <div detail-extras>
+            @if (similarItems().length) {
+                <section class="details__similar" data-test-id="tmdb-similar">
+                    <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
+                    <div class="details__similar-strip">
+                        @for (similar of similarItems(); track similar.id) {
+                            <button
+                                type="button"
+                                class="details__similar-card"
+                                [title]="similar.title"
+                                (click)="openSimilar(similar)"
+                            >
+                                @if (similar.posterUrl) {
+                                    <img
+                                        class="details__similar-poster"
+                                        [src]="similar.posterUrl"
+                                        [alt]="similar.title"
+                                        loading="lazy"
+                                    />
+                                } @else {
+                                    <span
+                                        class="details__similar-poster details__similar-poster--fallback"
+                                    >
+                                        {{ similar.title.charAt(0) }}
+                                    </span>
+                                }
+                                <span class="details__similar-title">
+                                    {{ similar.title }}
                                 </span>
-                            }
-                            <span class="details__similar-title">
-                                {{ similar.title }}
-                            </span>
-                        </button>
-                    }
-                </div>
-            </section>
-        }
-    </app-content-hero>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+        </div>
+    </app-portal-detail-shell>
 } @else if (detailsError()) {
-    <app-content-hero
+    <app-portal-detail-shell
         [errorMessage]="detailsError() ?? undefined"
         (backClicked)="goBack()"
     />
 } @else {
-    <app-content-hero [isLoading]="true" (backClicked)="goBack()" />
+    <app-portal-detail-shell [isLoading]="true" (backClicked)="goBack()" />
 }

@@ -9,6 +9,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { TranslateModule } from '@ngx-translate/core';
 import {
     PlayerContentInfo,
     ResolvedPortalPlayback,
@@ -29,6 +30,7 @@ import type {
         MatButtonModule,
         MatIconModule,
         MatTooltipModule,
+        TranslateModule,
         WebPlayerViewComponent,
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
@@ -60,6 +62,8 @@ export class PortalInlinePlayerComponent {
     });
 
     readonly closed = output<void>();
+    /** Back arrow in the now-playing bar: route-level back, not just close. */
+    readonly backClicked = output<void>();
     readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
@@ -72,6 +76,10 @@ export class PortalInlinePlayerComponent {
 
     onClose(): void {
         this.closed.emit();
+    }
+
+    onBack(): void {
+        this.backClicked.emit();
     }
 
     onTimeUpdate(event: { currentTime: number; duration: number }): void {

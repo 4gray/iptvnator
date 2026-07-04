@@ -82,7 +82,62 @@ Current limitation:
 - because of that, the setting is auto-sanitized back to the default inline player unless support detection reports that the experimental runtime is available
 - this follows the rollout gate: keep the native work in-tree, but do not leave it user-facing until playback, resize, focus, and packaging are stable
 
+## Two-State Detail Layout (Browse ↔ Watch)
+
+Portal VOD/series detail pages are hosted by the shared
+`PortalDetailShellComponent`
+(`libs/ui/components/src/lib/portal-detail-shell/portal-detail-shell.component.ts`),
+which owns the page scroll container and two layout states:
+
+- **Browse** (`playbackActive=false`): the hero (`ContentHeroComponent`,
+  now a natural-height, non-scrolling block) renders poster, title, chips,
+  description, credits, and actions. Episodes render below.
+- **Watch** (`playbackActive=true`, bound by hosts to
+  `inlinePlayback() !== null`): the hero collapses (~300ms CSS morph,
+  disabled under `prefers-reduced-motion`), the host-projected
+  `[detail-player]` slot renders the inline player at full content width,
+  and the shell renders an About block (`ContentAboutComponent`) below the
+  `[detail-episodes]` slot so the hero metadata stays reachable.
+
+Contracts:
+
+- Hosts provide hero chips/meta/actions as `*appDetailTags` / `*appDetailMeta` /
+  `*appDetailActions` templates; the shell stamps them into the hero and again
+  into the About block. Degradation stays "missing → not rendered".
+- The shell never wraps the `[detail-player]` slot in a conditional; the
+  host's `@if (inlinePlayback())` is the only creator/destroyer of the
+  player subtree, so shell state changes cannot recreate the `<video>`.
+- **External MPV/VLC sessions do not flip the layout to watch** — browse
+  layout stays, and the primary CTA keeps its "Stop <player>" behavior.
+- Escape closes inline playback: the shell emits `closePlayerRequested`
+  when playback is active, the event was not `defaultPrevented`, and no
+  element is in browser fullscreen; hosts wire it to `closeInlinePlayer()`.
+- The now-playing bar separates two exits: the back arrow emits
+  `backClicked`, which hosts wire to their route-level `goBack()` (straight
+  back to the list — everything browse offers is also visible in watch, so
+  a two-step unwind would be ceremony); the "Close player" button and
+  Escape emit `closed`/`closePlayerRequested` and return to browse without
+  navigating.
+- Entering watch scrolls the shell to the top; leaving keeps the scroll
+  position.
+
+Season navigation inside `SeasonContainerComponent` uses season tabs
+(`SeasonTabsComponent`; a dropdown beyond 6 seasons) instead of the old
+seasons-grid + "Back to seasons" level. A season is auto-selected
+(inline-playing episode's season → most recently updated in-progress
+episode's season → first) and the auto-selection emits `seasonSelected`,
+so host lazy-load/enrichment hooks (Stalker VOD-series episode fetch,
+TMDB season fetch, Xtream `enrichSelectedSerialSeason`) fire on open
+without a click. Switching tabs never stops playback; a "back to playing
+episode" chip appears when the playing episode is outside the opened
+season. Season descriptions come from `get_series_info` seasons (Xtream)
+or `TmdbEnrichmentService.getSeason` (Stalker).
+
 ## Components
+
+Shared detail layout shell:
+
+- `/Users/4gray/Code/iptvnator/libs/ui/components/src/lib/portal-detail-shell/portal-detail-shell.component.ts`
 
 Shared inline player shell:
 

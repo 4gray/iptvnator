@@ -1,0 +1,67 @@
+<!-- Hero (browse state) — collapses when playback is active -->
+<div class="shell__hero" [class.shell__hero--collapsed]="isWatch()">
+    <div class="shell__hero-inner">
+        <app-content-hero
+            [title]="title()"
+            [description]="description()"
+            [posterUrl]="posterUrl()"
+            [backdropUrl]="backdropUrl()"
+            [isLoading]="isLoading()"
+            [errorMessage]="errorMessage()"
+            (backClicked)="backClicked.emit()"
+        >
+            <ng-container hero-tags>
+                @if (tagsTemplate(); as tags) {
+                    <ng-container
+                        [ngTemplateOutlet]="tags.templateRef"
+                    ></ng-container>
+                }
+            </ng-container>
+            <ng-container hero-meta>
+                @if (metaTemplate(); as meta) {
+                    <ng-container
+                        [ngTemplateOutlet]="meta.templateRef"
+                    ></ng-container>
+                }
+            </ng-container>
+            <ng-container hero-actions>
+                @if (actionsTemplate(); as actions) {
+                    <ng-container
+                        [ngTemplateOutlet]="actions.templateRef"
+                    ></ng-container>
+                }
+            </ng-container>
+            <ng-container hero-error-actions>
+                <ng-content select="[hero-error-actions]"></ng-content>
+            </ng-container>
+        </app-content-hero>
+    </div>
+</div>
+
+<!-- Player region (watch state) — the slot itself is never wrapped in @if,
+     so the host-owned player subtree survives every shell state change -->
+<div class="shell__player" [class.shell__player--active]="isWatch()">
+    <ng-content select="[detail-player]"></ng-content>
+</div>
+
+<!-- Episodes / seasons — both states -->
+<div class="shell__episodes">
+    <ng-content select="[detail-episodes]"></ng-content>
+</div>
+
+<!-- About block — watch state only, metadata moves here -->
+@if (isWatch() && !isLoading() && !errorMessage()) {
+    <app-content-about
+        class="shell__about"
+        [title]="title()"
+        [posterUrl]="posterUrl()"
+        [description]="description()"
+        [tagsTemplate]="tagsTemplate()?.templateRef ?? null"
+        [metaTemplate]="metaTemplate()?.templateRef ?? null"
+    />
+}
+
+<!-- Extras (trailer, similar rail) — both states -->
+<div class="shell__extras">
+    <ng-content select="[detail-extras]"></ng-content>
+</div>

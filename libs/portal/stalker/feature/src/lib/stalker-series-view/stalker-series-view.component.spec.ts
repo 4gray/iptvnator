@@ -5,7 +5,7 @@ import { Router } from '@angular/router';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
-import { ContentHeroComponent, SeasonContainerComponent } from '@iptvnator/ui/components';
+import { SeasonContainerComponent } from '@iptvnator/ui/components';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -17,23 +17,10 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { DownloadsService } from '@iptvnator/services';
-import { of } from 'rxjs';
+import { DownloadsService, TmdbEnrichmentService } from '@iptvnator/services';
+import { EMPTY, of } from 'rxjs';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
-
-@Component({
-    selector: 'app-content-hero',
-    standalone: true,
-    template: '<ng-content />',
-})
-class StubContentHeroComponent {
-    readonly title = input<string | undefined>(undefined);
-    readonly description = input<string | undefined>(undefined);
-    readonly posterUrl = input<string | undefined>(undefined);
-    readonly backdropUrl = input<string | undefined>(undefined);
-    readonly backClicked = output<void>();
-}
 
 @Component({
     selector: 'app-season-container',
@@ -48,12 +35,14 @@ class StubSeasonContainerComponent {
     readonly playbackPositions = input<unknown>(null);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
+    readonly playingEpisodeId = input<number | null>(null);
+    readonly seasonDescriptions = input<unknown>(null);
     readonly isLoading = input(false);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
     readonly episodeDownloadRequested = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
-    selectedSeason: string | undefined;
+    readonly selectedSeason = signal<string | undefined>(undefined);
 }
 
 @Component({
@@ -95,6 +84,7 @@ describe('StalkerSeriesViewComponent', () => {
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
     const openResolvedPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
+    const tmdbGetSeason = jest.fn();
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -147,6 +137,11 @@ describe('StalkerSeriesViewComponent', () => {
         openResolvedPlayback.mockClear();
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
+        tmdbGetSeason.mockReset();
+        tmdbGetSeason.mockResolvedValue({
+            overview: 'Season overview from TMDB',
+            episodes: [],
+        });
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -202,6 +197,14 @@ describe('StalkerSeriesViewComponent', () => {
                     },
                 },
                 {
+                    provide: TmdbEnrichmentService,
+                    useValue: {
+                        isEnabled: () => true,
+                        getSeason: tmdbGetSeason,
+                        getSeasonEpisodes: jest.fn().mockResolvedValue(null),
+                    },
+                },
+                {
                     provide: MatSnackBar,
                     useValue: {
                         open: jest.fn(),
@@ -213,9 +216,11 @@ describe('StalkerSeriesViewComponent', () => {
                         instant: (key: string) => key,
                         get: (key: string) => of(key),
                         stream: (key: string) => of(key),
-                        onLangChange: of(null),
-                        onTranslationChange: of(null),
-                        onDefaultLangChange: of(null),
+                        // EMPTY (not of(null)): the real TranslatePipe inside
+                        // the detail shell reads `event.lang` from emissions.
+                        onLangChange: EMPTY,
+                        onTranslationChange: EMPTY,
+                        onDefaultLangChange: EMPTY,
                     },
                 },
             ],
@@ -223,7 +228,6 @@ describe('StalkerSeriesViewComponent', () => {
             .overrideComponent(StalkerSeriesViewComponent, {
                 remove: {
                     imports: [
-                        ContentHeroComponent,
                         FavoritesButtonComponent,
                         PortalInlinePlayerComponent,
                         SeasonContainerComponent,
@@ -232,7 +236,6 @@ describe('StalkerSeriesViewComponent', () => {
                 },
                 add: {
                     imports: [
-                        StubContentHeroComponent,
                         StubFavoritesButtonComponent,
                         StubPortalInlinePlayerComponent,
                         StubSeasonContainerComponent,
@@ -691,5 +694,37 @@ describe('StalkerSeriesViewComponent', () => {
             expect.any(Number),
             undefined
         );
+    });
+
+    it('fetches the TMDB season once the show-level match arrives after auto-select', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        // Season tabs auto-select immediately — usually before the async
+        // show-level enrichment has written tmdb_id.
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        seasonContainer.seasonSelected.emit('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // The TMDB match lands afterwards — the fetch must run now.
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
     });
 });

@@ -1,6 +1,7 @@
 import { Component, input, output } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import type { PortalInlinePlayerComponent as PortalInlinePlayerComponentInstance } from './portal-inline-player.component';
 
 jest.unstable_mockModule('video.js', () => ({
@@ -46,7 +47,7 @@ describe('PortalInlinePlayerComponent', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [PortalInlinePlayerComponent],
+            imports: [PortalInlinePlayerComponent, TranslateModule.forRoot()],
         })
             .overrideComponent(PortalInlinePlayerComponent, {
                 remove: {
@@ -119,5 +120,34 @@ describe('PortalInlinePlayerComponent', () => {
         webPlayer.nextEpisodeRequested.emit();
 
         expect(events).toEqual(['ended', 'previous', 'next']);
+    });
+
+    it('emits backClicked (not closed) from the back button in the now-playing bar', () => {
+        let backCount = 0;
+        let closedCount = 0;
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://example.test/vod/1.mp4',
+            title: 'Movie',
+        });
+        (
+            component as unknown as {
+                backClicked: { subscribe: (fn: () => void) => void };
+            }
+        ).backClicked.subscribe(() => backCount++);
+        (
+            component as unknown as {
+                closed: { subscribe: (fn: () => void) => void };
+            }
+        ).closed.subscribe(() => closedCount++);
+
+        fixture.detectChanges();
+
+        const backButton = fixture.nativeElement.querySelector(
+            '[data-testid="inline-player-back"]'
+        ) as HTMLButtonElement;
+        expect(backButton).toBeTruthy();
+        backButton.click();
+        expect(backCount).toBe(1);
+        expect(closedCount).toBe(0);
     });
 });

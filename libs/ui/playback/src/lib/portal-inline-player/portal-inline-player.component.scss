@@ -16,12 +16,16 @@
     box-shadow:
         0 20px 56px rgba(25, 20, 20, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(18px);
+    // No backdrop-filter here: blurring over a live video viewport forces an
+    // expensive re-blur every frame and makes the browse↔watch morph stutter.
 }
 
 .player-shell__header {
     display: grid;
     gap: 8px;
+    // Allow the nowrap title to shrink instead of widening the grid track
+    // and pushing the actions out of the viewport.
+    min-width: 0;
 }
 
 .player-shell__eyebrow {
@@ -35,11 +39,17 @@
 .player-shell__title-row {
     display: flex;
     gap: 12px;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
+    min-width: 0;
+}
+
+.player-shell__back {
+    flex: none;
 }
 
 .player-shell__heading {
+    flex: 1;
     min-width: 0;
 }
 
@@ -49,17 +59,15 @@
     font-weight: 700;
     line-height: 1.2;
     color: #161616;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .player-shell__episode-meta {
-    margin-top: 4px;
-    overflow: hidden;
     color: rgba(26, 26, 26, 0.64);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    line-height: 1.35;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .player-shell__actions {

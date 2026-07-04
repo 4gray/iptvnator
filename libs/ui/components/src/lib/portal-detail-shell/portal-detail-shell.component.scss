@@ -1,0 +1,140 @@
+// ============================================================================
+// Portal detail shell — two-state (browse ↔ watch) layout + page scroll owner
+// ============================================================================
+
+:host {
+    // Shared surface palette (mirrors content-hero) so the area below the
+    // natural-height hero and the About block match the page background.
+    --surface-bg: #fffaf5;
+    --text-primary: #1a1a1a;
+    --text-secondary: rgba(26, 26, 26, 0.75);
+    --text-muted: rgba(26, 26, 26, 0.5);
+    --tag-bg: rgba(0, 0, 0, 0.06);
+    --tag-border: rgba(0, 0, 0, 0.12);
+    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.15);
+    --content-max-width: 1400px;
+
+    display: block;
+    height: 100%;
+    overflow-y: auto;
+    overflow-x: hidden;
+    background: var(--surface-bg);
+    color: var(--text-primary);
+
+    // Hide scrollbar but keep functionality (parity with the old hero scroll)
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+:host-context(.dark-theme) {
+    --surface-bg: #141414;
+    --text-primary: #fff;
+    --text-secondary: rgba(255, 255, 255, 0.7);
+    --text-muted: rgba(255, 255, 255, 0.5);
+    --tag-bg: rgba(255, 255, 255, 0.1);
+    --tag-border: rgba(255, 255, 255, 0.2);
+    --poster-shadow: 0 8px 40px rgba(0, 0, 0, 0.5);
+}
+
+// ============================================================================
+// Hero collapse (browse ↔ watch morph, ~300ms, no height measuring)
+// ============================================================================
+
+.shell__hero {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition:
+        grid-template-rows 300ms ease,
+        opacity 250ms ease;
+
+    &--collapsed {
+        grid-template-rows: 0fr;
+        opacity: 0;
+        visibility: hidden;
+        pointer-events: none;
+        // Keep the hero visible while it collapses, hide it afterwards so it
+        // cannot receive focus in watch state.
+        transition:
+            grid-template-rows 300ms ease,
+            opacity 250ms ease,
+            visibility 0s linear 300ms;
+    }
+}
+
+.shell__hero-inner {
+    min-height: 0;
+    overflow: hidden;
+}
+
+// ============================================================================
+// Player region (full content width in watch state)
+// ============================================================================
+
+.shell__player {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+
+    &--active {
+        padding: 16px 40px 0;
+        animation: shell-fade-in 300ms ease 50ms both;
+    }
+}
+
+.shell__episodes {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 0 40px;
+}
+
+.shell__about {
+    display: block;
+    // Air between the last episode row and the section divider.
+    margin-top: 32px;
+    animation: shell-fade-in 250ms ease 100ms both;
+}
+
+.shell__extras {
+    max-width: var(--content-max-width);
+    margin: 0 auto;
+    padding: 0 40px 40px;
+}
+
+@keyframes shell-fade-in {
+    from {
+        opacity: 0;
+        transform: translateY(8px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+@media (max-width: 800px) {
+    .shell__player--active {
+        padding: 8px 12px 0;
+    }
+
+    .shell__episodes {
+        padding: 0 20px;
+    }
+
+    .shell__extras {
+        padding: 0 20px 32px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .shell__hero,
+    .shell__hero--collapsed {
+        transition: none;
+    }
+
+    .shell__player--active,
+    .shell__about {
+        animation: none;
+    }
+}

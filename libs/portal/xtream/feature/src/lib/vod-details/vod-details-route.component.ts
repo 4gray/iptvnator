@@ -14,7 +14,12 @@ import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import {
+    DetailActionsTemplateDirective,
+    DetailMetaTemplateDirective,
+    DetailTagsTemplateDirective,
+    PortalDetailShellComponent,
+} from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
@@ -51,8 +56,11 @@ import { VodDetailsPlaybackService } from './vod-details-playback.service';
     changeDetection: ChangeDetectionStrategy.OnPush,
     providers: [VodDetailsPlaybackService],
     imports: [
-        ContentHeroComponent,
+        DetailActionsTemplateDirective,
+        DetailMetaTemplateDirective,
+        DetailTagsTemplateDirective,
         MatIcon,
+        PortalDetailShellComponent,
         SafePipe,
         SlicePipe,
         TranslateModule,

@@ -11,7 +11,7 @@ import {
     untracked,
 } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import { PortalDetailShellComponent } from '@iptvnator/ui/components';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
     XtreamPlaylistData,
@@ -35,7 +35,7 @@ interface XtreamCollectionStateSnapshot {
 
 @Component({
     selector: 'app-xtream-collection-detail',
-    imports: [ContentHeroComponent, NgComponentOutlet],
+    imports: [PortalDetailShellComponent, NgComponentOutlet],
     template: `
         @if (detailComponent() && detailInjector()) {
             <ng-container
@@ -45,7 +45,7 @@ interface XtreamCollectionStateSnapshot {
                 "
             />
         } @else {
-            <app-content-hero [isLoading]="true" />
+            <app-portal-detail-shell [isLoading]="true" />
         }
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,
