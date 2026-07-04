@@ -330,59 +330,34 @@ describe('SeasonContainerComponent', () => {
         ).toBeNull();
     });
 
-    it('shows list thumbnails when episode images are distinct', () => {
-        setRequiredInputs({
+    it('shows list thumbnails only for distinct episode images', () => {
+        const withImages = (a: string, b: string) => ({
             '1': [
-                createEpisode({
-                    id: '101',
-                    info: { plot: 'a', movie_image: 'still-1.jpg' } as never,
-                }),
+                createEpisode({ info: { movie_image: a } as never }),
                 createEpisode({
                     id: '102',
                     episode_num: 2,
-                    info: { plot: 'b', movie_image: 'still-2.jpg' } as never,
+                    info: { movie_image: b } as never,
                 }),
             ],
         });
+        const query = (selector: string) =>
+            fixture.nativeElement.querySelectorAll(selector).length;
+
+        // Distinct stills → thumbnails replace the number square
+        setRequiredInputs(withImages('still-1.jpg', 'still-2.jpg'));
         component.setViewMode('list');
         fixture.detectChanges();
-
         expect(component.listThumbnailsEnabled()).toBe(true);
-        expect(
-            fixture.nativeElement.querySelectorAll('.episode-list-item__thumb')
-                .length
-        ).toBe(2);
-        expect(
-            fixture.nativeElement.querySelector('.episode-list-item__number')
-        ).toBeNull();
-    });
+        expect(query('.episode-list-item__thumb')).toBe(2);
+        expect(query('.episode-list-item__number')).toBe(0);
 
-    it('keeps the number square when every episode repeats the same image', () => {
-        setRequiredInputs({
-            '1': [
-                createEpisode({
-                    id: '101',
-                    info: { plot: 'a', movie_image: 'poster.jpg' } as never,
-                }),
-                createEpisode({
-                    id: '102',
-                    episode_num: 2,
-                    info: { plot: 'b', movie_image: 'poster.jpg' } as never,
-                }),
-            ],
-        });
-        component.setViewMode('list');
+        // Same poster on every episode → number squares stay
+        setRequiredInputs(withImages('poster.jpg', 'poster.jpg'));
         fixture.detectChanges();
-
         expect(component.listThumbnailsEnabled()).toBe(false);
-        expect(
-            fixture.nativeElement.querySelector('.episode-list-item__thumb')
-        ).toBeNull();
-        expect(
-            fixture.nativeElement.querySelectorAll(
-                '.episode-list-item__number'
-            ).length
-        ).toBe(2);
+        expect(query('.episode-list-item__thumb')).toBe(0);
+        expect(query('.episode-list-item__number')).toBe(2);
     });
 
     it('renders the season description for the selected season', () => {
