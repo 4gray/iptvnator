@@ -35,8 +35,12 @@
 .player-shell__title-row {
     display: flex;
     gap: 12px;
-    align-items: flex-start;
+    align-items: center;
     justify-content: space-between;
+}
+
+.player-shell__back {
+    flex: none;
 }
 
 .player-shell__heading {
@@ -49,17 +53,15 @@
     font-weight: 700;
     line-height: 1.2;
     color: #161616;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
 }
 
 .player-shell__episode-meta {
-    margin-top: 4px;
-    overflow: hidden;
     color: rgba(26, 26, 26, 0.64);
-    font-size: 0.9rem;
+    font-size: 0.95rem;
     font-weight: 600;
-    line-height: 1.35;
-    text-overflow: ellipsis;
-    white-space: nowrap;
 }
 
 .player-shell__actions {
