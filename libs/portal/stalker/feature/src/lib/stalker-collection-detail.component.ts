@@ -11,7 +11,7 @@ import {
 } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslateService } from '@ngx-translate/core';
-import { ContentHeroComponent } from '@iptvnator/ui/components';
+import { PortalDetailShellComponent } from '@iptvnator/ui/components';
 import {
     buildStalkerStateItem,
     createLogger,
@@ -67,7 +67,7 @@ interface StalkerCollectionDetailMode {
 
 @Component({
     selector: 'app-stalker-collection-detail',
-    imports: [ContentHeroComponent, StalkerInlineDetailComponent],
+    imports: [PortalDetailShellComponent, StalkerInlineDetailComponent],
     template: `
         @if (inlineDetail().categoryId) {
             <app-stalker-inline-detail
@@ -91,7 +91,7 @@ interface StalkerCollectionDetailMode {
                 "
             />
         } @else {
-            <app-content-hero [isLoading]="true" />
+            <app-portal-detail-shell [isLoading]="true" />
         }
     `,
     changeDetection: ChangeDetectionStrategy.OnPush,

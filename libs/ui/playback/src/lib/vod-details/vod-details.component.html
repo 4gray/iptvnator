@@ -1,15 +1,16 @@
 @let meta = normalizedMeta();
 
-<!-- Hero Section with Backdrop -->
-<app-content-hero
+<app-portal-detail-shell
     [title]="meta.title"
     [description]="meta.description"
     [posterUrl]="meta.posterUrl"
     [backdropUrl]="meta.backdropUrl"
+    [playbackActive]="!!inlinePlayback()"
     (backClicked)="goBack()"
+    (closePlayerRequested)="closeInlinePlayback()"
 >
     <!-- Tags: Year, Genre, Duration, Rating -->
-    <ng-container hero-tags>
+    <ng-template detailTags>
         @if (meta.year) {
             <span class="details__tag">{{ meta.year }}</span>
         }
@@ -27,10 +28,10 @@
         @if (meta.country) {
             <span class="details__tag">{{ meta.country }}</span>
         }
-    </ng-container>
+    </ng-template>
 
     <!-- Metadata Grid -->
-    <ng-container hero-meta>
+    <ng-template detailMeta>
         @if (meta.actors || meta.tmdbCast?.length) {
             <div class="details__meta-item">
                 <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
@@ -86,10 +87,10 @@
                 <span class="value">{{ meta.ratingKinopoisk }}</span>
             </div>
         }
-    </ng-container>
+    </ng-template>
 
     <!-- Action Buttons -->
-    <ng-container hero-actions>
+    <ng-template detailActions>
         <!-- Resume/Play buttons -->
         @if (hasPlaybackPosition()) {
             <button
@@ -172,10 +173,11 @@
                 </button>
             }
         }
-    </ng-container>
+    </ng-template>
 
     @if (inlinePlayback(); as playback) {
         <app-portal-inline-player
+            detail-player
             [playback]="playback"
             (timeUpdate)="onInlineTimeUpdate($event)"
             (closed)="closeInlinePlayback()"
@@ -186,19 +188,21 @@
         />
     }
 
-    <!-- YouTube Trailer (provider or TMDB enrichment) -->
-    @if (trailerEmbedUrl(); as trailerUrl) {
-        <div class="youtube-trailer">
-            <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
-            <div class="trailer-wrapper">
-                <iframe
-                    [src]="trailerUrl | safe"
-                    title="YouTube video player"
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    referrerpolicy="strict-origin-when-cross-origin"
-                    allowfullscreen
-                ></iframe>
+    <div detail-extras>
+        <!-- YouTube Trailer (provider or TMDB enrichment) -->
+        @if (trailerEmbedUrl(); as trailerUrl) {
+            <div class="youtube-trailer">
+                <h3>{{ 'XTREAM.YOUTUBE_TRAILER' | translate }}</h3>
+                <div class="trailer-wrapper">
+                    <iframe
+                        [src]="trailerUrl | safe"
+                        title="YouTube video player"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                        referrerpolicy="strict-origin-when-cross-origin"
+                        allowfullscreen
+                    ></iframe>
+                </div>
             </div>
-        </div>
-    }
-</app-content-hero>
+        }
+    </div>
+</app-portal-detail-shell>

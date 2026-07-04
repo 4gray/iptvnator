@@ -14,7 +14,10 @@ import { Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import {
-    ContentHeroComponent,
+    DetailActionsTemplateDirective,
+    DetailMetaTemplateDirective,
+    DetailTagsTemplateDirective,
+    PortalDetailShellComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
 } from '@iptvnator/ui/components';
@@ -82,7 +85,10 @@ import {
     styleUrls: ['../styles/detail-view.scss'],
     imports: [
         FavoritesButtonComponent,
-        ContentHeroComponent,
+        DetailActionsTemplateDirective,
+        DetailMetaTemplateDirective,
+        DetailTagsTemplateDirective,
+        PortalDetailShellComponent,
         PortalInlinePlayerComponent,
         SafePipe,
         TranslatePipe,
