@@ -76,12 +76,18 @@ export function youtubeEmbedUrl(
         return null;
     }
 
+    // Two linear passes instead of one "watch\?.*v=" alternation, which
+    // backtracks polynomially on hostile input (CodeQL js/polynomial-redos)
     let videoId = raw;
-    const urlMatch = raw.match(
-        /(?:youtube(?:-nocookie)?\.com\/(?:watch\?.*v=|embed\/|shorts\/)|youtu\.be\/)([A-Za-z0-9_-]{6,})/
-    );
-    if (urlMatch) {
-        videoId = urlMatch[1];
+    if (/youtube(?:-nocookie)?\.com\/watch\?/.test(raw)) {
+        videoId = raw.match(/[?&]v=([A-Za-z0-9_-]{6,})/)?.[1] ?? '';
+    } else {
+        const urlMatch = raw.match(
+            /(?:youtube(?:-nocookie)?\.com\/(?:embed|shorts)\/|youtu\.be\/)([A-Za-z0-9_-]{6,})/
+        );
+        if (urlMatch) {
+            videoId = urlMatch[1];
+        }
     }
 
     return /^[A-Za-z0-9_-]{6,}$/.test(videoId)

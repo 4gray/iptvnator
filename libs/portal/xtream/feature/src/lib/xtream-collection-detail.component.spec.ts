@@ -8,7 +8,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
-import { of } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { XtreamCollectionDetailComponent } from './xtream-collection-detail.component';
 
@@ -129,12 +129,18 @@ describe('XtreamCollectionDetailComponent', () => {
         expect(fixture.componentInstance.detailComponent()).toBe(
             SerialDetailsComponent
         );
-        expect(
-            fixture.componentInstance
-                .detailInjector()
-                ?.get(ActivatedRoute)
-                .snapshot.params
-        ).toEqual({
+        const route = fixture.componentInstance
+            .detailInjector()
+            ?.get(ActivatedRoute);
+        expect(route?.snapshot.params).toEqual({
+            categoryId: '3',
+            serialId: '103',
+        });
+        // Regression: the detail components consume route.params via
+        // toSignal(), so the fake route must expose the observable too —
+        // otherwise the inline detail crashes on construction.
+        expect(route?.params).toBeDefined();
+        await expect(firstValueFrom(route!.params)).resolves.toEqual({
             categoryId: '3',
             serialId: '103',
         });

@@ -46,10 +46,12 @@ export function normalizeTitle(raw: string | null | undefined): string {
     }
 
     const cleaned = raw
-        .replace(/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}/g, ' ')
+        // Inner classes exclude the opening delimiter too, so runaway
+        // inputs like "[[[[[…" backtrack linearly (CodeQL js/polynomial-redos)
+        .replace(/\[[^\][]*\]|\([^()]*\)|\{[^{}]*\}/g, ' ')
         .replace(LANGUAGE_PREFIX, '')
         .normalize('NFD')
-        .replace(/[̀-ͯ]/g, '')
+        .replace(/[\u0300-\u036F]/g, '')
         .toLowerCase()
         .replace(/[^\p{L}\p{N}]+/gu, ' ')
         .split(' ')
