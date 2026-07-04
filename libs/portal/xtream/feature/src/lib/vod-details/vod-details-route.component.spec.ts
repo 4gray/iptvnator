@@ -54,7 +54,10 @@ describe('VodDetailsRouteComponent', () => {
         consoleDebugSpy = jest
             .spyOn(console, 'debug')
             .mockImplementation((...args: unknown[]) => {
-                if (args[0] === '[VodDetailsRoute]') {
+                if (
+                    args[0] === '[VodDetailsRoute]' ||
+                    args[0] === '[VodDetailsPlayback]'
+                ) {
                     return;
                 }
 
@@ -94,6 +97,10 @@ describe('VodDetailsRouteComponent', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
+                        params: of({
+                            vodId: '650020',
+                            categoryId: '235',
+                        }),
                         snapshot: {
                             params: {
                                 vodId: '650020',

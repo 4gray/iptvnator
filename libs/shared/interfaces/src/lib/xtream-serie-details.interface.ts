@@ -1,3 +1,8 @@
+import {
+    TmdbEnrichedCastMember,
+    TmdbRecommendation,
+} from './tmdb.interface';
+
 export interface XtreamSerieDetails {
     seasons: XtreamSerieSeason[];
     info: XtreamSerieInfo;
@@ -19,6 +24,12 @@ export interface XtreamSerieInfo {
     youtube_trailer: string;
     episode_run_time: string;
     category_id: string;
+    /** Populated by TMDB enrichment; absent in raw provider responses */
+    tmdb_cast?: TmdbEnrichedCastMember[];
+    /** Populated by TMDB enrichment; matched against the catalog in views */
+    tmdb_recommendations?: TmdbRecommendation[];
+    /** Matched TMDB show id — enables lazy season/episode enrichment */
+    tmdb_id?: number;
 }
 
 export interface XtreamSerieEpisode {

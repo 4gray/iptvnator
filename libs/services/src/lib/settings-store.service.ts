@@ -11,6 +11,7 @@ import { StorageMap } from '@ngx-pwa/local-storage';
 import { firstValueFrom } from 'rxjs';
 import {
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
+    DEFAULT_TMDB_SETTINGS,
     ElectronBridgeTrustOptions,
     EpgViewMode,
     Language,
@@ -50,6 +51,7 @@ const DEFAULT_SETTINGS: Settings = {
     preferUploadedEpgOverXtream: false,
     trustedPrivateNetworkEpgUrls: [],
     trustedInsecureTlsHosts: [],
+    tmdb: DEFAULT_TMDB_SETTINGS,
 };
 
 let embeddedMpvPrepareScheduled = false;
@@ -200,6 +202,7 @@ export const SettingsStore = signalStore(
                 trustedInsecureTlsHosts:
                     store.trustedInsecureTlsHosts?.() ??
                     DEFAULT_SETTINGS.trustedInsecureTlsHosts,
+                tmdb: store.tmdb?.() ?? DEFAULT_SETTINGS.tmdb,
             };
         },
 

@@ -73,6 +73,17 @@ export function getDatabasePath(): string {
 /**
  * SQL statements for creating all tables
  */
+const TMDB_METADATA_TABLE_SQL = `CREATE TABLE IF NOT EXISTS tmdb_metadata (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      media_type TEXT NOT NULL CHECK (media_type IN ('movie', 'tv', 'person')),
+      lookup_key TEXT NOT NULL,
+      language TEXT NOT NULL,
+      tmdb_id INTEGER,
+      payload TEXT,
+      fetched_at TEXT DEFAULT (datetime('now'))
+  )`;
+const TMDB_METADATA_INDEX_SQL = `CREATE UNIQUE INDEX IF NOT EXISTS tmdb_metadata_lookup_unique ON tmdb_metadata(media_type, lookup_key, language)`;
+
 const CREATE_TABLE_STATEMENTS = [
     `CREATE TABLE IF NOT EXISTS playlists (
       id TEXT PRIMARY KEY,
@@ -294,6 +305,9 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE UNIQUE INDEX IF NOT EXISTS downloads_xtream_playlist_unique ON downloads(xtream_id, playlist_id, content_type)`,
     `CREATE INDEX IF NOT EXISTS downloads_playlist_idx ON downloads(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS downloads_status_idx ON downloads(status)`,
+    // TMDB metadata cache (details payloads + search match resolutions)
+    TMDB_METADATA_TABLE_SQL,
+    TMDB_METADATA_INDEX_SQL,
 ];
 
 /**
@@ -715,9 +729,40 @@ function runMigrationStatements(
 }
 
 /**
+ * Pre-release installs created tmdb_metadata with a CHECK that only
+ * allowed 'movie'/'tv'; person rows need 'person'. The table is a pure
+ * cache, so the cheapest "migration" is a drop-and-recreate with the
+ * widened constraint. Self-healing via sqlite_master — no app_state key.
+ */
+function widenTmdbMetadataMediaTypeCheck(sqliteDb: Database.Database): void {
+    try {
+        const row = sqliteDb
+            .prepare(
+                `SELECT sql FROM sqlite_master WHERE type = 'table' AND name = 'tmdb_metadata'`
+            )
+            .get() as { sql?: string } | undefined;
+        if (!row?.sql || row.sql.includes(`'person'`)) {
+            return;
+        }
+        const rebuild = sqliteDb.transaction(() => {
+            sqliteDb.prepare(`DROP TABLE IF EXISTS tmdb_metadata`).run();
+            sqliteDb.prepare(TMDB_METADATA_TABLE_SQL).run();
+            sqliteDb.prepare(TMDB_METADATA_INDEX_SQL).run();
+        });
+        rebuild();
+        console.log(
+            '[DB] Rebuilt tmdb_metadata cache with widened media_type CHECK'
+        );
+    } catch (error) {
+        console.warn('[DB] tmdb_metadata CHECK widening failed:', error);
+    }
+}
+
+/**
  * Run migrations that may fail if already applied
  */
 function runMigrations(sqliteDb: Database.Database): void {
+    widenTmdbMetadataMediaTypeCheck(sqliteDb);
     runMigrationStatements(sqliteDb, COLUMN_MIGRATION_STATEMENTS);
     ensureContentTitleFts(sqliteDb);
     deduplicateXtreamCache(sqliteDb);

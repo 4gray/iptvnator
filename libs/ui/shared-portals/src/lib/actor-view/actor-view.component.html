@@ -1,0 +1,175 @@
+<div class="actor-view">
+    <button
+        class="actor-view__back"
+        type="button"
+        (click)="backClicked.emit()"
+        [attr.aria-label]="'BACK' | translate"
+    >
+        <mat-icon>arrow_back</mat-icon>
+    </button>
+
+    @if (isLoading()) {
+        <div class="actor-view__loading">
+            <mat-spinner diameter="48" />
+        </div>
+    } @else if (profile(); as person) {
+        <header class="actor-view__header">
+            @if (person.photoUrl) {
+                <img
+                    class="actor-view__photo"
+                    [src]="person.photoUrl"
+                    [alt]="person.name"
+                />
+            } @else {
+                <span class="actor-view__photo actor-view__photo--fallback">
+                    {{ person.name.charAt(0) }}
+                </span>
+            }
+            <div class="actor-view__meta">
+                <h1>{{ person.name }}</h1>
+                @if (person.birthday) {
+                    <p class="actor-view__born">
+                        {{ 'XTREAM.ACTOR_BORN' | translate }}
+                        {{ person.birthday }}
+                        @if (person.placeOfBirth) {
+                            · {{ person.placeOfBirth }}
+                        }
+                    </p>
+                }
+                @if (person.biography) {
+                    <p class="actor-view__bio">{{ person.biography }}</p>
+                }
+            </div>
+        </header>
+
+        <section class="actor-view__filmography">
+            <h2>
+                {{ 'XTREAM.ACTOR_FILMOGRAPHY' | translate }}
+                @if (showScopeToggle()) {
+                    <span class="actor-view__filter">
+                        <button
+                            type="button"
+                            class="actor-view__filter-chip"
+                            [class.actor-view__filter-chip--active]="
+                                scope() === 'portal'
+                            "
+                            (click)="scopeChanged.emit('portal')"
+                        >
+                            {{ 'XTREAM.ACTOR_SCOPE_THIS_PORTAL' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            class="actor-view__filter-chip"
+                            [class.actor-view__filter-chip--active]="
+                                scope() === 'global'
+                            "
+                            (click)="scopeChanged.emit('global')"
+                        >
+                            {{ 'XTREAM.ACTOR_SCOPE_ALL_PORTALS' | translate }}
+                        </button>
+                    </span>
+                }
+                @if (showAvailabilityFilter()) {
+                    <span class="actor-view__filter">
+                        <button
+                            type="button"
+                            class="actor-view__filter-chip"
+                            [class.actor-view__filter-chip--active]="
+                                filterMode() === 'all'
+                            "
+                            (click)="filterMode.set('all')"
+                        >
+                            {{ 'XTREAM.ACTOR_FILTER_ALL' | translate }}
+                        </button>
+                        <button
+                            type="button"
+                            class="actor-view__filter-chip"
+                            [class.actor-view__filter-chip--active]="
+                                filterMode() === 'available'
+                            "
+                            (click)="filterMode.set('available')"
+                        >
+                            {{ 'XTREAM.ACTOR_IN_LIBRARY' | translate }}
+                        </button>
+                    </span>
+                }
+            </h2>
+            @if (isMatching()) {
+                <div class="actor-view__matching">
+                    <mat-spinner diameter="32" />
+                </div>
+            } @else if (visibleItems().length === 0) {
+                <div class="actor-view__empty">
+                    <mat-icon>search_off</mat-icon>
+                    <p>{{ 'XTREAM.ACTOR_NO_RESULTS' | translate }}</p>
+                </div>
+            }
+            <div class="actor-view__grid">
+                @for (
+                    item of visibleItems();
+                    track item.mediaType + '-' + item.tmdbId
+                ) {
+                    <button
+                        type="button"
+                        class="actor-view__card"
+                        [class.actor-view__card--unavailable]="!item.available"
+                        [title]="
+                            item.character
+                                ? item.title + ' — ' + item.character
+                                : item.title
+                        "
+                        (click)="itemClicked.emit(item)"
+                    >
+                        @if (item.posterUrl) {
+                            <img
+                                class="actor-view__poster"
+                                [src]="item.posterUrl"
+                                [alt]="item.title"
+                                loading="lazy"
+                            />
+                        } @else {
+                            <span
+                                class="actor-view__poster actor-view__poster--fallback"
+                            >
+                                {{ item.title.charAt(0) }}
+                            </span>
+                        }
+                        @if (item.available && item.availableIn) {
+                            <span class="actor-view__badge">
+                                <mat-icon>check_circle</mat-icon>
+                                {{ item.availableIn }}
+                            </span>
+                        } @else if (
+                            item.available && filterMode() !== 'available'
+                        ) {
+                            <span class="actor-view__badge">
+                                <mat-icon>check_circle</mat-icon>
+                                {{ 'XTREAM.ACTOR_IN_LIBRARY' | translate }}
+                            </span>
+                        } @else if (!item.available) {
+                            <span
+                                class="actor-view__badge actor-view__badge--search"
+                            >
+                                <mat-icon>search</mat-icon>
+                                {{
+                                    'XTREAM.ACTOR_SEARCH_IN_PORTAL' | translate
+                                }}
+                            </span>
+                        }
+                        <span class="actor-view__card-title">
+                            {{ item.title }}
+                        </span>
+                        <span class="actor-view__card-sub">
+                            @if (item.year) {
+                                {{ item.year }}
+                            }
+                            @if (item.character) {
+                                · {{ item.character }}
+                            }
+                        </span>
+                    </button>
+                }
+            </div>
+        </section>
+    }
+</div>

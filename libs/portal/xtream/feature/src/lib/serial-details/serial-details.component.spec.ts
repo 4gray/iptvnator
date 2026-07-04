@@ -158,6 +158,10 @@ describe('SerialDetailsComponent', () => {
                 {
                     provide: ActivatedRoute,
                     useValue: {
+                        params: of({
+                            categoryId: '3',
+                            serialId: '103',
+                        }),
                         snapshot: {
                             params: {
                                 categoryId: '3',

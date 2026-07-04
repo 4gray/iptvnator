@@ -349,3 +349,31 @@ export const downloads = sqliteTable(
 
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
+
+// TMDB metadata cache table.
+// Two row kinds share the table, discriminated by the lookup_key prefix:
+// - 'id:<tmdbId>'                 → full TMDB details payload (JSON)
+// - 'title:<normalized>|year:<y>' → search resolution; tmdb_id NULL means
+//                                   "no confident match" (negative cache)
+export const tmdbMetadata = sqliteTable(
+    'tmdb_metadata',
+    {
+        id: integer('id').primaryKey({ autoIncrement: true }),
+        mediaType: text('media_type', { enum: ['movie', 'tv', 'person'] }).notNull(),
+        lookupKey: text('lookup_key').notNull(),
+        language: text('language').notNull(),
+        tmdbId: integer('tmdb_id'),
+        payload: text('payload'),
+        fetchedAt: text('fetched_at').default(sql`CURRENT_TIMESTAMP`),
+    },
+    (table) => ({
+        lookupUnique: uniqueIndex('tmdb_metadata_lookup_unique').on(
+            table.mediaType,
+            table.lookupKey,
+            table.language
+        ),
+    })
+);
+
+export type TmdbMetadata = typeof tmdbMetadata.$inferSelect;
+export type NewTmdbMetadata = typeof tmdbMetadata.$inferInsert;

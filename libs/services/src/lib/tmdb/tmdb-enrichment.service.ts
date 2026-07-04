@@ -1,0 +1,319 @@
+import { Injectable, inject } from '@angular/core';
+import { TmdbMediaType } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '../settings-store.service';
+import { TmdbApiService } from './tmdb-api.service';
+import { TmdbCacheService } from './tmdb-cache.service';
+import {
+    DEFAULT_TMDB_API_KEY,
+    TMDB_DETAILS_CACHE_TTL_MS,
+    TMDB_MATCH_CACHE_TTL_MS,
+    TMDB_NEGATIVE_MATCH_CACHE_TTL_MS,
+    tmdbSearchLanguageForTitle,
+    toTmdbLanguage,
+} from './tmdb-config';
+import {
+    buildDetailsLookupKey,
+    buildSearchLookupKey,
+    buildSearchTitleVariants,
+    extractYear,
+    parseProviderTmdbId,
+    pickConfidentMatch,
+} from './tmdb-matcher';
+import {
+    TmdbDetails,
+    TmdbEnrichmentQuery,
+    TmdbEpisode,
+    TmdbMovieDetails,
+    TmdbPersonDetails,
+    TmdbSeasonDetails,
+    TmdbTvDetails,
+} from './tmdb.types';
+
+/**
+ * Best-effort TMDB enrichment orchestrator. Resolves a provider item to a
+ * TMDB id (trusting the provider's tmdb_id, else a confidence-gated title
+ * search), fetches localized details with credits, and caches every step.
+ * Any failure returns `null` — detail views always render provider data.
+ */
+@Injectable({ providedIn: 'root' })
+export class TmdbEnrichmentService {
+    private readonly settingsStore = inject(SettingsStore);
+    private readonly api = inject(TmdbApiService);
+    private readonly cache = inject(TmdbCacheService);
+
+    isEnabled(): boolean {
+        return Boolean(this.settingsStore.tmdb?.()?.enabled && this.apiKey());
+    }
+
+    async enrichMovie(
+        query: TmdbEnrichmentQuery
+    ): Promise<TmdbMovieDetails | null> {
+        return (await this.enrich('movie', query)) as TmdbMovieDetails | null;
+    }
+
+    async enrichTv(query: TmdbEnrichmentQuery): Promise<TmdbTvDetails | null> {
+        return (await this.enrich('tv', query)) as TmdbTvDetails | null;
+    }
+
+    /**
+     * Episode list of one season (names, overviews, stills, air dates) in
+     * the app language. Fetched lazily when a season is opened and cached
+     * like details payloads. Returns `null` when enrichment is off or the
+     * request fails — episode lists then stay provider-only.
+     */
+    async getSeasonEpisodes(
+        tmdbId: number,
+        seasonNumber: number
+    ): Promise<TmdbEpisode[] | null> {
+        if (!this.isEnabled()) {
+            return null;
+        }
+
+        try {
+            const language = this.language();
+            const lookupKey = `id:${tmdbId}|season:${seasonNumber}`;
+
+            const cached = await this.cache.get('tv', lookupKey, language);
+            if (
+                this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
+                cached?.payload
+            ) {
+                try {
+                    const season = JSON.parse(
+                        cached.payload
+                    ) as TmdbSeasonDetails;
+                    return season.episodes ?? [];
+                } catch {
+                    // Corrupt cache row — fall through to a fresh fetch
+                }
+            }
+
+            const season = await this.api.getSeasonDetails(
+                tmdbId,
+                seasonNumber,
+                language,
+                this.apiKey()
+            );
+
+            await this.cache.set({
+                mediaType: 'tv',
+                lookupKey,
+                language,
+                tmdbId,
+                payload: JSON.stringify(season),
+            });
+
+            return season.episodes ?? [];
+        } catch (error) {
+            console.warn('TMDB season enrichment failed:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Person details with the full combined filmography, in the app
+     * language. Cached like details payloads under the 'person' media
+     * type.
+     */
+    async getPersonDetails(
+        personId: number
+    ): Promise<TmdbPersonDetails | null> {
+        if (!this.isEnabled() || !Number.isInteger(personId) || personId <= 0) {
+            return null;
+        }
+
+        try {
+            const language = this.language();
+            const lookupKey = `person:${personId}`;
+
+            const cached = await this.cache.get('person', lookupKey, language);
+            if (
+                this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
+                cached?.payload
+            ) {
+                try {
+                    return JSON.parse(cached.payload) as TmdbPersonDetails;
+                } catch {
+                    // Corrupt cache row — fall through to a fresh fetch
+                }
+            }
+
+            const person = await this.api.getPersonDetails(
+                personId,
+                language,
+                this.apiKey()
+            );
+
+            await this.cache.set({
+                mediaType: 'person',
+                lookupKey,
+                language,
+                tmdbId: personId,
+                payload: JSON.stringify(person),
+            });
+
+            return person;
+        } catch (error) {
+            console.warn('TMDB person enrichment failed:', error);
+            return null;
+        }
+    }
+
+    private async enrich(
+        mediaType: TmdbMediaType,
+        query: TmdbEnrichmentQuery
+    ): Promise<TmdbDetails | null> {
+        if (!this.isEnabled()) {
+            return null;
+        }
+
+        try {
+            const tmdbId =
+                parseProviderTmdbId(query.tmdbId) ??
+                (await this.resolveIdBySearch(mediaType, query));
+
+            if (tmdbId === null) {
+                return null;
+            }
+
+            return await this.getDetails(mediaType, tmdbId);
+        } catch (error) {
+            console.warn(`TMDB ${mediaType} enrichment failed:`, error);
+            return null;
+        }
+    }
+
+    /**
+     * Resolve a title/year to a TMDB id via /search with the confidence
+     * gate. Both hits and misses are cached; misses use a shorter TTL.
+     */
+    private async resolveIdBySearch(
+        mediaType: TmdbMediaType,
+        query: TmdbEnrichmentQuery
+    ): Promise<number | null> {
+        // Try the original title, the display title, then language-prefix-
+        // stripped fallbacks; the first confident match wins.
+        const variants = buildSearchTitleVariants(
+            query.title,
+            query.originalTitle
+        );
+        if (variants.length === 0) {
+            return null;
+        }
+
+        const year = query.year ?? extractYear(null, query.title);
+        const cacheLanguage = tmdbSearchLanguageForTitle(
+            variants[0],
+            this.settingsStore.language()
+        );
+        const lookupKey = buildSearchLookupKey(variants[0], year);
+
+        const cached = await this.cache.get(
+            mediaType,
+            lookupKey,
+            cacheLanguage
+        );
+        const ttl =
+            cached?.tmdbId !== null && cached?.tmdbId !== undefined
+                ? TMDB_MATCH_CACHE_TTL_MS
+                : TMDB_NEGATIVE_MATCH_CACHE_TTL_MS;
+        if (this.cache.isFresh(cached, ttl)) {
+            return cached?.tmdbId ?? null;
+        }
+
+        let match = null;
+        for (const variant of variants) {
+            // Cyrillic (and other non-app-script) titles search in their
+            // own language so TMDB returns comparable titles — see
+            // tmdbSearchLanguageForTitle. Search by title only: TMDB's
+            // year params filter strictly; the ±1/season tolerance lives
+            // in pickConfidentMatch instead.
+            const language = tmdbSearchLanguageForTitle(
+                variant,
+                this.settingsStore.language()
+            );
+            const results =
+                mediaType === 'movie'
+                    ? await this.api.searchMovie(
+                          variant,
+                          null,
+                          language,
+                          this.apiKey()
+                      )
+                    : await this.api.searchTv(
+                          variant,
+                          null,
+                          language,
+                          this.apiKey()
+                      );
+
+            match = pickConfidentMatch(
+                results,
+                { title: variant, year },
+                mediaType
+            );
+            if (match) {
+                break;
+            }
+        }
+
+        await this.cache.set({
+            mediaType,
+            lookupKey,
+            language: cacheLanguage,
+            tmdbId: match?.id ?? null,
+            payload: null,
+        });
+
+        return match?.id ?? null;
+    }
+
+    private async getDetails(
+        mediaType: TmdbMediaType,
+        tmdbId: number
+    ): Promise<TmdbDetails | null> {
+        const language = this.language();
+        const lookupKey = buildDetailsLookupKey(tmdbId);
+
+        const cached = await this.cache.get(mediaType, lookupKey, language);
+        if (
+            this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
+            cached?.payload
+        ) {
+            try {
+                return JSON.parse(cached.payload) as TmdbDetails;
+            } catch {
+                // Corrupt cache row — fall through to a fresh fetch
+            }
+        }
+
+        const details =
+            mediaType === 'movie'
+                ? await this.api.getMovieDetails(
+                      tmdbId,
+                      language,
+                      this.apiKey()
+                  )
+                : await this.api.getTvDetails(tmdbId, language, this.apiKey());
+
+        await this.cache.set({
+            mediaType,
+            lookupKey,
+            language,
+            tmdbId,
+            payload: JSON.stringify(details),
+        });
+
+        return details;
+    }
+
+    private apiKey(): string {
+        return (
+            this.settingsStore.tmdb?.()?.apiKey?.trim() || DEFAULT_TMDB_API_KEY
+        );
+    }
+
+    private language(): string {
+        return toTmdbLanguage(this.settingsStore.language());
+    }
+}

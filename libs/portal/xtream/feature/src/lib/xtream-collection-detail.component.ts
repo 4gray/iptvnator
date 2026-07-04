@@ -19,7 +19,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
-import { firstValueFrom } from 'rxjs';
+import { firstValueFrom, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
 import { VodDetailsRouteComponent } from './vod-details/vod-details-route.component';
 
@@ -132,28 +132,26 @@ export class XtreamCollectionDetailComponent {
                 ? VodDetailsRouteComponent
                 : SerialDetailsComponent
         );
+        const routeParams =
+            item.contentType === 'movie'
+                ? {
+                      categoryId: this.toPathSegment(item.categoryId),
+                      vodId: xtreamId,
+                  }
+                : {
+                      categoryId: this.toPathSegment(item.categoryId),
+                      serialId: xtreamId,
+                  };
         this.detailInjector.set(
             Injector.create({
                 providers: [
                     {
                         provide: ActivatedRoute,
+                        // The detail components read both snapshot.params and
+                        // the params observable (via toSignal) — provide both.
                         useValue: {
-                            snapshot: {
-                                params:
-                                    item.contentType === 'movie'
-                                        ? {
-                                              categoryId: this.toPathSegment(
-                                                  item.categoryId
-                                              ),
-                                              vodId: xtreamId,
-                                          }
-                                        : {
-                                              categoryId: this.toPathSegment(
-                                                  item.categoryId
-                                              ),
-                                              serialId: xtreamId,
-                                          },
-                            },
+                            snapshot: { params: routeParams },
+                            params: of(routeParams),
                         },
                     },
                 ],

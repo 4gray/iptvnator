@@ -236,7 +236,7 @@ This is an Nx monorepo with the following structure:
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
     - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
-    - **services** - Abstract DataService contract and shared app services
+    - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
     - **shared/m3u-utils** - M3U playlist utilities
@@ -426,8 +426,8 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 
 - Dashboard: `/workspace/dashboard`; sources overview: `/workspace/sources`
 - M3U player: `/workspace/playlists/:id` (children: `favorites`, `recent`, `:view`) — routes in `libs/playlist/m3u/feature-player`
-- Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
-- Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
+- Xtream Codes: `/workspace/xtreams/:id` (children: `live`, `vod`, `series`, `search`, `actor/:personId`, `recently-added`, `favorites`, `recent`, `downloads`) — `libs/portal/xtream/feature/src/lib/xtream-feature.routes.ts`
+- Stalker portal: `/workspace/stalker/:id` (children: `itv`, `vod`, `radio`, `series`, `favorites`, `recent`, `search`, `actor/:personId`, `downloads`) — `libs/portal/stalker/feature/src/lib/stalker-feature.routes.ts`
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
 - Downloads: `/workspace/downloads`
@@ -576,6 +576,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `playbackPositions` - Resume positions
     - `downloads` - Download manager state
     - `appState` - Key-value app state (also tracks one-off data migrations)
+    - `tmdbMetadata` - TMDB enrichment cache (details payloads + search match resolutions, keyed by media type/lookup key/language)
 - **Connection**: `libs/shared/database/src/lib/connection.ts`
     - `createTables()` auto-creates tables on init (`CREATE TABLE IF NOT EXISTS`)
     - Provides full read-write access for `electron-backend` and a read-only mode
@@ -632,6 +633,21 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - XMLTV format support
 - Background parsing in worker thread
 - Stored in database for quick lookup
+
+**TMDB Metadata Enrichment** (opt-in):
+
+- Enriches Xtream and Stalker VOD/series detail views with TMDB data (plot, cast with avatar chips, director, genres, rating, artwork, YouTube trailers) via a field-level merge — the provider stays authoritative for stream data and any field TMDB can't fill; Cyrillic titles are searched with `ru-RU` so exact-title matching works
+- "Similar" rail in Xtream detail views: TMDB recommendations matched against the provider catalog by normalized title, two-tier — exact form first, year-stripped fallback gated on year compatibility (`libs/portal/xtream/feature/src/lib/tmdb-similar.util.ts`, `normalizeTitleKeys`); detail components re-initialize on route param changes since the router reuses them for detail→detail navigation
+- Season/episode enrichment: opening a season lazily fetches `/tv/{id}/season/{n}` and overlays real episode names, overviews and stills via `mergeEpisodesWithTmdb` (Xtream: `XtreamStore.enrichSelectedSerialSeason`; Stalker: overlay in the series view's `mappedSeasons`)
+- Actor pages: cast avatar chips are clickable (TMDB person id) and open `actor/:personId` inside the current portal — TMDB person bio + full filmography; Xtream matches titles against the loaded catalog (direct navigation), unmatched titles and all Stalker titles open the portal search prefilled (`?q=`); shared UI in `libs/ui/shared-portals` (`ActorViewComponent`)
+- Actor page "All portals" scope (Electron only): batched `DB_MATCH_TITLES` worker op (trigram FTS over all imported Xtream playlists, `apps/electron-backend/src/app/database/operations/title-match.operations.ts`); `normalizeTitle` is shared renderer/worker via `libs/shared/interfaces/src/lib/title-normalization.util.ts`
+- Opt-in via `Settings > Metadata (TMDB)` (sends titles to TMDB); optional user API key overrides the embedded default (`DEFAULT_TMDB_API_KEY` in `libs/services/src/lib/tmdb/tmdb-config.ts` — an empty placeholder in the repo by design; the real key lives in the `TMDB_API_KEY` GitHub Actions secret and is injected at CI build time by `tools/tmdb/inject-tmdb-key.mjs`)
+- Match confidence: provider `tmdb_id` trusted fully; otherwise normalized-title + year (±1) search with a strict gate — no confident match means no enrichment
+- Detail views render provider data immediately; enrichment patches the selection asynchronously (staleness-guarded)
+- Cached in SQLite `tmdb_metadata` (Electron, via DB worker ops `DB_GET/SET_TMDB_METADATA`) or in-memory (PWA); localized via the app language setting
+- Service layer: `libs/services/src/lib/tmdb/`; store glue: `libs/portal/xtream/data-access/src/lib/stores/xtream-tmdb-enrichment.ts` and `libs/portal/stalker/data-access/src/lib/stores/stalker-tmdb-enrichment.ts` (hooked in `withStalkerSelection().setSelectedItem`)
+- TMDB attribution (logo + disclaimer) is required and shown in the settings TMDB section and About
+- See `docs/architecture/tmdb-metadata-enrichment.md`
 
 **Favorites and Recently Viewed**:
 

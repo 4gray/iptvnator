@@ -9,43 +9,38 @@ import {
     inject,
     signal,
 } from '@angular/core';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ContentHeroComponent } from '@iptvnator/ui/components';
 import { SafePipe } from '@iptvnator/pipes';
-import {
-    PORTAL_EXTERNAL_PLAYBACK,
-    PORTAL_PLAYBACK_POSITIONS,
-    PORTAL_PLAYER,
-    createLogger,
-    getPortalPlaybackProgressPercent,
-} from '@iptvnator/portal/shared/util';
+import { createLogger } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
+import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
-    DownloadsService,
-    PlaybackPositionRuntimeBridgeService,
-    SettingsStore,
-} from '@iptvnator/services';
-import {
-    PlaybackPositionData,
-    PlayerContentInfo,
-    ResolvedPortalPlayback,
     XtreamCategory,
+    TmdbEnrichedCastMember,
     XtreamVodDetails,
     XtreamVodInfo,
     XtreamVodStream,
     getXtreamVodInfo,
+    youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
+import {
+    SimilarCatalogItem,
+    matchRecommendationsToCatalog,
+} from '../tmdb-similar.util';
 import {
     buildXtreamVodFallbackViewModel,
     hasUsableXtreamVodMetadata,
 } from './vod-details-fallback.util';
+import { VodDetailsPlaybackService } from './vod-details-playback.service';
 
 @Component({
     templateUrl: './vod-details-route.component.html',
@@ -54,6 +49,7 @@ import {
         './vod-details-route.component.scss',
     ],
     changeDetection: ChangeDetectionStrategy.OnPush,
+    providers: [VodDetailsPlaybackService],
     imports: [
         ContentHeroComponent,
         MatIcon,
@@ -67,21 +63,27 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly location = inject(Location);
     private readonly settingsStore = inject(SettingsStore);
     private readonly route = inject(ActivatedRoute);
+    private readonly router = inject(Router);
     private readonly xtreamStore = inject(XtreamStore);
-    private readonly playbackPositions = inject(PORTAL_PLAYBACK_POSITIONS);
-    private readonly playbackPositionBridge = inject(
-        PlaybackPositionRuntimeBridgeService
-    );
     private readonly downloadsService = inject(DownloadsService);
-    private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
-    private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly snackBar = inject(MatSnackBar);
     private readonly translateService = inject(TranslateService);
+    private readonly playback = inject(VodDetailsPlaybackService);
     private readonly logger = createLogger('VodDetailsRoute');
-    private readonly detailsInitDone = signal(false);
+    /** `playlistId:vodId` of the last initialized detail view */
+    private readonly lastInitKey = signal<string | null>(null);
     private readonly backdropBackfillKey = signal<string | null>(null);
-    readonly inlinePlayback = signal<ResolvedPortalPlayback | null>(null);
-    readonly vodPlaybackPosition = signal<PlaybackPositionData | null>(null);
+    readonly inlinePlayback = this.playback.inlinePlayback;
+    readonly vodPlaybackPosition = this.playback.vodPlaybackPosition;
+
+    /**
+     * Reactive route params: the component is reused when navigating
+     * between two VOD details (e.g. via the Similar rail), so computeds
+     * must not read the one-shot snapshot.
+     */
+    private readonly routeParams = toSignal(this.route.params, {
+        initialValue: this.route.snapshot.params,
+    });
 
     readonly theme = this.settingsStore.theme;
     readonly isElectron = this.downloadsService.isAvailable;
@@ -91,11 +93,9 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         () =>
             this.xtreamStore.selectedItem() as unknown as XtreamVodDetails | null
     );
-    readonly selectedVodId = computed(() =>
-        Number(this.route.snapshot.params.vodId)
-    );
+    readonly selectedVodId = computed(() => Number(this.routeParams().vodId));
     readonly selectedCategory = computed<Partial<XtreamCategory> | null>(() => {
-        const categoryId = this.route.snapshot.params.categoryId;
+        const categoryId = this.routeParams().categoryId;
         if (!categoryId) {
             return null;
         }
@@ -177,92 +177,18 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     });
     readonly isLoadingDetails = this.xtreamStore.isLoadingDetails;
     readonly detailsError = this.xtreamStore.detailsError;
-    private lastSaveTime = 0;
-    private unsubscribePositionUpdates: (() => void) | null = null;
-    readonly matchedExternalPlayback = computed(() => {
-        const session = this.externalPlayback.activeSession();
-        const vodId = Number(this.route.snapshot.params.vodId);
-        const playlistId = this.xtreamStore.currentPlaylist()?.id;
-
-        if (
-            !session?.contentInfo ||
-            !playlistId ||
-            session.status === 'error' ||
-            session.status === 'closed'
-        ) {
-            return null;
-        }
-
-        const contentInfo = session.contentInfo;
-        if (
-            contentInfo.playlistId !== playlistId ||
-            contentInfo.contentType !== 'vod' ||
-            contentInfo.contentXtreamId !== vodId
-        ) {
-            return null;
-        }
-
-        return session;
-    });
-    readonly externalPrimaryLabel = computed(() => {
-        const session = this.matchedExternalPlayback();
-        if (!session) {
-            return null;
-        }
-
-        const player = session.player.toUpperCase();
-        switch (session.status) {
-            case 'launching':
-                return `Opening in ${player}...`;
-            case 'opened':
-            case 'playing':
-                return `Stop ${player}`;
-            default:
-                return null;
-        }
-    });
-    readonly externalPrimaryIcon = computed(() => {
-        const session = this.matchedExternalPlayback();
-        switch (session?.status) {
-            case 'launching':
-                return 'hourglass_top';
-            case 'opened':
-            case 'playing':
-                return 'stop_circle';
-            default:
-                return 'play_arrow';
-        }
-    });
-    readonly isExternalLaunchPending = computed(
-        () => this.matchedExternalPlayback()?.status === 'launching'
-    );
-    readonly isExternalStopAction = computed(() => {
-        const status = this.matchedExternalPlayback()?.status;
-        return status === 'opened' || status === 'playing';
-    });
-    readonly externalPrimaryButtonState = computed(() => {
-        if (this.isExternalLaunchPending()) {
-            return 'launching';
-        }
-
-        return this.isExternalStopAction() ? 'stop' : 'idle';
-    });
-    readonly vodPlaybackProgress = computed(() =>
-        getPortalPlaybackProgressPercent(this.vodPlaybackPosition())
-    );
-
-    readonly hasPlaybackPosition = computed(() => {
-        const inProgress =
-            this.vodPlaybackProgress() > 0 && this.vodPlaybackProgress() < 90;
-        this.logger.debug('hasPlaybackPosition check', {
-            vodId: this.route.snapshot.params.vodId,
-            inProgress,
-        });
-        return inProgress;
-    });
+    readonly matchedExternalPlayback = this.playback.matchedExternalPlayback;
+    readonly externalPrimaryLabel = this.playback.externalPrimaryLabel;
+    readonly externalPrimaryIcon = this.playback.externalPrimaryIcon;
+    readonly isExternalLaunchPending = this.playback.isExternalLaunchPending;
+    readonly isExternalStopAction = this.playback.isExternalStopAction;
+    readonly externalPrimaryButtonState =
+        this.playback.externalPrimaryButtonState;
+    readonly vodPlaybackProgress = this.playback.vodPlaybackProgress;
+    readonly hasPlaybackPosition = this.playback.hasPlaybackPosition;
 
     readonly isDownloaded = computed(() => {
-        const vodId = Number(this.route.snapshot.params.vodId);
+        const vodId = this.selectedVodId();
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         if (!playlistId) return false;
         this.downloadsService.downloads();
@@ -270,25 +196,55 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     });
 
     readonly isDownloading = computed(() => {
-        const vodId = Number(this.route.snapshot.params.vodId);
+        const vodId = this.selectedVodId();
         const playlistId = this.xtreamStore.currentPlaylist()?.id;
         if (!playlistId) return false;
         this.downloadsService.downloads();
         return this.downloadsService.isDownloading(vodId, playlistId, 'vod');
     });
 
+    readonly trailerEmbedUrl = computed(() =>
+        youtubeEmbedUrl(this.selectedVodInfo()?.youtube_trailer)
+    );
+
+    /** TMDB recommendations matched against the loaded VOD catalog */
+    readonly similarItems = computed<SimilarCatalogItem[]>(() => {
+        const info = this.selectedVodInfo();
+        if (!info?.tmdb_recommendations?.length) {
+            return [];
+        }
+        return matchRecommendationsToCatalog(
+            info.tmdb_recommendations,
+            this.xtreamStore.vodStreams(),
+            { excludeId: this.selectedVodId() }
+        );
+    });
+
     constructor() {
+        this.playback.bind({
+            vodId: this.selectedVodId,
+            vodInfo: this.selectedVodInfo,
+        });
+
+        // Initializes on first render and RE-initializes when the route
+        // params change while the component is reused (Similar rail).
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id;
-            const vodId = Number(this.route.snapshot.params.vodId);
-            if (!playlistId || this.detailsInitDone()) return;
+            const vodId = this.selectedVodId();
+            if (!playlistId || !Number.isFinite(vodId) || vodId <= 0) return;
+
+            const initKey = `${playlistId}:${vodId}`;
+            if (this.lastInitKey() === initKey) return;
+            this.lastInitKey.set(initKey);
+
+            this.inlinePlayback.set(null);
+            this.vodPlaybackPosition.set(null);
             this.initializeVodDetails(playlistId, vodId);
-            this.detailsInitDone.set(true);
         });
 
         effect(() => {
             const playlistId = this.xtreamStore.currentPlaylist()?.id;
-            const vodId = Number(this.route.snapshot.params.vodId);
+            const vodId = this.selectedVodId();
             const backdropUrl =
                 this.selectedVodInfo()?.backdrop_path?.[0]?.trim();
 
@@ -314,147 +270,58 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
                 backdropUrl,
             });
         });
-
-        this.unsubscribePositionUpdates =
-            this.playbackPositionBridge.onPlaybackPositionUpdate(
-                (data: PlaybackPositionData) => {
-                    const playlistId = this.xtreamStore.currentPlaylist()?.id;
-                    const vodId = Number(this.route.snapshot.params.vodId);
-
-                    if (
-                        data.contentType !== 'vod' ||
-                        data.playlistId !== playlistId ||
-                        data.contentXtreamId !== vodId
-                    ) {
-                        return;
-                    }
-
-                    this.vodPlaybackPosition.set(data);
-                }
-            ) ?? null;
     }
 
     ngOnInit(): void {
-        const currentPlaylist = this.xtreamStore.currentPlaylist();
-        if (!currentPlaylist?.id) {
+        // Initialization is handled by the params-driven effect in the
+        // constructor; the hook remains for interface compatibility.
+        if (!this.xtreamStore.currentPlaylist()?.id) {
             this.logger.warn('Deferring VOD details init: playlist not ready');
+        }
+    }
+
+    openSimilar(item: SimilarCatalogItem): void {
+        void this.router.navigate(['../..', item.categoryId, item.id], {
+            relativeTo: this.route,
+        });
+    }
+
+    openActor(member: TmdbEnrichedCastMember): void {
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        if (!playlistId || !member.tmdbPersonId) {
             return;
         }
-        this.initializeVodDetails(
-            currentPlaylist.id,
-            Number(this.route.snapshot.params.vodId)
-        );
-        this.detailsInitDone.set(true);
+        void this.router.navigate([
+            '/workspace/xtreams',
+            playlistId,
+            'actor',
+            member.tmdbPersonId,
+        ]);
     }
 
     ngOnDestroy(): void {
-        this.inlinePlayback.set(null);
-        this.unsubscribePositionUpdates?.();
+        this.playback.closeInlinePlayer();
         this.xtreamStore.setSelectedItem(null);
     }
 
     playVod(vodItem: XtreamVodDetails | null): void {
-        if (!vodItem) {
-            return;
-        }
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return;
-        }
-
-        const info = getXtreamVodInfo(vodItem);
-        this.addToRecentlyViewed();
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
-        const routeVodId = this.route.snapshot.params.vodId;
-        const id = routeVodId
-            ? Number(routeVodId)
-            : Number(
-                  vodItem.movie_data?.stream_id ||
-                      (vodItem as { stream_id?: number }).stream_id
-              );
-
-        this.logger.debug('playVod resolved ID', { id, vodItem });
-
-        const contentInfo: PlayerContentInfo = {
-            playlistId: playlist.id,
-            contentXtreamId: id,
-            contentType: 'vod',
-        };
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
-            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
-            thumbnail: info?.movie_image,
-            contentInfo,
-        };
-
-        this.startPlayback(playback);
+        this.playback.playVod(vodItem);
     }
 
     resumeVod(vodItem: XtreamVodDetails | null): void {
-        if (!vodItem) {
-            return;
-        }
-
-        const playlist = this.xtreamStore.currentPlaylist();
-        if (!playlist) {
-            return;
-        }
-
-        const info = getXtreamVodInfo(vodItem);
-        this.addToRecentlyViewed();
-        const vodId = Number(this.route.snapshot.params.vodId);
-        const position = this.vodPlaybackPosition();
-        const streamUrl = this.xtreamStore.constructVodStreamUrl(vodItem);
-
-        const contentInfo: PlayerContentInfo = {
-            playlistId: playlist.id,
-            contentXtreamId: vodId,
-            contentType: 'vod',
-        };
-        const playback: ResolvedPortalPlayback = {
-            streamUrl,
-            title: info?.name ?? vodItem.movie_data?.name ?? 'Unknown',
-            thumbnail: info?.movie_image,
-            startTime: position?.positionSeconds,
-            contentInfo,
-        };
-
-        this.startPlayback(playback);
+        this.playback.resumeVod(vodItem);
     }
 
     onPrimaryAction(vodItem: XtreamVodDetails | null): void {
-        if (!vodItem) {
-            return;
-        }
-
-        if (this.isExternalStopAction()) {
-            void this.stopExternalPlayback();
-            return;
-        }
-
-        if (this.hasPlaybackPosition()) {
-            this.resumeVod(vodItem);
-            return;
-        }
-
-        this.playVod(vodItem);
+        this.playback.onPrimaryAction(vodItem);
     }
 
-    async stopExternalPlayback(): Promise<void> {
-        await this.externalPlayback.closeSession(
-            this.matchedExternalPlayback()
-        );
+    stopExternalPlayback(): Promise<void> {
+        return this.playback.stopExternalPlayback();
     }
 
     formatPosition(): string {
-        const position = this.vodPlaybackPosition();
-        if (!position) return '';
-
-        const date = new Date(0);
-        date.setSeconds(position.positionSeconds);
-        const timeString = date.toISOString().substr(11, 8);
-        return timeString.startsWith('00:') ? timeString.substr(3) : timeString;
+        return this.playback.formatPosition();
     }
 
     toggleFavorite(): void {
@@ -476,36 +343,19 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     goBack(): void {
-        this.closeInlinePlayer();
+        this.playback.closeInlinePlayer();
         this.location.back();
     }
 
     closeInlinePlayer(): void {
-        this.inlinePlayback.set(null);
-        this.lastSaveTime = 0;
+        this.playback.closeInlinePlayer();
     }
 
     handleInlineTimeUpdate(event: {
         currentTime: number;
         duration: number;
     }): void {
-        const playback = this.inlinePlayback();
-        if (!playback?.contentInfo) return;
-
-        const now = Date.now();
-        if (now - this.lastSaveTime <= 15000) return;
-
-        this.lastSaveTime = now;
-        const position: PlaybackPositionData = {
-            ...playback.contentInfo,
-            positionSeconds: Math.floor(event.currentTime),
-            durationSeconds: Math.floor(event.duration),
-        };
-        void this.playbackPositions.savePlaybackPosition(
-            playback.contentInfo.playlistId,
-            position
-        );
-        this.vodPlaybackPosition.set(position);
+        this.playback.handleInlineTimeUpdate(event);
     }
 
     showCopyNotification(): void {
@@ -519,10 +369,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     }
 
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
-        void this.portalPlayer.openExternalPlayback(
-            request.playback,
-            request.player
-        );
+        this.playback.handleExternalFallbackRequest(request);
     }
 
     async downloadVod(vodItem: XtreamVodDetails | null): Promise<void> {
@@ -576,15 +423,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         }
     }
 
-    private addToRecentlyViewed(): void {
-        this.xtreamStore.addRecentItem({
-            xtreamId: Number(this.route.snapshot.params.vodId),
-            contentType: 'movie',
-            playlist: this.xtreamStore.currentPlaylist,
-            backdropUrl: this.selectedVodInfo()?.backdrop_path?.[0],
-        });
-    }
-
     private initializeVodDetails(playlistId: string, vodId: number): void {
         const { categoryId } = this.route.snapshot.params;
         this.xtreamStore.fetchVodDetailsWithMetadata({
@@ -592,29 +430,6 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
             categoryId,
         });
         this.xtreamStore.checkFavoriteStatus(vodId, playlistId, 'movie');
-        void this.loadVodPlaybackPosition(playlistId, vodId);
-    }
-
-    private startPlayback(playback: ResolvedPortalPlayback): void {
-        this.lastSaveTime = 0;
-        if (this.portalPlayer.isEmbeddedPlayer()) {
-            this.inlinePlayback.set(playback);
-            return;
-        }
-
-        this.closeInlinePlayer();
-        void this.portalPlayer.openResolvedPlayback(playback, true);
-    }
-
-    private async loadVodPlaybackPosition(
-        playlistId: string,
-        vodId: number
-    ): Promise<void> {
-        const position = await this.playbackPositions.getPlaybackPosition(
-            playlistId,
-            vodId,
-            'vod'
-        );
-        this.vodPlaybackPosition.set(position);
+        void this.playback.loadPosition(playlistId, vodId);
     }
 }

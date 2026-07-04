@@ -30,6 +30,7 @@ import {
     createStalkerInlineDetailState,
     isSelectedStalkerVodFavorite,
     isStalkerSeriesFlag,
+    normalizeStalkerEntityId,
     StalkerContentType,
     StalkerSelectedVodItem,
     StalkerStore,
@@ -170,6 +171,37 @@ export class StalkerCollectionDetailComponent {
             untracked(() => {
                 void this.prepareDetail(item);
             });
+        });
+
+        // TMDB enrichment patches the STORE's selected item asynchronously;
+        // this view renders local snapshots — pull the enriched copy back
+        // in when it belongs to the currently shown item.
+        effect(() => {
+            const selected = this.stalkerStore.selectedItem();
+            const current = this.itemDetails();
+            if (!selected || !current || selected === current) {
+                return;
+            }
+            const selectedId = normalizeStalkerEntityId(
+                selected.id ?? selected.stream_id
+            );
+            if (
+                !selectedId ||
+                selectedId !== normalizeStalkerEntityId(current.id)
+            ) {
+                return;
+            }
+
+            const enriched = selected as StalkerSelectedVodItem;
+            this.itemDetails.set(enriched);
+            if (this.vodDetailsItem()) {
+                const playlistId =
+                    this.stalkerStore.currentPlaylist()?._id ?? '';
+                this.vodDetailsItem.set(
+                    createStalkerDetailViewState(enriched, playlistId)
+                        .vodDetailsItem
+                );
+            }
         });
     }
 

@@ -30,10 +30,49 @@
         </ng-container>
 
         <ng-container hero-meta>
-            @if (info.cast) {
+            @if (info.cast || info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
-                    <span class="value">{{ info.cast }}</span>
+                    @if (info.tmdb_cast?.length) {
+                        <div class="details__cast-strip">
+                            @for (member of info.tmdb_cast; track member.name) {
+                                <span
+                                    class="details__cast-chip"
+                                    [class.details__cast-chip--clickable]="
+                                        !!member.tmdbPersonId
+                                    "
+                                    (click)="openActor(member)"
+                                    [title]="
+                                        member.character
+                                            ? member.name +
+                                              ' — ' +
+                                              member.character
+                                            : member.name
+                                    "
+                                >
+                                    @if (member.profileUrl) {
+                                        <img
+                                            class="details__cast-avatar"
+                                            [src]="member.profileUrl"
+                                            [alt]="member.name"
+                                            loading="lazy"
+                                        />
+                                    } @else {
+                                        <span
+                                            class="details__cast-avatar details__cast-avatar--fallback"
+                                        >
+                                            {{ member.name.charAt(0) }}
+                                        </span>
+                                    }
+                                    <span class="details__cast-name">{{
+                                        member.name
+                                    }}</span>
+                                </span>
+                            }
+                        </div>
+                    } @else {
+                        <span class="value">{{ info.cast }}</span>
+                    }
                 </div>
             }
             @if (info.director) {
@@ -113,7 +152,42 @@
             [activeEpisodeId]="activeEpisodeId()"
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
+            (seasonSelected)="onSeasonSelected($event)"
         />
+
+        @if (similarItems().length) {
+            <section class="details__similar" data-test-id="tmdb-similar">
+                <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
+                <div class="details__similar-strip">
+                    @for (similar of similarItems(); track similar.id) {
+                        <button
+                            type="button"
+                            class="details__similar-card"
+                            [title]="similar.title"
+                            (click)="openSimilar(similar)"
+                        >
+                            @if (similar.posterUrl) {
+                                <img
+                                    class="details__similar-poster"
+                                    [src]="similar.posterUrl"
+                                    [alt]="similar.title"
+                                    loading="lazy"
+                                />
+                            } @else {
+                                <span
+                                    class="details__similar-poster details__similar-poster--fallback"
+                                >
+                                    {{ similar.title.charAt(0) }}
+                                </span>
+                            }
+                            <span class="details__similar-title">
+                                {{ similar.title }}
+                            </span>
+                        </button>
+                    }
+                </div>
+            </section>
+        }
     </app-content-hero>
 } @else if (detailsError()) {
     <app-content-hero

@@ -1,11 +1,17 @@
+import { inject } from '@angular/core';
 import {
     patchState,
     signalStoreFeature,
     withMethods,
     withState,
 } from '@ngrx/signals';
+import { TmdbEnrichmentService } from '@iptvnator/services';
 import { StalkerVodSource } from '../../models';
 import { normalizeStalkerEntityId } from '../../stalker-vod.utils';
+import {
+    enrichStalkerSelectionWithTmdb,
+    stalkerSelectionMediaType,
+} from '../stalker-tmdb-enrichment';
 
 /**
  * Selection/pagination/search feature state.
@@ -37,7 +43,10 @@ const initialSelectionState: StalkerSelectionState = {
 export function withStalkerSelection() {
     return signalStoreFeature(
         withState<StalkerSelectionState>(initialSelectionState),
-        withMethods((store) => ({
+        withMethods((store) => {
+            const tmdbEnrichment = inject(TmdbEnrichmentService);
+
+            return {
             setSelectedContentType(
                 type: 'vod' | 'itv' | 'series' | 'radio'
             ) {
@@ -99,6 +108,24 @@ export function withStalkerSelection() {
                     selectedItvId: selectedId,
                     selectedItem,
                 });
+
+                // Async, best-effort TMDB enrichment for VOD/series detail
+                // selections. Applies via patchState (not setSelectedItem)
+                // so the hook cannot recurse; live/radio items are skipped.
+                const contentType = store.selectedContentType();
+                if (
+                    selectedItem &&
+                    (contentType === 'vod' || contentType === 'series')
+                ) {
+                    void enrichStalkerSelectionWithTmdb(
+                        store,
+                        tmdbEnrichment,
+                        selectedItem,
+                        stalkerSelectionMediaType(selectedItem, contentType),
+                        (enriched) =>
+                            patchState(store, { selectedItem: enriched })
+                    );
+                }
             },
             clearSelectedItem() {
                 patchState(store, {
@@ -108,6 +135,7 @@ export function withStalkerSelection() {
                     selectedItem: undefined,
                 });
             },
-        }))
+        };
+        })
     );
 }

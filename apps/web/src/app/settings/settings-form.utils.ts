@@ -7,6 +7,7 @@ import {
 import {
     CoverSize,
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
+    DEFAULT_TMDB_SETTINGS,
     EpgViewMode,
     Language,
     normalizeDashboardRailsSettings,
@@ -77,6 +78,10 @@ export function createSettingsForm(
                   epgViewMode: 'timeline' as EpgViewMode,
               }
             : {}),
+        tmdb: formBuilder.group({
+            enabled: DEFAULT_TMDB_SETTINGS.enabled,
+            apiKey: DEFAULT_TMDB_SETTINGS.apiKey ?? '',
+        }),
     });
 }
 
@@ -140,6 +145,10 @@ export function createSettingsFromFormValue(
         trustedPrivateNetworkEpgUrls:
             currentSettings.trustedPrivateNetworkEpgUrls ?? [],
         trustedInsecureTlsHosts: currentSettings.trustedInsecureTlsHosts ?? [],
+        tmdb: {
+            enabled: value.tmdb?.enabled ?? DEFAULT_TMDB_SETTINGS.enabled,
+            apiKey: value.tmdb?.apiKey?.trim() ?? '',
+        },
     };
 }
 

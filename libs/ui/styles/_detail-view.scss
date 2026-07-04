@@ -153,6 +153,122 @@
                 font-weight: 500;
             }
         }
+
+        // Cast avatar chips (populated by TMDB enrichment)
+        &__cast-strip {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 12px;
+            margin-top: 4px;
+        }
+
+        &__cast-chip {
+            align-items: center;
+            display: inline-flex;
+            gap: 6px;
+            max-width: 160px;
+
+            &--clickable {
+                cursor: pointer;
+
+                &:hover .details__cast-name {
+                    text-decoration: underline;
+                }
+            }
+        }
+
+        &__cast-avatar {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            flex-shrink: 0;
+            height: 32px;
+            object-fit: cover;
+            width: 32px;
+
+            &--fallback {
+                align-items: center;
+                color: var(--text-muted);
+                display: inline-flex;
+                font-size: 0.875rem;
+                font-weight: 600;
+                justify-content: center;
+                text-transform: uppercase;
+            }
+        }
+
+        &__cast-name {
+            color: var(--text-primary);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        // "Similar" rail (TMDB recommendations matched to the catalog)
+        &__similar {
+            margin-top: 24px;
+
+            h3 {
+                color: var(--text-primary);
+                font-size: 1rem;
+                font-weight: 600;
+                margin: 0 0 12px;
+            }
+        }
+
+        &__similar-strip {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding-bottom: 8px;
+            scrollbar-width: thin;
+        }
+
+        &__similar-card {
+            background: none;
+            border: none;
+            cursor: pointer;
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            gap: 6px;
+            padding: 0;
+            text-align: left;
+            width: 110px;
+
+            &:hover .details__similar-poster {
+                transform: scale(1.04);
+            }
+        }
+
+        &__similar-poster {
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            height: 165px;
+            object-fit: cover;
+            transition: transform 0.15s ease;
+            width: 110px;
+
+            &--fallback {
+                align-items: center;
+                color: var(--text-muted);
+                display: inline-flex;
+                font-size: 2rem;
+                font-weight: 600;
+                justify-content: center;
+                text-transform: uppercase;
+            }
+        }
+
+        &__similar-title {
+            color: var(--text-primary);
+            font-size: 0.8125rem;
+            font-weight: 500;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
     }
 
     // ============================================================================

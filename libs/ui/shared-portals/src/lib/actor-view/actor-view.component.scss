@@ -1,0 +1,258 @@
+// Theme variables mirror the detail-view scope (_detail-view.scss) — the
+// actor page lives outside content-hero, so it must define them itself.
+:host {
+    --surface-bg: #fffaf5;
+    --text-primary: #1a1a1a;
+    --text-muted: rgba(26, 26, 26, 0.5);
+    --chip-bg: rgba(0, 0, 0, 0.06);
+    --chip-border: rgba(0, 0, 0, 0.12);
+    --poster-fallback-bg: rgba(0, 0, 0, 0.08);
+
+    display: block;
+    height: 100%;
+    min-height: 0;
+}
+
+:host-context(.dark-theme) {
+    --surface-bg: #141414;
+    --text-primary: #fff;
+    --text-muted: rgba(255, 255, 255, 0.5);
+    --chip-bg: rgba(255, 255, 255, 0.1);
+    --chip-border: rgba(255, 255, 255, 0.2);
+    --poster-fallback-bg: rgba(255, 255, 255, 0.08);
+}
+
+.actor-view {
+    background: var(--surface-bg);
+    color: var(--text-primary);
+    display: block;
+    height: 100%;
+    overflow-y: auto;
+    padding: 24px 32px 48px;
+    position: relative;
+
+    &__back {
+        align-items: center;
+        background: var(--chip-bg);
+        border: none;
+        border-radius: 50%;
+        color: var(--text-primary);
+        cursor: pointer;
+        display: inline-flex;
+        height: 40px;
+        justify-content: center;
+        margin-bottom: 16px;
+        width: 40px;
+
+        &:hover {
+            background: var(--chip-border);
+        }
+    }
+
+    &__loading {
+        align-items: center;
+        display: flex;
+        justify-content: center;
+        min-height: 40vh;
+    }
+
+    &__header {
+        display: flex;
+        gap: 24px;
+        margin-bottom: 32px;
+    }
+
+    &__photo {
+        border-radius: 12px;
+        flex-shrink: 0;
+        height: 240px;
+        object-fit: cover;
+        width: 160px;
+
+        &--fallback {
+            align-items: center;
+            background: var(--poster-fallback-bg);
+            color: var(--text-muted);
+            display: inline-flex;
+            font-size: 4rem;
+            font-weight: 600;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+    }
+
+    &__meta {
+        h1 {
+            color: var(--text-primary);
+            font-size: 2rem;
+            font-weight: 700;
+            margin: 0 0 8px;
+        }
+    }
+
+    &__born {
+        color: var(--text-muted);
+        font-size: 0.9375rem;
+        margin: 0 0 12px;
+    }
+
+    &__bio {
+        color: var(--text-primary);
+        display: -webkit-box;
+        font-size: 0.9375rem;
+        line-height: 1.5;
+        margin: 0;
+        max-width: 720px;
+        overflow: hidden;
+        -webkit-box-orient: vertical;
+        -webkit-line-clamp: 6;
+    }
+
+    &__filmography h2 {
+        color: var(--text-primary);
+        font-size: 1.25rem;
+        font-weight: 600;
+        margin: 0 0 16px;
+    }
+
+    &__grid {
+        display: grid;
+        gap: 20px 16px;
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+    }
+
+    &__card {
+        background: none;
+        border: none;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        padding: 0;
+        position: relative;
+        text-align: left;
+
+        &:hover .actor-view__poster {
+            transform: scale(1.03);
+        }
+
+        &--unavailable .actor-view__poster {
+            opacity: 0.45;
+        }
+    }
+
+    &__poster {
+        aspect-ratio: 2 / 3;
+        background: var(--poster-fallback-bg);
+        border-radius: 8px;
+        object-fit: cover;
+        transition:
+            transform 0.15s ease,
+            opacity 0.15s ease;
+        width: 100%;
+
+        &--fallback {
+            align-items: center;
+            color: var(--text-muted);
+            display: inline-flex;
+            font-size: 2.5rem;
+            font-weight: 600;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+    }
+
+    &__matching,
+    &__empty {
+        align-items: center;
+        color: var(--text-muted);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        justify-content: center;
+        padding: 48px 0;
+
+        mat-icon {
+            font-size: 40px;
+            height: 40px;
+            width: 40px;
+        }
+
+        p {
+            font-size: 0.9375rem;
+            margin: 0;
+        }
+    }
+
+    &__badge {
+        align-items: center;
+        background: rgba(0, 0, 0, 0.72);
+        border-radius: 999px;
+        color: #7ddb8a;
+        display: inline-flex;
+        font-size: 0.6875rem;
+        font-weight: 600;
+        gap: 4px;
+        left: 8px;
+        // Playlist names can be long URLs — never overflow the poster
+        max-width: calc(100% - 16px);
+        overflow: hidden;
+        padding: 3px 8px;
+        position: absolute;
+        text-overflow: ellipsis;
+        top: 8px;
+        white-space: nowrap;
+
+        mat-icon {
+            font-size: 14px;
+            height: 14px;
+            width: 14px;
+        }
+
+        &--search {
+            // The badge background is always dark, regardless of theme
+            color: rgba(255, 255, 255, 0.7);
+        }
+    }
+
+    &__filter {
+        display: inline-flex;
+        gap: 8px;
+        margin-left: 16px;
+        vertical-align: middle;
+    }
+
+    &__filter-chip {
+        background: var(--chip-bg);
+        border: 1px solid var(--chip-border);
+        border-radius: 999px;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.8125rem;
+        font-weight: 500;
+        padding: 4px 14px;
+
+        &--active {
+            border-color: transparent;
+            background: #2f7bff;
+            color: #fff;
+        }
+    }
+
+    &__card-title {
+        color: var(--text-primary);
+        font-size: 0.875rem;
+        font-weight: 500;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__card-sub {
+        color: var(--text-muted);
+        font-size: 0.8125rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+}

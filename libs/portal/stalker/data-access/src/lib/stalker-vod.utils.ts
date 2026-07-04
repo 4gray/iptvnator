@@ -154,6 +154,15 @@ export function createStalkerInfo(item: StalkerVodSource): StalkerVodInfo {
         rating_kinopoisk: toStringOrFallback(
             info.rating_kinopoisk ?? item.rating_kinopoisk
         ),
+        // TMDB enrichment fields must survive re-normalization — detail
+        // views normalize the selected item on every render
+        ...(info.tmdb_id ? { tmdb_id: info.tmdb_id } : {}),
+        ...(info.tmdb_cast ? { tmdb_cast: info.tmdb_cast } : {}),
+        ...(info.tmdb_backdrop ? { tmdb_backdrop: info.tmdb_backdrop } : {}),
+        ...(info.tmdb_trailer ? { tmdb_trailer: info.tmdb_trailer } : {}),
+        ...(info.tmdb_recommendations
+            ? { tmdb_recommendations: info.tmdb_recommendations }
+            : {}),
     };
 }
 

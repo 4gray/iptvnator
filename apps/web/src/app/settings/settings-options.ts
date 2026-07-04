@@ -146,6 +146,12 @@ export function buildSettingsSectionNavItems({
             visible: supportsRemoteControl,
         },
         {
+            id: 'tmdb',
+            label: 'SETTINGS.NAV_TMDB',
+            icon: 'movie',
+            visible: true,
+        },
+        {
             id: 'backup',
             label: 'SETTINGS.NAV_BACKUP',
             icon: 'backup',

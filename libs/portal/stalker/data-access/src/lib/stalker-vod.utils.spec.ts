@@ -2,6 +2,7 @@ import { VodDetailsItem } from '@iptvnator/shared/interfaces';
 import { StalkerFavoriteItem } from './models';
 import {
     buildStalkerFavoritePayload,
+    createStalkerInfo,
     createStalkerInlineDetailState,
     createStalkerDetailViewState,
     normalizeStalkerFavoriteItem,
@@ -223,5 +224,38 @@ describe('stalker-vod.utils regressions', () => {
 
         expect(detailState.categoryId).toBe('series');
         expect(detailState.seriesItem?.id).toBe('9');
+    });
+
+    it('preserves TMDB enrichment fields through info re-normalization', () => {
+        const tmdbCast = [{ name: 'Karl Urban', profileUrl: null }];
+        const tmdbRecommendations = [
+            { tmdbId: 1, title: 'Invincible', year: 2021, posterUrl: null },
+        ];
+
+        const info = createStalkerInfo({
+            id: '7',
+            info: {
+                name: 'The Boys s05',
+                movie_image: 'http://portal/poster.jpg',
+                description: 'Plot',
+                actors: 'Karl Urban',
+                director: '',
+                releasedate: '2026',
+                genre: 'Action',
+                rating_imdb: '',
+                rating_kinopoisk: '8.1',
+                tmdb_cast: tmdbCast,
+                tmdb_backdrop: 'https://image.tmdb.org/t/p/w1280/boys.jpg',
+                tmdb_trailer: 'abc123def',
+                tmdb_recommendations: tmdbRecommendations,
+            },
+        });
+
+        expect(info.tmdb_cast).toEqual(tmdbCast);
+        expect(info.tmdb_backdrop).toBe(
+            'https://image.tmdb.org/t/p/w1280/boys.jpg'
+        );
+        expect(info.tmdb_trailer).toBe('abc123def');
+        expect(info.tmdb_recommendations).toEqual(tmdbRecommendations);
     });
 });

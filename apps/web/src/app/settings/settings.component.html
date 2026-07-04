@@ -84,6 +84,11 @@
                 />
             }
 
+            <app-settings-tmdb-section
+                [form]="settingsForm"
+                [activeSection]="activeSection()"
+            />
+
             <app-settings-backup-section
                 [activeSection]="activeSection()"
                 [isPwa]="isPwa"

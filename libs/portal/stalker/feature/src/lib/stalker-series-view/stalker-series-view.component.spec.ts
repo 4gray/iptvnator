@@ -31,6 +31,7 @@ class StubContentHeroComponent {
     readonly title = input<string | undefined>(undefined);
     readonly description = input<string | undefined>(undefined);
     readonly posterUrl = input<string | undefined>(undefined);
+    readonly backdropUrl = input<string | undefined>(undefined);
     readonly backClicked = output<void>();
 }
 

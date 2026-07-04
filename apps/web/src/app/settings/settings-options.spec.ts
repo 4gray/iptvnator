@@ -127,6 +127,7 @@ describe('buildSettingsSectionNavItems', () => {
             'epg',
             'dashboard',
             'remote-control',
+            'tmdb',
             'backup',
             'reset',
             'about',

@@ -21,8 +21,11 @@ import {
 import {
     PlaybackPositionData,
     ResolvedPortalPlayback,
+    TmdbEnrichedCastMember,
     XtreamSerieEpisode,
+    youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
+import { SafePipe } from '@iptvnator/pipes';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
@@ -40,6 +43,7 @@ import {
     StalkerMappedEpisode,
     StalkerSeriesSeasonVm,
     VodSeriesSeasonVm,
+    normalizeStalkerEntityId,
     normalizeStalkerVodDetailsItem,
     StalkerSelectedVodItem,
     StalkerStore,
@@ -56,6 +60,9 @@ import {
 import {
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
+    TmdbEnrichmentService,
+    mergeEpisodesWithTmdb,
+    type TmdbEpisode,
 } from '@iptvnator/services';
 import {
     getStalkerSeriesQuickStartButton,
@@ -77,6 +84,7 @@ import {
         FavoritesButtonComponent,
         ContentHeroComponent,
         PortalInlinePlayerComponent,
+        SafePipe,
         TranslatePipe,
         SeasonContainerComponent,
         MatIcon,
@@ -112,6 +120,16 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly vodWithSeries = input<StalkerVodSource | null>(null);
 
     readonly selectedItem = this.stalkerStore.selectedItem;
+
+    /**
+     * TMDB episode data per opened season, keyed by `${tmdbId}|${seasonKey}`
+     * so entries from a previously shown series can never leak into the
+     * current one. Filled lazily in onSeasonSelected.
+     */
+    private readonly tmdbSeasonEpisodes = signal<
+        ReadonlyMap<string, TmdbEpisode[]>
+    >(new Map());
+    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
 
     /**
      * Track VOD series seasons with their loaded episodes
@@ -241,12 +259,26 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     );
 
     /**
-     * Get the item to display details for (either vodWithSeries or selectedItem from store)
+     * Get the item to display details for (either vodWithSeries or
+     * selectedItem from store). When the input and the store hold the SAME
+     * entity, the store copy wins — TMDB enrichment patches the store
+     * asynchronously after selection, while the input is a snapshot.
      */
     readonly displayItem = computed<StalkerSelectedVodItem | null>(() => {
-        const item = this.vodWithSeries() || this.selectedItem();
+        const input = this.vodWithSeries();
+        const fromStore = this.selectedItem();
+        const sameEntity =
+            input &&
+            fromStore &&
+            normalizeStalkerEntityId(input.id ?? input.stream_id) ===
+                normalizeStalkerEntityId(fromStore.id ?? fromStore.stream_id);
+        const item = sameEntity ? fromStore : input || fromStore;
         return item ? normalizeStalkerVodDetailsItem(item) : null;
     });
+
+    readonly trailerEmbedUrl = computed(() =>
+        youtubeEmbedUrl(this.displayItem()?.info?.tmdb_trailer)
+    );
 
     /**
      * Adapts both Regular and VOD series data into the format expected by SeasonContainerComponent.
@@ -254,17 +286,32 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      */
     readonly mappedSeasons = computed<Record<string, XtreamSerieEpisode[]>>(
         () => {
-            if (this.isVodSeries()) {
-                return mapVodSeriesEpisodes(
-                    this.vodSeriesSeasons(),
-                    this.displayItem()?.info?.movie_image
-                );
+            const base = this.isVodSeries()
+                ? mapVodSeriesEpisodes(
+                      this.vodSeriesSeasons(),
+                      this.displayItem()?.info?.movie_image
+                  )
+                : mapRegularSeriesEpisodes(
+                      this.regularSeasons(),
+                      this.displayItem()?.info?.movie_image
+                  );
+
+            // Overlay lazily fetched TMDB episode data (real names,
+            // overviews, stills) — a no-op while nothing is fetched
+            const tmdbEpisodes = this.tmdbSeasonEpisodes();
+            const tmdbId = this.displayItem()?.info?.tmdb_id;
+            if (!tmdbId || tmdbEpisodes.size === 0) {
+                return base;
             }
 
-            return mapRegularSeriesEpisodes(
-                this.regularSeasons(),
-                this.displayItem()?.info?.movie_image
-            );
+            const merged: Record<string, XtreamSerieEpisode[]> = {};
+            for (const [seasonKey, episodes] of Object.entries(base)) {
+                const forSeason = tmdbEpisodes.get(`${tmdbId}|${seasonKey}`);
+                merged[seasonKey] = forSeason?.length
+                    ? mergeEpisodesWithTmdb(episodes, forSeason)
+                    : episodes;
+            }
+            return merged;
         }
     );
 
@@ -292,6 +339,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * For VOD Series, triggers lazy loading of episodes.
      */
     onSeasonSelected(seasonKey: string) {
+        void this.fetchTmdbSeason(seasonKey);
+
         if (!this.isVodSeries()) return;
 
         const seasons = this.vodSeriesSeasons();
@@ -302,6 +351,40 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (season && season.episodes.length === 0) {
             this.loadEpisodesForSeason(season);
         }
+    }
+
+    /**
+     * Lazily pulls the TMDB episode list for an opened season; a no-op
+     * without a show-level TMDB match or with enrichment disabled.
+     */
+    private async fetchTmdbSeason(seasonKey: string): Promise<void> {
+        const tmdbId = this.displayItem()?.info?.tmdb_id;
+        if (!tmdbId) {
+            return;
+        }
+
+        const mapKey = `${tmdbId}|${seasonKey}`;
+        if (this.tmdbSeasonEpisodes().has(mapKey)) {
+            return;
+        }
+
+        const episodes = this.mappedSeasons()[seasonKey];
+        const seasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
+        if (!Number.isFinite(seasonNumber)) {
+            return;
+        }
+
+        const tmdbEpisodes = await this.tmdbEnrichment.getSeasonEpisodes(
+            tmdbId,
+            seasonNumber
+        );
+        if (!tmdbEpisodes?.length) {
+            return;
+        }
+
+        const next = new Map(this.tmdbSeasonEpisodes());
+        next.set(mapKey, tmdbEpisodes);
+        this.tmdbSeasonEpisodes.set(next);
     }
 
     /**
@@ -464,6 +547,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             trackingId,
             startTime
         );
+    }
+
+    openActor(member: TmdbEnrichedCastMember): void {
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        if (!playlistId || !member.tmdbPersonId) {
+            return;
+        }
+        void this.router.navigate([
+            '/workspace/stalker',
+            playlistId,
+            'actor',
+            member.tmdbPersonId,
+        ]);
     }
 
     goBack() {

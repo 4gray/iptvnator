@@ -105,6 +105,7 @@ const DEFAULT_SETTINGS = {
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
     epgViewMode: 'timeline',
+    tmdb: { enabled: false, apiKey: '' },
 };
 
 const DEFAULT_APP_UPDATE_STATUS: ElectronBridgeAppUpdateStatus = {

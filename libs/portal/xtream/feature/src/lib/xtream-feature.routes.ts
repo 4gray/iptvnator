@@ -49,6 +49,11 @@ const loadSerialDetailsComponent: ComponentLoader = () =>
         (c) => c.SerialDetailsComponent
     );
 
+const loadXtreamActorRouteComponent: ComponentLoader = () =>
+    import('./actor/xtream-actor-route.component').then(
+        (c) => c.XtreamActorRouteComponent
+    );
+
 export function createXtreamRoutes(): Route[] {
     return [
         {
@@ -111,6 +116,10 @@ export function createXtreamRoutes(): Route[] {
                         {
                             path: 'search',
                             loadComponent: loadSearchResultsComponent,
+                        },
+                        {
+                            path: 'actor/:personId',
+                            loadComponent: loadXtreamActorRouteComponent,
                         },
                         {
                             path: 'recently-added',

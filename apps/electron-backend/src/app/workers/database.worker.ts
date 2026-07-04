@@ -77,6 +77,11 @@ import {
     removeRecentItem,
     removeRecentItemsBatch,
 } from '../database/operations/recently-viewed.operations';
+import { matchTitles } from '../database/operations/title-match.operations';
+import {
+    getTmdbMetadata,
+    setTmdbMetadata,
+} from '../database/operations/tmdb.operations';
 import {
     deleteXtreamContent,
     restoreXtreamUserData,
@@ -586,6 +591,32 @@ async function executeRequest(message: DbWorkerRequestMessage) {
         case 'DB_SET_APP_STATE': {
             const payload = message.payload as { key: string; value: string };
             return setAppState(db, payload.key, payload.value);
+        }
+
+        case 'DB_GET_TMDB_METADATA': {
+            const payload = message.payload as {
+                mediaType: 'movie' | 'tv';
+                lookupKey: string;
+                language: string;
+            };
+            return getTmdbMetadata(
+                db,
+                payload.mediaType,
+                payload.lookupKey,
+                payload.language
+            );
+        }
+
+        case 'DB_SET_TMDB_METADATA': {
+            const payload = message.payload as {
+                entry: Parameters<typeof setTmdbMetadata>[1];
+            };
+            return setTmdbMetadata(db, payload.entry);
+        }
+
+        case 'DB_MATCH_TITLES': {
+            const payload = message.payload as { titles: string[] };
+            return matchTitles(db, payload.titles);
         }
 
         case 'DB_DELETE_ALL_PLAYLISTS': {

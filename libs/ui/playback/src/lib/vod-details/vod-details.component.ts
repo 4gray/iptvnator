@@ -10,12 +10,15 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
 import { PORTAL_EXTERNAL_PLAYBACK } from '@iptvnator/portal/shared/util';
 import { ContentHeroComponent } from '@iptvnator/ui/components';
+import { Router } from '@angular/router';
 import {
     ExternalPlayerSession,
     ResolvedPortalPlayback,
+    TmdbEnrichedCastMember,
     VodDetailsItem,
     getVodNumericId,
     normalizeVodDetails,
+    youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import { DownloadsService } from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
@@ -107,6 +110,7 @@ export class VodDetailsComponent {
 
     private readonly downloadsService = inject(DownloadsService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly router = inject(Router);
 
     // ============ Computed State ============
 
@@ -117,6 +121,10 @@ export class VodDetailsComponent {
     readonly normalizedMeta = computed(() => {
         return normalizeVodDetails(this.item());
     });
+
+    readonly trailerEmbedUrl = computed(() =>
+        youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
+    );
 
     /** Whether there's a playback position to resume from */
     readonly hasPlaybackPosition = computed(() => {
@@ -269,6 +277,21 @@ export class VodDetailsComponent {
     }
 
     /** Handle back navigation - emit event for parent to handle */
+    openActor(member: TmdbEnrichedCastMember): void {
+        if (!member.tmdbPersonId) {
+            return;
+        }
+        const item = this.item();
+        const basePath =
+            item.type === 'stalker' ? '/workspace/stalker' : '/workspace/xtreams';
+        void this.router.navigate([
+            basePath,
+            item.playlistId,
+            'actor',
+            member.tmdbPersonId,
+        ]);
+    }
+
     goBack(): void {
         this.backClicked.emit();
     }
