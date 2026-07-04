@@ -121,8 +121,10 @@ class StubWebPlayerViewComponent {
     readonly externalFallbackRequested = output<PlaybackFallbackRequest>();
 }
 
+// Matches both live-panel selectors so the host's timeline ↔ list swap can be
+// asserted by tag name; both branches share the identical contract.
 @Component({
-    selector: 'app-epg-timeline',
+    selector: 'app-epg-timeline, app-epg-list-view',
     standalone: true,
     template: '',
 })
@@ -189,6 +191,7 @@ describe('VideoPlayerComponent', () => {
 
     const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
     const showCaptions = signal(false);
+    const epgViewMode = signal<'timeline' | 'list'>('timeline');
     const originalElectron = window.electron;
 
     const overlayRef = {
@@ -386,6 +389,7 @@ describe('VideoPlayerComponent', () => {
                     useValue: {
                         player,
                         showCaptions,
+                        resolvedEpgViewMode: epgViewMode,
                     },
                 },
                 {
@@ -467,6 +471,29 @@ describe('VideoPlayerComponent', () => {
         expect(
             fixture.nativeElement.querySelector('app-epg-timeline')
         ).not.toBeNull();
+    });
+
+    it('swaps the timeline for the list view when epgViewMode is "list"', () => {
+        syncStoreState(sampleChannel);
+        player.set(VideoPlayer.VideoJs);
+        epgViewMode.set('list');
+
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector('app-epg-list-view')
+        ).not.toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
+        // Taller inline panel for the list view (see _portal-layout.scss).
+        expect(
+            fixture.nativeElement
+                .querySelector('.epg')
+                ?.classList.contains('epg--list')
+        ).toBe(true);
+
+        epgViewMode.set('timeline'); // restore for sibling tests
     });
 
     it('hides EPG controls and the multi-EPG header action in browser/PWA playback', () => {

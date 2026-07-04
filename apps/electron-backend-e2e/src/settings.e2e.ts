@@ -231,6 +231,38 @@ test.describe('Electron Settings', () => {
         }
     });
 
+    test('@settings @persistence @electron persists the EPG view mode across app restart', async ({
+        dataDir,
+    }) => {
+        const firstLaunch = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(firstLaunch.mainWindow);
+            const listToggle = firstLaunch.mainWindow.locator(
+                '[data-test-id="epg-view-mode-list"]'
+            );
+            await expect(listToggle).toBeVisible();
+            await listToggle.click();
+            await expect(listToggle).toHaveAttribute('aria-checked', 'true');
+            await saveSettings(firstLaunch.mainWindow);
+        } finally {
+            await closeElectronApp(firstLaunch);
+        }
+
+        const secondLaunch = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(secondLaunch.mainWindow);
+            await expect(
+                secondLaunch.mainWindow.locator(
+                    '[data-test-id="epg-view-mode-list"]'
+                )
+            ).toHaveAttribute('aria-checked', 'true');
+        } finally {
+            await closeElectronApp(secondLaunch);
+        }
+    });
+
     test('@settings @electron starts on sources when dashboard is disabled', async ({ dataDir }) => {
         const firstLaunch = await launchElectronApp(dataDir);
 
