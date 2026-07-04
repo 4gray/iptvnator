@@ -1,4 +1,5 @@
 import nx from '@nx/eslint-plugin';
+import { maxLinesBaseline } from './tools/eslint/max-lines-baseline.mjs';
 
 const legacyBareAliases = [
     'components',
@@ -244,6 +245,23 @@ export default [
         rules: {
             '@angular-eslint/template/click-events-have-key-events': 'off',
             '@angular-eslint/template/interactive-supports-focus': 'off',
+        },
+    },
+    {
+        // CLAUDE.md file-size rule: keep TypeScript files under 300 lines,
+        // hard maximum 400. Files that predate the rule are baselined below.
+        files: ['**/*.ts', '**/*.tsx'],
+        rules: {
+            'max-lines': [
+                'error',
+                { max: 400, skipBlankLines: false, skipComments: false },
+            ],
+        },
+    },
+    {
+        files: maxLinesBaseline,
+        rules: {
+            'max-lines': 'off',
         },
     },
     {
