@@ -7,6 +7,7 @@ export * from './lib/channel-list-loading-state/channel-list-loading-state.compo
 export * from './lib/confirm-dialog/confirm-dialog.component';
 export * from './lib/confirm-dialog/dialog.service';
 export * from './lib/content-hero/content-hero.component';
+export * from './lib/expandable-text/expandable-text.component';
 export * from './lib/external-playback-dock/external-playback-dock.component';
 export * from './lib/portal-detail-shell/content-about.component';
 export * from './lib/portal-detail-shell/detail-template.directives';

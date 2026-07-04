@@ -94,16 +94,14 @@ export class PortalDetailShellComponent {
 
     private scrollToTop(): void {
         const element = this.host.nativeElement;
+        // Instant jump: a smooth scroll would run concurrently with the
+        // 300ms hero-collapse morph (a layout animation) and the two
+        // animations fight for frame budget. The morph visually covers the
+        // jump anyway.
         if (typeof element.scrollTo !== 'function') {
             element.scrollTop = 0;
             return;
         }
-        const reducedMotion =
-            typeof window !== 'undefined' &&
-            window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-        element.scrollTo({
-            top: 0,
-            behavior: reducedMotion ? 'auto' : 'smooth',
-        });
+        element.scrollTo({ top: 0, behavior: 'auto' });
     }
 }

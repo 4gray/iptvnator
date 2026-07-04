@@ -13,6 +13,7 @@ import {
 } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatButtonToggleModule } from '@angular/material/button-toggle';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
@@ -36,6 +37,11 @@ import {
     getEpisodeDownloadId,
     isStalkerEpisode,
 } from './episode-download.util';
+import {
+    EPISODE_INFO_PLAY,
+    EpisodeInfoDialogComponent,
+    buildEpisodeInfoDialogData,
+} from './episode-info-dialog.component';
 import {
     formatEpisodePositionText,
     parseDuration,
@@ -75,6 +81,7 @@ export interface SeasonContainerPlaybackToggleRequest {
 })
 export class SeasonContainerComponent implements OnInit {
     private readonly downloadsService = inject(DownloadsService);
+    private readonly dialog = inject(MatDialog);
     private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
     private readonly logger = createLogger('SeasonContainer');
     private lastEmittedSeason: string | undefined;
@@ -237,6 +244,24 @@ export class SeasonContainerComponent implements OnInit {
 
     selectEpisode(episode: XtreamSerieEpisode) {
         this.episodeClicked.emit(episode);
+    }
+
+    openEpisodeInfo(event: Event, episode: XtreamSerieEpisode) {
+        event.stopPropagation();
+        this.dialog
+            .open(EpisodeInfoDialogComponent, {
+                data: buildEpisodeInfoDialogData(
+                    episode,
+                    this.selectedSeason()
+                ),
+                autoFocus: false,
+            })
+            .afterClosed()
+            .subscribe((result) => {
+                if (result === EPISODE_INFO_PLAY) {
+                    this.selectEpisode(episode);
+                }
+            });
     }
 
     toggleWatched(event: Event, episode: XtreamSerieEpisode) {

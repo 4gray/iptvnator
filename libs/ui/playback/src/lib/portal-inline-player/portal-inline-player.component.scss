@@ -16,7 +16,8 @@
     box-shadow:
         0 20px 56px rgba(25, 20, 20, 0.12),
         inset 0 1px 0 rgba(255, 255, 255, 0.8);
-    backdrop-filter: blur(18px);
+    // No backdrop-filter here: blurring over a live video viewport forces an
+    // expensive re-blur every frame and makes the browse↔watch morph stutter.
 }
 
 .player-shell__header {

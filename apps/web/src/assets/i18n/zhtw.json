@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "此供應商列出了這部影集，但目前沒有可播放的季數或集數。",
         "SEASON_EMPTY": "此季暫無內容",
         "SEASON_EMPTY_MESSAGE": "此供應商列出了這一季，但目前沒有可播放的集數。",
+        "EPISODE_INFO": "集數詳情",
         "SELECT_CATEGORY": "選擇類別",
         "PAGE": "頁",
         "CONTENT_NOT_AVAILABLE": "此伺服器上未提供此內容",

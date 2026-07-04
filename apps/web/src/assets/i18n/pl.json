@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "Ten serial jest dostępny u Twojego dostawcy, ale nie ma sezonów ani odcinków do odtworzenia.",
         "SEASON_EMPTY": "Ten sezon jest pusty",
         "SEASON_EMPTY_MESSAGE": "Ten sezon jest dostępny u Twojego dostawcy, ale nie ma odcinków do odtworzenia.",
+        "EPISODE_INFO": "Szczegóły odcinka",
         "SELECT_CATEGORY": "Wybierz kategorię",
         "PAGE": "Strona",
         "CONTENT_NOT_AVAILABLE": "Ta treść jest niedostępna na tym serwerze",

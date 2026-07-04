@@ -188,6 +188,25 @@
                                             </button>
                                         }
                                     }
+                                    @if (episodeInfo?.plot) {
+                                        <button
+                                            mat-icon-button
+                                            class="info-btn"
+                                            data-testid="episode-info-button"
+                                            (click)="
+                                                openEpisodeInfo(
+                                                    $event,
+                                                    episode
+                                                )
+                                            "
+                                            [matTooltip]="
+                                                'PORTALS.EPISODE_INFO'
+                                                    | translate
+                                            "
+                                        >
+                                            <mat-icon>info_outline</mat-icon>
+                                        </button>
+                                    }
                                     <button
                                         mat-icon-button
                                         class="toggle-watched-btn"
@@ -390,6 +409,21 @@
                                             <mat-icon>download</mat-icon>
                                         </button>
                                     }
+                                }
+                                @if (episodeInfo?.plot) {
+                                    <button
+                                        mat-icon-button
+                                        class="action-btn"
+                                        data-testid="episode-info-button"
+                                        (click)="
+                                            openEpisodeInfo($event, episode)
+                                        "
+                                        [matTooltip]="
+                                            'PORTALS.EPISODE_INFO' | translate
+                                        "
+                                    >
+                                        <mat-icon>info_outline</mat-icon>
+                                    </button>
                                 }
                                 <button
                                     mat-icon-button

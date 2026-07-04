@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "このシリーズはプロバイダーに登録されていますが、再生可能なシーズンやエピソードはありません。",
         "SEASON_EMPTY": "このシーズンにはエピソードがありません",
         "SEASON_EMPTY_MESSAGE": "このシーズンはプロバイダーに登録されていますが、再生可能なエピソードはありません。",
+        "EPISODE_INFO": "エピソードの詳細",
         "SELECT_CATEGORY": "カテゴリーを選択",
         "PAGE": "ページ",
         "CONTENT_NOT_AVAILABLE": "このコンテンツはこのサーバーでは利用できません",

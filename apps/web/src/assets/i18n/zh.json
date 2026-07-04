@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "您的提供商列出了此剧集，但没有可播放的季或集。",
         "SEASON_EMPTY": "本季暂无内容",
         "SEASON_EMPTY_MESSAGE": "您的提供商列出了本季，但没有可播放的剧集。",
+        "EPISODE_INFO": "剧集详情",
         "SELECT_CATEGORY": "选择一个分类",
         "PAGE": "页",
         "CONTENT_NOT_AVAILABLE": "此服务器上没有此内容",

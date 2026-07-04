@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "Bu dizi sağlayıcınız tarafından listeleniyor, ancak oynatılabilecek sezon veya bölüm bulunmuyor.",
         "SEASON_EMPTY": "Bu sezon boş",
         "SEASON_EMPTY_MESSAGE": "Bu sezon sağlayıcınız tarafından listeleniyor, ancak oynatılabilir bölüm bulunmuyor.",
+        "EPISODE_INFO": "Bölüm ayrıntıları",
         "SELECT_CATEGORY": "Bir kategori seçin",
         "PAGE": "Sayfa",
         "CONTENT_NOT_AVAILABLE": "Bu içerik bu sunucuda mevcut değil",

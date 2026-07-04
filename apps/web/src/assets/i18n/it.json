@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "Questa serie è elencata dal tuo fornitore, ma non sono disponibili stagioni o episodi da riprodurre.",
         "SEASON_EMPTY": "Questa stagione è vuota",
         "SEASON_EMPTY_MESSAGE": "Questa stagione è elencata dal tuo fornitore, ma non sono disponibili episodi riproducibili.",
+        "EPISODE_INFO": "Dettagli episodio",
         "SELECT_CATEGORY": "Seleziona una categoria",
         "PAGE": "Pagina",
         "CONTENT_NOT_AVAILABLE": "Questo contenuto non è disponibile su questo server",

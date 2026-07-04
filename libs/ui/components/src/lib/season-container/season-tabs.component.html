@@ -72,7 +72,10 @@
 </div>
 
 @if (seasonDescription(); as description) {
-    <p class="season-tabs__description" data-testid="season-description">
-        {{ description }}
-    </p>
+    <app-expandable-text
+        class="season-tabs__description"
+        data-testid="season-description"
+        [text]="description"
+        [clampLines]="3"
+    />
 }

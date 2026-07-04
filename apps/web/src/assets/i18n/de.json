@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "Diese Serie wird von Ihrem Anbieter gelistet, es sind jedoch keine Staffeln oder Folgen zum Abspielen verfügbar.",
         "SEASON_EMPTY": "Diese Staffel ist leer",
         "SEASON_EMPTY_MESSAGE": "Diese Staffel wird von Ihrem Anbieter gelistet, es sind jedoch keine abspielbaren Folgen verfügbar.",
+        "EPISODE_INFO": "Details zur Folge",
         "SELECT_CATEGORY": "Wählen Sie eine Kategorie aus",
         "PAGE": "Seite",
         "CONTENT_NOT_AVAILABLE": "Dieser Inhalt ist auf diesem Server nicht verfügbar",

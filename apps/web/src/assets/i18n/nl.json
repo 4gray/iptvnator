@@ -931,6 +931,7 @@
         "NO_EPISODES_AVAILABLE_MESSAGE": "Deze serie staat in de lijst van je provider, maar er zijn geen seizoenen of afleveringen beschikbaar om af te spelen.",
         "SEASON_EMPTY": "Dit seizoen is leeg",
         "SEASON_EMPTY_MESSAGE": "Dit seizoen staat in de lijst van je provider, maar er zijn geen afspeelbare afleveringen beschikbaar.",
+        "EPISODE_INFO": "Afleveringsdetails",
         "SELECT_CATEGORY": "Selecteer een categorie",
         "PAGE": "Pagina",
         "CONTENT_NOT_AVAILABLE": "Deze inhoud is niet beschikbaar op deze server",

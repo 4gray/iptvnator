@@ -102,8 +102,5 @@
     font-size: 12.5px;
     line-height: 1.55;
     color: var(--text-secondary, rgba(255, 255, 255, 0.7));
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
-    overflow: hidden;
+    // Clamping + the show more/less toggle live in app-expandable-text.
 }

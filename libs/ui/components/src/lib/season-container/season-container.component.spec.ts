@@ -1,9 +1,12 @@
 import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
+import { MatDialog } from '@angular/material/dialog';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { TranslateModule } from '@ngx-translate/core';
 import { XtreamSerieEpisode } from '@iptvnator/shared/interfaces';
 import { DownloadsService } from '@iptvnator/services';
+import { of } from 'rxjs';
+import { EPISODE_INFO_PLAY } from './episode-info-dialog.component';
 import { SeasonContainerComponent } from './season-container.component';
 
 const downloadsServiceStub = {
@@ -37,6 +40,8 @@ function createEpisode(
     };
 }
 
+const dialogOpen = jest.fn();
+
 describe('SeasonContainerComponent', () => {
     let fixture: ComponentFixture<SeasonContainerComponent>;
     let component: SeasonContainerComponent;
@@ -64,12 +69,18 @@ describe('SeasonContainerComponent', () => {
                     provide: DownloadsService,
                     useValue: downloadsServiceStub,
                 },
+                {
+                    provide: MatDialog,
+                    useValue: { open: dialogOpen },
+                },
             ],
         }).compileComponents();
 
         fixture = TestBed.createComponent(SeasonContainerComponent);
         component = fixture.componentInstance;
         emittedSeasons = [];
+        dialogOpen.mockReset();
+        dialogOpen.mockReturnValue({ afterClosed: () => of(undefined) });
         component.seasonSelected.subscribe((seasonKey) =>
             emittedSeasons.push(seasonKey)
         );
@@ -282,6 +293,41 @@ describe('SeasonContainerComponent', () => {
         expect(
             fixture.nativeElement.querySelector('.episode-card--playing')
         ).not.toBeNull();
+    });
+
+    it('opens the episode info dialog and plays on the dialog play action', () => {
+        dialogOpen.mockReturnValue({
+            afterClosed: () => of(EPISODE_INFO_PLAY),
+        });
+        const played: XtreamSerieEpisode[] = [];
+        setRequiredInputs({ '1': [createEpisode()] });
+        component.episodeClicked.subscribe((episode) => played.push(episode));
+        fixture.detectChanges();
+
+        const infoButton = fixture.nativeElement.querySelector(
+            '[data-testid="episode-info-button"]'
+        ) as HTMLButtonElement;
+        expect(infoButton).toBeTruthy();
+        infoButton.click();
+
+        expect(dialogOpen).toHaveBeenCalledTimes(1);
+        const data = dialogOpen.mock.calls[0][1].data;
+        expect(data.episodeLabel).toBe('S01E01');
+        expect(data.plot).toBe('Pilot episode');
+        expect(played.length).toBe(1);
+    });
+
+    it('hides the episode info button when the episode has no plot', () => {
+        setRequiredInputs({
+            '1': [createEpisode({ info: { duration: '45 min' } as never })],
+        });
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-testid="episode-info-button"]'
+            )
+        ).toBeNull();
     });
 
     it('renders the season description for the selected season', () => {
