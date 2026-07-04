@@ -31,7 +31,7 @@ import {
 import { PortalDebugEvent } from './portal-debug.interface';
 import { CatalogTitleMatch } from './catalog-title-match.interface';
 import { Settings } from './settings.interface';
-import { TmdbCacheEntry, TmdbMediaType } from './tmdb.interface';
+import { TmdbCacheEntry, TmdbCacheMediaType } from './tmdb.interface';
 import { XtreamCategory } from './xtream-category.interface';
 
 export const ELECTRON_BRIDGE_CONTENT_TYPES = {
@@ -780,7 +780,7 @@ export interface ElectronBridgeApi {
     ) => Promise<ElectronBridgeResult>;
     // TMDB metadata cache
     dbGetTmdbMetadata: (
-        mediaType: TmdbMediaType,
+        mediaType: TmdbCacheMediaType,
         lookupKey: string,
         language: string
     ) => Promise<TmdbCacheEntry | null>;

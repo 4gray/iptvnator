@@ -1,11 +1,11 @@
 import { and, eq } from 'drizzle-orm';
 import * as schema from '@iptvnator/shared/database/schema';
-import type { TmdbCacheEntry, TmdbMediaType } from '@iptvnator/shared/interfaces';
+import type { TmdbCacheEntry, TmdbCacheMediaType } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 
 export async function getTmdbMetadata(
     db: AppDatabase,
-    mediaType: TmdbMediaType,
+    mediaType: TmdbCacheMediaType,
     lookupKey: string,
     language: string
 ): Promise<TmdbCacheEntry | null> {

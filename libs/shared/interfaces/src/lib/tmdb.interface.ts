@@ -9,6 +9,12 @@
 export type TmdbMediaType = 'movie' | 'tv';
 
 /**
+ * Row namespace in the shared metadata cache table. Besides movie/tv
+ * details it also stores person payloads (`person:<id>` lookup keys).
+ */
+export type TmdbCacheMediaType = TmdbMediaType | 'person';
+
+/**
  * Opt-in TMDB enrichment settings. Enrichment sends movie/series titles to
  * TMDB, so it is disabled by default for privacy.
  */
@@ -56,7 +62,7 @@ export interface TmdbRecommendation {
  *   `tmdbId` is a cached "no confident match" verdict (negative cache)
  */
 export interface TmdbCacheEntry {
-    mediaType: TmdbMediaType;
+    mediaType: TmdbCacheMediaType;
     lookupKey: string;
     /** TMDB language code the payload was fetched with, e.g. `en-US` */
     language: string;

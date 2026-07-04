@@ -112,7 +112,12 @@ trailer (official trailer > trailer > teaser, merged into
 `youtube_trailer` / `tmdb_trailer`); recommendations power the "Similar"
 rail. In Xtream detail views the rail shows only recommendations that
 match the provider catalog by normalized title
-(`libs/portal/xtream/feature/src/lib/tmdb-similar.util.ts`) and navigates
+(`libs/portal/xtream/feature/src/lib/tmdb-similar.util.ts`). Matching is
+two-tier (`normalizeTitleKeys`): exact normalized titles compare first
+(a trailing year in a TMDB title is part of the title — "Blade Runner
+2049"); the provider's year-stripped form only counts when its stripped
+year tag is compatible (±1) with the TMDB year, so "Blade Runner" (1982)
+never claims a catalog "Blade Runner 2049". The rail navigates
 to the matched item — the detail components re-initialize on route param
 changes (reactive `routeParams` signal) because the router reuses the
 component for detail→detail navigation. Stalker gets trailers and the
@@ -150,8 +155,7 @@ Cast chips carry the TMDB person id (`tmdbPersonId` on
 `TmdbEnrichedCastMember`) and navigate to `actor/:personId` inside the
 current portal. The page loads `/person/{id}?append_to_response=
 combined_credits` via `TmdbEnrichmentService.getPersonDetails` (cached
-under `person:{id}`; the table's media_type CHECK only allows movie/tv, so
-person rows reuse `movie` as a namespace) and renders the shared
+under `person:{id}` with media_type `person`) and renders the shared
 `ActorViewComponent` (`libs/ui/shared-portals`).
 
 Filmography has two scopes:
@@ -166,7 +170,7 @@ Filmography has two scopes:
   `DB_MATCH_TITLES` worker request runs a trigram-FTS lookup per title
   over ALL imported Xtream playlists
   (`operations/title-match.operations.ts`), confirming candidates with
-  the same normalized-title equality the renderer uses
+  the same two-tier normalized-title matching the renderer uses
   (`normalizeTitle` now lives in `@iptvnator/shared/interfaces` so the
   worker and the renderer share it). Matches carry the playlist name
   (shown in the badge) and navigate into that playlist's detail view.
@@ -179,9 +183,10 @@ Single table with two row kinds discriminated by `lookup_key` prefix:
 
 ```
 tmdb_metadata (
-  media_type  'movie' | 'tv',
+  media_type  'movie' | 'tv' | 'person',
   lookup_key  'id:<tmdbId>'                  -- details payload row
               'title:<normalized>|year:<y>'  -- search resolution row
+              'person:<personId>'            -- person payload row
   language    TEXT,       -- TMDB language code
   tmdb_id     INTEGER,    -- NULL on a search row = negative cache
   payload     TEXT,       -- raw JSON details, NULL for search rows

@@ -1,5 +1,9 @@
 import { TmdbRecommendation } from '@iptvnator/shared/interfaces';
-import { matchRecommendationsToCatalog } from './tmdb-similar.util';
+import {
+    buildCatalogTitleIndex,
+    lookupCatalogTitle,
+    matchRecommendationsToCatalog,
+} from './tmdb-similar.util';
 
 describe('matchRecommendationsToCatalog', () => {
     const rec = (
@@ -85,5 +89,68 @@ describe('matchRecommendationsToCatalog', () => {
         expect(
             matchRecommendationsToCatalog([rec(1, 'Anything')], [])
         ).toEqual([]);
+    });
+});
+
+describe('two-tier year handling', () => {
+    const rec = (
+        tmdbId: number,
+        title: string,
+        year: number | null = null
+    ): TmdbRecommendation => ({ tmdbId, title, year, posterUrl: null });
+
+    const catalog = [
+        { stream_id: 1, name: 'Blade Runner 2049', category_id: '9' },
+        { stream_id: 2, name: 'The Matrix 1999', category_id: '9' },
+    ];
+
+    it('matches a title-year recommendation on the exact tier', () => {
+        const matched = matchRecommendationsToCatalog(
+            [rec(335984, 'Blade Runner 2049', 2017)],
+            catalog
+        );
+        expect(matched.map((m) => m.id)).toEqual([1]);
+    });
+
+    it('rejects a year-incompatible base-tier match', () => {
+        // "Blade Runner" (1982) must NOT claim the catalog's "Blade Runner 2049"
+        const matched = matchRecommendationsToCatalog(
+            [rec(78, 'Blade Runner', 1982)],
+            catalog
+        );
+        expect(matched).toEqual([]);
+    });
+
+    it('accepts a year-compatible base-tier match', () => {
+        const matched = matchRecommendationsToCatalog(
+            [rec(603, 'The Matrix', 1999)],
+            catalog
+        );
+        expect(matched.map((m) => m.id)).toEqual([2]);
+    });
+});
+
+describe('buildCatalogTitleIndex / lookupCatalogTitle', () => {
+    const index = buildCatalogTitleIndex([
+        { stream_id: 1, name: 'Blade Runner 2049', category_id: '9' },
+        { stream_id: 2, name: 'The Matrix 1999', category_id: '9' },
+        { stream_id: 3, name: 'Heat', category_id: '9' },
+    ]);
+
+    it('resolves exact titles including title-years', () => {
+        expect(lookupCatalogTitle(index, 'Blade Runner 2049', 2017)?.id).toBe(1);
+        expect(lookupCatalogTitle(index, 'Heat', 1995)?.id).toBe(3);
+    });
+
+    it('resolves year-tagged provider titles when years agree', () => {
+        expect(lookupCatalogTitle(index, 'The Matrix', 1999)?.id).toBe(2);
+    });
+
+    it('rejects contradicting years on the stripped tier', () => {
+        expect(lookupCatalogTitle(index, 'Blade Runner', 1982)).toBeNull();
+    });
+
+    it('is lenient when the credit year is unknown', () => {
+        expect(lookupCatalogTitle(index, 'The Matrix', null)?.id).toBe(2);
     });
 });

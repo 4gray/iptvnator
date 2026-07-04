@@ -1,11 +1,18 @@
-import { normalizeTitle } from '@iptvnator/services';
-import { TmdbRecommendation } from '@iptvnator/shared/interfaces';
+import {
+    TmdbRecommendation,
+    normalizeTitleKeys,
+    titleYearsCompatible,
+} from '@iptvnator/shared/interfaces';
 
 /**
  * Matches TMDB recommendations against the provider catalog so the
- * "Similar" rail only shows titles the user can actually play. Matching is
- * by normalized title (same normalization as the enrichment matcher);
- * recommendations without a catalog hit are dropped.
+ * "Similar" rail only shows titles the user can actually play.
+ *
+ * Matching is two-tier: TMDB titles are canonical (a trailing year is part
+ * of the title — "Blade Runner 2049"), provider titles are dirty (a
+ * trailing year is usually a release tag — "The Matrix 1999"). The exact
+ * normalized forms are compared first; the provider's year-stripped form
+ * only counts when the stripped year does not contradict the TMDB year.
  */
 
 export interface SimilarCatalogItem {
@@ -50,17 +57,28 @@ export interface CatalogMatch {
     categoryId: string;
 }
 
+interface IndexedCatalogEntry extends CatalogMatch {
+    /** Year tag stripped from the provider title (base-tier entries only) */
+    trailingYear: number | null;
+}
+
 /**
- * Normalized-title → catalog entry index for per-title availability checks
- * (actor page filmography). First occurrence of a title wins.
+ * Two-tier catalog index for per-title availability checks (actor page
+ * filmography). First occurrence of a title wins per tier.
  */
+export interface CatalogTitleIndex {
+    exact: Map<string, IndexedCatalogEntry>;
+    base: Map<string, IndexedCatalogEntry>;
+}
+
 export function buildCatalogTitleIndex(
     streams: readonly CatalogStream[]
-): Map<string, CatalogMatch> {
-    const index = new Map<string, CatalogMatch>();
+): CatalogTitleIndex {
+    const exact = new Map<string, IndexedCatalogEntry>();
+    const base = new Map<string, IndexedCatalogEntry>();
     for (const stream of streams) {
-        const key = normalizeTitle(streamTitle(stream));
-        if (!key || index.has(key)) {
+        const keys = normalizeTitleKeys(streamTitle(stream));
+        if (!keys.exact) {
             continue;
         }
         const id = streamId(stream);
@@ -69,9 +87,45 @@ export function buildCatalogTitleIndex(
         if (id === null || categoryId === undefined || categoryId === null) {
             continue;
         }
-        index.set(key, { id, categoryId: String(categoryId) });
+        const entry: IndexedCatalogEntry = {
+            id,
+            categoryId: String(categoryId),
+            trailingYear: keys.trailingYear,
+        };
+        if (!exact.has(keys.exact)) {
+            exact.set(keys.exact, { ...entry, trailingYear: null });
+        }
+        // The base tier only exists for titles that carried a year tag
+        if (keys.base !== keys.exact && !base.has(keys.base)) {
+            base.set(keys.base, entry);
+        }
     }
-    return index;
+    return { exact, base };
+}
+
+/**
+ * Looks up a TMDB title (canonical — never year-stripped) in the catalog
+ * index. Base-tier hits require the provider's stripped year tag to be
+ * compatible with the TMDB year, so "Blade Runner" (1982) never claims the
+ * catalog's "Blade Runner 2049".
+ */
+export function lookupCatalogTitle(
+    index: CatalogTitleIndex,
+    title: string,
+    year?: number | null
+): CatalogMatch | null {
+    const wanted = normalizeTitleKeys(title).exact;
+    if (!wanted) {
+        return null;
+    }
+    const exactHit = index.exact.get(wanted);
+    if (exactHit) {
+        return exactHit;
+    }
+    const baseHit = index.base.get(wanted);
+    return baseHit && titleYearsCompatible(year, baseHit.trailingYear)
+        ? baseHit
+        : null;
 }
 
 export function matchRecommendationsToCatalog(
@@ -83,9 +137,10 @@ export function matchRecommendationsToCatalog(
         return [];
     }
 
+    // Wanted keys are the EXACT normalized TMDB titles
     const wanted = new Map<string, TmdbRecommendation>();
     for (const recommendation of recommendations) {
-        const key = normalizeTitle(recommendation.title);
+        const key = normalizeTitleKeys(recommendation.title).exact;
         if (key && !wanted.has(key)) {
             wanted.set(key, recommendation);
         }
@@ -98,11 +153,26 @@ export function matchRecommendationsToCatalog(
         if (catalogHits.size >= wanted.size) {
             break;
         }
-        const key = normalizeTitle(streamTitle(stream));
-        if (!key || !wanted.has(key) || catalogHits.has(key)) {
+        const keys = normalizeTitleKeys(streamTitle(stream));
+        if (!keys.exact) {
             continue;
         }
-        catalogHits.set(key, stream);
+        if (wanted.has(keys.exact) && !catalogHits.has(keys.exact)) {
+            catalogHits.set(keys.exact, stream);
+            continue;
+        }
+        // Base tier: provider title carried a year tag — only match when
+        // that year does not contradict the recommendation's year
+        if (keys.base === keys.exact || catalogHits.has(keys.base)) {
+            continue;
+        }
+        const recommendation = wanted.get(keys.base);
+        if (
+            recommendation &&
+            titleYearsCompatible(recommendation.year, keys.trailingYear)
+        ) {
+            catalogHits.set(keys.base, stream);
+        }
     }
 
     const limit = options.limit ?? 12;

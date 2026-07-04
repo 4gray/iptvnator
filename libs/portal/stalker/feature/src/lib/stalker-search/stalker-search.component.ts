@@ -300,11 +300,19 @@ export class StalkerSearchComponent {
 
     selectItem(item: StalkerVodSource) {
         this.closeInlinePlayer();
+        const filterType = this.selectedFilterType();
         const hasEmbeddedSeries = (item.series?.length ?? 0) > 0;
         const needsSeriesFetch =
-            this.selectedFilterType() === 'vod' &&
+            filterType === 'vod' &&
             !hasEmbeddedSeries &&
             isStalkerSeriesFlag(item.is_series);
+
+        // The setSelectedItem hook gates TMDB enrichment on the CURRENT
+        // content type — it must be up to date before the item is set,
+        // otherwise the type of the previously open tab leaks in.
+        if (filterType === 'vod' || filterType === 'series') {
+            this.stalkerStore.setSelectedContentType(filterType);
+        }
 
         this.itemDetails.set(
             buildStalkerSelectedVodItem(item, needsSeriesFetch)
@@ -312,9 +320,8 @@ export class StalkerSearchComponent {
 
         this.stalkerStore.setSelectedItem(this.itemDetails());
 
-        switch (this.selectedFilterType()) {
+        switch (filterType) {
             case 'vod':
-                this.stalkerStore.setSelectedContentType('vod');
                 if (!hasEmbeddedSeries && !needsSeriesFetch) {
                     const detailViewState = createStalkerDetailViewState(
                         this.itemDetails()!,
@@ -333,9 +340,6 @@ export class StalkerSearchComponent {
                     this.isSelectedVodFavorite.set(false);
                     this.selectedVodPosition.set(null);
                 }
-                break;
-            case 'series':
-                this.stalkerStore.setSelectedContentType('series');
                 break;
             default:
                 break;

@@ -70,10 +70,15 @@ export async function enrichVodSelectionWithTmdb<TItem extends SelectionRecord>(
         return;
     }
 
-    store.setSelectedItem({
-        ...current,
-        info: mergeVodInfoWithTmdb(currentInfo, details),
-    } as unknown as TItem);
+    try {
+        store.setSelectedItem({
+            ...current,
+            info: mergeVodInfoWithTmdb(currentInfo, details),
+        } as unknown as TItem);
+    } catch (error) {
+        // Never degrade provider data over a malformed payload shape
+        console.warn('[TMDB] VOD merge failed:', error);
+    }
 }
 
 export async function enrichSerialSelectionWithTmdb<
@@ -114,10 +119,14 @@ export async function enrichSerialSelectionWithTmdb<
         return;
     }
 
-    store.setSelectedItem({
-        ...current,
-        info: mergeSerieInfoWithTmdb(currentInfo, details),
-    } as unknown as TItem);
+    try {
+        store.setSelectedItem({
+            ...current,
+            info: mergeSerieInfoWithTmdb(currentInfo, details),
+        } as unknown as TItem);
+    } catch (error) {
+        console.warn('[TMDB] series merge failed:', error);
+    }
 }
 
 /**
@@ -178,11 +187,18 @@ export async function enrichSerialSeasonWithTmdb<
         return;
     }
 
-    store.setSelectedItem({
-        ...current,
-        episodes: {
-            ...current.episodes,
-            [seasonKey]: mergeEpisodesWithTmdb(currentEpisodes, tmdbEpisodes),
-        },
-    } as unknown as TItem);
+    try {
+        store.setSelectedItem({
+            ...current,
+            episodes: {
+                ...current.episodes,
+                [seasonKey]: mergeEpisodesWithTmdb(
+                    currentEpisodes,
+                    tmdbEpisodes
+                ),
+            },
+        } as unknown as TItem);
+    } catch (error) {
+        console.warn('[TMDB] season merge failed:', error);
+    }
 }

@@ -107,10 +107,15 @@ function tmdbRating(details: TmdbDetails): number | null {
 /** TMDB backdrop first, then the provider's own entries (deduplicated) */
 function mergedBackdrops(
     details: TmdbDetails,
-    providerBackdrops: string[] | undefined
+    // Some panels send backdrop_path as a plain string despite the typing
+    providerBackdrops: string[] | string | undefined
 ): string[] {
     const tmdbUrl = tmdbBackdropUrl(details.backdrop_path);
-    const provider = (providerBackdrops ?? []).filter(Boolean);
+    const provider = (
+        Array.isArray(providerBackdrops)
+            ? providerBackdrops
+            : [providerBackdrops]
+    ).filter((value): value is string => typeof value === 'string' && !!value);
     return tmdbUrl
         ? [tmdbUrl, ...provider.filter((url) => url !== tmdbUrl)]
         : provider;

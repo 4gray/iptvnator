@@ -20,7 +20,8 @@ import {
 } from '@iptvnator/services';
 import {
     CatalogTitleMatch,
-    normalizeTitle,
+    normalizeTitleKeys,
+    titleYearsCompatible,
 } from '@iptvnator/shared/interfaces';
 import {
     ActorViewComponent,
@@ -155,19 +156,29 @@ export class StalkerActorRouteComponent {
         credit: ActorFilmographyCredit
     ): CatalogTitleMatch | null {
         const type = credit.mediaType === 'movie' ? 'movie' : 'series';
-        return (
-            this.globalIndex().get(`${type}:${normalizeTitle(credit.title)}`) ??
-            null
-        );
+        const key = `${type}:${normalizeTitleKeys(credit.title).exact}`;
+        const match = this.globalIndex().get(key) ?? null;
+        return match &&
+            titleYearsCompatible(credit.year, match.trailingYear)
+            ? match
+            : null;
     }
 
     private async loadGlobalMatches(): Promise<void> {
+        // Guard against actor→actor navigation: a slow match for the
+        // previous person must not overwrite the current one's results
+        const requestedPersonId = this.personId();
         const titles = this.filmography().map((credit) => credit.title);
         this.isMatchingGlobal.set(true);
         try {
-            this.globalMatches.set(await this.titleMatch.matchTitles(titles));
+            const matches = await this.titleMatch.matchTitles(titles);
+            if (this.personId() === requestedPersonId) {
+                this.globalMatches.set(matches);
+            }
         } finally {
-            this.isMatchingGlobal.set(false);
+            if (this.personId() === requestedPersonId) {
+                this.isMatchingGlobal.set(false);
+            }
         }
     }
 

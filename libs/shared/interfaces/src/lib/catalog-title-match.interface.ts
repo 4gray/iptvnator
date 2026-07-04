@@ -13,4 +13,12 @@ export interface CatalogTitleMatch {
     categoryId: number;
     xtreamId: number;
     type: 'movie' | 'series';
+    /**
+     * Release-year tag stripped from the matched catalog title when the
+     * match happened on the year-stripped tier ("The Matrix 1999" matching
+     * the query "The Matrix"), null for exact-title matches. Consumers
+     * with a known query year must reject incompatible years — this keeps
+     * "Blade Runner" from claiming a catalog "Blade Runner 2049".
+     */
+    trailingYear: number | null;
 }

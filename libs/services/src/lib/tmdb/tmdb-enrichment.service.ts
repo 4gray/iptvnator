@@ -112,9 +112,8 @@ export class TmdbEnrichmentService {
 
     /**
      * Person details with the full combined filmography, in the app
-     * language. Cached like details payloads; the `person:` lookup-key
-     * prefix namespaces the rows (the table's media_type CHECK only allows
-     * 'movie'/'tv', so person rows reuse 'movie').
+     * language. Cached like details payloads under the 'person' media
+     * type.
      */
     async getPersonDetails(
         personId: number
@@ -127,7 +126,7 @@ export class TmdbEnrichmentService {
             const language = this.language();
             const lookupKey = `person:${personId}`;
 
-            const cached = await this.cache.get('movie', lookupKey, language);
+            const cached = await this.cache.get('person', lookupKey, language);
             if (
                 this.cache.isFresh(cached, TMDB_DETAILS_CACHE_TTL_MS) &&
                 cached?.payload
@@ -146,7 +145,7 @@ export class TmdbEnrichmentService {
             );
 
             await this.cache.set({
-                mediaType: 'movie',
+                mediaType: 'person',
                 lookupKey,
                 language,
                 tmdbId: personId,

@@ -1,5 +1,5 @@
 import { Injectable } from '@angular/core';
-import { TmdbCacheEntry, TmdbMediaType } from '@iptvnator/shared/interfaces';
+import { TmdbCacheEntry, TmdbCacheMediaType } from '@iptvnator/shared/interfaces';
 
 /**
  * Environment-aware cache for TMDB lookups.
@@ -25,7 +25,7 @@ export class TmdbCacheService {
     }
 
     async get(
-        mediaType: TmdbMediaType,
+        mediaType: TmdbCacheMediaType,
         lookupKey: string,
         language: string
     ): Promise<TmdbCacheEntry | null> {
@@ -82,7 +82,7 @@ export class TmdbCacheService {
     }
 
     private memoryKey(
-        mediaType: TmdbMediaType,
+        mediaType: TmdbCacheMediaType,
         lookupKey: string,
         language: string
     ): string {

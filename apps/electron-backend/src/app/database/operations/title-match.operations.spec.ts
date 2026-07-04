@@ -32,8 +32,42 @@ describe('title-match.operations', () => {
                 categoryId: 7,
                 xtreamId: 42,
                 type: 'movie',
+                trailingYear: null,
             },
         ]);
+    });
+
+    it('reports the stripped year tag for base-tier matches', async () => {
+        const { db } = createDbMock([
+            [{ ...matrixRow, title: 'The Matrix 1999' }],
+        ]);
+
+        const matches = await matchTitles(db, ['The Matrix']);
+        expect(matches).toHaveLength(1);
+        expect(matches[0].trailingYear).toBe(1999);
+    });
+
+    it('keeps title-years intact on the exact tier', async () => {
+        const { db } = createDbMock([
+            [{ ...matrixRow, title: 'Blade Runner 2049' }],
+        ]);
+
+        // Exact-tier: the query itself carries the year as part of the title
+        const exact = await matchTitles(db, ['Blade Runner 2049']);
+        expect(exact).toHaveLength(1);
+        expect(exact[0].trailingYear).toBeNull();
+    });
+
+    it('flags "Blade Runner" matching "Blade Runner 2049" with the year tag', async () => {
+        const { db } = createDbMock([
+            [{ ...matrixRow, title: 'Blade Runner 2049' }],
+        ]);
+
+        // Base-tier hit: the renderer must reject it via the 2049/1982
+        // year incompatibility (trailingYear is surfaced for exactly that)
+        const matches = await matchTitles(db, ['Blade Runner']);
+        expect(matches).toHaveLength(1);
+        expect(matches[0].trailingYear).toBe(2049);
     });
 
     it('drops FTS candidates whose normalized title differs', async () => {

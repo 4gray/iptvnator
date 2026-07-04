@@ -1,16 +1,18 @@
 import { sql } from 'drizzle-orm';
 import {
     CatalogTitleMatch,
-    normalizeTitle,
+    normalizeTitleKeys,
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 
 /**
  * Batched cross-playlist title matching for the actor page's "All portals"
  * scope. For every requested title one trigram-FTS lookup runs against
- * `content_title_fts`; candidates count as matches only when their
- * normalized title equals the normalized query — the same confidence rule
- * the renderer uses for portal-scoped matching.
+ * `content_title_fts`. Confirmation is two-tier, mirroring the renderer's
+ * portal-scoped matching: the query (a canonical TMDB title) must equal
+ * either the candidate's exact normalized title, or its year-stripped form
+ * — in which case the stripped year tag is returned so the renderer can
+ * reject year-incompatible matches.
  */
 
 const MAX_TITLES_PER_REQUEST = 200;
@@ -49,7 +51,8 @@ export async function matchTitles(
     const matches: CatalogTitleMatch[] = [];
 
     for (const queryTitle of uniqueTitles) {
-        const wanted = normalizeTitle(queryTitle);
+        // TMDB titles are canonical — a trailing year is part of the title
+        const wanted = normalizeTitleKeys(queryTitle).exact;
         const matchQuery = buildFtsMatchQuery(wanted);
         if (!wanted || !matchQuery) {
             continue;
@@ -81,7 +84,13 @@ export async function matchTitles(
         }
 
         for (const row of rows) {
-            if (normalizeTitle(row.title) !== wanted) {
+            const rowKeys = normalizeTitleKeys(row.title);
+            const exactMatch = rowKeys.exact === wanted;
+            const baseMatch =
+                !exactMatch &&
+                rowKeys.base !== rowKeys.exact &&
+                rowKeys.base === wanted;
+            if (!exactMatch && !baseMatch) {
                 continue;
             }
             matches.push({
@@ -91,6 +100,7 @@ export async function matchTitles(
                 categoryId: row.category_xtream_id,
                 xtreamId: row.xtream_id,
                 type: row.type,
+                trailingYear: exactMatch ? null : rowKeys.trailingYear,
             });
         }
     }

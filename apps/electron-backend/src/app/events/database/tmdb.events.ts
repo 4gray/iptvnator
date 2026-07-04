@@ -3,12 +3,12 @@
  * Persists TMDB API responses so detail-view enrichment stays offline-fast
  */
 
-import type { TmdbCacheEntry, TmdbMediaType } from '@iptvnator/shared/interfaces';
+import type { TmdbCacheEntry, TmdbCacheMediaType } from '@iptvnator/shared/interfaces';
 import { handleWorkerRequest } from './worker-events.utils';
 
 handleWorkerRequest(
     'DB_GET_TMDB_METADATA',
-    (mediaType: TmdbMediaType, lookupKey: string, language: string) => ({
+    (mediaType: TmdbCacheMediaType, lookupKey: string, language: string) => ({
         mediaType,
         lookupKey,
         language,

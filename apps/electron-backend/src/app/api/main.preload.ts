@@ -39,7 +39,7 @@ import type {
     ResolvedPortalPlayback,
     Settings,
     TmdbCacheEntry,
-    TmdbMediaType,
+    TmdbCacheMediaType,
     XtreamCategory,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -759,7 +759,7 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('DB_SET_APP_STATE', key, value),
     // TMDB metadata cache
     dbGetTmdbMetadata: (
-        mediaType: TmdbMediaType,
+        mediaType: TmdbCacheMediaType,
         lookupKey: string,
         language: string
     ) =>

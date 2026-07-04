@@ -84,8 +84,13 @@ export async function enrichStalkerSelectionWithTmdb(
         return;
     }
 
-    applyEnrichedItem({
-        ...current,
-        info: mergeStalkerInfoWithTmdb(currentInfo, details, mediaType),
-    });
+    try {
+        applyEnrichedItem({
+            ...current,
+            info: mergeStalkerInfoWithTmdb(currentInfo, details, mediaType),
+        });
+    } catch (error) {
+        // Never degrade provider data over a malformed payload shape
+        console.warn('[TMDB] Stalker merge failed:', error);
+    }
 }

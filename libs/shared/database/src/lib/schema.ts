@@ -359,7 +359,7 @@ export const tmdbMetadata = sqliteTable(
     'tmdb_metadata',
     {
         id: integer('id').primaryKey({ autoIncrement: true }),
-        mediaType: text('media_type', { enum: ['movie', 'tv'] }).notNull(),
+        mediaType: text('media_type', { enum: ['movie', 'tv', 'person'] }).notNull(),
         lookupKey: text('lookup_key').notNull(),
         language: text('language').notNull(),
         tmdbId: integer('tmdb_id'),
