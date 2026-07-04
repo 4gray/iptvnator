@@ -16,7 +16,9 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { toSignal } from '@angular/core/rxjs-interop';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { merge } from 'rxjs';
 import {
     EmbeddedMpvAudioTrack,
     ResolvedPortalPlayback,
@@ -85,6 +87,21 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         EmbeddedMpvOverlayVisibilityService
     );
     private readonly translate = inject(TranslateService);
+    /**
+     * Ticks when the active language or a loaded translation file changes.
+     * translate.instant() is invisible to the signal graph, so every
+     * computed()/template helper that calls it must read this signal first —
+     * otherwise labels keep the previous language (or the raw key when the
+     * component mounts before the translation file finishes loading).
+     */
+    private readonly translationsTick = toSignal(
+        merge(
+            this.translate.onLangChange,
+            this.translate.onTranslationChange,
+            this.translate.onDefaultLangChange
+        ),
+        { initialValue: null }
+    );
     private readonly controller = inject(EmbeddedMpvSessionController);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
@@ -148,6 +165,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             Boolean(document.exitFullscreen)
     );
     readonly statusLabel = computed(() => {
+        this.translationsTick();
         const session = this.session();
         if (session?.status === 'error') {
             return (
@@ -173,13 +191,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
         return '';
     });
-    readonly fullscreenLabel = computed(() =>
-        this.translate.instant(
+    readonly fullscreenLabel = computed(() => {
+        this.translationsTick();
+        return this.translate.instant(
             this.isFullscreen()
                 ? 'EMBEDDED_MPV.PLAYER.EXIT_FULLSCREEN'
                 : 'EMBEDDED_MPV.PLAYER.ENTER_FULLSCREEN'
-        )
-    );
+        );
+    });
     readonly audioTracks = computed(() => this.session()?.audioTracks ?? []);
     readonly hasAudioTracks = computed(() => this.audioTracks().length > 1);
     readonly subtitleTracks = computed(
@@ -196,11 +215,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         () => this.session()?.aspectOverride ?? 'no'
     );
     readonly volumeIcon = computed(() => volumeIcon(this.volume()));
-    readonly volumeLabel = computed(() =>
-        this.translate.instant('EMBEDDED_MPV.PLAYER.VOLUME_LABEL', {
+    readonly volumeLabel = computed(() => {
+        this.translationsTick();
+        return this.translate.instant('EMBEDDED_MPV.PLAYER.VOLUME_LABEL', {
             percent: Math.round(this.volume() * 100),
-        })
-    );
+        });
+    });
     /**
      * Non-null while the user drags the timeline: the slider and time label
      * preview this value locally and the single seek IPC call is deferred to
@@ -730,9 +750,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.controller.retry();
     }
 
+    // These helpers run inside the template's reactive context, so the
+    // translationsTick() read makes them re-evaluate on language changes.
     formatTime = formatTime;
-    trackLabel = (track: EmbeddedMpvAudioTrack, index: number) =>
-        audioTrackLabel(track, index, {
+    trackLabel = (track: EmbeddedMpvAudioTrack, index: number) => {
+        this.translationsTick();
+        return audioTrackLabel(track, index, {
             fallback: this.translate.instant(
                 'EMBEDDED_MPV.PLAYER.AUDIO_TRACK_FALLBACK',
                 { index: index + 1 }
@@ -741,8 +764,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 'EMBEDDED_MPV.PLAYER.TRACK_DEFAULT'
             ),
         });
-    subtitleLabel = (track: EmbeddedMpvAudioTrack, index: number) =>
-        subtitleTrackLabel(track, index, {
+    };
+    subtitleLabel = (track: EmbeddedMpvAudioTrack, index: number) => {
+        this.translationsTick();
+        return subtitleTrackLabel(track, index, {
             fallback: this.translate.instant(
                 'EMBEDDED_MPV.PLAYER.SUBTITLE_TRACK_FALLBACK',
                 { index: index + 1 }
@@ -751,11 +776,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 'EMBEDDED_MPV.PLAYER.TRACK_DEFAULT'
             ),
         });
+    };
     speedLabel = speedLabel;
-    aspectLabel = (aspect: string) =>
-        aspect === 'no'
+    aspectLabel = (aspect: string) => {
+        this.translationsTick();
+        return aspect === 'no'
             ? this.translate.instant('EMBEDDED_MPV.PLAYER.ASPECT_DEFAULT')
             : aspectLabel(aspect);
+    };
 
     private setRecordingMessage(
         message: string | null,

@@ -40,7 +40,7 @@ Linux native Wayland embedding is not implemented. When Electron is started on X
 
 ## Linux Support Matrix
 
-Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available, and `main.ts` appends the same switch on Linux when it is absent so direct binary/AppImage launches from a terminal behave like launcher starts. An explicit user-provided `--ozone-platform` value is never overridden.
+Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available, and `main.ts` appends the same switch on Linux when it is absent so direct binary/AppImage launches from a terminal behave like launcher starts. Explicit user intent is never overridden: both a user-provided `--ozone-platform` switch and the `ELECTRON_OZONE_PLATFORM_HINT` environment variable suppress the fallback.
 
 When the `mpv` executable probe fails inside a Flatpak or Snap sandbox (`FLATPAK_ID`/`SNAP` env present), the support reason explains that sandboxed packages cannot access a system mpv instead of asking the user to install it.
 

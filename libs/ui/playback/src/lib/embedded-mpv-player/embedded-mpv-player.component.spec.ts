@@ -1,7 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
@@ -211,6 +211,24 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
             fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
                 .nativeElement.disabled
         ).toBe(true);
+    });
+
+    it('re-evaluates instant()-based labels when the language changes', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            EMBEDDED_MPV: { PLAYER: { ENTER_FULLSCREEN: 'Enter fullscreen' } },
+        });
+        translate.use('en');
+        expect(player.fullscreenLabel()).toBe('Enter fullscreen');
+
+        translate.setTranslation('de', {
+            EMBEDDED_MPV: { PLAYER: { ENTER_FULLSCREEN: 'Vollbild starten' } },
+        });
+        translate.use('de');
+
+        // translate.instant() is invisible to the signal graph; the
+        // translationsTick dependency must invalidate the computed.
+        expect(player.fullscreenLabel()).toBe('Vollbild starten');
     });
 
     describe('timeline scrubbing', () => {
