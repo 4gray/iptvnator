@@ -621,6 +621,20 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(stalkerStore.setItvChannels).not.toHaveBeenCalled();
     });
 
+    it('persists the channels sidebar width under a dedicated storage key', () => {
+        // The shell context panel (category sidebar) is visible at the same
+        // time as this sidebar and persists its width under the shared
+        // "sidebar-width" key. Reusing that key here makes the two panels
+        // overwrite each other's stored width across reloads.
+        fixture.detectChanges();
+
+        const sidebar: HTMLElement =
+            fixture.nativeElement.querySelector('.sidebar');
+        expect(sidebar.getAttribute('storageKey')).toBe(
+            'live-channels-sidebar-width'
+        );
+    });
+
     it('keeps row previews empty before bulk epg is loaded', async () => {
         fixture.detectChanges();
         await fixture.whenStable();
