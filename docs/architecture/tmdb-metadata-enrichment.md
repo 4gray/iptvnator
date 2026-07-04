@@ -40,9 +40,12 @@ store imports):
 | `tmdb.types.ts` | TMDB v3 response shapes (search, details with credits) |
 | `tmdb-api.service.ts` | Thin `fetch`-based client (TMDB supports CORS; works in Electron renderer and PWA). Accepts v3 keys (`api_key` param) and v4 tokens (Bearer) |
 | `tmdb-matcher.ts` | Title normalization, year extraction, and the match-confidence gate (pure functions) |
-| `tmdb-cache.service.ts` | Environment-aware cache (Electron IPC bridge vs in-memory) with caller-supplied TTLs |
+| `tmdb-cache.service.ts` | Environment-aware cache (Electron IPC bridge vs in-memory LRU capped at 300 entries) with caller-supplied TTLs |
 | `tmdb-merge.ts` | Field-level merge into `XtreamVodInfo` / `XtreamSerieInfo` (pure functions, no mutation) |
-| `tmdb-enrichment.service.ts` | Orchestrator: settings gate → id resolution → details fetch → cache |
+| `tmdb-runtime.service.ts` | Shared runtime context: opt-in gate, effective API key, language resolution |
+| `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups |
+| `tmdb-person.service.ts` | Cached person details + combined filmography (`person:<id>` rows) |
+| `tmdb-season.service.ts` | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows) |
 
 Integration glue per portal:
 
