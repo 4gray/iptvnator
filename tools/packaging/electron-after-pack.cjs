@@ -1,5 +1,7 @@
 const linuxAfterPack = require('./linux-after-pack.cjs');
 const {
+    isForeignLinuxEmbeddedMpvArch,
+    resolveElectronBuilderArchName,
     validatePackagedEmbeddedMpv,
 } = require('./embedded-mpv-packaging.cjs');
 const fs = require('fs');
@@ -41,6 +43,22 @@ function copyEmbeddedMpvNativeOutput(resourceDir, projectDir) {
     fs.cpSync(sourceDir, destinationDir, { recursive: true });
 }
 
+function writeEmbeddedMpvUnavailableMarker(resourceDir, targetArch) {
+    const destinationDir = path.join(
+        resourceDir,
+        'app.asar.unpacked',
+        'electron-backend',
+        'native'
+    );
+
+    fs.rmSync(destinationDir, { recursive: true, force: true });
+    fs.mkdirSync(destinationDir, { recursive: true });
+    fs.writeFileSync(
+        path.join(destinationDir, 'embedded-mpv-unavailable.txt'),
+        `Embedded MPV is not bundled for ${targetArch} Linux builds yet. The built-in player and external MPV/VLC remain available.\n`
+    );
+}
+
 async function afterPackHook(params) {
     await linuxAfterPack(params);
 
@@ -54,14 +72,27 @@ async function afterPackHook(params) {
     );
     const resourceDir = getResourceDir(params);
 
-    copyEmbeddedMpvNativeOutput(
-        resourceDir,
-        params.packager.projectDir ?? process.cwd()
+    const foreignArch = isForeignLinuxEmbeddedMpvArch(
+        params.electronPlatformName,
+        params.arch
     );
+    if (foreignArch) {
+        const targetArch = resolveElectronBuilderArchName(params.arch);
+        log(
+            `embedded MPV addon is not built for ${targetArch}; packaging an unavailable marker instead`
+        );
+        writeEmbeddedMpvUnavailableMarker(resourceDir, targetArch);
+    } else {
+        copyEmbeddedMpvNativeOutput(
+            resourceDir,
+            params.packager.projectDir ?? process.cwd()
+        );
+    }
 
     const errors = validatePackagedEmbeddedMpv(resourceDir, {
         platform: params.electronPlatformName,
         required: requireEmbeddedMpv,
+        foreignArch,
     });
 
     if (errors.length > 0) {

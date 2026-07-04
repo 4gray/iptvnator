@@ -189,6 +189,39 @@ describe('EmbeddedMpvSessionController', () => {
         expect(controller.sessionId()).toBeNull();
     });
 
+    it('ignores a late startup rejection after teardown so it cannot clobber a newer session', async () => {
+        let rejectPrepare: ((error: Error) => void) | null = null;
+        electron.prepareEmbeddedMpv.mockImplementationOnce(
+            () =>
+                new Promise((_resolve, reject) => {
+                    rejectPrepare = reject;
+                })
+        );
+        const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+        const teardown = controller.startSession(
+            createHost(),
+            createPlayback(),
+            0.5
+        );
+        await waitFor(
+            () => rejectPrepare !== null,
+            'startup to reach prepareEmbeddedMpv'
+        );
+        teardown();
+
+        // A newer session replaces the torn-down one (fast channel zapping).
+        const newer = createSession({ id: 'mpv-2' });
+        controller.sessionId.set('mpv-2');
+        controller.session.set(newer);
+
+        rejectPrepare?.(new Error('native module missing'));
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+        expect(controller.session()).toBe(newer);
+        expect(controller.sessionId()).toBe('mpv-2');
+    });
+
     it('forwards playback commands and updates session snapshots', async () => {
         const controller = TestBed.inject(EmbeddedMpvSessionController);
         controller.sessionId.set('mpv-1');

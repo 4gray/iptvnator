@@ -49,20 +49,39 @@ export function formatTime(value: number | null | undefined): string {
     return `${minutes}:${String(seconds).padStart(2, '0')}`;
 }
 
+export interface TrackLabelTexts {
+    /** Used when the track carries neither title nor language. */
+    fallback?: string;
+    /** Suffix marker for the stream's default track. */
+    defaultLabel?: string;
+}
+
 export function audioTrackLabel(
     track: EmbeddedMpvAudioTrack,
-    index: number
+    index: number,
+    texts: TrackLabelTexts = {}
 ): string {
-    const label = track.title || track.language || `Audio ${index + 1}`;
-    return track.defaultTrack ? `${label} · Default` : label;
+    const label =
+        track.title ||
+        track.language ||
+        (texts.fallback ?? `Audio ${index + 1}`);
+    return track.defaultTrack
+        ? `${label} · ${texts.defaultLabel ?? 'Default'}`
+        : label;
 }
 
 export function subtitleTrackLabel(
     track: EmbeddedMpvAudioTrack,
-    index: number
+    index: number,
+    texts: TrackLabelTexts = {}
 ): string {
-    const label = track.title || track.language || `Subtitle ${index + 1}`;
-    return track.defaultTrack ? `${label} · Default` : label;
+    const label =
+        track.title ||
+        track.language ||
+        (texts.fallback ?? `Subtitle ${index + 1}`);
+    return track.defaultTrack
+        ? `${label} · ${texts.defaultLabel ?? 'Default'}`
+        : label;
 }
 
 export function speedLabel(speed: number): string {

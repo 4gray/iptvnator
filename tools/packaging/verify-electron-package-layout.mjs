@@ -7,7 +7,11 @@ import { inspectPackagedDependencyClosure } from './asar-dependency-closure.mjs'
 
 const require = createRequire(import.meta.url);
 const { extractFile, listPackage } = require('@electron/asar');
-const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
+const {
+    getEmbeddedMpvAddonArch,
+    linuxUnpackedDirArch,
+    validatePackagedEmbeddedMpv,
+} = require('./embedded-mpv-packaging.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -610,6 +614,20 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
     );
 }
 
+// The embedded MPV addon is built once per CI host (x64), but electron-builder
+// emits arm64/armv7l Linux output directories from the same dist tree. Those
+// must carry the unavailable marker instead of a foreign-architecture addon.
+function isForeignArchLinuxResourceDir(resourceDir) {
+    if (platform !== 'linux') {
+        return false;
+    }
+
+    const dirArch = linuxUnpackedDirArch(
+        path.basename(path.dirname(resourceDir))
+    );
+    return Boolean(dirArch) && dirArch !== getEmbeddedMpvAddonArch();
+}
+
 function verifyResourceDir(resourceDir) {
     const missingWorkers = workerFiles.filter(
         (workerFile) =>
@@ -660,6 +678,7 @@ function verifyResourceDir(resourceDir) {
         ...validatePackagedEmbeddedMpv(resourceDir, {
             platform,
             required: embeddedMpvRequired,
+            foreignArch: isForeignArchLinuxResourceDir(resourceDir),
         })
     );
 

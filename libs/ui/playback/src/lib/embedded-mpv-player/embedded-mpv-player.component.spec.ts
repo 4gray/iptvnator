@@ -1,6 +1,7 @@
 import { Component, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
@@ -96,7 +97,7 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
-            imports: [EmbeddedMpvPlayerHostComponent],
+            imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
             providers: [
                 {
                     provide: EmbeddedMpvOverlayVisibilityService,
@@ -194,18 +195,155 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         ).not.toBeNull();
         expect(
             fixture.debugElement.query(
-                By.css('button[aria-label="Back 10 seconds"]')
+                By.css(
+                    'button[aria-label="EMBEDDED_MPV.PLAYER.BACK_10_SECONDS"]'
+                )
             ).nativeElement.disabled
         ).toBe(true);
         expect(
             fixture.debugElement.query(
-                By.css('button[aria-label="Forward 10 seconds"]')
+                By.css(
+                    'button[aria-label="EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS"]'
+                )
             ).nativeElement.disabled
         ).toBe(true);
         expect(
             fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
                 .nativeElement.disabled
         ).toBe(true);
+    });
+
+    it('re-evaluates instant()-based labels when the language changes', () => {
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', {
+            EMBEDDED_MPV: { PLAYER: { ENTER_FULLSCREEN: 'Enter fullscreen' } },
+        });
+        translate.use('en');
+        expect(player.fullscreenLabel()).toBe('Enter fullscreen');
+
+        translate.setTranslation('de', {
+            EMBEDDED_MPV: { PLAYER: { ENTER_FULLSCREEN: 'Vollbild starten' } },
+        });
+        translate.use('de');
+
+        // translate.instant() is invisible to the signal graph; the
+        // translationsTick dependency must invalidate the computed.
+        expect(player.fullscreenLabel()).toBe('Vollbild starten');
+    });
+
+    describe('timeline scrubbing', () => {
+        const slider = () =>
+            fixture.debugElement.query(
+                By.css('.embedded-mpv-player__slider')
+            ).nativeElement as HTMLInputElement;
+
+        const dispatch = (type: string, value: string) => {
+            slider().value = value;
+            slider().dispatchEvent(new Event(type, { bubbles: true }));
+            fixture.detectChanges();
+        };
+
+        it('previews the drag position locally without firing seeks', () => {
+            const seekTo = jest
+                .spyOn(controller, 'seekTo')
+                .mockResolvedValue(undefined);
+
+            dispatch('input', '55');
+            dispatch('input', '60');
+
+            expect(seekTo).not.toHaveBeenCalled();
+            expect(player.timelineValue()).toBe(60);
+            expect(fixture.nativeElement.textContent).toContain('01:00');
+        });
+
+        it('commits a single seek on release and returns to session position', () => {
+            const seekTo = jest
+                .spyOn(controller, 'seekTo')
+                .mockResolvedValue(undefined);
+
+            dispatch('input', '60');
+            dispatch('change', '60');
+
+            expect(seekTo).toHaveBeenCalledTimes(1);
+            expect(seekTo).toHaveBeenCalledWith(60);
+            expect(player.scrubPosition()).toBeNull();
+            // Back to the session-reported position once the scrub ends.
+            expect(player.timelineValue()).toBe(30);
+        });
+    });
+
+    describe('viewport click-to-pause', () => {
+        const clickViewport = () => {
+            fixture.debugElement
+                .query(By.css('.embedded-mpv-player__viewport'))
+                .nativeElement.dispatchEvent(
+                    new MouseEvent('click', { bubbles: true })
+                );
+        };
+
+        beforeEach(() => {
+            jest.useFakeTimers();
+        });
+
+        afterEach(() => {
+            jest.useRealTimers();
+        });
+
+        it('toggles pause after the double-click grace period', () => {
+            const togglePaused = jest
+                .spyOn(controller, 'togglePaused')
+                .mockResolvedValue(undefined);
+
+            clickViewport();
+            expect(togglePaused).not.toHaveBeenCalled();
+
+            jest.advanceTimersByTime(300);
+            expect(togglePaused).toHaveBeenCalledTimes(1);
+        });
+
+        it('does not pause when the click turns into a double-click (fullscreen)', () => {
+            const togglePaused = jest
+                .spyOn(controller, 'togglePaused')
+                .mockResolvedValue(undefined);
+
+            clickViewport();
+            fixture.debugElement
+                .query(By.css('.embedded-mpv-player__viewport'))
+                .nativeElement.dispatchEvent(
+                    new MouseEvent('dblclick', { bubbles: true })
+                );
+
+            jest.advanceTimersByTime(300);
+            expect(togglePaused).not.toHaveBeenCalled();
+        });
+
+        it('closes an open popover instead of pausing', () => {
+            const togglePaused = jest
+                .spyOn(controller, 'togglePaused')
+                .mockResolvedValue(undefined);
+            player.menus.open('audio');
+
+            clickViewport();
+            jest.advanceTimersByTime(300);
+
+            expect(player.menus.anyOpen()).toBe(false);
+            expect(togglePaused).not.toHaveBeenCalled();
+        });
+
+        it('ignores clicks while the session is loading', () => {
+            const togglePaused = jest
+                .spyOn(controller, 'togglePaused')
+                .mockResolvedValue(undefined);
+            controller.session.update((session) =>
+                session ? { ...session, status: 'loading' } : session
+            );
+            fixture.detectChanges();
+
+            clickViewport();
+            jest.advanceTimersByTime(300);
+
+            expect(togglePaused).not.toHaveBeenCalled();
+        });
     });
 
     it('does not label VOD or episode playback as live while duration is loading', () => {
