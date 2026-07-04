@@ -185,6 +185,20 @@ describe('mergeVodInfoWithTmdb', () => {
         expect(merged.rating).toBe(7);
     });
 
+    it('fills the displayed rating_imdb field only when the provider left it empty', () => {
+        const withoutImdb = mergeVodInfoWithTmdb(
+            providerVodInfo({ rating_imdb: '' }),
+            tmdbMovie
+        );
+        expect(withoutImdb.rating_imdb).toBe('8.2');
+
+        const withImdb = mergeVodInfoWithTmdb(
+            providerVodInfo({ rating_imdb: '7.9' }),
+            tmdbMovie
+        );
+        expect(withImdb.rating_imdb).toBe('7.9');
+    });
+
     it('fills missing provider release date and country', () => {
         const info = providerVodInfo({ releasedate: '', country: '' });
         const merged = mergeVodInfoWithTmdb(info, tmdbMovie);

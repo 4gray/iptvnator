@@ -147,6 +147,10 @@ export function mergeVodInfoWithTmdb(
         director: prefer(director, info.director),
         genre: prefer(genre, info.genre),
         rating: rating ?? info.rating,
+        // The VOD detail badge renders rating_imdb — fill it when the
+        // provider left it empty so a TMDB-only score is actually shown
+        rating_imdb:
+            info.rating_imdb || (rating !== null ? String(rating) : ''),
         releasedate: info.releasedate || (details.release_date ?? ''),
         country: info.country || country,
         movie_image: prefer(poster, info.movie_image),
