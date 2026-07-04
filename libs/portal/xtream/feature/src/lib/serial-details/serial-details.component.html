@@ -134,6 +134,7 @@
                 [seriesNavigation]="inlineSeriesNavigation()"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
+                (backClicked)="goBack()"
                 (streamUrlCopied)="showCopyNotification()"
                 (playbackEnded)="handleInlinePlaybackEnded()"
                 (previousEpisodeRequested)="playPreviousEpisode()"

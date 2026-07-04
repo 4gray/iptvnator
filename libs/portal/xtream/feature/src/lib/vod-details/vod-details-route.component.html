@@ -205,6 +205,7 @@
                 [playback]="playback"
                 (timeUpdate)="handleInlineTimeUpdate($event)"
                 (closed)="closeInlinePlayer()"
+                (backClicked)="goBack()"
                 (streamUrlCopied)="showCopyNotification()"
                 (externalFallbackRequested)="
                     handleExternalFallbackRequest($event)

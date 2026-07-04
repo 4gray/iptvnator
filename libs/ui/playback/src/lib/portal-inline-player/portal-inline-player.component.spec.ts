@@ -122,12 +122,18 @@ describe('PortalInlinePlayerComponent', () => {
         expect(events).toEqual(['ended', 'previous', 'next']);
     });
 
-    it('emits closed from the back button in the now-playing bar', () => {
+    it('emits backClicked (not closed) from the back button in the now-playing bar', () => {
+        let backCount = 0;
         let closedCount = 0;
         fixture.componentRef.setInput('playback', {
             streamUrl: 'https://example.test/vod/1.mp4',
             title: 'Movie',
         });
+        (
+            component as unknown as {
+                backClicked: { subscribe: (fn: () => void) => void };
+            }
+        ).backClicked.subscribe(() => backCount++);
         (
             component as unknown as {
                 closed: { subscribe: (fn: () => void) => void };
@@ -141,6 +147,7 @@ describe('PortalInlinePlayerComponent', () => {
         ) as HTMLButtonElement;
         expect(backButton).toBeTruthy();
         backButton.click();
-        expect(closedCount).toBe(1);
+        expect(backCount).toBe(1);
+        expect(closedCount).toBe(0);
     });
 });

@@ -112,9 +112,12 @@ Contracts:
 - Escape closes inline playback: the shell emits `closePlayerRequested`
   when playback is active, the event was not `defaultPrevented`, and no
   element is in browser fullscreen; hosts wire it to `closeInlinePlayer()`.
-- The inline player's now-playing bar has a back button that emits the
-  existing `closed` output — in watch state, back returns to browse, it
-  does not navigate the route.
+- The now-playing bar separates two exits: the back arrow emits
+  `backClicked`, which hosts wire to their route-level `goBack()` (straight
+  back to the list — everything browse offers is also visible in watch, so
+  a two-step unwind would be ceremony); the "Close player" button and
+  Escape emit `closed`/`closePlayerRequested` and return to browse without
+  navigating.
 - Entering watch scrolls the shell to the top; leaving keeps the scroll
   position.
 
