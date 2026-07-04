@@ -135,7 +135,27 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly tmdbSeasonEpisodes = signal<
         ReadonlyMap<string, TmdbEpisode[]>
     >(new Map());
+    /** TMDB season overviews, keyed like tmdbSeasonEpisodes. */
+    private readonly tmdbSeasonOverviews = signal<
+        ReadonlyMap<string, string>
+    >(new Map());
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
+
+    /** Season descriptions for the season tabs (TMDB overview per season). */
+    readonly seasonDescriptions = computed<Record<string, string>>(() => {
+        const tmdbId = this.displayItem()?.info?.tmdb_id;
+        if (!tmdbId) {
+            return {};
+        }
+        const prefix = `${tmdbId}|`;
+        const descriptions: Record<string, string> = {};
+        for (const [mapKey, overview] of this.tmdbSeasonOverviews()) {
+            if (mapKey.startsWith(prefix)) {
+                descriptions[mapKey.slice(prefix.length)] = overview;
+            }
+        }
+        return descriptions;
+    });
 
     /**
      * Track VOD series seasons with their loaded episodes
@@ -380,16 +400,26 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             return;
         }
 
-        const tmdbEpisodes = await this.tmdbEnrichment.getSeasonEpisodes(
+        const season = await this.tmdbEnrichment.getSeason(
             tmdbId,
             seasonNumber
         );
-        if (!tmdbEpisodes?.length) {
+        if (!season) {
+            return;
+        }
+
+        if (season.overview) {
+            const overviews = new Map(this.tmdbSeasonOverviews());
+            overviews.set(mapKey, season.overview);
+            this.tmdbSeasonOverviews.set(overviews);
+        }
+
+        if (!season.episodes?.length) {
             return;
         }
 
         const next = new Map(this.tmdbSeasonEpisodes());
-        next.set(mapKey, tmdbEpisodes);
+        next.set(mapKey, season.episodes);
         this.tmdbSeasonEpisodes.set(next);
     }
 

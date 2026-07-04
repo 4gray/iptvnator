@@ -99,6 +99,7 @@ export interface TmdbEpisode {
 
 export interface TmdbSeasonDetails {
     season_number?: number;
+    overview?: string;
     episodes?: TmdbEpisode[];
 }
 

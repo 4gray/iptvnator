@@ -149,6 +149,7 @@
                 [playingEpisodeId]="
                     inlinePlayback()?.contentInfo?.contentXtreamId ?? null
                 "
+                [seasonDescriptions]="seasonDescriptions()"
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
                     isCurrentSeasonLoading(seasonContainer?.selectedSeason())

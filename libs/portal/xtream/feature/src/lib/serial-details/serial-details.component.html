@@ -157,6 +157,7 @@
             [playingEpisodeId]="
                 inlinePlayback()?.contentInfo?.contentXtreamId ?? null
             "
+            [seasonDescriptions]="seasonDescriptions()"
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
             (seasonSelected)="onSeasonSelected($event)"

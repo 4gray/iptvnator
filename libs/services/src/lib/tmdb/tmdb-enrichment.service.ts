@@ -65,6 +65,19 @@ export class TmdbEnrichmentService {
         tmdbId: number,
         seasonNumber: number
     ): Promise<TmdbEpisode[] | null> {
+        const season = await this.getSeason(tmdbId, seasonNumber);
+        return season ? (season.episodes ?? []) : null;
+    }
+
+    /**
+     * Full season payload (overview + episodes) in the app language, using
+     * the same cache rows as `getSeasonEpisodes`. Returns `null` when
+     * enrichment is off or the request fails.
+     */
+    async getSeason(
+        tmdbId: number,
+        seasonNumber: number
+    ): Promise<TmdbSeasonDetails | null> {
         if (!this.isEnabled()) {
             return null;
         }
@@ -79,10 +92,7 @@ export class TmdbEnrichmentService {
                 cached?.payload
             ) {
                 try {
-                    const season = JSON.parse(
-                        cached.payload
-                    ) as TmdbSeasonDetails;
-                    return season.episodes ?? [];
+                    return JSON.parse(cached.payload) as TmdbSeasonDetails;
                 } catch {
                     // Corrupt cache row — fall through to a fresh fetch
                 }
@@ -103,7 +113,7 @@ export class TmdbEnrichmentService {
                 payload: JSON.stringify(season),
             });
 
-            return season.episodes ?? [];
+            return season;
         } catch (error) {
             console.warn('TMDB season enrichment failed:', error);
             return null;

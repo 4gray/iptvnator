@@ -109,6 +109,17 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
 
+    /** Season overviews from get_series_info, keyed by season key. */
+    readonly seasonDescriptions = computed<Record<string, string>>(() => {
+        const descriptions: Record<string, string> = {};
+        for (const season of this.selectedItem()?.seasons ?? []) {
+            if (season?.overview && season.season_number !== undefined) {
+                descriptions[String(season.season_number)] = season.overview;
+            }
+        }
+        return descriptions;
+    });
+
     /** TMDB recommendations matched against the loaded series catalog */
     readonly similarItems = computed<SimilarCatalogItem[]>(() => {
         const item = this.selectedItem();
