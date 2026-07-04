@@ -31,7 +31,6 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { DownloadsService } from '@iptvnator/services';
 import { ProgressCapsuleComponent } from '../progress-capsule/progress-capsule.component';
-import { WatchedBadgeComponent } from '../watched-badge/watched-badge.component';
 import {
     buildXtreamEpisodeDownloadRequest,
     getEpisodeDownloadId,
@@ -76,7 +75,6 @@ export interface SeasonContainerPlaybackToggleRequest {
         ProgressCapsuleComponent,
         SeasonTabsComponent,
         TranslateModule,
-        WatchedBadgeComponent,
     ],
 })
 export class SeasonContainerComponent implements OnInit {

@@ -208,20 +208,71 @@ app-season-tabs {
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
     }
 
-    // Watched state
+    // Watched state — the sole indicator is the watched toggle on the
+    // thumbnail (plus the dimmed card); no extra checkmarks elsewhere.
     &--watched {
         opacity: 0.7;
 
         &:hover {
             opacity: 1;
         }
+    }
 
-        .episode-card__title::after {
-            content: ' ✓';
-            color: var(--mat-sys-tertiary);
-            font-weight: bold;
-            margin-left: 4px;
+    // Watched indicator + toggle in one control, top-left on the artwork.
+    // Watched: always visible, green (the old badge look). Unwatched: ghost
+    // circle revealed on card hover.
+    &__watched-toggle {
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        z-index: 2;
+        width: 28px;
+        height: 28px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        color: rgba(255, 255, 255, 0.75);
+        background: rgba(0, 0, 0, 0.6);
+        border: 1px solid rgba(255, 255, 255, 0.14);
+        opacity: 0;
+        transition:
+            opacity 0.2s ease,
+            background 0.2s ease,
+            color 0.2s ease;
+
+        mat-icon {
+            font-size: 17px;
+            width: 17px;
+            height: 17px;
+            line-height: 17px;
         }
+
+        &:hover {
+            color: white;
+            background: rgba(0, 0, 0, 0.85);
+        }
+
+        &:focus-visible {
+            opacity: 1;
+        }
+
+        &--watched {
+            opacity: 1;
+            color: white;
+            background: rgba(70, 211, 105, 0.9);
+            border-color: transparent;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+
+            &:hover {
+                color: white;
+                background: rgba(70, 211, 105, 1);
+            }
+        }
+    }
+
+    &:hover .episode-card__watched-toggle {
+        opacity: 1;
     }
 
     &:hover {
@@ -303,8 +354,7 @@ app-season-tabs {
         display: flex;
         gap: 4px;
 
-        .download-btn,
-        .toggle-watched-btn {
+        .download-btn {
             color: rgba(255, 255, 255, 0.75);
             background: rgba(0, 0, 0, 0.6);
             border: 1px solid rgba(255, 255, 255, 0.14);

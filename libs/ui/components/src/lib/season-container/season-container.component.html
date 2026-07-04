@@ -133,9 +133,27 @@
                                         </div>
                                     }
                                 }
-                                <app-watched-badge
-                                    [isWatched]="isEpisodeWatched(episode)"
-                                />
+                                <button
+                                    mat-icon-button
+                                    class="episode-card__watched-toggle"
+                                    [class.episode-card__watched-toggle--watched]="
+                                        isEpisodeWatched(episode)
+                                    "
+                                    data-testid="episode-watched-toggle"
+                                    (click)="toggleWatched($event, episode)"
+                                    [matTooltip]="
+                                        (isEpisodeWatched(episode)
+                                            ? 'XTREAM.MARK_UNWATCHED'
+                                            : 'XTREAM.MARK_WATCHED'
+                                        ) | translate
+                                    "
+                                >
+                                    <mat-icon>{{
+                                        isEpisodeWatched(episode)
+                                            ? 'check_circle'
+                                            : 'radio_button_unchecked'
+                                    }}</mat-icon>
+                                </button>
                                 <div class="episode-card__actions">
                                     @if (isElectron()) {
                                         @if (isEpisodeDownloaded(episode)) {
@@ -188,23 +206,6 @@
                                             </button>
                                         }
                                     }
-                                    <button
-                                        mat-icon-button
-                                        class="toggle-watched-btn"
-                                        (click)="toggleWatched($event, episode)"
-                                        [matTooltip]="
-                                            (isEpisodeWatched(episode)
-                                                ? 'XTREAM.MARK_UNWATCHED'
-                                                : 'XTREAM.MARK_WATCHED'
-                                            ) | translate
-                                        "
-                                    >
-                                        <mat-icon>{{
-                                            isEpisodeWatched(episode)
-                                                ? 'check_circle'
-                                                : 'radio_button_unchecked'
-                                        }}</mat-icon>
-                                    </button>
                                 </div>
                                 <div class="episode-card__overlay">
                                     <div class="episode-card__play">
