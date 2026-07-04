@@ -7,6 +7,7 @@ import {
     input,
     output,
     signal,
+    untracked,
 } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -139,6 +140,8 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     private readonly tmdbSeasonOverviews = signal<
         ReadonlyMap<string, string>
     >(new Map());
+    /** Season currently selected in the season container. */
+    private readonly selectedSeasonKey = signal<string | null>(null);
     private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
 
     /** Season descriptions for the season tabs (TMDB overview per season). */
@@ -185,6 +188,19 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly isSerialSeasonsLoading = this.stalkerStore.isSerialSeasonsLoading;
 
     constructor() {
+        // TMDB season fetch, keyed on (tmdb_id, selected season). With season
+        // tabs the first seasonSelected fires immediately when seasons load —
+        // usually BEFORE the async show-level TMDB enrichment has written
+        // tmdb_id — so the fetch must re-run when the match arrives, not only
+        // on selection. fetchTmdbSeason is idempotent per (tmdbId, season).
+        effect(() => {
+            const tmdbId = this.displayItem()?.info?.tmdb_id;
+            const seasonKey = this.selectedSeasonKey();
+            if (tmdbId && seasonKey) {
+                untracked(() => void this.fetchTmdbSeason(seasonKey));
+            }
+        });
+
         // Effect to load VOD series seasons when a VOD series item is selected
         effect(() => {
             if (this.isVodSeries()) {
@@ -365,7 +381,9 @@ export class StalkerSeriesViewComponent implements OnDestroy {
      * For VOD Series, triggers lazy loading of episodes.
      */
     onSeasonSelected(seasonKey: string) {
-        void this.fetchTmdbSeason(seasonKey);
+        // The TMDB fetch itself runs from the constructor effect keyed on
+        // (tmdb_id, selectedSeasonKey) — see the race note there.
+        this.selectedSeasonKey.set(seasonKey);
 
         if (!this.isVodSeries()) return;
 

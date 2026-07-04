@@ -7,6 +7,7 @@ import {
     OnDestroy,
     OnInit,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
@@ -109,6 +110,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     readonly inlineEpisodeMetadata = this.playback.inlineEpisodeMetadata;
     readonly inlineSeriesNavigation = this.playback.inlineSeriesNavigation;
 
+    /** Season currently selected in the season container. */
+    private readonly selectedSeasonKey = signal<string | null>(null);
+
     /** Season overviews from get_series_info, keyed by season key. */
     readonly seasonDescriptions = computed<Record<string, string>>(() => {
         const descriptions: Record<string, string> = {};
@@ -136,6 +140,22 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
 
     constructor() {
         this.playback.bind({ selectedItem: this.selectedItem });
+
+        // TMDB season enrichment, keyed on (tmdb_id, selected season). With
+        // season tabs the first seasonSelected fires as soon as seasons load —
+        // usually BEFORE the async show-level TMDB match has written
+        // info.tmdb_id, and enrichSelectedSerialSeason no-ops without it. So
+        // the call must re-run when the match arrives, not only on selection.
+        // The store-side enrichment is idempotent per (serial, season).
+        effect(() => {
+            const tmdbId = this.selectedItem()?.info?.tmdb_id;
+            const seasonKey = this.selectedSeasonKey();
+            if (tmdbId && seasonKey) {
+                untracked(() =>
+                    this.xtreamStore.enrichSelectedSerialSeason(seasonKey)
+                );
+            }
+        });
 
         effect(() => {
             const item = this.xtreamStore.selectedItem() as unknown as
@@ -246,7 +266,9 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     }
 
     onSeasonSelected(seasonKey: string): void {
-        this.xtreamStore.enrichSelectedSerialSeason(seasonKey);
+        // The enrichment call itself runs from the constructor effect keyed
+        // on (tmdb_id, selectedSeasonKey) — see the race note there.
+        this.selectedSeasonKey.set(seasonKey);
     }
 
     playEpisode(episode: XtreamSerieEpisode): void {

@@ -90,6 +90,9 @@
 }
 
 .shell__about {
+    display: block;
+    // Air between the last episode row and the section divider.
+    margin-top: 32px;
     animation: shell-fade-in 250ms ease 100ms both;
 }
 

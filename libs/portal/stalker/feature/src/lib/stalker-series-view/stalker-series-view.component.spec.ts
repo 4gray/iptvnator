@@ -17,7 +17,7 @@ import {
 } from '@iptvnator/portal/stalker/data-access';
 import { PlaybackPositionData } from '@iptvnator/shared/interfaces';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
-import { DownloadsService } from '@iptvnator/services';
+import { DownloadsService, TmdbEnrichmentService } from '@iptvnator/services';
 import { EMPTY, of } from 'rxjs';
 import { FavoritesButtonComponent } from '../stalker-favorites-button/stalker-favorites-button.component';
 import { StalkerSeriesViewComponent } from './stalker-series-view.component';
@@ -84,6 +84,7 @@ describe('StalkerSeriesViewComponent', () => {
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
     const openResolvedPlayback = jest.fn();
     const isEmbeddedPlayer = jest.fn();
+    const tmdbGetSeason = jest.fn();
 
     beforeEach(async () => {
         selectedContentType.set('series');
@@ -136,6 +137,11 @@ describe('StalkerSeriesViewComponent', () => {
         openResolvedPlayback.mockClear();
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
+        tmdbGetSeason.mockReset();
+        tmdbGetSeason.mockResolvedValue({
+            overview: 'Season overview from TMDB',
+            episodes: [],
+        });
 
         await TestBed.configureTestingModule({
             imports: [StalkerSeriesViewComponent],
@@ -188,6 +194,14 @@ describe('StalkerSeriesViewComponent', () => {
                     provide: DownloadsService,
                     useValue: {
                         startDownload: jest.fn(),
+                    },
+                },
+                {
+                    provide: TmdbEnrichmentService,
+                    useValue: {
+                        isEnabled: () => true,
+                        getSeason: tmdbGetSeason,
+                        getSeasonEpisodes: jest.fn().mockResolvedValue(null),
                     },
                 },
                 {
@@ -680,5 +694,37 @@ describe('StalkerSeriesViewComponent', () => {
             expect.any(Number),
             undefined
         );
+    });
+
+    it('fetches the TMDB season once the show-level match arrives after auto-select', async () => {
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        // Season tabs auto-select immediately — usually before the async
+        // show-level enrichment has written tmdb_id.
+        const seasonContainer = fixture.debugElement.query(
+            By.directive(StubSeasonContainerComponent)
+        ).componentInstance as StubSeasonContainerComponent;
+        seasonContainer.seasonSelected.emit('1');
+        fixture.detectChanges();
+        await fixture.whenStable();
+        expect(tmdbGetSeason).not.toHaveBeenCalled();
+
+        // The TMDB match lands afterwards — the fetch must run now.
+        selectedItem.set({
+            id: '30001',
+            cmd: '/media/file_30001.mpg',
+            info: {
+                name: 'Regular Series',
+                description: 'Series description',
+                movie_image: 'poster.jpg',
+                tmdb_id: 777,
+            },
+        } as never);
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        expect(tmdbGetSeason).toHaveBeenCalledWith(777, 1);
     });
 });
