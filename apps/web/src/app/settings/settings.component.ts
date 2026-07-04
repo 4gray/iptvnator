@@ -39,6 +39,7 @@ import {
     CoverSize,
     ELECTRON_BRIDGE_APP_UPDATE_STATUSES,
     ElectronBridgeAppUpdateStatus,
+    EpgViewMode,
     Language,
     StreamFormat,
     Theme,
@@ -69,6 +70,7 @@ import {
     buildSettingsSectionNavItems,
     SETTINGS_COVER_SIZE_OPTIONS,
     SETTINGS_EMBEDDED_PLAYER_OPTIONS,
+    SETTINGS_EPG_VIEW_MODE_OPTIONS,
     SETTINGS_OS_PLAYER_OPTIONS,
     SETTINGS_STARTUP_BEHAVIOR_OPTIONS,
     SETTINGS_THEME_OPTIONS,
@@ -203,6 +205,7 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly themeOptions = SETTINGS_THEME_OPTIONS;
     readonly coverSizeOptions = SETTINGS_COVER_SIZE_OPTIONS;
     readonly startupBehaviorOptions = SETTINGS_STARTUP_BEHAVIOR_OPTIONS;
+    readonly epgViewModeOptions = SETTINGS_EPG_VIEW_MODE_OPTIONS;
 
     /** Settings form object */
     settingsForm = createSettingsForm(this.formBuilder, this.supportsEpg);
@@ -505,6 +508,17 @@ export class SettingsComponent implements OnInit, OnDestroy {
         this.settingsForm.get('coverSize')?.markAsDirty();
         this.settingsForm.markAsDirty();
         this.settingsStore.updateSettings({ coverSize: size });
+    }
+
+    selectEpgViewMode(mode: EpgViewMode): void {
+        if (this.settingsForm.value.epgViewMode === mode) {
+            return;
+        }
+
+        this.settingsForm.patchValue({ epgViewMode: mode });
+        this.settingsForm.get('epgViewMode')?.markAsDirty();
+        this.settingsForm.markAsDirty();
+        this.settingsStore.updateSettings({ epgViewMode: mode });
     }
 
     async selectRecordingFolder(): Promise<void> {

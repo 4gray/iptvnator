@@ -39,6 +39,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import {
     EpgDateNavigationDirection,
+    EpgListViewComponent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
@@ -81,6 +82,7 @@ type StalkerPlayableChannel = StalkerPortalItem & {
         AudioPlayerComponent,
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
+        EpgListViewComponent,
         EpgTimelineComponent,
         MatButtonModule,
         MatIconModule,
@@ -191,6 +193,8 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
+    /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
+    readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly isSidebarCollapsed = this.liveSidebarStateService.isCollapsed;
     readonly liveEpgPanelSummary = computed(() =>
         this.toLiveEpgPanelSummary(this.currentProgram())
