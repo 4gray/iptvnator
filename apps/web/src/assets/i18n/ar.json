@@ -192,10 +192,8 @@
             "VALIDATING": "جارٍ التحقق من البوابة..."
         },
         "FILTER_BY_NAME": "التصفية حسب الاسم",
-        "FILTER_BY_TYPE": "التصفية حسب النوع",
         "FILTER_AND_SORT": "تصفية وفرز",
         "SORT_PLAYLISTS": "فرز القوائم",
-        "SORT_BY": "ترتيب حسب",
         "SORT_OPTIONS": {
             "NAME_ASC": "الاسم (أ-ي)",
             "NAME_DESC": "الاسم (ي-أ)",
@@ -292,6 +290,10 @@
         "COVER_SIZE_SMALL": "صغير",
         "COVER_SIZE_MEDIUM": "متوسط",
         "COVER_SIZE_LARGE": "كبير",
+        "EPG_VIEW_MODE": "عرض الدليل",
+        "EPG_VIEW_MODE_DESCRIPTION": "اختر طريقة عرض دليل البرامج أسفل المشغل: شريط جدول زمني أفقي، أو قائمة رأسية ليوم واحد.",
+        "EPG_VIEW_MODE_TIMELINE": "الجدول الزمني",
+        "EPG_VIEW_MODE_LIST": "قائمة",
         "STARTUP_BEHAVIOR": "عرض البدء",
         "STARTUP_BEHAVIOR_DESCRIPTION": "اختر ما إذا كان IPTVnator يفتح أول عرض متاح في مساحة العمل أو يستعيد آخر عرض على مستوى القسم. العرض الأول يعني لوحة التحكم عند تفعيلها، وإلا فالمصادر.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "أول عرض متاح",
@@ -483,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "تبديل قائمة القنوات (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "البحث عن قناة",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "تحميل أو اختيار قائمة أخرى",
         "ALL_CHANNELS": "جميع القنوات",
         "GROUPS": "المجموعات",
@@ -557,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "فتح قائمة القنوات",
-        "TOGGLE_FAVORITE_FLAG": "تبديل حالة المفضلة",
-        "OPEN_EPG_LIST": "فتح قائمة EPG",
-        "OPEN_MULTI_EPG": "فتح عرض Multi-EPG",
-        "SHOW_INFO": "عرض معلومات البرنامج (اضغط I)"
+        "OPEN_MULTI_EPG": "فتح عرض Multi-EPG"
     },
     "EPG": {
-        "TITLE": "الدليل الإلكتروني للبرامج",
         "NEXT_DAY": "اليوم التالي",
         "PREVIOUS_DAY": "اليوم السابق",
         "ZOOM_IN": "تكبير",
@@ -573,14 +569,9 @@
         "CLOSE_FILTER": "إغلاق التصفية",
         "SEARCH_PROGRAMS": "البحث في البرامج",
         "CLOSE_PROGRAM_SEARCH": "إغلاق بحث البرامج",
-        "LIVE_NOW": "يُبث الآن",
         "LIVE_STREAM": "بث مباشر",
-        "TIMESHIFT_AVAILABLE": "التحريك الزمني متاح، انقر للتشغيل",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "تشغيل الأرشيف غير متاح",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "يكشف هذا المزود عن سجل الجدول لهذه القناة، لكنه لا يوفر تشغيلًا قابلًا للأرشيف أو Catchup.",
-        "EPG_NOT_AVAILABLE_DATE": "عذراً، الدليل غير متاح لهذا التاريخ",
-        "NO_GUIDE_HINT": "جرب تاريخاً آخر أو حدّث قائمة التشغيل.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "عذراً، الدليل غير متاح لهذه القناة",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "يرجى إضافة/تعديل رابط EPG في إعدادات التطبيق.",
         "FETCH_EPG": "جارٍ جلب بيانات EPG...",
         "ERROR": "عذراً، فشل تحميل الدليل.",
@@ -615,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "تشغيل الأرشيف",
-        "RETURN_TO_LIVE": "العودة إلى البث المباشر",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +669,6 @@
     "MENU": {
         "OPEN": "فتح القائمة",
         "SUPPORT_ARIA": "دعم IPTVnator على GitHub",
-        "SETTINGS": "الإعدادات",
         "SETTINGS_ARIA": "فتح الإعدادات",
         "BUG_REPORT": "ابلاغ عن خلل",
         "WHAT_IS_NEW": "ما الجديد",
@@ -804,10 +793,7 @@
             "SEARCH": "بحث",
             "RECENT": "الأخيرة",
             "RECENTLY_ADDED": "أُضيفت مؤخرًا",
-            "FAVORITES": "المفضلة",
-            "HOME": "الرئيسية",
-            "PLAYLIST_INFO": "معلومات قائمة التشغيل",
-            "ACCOUNT_INFO": "معلومات الحساب"
+            "FAVORITES": "المفضلة"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

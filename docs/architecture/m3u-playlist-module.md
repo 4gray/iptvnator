@@ -266,16 +266,33 @@ per-tab EPG logic:
   favorites). Callers read their `progressTick()` signal first so the computed
   re-runs on the ~30s tick.
 
-### EPG Timeline Panel
+### EPG Panel (Timeline & List views)
 
-The programme guide under the player is a horizontal **timeline ribbon**
-(`app-epg-timeline`, `libs/ui/epg/src/lib/epg-timeline/`) shared by all four live
-surfaces: the M3U video player, the unified live tab, and the Xtream and Stalker
-live-stream layouts. It replaces the former vertical `app-epg-list` /
-`app-epg-view`.
+The programme guide under the player renders in one of **two interchangeable
+views**, chosen by the **`epgViewMode`** setting (`'timeline'` default, or
+`'list'`; Settings → EPG → *Guide view*):
 
-The component stays presentation-focused; the reusable, view-agnostic pieces
-(so a future list view can share them) are split out and re-exported from
+- **Timeline** — a horizontal **ribbon** (`app-epg-timeline`,
+  `libs/ui/epg/src/lib/epg-timeline/`).
+- **List** — a vertical, single-day **programme list** (`app-epg-list-view`,
+  `libs/ui/epg/src/lib/epg-list-view/`) with a prev/today/next stepper.
+
+Both are shared by all four live surfaces: the M3U video player, the unified live
+tab, and the Xtream and Stalker live-stream layouts (replacing the former
+vertical `app-epg-list` / `app-epg-view`). `EpgListViewComponent` mirrors
+`EpgTimelineComponent`'s input/output contract **1:1**, so each host swaps them
+with a plain `@if (epgViewMode() === 'list') { <app-epg-list-view … /> } @else {
+<app-epg-timeline … /> }` — identical bindings in both branches. Hosts read
+`epgViewMode` from `SettingsStore` (a signal), so flipping the setting swaps the
+panel live. The setting flows end-to-end (`Settings.epgViewMode` →
+`DEFAULT_SETTINGS` → `SettingsStore`/`StorageMap` → the segmented control in
+`settings-epg-section`) and needs no backend change. The control is
+**Electron-only in practice** — the EPG settings section (and the form control)
+is gated behind `supportsEpg`, which is false in PWA; there the stored value
+simply stays at the `'timeline'` default.
+
+Both components stay presentation-focused; the reusable, view-agnostic pieces
+(shared by the timeline and the list) are split out and re-exported from
 `@iptvnator/ui/epg`:
 
 - `epg-timeline.utils.ts` (axis/blocks/date helpers) + `epg-timeline-render.util.ts`
@@ -289,6 +306,19 @@ The component stays presentation-focused; the reusable, view-agnostic pieces
 - `epg-timeline-scroll.controller.ts` — `TimelineScrollController` (ribbon
   scrolling + channel-select auto-focus); timeline-specific, kept out of the
   component so it stays under the line ceiling.
+
+The **list view** (`epg-list-view/`) composes those same shared modules — it does
+**not** duplicate classification or gating logic. It reuses `classifyTimelineWhen`
+/ `hasProgramsForDateKey` / `nearestDateKeyWithPrograms`, `epg-archive.util`,
+`epg-summary.util`, the `epg-date` helpers, `EpgProgrammeDialogService`, and the
+shared `app-epg-timeline-empty-state` — and drops all ribbon geometry, zoom, and
+horizontal scroll. It filters the loaded window to the selected day (overlap-based,
+matching `hasProgramsForDateKey`), sorts, and deduplicates via a pure
+`buildEpgListRows` (`epg-list-view.utils.ts`); renders each row through the dumb
+`app-epg-list-view-row`; and delegates its own vertical auto-focus + sticky
+"now" strip to `EpgListScrollController` (`epg-list-scroll.controller.ts`). Render
+states, the collapsed inline summary, the date stepper, catch-up/timeshift
+activation, and the details dialog behave identically to the timeline.
 
 - **One channel, preloaded window.** The panel always shows a single channel.
   Each provider returns a multi-day window in roughly one call (M3U
@@ -370,7 +400,11 @@ The component stays presentation-focused; the reusable, view-agnostic pieces
   tag / "Watch") stays pinned at the bottom. With an inline player the guide is
   a compact panel (`.epg.epg--inline` → `flex: 0 0 clamp(180px, 36vh, 264px)`
   in `_portal-layout.scss`) so the player stays dominant; with an external
-  player the guide keeps `flex: 1` and fills the whole content area.
+  player the guide keeps `flex: 1` and fills the whole content area. In **list
+  mode** the hosts also set `.epg--list`, which raises only the inline clamp
+  (`--epg-inline-height: clamp(280px, 46vh, 430px)`) — vertical rows need more
+  height than the ribbon; the timeline height is unchanged, and the collapsed
+  56px clamp still wins because the modifier sets just the CSS variable.
 - **Wide-tier description preview.** When a block is the `wide` tier (rendered
   width ≥ `132px`, i.e. long programmes and/or zoomed in) **and** the programme
   has a `desc`, a dimmed (`--text-secondary`) preview of the description renders
@@ -564,8 +598,8 @@ class EpgService {
 
 | Component                     | Purpose                              |
 | ----------------------------- | ------------------------------------ |
-| `EpgListComponent`            | Timeline view for single channel     |
-| `EpgListItemComponent`        | Individual program in timeline       |
+| `EpgTimelineComponent`        | Horizontal timeline for one channel  |
+| `EpgListViewComponent`        | Vertical single-day list alternative |
 | `EpgItemDescriptionComponent` | Program details dialog               |
 | `MultiEpgContainerComponent`  | Grid view of all channels' schedules |
 

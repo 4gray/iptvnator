@@ -82,3 +82,16 @@ playback, or EPG data belongs in `libs/portal/shared/data-access`, not
 `libs/portal/shared/util`. That keeps pure collection helpers importable by
 Xtream/Stalker data-access libraries while allowing shared UI to use
 provider-specific collection services without creating cycles.
+
+Note: `workspace-shell-util` (`libs/workspace/shell/util`) is tagged
+`type:data-access` despite its path. It exports injectable services such as
+`WorkspaceStartupPreferencesService` that depend on `@iptvnator/services`, and
+it must stay eagerly importable from `apps/web/src/app/app.routes.ts` without
+pulling the lazy-loaded workspace shell feature bundle into the initial chunk.
+
+## CI Enforcement
+
+The `Lint` job in `.github/workflows/ci.yml` runs
+`pnpm nx run-many --target=lint --all` on every PR, so
+`@nx/enforce-module-boundaries` violations, legacy bare-alias imports, and
+`max-lines` violations fail CI. Run `pnpm run lint` locally before pushing.

@@ -192,10 +192,8 @@
             "VALIDATING": "Validation du portail…"
         },
         "FILTER_BY_NAME": "Filtrer par nom",
-        "FILTER_BY_TYPE": "Filtrer par type",
         "FILTER_AND_SORT": "Filtrer et trier",
         "SORT_PLAYLISTS": "Trier les listes",
-        "SORT_BY": "Trier par",
         "SORT_OPTIONS": {
             "NAME_ASC": "Nom (A-Z)",
             "NAME_DESC": "Nom (Z-A)",
@@ -292,6 +290,10 @@
         "COVER_SIZE_SMALL": "Petite",
         "COVER_SIZE_MEDIUM": "Moyenne",
         "COVER_SIZE_LARGE": "Grande",
+        "EPG_VIEW_MODE": "Vue du guide",
+        "EPG_VIEW_MODE_DESCRIPTION": "Choisissez comment le guide des programmes sous le lecteur est affiché : une frise chronologique horizontale ou une liste verticale d'une seule journée.",
+        "EPG_VIEW_MODE_TIMELINE": "Chronologie",
+        "EPG_VIEW_MODE_LIST": "Liste",
         "STARTUP_BEHAVIOR": "Vue de démarrage",
         "STARTUP_BEHAVIOR_DESCRIPTION": "Choisissez si IPTVnator ouvre la première vue disponible de l'espace de travail ou restaure votre dernière vue de section. Première vue signifie Tableau de bord lorsqu'il est activé, sinon Sources.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "Première vue disponible",
@@ -483,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Basculer la liste des chaînes (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Rechercher une chaîne",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Transférer ou choisir une autre liste de lecture",
         "ALL_CHANNELS": "Toutes les chaînes",
         "GROUPS": "Groupes",
@@ -557,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Ouvrir la liste des chaînes",
-        "TOGGLE_FAVORITE_FLAG": "Basculer le statut de favoris",
-        "OPEN_EPG_LIST": "Ouvrir la liste EPG",
-        "OPEN_MULTI_EPG": "Ouvrir la vue Multi-EPG",
-        "SHOW_INFO": "Afficher les infos du programme (Appuyez sur I)"
+        "OPEN_MULTI_EPG": "Ouvrir la vue Multi-EPG"
     },
     "EPG": {
-        "TITLE": "Guide électronique des programmes",
         "NEXT_DAY": "Jour suivant",
         "PREVIOUS_DAY": "Jour précédent",
         "ZOOM_IN": "Zoom avant",
@@ -573,14 +569,9 @@
         "CLOSE_FILTER": "Fermer le filtre",
         "SEARCH_PROGRAMS": "Rechercher des programmes",
         "CLOSE_PROGRAM_SEARCH": "Fermer la recherche de programmes",
-        "LIVE_NOW": "En direct",
         "LIVE_STREAM": "Diffusion en direct",
-        "TIMESHIFT_AVAILABLE": "Contrôle du direct disponible, cliquez pour lire",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Lecture des archives indisponible",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Ce fournisseur expose l'historique des programmes pour la chaîne, mais n'expose pas la lecture archive/catch-up.",
-        "EPG_NOT_AVAILABLE_DATE": "L'EPG n'est pas disponible pour la date sélectionnée",
-        "NO_GUIDE_HINT": "Essayez une autre date ou actualisez la playlist.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "L'EPG n'est pas disponible pour cette chaîne.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Veuillez ajouter/modifier l'URL de la liste EPG dans les réglages de l'application.",
         "FETCH_EPG": "Récupération des données EPG...",
         "ERROR": "L'EPG n'a pas pu être chargé.",
@@ -615,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Lecture archive",
-        "RETURN_TO_LIVE": "Retour au direct",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +669,6 @@
     "MENU": {
         "OPEN": "Ouvrir le menu",
         "SUPPORT_ARIA": "Soutenir IPTVnator sur GitHub",
-        "SETTINGS": "Paramètres",
         "SETTINGS_ARIA": "Ouvrir les paramètres",
         "BUG_REPORT": "Signaler un bug",
         "WHAT_IS_NEW": "Nouveautés",
@@ -804,10 +793,7 @@
             "SEARCH": "Rechercher",
             "RECENT": "Récent",
             "RECENTLY_ADDED": "Récemment ajoutés",
-            "FAVORITES": "Favoris",
-            "HOME": "Accueil",
-            "PLAYLIST_INFO": "Infos de la liste",
-            "ACCOUNT_INFO": "Infos du compte"
+            "FAVORITES": "Favoris"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

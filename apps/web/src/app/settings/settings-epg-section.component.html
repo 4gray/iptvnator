@@ -15,6 +15,40 @@
     </header>
 
     <div class="setting-item setting-item--full-control">
+        <div class="setting-item__meta">
+            <h4>{{ 'SETTINGS.EPG_VIEW_MODE' | translate }}</h4>
+            <p>{{ 'SETTINGS.EPG_VIEW_MODE_DESCRIPTION' | translate }}</p>
+        </div>
+        <div class="setting-item__control">
+            <div
+                class="theme-switcher"
+                role="radiogroup"
+                [attr.aria-label]="'SETTINGS.EPG_VIEW_MODE' | translate"
+                data-test-id="select-epg-view-mode"
+            >
+                @for (option of epgViewModeOptions(); track option.value) {
+                    <button
+                        type="button"
+                        class="theme-switcher__option"
+                        [class.theme-switcher__option--selected]="
+                            form().value.epgViewMode === option.value
+                        "
+                        [attr.aria-checked]="
+                            form().value.epgViewMode === option.value
+                        "
+                        [attr.data-test-id]="'epg-view-mode-' + option.value"
+                        role="radio"
+                        (click)="selectEpgViewMode.emit(option.value)"
+                    >
+                        <mat-icon>{{ option.icon }}</mat-icon>
+                        <span>{{ option.labelKey | translate }}</span>
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <div class="setting-item setting-item--full-control">
         <div class="setting-item__control">
             <ng-container formArrayName="epgUrl">
                 @if (epgUrl().length === 0) {

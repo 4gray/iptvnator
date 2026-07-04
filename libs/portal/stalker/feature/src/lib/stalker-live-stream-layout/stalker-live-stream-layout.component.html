@@ -141,6 +141,7 @@
             <div
                 class="epg"
                 [class.epg--inline]="canCollapseEpgPanel"
+                [class.epg--list]="epgViewMode() === 'list'"
                 [class.epg-collapsed]="
                     canCollapseEpgPanel && isLiveEpgPanelCollapsed()
                 "
@@ -158,24 +159,50 @@
 
 <ng-template #epgPanelContent>
     <div class="epg-content">
-        <app-epg-timeline
-            [programs]="activeEpgPrograms()"
-            [channelName]="controlledChannel()?.name ?? activePlaybackTitle()"
-            [channelLogo]="activePlaybackArtwork()"
-            [sourceLabel]="'Stalker Portal'"
-            [archivePlaybackAvailable]="false"
-            [archiveDays]="0"
-            [loading]="isLoadingEpg()"
-            [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
-            [selectedDate]="selectedLiveEpgDate()"
-            [collapsed]="
-                !!streamUrl() &&
-                usesEmbeddedPlayer() &&
-                isLiveEpgPanelCollapsed()
-            "
-            [summary]="liveEpgPanelSummary()"
-            (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
-            (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
-        />
+        @if (epgViewMode() === 'list') {
+            <app-epg-list-view
+                [programs]="activeEpgPrograms()"
+                [channelName]="
+                    controlledChannel()?.name ?? activePlaybackTitle()
+                "
+                [channelLogo]="activePlaybackArtwork()"
+                [sourceLabel]="'Stalker Portal'"
+                [archivePlaybackAvailable]="false"
+                [archiveDays]="0"
+                [loading]="isLoadingEpg()"
+                [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
+                [selectedDate]="selectedLiveEpgDate()"
+                [collapsed]="
+                    !!streamUrl() &&
+                    usesEmbeddedPlayer() &&
+                    isLiveEpgPanelCollapsed()
+                "
+                [summary]="liveEpgPanelSummary()"
+                (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
+                (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
+            />
+        } @else {
+            <app-epg-timeline
+                [programs]="activeEpgPrograms()"
+                [channelName]="
+                    controlledChannel()?.name ?? activePlaybackTitle()
+                "
+                [channelLogo]="activePlaybackArtwork()"
+                [sourceLabel]="'Stalker Portal'"
+                [archivePlaybackAvailable]="false"
+                [archiveDays]="0"
+                [loading]="isLoadingEpg()"
+                [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
+                [selectedDate]="selectedLiveEpgDate()"
+                [collapsed]="
+                    !!streamUrl() &&
+                    usesEmbeddedPlayer() &&
+                    isLiveEpgPanelCollapsed()
+                "
+                [summary]="liveEpgPanelSummary()"
+                (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
+                (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
+            />
+        }
     </div>
 </ng-template>

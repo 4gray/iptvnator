@@ -192,10 +192,8 @@
             "VALIDATING": "Portaal valideren..."
         },
         "FILTER_BY_NAME": "Filter op naam",
-        "FILTER_BY_TYPE": "Filter op type",
         "FILTER_AND_SORT": "Filteren & sorteren",
         "SORT_PLAYLISTS": "Sorteer afspeellijsten",
-        "SORT_BY": "Sorteer op",
         "SORT_OPTIONS": {
             "NAME_ASC": "Naam (A-Z)",
             "NAME_DESC": "Naam (Z-A)",
@@ -292,6 +290,10 @@
         "COVER_SIZE_SMALL": "Klein",
         "COVER_SIZE_MEDIUM": "Gemiddeld",
         "COVER_SIZE_LARGE": "Groot",
+        "EPG_VIEW_MODE": "Gidsweergave",
+        "EPG_VIEW_MODE_DESCRIPTION": "Kies hoe de programmagids onder de speler wordt getoond: een horizontale tijdlijn of een verticale lijst voor één dag.",
+        "EPG_VIEW_MODE_TIMELINE": "Tijdlijn",
+        "EPG_VIEW_MODE_LIST": "Lijst",
         "STARTUP_BEHAVIOR": "Opstartweergave",
         "STARTUP_BEHAVIOR_DESCRIPTION": "Kies of IPTVnator de eerste beschikbare werkruimteweergave opent of je laatste sectieweergave herstelt. Eerste weergave betekent het dashboard wanneer ingeschakeld, anders Bronnen.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "Eerste beschikbare weergave",
@@ -483,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Zenderlijst aan-/uitzetten (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Zoek een kanaal",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Upload of selecteer een andere afspeellijst",
         "ALL_CHANNELS": "Alle kanalen",
         "GROUPS": "Groepen",
@@ -557,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Open kanalenlijst",
-        "TOGGLE_FAVORITE_FLAG": "Wissel favorietenstatus",
-        "OPEN_EPG_LIST": "Open TV-gids lijst",
-        "OPEN_MULTI_EPG": "Open Multi TV-Gids weergave",
-        "SHOW_INFO": "Programma-info tonen (druk op I)"
+        "OPEN_MULTI_EPG": "Open Multi TV-Gids weergave"
     },
     "EPG": {
-        "TITLE": "TV-Gids",
         "NEXT_DAY": "Volgende dag",
         "PREVIOUS_DAY": "Vorige dag",
         "ZOOM_IN": "Inzoomen",
@@ -573,14 +569,9 @@
         "CLOSE_FILTER": "Filter sluiten",
         "SEARCH_PROGRAMS": "Programma's zoeken",
         "CLOSE_PROGRAM_SEARCH": "Programmazoekopdracht sluiten",
-        "LIVE_NOW": "Nu live",
         "LIVE_STREAM": "Live stream",
-        "TIMESHIFT_AVAILABLE": "Doorspoelen is beschikbaar, klik om af te spelen",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Archiefweergave is niet beschikbaar",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Deze provider toont de programmageschiedenis voor het kanaal, maar biedt geen afspeelbare archief-/catch-up-weergave.",
-        "EPG_NOT_AVAILABLE_DATE": "De TV-Gids is niet beschikbaar voor de geselecteerde datum",
-        "NO_GUIDE_HINT": "Probeer een andere datum of vernieuw de afspeellijst.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "De TV-Gids is niet beschikbaar voor dit kanaal.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Voeg een TV-Gids URL toe of wijzig deze in de instellingen van de app.",
         "FETCH_EPG": "Ophalen TV-Gids...",
         "ERROR": "TV-Gids kan niet geladen worden.",
@@ -615,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Archief afspelen",
-        "RETURN_TO_LIVE": "Terug naar live",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +669,6 @@
     "MENU": {
         "OPEN": "Open menu",
         "SUPPORT_ARIA": "Ondersteun IPTVnator op GitHub",
-        "SETTINGS": "Instellingen",
         "SETTINGS_ARIA": "Open instellingen",
         "BUG_REPORT": "Meld een bug",
         "WHAT_IS_NEW": "Wat is er nieuw",
@@ -804,10 +793,7 @@
             "SEARCH": "Zoeken",
             "RECENT": "Recent",
             "RECENTLY_ADDED": "Recent toegevoegd",
-            "FAVORITES": "Favorieten",
-            "HOME": "Home",
-            "PLAYLIST_INFO": "Afspeellijstinfo",
-            "ACCOUNT_INFO": "Accountinfo"
+            "FAVORITES": "Favorieten"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

@@ -1,11 +1,13 @@
 import {
     CoverSize,
+    EpgViewMode,
     StartupBehavior,
     Theme,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import {
     CoverSizeOption,
+    EpgViewModeOption,
     SettingsPlayerOption,
     SettingsSection,
     StartupBehaviorOption,
@@ -45,6 +47,19 @@ export const SETTINGS_COVER_SIZE_OPTIONS: CoverSizeOption[] = [
         value: 'large' satisfies CoverSize,
         icon: 'view_quilt',
         labelKey: 'SETTINGS.COVER_SIZE_LARGE',
+    },
+];
+
+export const SETTINGS_EPG_VIEW_MODE_OPTIONS: EpgViewModeOption[] = [
+    {
+        value: 'timeline' satisfies EpgViewMode,
+        icon: 'view_timeline',
+        labelKey: 'SETTINGS.EPG_VIEW_MODE_TIMELINE',
+    },
+    {
+        value: 'list' satisfies EpgViewMode,
+        icon: 'view_list',
+        labelKey: 'SETTINGS.EPG_VIEW_MODE_LIST',
     },
 ];
 

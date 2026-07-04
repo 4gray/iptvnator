@@ -192,10 +192,8 @@
             "VALIDATING": "ポータルを検証中..."
         },
         "FILTER_BY_NAME": "名前でフィルター",
-        "FILTER_BY_TYPE": "種類でフィルター",
         "FILTER_AND_SORT": "フィルターと並び替え",
         "SORT_PLAYLISTS": "プレイリストを並び替え",
-        "SORT_BY": "並び替え",
         "SORT_OPTIONS": {
             "NAME_ASC": "名前（A-Z）",
             "NAME_DESC": "名前（Z-A）",
@@ -292,6 +290,10 @@
         "COVER_SIZE_SMALL": "小",
         "COVER_SIZE_MEDIUM": "中",
         "COVER_SIZE_LARGE": "大",
+        "EPG_VIEW_MODE": "番組表の表示",
+        "EPG_VIEW_MODE_DESCRIPTION": "プレーヤー下部の番組表の表示方法を選択します。横方向のタイムライン形式か、縦方向の1日分のリスト形式かを選べます。",
+        "EPG_VIEW_MODE_TIMELINE": "タイムライン",
+        "EPG_VIEW_MODE_LIST": "リスト",
         "STARTUP_BEHAVIOR": "起動時の表示",
         "STARTUP_BEHAVIOR_DESCRIPTION": "IPTVnatorを起動したときに最初に利用可能なワークスペースビューを開くか、最後に表示していたセクションを復元するかを選択します。「最初のビュー」は、ダッシュボードが有効な場合はダッシュボード、無効な場合はソースを意味します。",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "最初に利用可能なビュー",
@@ -483,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "チャンネル一覧の切り替え (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "チャンネルを検索",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "アップロードまたは他のプレイリストを選択",
         "ALL_CHANNELS": "すべてのチャンネル",
         "GROUPS": "グループ",
@@ -557,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "チャンネルリストを開く",
-        "TOGGLE_FAVORITE_FLAG": "お気に入りフラグを切り替え",
-        "OPEN_EPG_LIST": "EPGリストを開く",
-        "OPEN_MULTI_EPG": "マルチEPGビューを開く",
-        "SHOW_INFO": "番組情報を表示（Iキー）"
+        "OPEN_MULTI_EPG": "マルチEPGビューを開く"
     },
     "EPG": {
-        "TITLE": "電子番組表",
         "NEXT_DAY": "翌日",
         "PREVIOUS_DAY": "前日",
         "ZOOM_IN": "拡大",
@@ -573,14 +569,9 @@
         "CLOSE_FILTER": "フィルターを閉じる",
         "SEARCH_PROGRAMS": "番組を検索",
         "CLOSE_PROGRAM_SEARCH": "番組検索を閉じる",
-        "LIVE_NOW": "現在放送中",
         "LIVE_STREAM": "ライブストリーム",
-        "TIMESHIFT_AVAILABLE": "タイムシフトが利用可能です。クリックして再生",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "アーカイブ再生は利用できません",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "このプロバイダーはチャンネルの番組履歴を提供していますが、アーカイブ／Catchup再生には対応していません。",
-        "EPG_NOT_AVAILABLE_DATE": "申し訳ありません。選択した日付のEPGは利用できません",
-        "NO_GUIDE_HINT": "別の日付を試すか、プレイリストを更新してください。",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "申し訳ありません。このチャンネルのEPGは利用できません。",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "アプリの設定でEPGリストのURLを追加/変更してください。",
         "FETCH_EPG": "EPGデータを取得中...",
         "ERROR": "申し訳ありません。EPGを読み込めませんでした。",
@@ -615,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "アーカイブ再生",
-        "RETURN_TO_LIVE": "ライブに戻る",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +669,6 @@
     "MENU": {
         "OPEN": "メニューを開く",
         "SUPPORT_ARIA": "GitHubでIPTVnatorをサポート",
-        "SETTINGS": "設定",
         "SETTINGS_ARIA": "設定を開く",
         "BUG_REPORT": "バグを報告",
         "WHAT_IS_NEW": "新着情報",
@@ -804,10 +793,7 @@
             "SEARCH": "検索",
             "RECENT": "最近",
             "RECENTLY_ADDED": "最近追加した項目",
-            "FAVORITES": "お気に入り",
-            "HOME": "ホーム",
-            "PLAYLIST_INFO": "プレイリスト情報",
-            "ACCOUNT_INFO": "アカウント情報"
+            "FAVORITES": "お気に入り"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

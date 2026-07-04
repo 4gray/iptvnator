@@ -192,10 +192,8 @@
             "VALIDATING": "Праверка партала..."
         },
         "FILTER_BY_NAME": "Фільтраваць па імені",
-        "FILTER_BY_TYPE": "Фільтраваць па тыпу",
         "FILTER_AND_SORT": "Фільтр і сартаванне",
         "SORT_PLAYLISTS": "Сартаваць плэйлісты",
-        "SORT_BY": "Сартаваць па",
         "SORT_OPTIONS": {
             "NAME_ASC": "Назва (А-Я)",
             "NAME_DESC": "Назва (Я-А)",
@@ -292,6 +290,10 @@
         "COVER_SIZE_SMALL": "Малы",
         "COVER_SIZE_MEDIUM": "Сярэдні",
         "COVER_SIZE_LARGE": "Вялікі",
+        "EPG_VIEW_MODE": "Выгляд праграмы перадач",
+        "EPG_VIEW_MODE_DESCRIPTION": "Выберыце, як паказваць праграму перадач пад прайгравальнікам: гарызантальнай стужкай часу або вертыкальным спісам на адзін дзень.",
+        "EPG_VIEW_MODE_TIMELINE": "Стужка часу",
+        "EPG_VIEW_MODE_LIST": "Спіс",
         "STARTUP_BEHAVIOR": "Старт праграмы",
         "STARTUP_BEHAVIOR_DESCRIPTION": "Выберыце, ці адкрывае IPTVnator першы даступны выгляд працоўнай прасторы, ці аднаўляе ваш апошні выгляд на ўзроўні раздзела. Першы выгляд азначае «Панэль», калі ўключана, інакш «Крыніцы».",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "Першы даступны выгляд",
@@ -483,7 +485,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "Пераключыць спіс каналаў (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "Пошук каналаў",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "Загрузіць або выбраць іншы плэйліст",
         "ALL_CHANNELS": "Усе каналы",
         "GROUPS": "Групы",
@@ -557,14 +558,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "Адкрыць спіс каналаў",
-        "TOGGLE_FAVORITE_FLAG": "Выбраны",
-        "OPEN_EPG_LIST": "Адкрыць праграму (EPG)",
-        "OPEN_MULTI_EPG": "Адкрыць мульты-EPG прагляд",
-        "SHOW_INFO": "Паказаць інфармацыю аб праграме (націсніце I)"
+        "OPEN_MULTI_EPG": "Адкрыць мульты-EPG прагляд"
     },
     "EPG": {
-        "TITLE": "Электронная праграма перадач",
         "NEXT_DAY": "Наступны дзень",
         "PREVIOUS_DAY": "Папярэдні дзень",
         "ZOOM_IN": "Павялічыць маштаб",
@@ -573,14 +569,9 @@
         "CLOSE_FILTER": "Закрыць фільтр",
         "SEARCH_PROGRAMS": "Пошук перадач",
         "CLOSE_PROGRAM_SEARCH": "Закрыць пошук перадач",
-        "LIVE_NOW": "Цяпер",
         "LIVE_STREAM": "Прамая трансляцыя",
-        "TIMESHIFT_AVAILABLE": "Даступная функцыя архіва (timeshift). Націсніце на перадачу для прайгравання.",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "Прайграванне архіва недаступна",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "Гэты правайдэр прадастаўляе гісторыю перадач для канала, але не падтрымлівае прайграванне архіва/catch-up.",
-        "EPG_NOT_AVAILABLE_DATE": "Ой, праграма на гэты дзень, на жаль, адсутнічае.",
-        "NO_GUIDE_HINT": "Паспрабуйце іншую дату або абнавіце плэйліст.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "Праграма для гэтага канала недаступная.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "Паспрабуйце змяніць або абнавіць спасылку на EPG у наладах праграмы.",
         "FETCH_EPG": "Загружаю праграму ТБ-перадач (EPG)...",
         "ERROR": "Ой, не ўдалося загрузіць праграму каналаў (EPG)",
@@ -615,7 +606,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "Прайграванне архіва",
-        "RETURN_TO_LIVE": "Вярнуцца да эфіру",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -679,7 +669,6 @@
     "MENU": {
         "OPEN": "Адкрыць меню",
         "SUPPORT_ARIA": "Падтрымаць IPTVnator на GitHub",
-        "SETTINGS": "Налады",
         "SETTINGS_ARIA": "Адкрыць налады",
         "BUG_REPORT": "Паведаміць аб памылцы",
         "WHAT_IS_NEW": "Што новага?",
@@ -804,10 +793,7 @@
             "SEARCH": "Пошук",
             "RECENT": "Нядаўнія",
             "RECENTLY_ADDED": "Нядаўна дададзеныя",
-            "FAVORITES": "Выбранае",
-            "HOME": "Галоўная",
-            "PLAYLIST_INFO": "Інфармацыя аб плэйлісце",
-            "ACCOUNT_INFO": "Інфармацыя аб уліковым запісе"
+            "FAVORITES": "Выбранае"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {
