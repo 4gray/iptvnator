@@ -10,6 +10,11 @@ Related:
 
 - Xtream category browsing uses a route-first detail model.
 - Stalker uses an inline/store-state detail model.
+- Detail pages themselves are two-state (browse ↔ watch) inside
+  `PortalDetailShellComponent`; entering/leaving watch is a layout state,
+  not a navigation. Route-level back semantics are unchanged; the
+  watch-state back button only closes the inline player. See
+  [Embedded Inline Playback](./embedded-inline-playback.md).
 - Favorites and recently viewed collections now use collection-owned inline detail
   for non-live Xtream and Stalker items.
 - Provider-scoped collection routes fall back to the matching global collection

@@ -618,6 +618,14 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - External players: MPV, VLC (via IPC to Electron backend)
 - Embedded MPV (experimental, macOS/Windows/Linux): renders mpv video inside the Electron window through a native addon. macOS uses the libmpv render API in an `NSOpenGLView`; Windows uses in-process libmpv with `--wid` against an app-owned child `HWND`; Linux spawns an out-of-process `mpv --wid=<x11-window>` controlled over a JSON IPC socket (X11/XWayland only, requires system `mpv` on PATH; subtitles/speed/aspect/recording are not exported there). mpv's own screensaver inhibition does not apply to any of these paths, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever any session's status is `playing`, and releases it on pause, dispose, or shutdown. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`; full architecture: `docs/architecture/embedded-mpv-native.md`.
 
+**VOD/Series Detail Pages (two-state layout)**:
+
+- Xtream and Stalker detail pages use the shared `PortalDetailShellComponent` (`libs/ui/components/src/lib/portal-detail-shell/`) with two states: **Browse** (hero with poster/metadata/actions, episodes below) and **Watch** (hero collapses with a ~300ms morph, the inline player takes the full content width, metadata moves to an About block below the episodes)
+- Watch state derives from `inlinePlayback() !== null` only; external MPV/VLC playback keeps the browse layout. Esc and the now-playing back button close the inline player back to browse without route navigation
+- Hosts pass hero chips/meta/actions as `*detailTags`/`*detailMeta`/`*detailActions` templates; the shell stamps them into both the hero and the About block
+- Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → first) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream) or TMDB (Stalker)
+- See `docs/architecture/embedded-inline-playback.md` ("Two-State Detail Layout")
+
 **Radio Player**:
 
 - Dedicated audio player for channels with `radio="true"` M3U attribute
