@@ -1,0 +1,111 @@
+:host {
+    display: block;
+}
+
+.about {
+    max-width: var(--content-max-width, 1400px);
+    margin: 0 auto;
+    padding: 24px 40px 40px;
+    border-top: 1px solid var(--tag-border, rgba(255, 255, 255, 0.12));
+
+    &__heading {
+        font-size: 1.125rem;
+        font-weight: 700;
+        margin: 0 0 16px 0;
+        color: var(--text-primary, #fff);
+    }
+
+    &__body {
+        display: flex;
+        gap: 22px;
+        align-items: flex-start;
+    }
+
+    &__poster {
+        flex-shrink: 0;
+        width: 120px;
+        aspect-ratio: 2 / 3;
+        object-fit: cover;
+        border-radius: 10px;
+        box-shadow: var(--poster-shadow, 0 8px 40px rgba(0, 0, 0, 0.5));
+    }
+
+    &__info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    &__title {
+        font-size: 1rem;
+        font-weight: 600;
+        margin: 0 0 10px 0;
+        color: var(--text-primary, #fff);
+        overflow-wrap: anywhere;
+    }
+
+    &__tags {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-bottom: 12px;
+    }
+
+    &__description {
+        font-size: 0.9375rem;
+        line-height: 1.6;
+        color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+        margin: 0 0 14px 0;
+        max-width: 720px;
+    }
+
+    &__meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px 32px;
+    }
+}
+
+// The stamped host templates reuse the hero markup classes; style them here
+// because component styles do not cross the template-outlet boundary.
+.about ::ng-deep .details__tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 4px 12px;
+    font-size: 0.8125rem;
+    font-weight: 500;
+    background: var(--tag-bg, rgba(255, 255, 255, 0.1));
+    border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+    border-radius: 4px;
+
+    &--rating {
+        color: #ffd700;
+        border-color: rgba(255, 215, 0, 0.3);
+    }
+}
+
+.about ::ng-deep .details__meta-item {
+    font-size: 0.875rem;
+
+    .label {
+        color: var(--text-muted, rgba(255, 255, 255, 0.5));
+        font-weight: 400;
+        margin-bottom: 2px;
+        display: block;
+    }
+
+    .value {
+        color: var(--text-primary, #fff);
+        font-weight: 500;
+    }
+}
+
+@media (max-width: 800px) {
+    .about {
+        padding: 20px 20px 32px;
+
+        &__poster {
+            width: 92px;
+        }
+    }
+}
