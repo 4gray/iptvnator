@@ -17,6 +17,34 @@ async function openDownloadsPage(page: Page): Promise<void> {
     await page.waitForURL(/\/workspace\/downloads(?:\?.*)?$/);
 }
 
+/**
+ * On a cold profile the renderer can query SQLite while the DB worker is
+ * still creating tables ("database is locked" / "no such table" on slow CI
+ * runners), which leaves the downloads page on its skeleton forever. Wait
+ * until a playlist read succeeds before navigating.
+ */
+async function waitForDatabaseReady(page: Page): Promise<void> {
+    await expect
+        .poll(
+            () =>
+                page.evaluate(async () => {
+                    const electron = window.electron;
+                    if (!electron) {
+                        return false;
+                    }
+                    try {
+                        await (electron.dbGetAppPlaylistMetas?.() ??
+                            electron.dbGetAppPlaylists?.());
+                        return true;
+                    } catch {
+                        return false;
+                    }
+                }),
+            { timeout: 30000 }
+        )
+        .toBe(true);
+}
+
 test.describe('Electron Downloads', () => {
     test('@downloads @electron shows the add-a-playlist empty state when no sources exist', async ({
         dataDir,
@@ -24,6 +52,7 @@ test.describe('Electron Downloads', () => {
         const app = await launchElectronApp(dataDir);
 
         try {
+            await waitForDatabaseReady(app.mainWindow);
             await openDownloadsPage(app.mainWindow);
 
             await expect(
