@@ -6,6 +6,7 @@ import {
     inject,
     input,
     signal,
+    untracked,
     viewChild,
 } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
@@ -113,8 +114,13 @@ export class ExpandableTextComponent {
             const el = this.textEl()?.nativeElement;
             if (!el) return;
 
-            this.measureOverflow(el);
-            this.observeOverflow(el);
+            // untracked: measureOverflow reads isExpanded(); tracking it
+            // would re-run this effect (and rebuild the ResizeObserver) on
+            // every toggle click.
+            untracked(() => {
+                this.measureOverflow(el);
+                this.observeOverflow(el);
+            });
         });
 
         this.destroyRef.onDestroy(() => this.resizeObserver?.disconnect());

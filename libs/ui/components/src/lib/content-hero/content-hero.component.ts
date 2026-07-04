@@ -7,6 +7,7 @@ import {
     input,
     output,
     signal,
+    untracked,
     viewChild,
     ElementRef,
 } from '@angular/core';
@@ -53,8 +54,13 @@ export class ContentHeroComponent {
             const el = this.descriptionEl()?.nativeElement;
             if (!el) return;
 
-            this.measureOverflow(el);
-            this.observeOverflow(el);
+            // untracked: measureOverflow reads isDescriptionExpanded();
+            // tracking it would re-run this effect (and rebuild the
+            // ResizeObserver) on every expand/collapse click.
+            untracked(() => {
+                this.measureOverflow(el);
+                this.observeOverflow(el);
+            });
         });
 
         this.destroyRef.onDestroy(() => this.resizeObserver?.disconnect());
