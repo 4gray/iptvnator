@@ -1,29 +1,13 @@
-const andMock = jest.fn((...conditions: unknown[]) => ({
-    kind: 'and',
-    conditions,
-}));
-const eqMock = jest.fn((left: unknown, right: unknown) => ({
-    kind: 'eq',
-    left,
-    right,
-}));
-const descMock = jest.fn((value: unknown) => ({ kind: 'desc', value }));
-const sqlMock = jest.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
-    kind: 'sql',
-    strings: Array.from(strings),
-    values,
-}));
+import {
+    createDbMock,
+    mockDrizzle,
+    mockDrizzleOrmModule,
+    resetDrizzleMocks,
+} from './operations.test-helpers';
 
-jest.mock('drizzle-orm', () => ({
-    and: (...conditions: unknown[]) => andMock(...conditions),
-    desc: (value: unknown) => descMock(value),
-    eq: (left: unknown, right: unknown) => eqMock(left, right),
-    sql: (strings: TemplateStringsArray, ...values: unknown[]) =>
-        sqlMock(strings, ...values),
-}));
+jest.mock('drizzle-orm', () => mockDrizzleOrmModule());
 
 import * as schema from '@iptvnator/shared/database/schema';
-import type { AppDatabase } from '../database.types';
 import {
     clearAllPlaybackPositions,
     clearPlaybackPosition,
@@ -34,73 +18,9 @@ import {
     savePlaybackPosition,
 } from './playback-position.operations';
 
-type QueryMock = {
-    from: jest.Mock;
-    where: jest.Mock;
-    orderBy: jest.Mock;
-    limit: jest.Mock;
-    then: (
-        resolve: (value: unknown[]) => void,
-        reject: (reason: unknown) => void
-    ) => Promise<void>;
-};
-
-function createDbMock(selectResultsByCall: unknown[][] = []) {
-    let selectIndex = 0;
-    const queries: QueryMock[] = [];
-    const select = jest.fn(() => {
-        const rows = selectResultsByCall[selectIndex] ?? [];
-        selectIndex += 1;
-        const query: QueryMock = {
-            from: jest.fn(),
-            where: jest.fn(),
-            orderBy: jest.fn(),
-            limit: jest.fn().mockResolvedValue(rows),
-            then: (resolve, reject) =>
-                Promise.resolve(rows).then(resolve, reject),
-        };
-        query.from.mockReturnValue(query);
-        query.where.mockReturnValue(query);
-        query.orderBy.mockReturnValue(query);
-        queries.push(query);
-        return query;
-    });
-
-    const insertValues = jest.fn().mockResolvedValue(undefined);
-    const insert = jest.fn().mockReturnValue({ values: insertValues });
-
-    const updateWhere = jest.fn().mockResolvedValue(undefined);
-    const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
-    const update = jest.fn().mockReturnValue({ set: updateSet });
-
-    const deleteWhere = jest.fn().mockResolvedValue(undefined);
-    const deleteFn = jest.fn().mockReturnValue({ where: deleteWhere });
-
-    return {
-        db: {
-            select,
-            insert,
-            update,
-            delete: deleteFn,
-        } as unknown as AppDatabase,
-        deleteFn,
-        deleteWhere,
-        insert,
-        insertValues,
-        queries,
-        select,
-        update,
-        updateSet,
-        updateWhere,
-    };
-}
-
 describe('playback-position.operations', () => {
     beforeEach(() => {
-        andMock.mockClear();
-        descMock.mockClear();
-        eqMock.mockClear();
-        sqlMock.mockClear();
+        resetDrizzleMocks();
     });
 
     describe('savePlaybackPosition', () => {
@@ -193,7 +113,7 @@ describe('playback-position.operations', () => {
                     positionSeconds: 480,
                 })
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.id,
                 33
             );
@@ -208,7 +128,7 @@ describe('playback-position.operations', () => {
                 positionSeconds: 120,
             });
 
-            expect(sqlMock).toHaveBeenCalledWith(['CURRENT_TIMESTAMP']);
+            expect(mockDrizzle.sql).toHaveBeenCalledWith(['CURRENT_TIMESTAMP']);
             expect(insertValues).toHaveBeenNthCalledWith(
                 2,
                 expect.objectContaining({
@@ -236,15 +156,15 @@ describe('playback-position.operations', () => {
             );
 
             expect(result).toEqual(row);
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.playlistId,
                 'playlist-1'
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.contentXtreamId,
                 500
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.contentType,
                 'vod'
             );
@@ -268,11 +188,11 @@ describe('playback-position.operations', () => {
                 getSeriesPlaybackPositions(db, 'playlist-1', 42)
             ).resolves.toEqual(rows);
 
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.seriesXtreamId,
                 42
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.contentType,
                 'episode'
             );
@@ -287,7 +207,7 @@ describe('playback-position.operations', () => {
                 getRecentPlaybackPositions(db, 'playlist-1')
             ).resolves.toEqual(rows);
 
-            expect(descMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.desc).toHaveBeenCalledWith(
                 schema.playbackPositions.updatedAt
             );
             expect(queries[0].limit).toHaveBeenCalledWith(20);
@@ -309,7 +229,7 @@ describe('playback-position.operations', () => {
                 getAllPlaybackPositions(db, 'playlist-1')
             ).resolves.toEqual(rows);
 
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.playlistId,
                 'playlist-1'
             );
@@ -330,7 +250,7 @@ describe('playback-position.operations', () => {
             expect(deleteWhere).toHaveBeenCalledWith(
                 expect.objectContaining({ kind: 'eq' })
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.playlistId,
                 'playlist-1'
             );
@@ -345,11 +265,11 @@ describe('playback-position.operations', () => {
 
             expect(deleteFn).toHaveBeenCalledWith(schema.playbackPositions);
             expect(deleteWhere.mock.calls[0][0].conditions).toHaveLength(3);
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.contentXtreamId,
                 500
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.playbackPositions.contentType,
                 'vod'
             );

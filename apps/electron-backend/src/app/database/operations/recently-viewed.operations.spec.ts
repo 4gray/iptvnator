@@ -1,46 +1,17 @@
-const andMock = jest.fn((...conditions: unknown[]) => ({
-    kind: 'and',
-    conditions,
-}));
-const eqMock = jest.fn((left: unknown, right: unknown) => ({
-    kind: 'eq',
-    left,
-    right,
-}));
-const descMock = jest.fn((value: unknown) => ({ kind: 'desc', value }));
-const inArrayMock = jest.fn((left: unknown, values: unknown[]) => ({
-    kind: 'inArray',
-    left,
-    values,
-}));
-const sqlMock = Object.assign(
-    jest.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
-        kind: 'sql',
-        strings: Array.from(strings),
-        values,
-    })),
-    {
-        placeholder: jest.fn((name: string) => ({
-            kind: 'placeholder',
-            name,
-        })),
-    }
-);
+import {
+    createDbMock,
+    mockDrizzle,
+    mockDrizzleOrmModule,
+    resetDrizzleMocks,
+} from './operations.test-helpers';
 
-jest.mock('drizzle-orm', () => ({
-    and: (...conditions: unknown[]) => andMock(...conditions),
-    desc: (value: unknown) => descMock(value),
-    eq: (left: unknown, right: unknown) => eqMock(left, right),
-    inArray: (left: unknown, values: unknown[]) => inArrayMock(left, values),
-    sql: sqlMock,
-}));
+jest.mock('drizzle-orm', () => mockDrizzleOrmModule());
 
 jest.mock('./content-backdrop.operations', () => ({
     persistContentBackdropIfMissing: jest.fn().mockResolvedValue(undefined),
 }));
 
 import * as schema from '@iptvnator/shared/database/schema';
-import type { AppDatabase } from '../database.types';
 import { persistContentBackdropIfMissing } from './content-backdrop.operations';
 import {
     addRecentItem,
@@ -52,103 +23,9 @@ import {
     removeRecentItemsBatch,
 } from './recently-viewed.operations';
 
-type QueryMock = {
-    from: jest.Mock;
-    innerJoin: jest.Mock;
-    where: jest.Mock;
-    orderBy: jest.Mock;
-    limit: jest.Mock;
-    then: (
-        resolve: (value: unknown[]) => void,
-        reject: (reason: unknown) => void
-    ) => Promise<void>;
-};
-
-function createDbMock(selectResultsByCall: unknown[][] = []) {
-    let selectIndex = 0;
-    const queries: QueryMock[] = [];
-    const select = jest.fn(() => {
-        const rows = selectResultsByCall[selectIndex] ?? [];
-        selectIndex += 1;
-        const query: QueryMock = {
-            from: jest.fn(),
-            innerJoin: jest.fn(),
-            where: jest.fn(),
-            orderBy: jest.fn(),
-            limit: jest.fn().mockResolvedValue(rows),
-            then: (resolve, reject) =>
-                Promise.resolve(rows).then(resolve, reject),
-        };
-        query.from.mockReturnValue(query);
-        query.innerJoin.mockReturnValue(query);
-        query.where.mockReturnValue(query);
-        query.orderBy.mockReturnValue(query);
-        queries.push(query);
-        return query;
-    });
-
-    const insertValues = jest.fn().mockResolvedValue(undefined);
-    const insert = jest.fn().mockReturnValue({ values: insertValues });
-
-    const updateWhere = jest.fn().mockResolvedValue(undefined);
-    const updateSet = jest.fn().mockReturnValue({ where: updateWhere });
-    const update = jest.fn().mockReturnValue({ set: updateSet });
-
-    const deleteExecute = jest.fn().mockResolvedValue(undefined);
-    const deletePrepare = jest
-        .fn()
-        .mockReturnValue({ execute: deleteExecute });
-    const deleteResult = {
-        prepare: deletePrepare,
-        then: (
-            resolve: (value: unknown) => void,
-            reject: (reason: unknown) => void
-        ) => Promise.resolve(undefined).then(resolve, reject),
-    };
-    const deleteWhere = jest.fn().mockReturnValue(deleteResult);
-    const deleteFn = jest.fn().mockReturnValue({
-        where: deleteWhere,
-        then: (
-            resolve: (value: unknown) => void,
-            reject: (reason: unknown) => void
-        ) => Promise.resolve(undefined).then(resolve, reject),
-    });
-
-    const transaction = jest.fn((callback: () => unknown) => {
-        const result = callback();
-        return Promise.resolve(result);
-    });
-
-    return {
-        db: {
-            select,
-            insert,
-            update,
-            delete: deleteFn,
-            transaction,
-        } as unknown as AppDatabase,
-        deleteExecute,
-        deleteFn,
-        deletePrepare,
-        deleteWhere,
-        insert,
-        insertValues,
-        queries,
-        select,
-        transaction,
-        update,
-        updateSet,
-    };
-}
-
 describe('recently-viewed.operations', () => {
     beforeEach(() => {
-        andMock.mockClear();
-        descMock.mockClear();
-        eqMock.mockClear();
-        inArrayMock.mockClear();
-        sqlMock.mockClear();
-        sqlMock.placeholder.mockClear();
+        resetDrizzleMocks();
         (persistContentBackdropIfMissing as jest.Mock).mockClear();
     });
 
@@ -162,7 +39,7 @@ describe('recently-viewed.operations', () => {
 
             await expect(getRecentlyViewed(db)).resolves.toEqual(rows);
 
-            expect(descMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.desc).toHaveBeenCalledWith(
                 schema.recentlyViewed.viewedAt
             );
             expect(queries[0].orderBy).toHaveBeenCalledWith(
@@ -180,11 +57,11 @@ describe('recently-viewed.operations', () => {
                 rows
             );
 
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,
                 'playlist-1'
             );
-            expect(descMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.desc).toHaveBeenCalledWith(
                 schema.recentlyViewed.viewedAt
             );
             expect(queries[0].limit).toHaveBeenCalledWith(100);
@@ -228,12 +105,12 @@ describe('recently-viewed.operations', () => {
             expect(updateSet).toHaveBeenCalledWith({
                 viewedAt: expect.objectContaining({ kind: 'sql' }),
             });
-            expect(sqlMock).toHaveBeenCalledWith(['CURRENT_TIMESTAMP']);
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.sql).toHaveBeenCalledWith(['CURRENT_TIMESTAMP']);
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
                 42
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,
                 'playlist-1'
             );
@@ -266,12 +143,12 @@ describe('recently-viewed.operations', () => {
                 clearPlaylistRecentItems(db, 'playlist-1')
             ).resolves.toEqual({ success: true });
 
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.categories.playlistId,
                 'playlist-1'
             );
             expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
-            expect(inArrayMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.inArray).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
                 [11, 12]
             );
@@ -299,11 +176,11 @@ describe('recently-viewed.operations', () => {
 
             expect(deleteFn).toHaveBeenCalledWith(schema.recentlyViewed);
             expect(deleteWhere.mock.calls[0][0].conditions).toHaveLength(2);
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.contentId,
                 42
             );
-            expect(eqMock).toHaveBeenCalledWith(
+            expect(mockDrizzle.eq).toHaveBeenCalledWith(
                 schema.recentlyViewed.playlistId,
                 'playlist-1'
             );
@@ -335,8 +212,8 @@ describe('recently-viewed.operations', () => {
             ).resolves.toEqual({ success: true, count: 2 });
 
             expect(deletePrepare).toHaveBeenCalledTimes(1);
-            expect(sqlMock.placeholder).toHaveBeenCalledWith('contentId');
-            expect(sqlMock.placeholder).toHaveBeenCalledWith('playlistId');
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('contentId');
+            expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('playlistId');
             expect(transaction).toHaveBeenCalledTimes(1);
             expect(deleteExecute).toHaveBeenNthCalledWith(1, {
                 contentId: 1,
