@@ -10,6 +10,17 @@ jest.mock('../../database/connection', () => ({
     getDatabase: (...args: unknown[]) => getDatabase(...args),
 }));
 
+function getRegisteredChannels(): string[] {
+    const { ipcMain } = jest.requireMock('electron') as {
+        ipcMain: { handle: jest.Mock };
+    };
+    return (
+        ipcMain.handle.mock.calls as Array<
+            [string, (...args: unknown[]) => unknown]
+        >
+    ).map(([registeredChannel]) => registeredChannel);
+}
+
 function getIpcMainHandler(channel: string): (...args: unknown[]) => unknown {
     const { ipcMain } = jest.requireMock('electron') as {
         ipcMain: { handle: jest.Mock };
@@ -29,7 +40,6 @@ function getIpcMainHandler(channel: string): (...args: unknown[]) => unknown {
 }
 
 describe('epg-db.events', () => {
-    let consoleLogSpy: jest.SpyInstance;
     let consoleErrorSpy: jest.SpyInstance;
 
     beforeEach(async () => {
@@ -39,45 +49,47 @@ describe('epg-db.events', () => {
             ipcMain: { handle: jest.Mock };
         };
         ipcMain.handle.mockClear();
-        consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
 
         await import('./epg-db.events');
     });
 
     afterEach(() => {
-        consoleLogSpy.mockRestore();
         consoleErrorSpy.mockRestore();
     });
 
-    it('clears a source in a single database transaction', async () => {
-        const runOrder: string[] = [];
-        const txDelete = jest
-            .fn()
-            .mockReturnValueOnce({
-                where: jest.fn(() => ({
-                    run: jest.fn(() => runOrder.push('programs')),
-                })),
-            })
-            .mockReturnValueOnce({
-                where: jest.fn(() => ({
-                    run: jest.fn(() => runOrder.push('channels')),
-                })),
-            });
-        const transaction = jest.fn((callback: (tx: unknown) => void) =>
-            callback({ delete: txDelete })
-        );
-        getDatabase.mockResolvedValue({ transaction });
+    it('registers only the programme-search channel', () => {
+        // Every other EPG persistence/lookup path lives in the EPG worker and
+        // epg-query.service.ts; the removed EPG_DB_* handlers must not return.
+        expect(getRegisteredChannels()).toEqual(['EPG_DB_SEARCH_PROGRAMS']);
+    });
+
+    it('returns an empty result for a blank search term without querying', async () => {
+        const all = jest.fn();
+        getDatabase.mockResolvedValue({ all });
 
         await expect(
-            getIpcMainHandler('EPG_DB_CLEAR_SOURCE')(
-                {},
-                'https://playlist.example.com/guide.xml'
-            )
-        ).resolves.toEqual({ success: true });
+            getIpcMainHandler('EPG_DB_SEARCH_PROGRAMS')({}, '   ')
+        ).resolves.toEqual([]);
 
-        expect(transaction).toHaveBeenCalledTimes(1);
-        expect(txDelete).toHaveBeenCalledTimes(2);
-        expect(runOrder).toEqual(['programs', 'channels']);
+        expect(all).not.toHaveBeenCalled();
+    });
+
+    it('searches programmes with a LIKE pattern built from the trimmed term', async () => {
+        const rows = [{ title: 'News', channel_name: 'NHK' }];
+        const all = jest.fn().mockResolvedValue(rows);
+        getDatabase.mockResolvedValue({ all });
+
+        await expect(
+            getIpcMainHandler('EPG_DB_SEARCH_PROGRAMS')({}, '  news  ', 25)
+        ).resolves.toEqual(rows);
+
+        expect(all).toHaveBeenCalledTimes(1);
+        const query = all.mock.calls[0][0] as {
+            queryChunks?: unknown[];
+        };
+        const boundParams = JSON.stringify(query);
+        expect(boundParams).toContain('%news%');
+        expect(boundParams).toContain('25');
     });
 });
