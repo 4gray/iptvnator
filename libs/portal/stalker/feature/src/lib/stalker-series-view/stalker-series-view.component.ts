@@ -64,10 +64,8 @@ import {
 import {
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
-    TmdbEnrichmentService,
-    mergeEpisodesWithTmdb,
-    type TmdbEpisode,
 } from '@iptvnator/services';
+import { StalkerSeriesTmdbSeasonsService } from './stalker-series-tmdb-seasons.service';
 import {
     getStalkerSeriesQuickStartButton,
     type StalkerQuickStartButton,
@@ -96,6 +94,7 @@ import {
         SeasonContainerComponent,
         MatIcon,
     ],
+    providers: [StalkerSeriesTmdbSeasonsService],
 })
 export class StalkerSeriesViewComponent implements OnDestroy {
     readonly stalkerStore = inject(StalkerStore);
@@ -128,37 +127,14 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
     readonly selectedItem = this.stalkerStore.selectedItem;
 
-    /**
-     * TMDB episode data per opened season, keyed by `${tmdbId}|${seasonKey}`
-     * so entries from a previously shown series can never leak into the
-     * current one. Filled lazily in onSeasonSelected.
-     */
-    private readonly tmdbSeasonEpisodes = signal<
-        ReadonlyMap<string, TmdbEpisode[]>
-    >(new Map());
-    /** TMDB season overviews, keyed like tmdbSeasonEpisodes. */
-    private readonly tmdbSeasonOverviews = signal<
-        ReadonlyMap<string, string>
-    >(new Map());
+    private readonly tmdbSeasons = inject(StalkerSeriesTmdbSeasonsService);
     /** Season currently selected in the season container. */
     private readonly selectedSeasonKey = signal<string | null>(null);
-    private readonly tmdbEnrichment = inject(TmdbEnrichmentService);
 
     /** Season descriptions for the season tabs (TMDB overview per season). */
-    readonly seasonDescriptions = computed<Record<string, string>>(() => {
-        const tmdbId = this.displayItem()?.info?.tmdb_id;
-        if (!tmdbId) {
-            return {};
-        }
-        const prefix = `${tmdbId}|`;
-        const descriptions: Record<string, string> = {};
-        for (const [mapKey, overview] of this.tmdbSeasonOverviews()) {
-            if (mapKey.startsWith(prefix)) {
-                descriptions[mapKey.slice(prefix.length)] = overview;
-            }
-        }
-        return descriptions;
-    });
+    readonly seasonDescriptions = computed<Record<string, string>>(() =>
+        this.tmdbSeasons.descriptions(this.displayItem()?.info?.tmdb_id)
+    );
 
     /**
      * Track VOD series seasons with their loaded episodes
@@ -192,12 +168,18 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         // tabs the first seasonSelected fires immediately when seasons load —
         // usually BEFORE the async show-level TMDB enrichment has written
         // tmdb_id — so the fetch must re-run when the match arrives, not only
-        // on selection. fetchTmdbSeason is idempotent per (tmdbId, season).
+        // on selection. fetchSeason is idempotent per (tmdbId, season).
         effect(() => {
             const tmdbId = this.displayItem()?.info?.tmdb_id;
             const seasonKey = this.selectedSeasonKey();
             if (tmdbId && seasonKey) {
-                untracked(() => void this.fetchTmdbSeason(seasonKey));
+                untracked(() =>
+                    void this.tmdbSeasons.fetchSeason(
+                        tmdbId,
+                        seasonKey,
+                        this.mappedSeasons()[seasonKey]
+                    )
+                );
             }
         });
 
@@ -340,20 +322,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
 
             // Overlay lazily fetched TMDB episode data (real names,
             // overviews, stills) — a no-op while nothing is fetched
-            const tmdbEpisodes = this.tmdbSeasonEpisodes();
-            const tmdbId = this.displayItem()?.info?.tmdb_id;
-            if (!tmdbId || tmdbEpisodes.size === 0) {
-                return base;
-            }
-
-            const merged: Record<string, XtreamSerieEpisode[]> = {};
-            for (const [seasonKey, episodes] of Object.entries(base)) {
-                const forSeason = tmdbEpisodes.get(`${tmdbId}|${seasonKey}`);
-                merged[seasonKey] = forSeason?.length
-                    ? mergeEpisodesWithTmdb(episodes, forSeason)
-                    : episodes;
-            }
-            return merged;
+            return this.tmdbSeasons.overlay(
+                base,
+                this.displayItem()?.info?.tmdb_id
+            );
         }
     );
 
@@ -395,50 +367,6 @@ export class StalkerSeriesViewComponent implements OnDestroy {
         if (season && season.episodes.length === 0) {
             this.loadEpisodesForSeason(season);
         }
-    }
-
-    /**
-     * Lazily pulls the TMDB episode list for an opened season; a no-op
-     * without a show-level TMDB match or with enrichment disabled.
-     */
-    private async fetchTmdbSeason(seasonKey: string): Promise<void> {
-        const tmdbId = this.displayItem()?.info?.tmdb_id;
-        if (!tmdbId) {
-            return;
-        }
-
-        const mapKey = `${tmdbId}|${seasonKey}`;
-        if (this.tmdbSeasonEpisodes().has(mapKey)) {
-            return;
-        }
-
-        const episodes = this.mappedSeasons()[seasonKey];
-        const seasonNumber = Number(episodes?.[0]?.season ?? seasonKey);
-        if (!Number.isFinite(seasonNumber)) {
-            return;
-        }
-
-        const season = await this.tmdbEnrichment.getSeason(
-            tmdbId,
-            seasonNumber
-        );
-        if (!season) {
-            return;
-        }
-
-        if (season.overview) {
-            const overviews = new Map(this.tmdbSeasonOverviews());
-            overviews.set(mapKey, season.overview);
-            this.tmdbSeasonOverviews.set(overviews);
-        }
-
-        if (!season.episodes?.length) {
-            return;
-        }
-
-        const next = new Map(this.tmdbSeasonEpisodes());
-        next.set(mapKey, season.episodes);
-        this.tmdbSeasonEpisodes.set(next);
     }
 
     /**
