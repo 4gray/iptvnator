@@ -14,7 +14,10 @@ import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
-    ContentHeroComponent,
+    DetailActionsTemplateDirective,
+    DetailMetaTemplateDirective,
+    DetailTagsTemplateDirective,
+    PortalDetailShellComponent,
     SeasonContainerComponent,
     SeasonContainerPlaybackToggleRequest,
     SeasonContainerXtreamDownloadContext,
@@ -57,8 +60,11 @@ import {
     ],
     providers: [SerialDetailsPlaybackService],
     imports: [
-        ContentHeroComponent,
+        DetailActionsTemplateDirective,
+        DetailMetaTemplateDirective,
+        DetailTagsTemplateDirective,
         MatIcon,
+        PortalDetailShellComponent,
         PortalInlinePlayerComponent,
         SeasonContainerComponent,
         SlicePipe,
