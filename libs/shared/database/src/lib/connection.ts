@@ -342,6 +342,7 @@ const INDEX_MIGRATION_STATEMENTS = [
 ];
 
 export const __databaseConnectionTestHooks = {
+    createTables,
     createTableStatements: CREATE_TABLE_STATEMENTS,
     columnMigrationStatements: COLUMN_MIGRATION_STATEMENTS,
     indexMigrationStatements: INDEX_MIGRATION_STATEMENTS,

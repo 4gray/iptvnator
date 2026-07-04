@@ -191,4 +191,60 @@ describe('withFavorites', () => {
         );
         expect(store.isFavorite()).toBe(true);
     });
+
+    it('rejects toggles with invalid Xtream IDs or missing playlist IDs', async () => {
+        await expect(
+            store.toggleFavorite('not-a-number', 'playlist-1', 'movie')
+        ).resolves.toBe(false);
+        await expect(store.toggleFavorite(0, 'playlist-1', 'movie')).resolves.toBe(
+            false
+        );
+        await expect(store.toggleFavorite(290, '', 'movie')).resolves.toBe(
+            false
+        );
+
+        expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+        expect(dataSource.addFavorite).not.toHaveBeenCalled();
+    });
+
+    it('does not toggle Electron favorites when the cached content is missing', async () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: {} as Window['electron'],
+        });
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+
+        const result = await store.toggleFavorite(290, 'playlist-1', 'series');
+
+        expect(result).toBe(false);
+        expect(dataSource.addFavorite).not.toHaveBeenCalled();
+        expect(dataSource.removeFavorite).not.toHaveBeenCalled();
+        expect(store.isFavorite()).toBe(false);
+    });
+
+    it('resets favorite state when checking with invalid inputs', async () => {
+        patchState(store, { isFavorite: true });
+
+        await store.checkFavoriteStatus('not-a-number', 'playlist-1', 'movie');
+
+        expect(dataSource.getContentByXtreamId).not.toHaveBeenCalled();
+        expect(dataSource.isFavorite).not.toHaveBeenCalled();
+        expect(store.isFavorite()).toBe(false);
+    });
+
+    it('resets Electron favorite state when the cached content is missing', async () => {
+        Object.defineProperty(window, 'electron', {
+            configurable: true,
+            writable: true,
+            value: {} as Window['electron'],
+        });
+        dataSource.getContentByXtreamId.mockResolvedValue(null);
+        patchState(store, { isFavorite: true });
+
+        await store.checkFavoriteStatus(290, 'playlist-1', 'series');
+
+        expect(dataSource.isFavorite).not.toHaveBeenCalled();
+        expect(store.isFavorite()).toBe(false);
+    });
 });
