@@ -35,6 +35,8 @@ class StubSeasonContainerComponent {
     readonly xtreamDownloadContext = input<unknown>(null);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
+    readonly playingEpisodeId = input<number | null>(null);
+    readonly seasonDescriptions = input<unknown>(null);
     readonly episodeClicked = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
 }

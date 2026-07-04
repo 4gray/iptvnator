@@ -1,0 +1,78 @@
+<div class="season-tabs" role="tablist">
+    @if (useDropdown()) {
+        <button
+            class="season-tabs__dropdown"
+            data-testid="season-dropdown"
+            [matMenuTriggerFor]="seasonMenu"
+            type="button"
+        >
+            <span>
+                {{
+                    'PORTALS.SEASON_TAB'
+                        | translate: { number: selectedSeason() ?? '—' }
+                }}
+            </span>
+            <mat-icon>arrow_drop_down</mat-icon>
+        </button>
+        <mat-menu #seasonMenu="matMenu">
+            @for (seasonKey of seasonKeys(); track seasonKey) {
+                <button
+                    mat-menu-item
+                    [class.season-tabs__menu-item--selected]="
+                        seasonKey === selectedSeason()
+                    "
+                    (click)="selectSeason(seasonKey)"
+                >
+                    <span>
+                        {{
+                            'PORTALS.SEASON_TAB'
+                                | translate: { number: seasonKey }
+                        }}
+                    </span>
+                    <span class="season-tabs__menu-count">
+                        {{ episodeCounts()[seasonKey] ?? 0 }}
+                    </span>
+                    @if (isSeasonCompleted(seasonKey)) {
+                        <mat-icon class="season-tabs__done">check</mat-icon>
+                    }
+                </button>
+            }
+        </mat-menu>
+    } @else {
+        @for (seasonKey of seasonKeys(); track seasonKey) {
+            <button
+                class="season-tabs__pill"
+                type="button"
+                role="tab"
+                [attr.aria-selected]="seasonKey === selectedSeason()"
+                [class.season-tabs__pill--active]="
+                    seasonKey === selectedSeason()
+                "
+                (click)="selectSeason(seasonKey)"
+            >
+                {{ 'PORTALS.SEASON_TAB' | translate: { number: seasonKey } }}
+                @if (isSeasonCompleted(seasonKey)) {
+                    <mat-icon class="season-tabs__done">check</mat-icon>
+                }
+            </button>
+        }
+    }
+
+    @if (showBackToPlaying()) {
+        <button
+            class="season-tabs__back-to-playing"
+            data-testid="back-to-playing"
+            type="button"
+            (click)="backToPlayingRequested.emit()"
+        >
+            <mat-icon>play_circle</mat-icon>
+            {{ 'PORTALS.BACK_TO_PLAYING_EPISODE' | translate }}
+        </button>
+    }
+</div>
+
+@if (seasonDescription(); as description) {
+    <p class="season-tabs__description" data-testid="season-description">
+        {{ description }}
+    </p>
+}

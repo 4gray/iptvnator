@@ -1,0 +1,109 @@
+:host {
+    display: block;
+    min-width: 0;
+}
+
+.season-tabs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 6px;
+
+    &__pill {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 8px 16px;
+        border: none;
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+        font-size: 13px;
+        font-family: inherit;
+        cursor: pointer;
+        transition:
+            background 150ms ease,
+            color 150ms ease;
+
+        &:hover {
+            background: var(--tag-bg, rgba(255, 255, 255, 0.08));
+        }
+
+        &--active {
+            background: var(--tag-bg, rgba(255, 255, 255, 0.1));
+            color: var(--text-primary, #fff);
+            font-weight: 600;
+            outline: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+        }
+    }
+
+    &__dropdown {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 8px 10px 8px 16px;
+        border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-primary, #fff);
+        font-size: 13px;
+        font-weight: 600;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+    &__menu-count {
+        margin-left: 12px;
+        color: var(--text-muted, rgba(255, 255, 255, 0.5));
+        font-size: 12px;
+    }
+
+    &__done {
+        font-size: 15px;
+        width: 15px;
+        height: 15px;
+        color: var(--accent-success, #4ade80);
+    }
+
+    &__back-to-playing {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        margin-left: 8px;
+        padding: 7px 14px;
+        border: 1px solid var(--tag-border, rgba(255, 255, 255, 0.2));
+        border-radius: 999px;
+        background: transparent;
+        color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+        font-size: 12.5px;
+        font-family: inherit;
+        cursor: pointer;
+
+        &:hover {
+            color: var(--text-primary, #fff);
+            background: var(--tag-bg, rgba(255, 255, 255, 0.08));
+        }
+
+        mat-icon {
+            font-size: 16px;
+            width: 16px;
+            height: 16px;
+        }
+    }
+
+    &__menu-item--selected {
+        font-weight: 700;
+    }
+}
+
+.season-tabs__description {
+    margin: 10px 4px 0;
+    max-width: 760px;
+    font-size: 12.5px;
+    line-height: 1.55;
+    color: var(--text-secondary, rgba(255, 255, 255, 0.7));
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+}

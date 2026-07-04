@@ -154,6 +154,9 @@
             [xtreamDownloadContext]="xtreamDownloadContext()"
             [openingEpisodeId]="openingEpisodeId()"
             [activeEpisodeId]="activeEpisodeId()"
+            [playingEpisodeId]="
+                inlinePlayback()?.contentInfo?.contentXtreamId ?? null
+            "
             (episodeClicked)="playEpisode($event)"
             (playbackToggleRequested)="handlePlaybackToggleRequested($event)"
             (seasonSelected)="onSeasonSelected($event)"

@@ -146,9 +146,12 @@
                 [playbackPositions]="episodePlaybackPositions()"
                 [openingEpisodeId]="openingEpisodeId()"
                 [activeEpisodeId]="activeEpisodeId()"
+                [playingEpisodeId]="
+                    inlinePlayback()?.contentInfo?.contentXtreamId ?? null
+                "
                 [isLoading]="
                     isVodSeriesSeasonsLoading() ||
-                    isCurrentSeasonLoading(seasonContainer?.selectedSeason)
+                    isCurrentSeasonLoading(seasonContainer?.selectedSeason())
                 "
                 (seasonSelected)="onSeasonSelected($event)"
                 (episodeClicked)="onEpisodeClicked($event)"

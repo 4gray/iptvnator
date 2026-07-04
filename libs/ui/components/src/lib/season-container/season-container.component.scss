@@ -26,33 +26,6 @@
         letter-spacing: -0.01em;
     }
 
-    .back-btn {
-        display: flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(255, 255, 255, 0.05);
-        border: 1px solid rgba(255, 255, 255, 0.1);
-        color: var(--text-secondary);
-        font-size: 0.8125rem;
-        font-weight: 500;
-        cursor: pointer;
-        transition: all 0.2s ease;
-        padding: 6px 12px;
-        border-radius: 4px;
-
-        &:hover {
-            color: var(--text-primary);
-            background: rgba(255, 255, 255, 0.1);
-            border-color: rgba(255, 255, 255, 0.2);
-        }
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-
     .view-toggle {
         mat-button-toggle-group {
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -170,140 +143,17 @@
     }
 }
 
-// Grid Layouts
-.seasons-grid,
+// Grid Layout
 .episodes-grid {
     display: grid;
     gap: 12px;
     width: 100%;
-}
-
-.seasons-grid {
     grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
 }
 
-.episodes-grid {
-    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
-}
-
-// Season Card
-.season-card {
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    padding: 12px;
-    background: rgba(255, 255, 255, 0.04);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    border-radius: 6px;
-    cursor: pointer;
-    transition: all 0.2s ease;
-    text-align: left;
-    position: relative;
-    overflow: hidden;
-    color: var(--text-primary);
-    font-size: 1rem;
-    font-family: inherit;
-
-    &:hover {
-        background: rgba(255, 255, 255, 0.1);
-        transform: translateY(-2px);
-        border-color: rgba(255, 255, 255, 0.15);
-
-        .season-card__arrow {
-            opacity: 1;
-            transform: translateX(0);
-        }
-    }
-
-    &__progress-ring {
-        position: relative;
-        width: 42px;
-        height: 42px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-shrink: 0;
-
-        svg {
-            width: 100%;
-            height: 100%;
-            transform: rotate(-90deg);
-        }
-
-        .progress-ring__bg {
-            fill: none;
-            stroke: rgba(255, 255, 255, 0.1);
-            stroke-width: 3;
-        }
-
-        .progress-ring__fill {
-            fill: none;
-            stroke: var(--accent-color);
-            stroke-width: 3;
-            stroke-linecap: round;
-            transition: stroke-dasharray 0.5s ease-out;
-        }
-
-        .season-card__number {
-            position: absolute;
-            font-size: 1rem !important;
-            color: var(--text-primary);
-            font-weight: 700;
-            opacity: 1;
-            margin: 0;
-            padding: 0;
-            background: transparent;
-        }
-    }
-
-    &__info {
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-    }
-
-    &__label {
-        font-size: 0.9375rem !important;
-        font-weight: 600;
-        color: var(--text-primary);
-    }
-
-    &__progress-text {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-
-    &__episodes {
-        font-size: 0.75rem;
-        color: var(--text-muted);
-    }
-
-    &__arrow {
-        opacity: 0;
-        transform: translateX(-5px);
-        transition: all 0.2s ease;
-        color: var(--text-muted);
-
-        mat-icon {
-            font-size: 18px;
-            width: 18px;
-            height: 18px;
-        }
-    }
-
-    &--has-episodes {
-        /* background: rgba(var(--accent-color-rgb), 0.1);
-        border-color: rgba(var(--accent-color-rgb), 0.3); */
-
-        .season-card__number {
-            color: var(--text-primary);
-        }
-
-        /* .season-card__label {
-            color: var(--accent-color);
-        } */
-    }
+app-season-tabs {
+    display: block;
+    margin-bottom: 16px;
 }
 
 // Episode Card
@@ -350,6 +200,12 @@
 
     &--active-external {
         background: color-mix(in srgb, var(--mat-sys-tertiary-container) 18%, transparent);
+    }
+
+    // Playing in the inline player
+    &--playing {
+        border-color: color-mix(in srgb, var(--mat-sys-primary) 70%, transparent);
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mat-sys-primary) 40%, transparent);
     }
 
     // Watched state
@@ -755,6 +611,11 @@
     &--active-external {
         border-color: color-mix(in srgb, var(--mat-sys-tertiary) 46%, transparent);
         background: color-mix(in srgb, var(--mat-sys-tertiary-container) 12%, transparent);
+    }
+
+    &--playing {
+        border-color: color-mix(in srgb, var(--mat-sys-primary) 60%, transparent);
+        background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
     }
 
     // Always show actions on touch devices

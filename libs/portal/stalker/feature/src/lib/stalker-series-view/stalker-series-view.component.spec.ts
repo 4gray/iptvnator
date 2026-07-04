@@ -35,12 +35,14 @@ class StubSeasonContainerComponent {
     readonly playbackPositions = input<unknown>(null);
     readonly openingEpisodeId = input<number | null>(null);
     readonly activeEpisodeId = input<number | null>(null);
+    readonly playingEpisodeId = input<number | null>(null);
+    readonly seasonDescriptions = input<unknown>(null);
     readonly isLoading = input(false);
     readonly seasonSelected = output<string>();
     readonly episodeClicked = output<unknown>();
     readonly episodeDownloadRequested = output<unknown>();
     readonly playbackToggleRequested = output<unknown>();
-    selectedSeason: string | undefined;
+    readonly selectedSeason = signal<string | undefined>(undefined);
 }
 
 @Component({
