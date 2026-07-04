@@ -253,6 +253,24 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         }
     });
 
+    it('suppresses session updates while the snapshot content is unchanged', () => {
+        jest.useFakeTimers();
+        startSession('s1', snapshot('playing'));
+
+        // Identical snapshot on every poll tick: only the refresh timestamp
+        // differs, which must not count as a change.
+        addon.getSessionSnapshot.mockImplementation(() => snapshot('playing'));
+        mainWindowSendMock.mockClear();
+        jest.advanceTimersByTime(2000);
+        expect(mainWindowSendMock).not.toHaveBeenCalled();
+
+        addon.getSessionSnapshot.mockImplementation(() =>
+            snapshot('playing', { positionSeconds: 1 })
+        );
+        jest.advanceTimersByTime(500);
+        expect(mainWindowSendMock).toHaveBeenCalledTimes(1);
+    });
+
     it('acquires a single prevent-display-sleep blocker once a session is playing', () => {
         startSession('s1', snapshot('loading'));
 
@@ -419,6 +437,37 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             timeout: 3000,
         });
     });
+
+    it.each([
+        ['Flatpak', 'FLATPAK_ID', 'com.fourgray.iptvnator'],
+        ['Snap', 'SNAP', '/snap/iptvnator/1'],
+    ])(
+        'explains that %s sandboxes cannot use a system mpv instead of asking to install it',
+        (_label, envKey, envValue) => {
+            Object.defineProperty(process, 'platform', {
+                value: 'linux',
+            });
+            delete process.env.WAYLAND_DISPLAY;
+            const originalValue = process.env[envKey];
+            process.env[envKey] = envValue;
+            mockSpawnSync.mockReturnValueOnce({
+                status: null,
+                error: Object.assign(new Error('not found'), {
+                    code: 'ENOENT',
+                }),
+            });
+
+            try {
+                const support = service.getSupport();
+
+                expect(support.supported).toBe(false);
+                expect(support.reason).toContain('sandboxed Flatpak/Snap');
+                expect(support.reason).not.toContain('Install the mpv package');
+            } finally {
+                restoreEnv(envKey, originalValue);
+            }
+        }
+    );
 
     it('caches the Linux mpv executable probe result', () => {
         Object.defineProperty(process, 'platform', {

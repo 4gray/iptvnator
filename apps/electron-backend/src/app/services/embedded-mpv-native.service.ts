@@ -604,7 +604,10 @@ export class EmbeddedMpvNativeService {
         session.streamUrl = payload.streamUrl;
         session.updatedAt = payload.updatedAt;
         session.lastStatus = payload.status;
-        const nextPayloadKey = JSON.stringify(payload);
+        // The refresh timestamp must not participate in the diff key,
+        // otherwise every poll tick looks like a change and the renderer
+        // receives an IPC update every 500 ms even while paused.
+        const nextPayloadKey = JSON.stringify({ ...payload, updatedAt: '' });
         if (session.lastPayloadKey !== nextPayloadKey) {
             session.lastPayloadKey = nextPayloadKey;
             this.sendSessionUpdate(payload);
@@ -803,10 +806,18 @@ export class EmbeddedMpvNativeService {
             timeout: 3000,
         });
         this.cachedLinuxMpvExecutableReason =
-            result.status === 0
-                ? null
-                : 'Embedded MPV on Linux requires the mpv executable on PATH. Install the mpv package for your distribution and restart IPTVnator.';
+            result.status === 0 ? null : this.getLinuxMpvMissingMessage();
         return this.cachedLinuxMpvExecutableReason;
+    }
+
+    private getLinuxMpvMissingMessage(): string {
+        // Flatpak/Snap sandboxes cannot see a host-installed mpv, so telling
+        // the user to install it would send them down a dead end.
+        if (process.env.FLATPAK_ID || process.env.SNAP) {
+            return 'Embedded MPV is not available in sandboxed Flatpak/Snap packages because they cannot access a system mpv executable. Use the built-in player, or install the .deb/.rpm/AppImage package to enable Embedded MPV.';
+        }
+
+        return 'Embedded MPV on Linux requires the mpv executable on PATH. Install the mpv package for your distribution and restart IPTVnator.';
     }
 
     private isInvalidLinuxWaylandWindowHandle(windowHandle: Buffer): boolean {

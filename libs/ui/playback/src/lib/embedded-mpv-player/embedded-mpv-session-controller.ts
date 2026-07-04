@@ -185,11 +185,17 @@ export class EmbeddedMpvSessionController {
             scheduleBoundsSync();
         };
 
-        void create().catch((error) =>
+        void create().catch((error) => {
+            // A rejection can land after teardown (fast channel zapping):
+            // writing the error session then would clobber the state of the
+            // session that replaced this one and null its sessionId.
+            if (disposed) {
+                return;
+            }
             this.session.set(
                 this.createErrorSession(playback, initialVolume, error)
-            )
-        );
+            );
+        });
 
         return () => {
             disposed = true;

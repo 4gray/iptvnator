@@ -33,6 +33,18 @@ import { environment } from './environments/environment';
 
 app.setName('iptvnator');
 
+// Packaged Linux launchers force X11 via the .desktop entry
+// (electron-builder `executableArgs`), but direct binary/AppImage launches
+// from a terminal bypass that entry. Embedded MPV supports X11/XWayland
+// only, and its support probe requires the ozone switch to be present, so
+// mirror the launcher behavior here unless the user overrides it.
+if (
+    process.platform === 'linux' &&
+    !app.commandLine.hasSwitch('ozone-platform')
+) {
+    app.commandLine.appendSwitch('ozone-platform', 'x11');
+}
+
 const electronUserDataPath = getElectronUserDataPath();
 
 if (electronUserDataPath) {
