@@ -188,25 +188,6 @@
                                             </button>
                                         }
                                     }
-                                    @if (episodeInfo?.plot) {
-                                        <button
-                                            mat-icon-button
-                                            class="info-btn"
-                                            data-testid="episode-info-button"
-                                            (click)="
-                                                openEpisodeInfo(
-                                                    $event,
-                                                    episode
-                                                )
-                                            "
-                                            [matTooltip]="
-                                                'PORTALS.EPISODE_INFO'
-                                                    | translate
-                                            "
-                                        >
-                                            <mat-icon>info_outline</mat-icon>
-                                        </button>
-                                    }
                                     <button
                                         mat-icon-button
                                         class="toggle-watched-btn"
@@ -248,10 +229,31 @@
                                 </div>
                             </div>
                             <div class="episode-card__info">
-                                <h4 class="episode-card__title">
-                                    {{ episode.episode_num }}.
-                                    {{ episode.title }}
-                                </h4>
+                                <div class="episode-card__title-row">
+                                    <h4 class="episode-card__title">
+                                        {{ episode.episode_num }}.
+                                        {{ episode.title }}
+                                    </h4>
+                                    @if (episodeInfo?.plot) {
+                                        <button
+                                            mat-icon-button
+                                            class="episode-card__info-btn"
+                                            data-testid="episode-info-button"
+                                            (click)="
+                                                openEpisodeInfo(
+                                                    $event,
+                                                    episode
+                                                )
+                                            "
+                                            [matTooltip]="
+                                                'PORTALS.EPISODE_INFO'
+                                                    | translate
+                                            "
+                                        >
+                                            <mat-icon>info_outline</mat-icon>
+                                        </button>
+                                    }
+                                </div>
                                 @if (episodeInfo?.plot) {
                                     <p class="episode-card__plot">
                                         {{ episodeInfo?.plot }}
