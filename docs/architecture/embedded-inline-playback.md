@@ -101,8 +101,8 @@ which owns the page scroll container and two layout states:
 
 Contracts:
 
-- Hosts provide hero chips/meta/actions as `*detailTags` / `*detailMeta` /
-  `*detailActions` templates; the shell stamps them into the hero and again
+- Hosts provide hero chips/meta/actions as `*appDetailTags` / `*appDetailMeta` /
+  `*appDetailActions` templates; the shell stamps them into the hero and again
   into the About block. Degradation stays "missing → not rendered".
 - The shell never wraps the `[detail-player]` slot in a conditional; the
   host's `@if (inlinePlayback())` is the only creator/destroyer of the

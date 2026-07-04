@@ -24,13 +24,13 @@ import { PortalDetailShellComponent } from './portal-detail-shell.component';
             [playbackActive]="playbackActive()"
             (closePlayerRequested)="closeRequests = closeRequests + 1"
         >
-            <ng-template detailTags>
+            <ng-template appDetailTags>
                 <span class="details__tag">2026</span>
             </ng-template>
-            <ng-template detailMeta>
+            <ng-template appDetailMeta>
                 <div class="details__meta-item">Cast entry</div>
             </ng-template>
-            <ng-template detailActions>
+            <ng-template appDetailActions>
                 <button class="play-btn">Play</button>
             </ng-template>
             @if (playbackActive()) {

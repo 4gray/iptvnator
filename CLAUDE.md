@@ -622,7 +622,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - Xtream and Stalker detail pages use the shared `PortalDetailShellComponent` (`libs/ui/components/src/lib/portal-detail-shell/`) with two states: **Browse** (hero with poster/metadata/actions, episodes below) and **Watch** (hero collapses with a ~300ms morph, the inline player takes the full content width, metadata moves to an About block below the episodes)
 - Watch state derives from `inlinePlayback() !== null` only; external MPV/VLC playback keeps the browse layout. Esc and the now-playing back button close the inline player back to browse without route navigation
-- Hosts pass hero chips/meta/actions as `*detailTags`/`*detailMeta`/`*detailActions` templates; the shell stamps them into both the hero and the About block
+- Hosts pass hero chips/meta/actions as `*appDetailTags`/`*appDetailMeta`/`*appDetailActions` templates; the shell stamps them into both the hero and the About block
 - Seasons are tabs (`SeasonTabsComponent`, dropdown beyond 6 seasons) with auto-selection (playing episode's season → resume season → first) that fires the same `seasonSelected` lazy-load/enrichment hooks as manual clicks; grid/list episode view toggle persists to localStorage; season descriptions come from `get_series_info` (Xtream) or TMDB (Stalker)
 - See `docs/architecture/embedded-inline-playback.md` ("Two-State Detail Layout")
 

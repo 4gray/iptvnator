@@ -10,7 +10,7 @@
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
     >
-        <ng-template detailTags>
+        <ng-template appDetailTags>
             @if (info.releaseDate) {
                 <span class="details__tag">{{
                     info.releaseDate | slice: 0 : 4
@@ -31,7 +31,7 @@
             }
         </ng-template>
 
-        <ng-template detailMeta>
+        <ng-template appDetailMeta>
             @if (info.cast || info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.CAST' | translate }}</span>
@@ -87,7 +87,7 @@
             }
         </ng-template>
 
-        <ng-template detailActions>
+        <ng-template appDetailActions>
             @if (quickStartAction(); as action) {
                 <button
                     class="play-btn"

@@ -30,7 +30,7 @@
                         }}
                     </span>
                     <span class="season-tabs__menu-count">
-                        {{ episodeCounts()[seasonKey] ?? 0 }}
+                        {{ episodeCounts()[seasonKey] }}
                     </span>
                     @if (isSeasonCompleted(seasonKey)) {
                         <mat-icon class="season-tabs__done">check</mat-icon>

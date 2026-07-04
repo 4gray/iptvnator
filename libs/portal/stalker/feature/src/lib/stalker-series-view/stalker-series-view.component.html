@@ -9,7 +9,7 @@
         (closePlayerRequested)="closeInlinePlayer()"
     >
         <!-- Tags: Year, Genre, Rating -->
-        <ng-template detailTags>
+        <ng-template appDetailTags>
             @if (serial.info.releasedate) {
                 <span class="details__tag">{{ serial.info.releasedate }}</span>
             }
@@ -29,7 +29,7 @@
         </ng-template>
 
         <!-- Metadata Grid -->
-        <ng-template detailMeta>
+        <ng-template appDetailMeta>
             @if (serial.info.actors || serial.info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
@@ -89,7 +89,7 @@
         </ng-template>
 
         <!-- Action Buttons -->
-        <ng-template detailActions>
+        <ng-template appDetailActions>
             @if (quickStartAction(); as action) {
                 <button
                     class="play-btn"

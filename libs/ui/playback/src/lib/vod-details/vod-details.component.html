@@ -10,7 +10,7 @@
     (closePlayerRequested)="closeInlinePlayback()"
 >
     <!-- Tags: Year, Genre, Duration, Rating -->
-    <ng-template detailTags>
+    <ng-template appDetailTags>
         @if (meta.year) {
             <span class="details__tag">{{ meta.year }}</span>
         }
@@ -31,7 +31,7 @@
     </ng-template>
 
     <!-- Metadata Grid -->
-    <ng-template detailMeta>
+    <ng-template appDetailMeta>
         @if (meta.actors || meta.tmdbCast?.length) {
             <div class="details__meta-item">
                 <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
@@ -90,7 +90,7 @@
     </ng-template>
 
     <!-- Action Buttons -->
-    <ng-template detailActions>
+    <ng-template appDetailActions>
         <!-- Resume/Play buttons -->
         @if (hasPlaybackPosition()) {
             <button

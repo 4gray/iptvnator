@@ -9,7 +9,7 @@ import { Directive, TemplateRef, inject } from '@angular/core';
  * appear once, a TemplateRef can be stamped any number of times.
  */
 @Directive({
-    selector: '[detailTags]',
+    selector: '[appDetailTags]',
     standalone: true,
 })
 export class DetailTagsTemplateDirective {
@@ -17,7 +17,7 @@ export class DetailTagsTemplateDirective {
 }
 
 @Directive({
-    selector: '[detailMeta]',
+    selector: '[appDetailMeta]',
     standalone: true,
 })
 export class DetailMetaTemplateDirective {
@@ -25,7 +25,7 @@ export class DetailMetaTemplateDirective {
 }
 
 @Directive({
-    selector: '[detailActions]',
+    selector: '[appDetailActions]',
     standalone: true,
 })
 export class DetailActionsTemplateDirective {

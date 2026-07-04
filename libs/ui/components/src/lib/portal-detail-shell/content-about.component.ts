@@ -9,7 +9,7 @@ import { TranslateModule } from '@ngx-translate/core';
  *
  * Degradation rule: anything missing simply is not rendered — no "N/A"
  * placeholders. Chips and credits are stamped from the host-provided
- * *detailTags / *detailMeta templates, so the host's own @if guards apply.
+ * *appDetailTags / *appDetailMeta templates, so the host's own @if guards apply.
  */
 @Component({
     selector: 'app-content-about',

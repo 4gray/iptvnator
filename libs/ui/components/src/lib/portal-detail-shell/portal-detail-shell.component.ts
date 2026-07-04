@@ -76,7 +76,7 @@ export class PortalDetailShellComponent {
         });
     }
 
-    onEscape(event: KeyboardEvent): void {
+    onEscape(event: Event): void {
         if (!this.playbackActive()) return;
         if (event.defaultPrevented) return;
         // Browser fullscreen owns Escape (exits fullscreen first).

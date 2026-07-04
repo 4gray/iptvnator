@@ -9,7 +9,7 @@
         (backClicked)="goBack()"
         (closePlayerRequested)="closeInlinePlayer()"
     >
-        <ng-template detailTags>
+        <ng-template appDetailTags>
             @if (info.releasedate) {
                 <span class="details__tag">{{
                     info.releasedate | slice: 0 : 4
@@ -31,7 +31,7 @@
             }
         </ng-template>
 
-        <ng-template detailMeta>
+        <ng-template appDetailMeta>
             @if (info.actors || info.cast || info.tmdb_cast?.length) {
                 <div class="details__meta-item">
                     <span class="label">{{ 'XTREAM.ACTORS' | translate }}</span>
@@ -97,7 +97,7 @@
             }
         </ng-template>
 
-        <ng-template detailActions>
+        <ng-template appDetailActions>
             @if (hasPlaybackPosition()) {
                 <button
                     class="play-btn play-btn--resume"
@@ -277,7 +277,7 @@
         [posterUrl]="fallback.posterUrl"
         (backClicked)="goBack()"
     >
-        <ng-template detailTags>
+        <ng-template appDetailTags>
             <span
                 class="details__tag details__tag--status"
                 data-testid="xtream-vod-fallback-status"
@@ -300,7 +300,7 @@
             }
         </ng-template>
 
-        <ng-template detailMeta>
+        <ng-template appDetailMeta>
             <div
                 class="details__fallback-note"
                 data-testid="xtream-vod-fallback"
