@@ -8,6 +8,7 @@ import {
     CoverSize,
     DEFAULT_DASHBOARD_RAILS_SETTINGS,
     DEFAULT_TMDB_SETTINGS,
+    EpgViewMode,
     Language,
     normalizeDashboardRailsSettings,
     normalizeExternalPlayerArguments,
@@ -71,7 +72,12 @@ export function createSettingsForm(
         ],
         recordingFolder: '',
         coverSize: 'medium' as CoverSize,
-        ...(supportsEpg ? { preferUploadedEpgOverXtream: false } : {}),
+        ...(supportsEpg
+            ? {
+                  preferUploadedEpgOverXtream: false,
+                  epgViewMode: 'timeline' as EpgViewMode,
+              }
+            : {}),
         tmdb: formBuilder.group({
             enabled: DEFAULT_TMDB_SETTINGS.enabled,
             apiKey: DEFAULT_TMDB_SETTINGS.apiKey ?? '',
@@ -134,6 +140,8 @@ export function createSettingsFromFormValue(
             value.preferUploadedEpgOverXtream ??
             currentSettings.preferUploadedEpgOverXtream ??
             false,
+        epgViewMode:
+            value.epgViewMode ?? currentSettings.epgViewMode ?? 'timeline',
         trustedPrivateNetworkEpgUrls:
             currentSettings.trustedPrivateNetworkEpgUrls ?? [],
         trustedInsecureTlsHosts: currentSettings.trustedInsecureTlsHosts ?? [],

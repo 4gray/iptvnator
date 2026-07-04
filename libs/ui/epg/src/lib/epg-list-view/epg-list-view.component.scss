@@ -1,0 +1,440 @@
+$line: var(--line, rgba(255, 255, 255, 0.06));
+$line-strong: var(--line-strong, rgba(255, 255, 255, 0.1));
+$surface-1: var(--surface-1, #0f141c);
+$surface-2: var(--surface-2, #161d28);
+$surface-3: var(--surface-3, #1d2533);
+$text-primary: var(--text-primary, #e7ecf3);
+$text-secondary: var(--text-secondary, #9aa3b2);
+$text-tertiary: var(--text-tertiary, #6b7384);
+$accent-blue: var(--accent-blue, #4f8eff);
+$accent-cyan: var(--accent-cyan, #5cd6ff);
+$accent-live: var(--accent-live, #ff5b6e);
+$font-mono: var(--font-mono, ui-monospace, 'SF Mono', Menlo, monospace);
+
+/* This app has no global border-box reset; the list relies on it. */
+.guide,
+.guide * {
+    box-sizing: border-box;
+}
+
+:host {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+    background: #0a0e15;
+}
+
+.guide {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    min-height: 0;
+}
+
+/* ── toolbar ── */
+.g-head {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 11px 16px;
+    border-bottom: 1px solid $line;
+    background: $surface-1;
+    flex: 0 0 auto;
+}
+.g-collapse {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    background: transparent;
+    border: none;
+    color: $text-primary;
+    cursor: pointer;
+    padding: 4px 6px;
+    border-radius: 7px;
+    min-width: 0;
+}
+.g-collapse:hover {
+    background: $surface-2;
+}
+.cc {
+    width: 20px;
+    height: 20px;
+    display: grid;
+    place-items: center;
+    color: $text-secondary;
+    transition: transform 200ms ease;
+    flex: 0 0 auto;
+}
+.cc mat-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+}
+.is-collapsed .cc {
+    transform: rotate(-90deg);
+}
+.gt {
+    display: flex;
+    flex-direction: column;
+    line-height: 1.15;
+    text-align: left;
+    min-width: 0;
+}
+.gt b {
+    font-size: 13.5px;
+    font-weight: 600;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.gt .src {
+    font-family: $font-mono;
+    font-size: 10px;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    color: $text-tertiary;
+}
+.g-spacer {
+    flex: 1;
+}
+
+.g-livebtn {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    height: 34px;
+    padding: 0 15px;
+    border-radius: 999px;
+    background: rgba(255, 91, 110, 0.14);
+    border: 1px solid rgba(255, 91, 110, 0.32);
+    color: $accent-live;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.g-livebtn::before {
+    content: '';
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $accent-live;
+    box-shadow: 0 0 7px $accent-live;
+}
+
+.g-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 34px;
+    padding: 0 13px;
+    border-radius: 999px;
+    background: $surface-2;
+    border: 1px solid $line-strong;
+    color: $text-secondary;
+    font-size: 12.5px;
+    font-weight: 600;
+    cursor: pointer;
+    flex: 0 0 auto;
+}
+.g-jump:hover {
+    color: $text-primary;
+    border-color: $accent-blue;
+}
+.g-jump mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+}
+
+.g-date {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    height: 34px;
+    background: $surface-2;
+    border: 1px solid $line;
+    border-radius: 999px;
+    padding: 2px;
+    flex: 0 0 auto;
+}
+.g-date .nav {
+    width: 28px;
+    height: 28px;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    border: none;
+    background: transparent;
+    color: $text-secondary;
+    cursor: pointer;
+}
+.g-date .nav:hover {
+    background: $surface-3;
+    color: $text-primary;
+}
+.g-date .nav mat-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+}
+.g-date .d {
+    font-size: 13px;
+    font-weight: 500;
+    color: $text-primary;
+    padding: 0 8px;
+    min-width: 116px;
+    text-align: center;
+}
+.g-date .d span {
+    display: block;
+}
+.g-date .d small {
+    display: block;
+    font-family: $font-mono;
+    font-size: 9.5px;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    color: $text-tertiary;
+    margin-top: 1px;
+}
+
+/* ── schedule-only notice ── */
+.g-notice {
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 10px 18px;
+    background: rgba(79, 142, 255, 0.07);
+    border-bottom: 1px solid $line;
+    color: $text-secondary;
+    font-size: 12.5px;
+    flex: 0 0 auto;
+}
+.g-notice mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: $accent-blue;
+    flex: 0 0 auto;
+}
+
+/* ── collapsed inline summary (rendered inside the .g-head toolbar row:
+      hosts clamp the collapsed panel to 56px, so a separate block below the
+      toolbar would be clipped — mirrors the timeline's collapsed layout) ── */
+.cn-tag {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-family: $font-mono;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    flex: 0 0 auto;
+}
+.cn-tag.live {
+    color: $accent-live;
+}
+.cn-tag.live::before {
+    content: '';
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: $accent-live;
+    box-shadow: 0 0 6px $accent-live;
+}
+.cn-tag.arch {
+    color: $accent-blue;
+}
+.cn-tag mat-icon {
+    width: 12px;
+    height: 12px;
+    font-size: 12px;
+}
+.cn-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+.cn-title--muted {
+    color: $text-tertiary;
+    font-weight: 500;
+}
+.cn-bar {
+    width: 84px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+.cn-bar > i {
+    display: block;
+    height: 100%;
+    background: $accent-cyan;
+}
+.cn-meta {
+    font-family: $font-mono;
+    font-size: 11px;
+    color: $text-tertiary;
+    flex: 0 0 auto;
+}
+
+/* ── list ── */
+.g-listwrap {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    min-height: 0;
+}
+.g-list {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px 0;
+}
+
+/* ── condensed now-strip: in normal flow above the list, so appearing pushes
+      the rows down instead of overlaying the topmost programme ── */
+.g-nowstrip {
+    flex: 0 0 auto;
+    display: flex;
+    align-items: center;
+    gap: 11px;
+    padding: 9px 18px;
+    border: none;
+    border-bottom: 1px solid $line-strong;
+    background: rgba(13, 18, 26, 0.93);
+    cursor: pointer;
+    text-align: left;
+    animation: epg-nowstrip-in 180ms ease;
+}
+
+@keyframes epg-nowstrip-in {
+    from {
+        opacity: 0;
+        transform: translateY(-6px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .g-nowstrip {
+        animation: none;
+    }
+}
+.ns-dot {
+    width: 7px;
+    height: 7px;
+    border-radius: 50%;
+    background: $accent-live;
+    box-shadow: 0 0 7px $accent-live;
+    flex: 0 0 auto;
+}
+.ns-lbl {
+    font-family: $font-mono;
+    font-size: 9.5px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: $accent-live;
+    flex: 0 0 auto;
+}
+.ns-title {
+    font-size: 12.5px;
+    font-weight: 600;
+    color: $text-primary;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    min-width: 0;
+    flex: 1;
+}
+.ns-bar {
+    width: 84px;
+    height: 3px;
+    border-radius: 2px;
+    background: rgba(255, 255, 255, 0.12);
+    overflow: hidden;
+    flex: 0 0 auto;
+}
+.ns-bar > i {
+    display: block;
+    height: 100%;
+    background: $accent-cyan;
+}
+.ns-left {
+    font-family: $font-mono;
+    font-size: 11px;
+    color: $text-tertiary;
+    flex: 0 0 auto;
+}
+.ns-jump {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: $accent-blue;
+    flex: 0 0 auto;
+}
+.ns-jump mat-icon {
+    width: 14px;
+    height: 14px;
+    font-size: 14px;
+}
+
+/* ── loading skeleton ── */
+.g-list--skeleton {
+    flex: 1;
+    min-height: 0;
+    padding: 12px 22px;
+}
+.sk-row {
+    display: grid;
+    grid-template-columns: 92px 1fr;
+    gap: 16px;
+    align-items: center;
+    padding: 11px 0;
+}
+.sk-time,
+.sk-title {
+    height: 12px;
+    border-radius: 6px;
+    background: linear-gradient(
+        90deg,
+        rgba(255, 255, 255, 0.06),
+        rgba(255, 255, 255, 0.12),
+        rgba(255, 255, 255, 0.06)
+    );
+    background-size: 200% 100%;
+    animation: epg-list-shimmer 1.4s linear infinite;
+}
+.sk-title {
+    max-width: 60%;
+}
+
+@keyframes epg-list-shimmer {
+    from {
+        background-position: 200% 0;
+    }
+    to {
+        background-position: -200% 0;
+    }
+}
+@media (prefers-reduced-motion: reduce) {
+    .sk-time,
+    .sk-title {
+        animation: none;
+    }
+}

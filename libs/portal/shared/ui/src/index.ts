@@ -6,7 +6,6 @@ export * from './lib/components/global-favorites-list/global-favorites-list.comp
 export * from './lib/components/grid-list/grid-list.component';
 export * from './lib/components/playlist-error-view/playlist-error-view.component';
 export { ProgressCapsuleComponent } from '@iptvnator/ui/components';
-export * from './lib/components/portal-collection-shell/portal-collection-shell.component';
 export * from './lib/components/portal-empty-state/portal-empty-state.component';
 export * from './lib/components/search-form/search-form.component';
 export * from './lib/components/search-layout/search-layout.component';
@@ -14,5 +13,4 @@ export { WatchedBadgeComponent } from '@iptvnator/ui/components';
 export * from './lib/components/unified-collection/unified-collection-page.component';
 export * from './lib/components/unified-collection/unified-collection-detail.directive';
 export * from './lib/components/unified-collection/unified-live-tab.component';
-export * from './lib/navigation/navigation.component';
 export * from './lib/navigation/portal-rail-links.component';

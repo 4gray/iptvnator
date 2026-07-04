@@ -73,25 +73,53 @@
             <div
                 class="epg"
                 [class.epg--inline]="shouldUseInlinePlayer()"
+                [class.epg--list]="epgViewMode() === 'list'"
                 [class.epg-collapsed]="
                     shouldUseInlinePlayer() && isLiveEpgPanelCollapsed()
                 "
             >
                 <div class="epg-content">
-                    <app-epg-timeline
-                        [programs]="timelinePrograms()"
-                        [channelName]="timelineChannelName()"
-                        [channelLogo]="timelineChannelLogo()"
-                        [archivePlaybackAvailable]="timelineArchiveAvailable()"
-                        [archiveDays]="timelineArchiveDays()"
-                        [selectedDate]="selectedLiveEpgDate()"
-                        [collapsed]="
-                            shouldUseInlinePlayer() && isLiveEpgPanelCollapsed()
-                        "
-                        [summary]="liveEpgPanelSummary()"
-                        (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
-                        (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
-                    />
+                    @if (epgViewMode() === 'list') {
+                        <app-epg-list-view
+                            [programs]="timelinePrograms()"
+                            [channelName]="timelineChannelName()"
+                            [channelLogo]="timelineChannelLogo()"
+                            [archivePlaybackAvailable]="timelineArchiveAvailable()"
+                            [archiveDays]="timelineArchiveDays()"
+                            [selectedDate]="selectedLiveEpgDate()"
+                            [collapsed]="
+                                shouldUseInlinePlayer() &&
+                                isLiveEpgPanelCollapsed()
+                            "
+                            [summary]="liveEpgPanelSummary()"
+                            (selectedDateChange)="
+                                onLiveEpgSelectedDateChange($event)
+                            "
+                            (collapsedChange)="
+                                onLiveEpgPanelCollapsedChange($event)
+                            "
+                        />
+                    } @else {
+                        <app-epg-timeline
+                            [programs]="timelinePrograms()"
+                            [channelName]="timelineChannelName()"
+                            [channelLogo]="timelineChannelLogo()"
+                            [archivePlaybackAvailable]="timelineArchiveAvailable()"
+                            [archiveDays]="timelineArchiveDays()"
+                            [selectedDate]="selectedLiveEpgDate()"
+                            [collapsed]="
+                                shouldUseInlinePlayer() &&
+                                isLiveEpgPanelCollapsed()
+                            "
+                            [summary]="liveEpgPanelSummary()"
+                            (selectedDateChange)="
+                                onLiveEpgSelectedDateChange($event)
+                            "
+                            (collapsedChange)="
+                                onLiveEpgPanelCollapsedChange($event)
+                            "
+                        />
+                    }
                 </div>
             </div>
         }

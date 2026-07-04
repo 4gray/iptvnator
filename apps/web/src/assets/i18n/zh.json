@@ -192,10 +192,8 @@
             "VALIDATING": "正在验证门户…"
         },
         "FILTER_BY_NAME": "按名称筛选",
-        "FILTER_BY_TYPE": "播放列表类型",
         "FILTER_AND_SORT": "筛选与排序",
         "SORT_PLAYLISTS": "排序播放列表",
-        "SORT_BY": "排序方式",
         "SORT_OPTIONS": {
             "NAME_ASC": "名称（A-Z）",
             "NAME_DESC": "名称（Z-A）",
@@ -305,6 +303,10 @@
         "COVER_SIZE_SMALL": "小",
         "COVER_SIZE_MEDIUM": "中",
         "COVER_SIZE_LARGE": "大",
+        "EPG_VIEW_MODE": "节目指南视图",
+        "EPG_VIEW_MODE_DESCRIPTION": "选择播放器下方的节目指南如何显示：横向时间轴条，或纵向的单日列表。",
+        "EPG_VIEW_MODE_TIMELINE": "时间轴",
+        "EPG_VIEW_MODE_LIST": "列表",
         "STARTUP_BEHAVIOR": "启动视图",
         "STARTUP_BEHAVIOR_DESCRIPTION": "选择 IPTVnator 启动时是打开第一个可用的工作区视图，还是恢复您上次的章节级视图。第一个视图在启用时为仪表盘，否则为「源」。",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "首个可用视图",
@@ -496,7 +498,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "切换频道列表 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "搜索频道",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "上传或选择其他播放列表",
         "ALL_CHANNELS": "所有频道",
         "GROUPS": "分组",
@@ -570,14 +571,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "打开频道列表",
-        "TOGGLE_FAVORITE_FLAG": "切换收藏夹标志",
-        "OPEN_EPG_LIST": "打开电子节目单EPG列表",
-        "OPEN_MULTI_EPG": "打开多EPG显示",
-        "SHOW_INFO": "显示节目信息（按 I 键）"
+        "OPEN_MULTI_EPG": "打开多EPG显示"
     },
     "EPG": {
-        "TITLE": "电子节目指南",
         "NEXT_DAY": "明天",
         "PREVIOUS_DAY": "昨天",
         "ZOOM_IN": "放大",
@@ -586,14 +582,9 @@
         "CLOSE_FILTER": "关闭筛选",
         "SEARCH_PROGRAMS": "搜索节目",
         "CLOSE_PROGRAM_SEARCH": "关闭节目搜索",
-        "LIVE_NOW": "正在播放",
         "LIVE_STREAM": "正在直播",
-        "TIMESHIFT_AVAILABLE": "时移功能可用，点击播放",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "归档播放不可用",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "此提供商提供了该频道的节目历史，但不提供可播放的归档/Catchup 回看。",
-        "EPG_NOT_AVAILABLE_DATE": "错误：电子节目单EPG在所选日期不可用",
-        "NO_GUIDE_HINT": "尝试其他日期或刷新播放列表。",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "错误：电子节目单EPG不适用于此频道",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "请添加/更改设置项中电子节目单的URL",
         "FETCH_EPG": "获取 EPG 数据...",
         "ERROR": "错误: 获取 EPG 数据失败",
@@ -628,7 +619,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "回看播放",
-        "RETURN_TO_LIVE": "返回直播",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -692,7 +682,6 @@
     "MENU": {
         "OPEN": "打开菜单",
         "SUPPORT_ARIA": "在 GitHub 上支持 IPTVnator",
-        "SETTINGS": "设置",
         "SETTINGS_ARIA": "打开设置",
         "BUG_REPORT": "问题反馈",
         "WHAT_IS_NEW": "更新日志",
@@ -826,10 +815,7 @@
             "SEARCH": "搜索",
             "RECENT": "最近",
             "RECENTLY_ADDED": "最近添加",
-            "FAVORITES": "收藏",
-            "HOME": "首页",
-            "PLAYLIST_INFO": "播放列表信息",
-            "ACCOUNT_INFO": "账户信息"
+            "FAVORITES": "收藏"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

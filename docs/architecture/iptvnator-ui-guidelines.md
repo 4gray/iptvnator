@@ -28,10 +28,10 @@ Use it when changing existing views or introducing new list-based UI in the work
   `libs/ui/components/src/lib/channel-list-container/channel-list-item/channel-list-item.component.html`
 - Channel row styles:
   `libs/ui/components/src/lib/channel-list-container/channel-list-item/channel-list-item.component.scss`
-- Shared EPG pane:
-  `libs/ui/shared-portals/src/lib/epg-view/epg-view.component.html`
-- Shared EPG pane styles:
-  `libs/ui/shared-portals/src/lib/epg-view/epg-view.component.scss`
+- Shared EPG timeline:
+  `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.html`
+- Shared EPG timeline styles:
+  `libs/ui/epg/src/lib/epg-timeline/epg-timeline.component.scss`
 - Shared list selection style:
   `apps/web/src/nav-list.scss`
 - Theme tokens:
@@ -141,12 +141,11 @@ The shared row should be reused instead of rebuilding channel markup per view.
 
 ### Collapsible Live EPG
 
-- Live TV layouts with an internal player use `app-live-epg-panel` around the
+- Live TV layouts with an internal player render `app-epg-timeline` as the
   EPG content, including playlist-specific live pages and the global
   favorites/recent live tabs.
-- The live panel toolbar owns the current-program summary and live date
-  navigation together, so `app-epg-list` hides its internal date navigator when
-  projected inside that panel.
+- The timeline's own panel bar owns the current-program summary and live date
+  navigation together; there is no separate wrapper component around it.
 - Collapsed state is shared across M3U, Xtream, and Stalker with
   `live-epg-panel-state`; missing or invalid values restore to expanded.
 - The collapsed panel is a slim current-program strip with a trailing progress
@@ -289,7 +288,7 @@ Settings use the same system but are flatter than content-heavy views.
 Before creating new markup or CSS:
 
 1. Check whether `app-channel-list-item` can be reused.
-2. Check whether `app-epg-view` already provides the correct structure.
+2. Check whether `app-epg-timeline` already provides the correct structure.
 3. Check whether `nav-list.scss` already solves the list-selection problem.
 4. Extend tokens first, duplicate styles last.
 

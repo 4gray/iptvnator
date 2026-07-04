@@ -59,11 +59,13 @@
                     [activeSection]="activeSection()"
                     [epgUrl]="epgUrl"
                     [isClearingEpgData]="isClearingEpgData()"
+                    [epgViewModeOptions]="epgViewModeOptions"
                     (refreshEpg)="refreshEpg($event)"
                     (removeEpgSource)="removeEpgSource($event)"
                     (addEpgSource)="addEpgSource()"
                     (refreshAllEpg)="refreshAllEpg()"
                     (clearEpgData)="clearEpgData()"
+                    (selectEpgViewMode)="selectEpgViewMode($event)"
                 />
             }
 

@@ -36,6 +36,7 @@ import {
 } from '@iptvnator/portal/shared/data-access';
 import {
     EpgDateNavigationDirection,
+    EpgListViewComponent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
@@ -59,6 +60,7 @@ import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
     changeDetection: ChangeDetectionStrategy.OnPush,
     imports: [
         AudioPlayerComponent,
+        EpgListViewComponent,
         EpgTimelineComponent,
         GlobalFavoritesListComponent,
         MatButtonModule,
@@ -191,6 +193,8 @@ export class UnifiedLiveTabComponent {
     readonly isLiveEpgPanelCollapsed = computed(
         () => this.liveEpgPanelState() === 'collapsed'
     );
+    /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
+    readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly liveEpgPanelSummary = computed(() => {
         this.progressTick();
         return this.getLiveEpgPanelSummary(this.activeDetail());

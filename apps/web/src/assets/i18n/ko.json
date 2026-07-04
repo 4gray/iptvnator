@@ -192,10 +192,8 @@
             "VALIDATING": "포털을 검증하는 중..."
         },
         "FILTER_BY_NAME": "이름으로 필터",
-        "FILTER_BY_TYPE": "재생목록 유형",
         "FILTER_AND_SORT": "필터 및 정렬",
         "SORT_PLAYLISTS": "재생목록 정렬",
-        "SORT_BY": "정렬 기준",
         "SORT_OPTIONS": {
             "NAME_ASC": "이름 (A-Z)",
             "NAME_DESC": "이름 (Z-A)",
@@ -305,6 +303,10 @@
         "COVER_SIZE_SMALL": "작게",
         "COVER_SIZE_MEDIUM": "중간",
         "COVER_SIZE_LARGE": "크게",
+        "EPG_VIEW_MODE": "가이드 보기",
+        "EPG_VIEW_MODE_DESCRIPTION": "플레이어 아래 프로그램 가이드를 표시하는 방식을 선택합니다: 가로 타임라인 리본 또는 하루 단위의 세로 목록입니다.",
+        "EPG_VIEW_MODE_TIMELINE": "타임라인",
+        "EPG_VIEW_MODE_LIST": "목록",
         "STARTUP_BEHAVIOR": "시작 화면",
         "STARTUP_BEHAVIOR_DESCRIPTION": "IPTVnator를 처음 시작할 때 첫 번째로 사용 가능한 작업 공간 화면을 열지, 마지막으로 본 섹션 화면을 복원할지 선택합니다. 첫 번째 화면은 활성화된 경우 대시보드, 그렇지 않으면 소스를 의미합니다.",
         "STARTUP_BEHAVIOR_FIRST_VIEW": "첫 번째로 사용 가능한 화면",
@@ -496,7 +498,6 @@
         "TOGGLE_SIDEBAR_TOOLTIP": "채널 목록 전환 (⌘/Ctrl+B)"
     },
     "CHANNELS": {
-        "SEARCH_CHANNEL": "검색 채널",
         "UPLOAD_OR_SELECT_OTHER_PLAYLIST": "다른 재생 목록을 업로드하거나 선택하십시오",
         "ALL_CHANNELS": "모든 채널",
         "GROUPS": "그룹",
@@ -570,14 +571,9 @@
         }
     },
     "TOP_MENU": {
-        "OPEN_CHANNELS_LIST": "채널 열기 목록",
-        "TOGGLE_FAVORITE_FLAG": "즐겨찾기 보이기/숨기기",
-        "OPEN_EPG_LIST": "EPG 목록 열기",
-        "OPEN_MULTI_EPG": "Open Multi-EPG view",
-        "SHOW_INFO": "프로그램 정보 표시 (I 키)"
+        "OPEN_MULTI_EPG": "Open Multi-EPG view"
     },
     "EPG": {
-        "TITLE": "전자 프로그램 가이드",
         "NEXT_DAY": "다음날",
         "PREVIOUS_DAY": "전날",
         "ZOOM_IN": "확대",
@@ -586,14 +582,9 @@
         "CLOSE_FILTER": "필터 닫기",
         "SEARCH_PROGRAMS": "프로그램 검색",
         "CLOSE_PROGRAM_SEARCH": "프로그램 검색 닫기",
-        "LIVE_NOW": "Live now",
         "LIVE_STREAM": "Live stream",
-        "TIMESHIFT_AVAILABLE": "Timeshift를 사용할 수 있습니다, 클릭하여 재생합니다",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_TITLE": "아카이브 재생을 사용할 수 없습니다",
         "ARCHIVE_PLAYBACK_UNAVAILABLE_DESCRIPTION": "이 공급자는 채널의 편성 이력을 제공하지만 재생 가능한 아카이브/Catchup 재생은 제공하지 않습니다.",
-        "EPG_NOT_AVAILABLE_DATE": "선택한 날짜에는 EPG를 사용할 수 없습니다.",
-        "NO_GUIDE_HINT": "다른 날짜를 시도하거나 재생 목록을 새로 고치세요.",
-        "EPG_NOT_AVAILABLE_CHANNEL_TITLE": "이 채널에는 EPG를 사용할 수 없습니다.",
         "EPG_NOT_AVAILABLE_CHANNEL_DESCRIPTION": "설정에서 EPG의 URL을 추가/변경하십시오.",
         "FETCH_EPG": "EPG 데이터 가져 오기...",
         "ERROR": "Ooops, EPG could not be loaded.",
@@ -628,7 +619,6 @@
         "TRUST_TLS_HOST_WARNING": "Only continue if you trust this host. IPTVnator will allow invalid TLS certificates for this host, but other hosts still require valid certificates.",
         "CURRENT_PROGRAM": "Current program",
         "ARCHIVE_PLAYBACK": "아카이브 재생",
-        "RETURN_TO_LIVE": "라이브로 돌아가기",
         "COLLAPSE_PANEL": "Collapse EPG panel",
         "EXPAND_PANEL": "Expand EPG panel",
         "TIMELINE": {
@@ -692,7 +682,6 @@
     "MENU": {
         "OPEN": "Open menu",
         "SUPPORT_ARIA": "Support IPTVnator on GitHub",
-        "SETTINGS": "Settings",
         "SETTINGS_ARIA": "Open settings",
         "BUG_REPORT": "Report a bug",
         "WHAT_IS_NEW": "What is new",
@@ -826,10 +815,7 @@
             "SEARCH": "검색",
             "RECENT": "최근",
             "RECENTLY_ADDED": "최근 추가됨",
-            "FAVORITES": "즐겨찾기",
-            "HOME": "홈",
-            "PLAYLIST_INFO": "재생목록 정보",
-            "ACCOUNT_INFO": "계정 정보"
+            "FAVORITES": "즐겨찾기"
         },
         "ERROR_VIEW": {
             "IMPORT_CANCELLED": {

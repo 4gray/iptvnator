@@ -10,6 +10,5 @@ export * from './lib/portal-inline-player/portal-inline-player.component';
 export * from './lib/portal-inline-player/series-playback-navigation';
 export * from './lib/vjs-player/vjs-player.component';
 export * from './lib/video-player/sidebar/sidebar.component';
-export * from './lib/video-player/toolbar/toolbar.component';
 export * from './lib/vod-details/vod-details.component';
 export * from './lib/web-player-view/web-player-view.component';

@@ -198,12 +198,20 @@ Before finishing behavior changes or bug fixes, follow `Regression Prevention An
 ### Linting
 
 ```bash
-# Lint frontend
-nx lint web
+# Lint all projects (what CI enforces on every PR)
+pnpm run lint
 
-# Lint backend
+# Lint a single project
+nx lint web
 nx lint electron-backend
 ```
+
+CI runs lint for every project (`.github/workflows/ci.yml`). This enforces the
+Nx module-boundary tags, the legacy bare-alias ban, and a `max-lines` ESLint
+rule (hard maximum 400 lines per TypeScript file). Pre-existing oversized files
+are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
+with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
+Never add new files to the baseline.
 
 ### Documentation And Wiki Export
 
@@ -251,7 +259,7 @@ This is an Nx monorepo with the following structure:
     - **ui/playback** - Player UI (video/audio players)
     - **ui/pipes** - Angular pipes
     - **ui/remote-control** - Remote-control UI pieces
-    - **ui/shared-portals** - Portal-related UI components
+    - **ui/shared-portals** - Shared portal types (`LiveEpgPanelSummary`)
     - **ui/styles** - Shared styles/theme
     - **workspace/{shell,dashboard}** - Workspace shell (layout/navigation) and dashboard
 
@@ -765,7 +773,6 @@ No formal migration system yet. Schema changes are applied via raw SQL in the `c
 - Use NgRx for global application state (M3U playlists, `libs/m3u-state`)
 - Use NgRx Signal Store with `signalStoreFeature()` composition for portal/feature state (XtreamStore, StalkerStore)
 - Use NgRx signals for reactive data streams
-- `@ngrx/component-store` is listed in `package.json` but unused in the codebase — do not introduce new usages
 
 <!-- nx configuration start-->
 <!-- Leave the start & end comments to automatically receive updates. -->
