@@ -165,7 +165,7 @@
         />
 
         <div detail-extras>
-            @if (similarItems().length) {
+            @if (similarItems().length || similarInPortals().length) {
                 <section class="details__similar" data-test-id="tmdb-similar">
                     <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
                     <div class="details__similar-strip">
@@ -192,6 +192,42 @@
                                 }
                                 <span class="details__similar-title">
                                     {{ similar.title }}
+                                </span>
+                            </button>
+                        }
+                        @for (
+                            item of similarInPortals();
+                            track 'x' + item.match.playlistId + '-' + item.match.xtreamId
+                        ) {
+                            <button
+                                type="button"
+                                class="details__similar-card"
+                                [title]="
+                                    item.title +
+                                    ' — ' +
+                                    item.match.playlistName
+                                "
+                                (click)="openSimilarInPortals(item)"
+                            >
+                                @if (item.posterUrl) {
+                                    <img
+                                        class="details__similar-poster"
+                                        [src]="item.posterUrl"
+                                        [alt]="item.title"
+                                        loading="lazy"
+                                    />
+                                } @else {
+                                    <span
+                                        class="details__similar-poster details__similar-poster--fallback"
+                                    >
+                                        {{ item.title.charAt(0) }}
+                                    </span>
+                                }
+                                <span class="details__similar-title">
+                                    {{ item.title }}
+                                </span>
+                                <span class="details__similar-source">
+                                    {{ item.match.playlistName }}
                                 </span>
                             </button>
                         }

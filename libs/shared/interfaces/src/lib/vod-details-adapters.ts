@@ -30,6 +30,7 @@ export function normalizeXtreamVod(item: XtreamVodDetails): NormalizedVodMeta {
         ratingKinopoisk: info?.rating_kinopoisk,
         youtubeTrailer: info?.youtube_trailer,
         tmdbCast: info?.tmdb_cast,
+        tmdbRecommendations: info?.tmdb_recommendations,
     };
 }
 
@@ -58,6 +59,7 @@ export function normalizeStalkerVod(item: StalkerVodDetails): NormalizedVodMeta 
         // Stalker portals provide no trailers; TMDB enrichment can
         youtubeTrailer: info?.tmdb_trailer,
         tmdbCast: info?.tmdb_cast,
+        tmdbRecommendations: info?.tmdb_recommendations,
     };
 }
 

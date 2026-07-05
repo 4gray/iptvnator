@@ -166,6 +166,53 @@
         }
 
         <div detail-extras>
+            @if (similarInPortals().length) {
+                <section
+                    class="details__similar"
+                    data-test-id="tmdb-similar"
+                >
+                    <h3>{{ 'XTREAM.SIMILAR' | translate }}</h3>
+                    <div class="details__similar-strip">
+                        @for (
+                            item of similarInPortals();
+                            track item.match.xtreamId
+                        ) {
+                            <button
+                                type="button"
+                                class="details__similar-card"
+                                [title]="
+                                    item.title +
+                                    ' — ' +
+                                    item.match.playlistName
+                                "
+                                (click)="openSimilarInPortals(item)"
+                            >
+                                @if (item.posterUrl) {
+                                    <img
+                                        class="details__similar-poster"
+                                        [src]="item.posterUrl"
+                                        [alt]="item.title"
+                                        loading="lazy"
+                                    />
+                                } @else {
+                                    <span
+                                        class="details__similar-poster details__similar-poster--fallback"
+                                    >
+                                        {{ item.title.charAt(0) }}
+                                    </span>
+                                }
+                                <span class="details__similar-title">
+                                    {{ item.title }}
+                                </span>
+                                <span class="details__similar-source">
+                                    {{ item.match.playlistName }}
+                                </span>
+                            </button>
+                        }
+                    </div>
+                </section>
+            }
+
             <!-- YouTube Trailer (TMDB enrichment; Stalker provides none) -->
             @if (trailerEmbedUrl(); as trailerUrl) {
                 <div class="youtube-trailer">

@@ -124,9 +124,17 @@ year tag is compatible (±1) with the TMDB year, so "Blade Runner" (1982)
 never claims a catalog "Blade Runner 2049". The rail navigates
 to the matched item — the detail components re-initialize on route param
 changes (reactive `routeParams` signal) because the router reuses the
-component for detail→detail navigation. Stalker gets trailers and the
-`tmdb_recommendations` data, but no rail yet (its catalog is
-server-paginated, so there is no local list to match against).
+component for detail→detail navigation.
+
+`CrossPortalSimilarService` (`libs/services`) extends the rail across
+portals: recommendations are matched against ALL imported Xtream
+playlists with one batched `DB_MATCH_TITLES` request (Electron only,
+same two-tier + year rule). Stalker detail views — where the local
+catalog is server-paginated and unmatchable — get their "Similar" rail
+purely from these cross-portal matches (shared `VodDetailsComponent` for
+movies, `stalker-series-view` for series); Xtream detail views append
+them after the local-catalog matches, deduplicated by normalized title,
+with the source playlist name on each card.
 The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.

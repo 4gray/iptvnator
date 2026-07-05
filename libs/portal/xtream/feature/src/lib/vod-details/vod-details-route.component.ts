@@ -8,6 +8,7 @@ import {
     effect,
     inject,
     signal,
+    untracked,
 } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { MatIcon } from '@angular/material/icon';
@@ -27,14 +28,20 @@ import {
     type PlaybackFallbackRequest,
     PortalInlinePlayerComponent,
 } from '@iptvnator/ui/playback';
-import { DownloadsService, SettingsStore } from '@iptvnator/services';
 import {
-    XtreamCategory,
+    CrossPortalSimilarItem,
+    CrossPortalSimilarService,
+    DownloadsService,
+    SettingsStore,
+} from '@iptvnator/services';
+import {
+    getXtreamVodInfo,
+    normalizeTitleKeys,
     TmdbEnrichedCastMember,
+    XtreamCategory,
     XtreamVodDetails,
     XtreamVodInfo,
     XtreamVodStream,
-    getXtreamVodInfo,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
 import {
@@ -72,6 +79,7 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
     private readonly settingsStore = inject(SettingsStore);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly downloadsService = inject(DownloadsService);
     private readonly snackBar = inject(MatSnackBar);
@@ -228,6 +236,45 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         );
     });
 
+    /** Recommendations found in the user's OTHER portals (Electron only) */
+    private readonly crossPortalItems = signal<CrossPortalSimilarItem[]>([]);
+    readonly similarInPortals = computed<CrossPortalSimilarItem[]>(() => {
+        const localTitles = new Set(
+            this.similarItems().map(
+                (item) => normalizeTitleKeys(item.title).exact
+            )
+        );
+        return this.crossPortalItems().filter(
+            (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
+        );
+    });
+
+    private readonly loadCrossPortalSimilar = effect(() => {
+        const recommendations = this.selectedVodInfo()?.tmdb_recommendations;
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        untracked(() => {
+            this.crossPortalItems.set([]);
+            if (
+                !recommendations?.length ||
+                !this.crossPortalSimilar.isAvailable
+            ) {
+                return;
+            }
+            void this.crossPortalSimilar
+                .matchRecommendations(recommendations, 'movie', {
+                    excludePlaylistId: playlistId,
+                })
+                .then((items) => {
+                    if (
+                        this.selectedVodInfo()?.tmdb_recommendations ===
+                        recommendations
+                    ) {
+                        this.crossPortalItems.set(items);
+                    }
+                });
+        });
+    });
+
     constructor() {
         this.playback.bind({
             vodId: this.selectedVodId,
@@ -286,6 +333,10 @@ export class VodDetailsRouteComponent implements OnInit, OnDestroy {
         if (!this.xtreamStore.currentPlaylist()?.id) {
             this.logger.warn('Deferring VOD details init: playlist not ready');
         }
+    }
+
+    openSimilarInPortals(item: CrossPortalSimilarItem): void {
+        void this.router.navigate(this.crossPortalSimilar.buildLink(item));
     }
 
     openSimilar(item: SimilarCatalogItem): void {

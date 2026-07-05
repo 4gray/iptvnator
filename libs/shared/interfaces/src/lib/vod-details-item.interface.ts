@@ -1,6 +1,8 @@
 import { XtreamVodDetails } from './xtream-vod-details.interface';
 import { StalkerVodDetails } from './stalker-vod-details.interface';
-import { TmdbEnrichedCastMember } from './tmdb.interface';
+import { TmdbEnrichedCastMember,
+    TmdbRecommendation,
+} from './tmdb.interface';
 
 /**
  * Discriminated union for VOD details across portal types.
@@ -82,6 +84,8 @@ export interface NormalizedVodMeta {
     youtubeTrailer?: string;
     /** Cast with profile photos, populated by TMDB enrichment */
     tmdbCast?: TmdbEnrichedCastMember[];
+    /** TMDB recommendations (drives the cross-portal "Similar" rail) */
+    tmdbRecommendations?: TmdbRecommendation[];
 }
 
 /**
