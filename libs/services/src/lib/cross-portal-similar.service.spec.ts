@@ -1,4 +1,4 @@
-import { TestBed } from '@angular/core/testing';
+import { Injector, runInInjectionContext } from '@angular/core';
 import { CatalogTitleMatch } from '@iptvnator/shared/interfaces';
 import { CatalogTitleMatchService } from './catalog-title-match.service';
 import { CrossPortalSimilarService } from './cross-portal-similar.service';
@@ -27,8 +27,10 @@ describe('CrossPortalSimilarService', () => {
     let matchTitles: jest.Mock;
     let isAvailable: boolean;
 
+    // The services Jest target has no @angular/core/testing — construct
+    // the service in a plain injection context instead of TestBed
     function createService(): CrossPortalSimilarService {
-        TestBed.configureTestingModule({
+        const injector = Injector.create({
             providers: [
                 {
                     provide: CatalogTitleMatchService,
@@ -41,7 +43,10 @@ describe('CrossPortalSimilarService', () => {
                 },
             ],
         });
-        return TestBed.inject(CrossPortalSimilarService);
+        return runInInjectionContext(
+            injector,
+            () => new CrossPortalSimilarService()
+        );
     }
 
     beforeEach(() => {
