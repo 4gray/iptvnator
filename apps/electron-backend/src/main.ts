@@ -25,6 +25,7 @@ import SharedEvents from './app/events/shared.events';
 import SquirrelEvents from './app/events/squirrel.events';
 import StalkerEvents from './app/events/stalker.events';
 import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
+import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
 import WindowEvents from './app/events/window.events';
@@ -110,6 +111,7 @@ export default class Main {
         });
         AppUpdateEvents.bootstrapAppUpdateEvents(appUpdateService);
 
+        registerStaticHeaderShims();
         ElectronEvents.bootstrapElectronEvents();
         WindowEvents.bootstrapWindowEvents();
         EmbeddedMpvEvents.bootstrapEmbeddedMpvEvents();

@@ -247,6 +247,70 @@ describe('request header overrides', () => {
         expect(mockOnBeforeSendHeaders).not.toHaveBeenCalled();
     });
 
+    it('injects the YouTube embed Referer when none is present', async () => {
+        const { registerStaticHeaderShims } = await import(
+            './request-header-overrides.service'
+        );
+
+        registerStaticHeaderShims();
+        expect(mockOnBeforeSendHeaders).toHaveBeenCalledTimes(1);
+
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://www.youtube-nocookie.com/embed/abc123'
+        );
+
+        expect(headers['Referer']).toBe('https://4gray.github.io/iptvnator/');
+    });
+
+    it('keeps an existing Referer on YouTube embed requests', async () => {
+        const { registerStaticHeaderShims } = await import(
+            './request-header-overrides.service'
+        );
+
+        registerStaticHeaderShims();
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://www.youtube-nocookie.com/embed/abc123',
+            { referer: 'http://localhost:4200/' }
+        );
+
+        expect(headers['referer']).toBe('http://localhost:4200/');
+        expect(headers['Referer']).toBeUndefined();
+    });
+
+    it('does not inject the Referer for non-embed YouTube paths', async () => {
+        const { registerStaticHeaderShims } = await import(
+            './request-header-overrides.service'
+        );
+
+        registerStaticHeaderShims();
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://www.youtube.com/watch?v=abc123'
+        );
+
+        expect(headers['Referer']).toBeUndefined();
+    });
+
+    it('does not inject the embed Referer for non-YouTube hosts', async () => {
+        const { registerStaticHeaderShims } = await import(
+            './request-header-overrides.service'
+        );
+
+        registerStaticHeaderShims();
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://stream.example/segment.ts'
+        );
+
+        expect(headers['Referer']).toBeUndefined();
+    });
+
     it('replaces existing header names case-insensitively', async () => {
         const { configureRequestHeaderOverride } =
             await import('./request-header-overrides.service');
