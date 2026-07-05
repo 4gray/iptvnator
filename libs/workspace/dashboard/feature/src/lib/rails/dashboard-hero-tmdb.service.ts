@@ -58,10 +58,18 @@ export class DashboardHeroTmdbService {
                 title: item.title,
                 year: extractYear(null, item.title),
             };
-            const details =
+            let details =
                 item.type === 'movie'
                     ? await this.enrichment.enrichMovie(query)
                     : await this.enrichment.enrichTv(query);
+            if (!details && item.type === 'movie') {
+                // Stalker embedded-series items (vclub) are typed 'movie'
+                // in activity rows but are TV shows on TMDB — the detail
+                // view resolves them via is_series, so the TV lookup is
+                // usually already cached. Misses are negative-cached, so
+                // the retry never turns into repeated network traffic.
+                details = await this.enrichment.enrichTv(query);
+            }
             if (!details) {
                 return null;
             }
