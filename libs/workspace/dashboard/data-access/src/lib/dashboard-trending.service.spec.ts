@@ -107,12 +107,24 @@ describe('DashboardTrendingService', () => {
         expect(service.items()[0].match).toBeNull();
     });
 
-    it('loads only once per session', async () => {
+    it('loads only once per session after a successful load', async () => {
         const service = createService();
 
         await service.load();
         await service.load();
 
         expect(getTrendingWeek).toHaveBeenCalledTimes(1);
+    });
+
+    it('retries on the next visit when the first load came back empty', async () => {
+        getTrendingWeek.mockResolvedValueOnce([]);
+        const service = createService();
+
+        await service.load();
+        expect(service.items()).toEqual([]);
+
+        await service.load();
+        expect(getTrendingWeek).toHaveBeenCalledTimes(2);
+        expect(service.items()).toHaveLength(1);
     });
 });

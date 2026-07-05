@@ -29,6 +29,11 @@ export class DashboardHeroTmdbService {
         Promise<DashboardHeroTmdbExtras | null>
     >();
 
+    /** Reactive when read inside a computed (settings signal underneath) */
+    isEnabled(): boolean {
+        return this.enrichment.isEnabled();
+    }
+
     getExtras(
         item: Pick<GlobalRecentItem, 'title' | 'type'>
     ): Promise<DashboardHeroTmdbExtras | null> {

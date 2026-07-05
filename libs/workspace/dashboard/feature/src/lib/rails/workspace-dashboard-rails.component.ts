@@ -156,14 +156,17 @@ export class WorkspaceDashboardRailsComponent {
             return null;
         }
 
-        const extrasForArtwork = this.heroTmdbExtras();
-        const tmdbBackdrop =
-            extrasForArtwork?.key === this.heroTmdbKey(item)
-                ? (extrasForArtwork.extras?.backdropUrl ?? null)
+        // Single reactive read, gated on the TMDB opt-in so cached
+        // extras vanish immediately when the user opts out mid-session
+        const extrasState = this.heroTmdbExtras();
+        const extras =
+            this.heroTmdb.isEnabled() &&
+            extrasState?.key === this.heroTmdbKey(item)
+                ? extrasState.extras
                 : null;
         const artwork = resolveDashboardHeroArtwork(
             {
-                backdropUrl: item.backdrop_url || tmdbBackdrop,
+                backdropUrl: item.backdrop_url || (extras?.backdropUrl ?? null),
                 posterUrl: item.poster_url,
                 title: item.title,
             },
@@ -174,11 +177,6 @@ export class WorkspaceDashboardRailsComponent {
         const liveEpgDetails =
             item.type === 'live'
                 ? this.getLiveEpgDetailsForCard(this.heroLiveCard())
-                : null;
-        const extrasState = this.heroTmdbExtras();
-        const extras =
-            extrasState?.key === this.heroTmdbKey(item)
-                ? extrasState.extras
                 : null;
         const episodeBadge =
             item.type === 'series' &&
@@ -330,6 +328,11 @@ export class WorkspaceDashboardRailsComponent {
 
     readonly trendingCards = computed<DashboardRailCard[]>(() => {
         this.languageTick();
+        // isAvailable reads the TMDB settings signal — flipping the
+        // opt-in off mid-session hides the rail immediately
+        if (!this.trendingService.isAvailable) {
+            return [];
+        }
         return this.trendingService
             .items()
             .map((item) => this.toTrendingCard(item));

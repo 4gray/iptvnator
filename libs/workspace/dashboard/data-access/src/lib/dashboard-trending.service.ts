@@ -38,12 +38,15 @@ export class DashboardTrendingService {
         return this.enrichment.isEnabled() && this.titleMatch.isAvailable;
     }
 
-    /** Idempotent per app session — dashboard revisits reuse the signal */
+    /**
+     * Runs once per app session on success. Empty or failed loads (TMDB
+     * temporarily unreachable) do NOT latch, so the next dashboard visit
+     * retries instead of hiding the rail until an app restart.
+     */
     async load(): Promise<void> {
-        if (this.loadedOnce || !this.isAvailable) {
+        if (this.loadedOnce || this.loading() || !this.isAvailable) {
             return;
         }
-        this.loadedOnce = true;
         this.loading.set(true);
 
         try {
@@ -63,6 +66,7 @@ export class DashboardTrendingService {
                     match: this.matchFor(entry, index),
                 }))
             );
+            this.loadedOnce = true;
         } catch (error) {
             console.warn('Dashboard trending load failed:', error);
         } finally {
