@@ -1031,6 +1031,20 @@ describe('UnifiedLiveTabComponent', () => {
             expect(component.activeTimeshift()).toBeNull();
         });
 
+        it('opens the external player on "Watch live" even without an active timeshift', async () => {
+            await selectCatchupChannel();
+            portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+            portalPlayer.openResolvedPlayback.mockClear();
+
+            component.returnToLivePlayback();
+
+            expect(portalPlayer.openResolvedPlayback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    streamUrl: 'https://example.com/m3u.m3u8',
+                })
+            );
+        });
+
         it('hands the catch-up stream to the external player when no inline player is used', async () => {
             await selectCatchupChannel();
             portalPlayer.isEmbeddedPlayer.mockReturnValue(false);

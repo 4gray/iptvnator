@@ -227,11 +227,12 @@ export class UnifiedLiveTabComponent {
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly liveEpgPanelSummary = computed(() => {
-        this.progressTick();
         const timeshift = this.activeTimeshift();
         if (timeshift) {
+            // Archive summary is frozen — don't track the 30s progress tick.
             return toLiveEpgPanelSummary(timeshift.program);
         }
+        this.progressTick();
         return getLiveEpgPanelSummary(this.activeDetail());
     });
     readonly liveEpgPanelSummaryLabelKey = computed(() =>
@@ -414,11 +415,12 @@ export class UnifiedLiveTabComponent {
     }
 
     returnToLivePlayback(): void {
-        if (!this.activeTimeshift()) {
-            return;
-        }
         this.activeTimeshift.set(null);
 
+        // Inline player is already (back) on the live stream once the
+        // timeshift override is cleared. With an external player configured,
+        // "Watch live" must open it even when no archive was active — e.g.
+        // openStreamOnDoubleClick shows the guide without launching playback.
         const playback = this.activeDetail()?.playback;
         if (!this.shouldUseInlinePlayer() && playback) {
             void this.portalPlayer.openResolvedPlayback(playback);
