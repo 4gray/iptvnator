@@ -1,0 +1,276 @@
+---
+title: v0.22 - Release Notes
+description: IPTVnator v0.22 brings opt-in TMDB metadata enrichment, redesigned two-state movie & series pages, embedded MPV on Windows and Linux, a built-in desktop auto-updater, global search across all sources, and a reworked live EPG timeline.
+featured: true
+pubDate: 2026-07-05
+author: 4gray
+heroImage: /iptvnator/blog/v0-22/wide-changelog.jpg
+tags:
+    - release
+    - release-notes
+    - v0.22
+draft: false
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import BlogImageSlider from '../../components/blog/BlogImageSlider.astro';
+import ChangeTable from '../../components/blog/ChangeTable.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+import ReleaseMeta from '../../components/blog/ReleaseMeta.astro';
+import StatusPill from '../../components/blog/StatusPill.astro';
+import Spoiler from '../../components/blog/Spoiler.astro';
+
+IPTVnator **v0.22** is out — and it's a big one.
+
+Where v0.21 was about smoothing the rough edges, v0.22 is about making your library feel richer and the app feel more complete. Movie and series pages now pull in **TMDB metadata** — posters, cast, trailers, actor pages — and got a full two-state redesign. The **embedded MPV player** that landed on macOS last release now runs on **Windows and Linux** too. And the desktop app finally **updates itself**, so no more hunting for the latest download.
+
+<ReleaseMeta
+    version="v0.22.0"
+    releaseDate="July 5, 2026"
+    channels={['Desktop', 'PWA']}
+/>
+
+## Support the project
+
+If IPTVnator is useful to you and you’d like to keep it moving, the easiest way to help is via:
+
+- **GitHub Sponsors** — [github.com/sponsors/4gray](https://github.com/sponsors/4gray)
+- **Ko-fi** — [ko-fi.com/4gray](https://ko-fi.com/4gray)
+
+A genuine thank-you to everyone who has sponsored or sent a tip — it's a small group, but it's the reason this project keeps getting real time and not just spare minutes. It's honestly motivating. 🙏
+
+<LinkCards
+    links={[
+        {
+            label: 'GitHub Sponsors',
+            href: 'https://github.com/sponsors/4gray',
+            hint: 'Support continued development.',
+            icon: 'sponsor',
+        },
+        {
+            label: 'Ko-fi',
+            href: 'https://ko-fi.com/4gray',
+            hint: 'One-time tip jar.',
+            icon: 'kofi',
+        },
+        {
+            label: 'Telegram group',
+            href: 'https://t.me/iptvnator',
+            hint: 'Where most of this feedback comes from.',
+            icon: 'telegram',
+        },
+    ]}
+/>
+
+## What changed
+
+<ChangeTable
+    rows={[
+        {
+            area: 'Content metadata',
+            change: 'Opt-in TMDB enrichment for Xtream & Stalker: plots, cast, trailers, similar titles and clickable actor pages.',
+            impact: 'Detail pages that actually tell you what you’re about to watch',
+        },
+        {
+            area: 'Detail pages',
+            change: 'Redesigned two-state layout — browse the poster/metadata, then collapse into a full-width inline player.',
+            impact: 'Cleaner browsing, distraction-free watching',
+        },
+        {
+            area: 'Playback',
+            change: 'Embedded MPV player expands from macOS to Windows (bundled libmpv) and Linux (system mpv).',
+            impact: 'MPV-quality playback on every desktop platform',
+        },
+        {
+            area: 'Updates',
+            change: 'Built-in desktop auto-updater pulls new releases from GitHub.',
+            impact: 'No more manual re-downloading',
+        },
+        {
+            area: 'Search & EPG',
+            change: 'Global search across all sources, plus the live EPG reworked into a horizontal timeline.',
+            impact: 'Find anything fast, scan the schedule at a glance',
+        },
+    ]}
+/>
+
+<BlogImageSlider
+    images={[
+        {
+            src: '/iptvnator/blog/v0-22/feature-mosaic.webp',
+            alt: 'Feature mosaic for v0.22 — TMDB enrichment, redesigned detail pages, embedded MPV on Windows & Linux, auto-updater, global search, live EPG timeline',
+            caption: 'A quick tour of what changed in this release.',
+        },
+        {
+            src: '/iptvnator/blog/v0-22/wide-changelog.webp',
+            alt: 'v0.22 overview showing the dashboard and a TMDB-enriched actor page',
+            caption: 'Your library, enriched — TMDB metadata and redesigned detail pages.',
+        },
+        {
+            src: '/iptvnator/blog/v0-22/epg-timeline.webp',
+            alt: 'The reworked live EPG horizontal timeline under the player',
+            caption: 'The live EPG panel is now a horizontal timeline.',
+        },
+        {
+            src: '/iptvnator/blog/v0-22/version-square.webp',
+            alt: 'IPTVnator v0.22 version card with the dashboard',
+            caption: 'Free, open source and cross-platform.',
+        },
+    ]}
+/>
+
+<Alert type="info" title="About the screenshots">
+The screenshots and posters shown here are for demonstration purposes only. IPTVnator is a pure media player — it does not provide, host, bundle, or distribute any streams, playlists, or media content. You bring your own sources; the app just plays them.
+</Alert>
+
+## TMDB metadata enrichment (opt-in)
+
+<StatusPill type="new" />
+
+The headline feature. When enabled, IPTVnator enriches Xtream and Stalker movie & series detail views with data from [The Movie Database](https://www.themoviedb.org/): plot, genres, rating, director, cast with photos, artwork, and YouTube trailers. The provider stays authoritative for stream data — TMDB only fills in the gaps.
+
+There's more than just detail pages:
+
+- **"Similar" rail** — TMDB recommendations matched against your own catalog, now across *all* your portals, not just the current one.
+- **Trending on the dashboard** — a TMDB-powered trending rail with enriched hero artwork.
+- **Season & episode details** — real episode names, overviews and stills when you open a season.
+- **Actor pages** — click any cast member to open their bio and full filmography, linked back to your catalog (or portal search for titles you don't have).
+
+<Alert type="info" title="Enrichment is off by default and needs your own TMDB key">
+TMDB enrichment is opt-in. Enable it under **Settings → Metadata (TMDB)** and paste your own TMDB API key (free to create at [themoviedb.org](https://www.themoviedb.org/settings/api)). When enabled, titles are sent to TMDB for matching. No key is bundled with the app — bring your own. Cyrillic and other non-Latin titles are searched in your app language so exact-title matches still work.
+</Alert>
+
+This was tracked across [#1123](https://github.com/4gray/iptvnator/pull/1123), [#1126](https://github.com/4gray/iptvnator/pull/1126) and [#1132](https://github.com/4gray/iptvnator/pull/1132).
+
+## Redesigned movie & series pages
+
+<StatusPill type="new" />
+
+VOD and series detail pages got a full rework into a **two-state layout**:
+
+- **Browse** — a hero with the poster, metadata and actions, with episodes listed below.
+- **Watch** — hit play and the hero collapses with a smooth morph; the inline player takes the full content width, and the metadata moves to an *About* block under the episodes.
+
+Seasons are now **tabs** (with a dropdown once you go past six) and auto-select the right one — the season you're currently playing, your resume season, or the first. There's a grid/list toggle for episodes that's remembered across sessions, and <kbd>Esc</kbd> or “Close player” drops you back to browse without losing your place.
+
+Shipped in [#1127](https://github.com/4gray/iptvnator/pull/1127).
+
+## Embedded MPV — now on Windows & Linux
+
+<StatusPill type="beta" />
+
+Last release brought the embedded MPV player to macOS. v0.22 extends it to the other two desktop platforms:
+
+- **Windows** — libmpv is bundled and renders directly inside the app window. Nothing extra to install.
+- **Linux** — playback runs through the system `mpv` executable embedded into the app window (X11/XWayland; requires `mpv` on your PATH).
+
+Both paths get **next/previous episode navigation** inside the embedded player, and you can switch to embedded MPV straight from the command palette. As part of this work, the player now holds a power-save blocker while playing, so your display no longer sleeps mid-stream — closing out [#1095](https://github.com/4gray/iptvnator/issues/1095).
+
+It's still marked **experimental** on Windows and Linux for this release. If you hit something odd, please open an issue or ping the Telegram group. Tracked in [#1031](https://github.com/4gray/iptvnator/pull/1031) and hardened in [#1122](https://github.com/4gray/iptvnator/pull/1122).
+
+## Desktop auto-updater
+
+<StatusPill type="new" />
+
+The desktop app now checks GitHub releases and can update itself — no more manually downloading each new version. The current release notes are shown in-app under Settings, so you can see what changed before and after updating.
+
+This release also fixes a crash in the packaged updater where a missing dependency could take down the app on launch ([#1103](https://github.com/4gray/iptvnator/issues/1103)).
+
+## Global search
+
+<StatusPill type="new" />
+
+A new workspace-wide search that spans **all** your sources at once — Xtream, Stalker and M3U playlists — instead of searching one portal at a time. Live search (<kbd>⌘</kbd>/<kbd>Ctrl</kbd>+<kbd>F</kbd>) also got a fix where it could open the wrong channel or category.
+
+## Live EPG timeline
+
+<StatusPill type="improved" />
+
+The live EPG panel has been reworked from a side drawer into a **horizontal timeline** that sits under the player. Scan the schedule at a glance, jump to **Now**, zoom, and move across days.
+
+- Prefer the old layout? There's an optional **vertical list view** you can switch back to in Settings.
+- **EPG sources can now be scoped per playlist**, so different playlists can use different guides.
+- Compressed XMLTV responses are now decoded correctly.
+
+The timeline landed in [#1102](https://github.com/4gray/iptvnator/pull/1102), with the vertical list view added in [#1115](https://github.com/4gray/iptvnator/pull/1115).
+
+## Catch-up & archive (Xtream)
+
+<StatusPill type="improved" />
+
+- Active archive playback state is now shown in the EPG.
+- Timeshift URL variants are resolved automatically, and the stream output format is auto-selected.
+- The catch-up **Watch** button now works from the unified live tab, with clear errors when a stream can't be resolved ([#1133](https://github.com/4gray/iptvnator/pull/1133)).
+
+## Dashboard
+
+<StatusPill type="improved" />
+
+- **Configurable rails** — pick which sections show up on your dashboard.
+- New **“Recently added”** live channels rail.
+- New **“Trending”** rail powered by TMDB (when metadata enrichment is enabled).
+- Faster startup and rail loading.
+
+## Xtream & Stalker
+
+<StatusPill type="improved" />
+
+- **Sort and filter the VOD/series catalog by IMDb rating.**
+- New **“all channels”** grid for Live TV.
+- Improved compatibility with more portal variants.
+- Stalker now loads the full playlist for authenticated routes.
+- PWA: Xtream connection details are saved correctly.
+
+## UI & desktop
+
+<StatusPill type="improved" />
+
+- **Custom title bar** with window controls on Windows and Linux.
+- The Live TV channel sidebar no longer shares its width with the navigation panel.
+- Sources page visual polish.
+
+## Security & internals
+
+<StatusPill type="improved" />
+
+Nothing you'll see directly, but worth noting:
+
+- Extensive Electron hardening — stricter renderer isolation and navigation rules, scoped trust controls for EPG sources, and blocked private-network redirects for portal probes.
+- A large test-coverage push (unit + E2E), and CI now enforces lint and a per-file size limit on every PR.
+- Dependency updates: Angular 21.2.17 and axios 1.16.0.
+- Remote control: volume now applies to the built-in M3U players.
+
+<Alert type="warning" title="Before updating">
+Please back up your playlists, credentials, URLs, and other important data before installing a new release. There are no breaking schema migrations in v0.22, but it’s a good habit.
+</Alert>
+
+## Thanks
+
+As always, this release is shaped by the Telegram group, GitHub issues, and the people who keep the project sustainable.
+
+A special thank-you to everyone who sponsored or donated — you genuinely keep me motivated to keep building. And to everyone who tested builds, reported bugs, contributed translations, or just hung around answering other people's questions: it adds up. v0.22 wouldn't look like this without you. 💙
+
+## Download
+
+<LinkCards
+    links={[
+        {
+            label: 'Download v0.22.0',
+            href: 'https://github.com/4gray/iptvnator/releases/tag/v0.22.0',
+            hint: 'Official binaries for macOS, Windows and Linux.',
+            icon: 'download',
+        },
+        {
+            label: 'Full Changelog',
+            href: 'https://github.com/4gray/iptvnator/compare/v0.21.0...v0.22.0',
+            hint: 'Every commit between v0.21.0 and v0.22.0.',
+            icon: 'github',
+        },
+        {
+            label: 'All Releases',
+            href: 'https://github.com/4gray/iptvnator/releases',
+            hint: 'Browse every IPTVnator release.',
+            icon: 'github',
+        },
+    ]}
+/>
