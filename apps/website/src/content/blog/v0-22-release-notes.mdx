@@ -162,9 +162,13 @@ Shipped in [#1127](https://github.com/4gray/iptvnator/pull/1127).
 Last release brought the embedded MPV player to macOS. v0.22 extends it to the other two desktop platforms:
 
 - **Windows** — libmpv is bundled and renders directly inside the app window. Nothing extra to install.
-- **Linux** — playback runs through the system `mpv` executable embedded into the app window (X11/XWayland; requires `mpv` on your PATH).
+- **Linux** — playback runs through your system `mpv` executable embedded into the app window (X11/Xwayland; requires `mpv` on your PATH).
 
 Both paths get **next/previous episode navigation** inside the embedded player, and you can switch to embedded MPV straight from the command palette. As part of this work, the player now holds a power-save blocker while playing, so your display no longer sleeps mid-stream — closing out [#1095](https://github.com/4gray/iptvnator/issues/1095).
+
+<Alert type="info" title="Linux: which packages support embedded MPV">
+On Linux, embedded MPV is x64-only and needs `mpv` installed on your `PATH`, running under X11 or Xwayland (native Wayland embedding isn't supported yet — Wayland desktops fall back to Xwayland). It works on the **`.deb` (Ubuntu/Debian), `pacman` (Arch/Manjaro), RPM, and AppImage** builds. The **Flatpak and Snap** packages still install and run fine, but embedded MPV isn't offered there yet — their sandbox doesn't expose the host `mpv` executable to the app. See the [Linux Embedded MPV Support](https://github.com/4gray/iptvnator#linux-embedded-mpv-support) notes in the README for details.
+</Alert>
 
 It's still marked **experimental** on Windows and Linux for this release. If you hit something odd, please open an issue or ping the Telegram group. Tracked in [#1031](https://github.com/4gray/iptvnator/pull/1031) and hardened in [#1122](https://github.com/4gray/iptvnator/pull/1122).
 
