@@ -2,10 +2,7 @@ import { inject, Injectable } from '@angular/core';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { Router } from '@angular/router';
 import { EpgService } from '@iptvnator/epg/data-access';
-import {
-    normalizeEpgUrls,
-    resolveM3uCatchupUrl,
-} from '@iptvnator/shared/m3u-utils';
+import { normalizeEpgUrls } from '@iptvnator/shared/m3u-utils';
 import { Actions, createEffect, ofType } from '@ngrx/effects';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
@@ -50,6 +47,7 @@ import {
 import { resolveChannelEpgLookupKey } from './channel-epg-lookup.util';
 import { buildExternalPlayerPayload } from './external-player-payload.util';
 import { resolvePlaylistScopedEpgFetchPlan } from './playlist-scoped-epg-fetch.util';
+import { resolveActiveEpgProgramAction } from './resolve-active-epg-program.util';
 
 @Injectable({ providedIn: 'any' })
 export class PlaylistEffects {
@@ -112,18 +110,20 @@ export class PlaylistEffects {
         return this.actions$.pipe(
             ofType(EpgActions.setActiveEpgProgram),
             withLatestFrom(this.store.select(selectActive)),
-            map(([action, activeChannel]) => {
-                const playbackUrl = activeChannel
-                    ? resolveM3uCatchupUrl(activeChannel, action.program)
-                    : null;
-
-                return playbackUrl
-                    ? EpgActions.setActivePlaybackUrl({
-                          playbackUrl,
-                          program: action.program,
-                      })
-                    : EpgActions.resetActiveEpgProgram();
-            })
+            map(([action, activeChannel]) =>
+                resolveActiveEpgProgramAction(
+                    action.program,
+                    activeChannel,
+                    () =>
+                        this.snackBar.open(
+                            this.translate.instant(
+                                'EPG.TIMELINE.CATCHUP_FAILED'
+                            ),
+                            undefined,
+                            { duration: 4000 }
+                        )
+                )
+            )
         );
     });
 

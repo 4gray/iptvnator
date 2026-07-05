@@ -677,6 +677,7 @@
             "WATCH_LIVE": "Assistir ao vivo",
             "WATCH_FROM_START": "Assistir desde o início",
             "ARCHIVE_UNAVAILABLE_NOTE": "Reprodução indisponível — este provedor não disponibiliza um arquivo.",
+            "CATCHUP_FAILED": "Não foi possível iniciar a reprodução do arquivo para este programa",
             "SCHEDULE_ONLY_NOTICE": "Apenas programação. Este provedor expõe o histórico de programas, mas não catch-up — programas passados não podem ser reproduzidos.",
             "EMPTY_DAY_TITLE": "Nenhum programa para este dia",
             "EMPTY_DAY_DESCRIPTION": "A programação do dia selecionado ainda não chegou. Outros dias têm dados.",

@@ -652,6 +652,16 @@ class EpgService {
   `playlistState.activePlaybackUrl`. Inline and external players use
   `activePlaybackUrl ?? activeChannel.url`, and returning to live playback
   clears the override.
+- The unified favorites/recent live tab
+  (`libs/portal/shared/ui/.../unified-collection/unified-live-tab.component.ts`)
+  hosts the same timeline but does not use the NgRx playlist state; it keeps
+  its own `activeTimeshift` signal, resolves the replay URL with
+  `resolveM3uCatchupUrl`, and swaps the inline player's playback target (or
+  hands the URL to the configured external player). Selecting another channel,
+  closing the player, or "Return to live" clears the override.
+- Catch-up activation is never silent: if the replay URL cannot be resolved
+  for a programme the user clicked, both hosts surface a
+  `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
 
 ## Interfaces
 

@@ -677,6 +677,7 @@
             "WATCH_LIVE": "ライブを視聴",
             "WATCH_FROM_START": "最初から視聴",
             "ARCHIVE_UNAVAILABLE_NOTE": "再生できません — このプロバイダーはアーカイブを提供していません。",
+            "CATCHUP_FAILED": "この番組のアーカイブ再生を開始できませんでした",
             "SCHEDULE_ONLY_NOTICE": "番組表のみです。このプロバイダーは番組履歴を提供しますが catch-up には対応していないため、過去の番組は再生できません。",
             "EMPTY_DAY_TITLE": "この日の番組はありません",
             "EMPTY_DAY_DESCRIPTION": "選択した日の番組表はまだ届いていません。他の日にはデータがあります。",

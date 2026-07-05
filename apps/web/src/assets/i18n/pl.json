@@ -677,6 +677,7 @@
             "WATCH_LIVE": "Oglądaj na żywo",
             "WATCH_FROM_START": "Oglądaj od początku",
             "ARCHIVE_UNAVAILABLE_NOTE": "Odtwarzanie niedostępne — ten dostawca nie udostępnia archiwum.",
+            "CATCHUP_FAILED": "Nie udało się uruchomić odtwarzania z archiwum dla tego programu",
             "SCHEDULE_ONLY_NOTICE": "Tylko program. Ten dostawca udostępnia historię programów, ale nie catch-up — minionych programów nie można odtworzyć.",
             "EMPTY_DAY_TITLE": "Brak programu na ten dzień",
             "EMPTY_DAY_DESCRIPTION": "Program na wybrany dzień jeszcze nie dotarł. Inne dni mają dane.",

@@ -677,6 +677,7 @@
             "WATCH_LIVE": "라이브 시청",
             "WATCH_FROM_START": "처음부터 시청",
             "ARCHIVE_UNAVAILABLE_NOTE": "재생할 수 없습니다 — 이 공급자는 아카이브를 제공하지 않습니다.",
+            "CATCHUP_FAILED": "이 프로그램의 아카이브 재생을 시작할 수 없습니다",
             "SCHEDULE_ONLY_NOTICE": "편성표만 제공됩니다. 이 공급자는 프로그램 이력을 제공하지만 catch-up은 제공하지 않으므로 지난 프로그램은 재생할 수 없습니다.",
             "EMPTY_DAY_TITLE": "이 날짜에는 프로그램이 없습니다",
             "EMPTY_DAY_DESCRIPTION": "선택한 날짜의 편성표가 아직 도착하지 않았습니다. 다른 날짜에는 데이터가 있습니다.",

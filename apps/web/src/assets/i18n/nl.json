@@ -677,6 +677,7 @@
             "WATCH_LIVE": "Live bekijken",
             "WATCH_FROM_START": "Vanaf begin bekijken",
             "ARCHIVE_UNAVAILABLE_NOTE": "Afspelen niet beschikbaar — deze provider biedt geen archief.",
+            "CATCHUP_FAILED": "Archief afspelen voor dit programma kon niet worden gestart",
             "SCHEDULE_ONLY_NOTICE": "Alleen schema. Deze provider toont programmageschiedenis maar geen catch-up — programma's uit het verleden kunnen niet worden afgespeeld.",
             "EMPTY_DAY_TITLE": "Geen programma voor deze dag",
             "EMPTY_DAY_DESCRIPTION": "Het schema voor de geselecteerde dag is nog niet binnen. Andere dagen hebben wel gegevens.",

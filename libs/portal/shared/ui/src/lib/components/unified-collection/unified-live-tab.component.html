@@ -59,7 +59,7 @@
                     <app-web-player-view
                         [streamUrl]="currentStreamUrl()"
                         [title]="activeDetail()?.playback?.title ?? ''"
-                        [playback]="activeDetail()?.playback ?? null"
+                        [playback]="inlinePlayback()"
                         [playerOverride]="player()"
                         (externalFallbackRequested)="
                             handleExternalFallbackRequest($event)
@@ -86,12 +86,19 @@
                             [channelLogo]="timelineChannelLogo()"
                             [archivePlaybackAvailable]="timelineArchiveAvailable()"
                             [archiveDays]="timelineArchiveDays()"
+                            [activeProgram]="activeTimeshiftProgram()"
+                            [isLivePlayback]="!activeTimeshift()"
                             [selectedDate]="selectedLiveEpgDate()"
                             [collapsed]="
                                 shouldUseInlinePlayer() &&
                                 isLiveEpgPanelCollapsed()
                             "
                             [summary]="liveEpgPanelSummary()"
+                            [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
+                            (programActivated)="
+                                onTimelineProgramActivated($event)
+                            "
+                            (returnToLive)="returnToLivePlayback()"
                             (selectedDateChange)="
                                 onLiveEpgSelectedDateChange($event)
                             "
@@ -106,12 +113,19 @@
                             [channelLogo]="timelineChannelLogo()"
                             [archivePlaybackAvailable]="timelineArchiveAvailable()"
                             [archiveDays]="timelineArchiveDays()"
+                            [activeProgram]="activeTimeshiftProgram()"
+                            [isLivePlayback]="!activeTimeshift()"
                             [selectedDate]="selectedLiveEpgDate()"
                             [collapsed]="
                                 shouldUseInlinePlayer() &&
                                 isLiveEpgPanelCollapsed()
                             "
                             [summary]="liveEpgPanelSummary()"
+                            [summaryLabelKey]="liveEpgPanelSummaryLabelKey()"
+                            (programActivated)="
+                                onTimelineProgramActivated($event)
+                            "
+                            (returnToLive)="returnToLivePlayback()"
                             (selectedDateChange)="
                                 onLiveEpgSelectedDateChange($event)
                             "

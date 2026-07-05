@@ -18,10 +18,12 @@ import {
 } from '@iptvnator/ui/playback';
 import {
     EpgListViewComponent,
+    EpgProgramActivationEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     RuntimeCapabilitiesService,
@@ -92,6 +94,8 @@ class StubEpgTimelineComponent {
     readonly channelLogo = input('');
     readonly archivePlaybackAvailable = input(false);
     readonly archiveDays = input(0);
+    readonly activeProgram = input<EpgProgram | null>(null);
+    readonly isLivePlayback = input(true);
     readonly selectedDate = input<string | null>(null);
     readonly collapsed = input(false);
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -99,7 +103,8 @@ class StubEpgTimelineComponent {
     readonly summaryLabelKey = input('');
     readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();
-    readonly programActivated = output<EpgProgram>();
+    readonly programActivated = output<EpgProgramActivationEvent>();
+    readonly returnToLive = output<void>();
 }
 
 @Component({
@@ -145,6 +150,7 @@ describe('UnifiedLiveTabComponent', () => {
         openResolvedPlayback: jest.Mock;
         openExternalPlayback: jest.Mock;
     };
+    let snackBar: { open: jest.Mock };
     const originalElectron = window.electron;
 
     beforeEach(async () => {
@@ -170,6 +176,7 @@ describe('UnifiedLiveTabComponent', () => {
             openResolvedPlayback: jest.fn(),
             openExternalPlayback: jest.fn(),
         };
+        snackBar = { open: jest.fn() };
 
         await TestBed.configureTestingModule({
             imports: [TranslateModule.forRoot(), UnifiedLiveTabComponent],
@@ -193,6 +200,7 @@ describe('UnifiedLiveTabComponent', () => {
                     },
                 },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
+                { provide: MatSnackBar, useValue: snackBar },
             ],
         })
             .overrideComponent(UnifiedLiveTabComponent, {
@@ -910,6 +918,134 @@ describe('UnifiedLiveTabComponent', () => {
             })
         );
         expect(autoOpenHandledSpy).toHaveBeenCalledTimes(1);
+    });
+
+    describe('M3U catch-up (timeshift) playback', () => {
+        const selectCatchupChannel = async (rec = '3') => {
+            const item = buildLiveItem('m3u');
+            streamResolver.resolveM3uPlaybackDetail.mockResolvedValue({
+                epgMode: 'm3u',
+                playback: {
+                    streamUrl: 'https://example.com/m3u.m3u8',
+                    title: 'M3U Live',
+                },
+                channel: {
+                    id: 'm3u-channel',
+                    name: 'M3U Live',
+                    url: 'https://example.com/m3u.m3u8',
+                    group: { title: 'News' },
+                    tvg: {
+                        id: 'm3u-channel',
+                        name: 'M3U Live',
+                        url: '',
+                        logo: 'm3u.png',
+                        rec,
+                    },
+                    http: { referrer: '', 'user-agent': '', origin: '' },
+                    radio: 'false',
+                    epgParams: '',
+                },
+                epgPrograms: [buildProgram('M3U Show')],
+            });
+            recentData.recordLivePlayback.mockResolvedValue(item);
+
+            fixture.componentRef.setInput('items', [item]);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            await component.onChannelSelected(component.channelsForList()[0]);
+            fixture.detectChanges();
+            await fixture.whenStable();
+        };
+
+        const timeshiftEvent = (): EpgProgramActivationEvent => ({
+            program: buildProgram('M3U Show'),
+            type: 'timeshift',
+        });
+
+        it('switches the inline player to the catch-up stream on Watch', async () => {
+            portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+            await selectCatchupChannel();
+
+            component.onTimelineProgramActivated(timeshiftEvent());
+            fixture.detectChanges();
+
+            const playback = component.inlinePlayback();
+            expect(playback?.streamUrl).toContain(
+                'https://example.com/m3u.m3u8?utc='
+            );
+            expect(playback?.streamUrl).toContain('lutc=');
+            expect(playback?.isLive).toBe(false);
+            expect(component.activeTimeshiftProgram()?.title).toBe('M3U Show');
+            expect(component.liveEpgPanelSummaryLabelKey()).toBe(
+                'EPG.ARCHIVE_PLAYBACK'
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+        });
+
+        it('shows feedback instead of failing silently when the channel has no catch-up', async () => {
+            await selectCatchupChannel('');
+
+            component.onTimelineProgramActivated(timeshiftEvent());
+
+            expect(component.activeTimeshift()).toBeNull();
+            expect(component.inlinePlayback()?.streamUrl).toBe(
+                'https://example.com/m3u.m3u8'
+            );
+            expect(snackBar.open).toHaveBeenCalledTimes(1);
+        });
+
+        it('returns to the live stream from catch-up playback', async () => {
+            await selectCatchupChannel();
+            component.onTimelineProgramActivated(timeshiftEvent());
+
+            component.returnToLivePlayback();
+
+            expect(component.activeTimeshift()).toBeNull();
+            expect(component.inlinePlayback()?.streamUrl).toBe(
+                'https://example.com/m3u.m3u8'
+            );
+            expect(component.liveEpgPanelSummaryLabelKey()).toBe(
+                'EPG.CURRENT_PROGRAM'
+            );
+        });
+
+        it('activating "live" from the timeline resets catch-up playback', async () => {
+            await selectCatchupChannel();
+            component.onTimelineProgramActivated(timeshiftEvent());
+
+            component.onTimelineProgramActivated({
+                program: buildProgram('M3U Show'),
+                type: 'live',
+            });
+
+            expect(component.activeTimeshift()).toBeNull();
+        });
+
+        it('clears catch-up playback when another channel is selected', async () => {
+            await selectCatchupChannel();
+            component.onTimelineProgramActivated(timeshiftEvent());
+
+            component.onClose();
+
+            expect(component.activeTimeshift()).toBeNull();
+        });
+
+        it('hands the catch-up stream to the external player when no inline player is used', async () => {
+            await selectCatchupChannel();
+            portalPlayer.isEmbeddedPlayer.mockReturnValue(false);
+
+            component.onTimelineProgramActivated(timeshiftEvent());
+
+            expect(portalPlayer.openResolvedPlayback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    isLive: false,
+                    streamUrl: expect.stringContaining(
+                        'https://example.com/m3u.m3u8?utc='
+                    ),
+                })
+            );
+        });
     });
 });
 
