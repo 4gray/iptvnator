@@ -679,6 +679,7 @@
             "WATCH_LIVE": "观看直播",
             "WATCH_FROM_START": "从头开始观看",
             "ARCHIVE_UNAVAILABLE_NOTE": "无法播放 —— 此提供商未提供归档。",
+            "CATCHUP_FAILED": "无法开始播放此节目的回看",
             "SCHEDULE_ONLY_NOTICE": "仅节目表。此提供商提供节目历史，但不支持 catch-up —— 无法播放过往节目。",
             "EMPTY_DAY_TITLE": "当天暂无节目",
             "EMPTY_DAY_DESCRIPTION": "所选日期的节目表尚未到达。其他日期已有数据。",

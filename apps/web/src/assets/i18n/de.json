@@ -679,6 +679,7 @@
             "WATCH_LIVE": "Live ansehen",
             "WATCH_FROM_START": "Von Anfang an ansehen",
             "ARCHIVE_UNAVAILABLE_NOTE": "Wiedergabe nicht verfügbar – dieser Anbieter stellt kein Archiv bereit.",
+            "CATCHUP_FAILED": "Archivwiedergabe für diese Sendung konnte nicht gestartet werden",
             "SCHEDULE_ONLY_NOTICE": "Nur Programm. Dieser Anbieter stellt den Programmverlauf bereit, aber kein Catchup – vergangene Sendungen können nicht abgespielt werden.",
             "EMPTY_DAY_TITLE": "Kein Programm für diesen Tag",
             "EMPTY_DAY_DESCRIPTION": "Das Programm für den ausgewählten Tag ist noch nicht eingetroffen. Für andere Tage sind Daten vorhanden.",

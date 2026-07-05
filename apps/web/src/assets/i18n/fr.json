@@ -679,6 +679,7 @@
             "WATCH_LIVE": "Regarder en direct",
             "WATCH_FROM_START": "Regarder depuis le début",
             "ARCHIVE_UNAVAILABLE_NOTE": "Lecture indisponible — ce fournisseur n'expose pas d'archive.",
+            "CATCHUP_FAILED": "Impossible de démarrer la lecture archive pour ce programme",
             "SCHEDULE_ONLY_NOTICE": "Programme uniquement. Ce fournisseur expose l'historique des programmes mais pas le catch-up — les programmes passés ne peuvent pas être lus.",
             "EMPTY_DAY_TITLE": "Aucun programme pour ce jour",
             "EMPTY_DAY_DESCRIPTION": "Le programme du jour sélectionné n'est pas encore arrivé. D'autres jours ont des données.",

@@ -679,6 +679,7 @@
             "WATCH_LIVE": "Watch live",
             "WATCH_FROM_START": "Watch from start",
             "ARCHIVE_UNAVAILABLE_NOTE": "Playback unavailable — this provider does not expose an archive.",
+            "CATCHUP_FAILED": "Couldn't start archive playback for this program",
             "SCHEDULE_ONLY_NOTICE": "Schedule only. This provider exposes programme history but not catch-up — past programmes can't be played.",
             "EMPTY_DAY_TITLE": "No programme for this day",
             "EMPTY_DAY_DESCRIPTION": "The schedule for the selected day hasn't arrived yet. Other days have data.",

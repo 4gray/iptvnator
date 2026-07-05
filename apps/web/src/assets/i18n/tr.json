@@ -679,6 +679,7 @@
             "WATCH_LIVE": "Canlı izle",
             "WATCH_FROM_START": "Baştan izle",
             "ARCHIVE_UNAVAILABLE_NOTE": "Oynatma kullanılamıyor — bu sağlayıcı bir arşiv sunmuyor.",
+            "CATCHUP_FAILED": "Bu program için arşiv oynatma başlatılamadı",
             "SCHEDULE_ONLY_NOTICE": "Yalnızca program çizelgesi. Bu sağlayıcı program geçmişini sunar ancak catch-up sunmaz — geçmiş programlar oynatılamaz.",
             "EMPTY_DAY_TITLE": "Bu gün için program yok",
             "EMPTY_DAY_DESCRIPTION": "Seçilen güne ait program çizelgesi henüz gelmedi. Diğer günlerde veri var.",

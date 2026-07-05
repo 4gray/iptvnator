@@ -12,10 +12,12 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
-import { TranslatePipe } from '@ngx-translate/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
     getM3uArchiveDays,
     isM3uCatchupPlaybackSupported,
+    resolveM3uCatchupUrl,
 } from '@iptvnator/shared/m3u-utils';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
@@ -37,10 +39,16 @@ import {
 import {
     EpgDateNavigationDirection,
     EpgListViewComponent,
+    EpgProgramActivationEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
 } from '@iptvnator/ui/epg';
+import {
+    getLiveEpgPanelSummary,
+    toEpgProgram,
+    toLiveEpgPanelSummary,
+} from './unified-live-epg-summary.util';
 import { GlobalFavoritesListComponent } from '../global-favorites-list/global-favorites-list.component';
 import { PortalEmptyStateComponent } from '../portal-empty-state/portal-empty-state.component';
 import {
@@ -50,8 +58,7 @@ import {
 } from '@iptvnator/ui/playback';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
-import { EpgItem, EpgProgram } from '@iptvnator/shared/interfaces';
-import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
+import { EpgProgram } from '@iptvnator/shared/interfaces';
 
 @Component({
     selector: 'app-unified-live-tab',
@@ -95,6 +102,8 @@ export class UnifiedLiveTabComponent {
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
     private readonly destroyRef = inject(DestroyRef);
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
 
     readonly player = this.settingsStore.player;
     readonly supportsEpg = this.runtime.supportsEpg;
@@ -111,8 +120,30 @@ export class UnifiedLiveTabComponent {
         restoreLiveEpgPanelState()
     );
     readonly selectedLiveEpgDate = signal(getTodayEpgDateKey());
+    /** Catch-up override for the active M3U channel; null = live playback. */
+    readonly activeTimeshift = signal<{
+        url: string;
+        program: EpgProgram;
+    } | null>(null);
+    readonly activeTimeshiftProgram = computed(
+        () => this.activeTimeshift()?.program ?? null
+    );
+    /** Playback target for the inline player, honouring a catch-up override. */
+    readonly inlinePlayback = computed(() => {
+        const playback = this.activeDetail()?.playback ?? null;
+        const timeshift = this.activeTimeshift();
+        if (!playback || !timeshift) {
+            return playback;
+        }
+
+        return {
+            ...playback,
+            streamUrl: timeshift.url,
+            isLive: false,
+        };
+    });
     readonly currentStreamUrl = computed(
-        () => this.activeDetail()?.playback.streamUrl ?? ''
+        () => this.inlinePlayback()?.streamUrl ?? ''
     );
     readonly isM3uSelection = computed(
         () => this.activeDetail()?.epgMode === 'm3u'
@@ -196,9 +227,19 @@ export class UnifiedLiveTabComponent {
     /** Live EPG panel layout chosen in settings; hosts swap timeline ↔ list. */
     readonly epgViewMode = this.settingsStore.resolvedEpgViewMode;
     readonly liveEpgPanelSummary = computed(() => {
+        const timeshift = this.activeTimeshift();
+        if (timeshift) {
+            // Archive summary is frozen — don't track the 30s progress tick.
+            return toLiveEpgPanelSummary(timeshift.program);
+        }
         this.progressTick();
-        return this.getLiveEpgPanelSummary(this.activeDetail());
+        return getLiveEpgPanelSummary(this.activeDetail());
     });
+    readonly liveEpgPanelSummaryLabelKey = computed(() =>
+        this.activeTimeshift()
+            ? 'EPG.ARCHIVE_PLAYBACK'
+            : 'EPG.CURRENT_PROGRAM'
+    );
 
     readonly channelsForList = computed((): UnifiedFavoriteChannel[] =>
         this.items().map((item) => ({
@@ -340,6 +381,52 @@ export class UnifiedLiveTabComponent {
         this.selectedLiveEpgDate.set(selectedDate);
     }
 
+    onTimelineProgramActivated(event: EpgProgramActivationEvent): void {
+        if (event.type === 'live') {
+            this.returnToLivePlayback();
+            return;
+        }
+
+        const playbackUrl = resolveM3uCatchupUrl(
+            this.currentM3uChannel(),
+            event.program
+        );
+        if (!playbackUrl) {
+            this.snackBar.open(
+                this.translate.instant('EPG.TIMELINE.CATCHUP_FAILED'),
+                undefined,
+                { duration: 4000 }
+            );
+            return;
+        }
+
+        this.activeTimeshift.set({ url: playbackUrl, program: event.program });
+
+        // No inline player (external MPV/VLC configured) → hand the archive
+        // stream to the external player, mirroring the live-selection flow.
+        const playback = this.activeDetail()?.playback;
+        if (!this.shouldUseInlinePlayer() && playback) {
+            void this.portalPlayer.openResolvedPlayback({
+                ...playback,
+                streamUrl: playbackUrl,
+                isLive: false,
+            });
+        }
+    }
+
+    returnToLivePlayback(): void {
+        this.activeTimeshift.set(null);
+
+        // Inline player is already (back) on the live stream once the
+        // timeshift override is cleared. With an external player configured,
+        // "Watch live" must open it even when no archive was active — e.g.
+        // openStreamOnDoubleClick shows the guide without launching playback.
+        const playback = this.activeDetail()?.playback;
+        if (!this.shouldUseInlinePlayer() && playback) {
+            void this.portalPlayer.openResolvedPlayback(playback);
+        }
+    }
+
     handleExternalFallbackRequest(request: PlaybackFallbackRequest): void {
         void this.portalPlayer.openExternalPlayback(
             request.playback,
@@ -352,6 +439,7 @@ export class UnifiedLiveTabComponent {
         this.isSelecting.set(false);
         this.activeDetail.set(null);
         this.activeUid.set(null);
+        this.activeTimeshift.set(null);
     }
 
     private async loadEpgMap(items: UnifiedCollectionItem[]): Promise<void> {
@@ -383,6 +471,7 @@ export class UnifiedLiveTabComponent {
         const requestId = ++this.selectionRequestId;
         this.activeUid.set(item.uid);
         this.activeDetail.set(null);
+        this.activeTimeshift.set(null);
         this.isSelecting.set(true);
 
         try {
@@ -482,117 +571,4 @@ export class UnifiedLiveTabComponent {
         });
     }
 
-    private getLiveEpgPanelSummary(
-        detail: ResolvedLiveCollectionDetail | null
-    ): LiveEpgPanelSummary | null {
-        if (!detail) {
-            return null;
-        }
-
-        if (detail.epgMode === 'm3u') {
-            return this.toLiveEpgPanelSummary(
-                this.findCurrentM3uProgram(detail.epgPrograms ?? [])
-            );
-        }
-
-        return this.toLiveEpgPanelSummary(
-            this.findCurrentPortalProgram(detail.epgItems ?? [])
-        );
-    }
-
-    private findCurrentM3uProgram(
-        programs: readonly EpgProgram[]
-    ): EpgProgram | null {
-        const now = Date.now();
-        return (
-            programs.find((program) => {
-                const start = this.getProgramTimeMs(
-                    program.start,
-                    program.startTimestamp
-                );
-                const stop = this.getProgramTimeMs(
-                    program.stop,
-                    program.stopTimestamp
-                );
-
-                return (
-                    start !== null &&
-                    stop !== null &&
-                    now >= start &&
-                    now < stop
-                );
-            }) ?? null
-        );
-    }
-
-    private findCurrentPortalProgram(
-        programs: readonly EpgItem[]
-    ): EpgItem | null {
-        const now = Date.now();
-        return (
-            programs.find((program) => {
-                const start = this.getProgramTimeMs(
-                    program.start,
-                    program.start_timestamp
-                );
-                const stop = this.getProgramTimeMs(
-                    program.stop ?? program.end,
-                    program.stop_timestamp
-                );
-
-                return (
-                    start !== null &&
-                    stop !== null &&
-                    now >= start &&
-                    now < stop
-                );
-            }) ?? null
-        );
-    }
-
-    private toLiveEpgPanelSummary(
-        program: EpgItem | EpgProgram | null | undefined
-    ): LiveEpgPanelSummary | null {
-        if (!program) {
-            return null;
-        }
-
-        return {
-            title: program.title,
-            start: program.start,
-            stop: program.stop ?? ('end' in program ? program.end : null),
-        };
-    }
-
-    private getProgramTimeMs(
-        rawDate: string | null | undefined,
-        rawTimestamp?: number | string | null
-    ): number | null {
-        const timestamp = Number.parseInt(String(rawTimestamp ?? ''), 10);
-        if (Number.isFinite(timestamp) && timestamp > 0) {
-            return timestamp * 1000;
-        }
-
-        const parsedDate = Date.parse(rawDate ?? '');
-        return Number.isFinite(parsedDate) ? parsedDate : null;
-    }
-}
-
-/** Normalise a portal EPG item into the flat timeline programme shape. */
-function toEpgProgram(item: EpgItem): EpgProgram {
-    return {
-        start: item.start,
-        stop: item.stop ?? item.end,
-        channel: item.channel_id ?? item.id,
-        title: item.title,
-        desc: item.description ?? null,
-        category: null,
-        startTimestamp: toTimestampSeconds(item.start_timestamp),
-        stopTimestamp: toTimestampSeconds(item.stop_timestamp),
-    };
-}
-
-function toTimestampSeconds(value: string | null | undefined): number | null {
-    const parsed = Number.parseInt(String(value ?? ''), 10);
-    return Number.isFinite(parsed) && parsed > 0 ? parsed : null;
 }
