@@ -24,25 +24,49 @@ The application is a cross-platform, open-source project built with Electron and
 
 ## Features
 
-- M3u and M3u8 playlist support 📺
-- Radio playlist support with dedicated audio player 📻
-- Xtream Code (XC) and Stalker portal (STB) support
-- External player support - MPV and VLC; macOS accepts `mpv.app` / `VLC.app` bundle paths. IINA can be launched via its executable path on macOS (best-effort: controls and position polling are MPV IPC only)
-- Add playlists from the file system or remote URLs 📂
-- Automatic playlist updates on application startup
-- Channel search functionality 🔍
-- EPG support (TV Guide) with detailed information
-- TV archive/catchup/timeshift functionality
-- Group-based channel list
-- Read-only M3U channel details from channel context menus, including favorites and recently viewed
-- Favorite channels management
-- Global favorites aggregated from all playlists
-- Recently viewed live channel removal from row actions and context menus
-- HTML video player with HLS.js support or Video.js-based player
-- Internationalization with support for 18 languages ([translation files](apps/web/src/assets/i18n/))
-- Custom "User Agent" header configuration for playlists
-- Light and Dark themes
-- Docker image available for self-hosting the PWA and web backend together
+**Playlists & sources**
+
+- M3U / M3U8 playlists from local files or remote URLs 📂, with automatic updates on startup
+- Xtream Codes (XC) and Stalker / Ministra (STB) portal support
+- Custom "User-Agent" header per playlist
+
+**Playback**
+
+- Built-in HTML5 player (HLS.js or Video.js) with a resizable, resumable inline view
+- External players — MPV, VLC, and IINA on macOS (`mpv.app` / `VLC.app` bundle paths supported) _(desktop)_
+- Embedded MPV — native mpv rendered inside the app window on macOS, Windows & Linux 🖥️ _(experimental · desktop)_
+- Dedicated radio player for `radio="true"` streams 📻
+
+**Live TV & EPG**
+
+- EPG / XMLTV TV guide with a live timeline ribbon and multi-channel grid _(desktop)_
+- TV archive / catch-up / timeshift _(desktop)_
+- Group-based channel list, channel-number selection, and search 🔍
+
+**Movies & series (VOD)**
+
+- Redesigned two-state detail pages (browse ↔ watch) with season tabs and resume positions
+- Download manager for offline movies & episodes ⬇️ _(desktop)_
+- "Recently added" feeds and category grids with sorting & pagination
+
+**Discovery & metadata**
+
+- Global search across live TV, movies, and series _(desktop)_
+- TMDB enrichment (opt-in) — plots, cast & crew, trailers, ratings, artwork, a "Similar" rail, clickable actor pages, and a trending dashboard rail _(trending rail: desktop)_
+- Dashboard with recently watched & continue-watching
+
+**Organization**
+
+- Per-playlist and global favorites, aggregated across all playlists ⭐
+- Recently viewed / watch history
+- Command palette (`Ctrl/Cmd+K`)
+
+**Platform**
+
+- Cross-platform desktop (Electron) and installable PWA
+- Desktop auto-updater and mobile remote control _(desktop)_
+- Docker self-hosting for the PWA + web backend
+- 18 languages ([translation files](apps/web/src/assets/i18n/)), light & dark themes, and keyboard shortcuts
 
 ## Keyboard shortcuts
 
