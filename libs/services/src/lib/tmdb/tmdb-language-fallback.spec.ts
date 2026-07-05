@@ -83,9 +83,23 @@ describe('season fallback', () => {
         expect(
             seasonNeedsTextFallback({
                 overview: '',
-                episodes: [{ episode_number: 1, overview: 'Text' }],
+                episodes: [
+                    { episode_number: 1, name: 'Ep 1', overview: 'Text' },
+                ],
             })
         ).toBe(false);
+    });
+
+    it('triggers when episode overviews exist but ALL names are empty', () => {
+        expect(
+            seasonNeedsTextFallback({
+                overview: 'Season text',
+                episodes: [
+                    { episode_number: 1, name: '', overview: 'Text 1' },
+                    { episode_number: 2, name: ' ', overview: 'Text 2' },
+                ],
+            })
+        ).toBe(true);
     });
 
     it('fills missing season overview and episode texts by number', () => {

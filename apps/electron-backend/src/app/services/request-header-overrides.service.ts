@@ -77,13 +77,18 @@ function applyYoutubeEmbedRefererShim(
     url: string,
     requestHeaders: Record<string, string>
 ): void {
-    let host: string;
+    let parsed: URL;
     try {
-        host = new URL(url).hostname;
+        parsed = new URL(url);
     } catch {
         return;
     }
-    if (!YOUTUBE_EMBED_HOSTS.has(host)) {
+    // Scope strictly to embed player requests — www.youtube.com also
+    // serves regular pages that must keep their real (missing) Referer
+    if (
+        !YOUTUBE_EMBED_HOSTS.has(parsed.hostname) ||
+        !parsed.pathname.startsWith('/embed/')
+    ) {
         return;
     }
 

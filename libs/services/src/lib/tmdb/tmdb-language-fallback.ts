@@ -42,14 +42,23 @@ export function fillDetailsFromFallback(
         : primary;
 }
 
-/** True when the season payload carries no usable text at all */
+/**
+ * True when the season payload carries no usable text: no overviews at
+ * all, or episodes whose names are ALL empty (partially translated
+ * seasons keep localized overviews but lose the episode names).
+ */
 export function seasonNeedsTextFallback(season: TmdbSeasonDetails): boolean {
+    const episodes = season.episodes ?? [];
+    if (
+        episodes.length > 0 &&
+        !episodes.some((episode) => hasText(episode.name))
+    ) {
+        return true;
+    }
     if (hasText(season.overview)) {
         return false;
     }
-    return !(season.episodes ?? []).some((episode) =>
-        hasText(episode.overview)
-    );
+    return !episodes.some((episode) => hasText(episode.overview));
 }
 
 /**

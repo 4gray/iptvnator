@@ -281,6 +281,21 @@ describe('request header overrides', () => {
         expect(headers['Referer']).toBeUndefined();
     });
 
+    it('does not inject the Referer for non-embed YouTube paths', async () => {
+        const { registerStaticHeaderShims } = await import(
+            './request-header-overrides.service'
+        );
+
+        registerStaticHeaderShims();
+        const listener = mockOnBeforeSendHeaders.mock.calls[0][1];
+        const headers = runHeaderListener(
+            listener,
+            'https://www.youtube.com/watch?v=abc123'
+        );
+
+        expect(headers['Referer']).toBeUndefined();
+    });
+
     it('does not inject the embed Referer for non-YouTube hosts', async () => {
         const { registerStaticHeaderShims } = await import(
             './request-header-overrides.service'

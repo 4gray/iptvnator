@@ -222,12 +222,19 @@ export class TmdbEnrichmentService {
         if (!fallbackLanguage) {
             return details;
         }
-        const fallback = await this.fetchDetails(
-            mediaType,
-            tmdbId,
-            fallbackLanguage
-        );
-        return fillDetailsFromFallback(details, fallback);
+        // Best-effort: a failing fallback fetch must never cost the
+        // already-fetched primary payload (cast, artwork, trailer, ...)
+        try {
+            const fallback = await this.fetchDetails(
+                mediaType,
+                tmdbId,
+                fallbackLanguage
+            );
+            return fillDetailsFromFallback(details, fallback);
+        } catch (error) {
+            console.warn('TMDB fallback-language fetch failed:', error);
+            return details;
+        }
     }
 
     private async fetchDetails(
