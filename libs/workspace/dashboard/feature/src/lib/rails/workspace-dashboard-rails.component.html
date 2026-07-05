@@ -78,6 +78,35 @@
                         <p class="hero__subtitle">{{ item.subtitle }}</p>
 
                         @if (
+                            item.episodeBadge ||
+                            item.rating ||
+                            (item.genres && item.genres.length > 0)
+                        ) {
+                            <span
+                                class="hero__badges"
+                                data-test-id="dashboard-hero-badges"
+                            >
+                                @if (item.episodeBadge) {
+                                    <span
+                                        class="hero__badge hero__badge--episode"
+                                        >{{ item.episodeBadge }}</span
+                                    >
+                                }
+                                @if (item.rating) {
+                                    <span
+                                        class="hero__badge hero__badge--rating"
+                                        >★ {{ item.rating }}</span
+                                    >
+                                }
+                                @for (genre of item.genres; track genre) {
+                                    <span class="hero__badge">{{
+                                        genre
+                                    }}</span>
+                                }
+                            </span>
+                        }
+
+                        @if (
                             item.contentType === 'live' &&
                             (item.nowPlayingTitle ||
                                 item.nowPlayingTimeRange ||
@@ -311,6 +340,31 @@
         } @else if (
             dashboardRails().xtreamRecentlyAdded &&
             xtreamPlaylistCount() > 0 && data.xtreamRecentlyAddedLoading()
+        ) {
+            <section
+                class="rails-page__skeleton-rail"
+                aria-hidden="true"
+                aria-busy="true"
+            >
+                <div class="rails-page__skeleton-header"></div>
+                <div class="rails-page__skeleton-track">
+                    @for (slot of skeletonSlots; track slot) {
+                        <div class="rails-page__skeleton-card"></div>
+                    }
+                </div>
+            </section>
+        }
+
+        <!-- TMDB trending rail (opt-in; Electron only — needs title matching) -->
+        @if (dashboardRails().tmdbTrending && trendingCards().length > 0) {
+            <lib-dashboard-rail
+                [label]="'WORKSPACE.DASHBOARD.TMDB_TRENDING' | translate"
+                [items]="trendingCards()"
+                [totalCount]="trendingCards().length"
+                [testId]="'dashboard-tmdb-trending-rail'"
+            />
+        } @else if (
+            dashboardRails().tmdbTrending && trendingService.loading()
         ) {
             <section
                 class="rails-page__skeleton-rail"

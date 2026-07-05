@@ -26,6 +26,9 @@ export const TMDB_MATCH_CACHE_TTL_MS = 30 * DAY_MS;
 /** Negative matches retry sooner — providers fix titles, TMDB adds entries */
 export const TMDB_NEGATIVE_MATCH_CACHE_TTL_MS = 7 * DAY_MS;
 
+/** Weekly trending rotates slowly — refresh the dashboard rail daily */
+export const TMDB_TRENDING_CACHE_TTL_MS = 1 * DAY_MS;
+
 /** App language → TMDB language-region code for localized metadata */
 const TMDB_LANGUAGE_MAP: Record<Language, string> = {
     [Language.ARABIC]: 'ar-SA',

@@ -41,8 +41,12 @@ import {
     DashboardDataService,
     DashboardFavoriteItem,
     DashboardRecentlyAddedItem,
+    DashboardTrendingItem,
+    DashboardTrendingService,
     GlobalRecentItem,
 } from '@iptvnator/workspace/dashboard/data-access';
+import type { DashboardHeroTmdbExtras } from './dashboard-hero-tmdb.service';
+import { DashboardHeroTmdbService } from './dashboard-hero-tmdb.service';
 import { DashboardRailComponent } from './dashboard-rail.component';
 import type {
     DashboardRailCard,
@@ -115,6 +119,8 @@ export class WorkspaceDashboardRailsComponent {
     private readonly epgService = inject(EpgService);
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
+    private readonly heroTmdb = inject(DashboardHeroTmdbService);
+    readonly trendingService = inject(DashboardTrendingService);
 
     readonly hasPlaylists = computed(() => this.data.playlists().length > 0);
     readonly ready = this.data.dashboardReady;
@@ -133,6 +139,12 @@ export class WorkspaceDashboardRailsComponent {
         () => this.data.globalRecentItems()[0] ?? null
     );
 
+    /** TMDB extras for the current hero item, patched in after first paint */
+    private readonly heroTmdbExtras = signal<{
+        key: string;
+        extras: DashboardHeroTmdbExtras | null;
+    } | null>(null);
+
     private readonly heroLiveCard = computed<DashboardRailCard | null>(() => {
         const item = this.heroRecentItem();
         return item?.type === 'live' ? this.toRecentCard(item) : null;
@@ -144,9 +156,14 @@ export class WorkspaceDashboardRailsComponent {
             return null;
         }
 
+        const extrasForArtwork = this.heroTmdbExtras();
+        const tmdbBackdrop =
+            extrasForArtwork?.key === this.heroTmdbKey(item)
+                ? (extrasForArtwork.extras?.backdropUrl ?? null)
+                : null;
         const artwork = resolveDashboardHeroArtwork(
             {
-                backdropUrl: item.backdrop_url,
+                backdropUrl: item.backdrop_url || tmdbBackdrop,
                 posterUrl: item.poster_url,
                 title: item.title,
             },
@@ -158,6 +175,23 @@ export class WorkspaceDashboardRailsComponent {
             item.type === 'live'
                 ? this.getLiveEpgDetailsForCard(this.heroLiveCard())
                 : null;
+        const extrasState = this.heroTmdbExtras();
+        const extras =
+            extrasState?.key === this.heroTmdbKey(item)
+                ? extrasState.extras
+                : null;
+        const episodeBadge =
+            item.type === 'series' &&
+            position?.seasonNumber != null &&
+            position?.episodeNumber != null
+                ? this.translate.instant(
+                      'WORKSPACE.DASHBOARD.SEASON_EPISODE_BADGE',
+                      {
+                          season: position.seasonNumber,
+                          episode: position.episodeNumber,
+                      }
+                  )
+                : null;
 
         return {
             ...artwork,
@@ -167,8 +201,13 @@ export class WorkspaceDashboardRailsComponent {
             state: this.data.getRecentItemNavigationState(item),
             subtitle: this.buildHeroSubtitle(item),
             title: item.title,
-            watchProgress: playbackProgressPercent(position),
-            remainingLabel: formatRemainingLabel(position),
+            rating: extras?.rating ?? null,
+            genres: extras?.genres ?? [],
+            episodeBadge,
+            watchProgress:
+                item.type === 'live' ? null : playbackProgressPercent(position),
+            remainingLabel:
+                item.type === 'live' ? null : formatRemainingLabel(position),
             nowPlayingTitle: liveEpgDetails?.nowPlayingTitle ?? null,
             nowPlayingTimeRange: liveEpgDetails?.nowPlayingTimeRange ?? null,
             nowPlayingProgress: liveEpgDetails?.nowPlayingProgress ?? null,
@@ -289,6 +328,13 @@ export class WorkspaceDashboardRailsComponent {
             .map((item) => this.toRecentlyAddedCard(item))
     );
 
+    readonly trendingCards = computed<DashboardRailCard[]>(() => {
+        this.languageTick();
+        return this.trendingService
+            .items()
+            .map((item) => this.toTrendingCard(item));
+    });
+
     readonly sourceCards = computed<DashboardRailCard[]>(() =>
         this.data.recentPlaylists().map((playlist) => ({
             id: playlist._id,
@@ -337,6 +383,40 @@ export class WorkspaceDashboardRailsComponent {
         effect(() => {
             this.playbackPositionReloadKey();
             untracked(() => void this.data.reloadPlaybackPositions());
+        });
+
+        // TMDB extras for the hero (backdrop/rating/genres) — async after
+        // first paint, staleness-guarded against hero changes in flight.
+        effect(() => {
+            const item = this.heroRecentItem();
+            if (!item || (item.type !== 'movie' && item.type !== 'series')) {
+                return;
+            }
+            const key = this.heroTmdbKey(item);
+            untracked(() => {
+                if (this.heroTmdbExtras()?.key === key) {
+                    return;
+                }
+                void this.heroTmdb.getExtras(item).then((extras) => {
+                    const current = untracked(() => this.heroRecentItem());
+                    if (current && this.heroTmdbKey(current) === key) {
+                        this.heroTmdbExtras.set({ key, extras });
+                    }
+                });
+            });
+        });
+
+        // Trending rail: needs the TMDB opt-in and the Electron DB worker.
+        // Deferred until the dashboard's own recent/favorites data is in so
+        // the batched title match never competes for the worker at startup.
+        effect(() => {
+            if (
+                !this.dashboardRails().tmdbTrending ||
+                !this.data.globalFavoritesLoaded()
+            ) {
+                return;
+            }
+            untracked(() => void this.trendingService.load());
         });
     }
 
@@ -478,6 +558,38 @@ export class WorkspaceDashboardRailsComponent {
             contentType: item.type,
             link: this.data.getRecentlyAddedLink(item),
             state: this.data.getRecentlyAddedNavigationState(item),
+        };
+    }
+
+    private heroTmdbKey(item: GlobalRecentItem): string {
+        return `${item.type}:${item.title}`;
+    }
+
+    private toTrendingCard(item: DashboardTrendingItem): DashboardRailCard {
+        const subtitle = [
+            item.year !== null ? String(item.year) : null,
+            item.rating ? `★ ${item.rating}` : null,
+            item.match?.playlistName ?? null,
+        ]
+            .filter((value): value is string => Boolean(value))
+            .join(' · ');
+        return {
+            id: `trending-${item.mediaType}-${item.tmdbId}`,
+            title: item.title,
+            subtitle,
+            imageUrl: item.posterUrl ?? undefined,
+            icon: item.mediaType === 'movie' ? 'movie' : 'video_library',
+            contentType: item.mediaType === 'movie' ? 'movie' : 'series',
+            link: item.match
+                ? [
+                      '/workspace/xtreams',
+                      item.match.playlistId,
+                      item.match.type === 'movie' ? 'vod' : 'series',
+                      String(item.match.categoryId),
+                      String(item.match.xtreamId),
+                  ]
+                : ['/workspace/search'],
+            ...(item.match ? {} : { queryParams: { q: item.title } }),
         };
     }
 

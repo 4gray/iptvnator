@@ -76,6 +76,20 @@ export class TmdbApiService {
         );
     }
 
+    /** Weekly trending titles for one media type */
+    async getTrending(
+        mediaType: 'movie' | 'tv',
+        language: string,
+        apiKey: string
+    ): Promise<TmdbSearchResult[]> {
+        const response = await this.request<TmdbSearchResponse>(
+            `/trending/${mediaType}/week`,
+            { language },
+            apiKey
+        );
+        return response.results ?? [];
+    }
+
     async getPersonDetails(
         personId: number,
         language: string,

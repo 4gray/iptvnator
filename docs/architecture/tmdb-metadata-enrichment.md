@@ -46,6 +46,7 @@ store imports):
 | `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups |
 | `tmdb-person.service.ts` | Cached person details + combined filmography (`person:<id>` rows) |
 | `tmdb-season.service.ts` | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows) |
+| `tmdb-trending.service.ts` | Weekly trending (movie + tv merged by popularity, `trending:week` rows, 1-day TTL) |
 
 Integration glue per portal:
 
@@ -245,3 +246,27 @@ never blocks or delays rendering of the detail view.
 Similar/recommendations rails, actor cross-catalog search, trending
 dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
 (IndexedDB).
+
+## Dashboard Integration
+
+- **Trending rail** ("Trending this week", `dashboardRails.tmdbTrending`
+  toggle): `DashboardTrendingService`
+  (`libs/workspace/dashboard/data-access`) pulls the weekly TMDB trending
+  lists (cached one day per language) and runs ONE batched
+  `CatalogTitleMatchService.matchTitles` request against the imported
+  Xtream playlists — matched cards navigate straight to their detail view
+  and show the playlist name; unmatched cards open the global search
+  prefilled. Requires both the TMDB opt-in and the Electron DB worker
+  (the rail is hidden in the PWA). The load fires only after the
+  dashboard's own recent/favorites data is in, so it never competes for
+  the worker at startup, and runs once per app session.
+- **Hero extras**: `DashboardHeroTmdbService`
+  (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
+  backdrop (when the provider item has none), a rating badge and up to two
+  genre chips — resolved through the enrichment facade, so items already
+  opened in a detail view come from the SQLite cache without network.
+  Results are memoized per title for the session. The hero renders
+  immediately from provider data; extras appear when resolved. Series
+  heroes additionally show the tracked "S{n}·E{n}" badge from the playback
+  position (no TMDB involved); the watch-progress bar is limited to
+  movie/series heroes.

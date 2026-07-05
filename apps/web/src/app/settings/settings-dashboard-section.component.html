@@ -160,5 +160,23 @@
                 ></mat-checkbox>
             </div>
         </div>
+
+        <div class="setting-item">
+            <div class="setting-item__meta">
+                <h4>{{ 'SETTINGS.DASHBOARD_RAIL_TMDB_TRENDING' | translate }}</h4>
+                <p>
+                    {{
+                        'SETTINGS.DASHBOARD_RAIL_TMDB_TRENDING_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="tmdbTrending"
+                    data-test-id="toggle-dashboard-rail-tmdb-trending"
+                ></mat-checkbox>
+            </div>
+        </div>
     </div>
 </section>
