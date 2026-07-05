@@ -295,6 +295,50 @@
     }
 }
 
+.hero__badges {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 2px;
+}
+
+.hero__badge {
+    display: inline-flex;
+    align-items: center;
+    padding: 3px 10px;
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 600;
+    letter-spacing: 0.02em;
+    color: var(--app-body-color, #8b93a8);
+    background: rgba(128, 138, 160, 0.14);
+    border: 1px solid rgba(128, 138, 160, 0.22);
+
+    .hero--with-image & {
+        color: rgba(255, 255, 255, 0.88);
+        background: rgba(0, 0, 0, 0.35);
+        border-color: rgba(255, 255, 255, 0.18);
+        text-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+    }
+
+    &--rating {
+        color: #ffd166;
+
+        .hero--with-image & {
+            color: #ffd166;
+        }
+    }
+
+    &--episode {
+        color: #7ddb8a;
+
+        .hero--with-image & {
+            color: #7ddb8a;
+        }
+    }
+}
+
 .hero__live-epg {
     display: flex;
     flex-direction: column;

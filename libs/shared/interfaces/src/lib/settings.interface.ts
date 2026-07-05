@@ -33,6 +33,8 @@ export interface DashboardRailsSettings {
     favoriteMoviesAndSeries: boolean;
     recentSources: boolean;
     xtreamRecentlyAdded: boolean;
+    /** TMDB "Trending this week" rail (needs the TMDB opt-in; Electron) */
+    tmdbTrending: boolean;
 }
 
 export const DEFAULT_DASHBOARD_RAILS_SETTINGS: DashboardRailsSettings = {
@@ -43,6 +45,7 @@ export const DEFAULT_DASHBOARD_RAILS_SETTINGS: DashboardRailsSettings = {
     favoriteMoviesAndSeries: true,
     recentSources: true,
     xtreamRecentlyAdded: true,
+    tmdbTrending: true,
 };
 
 export type DashboardRailsSettingsInput = Partial<

@@ -46,6 +46,7 @@ store imports):
 | `tmdb-enrichment.service.ts` | Movie/TV orchestrator and facade: id resolution → details fetch → cache; delegates person/season lookups |
 | `tmdb-person.service.ts` | Cached person details + combined filmography (`person:<id>` rows) |
 | `tmdb-season.service.ts` | Cached lazy per-season episode lists (`id:<id>\|season:<n>` rows) |
+| `tmdb-trending.service.ts` | Weekly trending (movie + tv merged by popularity, `trending:week` rows, 1-day TTL) |
 
 Integration glue per portal:
 
@@ -123,9 +124,17 @@ year tag is compatible (±1) with the TMDB year, so "Blade Runner" (1982)
 never claims a catalog "Blade Runner 2049". The rail navigates
 to the matched item — the detail components re-initialize on route param
 changes (reactive `routeParams` signal) because the router reuses the
-component for detail→detail navigation. Stalker gets trailers and the
-`tmdb_recommendations` data, but no rail yet (its catalog is
-server-paginated, so there is no local list to match against).
+component for detail→detail navigation.
+
+`CrossPortalSimilarService` (`libs/services`) extends the rail across
+portals: recommendations are matched against ALL imported Xtream
+playlists with one batched `DB_MATCH_TITLES` request (Electron only,
+same two-tier + year rule). Stalker detail views — where the local
+catalog is server-paginated and unmatchable — get their "Similar" rail
+purely from these cross-portal matches (shared `VodDetailsComponent` for
+movies, `stalker-series-view` for series); Xtream detail views append
+them after the local-catalog matches, deduplicated by normalized title,
+with the source playlist name on each card.
 The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.
@@ -262,3 +271,27 @@ never blocks or delays rendering of the detail view.
 Similar/recommendations rails, actor cross-catalog search, trending
 dashboard rail, artwork upgrade for M3U VOD, persistent PWA cache
 (IndexedDB).
+
+## Dashboard Integration
+
+- **Trending rail** ("Trending this week", `dashboardRails.tmdbTrending`
+  toggle): `DashboardTrendingService`
+  (`libs/workspace/dashboard/data-access`) pulls the weekly TMDB trending
+  lists (cached one day per language) and runs ONE batched
+  `CatalogTitleMatchService.matchTitles` request against the imported
+  Xtream playlists — matched cards navigate straight to their detail view
+  and show the playlist name; unmatched cards open the global search
+  prefilled. Requires both the TMDB opt-in and the Electron DB worker
+  (the rail is hidden in the PWA). The load fires only after the
+  dashboard's own recent/favorites data is in, so it never competes for
+  the worker at startup, and runs once per app session.
+- **Hero extras**: `DashboardHeroTmdbService`
+  (`libs/workspace/dashboard/feature`) patches the hero card with a TMDB
+  backdrop (when the provider item has none), a rating badge and up to two
+  genre chips — resolved through the enrichment facade, so items already
+  opened in a detail view come from the SQLite cache without network.
+  Results are memoized per title for the session. The hero renders
+  immediately from provider data; extras appear when resolved. Series
+  heroes additionally show the tracked "S{n}·E{n}" badge from the playback
+  position (no TMDB involved); the watch-progress bar is limited to
+  movie/series heroes.

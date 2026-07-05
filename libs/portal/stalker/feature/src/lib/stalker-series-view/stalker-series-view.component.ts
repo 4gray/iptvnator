@@ -62,6 +62,8 @@ import {
     type SeriesPlaybackEpisodeState,
 } from '@iptvnator/ui/playback';
 import {
+    CrossPortalSimilarItem,
+    CrossPortalSimilarService,
     DownloadsService,
     PlaybackPositionRuntimeBridgeService,
 } from '@iptvnator/services';
@@ -128,6 +130,38 @@ export class StalkerSeriesViewComponent implements OnDestroy {
     readonly selectedItem = this.stalkerStore.selectedItem;
 
     private readonly tmdbSeasons = inject(StalkerSeriesTmdbSeasonsService);
+    private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
+
+    /**
+     * TMDB recommendations found in the user's Xtream portals (batched DB
+     * match, Electron only) — Stalker catalogs are server-paginated, so
+     * "Similar" can only point at OTHER portals' libraries.
+     */
+    readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
+    private readonly loadSimilarInPortals = effect(() => {
+        const recommendations =
+            this.displayItem()?.info?.tmdb_recommendations;
+        untracked(() => {
+            this.similarInPortals.set([]);
+            if (
+                !recommendations?.length ||
+                !this.crossPortalSimilar.isAvailable
+            ) {
+                return;
+            }
+            void this.crossPortalSimilar
+                .matchRecommendations(recommendations, 'series')
+                .then((items) => {
+                    if (
+                        this.displayItem()?.info?.tmdb_recommendations ===
+                        recommendations
+                    ) {
+                        this.similarInPortals.set(items);
+                    }
+                });
+        });
+    });
+
     /** Season currently selected in the season container. */
     private readonly selectedSeasonKey = signal<string | null>(null);
 
@@ -529,6 +563,10 @@ export class StalkerSeriesViewComponent implements OnDestroy {
             trackingId,
             startTime
         );
+    }
+
+    openSimilarInPortals(item: CrossPortalSimilarItem): void {
+        void this.router.navigate(this.crossPortalSimilar.buildLink(item));
     }
 
     openActor(member: TmdbEnrichedCastMember): void {

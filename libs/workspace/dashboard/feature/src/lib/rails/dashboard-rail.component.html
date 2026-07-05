@@ -66,6 +66,7 @@
                         <a
                             class="rail__channel-link"
                             [routerLink]="card.link"
+                            [queryParams]="card.queryParams ?? null"
                             [state]="card.state"
                         >
                             <div class="rail__channel-row">
@@ -141,6 +142,7 @@
                         <a
                             class="rail__card-link"
                             [routerLink]="card.link"
+                            [queryParams]="card.queryParams ?? null"
                             [state]="card.state"
                         >
                             <div

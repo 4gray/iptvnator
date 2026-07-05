@@ -16,7 +16,20 @@ export interface TmdbSearchResult {
     first_air_date?: string;
     popularity?: number;
     vote_count?: number;
+    vote_average?: number;
     poster_path?: string | null;
+}
+
+/** One dashboard-ready trending title (movie or series) */
+export interface TmdbTrendingEntry {
+    tmdbId: number;
+    mediaType: 'movie' | 'tv';
+    title: string;
+    year: number | null;
+    posterUrl: string | null;
+    /** vote_average rounded to one decimal, null without votes */
+    rating: string | null;
+    popularity: number;
 }
 
 export interface TmdbSearchResponse {

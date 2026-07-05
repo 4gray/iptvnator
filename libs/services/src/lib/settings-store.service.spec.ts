@@ -23,6 +23,7 @@ const expectedDashboardRails = (
     favoriteMoviesAndSeries: true,
     recentSources: true,
     xtreamRecentlyAdded: true,
+    tmdbTrending: true,
     ...overrides,
 });
 

@@ -69,6 +69,7 @@ const DEFAULT_DASHBOARD_RAILS = {
     favoriteMoviesAndSeries: true,
     recentSources: true,
     xtreamRecentlyAdded: true,
+    tmdbTrending: true,
 };
 
 class MatSnackBarStub {

@@ -14,6 +14,12 @@ export interface DashboardHeroModel {
     readonly state?: Record<string, unknown>;
     readonly subtitle: string;
     readonly title: string;
+    /** TMDB vote average ("8.1"), patched in async when available */
+    readonly rating?: string | null;
+    /** Up to two TMDB genre names, patched in async when available */
+    readonly genres?: readonly string[];
+    /** "S2·E5" for series with a tracked episode position */
+    readonly episodeBadge?: string | null;
     /** 0-100 watched, when a resume position is known. */
     readonly watchProgress?: number | null;
     readonly remainingLabel?: DashboardRemainingLabel | null;

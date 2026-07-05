@@ -1,10 +1,4 @@
-import {
-    Component,
-    computed,
-    inject,
-    input,
-    output,
-} from '@angular/core';
+import { Component, computed, effect, inject, input, output, signal, untracked } from '@angular/core';
 import { MatIcon } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
 import { SafePipe } from '@iptvnator/pipes';
@@ -25,7 +19,11 @@ import {
     normalizeVodDetails,
     youtubeEmbedUrl,
 } from '@iptvnator/shared/interfaces';
-import { DownloadsService } from '@iptvnator/services';
+import {
+    CrossPortalSimilarItem,
+    CrossPortalSimilarService,
+    DownloadsService,
+} from '@iptvnator/services';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { PortalInlinePlayerComponent } from '../portal-inline-player/portal-inline-player.component';
 
@@ -117,6 +115,7 @@ export class VodDetailsComponent {
     // ============ Services ============
 
     private readonly downloadsService = inject(DownloadsService);
+    private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly externalPlaybackActions = inject(PORTAL_EXTERNAL_PLAYBACK);
     private readonly router = inject(Router);
 
@@ -133,6 +132,41 @@ export class VodDetailsComponent {
     readonly trailerEmbedUrl = computed(() =>
         youtubeEmbedUrl(this.normalizedMeta().youtubeTrailer)
     );
+
+    /**
+     * TMDB recommendations found in the user's OTHER portals (batched DB
+     * match, Electron only). Loaded async — the section appears when
+     * resolved; staleness-guarded against item changes in flight.
+     */
+    readonly similarInPortals = signal<CrossPortalSimilarItem[]>([]);
+
+    private readonly loadSimilarInPortals = effect(() => {
+        const meta = this.normalizedMeta();
+        const recommendations = meta.tmdbRecommendations;
+        untracked(() => {
+            this.similarInPortals.set([]);
+            if (
+                !recommendations?.length ||
+                !this.crossPortalSimilar.isAvailable
+            ) {
+                return;
+            }
+            void this.crossPortalSimilar
+                .matchRecommendations(recommendations, 'movie')
+                .then((items) => {
+                    if (
+                        this.normalizedMeta().tmdbRecommendations ===
+                        recommendations
+                    ) {
+                        this.similarInPortals.set(items);
+                    }
+                });
+        });
+    });
+
+    openSimilarInPortals(item: CrossPortalSimilarItem): void {
+        void this.router.navigate(this.crossPortalSimilar.buildLink(item));
+    }
 
     /** Whether there's a playback position to resume from */
     readonly hasPlaybackPosition = computed(() => {

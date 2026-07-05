@@ -33,6 +33,7 @@ export interface DashboardRailCard {
     icon: string;
     contentType?: 'live' | 'movie' | 'series';
     link: string[];
+    queryParams?: Record<string, string>;
     state?: Record<string, unknown>;
     actions?: DashboardRailAction[];
     epgLookupKey?: string;

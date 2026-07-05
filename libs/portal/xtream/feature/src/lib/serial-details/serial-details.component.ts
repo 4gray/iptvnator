@@ -33,7 +33,12 @@ import {
     XtreamSerieInfo,
     XtreamSerieEpisode,
     XtreamSerieDetails,
+    normalizeTitleKeys,
 } from '@iptvnator/shared/interfaces';
+import {
+    CrossPortalSimilarItem,
+    CrossPortalSimilarService,
+} from '@iptvnator/services';
 import {
     SerialDetailsPlaybackService,
     type XtreamSerieDetailsView,
@@ -76,6 +81,7 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     private readonly location = inject(Location);
     private readonly route = inject(ActivatedRoute);
     private readonly router = inject(Router);
+    private readonly crossPortalSimilar = inject(CrossPortalSimilarService);
     private readonly xtreamStore = inject(XtreamStore);
     private readonly playback = inject(SerialDetailsPlaybackService);
     private readonly snackBar = inject(MatSnackBar);
@@ -136,6 +142,46 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
             this.xtreamStore.serialStreams(),
             { excludeId: Number(item?.series_id) }
         );
+    });
+
+    /** Recommendations found in the user's OTHER portals (Electron only) */
+    private readonly crossPortalItems = signal<CrossPortalSimilarItem[]>([]);
+    readonly similarInPortals = computed<CrossPortalSimilarItem[]>(() => {
+        const localTitles = new Set(
+            this.similarItems().map(
+                (item) => normalizeTitleKeys(item.title).exact
+            )
+        );
+        return this.crossPortalItems().filter(
+            (item) => !localTitles.has(normalizeTitleKeys(item.title).exact)
+        );
+    });
+
+    private readonly loadCrossPortalSimilar = effect(() => {
+        const recommendations =
+            this.selectedItem()?.info?.tmdb_recommendations;
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        untracked(() => {
+            this.crossPortalItems.set([]);
+            if (
+                !recommendations?.length ||
+                !this.crossPortalSimilar.isAvailable
+            ) {
+                return;
+            }
+            void this.crossPortalSimilar
+                .matchRecommendations(recommendations, 'series', {
+                    excludePlaylistId: playlistId,
+                })
+                .then((items) => {
+                    if (
+                        this.selectedItem()?.info?.tmdb_recommendations ===
+                        recommendations
+                    ) {
+                        this.crossPortalItems.set(items);
+                    }
+                });
+        });
     });
 
     constructor() {
@@ -244,6 +290,10 @@ export class SerialDetailsComponent implements OnInit, OnDestroy {
     ngOnDestroy(): void {
         this.playback.closeInlinePlayer();
         this.xtreamStore.setSelectedItem(null);
+    }
+
+    openSimilarInPortals(item: CrossPortalSimilarItem): void {
+        void this.router.navigate(this.crossPortalSimilar.buildLink(item));
     }
 
     openSimilar(item: SimilarCatalogItem): void {

@@ -23,6 +23,7 @@ import {
 import { TmdbPersonService } from './tmdb-person.service';
 import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSeasonService } from './tmdb-season.service';
+import { TmdbTrendingService } from './tmdb-trending.service';
 import {
     TmdbDetails,
     TmdbEnrichmentQuery,
@@ -30,6 +31,7 @@ import {
     TmdbMovieDetails,
     TmdbPersonDetails,
     TmdbSeasonDetails,
+    TmdbTrendingEntry,
     TmdbTvDetails,
 } from './tmdb.types';
 
@@ -50,6 +52,7 @@ export class TmdbEnrichmentService {
     private readonly cache = inject(TmdbCacheService);
     private readonly person = inject(TmdbPersonService);
     private readonly season = inject(TmdbSeasonService);
+    private readonly trending = inject(TmdbTrendingService);
 
     isEnabled(): boolean {
         return this.runtime.isEnabled();
@@ -82,6 +85,11 @@ export class TmdbEnrichmentService {
         seasonNumber: number
     ): Promise<TmdbSeasonDetails | null> {
         return this.season.getSeason(tmdbId, seasonNumber);
+    }
+
+    /** Weekly trending titles (movies + series merged by popularity) */
+    async getTrendingWeek(limit?: number): Promise<TmdbTrendingEntry[]> {
+        return this.trending.getTrendingWeek(limit);
     }
 
     async getPersonDetails(
