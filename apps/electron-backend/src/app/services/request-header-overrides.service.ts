@@ -11,6 +11,19 @@ const headerOverrideUrlFilter = {
     urls: ['http://*/*', 'https://*/*'],
 };
 
+/**
+ * YouTube refuses to configure the embedded player when the /embed request
+ * carries no Referer ("Error 153 — Video player configuration error").
+ * The packaged app loads the renderer from file://, which never sends a
+ * Referer, so trailer iframes break in production while working in dev
+ * (localhost origin). Injecting the project site as Referer restores them.
+ */
+const YOUTUBE_EMBED_HOSTS = new Set([
+    'www.youtube-nocookie.com',
+    'www.youtube.com',
+]);
+const YOUTUBE_EMBED_REFERER = 'https://4gray.github.io/iptvnator/';
+
 let activeHeaderOverride: HeaderOverride | null = null;
 let activeScopedHeaderOverride: HeaderOverride | null = null;
 let listenerRegistered = false;
@@ -60,11 +73,34 @@ function setRequestHeader(
     requestHeaders[headerName] = headerValue;
 }
 
+function applyYoutubeEmbedRefererShim(
+    url: string,
+    requestHeaders: Record<string, string>
+): void {
+    let host: string;
+    try {
+        host = new URL(url).hostname;
+    } catch {
+        return;
+    }
+    if (!YOUTUBE_EMBED_HOSTS.has(host)) {
+        return;
+    }
+
+    const hasReferer = Object.keys(requestHeaders).some(
+        (name) => name.toLowerCase() === 'referer'
+    );
+    if (!hasReferer) {
+        requestHeaders['Referer'] = YOUTUBE_EMBED_REFERER;
+    }
+}
+
 function handleBeforeSendHeaders(
     details: Electron.OnBeforeSendHeadersListenerDetails,
     callback: (beforeSendResponse: Electron.BeforeSendResponse) => void
 ): void {
     const requestHeaders = { ...details.requestHeaders };
+    applyYoutubeEmbedRefererShim(details.url, requestHeaders);
     const overrides = [activeHeaderOverride, activeScopedHeaderOverride].filter(
         (override): override is HeaderOverride =>
             Boolean(override && shouldApplyOverride(details.url, override))
@@ -141,6 +177,14 @@ export function configureRequestHeaderOverride(
         activeHeaderOverride = override;
     }
 
+    ensureHeaderOverrideListener();
+}
+
+/**
+ * Registers the header listener at startup so the YouTube embed Referer
+ * shim is active even before any playlist-level override is configured.
+ */
+export function registerStaticHeaderShims(): void {
     ensureHeaderOverrideListener();
 }
 

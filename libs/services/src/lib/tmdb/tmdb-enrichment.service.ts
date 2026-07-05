@@ -16,6 +16,10 @@ import {
     parseProviderTmdbId,
     pickConfidentMatch,
 } from './tmdb-matcher';
+import {
+    detailsFallbackLanguage,
+    fillDetailsFromFallback,
+} from './tmdb-language-fallback';
 import { TmdbPersonService } from './tmdb-person.service';
 import { TmdbRuntimeService } from './tmdb-runtime.service';
 import { TmdbSeasonService } from './tmdb-season.service';
@@ -199,7 +203,38 @@ export class TmdbEnrichmentService {
         mediaType: TmdbMediaType,
         tmdbId: number
     ): Promise<TmdbDetails | null> {
-        const language = this.runtime.language();
+        const details = await this.fetchDetails(
+            mediaType,
+            tmdbId,
+            this.runtime.language()
+        );
+        if (!details) {
+            return details;
+        }
+
+        // TMDB does not fall back on missing translations: a Russian-only
+        // title has an empty overview in en-US. Retry once in the content's
+        // original language and fill only the missing text.
+        const fallbackLanguage = detailsFallbackLanguage(
+            details,
+            this.runtime.language()
+        );
+        if (!fallbackLanguage) {
+            return details;
+        }
+        const fallback = await this.fetchDetails(
+            mediaType,
+            tmdbId,
+            fallbackLanguage
+        );
+        return fillDetailsFromFallback(details, fallback);
+    }
+
+    private async fetchDetails(
+        mediaType: TmdbMediaType,
+        tmdbId: number,
+        language: string
+    ): Promise<TmdbDetails | null> {
         const lookupKey = buildDetailsLookupKey(tmdbId);
 
         const cached = await this.cache.get(mediaType, lookupKey, language);

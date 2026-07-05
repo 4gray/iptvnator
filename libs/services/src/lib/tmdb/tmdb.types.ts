@@ -59,6 +59,8 @@ export interface TmdbVideo {
 interface TmdbDetailsBase {
     id: number;
     overview?: string;
+    /** ISO 639-1 code of the content's original language ("ru") */
+    original_language?: string;
     genres?: TmdbGenre[];
     vote_average?: number;
     vote_count?: number;

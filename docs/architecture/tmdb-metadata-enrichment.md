@@ -130,6 +130,23 @@ The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.
 
+TMDB does NOT fall back on missing translations — a Russian-only series
+returns empty overviews for `en-US`. When the app-language payload has no
+overview, the enrichment refetches once in the content's
+`original_language` and fills only the missing text
+(`tmdb-language-fallback.ts`): the details overview, and — via the same
+rule in `TmdbSeasonService` when a season payload carries no usable text —
+the season overview and per-episode names/overviews. Genres, credits and
+artwork stay in the app language; both language rows land in the cache.
+
+Trailers embed via `https://www.youtube-nocookie.com/embed/…`. YouTube
+requires a Referer on the embed request ("Error 153 — Video player
+configuration error" without one); the packaged Electron app loads from
+`file://`, which never sends one, so the Electron main process injects the
+project site as Referer for YouTube embed hosts
+(`request-header-overrides.service.ts`, registered at startup via
+`registerStaticHeaderShims`). Dev builds (localhost origin) are unaffected.
+
 ## Season/Episode Enrichment
 
 Show-level merges store the matched id as `tmdb_id` on the enriched info
