@@ -6,20 +6,33 @@ import {
 } from './tmdb-language-fallback';
 import { TmdbSeasonDetails } from './tmdb.types';
 
+const trailer = { site: 'YouTube', key: 'abc123', type: 'Trailer' };
+const videos = { results: [trailer] };
+
 describe('detailsFallbackLanguage', () => {
     it('returns the original language when the overview is empty', () => {
         expect(
             detailsFallbackLanguage(
-                { id: 1, overview: '', original_language: 'ru' },
+                { id: 1, overview: '', original_language: 'ru', videos },
                 'en-US'
             )
         ).toBe('ru');
     });
 
-    it('returns null when the overview is present', () => {
+    it('returns the original language when the trailer is missing', () => {
+        // Overview present, but TMDB filtered out the Russian-only trailer
         expect(
             detailsFallbackLanguage(
                 { id: 1, overview: 'Plot', original_language: 'ru' },
+                'en-US'
+            )
+        ).toBe('ru');
+    });
+
+    it('returns null when both overview and trailer are present', () => {
+        expect(
+            detailsFallbackLanguage(
+                { id: 1, overview: 'Plot', original_language: 'ru', videos },
                 'en-US'
             )
         ).toBeNull();
@@ -42,8 +55,8 @@ describe('detailsFallbackLanguage', () => {
 describe('fillDetailsFromFallback', () => {
     it('fills only the missing overview', () => {
         const merged = fillDetailsFromFallback(
-            { id: 1, overview: '', original_language: 'ru' },
-            { id: 1, overview: 'Русское описание' }
+            { id: 1, overview: '', original_language: 'ru', videos },
+            { id: 1, overview: 'Русское описание', videos }
         );
         expect(merged.overview).toBe('Русское описание');
         expect(merged.original_language).toBe('ru');
@@ -51,10 +64,42 @@ describe('fillDetailsFromFallback', () => {
 
     it('keeps an existing overview', () => {
         const merged = fillDetailsFromFallback(
-            { id: 1, overview: 'English plot' },
-            { id: 1, overview: 'Русское описание' }
+            { id: 1, overview: 'English plot', videos },
+            { id: 1, overview: 'Русское описание', videos }
         );
         expect(merged.overview).toBe('English plot');
+    });
+
+    it('fills the trailer when the primary payload has none', () => {
+        const merged = fillDetailsFromFallback(
+            { id: 1, overview: 'English plot' },
+            { id: 1, overview: 'Русское описание', videos }
+        );
+        // overview kept (present), trailer pulled from the fallback
+        expect(merged.overview).toBe('English plot');
+        expect(merged.videos?.results?.[0].key).toBe('abc123');
+    });
+
+    it('keeps an existing trailer', () => {
+        const own = {
+            results: [{ site: 'YouTube', key: 'own', type: 'Trailer' }],
+        };
+        const merged = fillDetailsFromFallback(
+            { id: 1, overview: 'Plot', videos: own },
+            { id: 1, overview: 'x', videos }
+        );
+        expect(merged.videos?.results?.[0].key).toBe('own');
+    });
+
+    it('does not treat a non-YouTube video as a usable trailer', () => {
+        const vimeo = {
+            results: [{ site: 'Vimeo', key: 'v', type: 'Trailer' }],
+        };
+        const merged = fillDetailsFromFallback(
+            { id: 1, overview: 'Plot', videos: vimeo },
+            { id: 1, overview: 'x', videos }
+        );
+        expect(merged.videos?.results?.[0].key).toBe('abc123');
     });
 });
 

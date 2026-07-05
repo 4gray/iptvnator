@@ -139,13 +139,15 @@ The `language` param derives from the app language setting
 (`Language` enum → TMDB code, e.g. `de` → `de-DE`); cache rows are keyed per
 language, so switching the app language re-fetches localized metadata.
 
-TMDB does NOT fall back on missing translations — a Russian-only series
-returns empty overviews for `en-US`. When the app-language payload has no
-overview, the enrichment refetches once in the content's
-`original_language` and fills only the missing text
-(`tmdb-language-fallback.ts`): the details overview, and — via the same
-rule in `TmdbSeasonService` when a season payload carries no usable text —
-the season overview and per-episode names/overviews. Genres, credits and
+TMDB language-filters both text AND videos — a Russian-only title returns
+an empty overview and no trailer for `en-US` (its trailer is tagged
+`iso_639_1=ru`). When the app-language payload is missing either, the
+enrichment refetches once in the content's `original_language` and fills
+only the missing fields (`tmdb-language-fallback.ts`): the details
+overview and/or trailer (each independently, so a present app-language
+overview is kept while the trailer is filled), and — via the same rule in
+`TmdbSeasonService` when a season payload carries no usable text — the
+season overview and per-episode names/overviews. Genres, credits and
 artwork stay in the app language; both language rows land in the cache.
 
 Trailers embed via `https://www.youtube-nocookie.com/embed/…`. YouTube
