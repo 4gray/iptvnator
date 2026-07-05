@@ -17,6 +17,9 @@ The application is a cross-platform, open-source project built with Electron and
 
 ⚠️ Note: IPTVnator does not provide any playlists or other digital content. The channels and pictures in the screenshots are for demonstration purposes only.
 
+> [!IMPORTANT]
+> **Official sources only.** IPTVnator is a free, open-source **player** — it never sells IPTV subscriptions, channels, or playlists. Websites offering "IPTVnator subscriptions/channels/premium/activated" builds are **not affiliated** with this project. Get the app only from the [official website](https://4gray.github.io/iptvnator/) or [GitHub Releases](https://github.com/4gray/iptvnator/releases). See [Beware of unofficial IPTVnator websites and IPTV services](https://4gray.github.io/iptvnator/blog/beware-unofficial-iptvnator-websites/) for details.
+
 ![IPTVnator: Channels list, player and epg list](./apps/website/public/screenshots/screenshot-player.webp)
 
 ## Features
@@ -36,23 +39,7 @@ The application is a cross-platform, open-source project built with Electron and
 - Global favorites aggregated from all playlists
 - Recently viewed live channel removal from row actions and context menus
 - HTML video player with HLS.js support or Video.js-based player
-- Internationalization with support for 16 languages:
-    - Arabic
-    - Moroccan arabic
-    - English
-    - Russian
-    - German
-    - Korean
-    - Spanish
-    - Chinese
-    - Traditional chinese
-    - French
-    - Italian
-    - Turkish
-    - Japanese
-    - Dutch
-    - Belarusian
-    - Polish
+- Internationalization with support for 18 languages ([translation files](apps/web/src/assets/i18n/))
 - Custom "User Agent" header configuration for playlists
 - Light and Dark themes
 - Docker image available for self-hosting the PWA and web backend together
