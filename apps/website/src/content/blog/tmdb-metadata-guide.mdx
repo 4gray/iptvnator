@@ -1,0 +1,199 @@
+---
+title: 'Richer Movies & Series: Set Up TMDB Metadata in IPTVnator'
+description: How to get a free TMDB API key, where to paste it in IPTVnator, and every feature it unlocks — posters, cast and clickable actor pages, trailers, episode details, similar recommendations, and a Trending rail on your dashboard.
+pubDate: 2026-07-06
+author: 4gray
+featured: true
+heroImage: /iptvnator/blog/tmdb/hero.jpg
+tags:
+    - tutorial
+    - tmdb
+    - metadata
+draft: true
+---
+
+import Alert from '../../components/blog/Alert.astro';
+import StepRail from '../../components/blog/StepRail.astro';
+import IconFeatureGrid from '../../components/blog/IconFeatureGrid.astro';
+import ImageGallery from '../../components/blog/ImageGallery.astro';
+import PostButton from '../../components/blog/PostButton.astro';
+import LinkCards from '../../components/blog/LinkCards.astro';
+
+Most IPTV providers hand you a stream URL and a title — and not much else. A movie shows up as a bare filename, a series is a wall of episodes with no descriptions, and you have no idea whether the thing you're about to watch is worth two hours of your evening.
+
+IPTVnator can fix that. With a free **TMDB** (The Movie Database) key, your Xtream and Stalker libraries get real posters, plots, cast, trailers, ratings, episode details, "similar" recommendations, clickable actor pages, and a personalized **Trending this week** rail on the dashboard — all layered on top of the data your provider already gives you.
+
+It's **opt-in**, takes about two minutes to set up, and this guide walks through every step.
+
+## What you get
+
+<IconFeatureGrid
+  items={[
+    { icon: 'spark', title: 'Real plots & artwork', text: 'Posters, backdrops, genres and ratings on every movie and series page — even when your provider ships none.' },
+    { icon: 'playlist', title: 'Cast & actor pages', text: 'Clickable cast with photos. Open an actor to see their bio and full filmography.' },
+    { icon: 'epg', title: 'Episodes done right', text: 'Real episode names, overviews and still images per season, fetched as you open them.' },
+    { icon: 'speed', title: 'Trailers', text: 'Watch the YouTube trailer straight from the detail page.' },
+    { icon: 'shield', title: 'Similar & Trending', text: 'A "Similar" rail that points at titles already in your libraries, plus weekly trending on the dashboard.' },
+  ]}
+/>
+
+<Alert type="info" title="Two minutes, no account juggling">
+  You only need a free themoviedb.org account and one API key. Everything below is a one-time setup — after that, IPTVnator does the work quietly in the background and caches results so pages stay fast.
+</Alert>
+
+## Step 1 — Get a free TMDB API key
+
+TMDB is a community movie & TV database with a free API. Getting a key is quick:
+
+<StepRail
+  title="On themoviedb.org"
+  steps={[
+    'Create a free account at themoviedb.org (or log in if you already have one).',
+    'Open Settings → API from your account menu.',
+    'Request a Developer API key — accept the terms and fill in the short form (any personal/hobby use is fine).',
+    'Copy your API Key (v3 auth) — it is a 32-character string. That is the one to paste into IPTVnator.',
+  ]}
+/>
+
+<PostButton href="https://www.themoviedb.org/settings/api" label="Open TMDB API settings" />
+
+<Alert type="success" title="v3 or v4 — both work">
+  IPTVnator accepts both the classic **API Key (v3 auth)** and the newer **API Read Access Token (v4)**. If you see both on the page, the shorter v3 key is the simplest choice.
+</Alert>
+
+## Step 2 — Turn it on in IPTVnator
+
+<StepRail
+  title="In IPTVnator settings"
+  steps={[
+    'Open Settings and go to the Metadata (TMDB) section.',
+    'Toggle on "Enable TMDB metadata".',
+    'Paste your key into the "TMDB API key" field.',
+    'Click "Check key" — you should see a green confirmation that TMDB responded.',
+  ]}
+/>
+
+<ImageGallery
+  columns={2}
+  images={[
+    { src: '/iptvnator/blog/tmdb/settings-section.jpg', alt: 'The Metadata (TMDB) settings section', caption: 'Settings → Metadata (TMDB): enable the toggle and paste your key' },
+    { src: '/iptvnator/blog/tmdb/settings-check-key.jpg', alt: 'The Check key button showing a success message', caption: 'Check key confirms TMDB accepted your key' },
+  ]}
+/>
+
+<Alert type="warning" title="Why your own key?">
+  The field is labelled optional, but on public builds you should add your own key — it's free, it's yours, and it means enrichment keeps working no matter what. Your key stays on your device.
+</Alert>
+
+That's it. Open any movie or series and enrichment starts filling in the details.
+
+## Now explore what it unlocks
+
+### Movie & series pages
+
+Detail pages render your provider's data instantly, then TMDB patches in the rest: a proper **plot**, **poster** and wide **backdrop**, **genres**, a **rating** badge, **director** and **cast**. Your provider stays the source of truth for anything it already supplies — TMDB only fills the gaps.
+
+<ImageGallery
+  columns={2}
+  images={[
+    { src: '/iptvnator/blog/tmdb/movie-details.jpg', alt: 'A movie detail page enriched with TMDB data', caption: 'Plot, genres, rating, cast and a wide backdrop' },
+    { src: '/iptvnator/blog/tmdb/series-details.jpg', alt: 'A series detail page enriched with TMDB data', caption: 'Series pages get the same treatment' },
+  ]}
+/>
+
+<Alert type="info" title="Descriptions in your language — with a smart fallback">
+  Metadata is fetched in your app language. TMDB doesn't translate everything, so for a title that only has text in its original language (say, a Russian film viewed in English), IPTVnator quietly refetches the plot — and the trailer — in the original language and fills only what was missing. No more empty descriptions just because you're not using the app in the film's language.
+</Alert>
+
+### Trailers
+
+When TMDB has one, the **YouTube trailer** appears right on the detail page — no need to leave the app.
+
+![A YouTube trailer embedded on a movie page](/iptvnator/blog/tmdb/trailer.jpg)
+
+### Cast & actor pages
+
+The cast list becomes a row of **photo chips**. Click any actor to open a dedicated page with their **photo, bio and full filmography** — pulled straight from TMDB.
+
+<ImageGallery
+  columns={2}
+  images={[
+    { src: '/iptvnator/blog/tmdb/cast-chips.jpg', alt: 'Cast shown as clickable photo chips', caption: 'Cast members are clickable' },
+    { src: '/iptvnator/blog/tmdb/actor-page.jpg', alt: 'An actor page with bio and filmography', caption: 'An actor page: bio + full filmography' },
+  ]}
+/>
+
+### Find an actor's films in your library
+
+Here's the part that ties it all together. On an actor's filmography, titles you **already have** in your library are marked available and open straight to their detail page. The rest open a search so you can look for them.
+
+On desktop you can even flip the scope to **All portals** — IPTVnator matches the actor's filmography against every Xtream library you've imported, so you can see which of their films are available anywhere in your setup, and jump right in.
+
+<ImageGallery
+  columns={2}
+  images={[
+    { src: '/iptvnator/blog/tmdb/actor-in-library.jpg', alt: 'Actor filmography with in-library titles marked', caption: 'Titles in your library are marked and open directly' },
+    { src: '/iptvnator/blog/tmdb/actor-all-portals.jpg', alt: 'The This portal / All portals scope toggle', caption: 'Desktop: match across all imported portals' },
+  ]}
+/>
+
+<Alert type="info" title="A small quality-of-life touch">
+  When a filmography title opens the portal search, that search page now has a **Back** button, so you can return to the actor page in one click instead of navigating from scratch.
+</Alert>
+
+### Seasons & episodes
+
+Open a season and IPTVnator lazily fetches its episode list from TMDB, overlaying **real episode names, overviews and still images** onto your provider's episodes. If the season description or names are missing in your language, the same original-language fallback kicks in.
+
+![Season episodes enriched with names, overviews and stills](/iptvnator/blog/tmdb/episodes.jpg)
+
+### "Similar" recommendations
+
+Every detail page can show a **Similar** rail built from TMDB recommendations — but filtered to titles you can actually watch. On Xtream it matches against your loaded catalog; on desktop it also matches against your **other imported portals**, so a recommendation available in a different library shows up with that library's name. Stalker pages, whose catalogs can't be searched locally, get their Similar rail entirely from these cross-portal matches.
+
+![A Similar recommendations rail on a detail page](/iptvnator/blog/tmdb/similar-rail.jpg)
+
+### Trending this week — on your dashboard
+
+The dashboard gains an opt-in **Trending this week** rail: TMDB's weekly trending movies and series, matched against your imported Xtream libraries. Titles you own open straight to their detail page (with the library name shown); the rest open a search. The dashboard hero also picks up a **backdrop**, **rating** and **genre** badges when available, plus a season/episode badge for series you're mid-watch on.
+
+<ImageGallery
+  columns={2}
+  images={[
+    { src: '/iptvnator/blog/tmdb/dashboard-trending.jpg', alt: 'The Trending this week rail on the dashboard', caption: 'Trending this week, matched to your libraries' },
+    { src: '/iptvnator/blog/tmdb/dashboard-hero.jpg', alt: 'The dashboard hero enriched with a backdrop and badges', caption: 'The hero gets a backdrop, rating and genres' },
+  ]}
+/>
+
+<Alert type="info" title="You control the rails">
+  The Trending rail is a normal dashboard rail — toggle it (and any other rail) on or off in Settings → Dashboard. It only loads when TMDB is enabled.
+</Alert>
+
+## Fast by design
+
+The dashboard and detail pages always render your provider's data **first**, then enrichment patches in the extras a moment later. Nothing new blocks the first paint. Results are cached — on desktop in a local database, in the browser in memory — so revisiting a page or reopening the app doesn't re-fetch. Trending is cached for a day; details for a month.
+
+## Privacy & matching
+
+<Alert type="warning" title="What gets sent, and when">
+  Enrichment is off until you turn it on. When enabled, IPTVnator sends **movie and series titles** (and TMDB IDs when your provider supplies them) to TMDB to look up metadata — nothing else. Matching is conservative: a title is only enriched when there's a confident match on normalized title and year, so you won't get the wrong film's poster.
+</Alert>
+
+## Desktop vs. browser
+
+Core enrichment — plots, posters, cast, actor pages, trailers, episodes, and the in-catalog Similar rail — works in **both** the desktop app and the PWA. A few features rely on the desktop app's local database for cross-library matching and are **desktop-only**: the Trending rail, cross-portal Similar matches, the actor "All portals" scope, and global search.
+
+## A note on TMDB
+
+This product uses the TMDB API but is not endorsed or certified by TMDB. All the movie and TV metadata, artwork and trailers come from [The Movie Database](https://www.themoviedb.org/) — a huge, community-maintained resource. If you enjoy it, consider contributing data or artwork back to TMDB.
+
+---
+
+That's the whole feature set in one place. Turn it on, add your key, and your libraries stop looking like a list of filenames and start looking like a proper media collection.
+
+<LinkCards
+  links={[
+    { icon: 'github', label: 'Star IPTVnator on GitHub', href: 'https://github.com/4gray/iptvnator', hint: 'Source, issues and releases' },
+    { icon: 'sponsor', label: 'Support the project', href: 'https://github.com/sponsors/4gray', hint: 'GitHub Sponsors' },
+  ]}
+/>
