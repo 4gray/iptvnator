@@ -220,9 +220,9 @@ export class TmdbEnrichmentService {
             return details;
         }
 
-        // TMDB does not fall back on missing translations: a Russian-only
-        // title has an empty overview in en-US. Retry once in the content's
-        // original language and fill only the missing text.
+        // TMDB language-filters both text and videos: a Russian-only title
+        // has an empty overview AND no trailer in en-US. Retry once in the
+        // content's original language and fill only the missing fields.
         const fallbackLanguage = detailsFallbackLanguage(
             details,
             this.runtime.language()
