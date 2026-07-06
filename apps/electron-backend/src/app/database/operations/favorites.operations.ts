@@ -163,7 +163,13 @@ export async function reorderGlobalFavorites(
 
         await db.transaction(() => {
             for (const { content_id, position } of chunk) {
-                updateFavoritePosition.execute({
+                // Must be .run() (synchronous), NOT .execute(): on the
+                // better-sqlite3 driver .execute() defers the write to a
+                // resolved promise, which never settles inside this
+                // synchronous transaction callback — the UPDATE would be a
+                // silent no-op and the custom favorites order would never
+                // persist (issue #1137).
+                updateFavoritePosition.run({
                     position,
                     contentId: content_id,
                 });

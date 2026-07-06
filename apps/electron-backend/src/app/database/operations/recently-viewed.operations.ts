@@ -177,7 +177,12 @@ export async function removeRecentItemsBatch(
 
     await db.transaction(() => {
         for (const { contentId, playlistId } of items) {
-            stmt.execute({ contentId, playlistId });
+            // .run() (synchronous), NOT .execute(): the better-sqlite3
+            // driver's .execute() defers the write to a resolved promise
+            // that never settles inside this synchronous transaction
+            // callback, so the DELETE would silently do nothing. See the
+            // matching note in favorites.operations.ts (issue #1137).
+            stmt.run({ contentId, playlistId });
         }
     });
 
