@@ -70,6 +70,15 @@ describe('fillDetailsFromFallback', () => {
         expect(merged.overview).toBe('English plot');
     });
 
+    it('fills both overview and trailer when the primary payload has neither', () => {
+        const merged = fillDetailsFromFallback(
+            { id: 1, overview: '', original_language: 'ru' },
+            { id: 1, overview: 'Русское описание', videos }
+        );
+        expect(merged.overview).toBe('Русское описание');
+        expect(merged.videos?.results?.[0].key).toBe('abc123');
+    });
+
     it('fills the trailer when the primary payload has none', () => {
         const merged = fillDetailsFromFallback(
             { id: 1, overview: 'English plot' },
