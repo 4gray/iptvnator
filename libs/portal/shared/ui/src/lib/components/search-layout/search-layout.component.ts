@@ -45,6 +45,9 @@ export class SearchLayoutComponent {
     /** Whether to show the close button (for dialog mode) */
     readonly showCloseButton = input<boolean>(false);
 
+    /** Whether to show the back button (nested search reached via navigation) */
+    readonly showBackButton = input<boolean>(false);
+
     /** Whether to show results count */
     readonly showResultsCount = input<boolean>(true);
 
@@ -68,6 +71,9 @@ export class SearchLayoutComponent {
     /** Emitted when close button is clicked */
     readonly closeClick = output<void>();
 
+    /** Emitted when the back button is clicked */
+    readonly backClick = output<void>();
+
     /** Emitted when the scroll container is close to the bottom */
     readonly nearEnd = output<void>();
 
@@ -82,6 +88,10 @@ export class SearchLayoutComponent {
 
     onCloseClick(): void {
         this.closeClick.emit();
+    }
+
+    onBackClick(): void {
+        this.backClick.emit();
     }
 
     onSearchContentScroll(event: Event): void {

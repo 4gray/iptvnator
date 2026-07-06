@@ -58,6 +58,26 @@ describe('SearchLayoutComponent', () => {
         });
     }
 
+    it('shows the back button only when showBackButton is set and emits backClick', () => {
+        fixture.detectChanges();
+        expect(
+            fixture.debugElement.query(By.css('.header-back'))
+        ).toBeNull();
+
+        fixture.componentRef.setInput('showBackButton', true);
+        fixture.detectChanges();
+
+        const backButton = fixture.debugElement.query(By.css('.header-back'));
+        expect(backButton).not.toBeNull();
+
+        const emitted: unknown[] = [];
+        fixture.componentInstance.backClick.subscribe((value) =>
+            emitted.push(value)
+        );
+        (backButton.nativeElement as HTMLButtonElement).click();
+        expect(emitted).toHaveLength(1);
+    });
+
     it('emits nearEnd when the results container is scrolled near the bottom', () => {
         const nearEndSpy = jest.fn();
         fixture.componentInstance.nearEnd.subscribe(nearEndSpy);

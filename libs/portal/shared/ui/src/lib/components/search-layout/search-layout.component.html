@@ -7,6 +7,16 @@
             <div class="header sticky-header">
                 <div class="header-top">
                     <div class="header-left">
+                        @if (showBackButton()) {
+                            <button
+                                mat-icon-button
+                                class="header-back"
+                                [attr.aria-label]="'BACK' | translate"
+                                (click)="onBackClick()"
+                            >
+                                <mat-icon>arrow_back</mat-icon>
+                            </button>
+                        }
                         <h2>{{ title() | translate }}</h2>
 
                         <!-- Filters slot -->

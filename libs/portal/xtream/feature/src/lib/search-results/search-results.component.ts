@@ -10,6 +10,7 @@ import {
     signal,
     viewChild,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatIconButton } from '@angular/material/button';
 import { MatCheckboxModule } from '@angular/material/checkbox';
@@ -99,6 +100,7 @@ export class SearchResultsComponent implements AfterViewInit {
     readonly router = inject(Router);
     readonly activatedRoute = inject(ActivatedRoute);
     readonly databaseService = inject(DatabaseService);
+    private readonly location = inject(Location);
     private readonly logger = createLogger('XtreamSearchResults');
     readonly isWorkspaceLayout = isWorkspaceLayoutRoute(this.activatedRoute);
     readonly routeSearchTerm = queryParamSignal(
@@ -456,6 +458,10 @@ export class SearchResultsComponent implements AfterViewInit {
         this.dialogRef?.close();
     }
 
+    goBack(): void {
+        this.location.back();
+    }
+
     toggleGroupByPlaylist(value: boolean) {
         this.groupByPlaylist.set(value);
         localStorage.setItem(
@@ -485,6 +491,15 @@ export class SearchResultsComponent implements AfterViewInit {
 
     get showGlobalCloseButton(): boolean {
         return this.isGlobalSearch && !this.isWorkspaceLayout;
+    }
+
+    /**
+     * The in-portal search is a nested view (reached from the toolbar
+     * search box or an actor page); the global search is a top-level
+     * sidebar destination, and the dialog has its own close button.
+     */
+    get showBackButton(): boolean {
+        return this.isWorkspaceLayout && !this.isGlobalSearch;
     }
 
     get minSearchLength(): number {

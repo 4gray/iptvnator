@@ -4,8 +4,10 @@
     [isLoading]="searchResultsResource.isLoading()"
     [showResultsCount]="true"
     [showSearchInput]="!isWorkspaceLayout"
+    [showBackButton]="isWorkspaceLayout"
     [showDetails]="showingDetails"
     (searchTermChange)="updateSearchTerm($event)"
+    (backClick)="goBack()"
 >
     @if (showingDetails) {
         <app-stalker-inline-detail

@@ -7,6 +7,7 @@ import {
     resource,
     signal,
 } from '@angular/core';
+import { Location } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCheckboxModule } from '@angular/material/checkbox';
 import { MatSnackBar } from '@angular/material/snack-bar';
@@ -87,6 +88,7 @@ interface StalkerSearchResponse {
 })
 export class StalkerSearchComponent {
     private readonly activatedRoute = inject(ActivatedRoute);
+    private readonly location = inject(Location);
     private readonly dataService = inject(DataService);
     private readonly playlistContext = inject(PlaylistContextFacade);
     private readonly playlistService = inject(PlaylistsService);
@@ -383,6 +385,11 @@ export class StalkerSearchComponent {
                 this.syncSelectedVodFavorite();
             },
         });
+    }
+
+    /** Leave the search page (e.g. back to the actor page that opened it) */
+    goBack(): void {
+        this.location.back();
     }
 
     onVodBack(): void {

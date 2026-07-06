@@ -52,6 +52,12 @@
         flex: 1;
         flex-wrap: wrap;
 
+        .header-back {
+            flex-shrink: 0;
+            // Tighten the wide flex gap between the back arrow and the title
+            margin-right: -20px;
+        }
+
         h2 {
             margin: 0;
             white-space: nowrap;
