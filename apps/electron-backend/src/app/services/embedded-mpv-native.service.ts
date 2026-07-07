@@ -51,6 +51,7 @@ interface NativeEmbeddedMpvAddon {
     ): string;
     loadPlayback(sessionId: string, playback: ResolvedPortalPlayback): void;
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void;
+    setFill?(sessionId: string, fill: boolean): void;
     setPaused(sessionId: string, paused: boolean): void;
     seek(sessionId: string, seconds: number): void;
     setVolume(sessionId: string, volume: number): void;
@@ -328,6 +329,16 @@ export class EmbeddedMpvNativeService {
     setBounds(sessionId: string, bounds: EmbeddedMpvBounds): void {
         this.assertEmbeddedMpvEnabled();
         this.getAddon().setBounds(sessionId, bounds);
+    }
+
+    /**
+     * Toggle fullscreen "fill" mode: the native view fills the window via an
+     * autoresizing mask and rides the window's resize animation so the video
+     * grows to full screen. No-op on older addons without `setFill`.
+     */
+    setFill(sessionId: string, fill: boolean): void {
+        this.assertEmbeddedMpvEnabled();
+        this.getAddon().setFill?.(sessionId, fill);
     }
 
     setPaused(sessionId: string, paused: boolean): EmbeddedMpvSession | null {

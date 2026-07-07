@@ -20,6 +20,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls';
 import { readStoredVolume } from '../player-controls';
+import type { PlayerFullscreenController } from '../player-controls';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { measureBounds } from './embedded-mpv-compositor';
@@ -100,26 +101,143 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
     private lastEndedSessionId: string | null = null;
 
-    private readonly onFullscreenChange = () => {
-        const playerRoot = this.playerRoot()?.nativeElement;
-        const fullscreen = Boolean(
-            playerRoot && document.fullscreenElement === playerRoot
-        );
-        this.isFullscreen.set(fullscreen);
-        // Hide the surrounding chrome so the transparent fullscreen surface
-        // reveals the native video (filling the screen), not the UI behind it.
-        this.immersive.setFullscreen(fullscreen);
-        // Re-sync the native surface to the new (fullscreen) viewport bounds.
-        this.controller.triggerBoundsSync();
+    readonly fullscreenController: PlayerFullscreenController = {
+        isFullscreen: this.isFullscreen.asReadonly(),
+        // Requires BOTH native bridges: `setMainWindowFullScreen` drives the OS
+        // window and `setEmbeddedMpvFill` snaps the native surface to fill it.
+        // Without the fill bridge (older addon/bridge) native fullscreen would
+        // strand the video at inline bounds, so hide the toggle and let the
+        // shared controls fall back to the built-in DOM path.
+        canToggle: () =>
+            typeof window.electron?.setMainWindowFullScreen === 'function' &&
+            typeof window.electron?.setEmbeddedMpvFill === 'function',
+        toggle: () =>
+            this.isFullscreen()
+                ? this.exitFullscreen()
+                : this.enterFullscreen(),
     };
 
-    constructor() {
-        if (typeof document !== 'undefined') {
-            document.addEventListener(
-                'fullscreenchange',
-                this.onFullscreenChange
-            );
+    /** Unsubscribe for the window-state reconciliation (OS-initiated exits). */
+    private windowStateUnsubscribe?: () => void;
+
+    /**
+     * Bumped on every fullscreen enter/exit so a deferred enter callback that is
+     * still queued becomes a no-op once the intent has changed (exited or
+     * re-toggled). Also see {@link destroyed}.
+     */
+    private fullscreenGeneration = 0;
+    /** Pending requestAnimationFrame id for the deferred window fullscreen. */
+    private pendingFullscreenRaf: number | null = null;
+    /** Set in {@link ngOnDestroy}; guards deferred callbacks after teardown. */
+    private destroyed = false;
+
+    /** Max time to wait for the fill snap before requesting window fullscreen. */
+    private static readonly FILL_TIMEOUT_MS = 150;
+
+    /**
+     * Enter real macOS native fullscreen. macOS animates a SNAPSHOT of the
+     * window taken at the `setMainWindowFullScreen` call, so the window must
+     * already show clean full-bleed video at that instant or the snapshot
+     * catches a mid-resize state (small corner image / flicker):
+     *  1. `embedded-mpv-player--cover` makes the player root `fixed inset:0`.
+     *  2. `setFullscreen` hides the surrounding chrome via a body class.
+     *  3. `setFill(true)` snaps the native view to fill the window (autoresizing)
+     *     and freezes its render so the last frame scales cleanly.
+     *  4. `setMainWindowFullScreen(true)` is deferred a couple of frames so
+     *     steps 1–3 have applied before macOS snapshots the window.
+     */
+    private enterFullscreen(): void {
+        this.isFullscreen.set(true);
+        this.immersive.setFullscreen(true);
+        const generation = ++this.fullscreenGeneration;
+        void this.driveNativeFullscreen(generation);
+    }
+
+    /**
+     * Awaits the fill snap (raced with a short timeout so a hung IPC can't block
+     * fullscreen forever), then defers the window fullscreen request a couple of
+     * frames so the fill/chrome changes have painted before macOS snapshots the
+     * window. Every await point re-checks the generation/teardown so a queued
+     * request becomes a no-op once fullscreen is exited/re-toggled or the
+     * component is destroyed.
+     */
+    private async driveNativeFullscreen(generation: number): Promise<void> {
+        await this.raceFill(true);
+        if (this.isFullscreenRequestStale(generation)) {
+            return;
         }
+        await this.twoFrames();
+        if (this.isFullscreenRequestStale(generation)) {
+            return;
+        }
+        void window.electron?.setMainWindowFullScreen?.(true);
+    }
+
+    /** True once a queued enter-fullscreen request no longer reflects intent. */
+    private isFullscreenRequestStale(generation: number): boolean {
+        return this.destroyed || generation !== this.fullscreenGeneration;
+    }
+
+    /** Resolves when the fill snap acknowledges or the safety timeout elapses. */
+    private raceFill(fill: boolean): Promise<void> {
+        return Promise.race([
+            this.controller.setFill(fill),
+            new Promise<void>((resolve) =>
+                setTimeout(
+                    resolve,
+                    EmbeddedMpvPlayerComponent.FILL_TIMEOUT_MS
+                )
+            ),
+        ]);
+    }
+
+    /** Resolves after two animation frames; the rAF id is cancellable. */
+    private twoFrames(): Promise<void> {
+        return new Promise<void>((resolve) => {
+            this.pendingFullscreenRaf = requestAnimationFrame(() => {
+                this.pendingFullscreenRaf = requestAnimationFrame(() => {
+                    this.pendingFullscreenRaf = null;
+                    resolve();
+                });
+            });
+        });
+    }
+
+    /**
+     * Tear down the fullscreen presentation and (by default) drive the OS window
+     * out of fullscreen. Pass `syncWindow = false` when reconciling an exit the
+     * user already triggered through the OS (green button / Ctrl+Cmd+F / ESC),
+     * where the window has already left fullscreen.
+     */
+    private exitFullscreen(syncWindow = true): void {
+        if (!this.isFullscreen()) {
+            return;
+        }
+        this.isFullscreen.set(false);
+        // Invalidate any still-queued enter-fullscreen request.
+        this.fullscreenGeneration++;
+        this.cancelPendingFullscreenRaf();
+        this.immersive.setFullscreen(false);
+        void this.controller.setFill(false);
+        if (syncWindow) {
+            void window.electron?.setMainWindowFullScreen?.(false);
+        }
+        // Re-dock the native surface to the inline viewport.
+        this.controller.triggerBoundsSync();
+    }
+
+    constructor() {
+        // Reconcile with OS-initiated fullscreen exits (green button /
+        // Ctrl+Cmd+F / ESC) that bypass the in-app button: the main process
+        // broadcasts window state, so tear down the presentation when the window
+        // has left fullscreen but our state still thinks it is fullscreen.
+        this.windowStateUnsubscribe = window.electron?.onWindowStateChange?.(
+            (state) => {
+                if (!state.isFullScreen && this.isFullscreen()) {
+                    this.exitFullscreen(false);
+                }
+            }
+        );
 
         // The native surface is always full-bleed (the controller's default
         // measureBounds provider); the inline controls float over it. No custom
@@ -217,14 +335,23 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     ngOnDestroy(): void {
-        if (typeof document !== 'undefined') {
-            document.removeEventListener(
-                'fullscreenchange',
-                this.onFullscreenChange
-            );
+        this.destroyed = true;
+        this.cancelPendingFullscreenRaf();
+        this.windowStateUnsubscribe?.();
+        // Don't strand the OS window in the macOS fullscreen Space if the player
+        // is torn down (e.g. navigating away) while fullscreen.
+        if (this.isFullscreen()) {
+            void window.electron?.setMainWindowFullScreen?.(false);
         }
         this.immersive.setFullscreen(false);
         this.immersive.setRect(null);
+    }
+
+    private cancelPendingFullscreenRaf(): void {
+        if (this.pendingFullscreenRaf !== null) {
+            cancelAnimationFrame(this.pendingFullscreenRaf);
+            this.pendingFullscreenRaf = null;
+        }
     }
 
     retry(): void {

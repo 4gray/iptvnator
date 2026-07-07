@@ -317,13 +317,6 @@ export default class App {
     }
 
     private static attachWindowStateEvents(win: Electron.BrowserWindow): void {
-        // Only Windows/Linux render custom window controls that subscribe
-        // to these pushes; macOS keeps the native traffic lights, so
-        // sending state updates there would be dead IPC traffic.
-        if (process.platform === 'darwin') {
-            return;
-        }
-
         const sendWindowState = () => {
             if (win.isDestroyed()) {
                 return;
@@ -335,10 +328,18 @@ export default class App {
             });
         };
 
-        win.on('maximize', sendWindowState);
-        win.on('unmaximize', sendWindowState);
+        // Fullscreen state is needed on ALL platforms: the embedded-MPV player
+        // reconciles its in-app fullscreen presentation with OS-initiated exits
+        // (macOS green button / Ctrl+Cmd+F / ESC, which bypass the in-app button).
         win.on('enter-full-screen', sendWindowState);
         win.on('leave-full-screen', sendWindowState);
+
+        // The maximize pushes only drive the custom Windows/Linux title-bar
+        // controls; macOS uses native traffic lights, so they'd be dead traffic.
+        if (process.platform !== 'darwin') {
+            win.on('maximize', sendWindowState);
+            win.on('unmaximize', sendWindowState);
+        }
     }
 
     private static initMainWindow() {

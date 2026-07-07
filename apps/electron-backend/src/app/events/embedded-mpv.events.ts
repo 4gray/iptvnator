@@ -8,6 +8,7 @@ import {
     EMBEDDED_MPV_SET_ASPECT,
     EMBEDDED_MPV_SET_AUDIO_TRACK,
     EMBEDDED_MPV_SET_BOUNDS,
+    EMBEDDED_MPV_SET_FILL,
     EMBEDDED_MPV_SET_PAUSED,
     EMBEDDED_MPV_SET_SPEED,
     EMBEDDED_MPV_SET_SUBTITLE_TRACK,
@@ -79,6 +80,11 @@ handleEmbeddedMpv(
     EMBEDDED_MPV_SET_BOUNDS,
     (sessionId: string, bounds: EmbeddedMpvBounds) =>
         getService().setBounds(sessionId, bounds)
+);
+
+handleEmbeddedMpv(
+    EMBEDDED_MPV_SET_FILL,
+    (sessionId: string, fill: boolean) => getService().setFill(sessionId, fill)
 );
 
 handleEmbeddedMpv(

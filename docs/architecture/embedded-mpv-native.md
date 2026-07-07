@@ -150,7 +150,7 @@ covers the embedded-MPV-specific native/session internals.
 
 The Angular side of the embedded MPV player is intentionally split so the player component stays a view-only orchestrator. The renderer files live under `libs/ui/playback/src/lib/embedded-mpv-player/`:
 
-- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns the bounds-sync (resize/scroll/RAF), exposes `setBoundsProvider` / `triggerBoundsSync`, and delegates transport/track/recording commands to `EmbeddedMpvCommandRunner`.
+- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns the bounds-sync (resize/scroll/RAF), exposes `setBoundsProvider` / `triggerBoundsSync` / `setFill`, and delegates transport/track/recording commands to `EmbeddedMpvCommandRunner`.
 - `embedded-mpv-command-runner.ts` — `EmbeddedMpvCommandRunner`: the imperative IPC command surface (`togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `startRecording`, `stopRecording`) with optimistic snapshot reconciliation.
 - `embedded-mpv-session-factory.ts` — pure session-snapshot constructors (`createLoadingSession`, `createAttachingSession`, `createErrorSession`) and `waitForStartupPaint`.
 - `embedded-mpv-compositor.ts` — `measureBounds(host)` and bounds helpers that keep the native surface aligned with the Angular layout.
@@ -159,13 +159,13 @@ The Angular side of the embedded MPV player is intentionally split so the player
 - `embedded-mpv-labels.ts` — label/format helpers (`formatTime`, audio/subtitle/speed/aspect/volume labels) and the preset constants.
 - `embedded-mpv-stalled-tracker.ts` — `EmbeddedMpvStalledTracker` driving the "taking longer than expected" state.
 - `embedded-mpv-controls.adapter.ts` — `EmbeddedMpvControlsAdapter`, the `PlayerController` implementation bound by `app-player-controls`.
-- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and the `effect()`s (immersive activation, bounds→backdrop rect, session lifecycle, time/ended bridging).
+- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, dblclick), a window-state subscription that reconciles OS-initiated fullscreen exits, and the `effect()`s (immersive activation, bounds→backdrop rect, session lifecycle, time/ended bridging).
 
 ### Shipped path: immersive overlay
 
 The shipped embedded-MPV player composites the libmpv surface **below** the WebContents (`NSWindowBelow`) and keeps it **always full-bleed** — the controller's default `measureBounds` provider; there are no docked or cutout bound shapes. Because the web layer is on top, modals, popovers, and the inline `app-player-controls` all paint and receive input normally — no off-screen "hide the surface" trick is needed. The app stays opaque via the single global backdrop with a transparent hole at the video rect (`EmbeddedMpvImmersiveService` + `embedded-mpv-immersive-backdrop`). The `setBoundsProvider` hook remains for a future docked / bottom-mini-bar mode but is unused on the current full-bleed path. The full immersive design, and the rationale for choosing it over the earlier (rejected) child-window and docked-above approaches, are documented in [player-controls-refactor.md](./player-controls-refactor.md).
 
-Fullscreen runs the controls component's built-in `ControlsFullscreen` against the player root element: the root goes DOM-fullscreen, the surrounding chrome is hidden via `body.embedded-mpv-fullscreen` (backdrop off) so the transparent fullscreen surface reveals the native video filling the screen, and the bounds sync re-measures the new viewport. See `player-controls-refactor.md` for the immersive-overlay design.
+Fullscreen uses real macOS **native fullscreen** of the Electron window (`setMainWindowFullScreen` → `win.setFullScreen`) via the player-controls `PlayerFullscreenController` delegate — not DOM `requestFullscreen`. On enter the native surface is put in autoresize "fill" mode with its render frozen during macOS's snapshot transition (the last frame scales cleanly; the video briefly pauses, as the HTML5 player also does), and OS-initiated exits (green button / Ctrl+Cmd+F / ESC) are reconciled through the window-state bridge. See `player-controls-refactor.md` for the full fullscreen choreography.
 
 ### Reactivity rules (signals and effects)
 

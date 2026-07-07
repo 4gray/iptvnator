@@ -15,6 +15,7 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
+import { createFullscreenBinding } from './controls-fullscreen-binding';
 import { ControlsMenuSelection } from './controls-menu-selection';
 import { ControlsMenuState } from './controls-menu-state';
 import { ControlsShortcuts } from './controls-shortcuts';
@@ -23,7 +24,10 @@ import { ControlsVisibility } from './controls-visibility';
 import { createControlsViewModel } from './controls-view-model';
 import { ControlsVolume } from './controls-volume';
 import { formatTime, speedLabel } from './controls-format.utils';
-import type { PlayerController } from './player-controls.model';
+import type {
+    PlayerController,
+    PlayerFullscreenController,
+} from './player-controls.model';
 
 /**
  * Default, engine-agnostic player controls. Binds purely to a
@@ -44,6 +48,15 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly playerSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
     readonly shortcutsEnabled = input(true);
+    /**
+     * Optional fullscreen delegate. When provided, the fullscreen button is
+     * driven by this host-supplied controller instead of the built-in DOM
+     * `requestFullscreen` path. Web/PWA players leave this null and keep the
+     * built-in {@link ControlsFullscreen}.
+     */
+    readonly fullscreenController = input<PlayerFullscreenController | null>(
+        null
+    );
 
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
@@ -89,14 +102,22 @@ export class PlayerControlsComponent implements OnDestroy {
     get displayVolume() {
         return this.volume.value;
     }
-    readonly isFullscreen = this.fullscreen.isFullscreen;
+    /**
+     * Fullscreen affordance: prefers the {@link fullscreenController} delegate
+     * when a host supplies one; otherwise falls back to the built-in DOM helper.
+     */
+    private readonly fullscreenBinding = createFullscreenBinding({
+        delegate: this.fullscreenController,
+        builtIn: this.fullscreen,
+    });
+    readonly isFullscreen = this.fullscreenBinding.isFullscreen;
 
     private readonly vm = createControlsViewModel({
         state: this.state,
         capabilities: this.capabilities,
         volume: this.volume.value,
         isFullscreen: this.isFullscreen,
-        canFullscreenNative: () => this.fullscreen.canFullscreen(),
+        canFullscreenNative: () => this.fullscreenBinding.canToggle(),
         showControls: this.showControls,
         autoHideVisible: this.visibility.visible,
         anyMenuOpen: this.menus.anyOpen,
@@ -243,7 +264,7 @@ export class PlayerControlsComponent implements OnDestroy {
         if (!this.canFullscreen()) {
             return;
         }
-        await this.fullscreen.toggle();
+        await this.fullscreenBinding.toggle();
     }
 
     private adjustVolume(delta: number): void {

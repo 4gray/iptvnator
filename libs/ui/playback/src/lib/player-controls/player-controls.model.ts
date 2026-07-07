@@ -63,6 +63,19 @@ export interface PlayerControlsState {
     canNextEpisode: boolean;
 }
 
+/**
+ * Optional fullscreen delegate. When supplied to the controls component, it
+ * replaces the built-in DOM `requestFullscreen` path so a host (e.g. the
+ * embedded-MPV player) can drive its own fullscreen — for that player, real
+ * macOS native fullscreen of the Electron window. When omitted, web/PWA players
+ * keep the built-in DOM fullscreen behaviour.
+ */
+export interface PlayerFullscreenController {
+    readonly isFullscreen: Signal<boolean>;
+    canToggle(): boolean;
+    toggle(): void;
+}
+
 /** Imperative command surface. All fire-and-forget (void). */
 export interface PlayerControlsCommands {
     togglePlay(): void;

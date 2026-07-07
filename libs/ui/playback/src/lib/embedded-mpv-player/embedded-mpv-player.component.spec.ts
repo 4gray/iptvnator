@@ -280,3 +280,113 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         expect(fixture.nativeElement.textContent).toContain('--:--');
     });
 });
+
+describe('EmbeddedMpvPlayerComponent native fullscreen', () => {
+    type WindowState = { isMaximized: boolean; isFullScreen: boolean };
+    type ElectronGlobal = { electron?: unknown };
+
+    let fixture: ComponentFixture<EmbeddedMpvPlayerHostComponent>;
+    let player: EmbeddedMpvPlayerComponent;
+    let setMainWindowFullScreen: jest.Mock;
+    let windowStateCallback: ((state: WindowState) => void) | undefined;
+    const originalElectron = (window as unknown as ElectronGlobal).electron;
+
+    beforeEach(async () => {
+        setMainWindowFullScreen = jest.fn().mockResolvedValue(undefined);
+        windowStateCallback = undefined;
+        // Minimal bridge: enough to drive fullscreen, but no `getEmbeddedMpvSupport`
+        // so the session-creation effect stays dormant (nothing to mock/crash).
+        (window as unknown as ElectronGlobal).electron = {
+            platform: 'darwin',
+            setMainWindowFullScreen,
+            setEmbeddedMpvFill: jest.fn().mockResolvedValue(undefined),
+            setEmbeddedMpvBounds: jest.fn().mockResolvedValue(undefined),
+            onEmbeddedMpvSessionUpdate: () => () => undefined,
+            onWindowStateChange: (cb: (state: WindowState) => void) => {
+                windowStateCallback = cb;
+                return () => {
+                    windowStateCallback = undefined;
+                };
+            },
+        };
+
+        await TestBed.configureTestingModule({
+            imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
+        }).compileComponents();
+
+        fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
+        fixture.detectChanges();
+        player = fixture.debugElement.query(
+            By.directive(EmbeddedMpvPlayerComponent)
+        ).componentInstance;
+    });
+
+    afterEach(() => {
+        if (!(fixture as { destroyed?: boolean }).destroyed) {
+            fixture.destroy();
+        }
+        (window as unknown as ElectronGlobal).electron = originalElectron;
+    });
+
+    it('reconciles an OS-initiated fullscreen exit (green button / ESC) and does not re-drive the window', () => {
+        player.fullscreenController.toggle();
+        expect(player.isFullscreen()).toBe(true);
+
+        // The window left fullscreen outside the in-app button (broadcast push).
+        expect(windowStateCallback).toBeDefined();
+        windowStateCallback?.({ isMaximized: false, isFullScreen: false });
+
+        expect(player.isFullscreen()).toBe(false);
+        // It already left fullscreen, so reconciliation must NOT call back.
+        expect(setMainWindowFullScreen).not.toHaveBeenCalledWith(false);
+    });
+
+    it('exits OS fullscreen on teardown so the window is not stranded', () => {
+        player.fullscreenController.toggle();
+        expect(player.isFullscreen()).toBe(true);
+
+        fixture.destroy();
+
+        expect(setMainWindowFullScreen).toHaveBeenCalledWith(false);
+    });
+
+    it('does not touch OS fullscreen on teardown when not fullscreen', () => {
+        fixture.destroy();
+
+        expect(setMainWindowFullScreen).not.toHaveBeenCalledWith(false);
+    });
+
+    // Waits long enough for the fill microtask race + the two deferred frames.
+    const flushFullscreenDefer = () =>
+        new Promise<void>((resolve) => setTimeout(resolve, 100));
+
+    it('drives window fullscreen after the fill race and deferred frames', async () => {
+        player.fullscreenController.toggle();
+        await flushFullscreenDefer();
+        expect(setMainWindowFullScreen).toHaveBeenCalledWith(true);
+    });
+
+    it('does NOT drive window fullscreen if exited before the deferred frames run', async () => {
+        player.fullscreenController.toggle(); // enter (queues deferred request)
+        player.fullscreenController.toggle(); // exit before it runs
+        await flushFullscreenDefer();
+        expect(setMainWindowFullScreen).not.toHaveBeenCalledWith(true);
+    });
+
+    it('does NOT drive window fullscreen if destroyed before the deferred frames run', async () => {
+        player.fullscreenController.toggle(); // enter (queues deferred request)
+        fixture.destroy();
+        await flushFullscreenDefer();
+        expect(setMainWindowFullScreen).not.toHaveBeenCalledWith(true);
+    });
+
+    it('canToggle is false without the setEmbeddedMpvFill bridge', () => {
+        expect(player.fullscreenController.canToggle()).toBe(true);
+
+        (window as unknown as ElectronGlobal).electron = {
+            platform: 'darwin',
+            setMainWindowFullScreen,
+        };
+        expect(player.fullscreenController.canToggle()).toBe(false);
+    });
+});

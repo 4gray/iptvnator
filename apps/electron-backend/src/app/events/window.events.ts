@@ -10,6 +10,7 @@ import {
     WINDOW_CLOSE,
     WINDOW_GET_STATE,
     WINDOW_MINIMIZE,
+    WINDOW_SET_FULLSCREEN,
     WINDOW_TOGGLE_MAXIMIZE,
 } from '@iptvnator/shared/interfaces';
 
@@ -75,4 +76,12 @@ ipcMain.handle(WINDOW_CLOSE, (event) => {
 
 ipcMain.handle(WINDOW_GET_STATE, (event): WindowState => {
     return getWindowState(getSenderWindow(event));
+});
+
+// Real macOS native fullscreen (a dedicated Space, menu bar auto-hides) for the
+// embedded-MPV player. The renderer freezes the native video render during the
+// transition (the autoresizing surface scales the last frame, like a paused
+// video) so the system's fullscreen zoom animation doesn't snap the live frame.
+ipcMain.handle(WINDOW_SET_FULLSCREEN, (event, enabled: boolean) => {
+    getSenderWindow(event)?.setFullScreen(enabled);
 });

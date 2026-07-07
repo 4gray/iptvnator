@@ -1,7 +1,7 @@
 <div
     #playerRootEl
     class="embedded-mpv-player"
-    [class.embedded-mpv-player--fullscreen]="isFullscreen()"
+    [class.embedded-mpv-player--cover]="isFullscreen()"
     [class.embedded-mpv-player--cursor-hidden]="controls()?.hideCursor()"
 >
     <div #viewport class="embedded-mpv-player__viewport">
@@ -61,6 +61,7 @@
         <app-player-controls
             [controller]="adapter"
             [playerSurface]="playerRoot()?.nativeElement ?? null"
+            [fullscreenController]="fullscreenController"
             [showControls]="showControls()"
             [shortcutsEnabled]="true"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"

@@ -20,6 +20,12 @@ jest.mock('electron', () => ({
     },
 }));
 
+const mockApp = { mainWindow: null as unknown };
+jest.mock('../app', () => ({
+    __esModule: true,
+    default: mockApp,
+}));
+
 function createFakeWindow(
     initial: { maximized?: boolean; fullScreen?: boolean } = {}
 ) {
@@ -59,6 +65,7 @@ describe('WindowEvents', () => {
             'WINDOW:CLOSE',
             'WINDOW:GET_STATE',
             'WINDOW:MINIMIZE',
+            'WINDOW:SET_FULLSCREEN',
             'WINDOW:TOGGLE_MAXIMIZE',
         ]);
     });
@@ -126,6 +133,34 @@ describe('WindowEvents', () => {
             isMaximized: false,
             isFullScreen: false,
         });
+    });
+
+    it('toggles real native fullscreen on the sender window', () => {
+        const win = createFakeWindow() as ReturnType<typeof createFakeWindow> & {
+            setFullScreen: jest.Mock;
+        };
+        win.setFullScreen = jest.fn();
+        mockFromWebContents.mockReturnValue(win);
+
+        mockHandlers.get('WINDOW:SET_FULLSCREEN')!(fakeEvent, true);
+        expect(win.setFullScreen).toHaveBeenCalledWith(true);
+
+        mockHandlers.get('WINDOW:SET_FULLSCREEN')!(fakeEvent, false);
+        expect(win.setFullScreen).toHaveBeenLastCalledWith(false);
+    });
+
+    it('is a safe no-op when the sender window is destroyed', () => {
+        const win = createFakeWindow() as ReturnType<typeof createFakeWindow> & {
+            setFullScreen: jest.Mock;
+        };
+        win.setFullScreen = jest.fn();
+        win.isDestroyed.mockReturnValue(true);
+        mockFromWebContents.mockReturnValue(win);
+
+        expect(() =>
+            mockHandlers.get('WINDOW:SET_FULLSCREEN')!(fakeEvent, true)
+        ).not.toThrow();
+        expect(win.setFullScreen).not.toHaveBeenCalled();
     });
 
     it('treats a destroyed window like a missing window', () => {

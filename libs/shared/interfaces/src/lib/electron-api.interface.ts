@@ -526,6 +526,7 @@ export interface ElectronBridgeApi {
     toggleMaximizeWindow: () => Promise<ElectronBridgeWindowState>;
     closeWindow: () => Promise<void>;
     getWindowState: () => Promise<ElectronBridgeWindowState>;
+    setMainWindowFullScreen?: (enabled: boolean) => Promise<void>;
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
     ) => () => void;
@@ -867,6 +868,12 @@ export interface ElectronBridgeApi {
         sessionId: string,
         bounds: EmbeddedMpvBounds
     ) => Promise<void>;
+    /**
+     * Toggle fullscreen "fill" mode on the native embedded-MPV surface so it
+     * fills the window via an autoresizing mask and grows with the window's
+     * resize animation. Optional: older Electron bridges omit it.
+     */
+    setEmbeddedMpvFill?: (sessionId: string, fill: boolean) => Promise<void>;
     setEmbeddedMpvPaused: (
         sessionId: string,
         paused: boolean

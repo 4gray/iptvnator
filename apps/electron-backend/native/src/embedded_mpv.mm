@@ -121,6 +121,21 @@ struct Session {
     dispatch_queue_t renderQueue = nullptr;
     std::thread eventThread;
     std::atomic<bool> running{false};
+    // When true, the container view fills the host content view via an
+    // autoresizing mask and rides the window's resize animation (the fullscreen
+    // grow). Per-frame bounds syncs are ignored so a snapped setFrame can't
+    // interrupt that animation.
+    std::atomic<bool> fillMode{false};
+    // When true, mpv frame rendering is paused. Used during the fullscreen grow:
+    // active rendering into the (stale-size) GL drawable mid-animation snaps the
+    // image, but freezing it lets the last frame scale smoothly with the view
+    // (the same reason a PAUSED video grows cleanly). Resumed when the animation
+    // settles.
+    std::atomic<bool> renderFrozen{false};
+    // Bumped on every setSessionFill call so a deferred unfreeze timer can detect
+    // it was superseded by a newer fill cycle (rapid enter/exit/enter) and skip,
+    // instead of unfreezing mid-way through the new transition.
+    std::atomic<uint64_t> fillGeneration{0};
     std::atomic<bool> renderScheduled{false};
     std::atomic<bool> renderNeeded{false};
     std::atomic<uint64_t> renderedFrameCount{0};
@@ -372,6 +387,12 @@ void setSessionFrame(const std::shared_ptr<Session>& session, double x, double y
           return;
       }
 
+      // In fill mode the autoresizing mask owns the frame and animates it with
+      // the window; a snapped setFrame here would fight that, so skip the sync.
+      if (session->fillMode.load()) {
+          return;
+      }
+
       NSRect parentBounds = [session->parentView bounds];
       const CGFloat frameWidth = static_cast<CGFloat>(std::max(width, 0.0));
       const CGFloat frameHeight = static_cast<CGFloat>(std::max(height, 0.0));
@@ -386,13 +407,92 @@ void setSessionFrame(const std::shared_ptr<Session>& session, double x, double y
                                             fromView:session->parentView];
       }
 
+      // Snap the frame with NO implicit Core Animation. The container view is
+      // layer-backed, so a plain setFrame: animates position+size (~0.25s) —
+      // which made the surface visibly slide/grow on fullscreen and lag during
+      // window resizes. Disabling actions makes it track the bounds instantly.
+      [CATransaction begin];
+      [CATransaction setDisableActions:YES];
       [session->containerView setFrame:frameRect];
+      [CATransaction commit];
       if (session->openGLContext) {
           [session->openGLContext update];
       } else {
           [session->containerView setNeedsDisplay:YES];
       }
     });
+
+    updateRenderSurfaceMetrics(session);
+    requestRender(session);
+}
+
+// Approximate duration of the macOS fullscreen transition. Rendering is frozen
+// for this long during the transition so the last frame scales smoothly with the
+// view, then resumed at the final size.
+constexpr double kFillAnimationSeconds = 0.4;
+
+// Toggle fullscreen "fill" mode. On enable, snap the container to cover the host
+// content view NOW, give it a flexible autoresizing mask so it grows in lockstep
+// with the window's animated resize, and FREEZE rendering for the animation so
+// the last frame scales smoothly (active rendering into the stale-size drawable
+// would snap). On disable, drop the mask and resume; the next bounds sync
+// restores the inline rect.
+void setSessionFill(const std::shared_ptr<Session>& session, bool fill)
+{
+    session->fillMode.store(fill);
+    // Freeze before the snap so no in-flight frame draws at the new size.
+    session->renderFrozen.store(fill);
+    // Mark this fill cycle so a pending unfreeze timer from a previous cycle
+    // (e.g. a fast enter/exit/enter) knows it is stale and bows out.
+    const uint64_t generation = session->fillGeneration.fetch_add(1) + 1;
+    runOnMainSync(^{
+      if (!session->hostView || !session->containerView) {
+          return;
+      }
+      if (fill) {
+          session->containerView.autoresizingMask =
+              NSViewWidthSizable | NSViewHeightSizable;
+          [CATransaction begin];
+          [CATransaction setDisableActions:YES];
+          [session->containerView setFrame:[session->hostView bounds]];
+          [CATransaction commit];
+      } else {
+          session->containerView.autoresizingMask = NSViewNotSizable;
+      }
+      if (session->openGLContext) {
+          [session->openGLContext update];
+      } else {
+          [session->containerView setNeedsDisplay:YES];
+      }
+    });
+
+    if (fill) {
+        // Resume rendering once the transition has settled, re-reading the (now
+        // final) view size so mpv draws crisply at full resolution.
+        auto sessionCopy = session;
+        dispatch_after(
+            dispatch_time(
+                DISPATCH_TIME_NOW,
+                static_cast<int64_t>(kFillAnimationSeconds * NSEC_PER_SEC)
+            ),
+            dispatch_get_main_queue(),
+            ^{
+              if (!sessionCopy->fillMode.load() ||
+                  sessionCopy->fillGeneration.load() != generation) {
+                  // Exited fullscreen, or a newer fill cycle superseded this one,
+                  // before the animation settled.
+                  return;
+              }
+              if (sessionCopy->openGLContext) {
+                  [sessionCopy->openGLContext update];
+              }
+              updateRenderSurfaceMetrics(sessionCopy);
+              sessionCopy->renderFrozen.store(false);
+              requestRender(sessionCopy);
+            }
+        );
+        return;
+    }
 
     updateRenderSurfaceMetrics(session);
     requestRender(session);
@@ -406,6 +506,9 @@ void destroySession(const std::shared_ptr<Session>& session)
 
     session->running.store(false);
     session->renderNeeded.store(false);
+    // Defensive: never leave fill/freeze flags set on a torn-down session.
+    session->fillMode.store(false);
+    session->renderFrozen.store(false);
 
     if (session->displayLink) {
         CVDisplayLinkStop(session->displayLink);
@@ -685,6 +788,12 @@ void renderOpenGLFrame(const std::shared_ptr<Session>& session)
 void renderSessionFrame(const std::shared_ptr<Session>& session)
 {
     if (!session) {
+        return;
+    }
+
+    // Frozen during the fullscreen grow so the last frame scales smoothly with
+    // the animating view instead of snapping (see Session::renderFrozen).
+    if (session->renderFrozen.load()) {
         return;
     }
 
@@ -1957,6 +2066,20 @@ Napi::Value SetBounds(const Napi::CallbackInfo& info)
     return env.Undefined();
 }
 
+Napi::Value SetFill(const Napi::CallbackInfo& info)
+{
+    Napi::Env env = info.Env();
+    if (info.Length() < 2 || !info[0].IsString() || !info[1].IsBoolean()) {
+        throw Napi::TypeError::New(env, "Expected session id and fill flag.");
+    }
+
+    const std::string sessionId = info[0].As<Napi::String>().Utf8Value();
+    const auto session = getSessionOrThrow(env, sessionId);
+    setSessionFill(session, info[1].As<Napi::Boolean>().Value());
+
+    return env.Undefined();
+}
+
 Napi::Value SetPaused(const Napi::CallbackInfo& info)
 {
     Napi::Env env = info.Env();
@@ -2524,6 +2647,7 @@ Napi::Object Init(Napi::Env env, Napi::Object exports)
     exports.Set("createSession", Napi::Function::New(env, CreateSession));
     exports.Set("loadPlayback", Napi::Function::New(env, LoadPlayback));
     exports.Set("setBounds", Napi::Function::New(env, SetBounds));
+    exports.Set("setFill", Napi::Function::New(env, SetFill));
     exports.Set("setPaused", Napi::Function::New(env, SetPaused));
     exports.Set("seek", Napi::Function::New(env, Seek));
     exports.Set("setVolume", Napi::Function::New(env, SetVolume));

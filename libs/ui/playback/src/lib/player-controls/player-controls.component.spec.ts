@@ -283,6 +283,40 @@ describe('PlayerControlsComponent', () => {
         });
     });
 
+    describe('fullscreen delegate', () => {
+        it('routes clicks to the delegate and reflects its state (no native requestFullscreen)', () => {
+            const requestFullscreen = jest.fn(() => Promise.resolve());
+            Element.prototype.requestFullscreen = requestFullscreen;
+
+            const delegateState = signal(false);
+            const toggle = jest.fn(() => delegateState.set(!delegateState()));
+            const delegate = {
+                isFullscreen: delegateState.asReadonly(),
+                canToggle: () => true,
+                toggle,
+            };
+
+            setCapabilities({ fullscreen: true });
+            fixture.componentRef.setInput('fullscreenController', delegate);
+            fixture.detectChanges();
+
+            const button = query('[aria-label="Enter fullscreen"]');
+            expect(button).not.toBeNull();
+            button?.click();
+
+            expect(toggle).toHaveBeenCalledTimes(1);
+            expect(requestFullscreen).not.toHaveBeenCalled();
+
+            fixture.detectChanges();
+            // Icon/label now reflect the delegate's flipped state.
+            expect(query('[aria-label="Exit fullscreen"]')).not.toBeNull();
+            expect(fixture.componentInstance.isFullscreen()).toBe(true);
+
+            delete (Element.prototype as { requestFullscreen?: unknown })
+                .requestFullscreen;
+        });
+    });
+
     describe('episode navigation outputs', () => {
         it('emits previous/next episode requests when navigable', () => {
             const previous = jest.fn();

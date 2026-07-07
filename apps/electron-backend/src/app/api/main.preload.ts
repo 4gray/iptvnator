@@ -59,6 +59,7 @@ const WINDOW_TOGGLE_MAXIMIZE = 'WINDOW:TOGGLE_MAXIMIZE';
 const WINDOW_CLOSE = 'WINDOW:CLOSE';
 const WINDOW_GET_STATE = 'WINDOW:GET_STATE';
 const WINDOW_STATE_CHANGED = 'WINDOW:STATE_CHANGED';
+const WINDOW_SET_FULLSCREEN = 'WINDOW:SET_FULLSCREEN';
 
 const dbSaveContentProgressListeners = new Set<
     (
@@ -325,6 +326,8 @@ const electronApi: ElectronBridgeApi = {
     toggleMaximizeWindow: () => ipcRenderer.invoke(WINDOW_TOGGLE_MAXIMIZE),
     closeWindow: () => ipcRenderer.invoke(WINDOW_CLOSE),
     getWindowState: () => ipcRenderer.invoke(WINDOW_GET_STATE),
+    setMainWindowFullScreen: (enabled: boolean) =>
+        ipcRenderer.invoke(WINDOW_SET_FULLSCREEN, enabled),
     onWindowStateChange: (
         callback: (state: ElectronBridgeWindowState) => void
     ) => {
@@ -428,6 +431,8 @@ const electronApi: ElectronBridgeApi = {
         bounds: EmbeddedMpvBounds
     ): Promise<void> =>
         ipcRenderer.invoke('EMBEDDED_MPV_SET_BOUNDS', sessionId, bounds),
+    setEmbeddedMpvFill: (sessionId: string, fill: boolean): Promise<void> =>
+        ipcRenderer.invoke('EMBEDDED_MPV_SET_FILL', sessionId, fill),
     setEmbeddedMpvPaused: (
         sessionId: string,
         paused: boolean

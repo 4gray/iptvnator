@@ -46,7 +46,7 @@ layer see [`embedded-mpv-native.md`](./embedded-mpv-native.md).
 ### Lifecycle gates
 
 - Tunnel + backdrop activate **only when a frame is visible** (`status === playing | paused`) — never during loading/idle/error, so the UI is never see-through without video.
-- **Fullscreen:** player root goes DOM-fullscreen; the surrounding chrome is hidden (`body.embedded-mpv-fullscreen`) so the transparent fullscreen surface reveals the native video filling the screen; backdrop is off in fullscreen.
+- **Fullscreen:** real macOS **native fullscreen** of the Electron window (`setMainWindowFullScreen` → `win.setFullScreen`), supplied to `app-player-controls` via the optional `PlayerFullscreenController` delegate (web/PWA players omit it and keep built-in DOM fullscreen). On enter the player applies the CSS cover, hides chrome (`body.embedded-mpv-fullscreen`, backdrop off), and puts the native surface in autoresize **fill** mode with its render **frozen** so the last frame scales cleanly through macOS's snapshot animation — the video briefly pauses during the transition, as the HTML5 player also does. The OS-fullscreen call is deferred a couple of frames so macOS snapshots a clean full-bleed window (avoids a corner-image/flicker). The player **reconciles OS-initiated exits** (green button / Ctrl+Cmd+F / ESC) via `onWindowStateChange`, and drops the window out of fullscreen on teardown so it is never stranded.
 
 ---
 

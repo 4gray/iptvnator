@@ -30,22 +30,16 @@
     cursor: none;
 }
 
-.embedded-mpv-player:fullscreen,
-.embedded-mpv-player--fullscreen {
+// Fullscreen cover: the player root fills the viewport (transparent) while the
+// Electron window enters real macOS native fullscreen (setMainWindowFullScreen).
+// The native MPV surface composites beneath, so this layer stays see-through.
+.embedded-mpv-player--cover {
+    position: fixed;
+    inset: 0;
+    z-index: 2000;
     width: 100vw;
     height: 100vh;
     border-radius: 0;
-    background: transparent;
-}
-
-.embedded-mpv-player:fullscreen .embedded-mpv-player__viewport,
-.embedded-mpv-player--fullscreen .embedded-mpv-player__viewport {
-    background: transparent;
-}
-
-// The DOM fullscreen backdrop defaults to opaque black, which would cover the
-// native video composited beneath the WebContents — make it transparent.
-.embedded-mpv-player:fullscreen::backdrop {
     background: transparent;
 }
 

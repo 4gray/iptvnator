@@ -250,18 +250,54 @@ body.embedded-mpv-immersive :has(app-embedded-mpv-player) {
     background: transparent !important;
 }
 
-// Fullscreen: the player root goes DOM-fullscreen (transparent) over the native
-// video. Hide the surrounding chrome so the transparent fullscreen surface
-// reveals the video filling the screen instead of the UI behind it. (Same
-// per-route panel set as the repaint above; extend as routes are verified.)
-body.embedded-mpv-fullscreen app-workspace-shell-rail,
-body.embedded-mpv-fullscreen app-workspace-shell-header,
+// Fullscreen: the player covers the OS-fullscreen window (transparent) over
+// the native video. Hide the surrounding chrome so no opaque sibling floats
+// over the full-screen video. Unlike the structural tunnel above (ancestors
+// only), these are SIBLINGS of the player, so they must be listed explicitly —
+// keep the groups alphabetized and extend as routes are verified.
+// workspace shell chrome
 body.embedded-mpv-fullscreen app-workspace-shell-context-sidebar,
-body.embedded-mpv-fullscreen .sidebar.resizable-element,
+body.embedded-mpv-fullscreen app-workspace-shell-header,
+body.embedded-mpv-fullscreen app-workspace-shell-rail,
+body.embedded-mpv-fullscreen .workspace-now-playing,
+// route panels & sidebars (live layouts, unified collection: page header with
+// title/scope/content toggles, EPG panels, resizable channel sidebar and its
+// collapsed-state restore button)
 body.embedded-mpv-fullscreen app-live-epg-panel,
+body.embedded-mpv-fullscreen .collection-header,
 body.embedded-mpv-fullscreen .epg,
-body.embedded-mpv-fullscreen .workspace-now-playing {
+body.embedded-mpv-fullscreen .sidebar-restore,
+body.embedded-mpv-fullscreen .sidebar.resizable-element,
+// detail-page chrome (portal-detail-shell sections below/around the player,
+// and the inline player's own now-playing header: title / copy URL / close)
+body.embedded-mpv-fullscreen .player-shell__header,
+body.embedded-mpv-fullscreen .shell__about,
+body.embedded-mpv-fullscreen .shell__episodes,
+body.embedded-mpv-fullscreen .shell__extras,
+// M3U channel-number toast
+body.embedded-mpv-fullscreen .channel-number-overlay {
     display: none !important;
+}
+
+// The inline player's card chrome (border, rounded corners, shadow) would
+// otherwise float as an empty frame over the fullscreen video — the structural
+// tunnel only clears backgrounds. Windowed mode keeps the card look.
+body.embedded-mpv-fullscreen .player-shell,
+body.embedded-mpv-fullscreen .player-shell__viewport {
+    border: none !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    outline: none !important;
+}
+
+// The watch-state morph keeps a resolved transform on the player's ancestor
+// (animation-fill-mode: both -> translateY(0)). Any transform turns that
+// ancestor into the CONTAINING BLOCK for position:fixed, chaining the
+// fullscreen cover to the card box (clipped by the viewport's overflow) —
+// the controls overlay gets cut off. Drop it while fullscreen is active.
+body.embedded-mpv-fullscreen .shell__player {
+    animation: none !important;
+    transform: none !important;
 }
 
 // WCAG-friendly visually-hidden helper — content stays in the

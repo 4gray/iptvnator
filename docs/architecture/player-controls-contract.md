@@ -206,8 +206,6 @@ shipped path. See `player-controls-refactor.md` for the full rationale.
 
 ## File map
 
-Files marked (follow-up PR) land in the subsequent PRs of this series.
-
 ```
 libs/ui/playback/src/lib/player-controls/
 ├── player-controls.model.ts          # the contract (capabilities/state/commands)
@@ -218,7 +216,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-feedback.ts
 ├── controls-visibility.ts
 ├── controls-fullscreen.ts            # built-in DOM fullscreen
-├── controls-fullscreen-binding.ts    # (follow-up PR) resolves host fullscreen delegate vs built-in
+├── controls-fullscreen-binding.ts    # resolves host fullscreen delegate vs built-in
 ├── controls-volume.ts
 ├── controls-shortcuts.ts
 ├── controls-surface.ts
