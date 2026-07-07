@@ -1,6 +1,7 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { Channel } from '@iptvnator/shared/interfaces';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import type { ArtPlayerComponent as ArtPlayerComponentInstance } from './art-player.component';
 
 const artPlayerInstances: MockArtplayer[] = [];
@@ -103,6 +104,12 @@ describe('ArtPlayerComponent', () => {
 
         TestBed.configureTestingModule({
             imports: [ArtPlayerComponent],
+            // Pin the rollout flag OFF so these tests are deterministic
+            // regardless of the shipped default (the dedicated describe below
+            // overrides it to ON).
+            providers: [
+                { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: false },
+            ],
         });
     });
 
@@ -277,6 +284,27 @@ describe('ArtPlayerComponent', () => {
         fixture.destroy();
 
         expect(events).toEqual(['ended']);
+    });
+
+    it('keeps the ArtPlayer skin and no shared controls when the flag is OFF', () => {
+        createComponent({
+            url: 'https://example.com/movie.mp4',
+            name: 'Movie',
+        });
+
+        expect(component.sharedControls).toBe(false);
+        expect(artPlayerInstances[0].options['setting']).toBe(true);
+        expect(artPlayerInstances[0].options['fullscreen']).toBe(true);
+        expect(
+            fixture.debugElement.query(By.css('app-player-controls'))
+        ).toBeNull();
+        expect(
+            fixture.debugElement
+                .query(By.css('.art-player-shell'))
+                .nativeElement.classList.contains(
+                    'art-player-shell--shared-controls'
+                )
+        ).toBe(false);
     });
 
     it('hides series navigation controls when series navigation is absent', () => {

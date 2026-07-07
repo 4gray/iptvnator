@@ -9,12 +9,20 @@ import {
     OnInit,
     Output,
     SimpleChanges,
+    signal,
 } from '@angular/core';
 import Artplayer from 'artplayer';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { addHlsAudioTrackSettings } from './art-player-audio-tracks';
+import { buildArtPlayerChrome } from './art-player-chrome';
+import {
+    PlayerControlsComponent,
+    WEB_PLAYER_SHARED_CONTROLS,
+    WebVideoControlsAdapter,
+    attachWebVideoControls,
+} from '../player-controls';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
@@ -32,11 +40,21 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
 @Component({
     selector: 'app-art-player',
-    imports: [SeriesPlaybackNavigationControlsComponent],
+    imports: [
+        SeriesPlaybackNavigationControlsComponent,
+        PlayerControlsComponent,
+    ],
+    providers: [WebVideoControlsAdapter],
     templateUrl: './art-player.component.html',
     styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
+    /** Whether the shared `app-player-controls` chrome replaces ArtPlayer's. */
+    readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
+    readonly controlsAdapter = inject(WebVideoControlsAdapter);
+    private readonly seriesNavigationSignal =
+        signal<SeriesPlaybackNavigation | null>(null);
+    playerRoot: HTMLElement | null = null;
     @Input() channel!: Channel;
     @Input() volume = 1;
     @Input() showCaptions = false;
@@ -92,9 +110,13 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         if (changes['volume'] && this.player) {
             this.applyVolume(changes['volume'].currentValue);
         }
+        if (changes['seriesNavigation']) {
+            this.syncControlsContext();
+        }
     }
 
     private destroyPlayer(): void {
+        this.controlsAdapter.detach();
         if (this.mpegtsPlayer) {
             this.mpegtsPlayer.pause();
             this.mpegtsPlayer.unload();
@@ -137,6 +159,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         );
         const isLive = extension === 'm3u8' || extension === 'ts' || !extension;
 
+        const chrome = buildArtPlayerChrome(this.sharedControls);
+
         this.player = new Artplayer({
             container: el,
             url: this.channel.url + (this.channel.epgParams || ''),
@@ -144,21 +168,13 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
             isLive: isLive,
             autoplay: true,
             type: this.getVideoType(this.channel.url),
-            pip: true,
             autoPlayback: true,
             autoSize: true,
-            autoMini: true,
-            screenshot: true,
-            setting: true,
-            playbackRate: true,
-            aspectRatio: true,
-            fullscreen: true,
-            fullscreenWeb: true,
             playsInline: true,
-            airplay: true,
             backdrop: true,
             mutex: true,
             theme: '#ff0000',
+            ...chrome,
             customType: {
                 m3u8: (video: HTMLVideoElement, url: string) => {
                     if (Hls.isSupported()) {
@@ -247,6 +263,27 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
                 duration: this.player.duration,
             });
         });
+
+        if (this.sharedControls) {
+            this.playerRoot = this.elementRef.nativeElement.querySelector(
+                '.art-player-shell'
+            );
+            attachWebVideoControls({
+                video: this.player.video,
+                adapter: this.controlsAdapter,
+                options: { isLive: () => isLive },
+            });
+            this.syncControlsContext();
+        }
+    }
+
+    private syncControlsContext(): void {
+        this.seriesNavigationSignal.set(this.seriesNavigation);
+        if (this.sharedControls) {
+            this.controlsAdapter.setContext({
+                seriesNavigation: this.seriesNavigationSignal,
+            });
+        }
     }
 
     private applyVolume(value: number): void {

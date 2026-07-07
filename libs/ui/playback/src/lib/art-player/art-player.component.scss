@@ -16,3 +16,30 @@
     width: 100%;
     height: 100%;
 }
+
+// When the shared `app-player-controls` overlay owns the chrome, ArtPlayer must
+// neither show its own UI nor sit above the overlay.
+.art-player-shell--shared-controls {
+    .artplayer-container {
+        // `.art-video-player` is `position: relative` with no z-index, so its
+        // internal layers (up to z-index 120) would otherwise compete with — and
+        // beat — the sibling overlay (z-index 2) in the shell's stacking context.
+        // Isolating traps that stacking so the overlay always paints on top.
+        isolation: isolate;
+    }
+
+    // ArtPlayer's option flags only drop optional widgets; its core bottom bar,
+    // center mask/state, menus and toasts always render. Hide them so the shared
+    // controls are the only chrome. The video, poster and subtitle layers stay.
+    ::ng-deep .art-video-player {
+        .art-bottom,
+        .art-mask,
+        .art-settings,
+        .art-contextmenus,
+        .art-info,
+        .art-notice,
+        .art-loading {
+            display: none !important;
+        }
+    }
+}
