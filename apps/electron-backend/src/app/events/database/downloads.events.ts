@@ -260,16 +260,24 @@ ipcMain.handle(
                 'failed',
                 'canceled',
             ]);
+            const terminalFilter = playlistId
+                ? and(eq(schema.downloads.playlistId, playlistId), terminalStatus)
+                : terminalStatus;
+            const rows = await db
+                .select({
+                    filePath: schema.downloads.filePath,
+                    status: schema.downloads.status,
+                })
+                .from(schema.downloads)
+                .where(terminalFilter);
+            for (const row of rows) {
+                if (row.filePath && removablePartialStatuses.has(row.status)) {
+                    removePartialDownloadFile(row.filePath);
+                }
+            }
             await db
                 .delete(schema.downloads)
-                .where(
-                    playlistId
-                        ? and(
-                              eq(schema.downloads.playlistId, playlistId),
-                              terminalStatus
-                          )
-                        : terminalStatus
-                );
+                .where(terminalFilter);
             broadcastDownloadUpdate();
             return { success: true };
         } catch (error) {

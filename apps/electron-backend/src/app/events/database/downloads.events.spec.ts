@@ -91,6 +91,23 @@ describe('downloads events', () => {
         return { db, deleteWhere };
     }
 
+    function mockTerminalRows(
+        rows: Array<{ filePath: string | null; status: string }>
+    ) {
+        const deleteWhere = jest.fn().mockResolvedValue(undefined);
+        const selectWhere = jest.fn().mockResolvedValue(rows);
+        const db = {
+            delete: jest.fn(() => ({ where: deleteWhere })),
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: selectWhere,
+                })),
+            })),
+        };
+        mockGetDatabase.mockResolvedValue(db);
+        return { db, deleteWhere, selectWhere };
+    }
+
     it('removes queued resumed partial files before deleting the row', async () => {
         const { deleteWhere } = mockDownloadRow(createDownloadRow('queued'));
 
@@ -127,5 +144,55 @@ describe('downloads events', () => {
         }
 
         expect(deleteWhere).not.toHaveBeenCalled();
+    });
+
+    it('removes failed and canceled partial files before clearing terminal downloads', async () => {
+        const { deleteWhere } = mockTerminalRows([
+            { filePath: '/downloads/done.mp4', status: 'completed' },
+            { filePath: '/downloads/failed.mp4', status: 'failed' },
+            { filePath: '/downloads/canceled.mp4', status: 'canceled' },
+        ]);
+
+        await expect(
+            getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
+        ).resolves.toEqual({ success: true });
+
+        expect(mockRemovePartialDownloadFile).toHaveBeenCalledTimes(2);
+        expect(mockRemovePartialDownloadFile).toHaveBeenNthCalledWith(
+            1,
+            '/downloads/failed.mp4'
+        );
+        expect(mockRemovePartialDownloadFile).toHaveBeenNthCalledWith(
+            2,
+            '/downloads/canceled.mp4'
+        );
+        expect(
+            mockRemovePartialDownloadFile.mock.invocationCallOrder[0]
+        ).toBeLessThan(deleteWhere.mock.invocationCallOrder[0]);
+        expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not clear terminal downloads when retained partial cleanup fails', async () => {
+        const cleanupError = new Error('permission denied');
+        const { deleteWhere } = mockTerminalRows([
+            { filePath: '/downloads/failed.mp4', status: 'failed' },
+        ]);
+        mockRemovePartialDownloadFile.mockImplementation(() => {
+            throw cleanupError;
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            await expect(
+                getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
+            ).rejects.toBe(cleanupError);
+        } finally {
+            consoleError.mockRestore();
+        }
+
+        expect(deleteWhere).not.toHaveBeenCalled();
+        expect(mockBroadcastDownloadUpdate).not.toHaveBeenCalled();
     });
 });
