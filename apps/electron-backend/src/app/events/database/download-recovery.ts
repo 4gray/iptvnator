@@ -1,7 +1,10 @@
 import { inArray, sql } from 'drizzle-orm';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
-import { getPartialDownloadSize } from './download-file-path';
+import {
+    getPartialDownloadSize,
+    removePartialDownloadFile,
+} from './download-file-path';
 
 interface StaleDownload {
     filePath: string | null;
@@ -26,6 +29,22 @@ function getRecoverablePartialSize(download: StaleDownload): number {
     }
 }
 
+function removeFailedPartial(download: StaleDownload): void {
+    if (!download.filePath) {
+        return;
+    }
+
+    try {
+        removePartialDownloadFile(download.filePath);
+    } catch (error) {
+        console.error(
+            '[Downloads] Failed to delete interrupted partial file:',
+            download.filePath,
+            error
+        );
+    }
+}
+
 export async function resetStaleDownloads(): Promise<void> {
     try {
         const db = await getDatabase();
@@ -47,9 +66,10 @@ export async function resetStaleDownloads(): Promise<void> {
         const recoverableIds = new Set(
             recoverableDownloads.map((download) => download.id)
         );
-        const failedIds = staleDownloads
-            .filter((download) => !recoverableIds.has(download.id))
-            .map((download) => download.id);
+        const failedDownloads = staleDownloads.filter(
+            (download) => !recoverableIds.has(download.id)
+        );
+        const failedIds = failedDownloads.map((download) => download.id);
 
         for (const download of recoverableDownloads) {
             await db
@@ -65,6 +85,10 @@ export async function resetStaleDownloads(): Promise<void> {
         }
 
         if (failedIds.length > 0) {
+            for (const download of failedDownloads) {
+                removeFailedPartial(download);
+            }
+
             await db
                 .update(schema.downloads)
                 .set({

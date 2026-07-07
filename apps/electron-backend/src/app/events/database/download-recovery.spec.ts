@@ -82,6 +82,7 @@ describe('resetStaleDownloads', () => {
         }));
         jest.doMock('./download-file-path', () => ({
             getPartialDownloadSize: jest.fn(() => 64),
+            removePartialDownloadFile: jest.fn(),
         }));
 
         const { resetStaleDownloads } = await import('./download-recovery');
@@ -96,6 +97,57 @@ describe('resetStaleDownloads', () => {
         );
         expect(set).toHaveBeenCalledWith(
             expect.objectContaining({
+                filePath: null,
+                status: 'failed',
+            })
+        );
+    });
+
+    it('removes non-recoverable interrupted partial files before clearing the persisted path', async () => {
+        jest.resetModules();
+
+        const staleDownloads = [
+            {
+                filePath: '/downloads/empty.mp4',
+                id: 1,
+                status: 'downloading',
+                totalBytes: 100,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(staleDownloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const removePartialDownloadFile = jest.fn();
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile,
+        }));
+
+        const { resetStaleDownloads } = await import('./download-recovery');
+
+        await resetStaleDownloads();
+
+        expect(removePartialDownloadFile).toHaveBeenCalledWith(
+            '/downloads/empty.mp4'
+        );
+        expect(removePartialDownloadFile.mock.invocationCallOrder[0]).toBeLessThan(
+            set.mock.invocationCallOrder[0]
+        );
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                errorMessage: 'Download interrupted by application restart',
                 filePath: null,
                 status: 'failed',
             })

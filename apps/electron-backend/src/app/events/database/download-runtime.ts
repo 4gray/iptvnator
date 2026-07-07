@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
 import type { BrowserWindow } from 'electron';
-import { createWriteStream, existsSync } from 'node:fs';
-import { link, stat, unlink } from 'node:fs/promises';
+import { constants, createWriteStream, existsSync } from 'node:fs';
+import { copyFile, link, stat, unlink } from 'node:fs/promises';
 import { Readable } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 import { getDatabase } from '../../database/connection';
@@ -443,10 +443,33 @@ async function persistProgress(
 async function finalizePartialDownload(
     reservation: ReservedPartialDownloadFile
 ): Promise<number> {
-    await link(reservation.partialPath, reservation.path);
+    try {
+        await link(reservation.partialPath, reservation.path);
+    } catch (error) {
+        if (!canCopyCompletedPartialAfterLinkFailure(error)) {
+            throw error;
+        }
+        await copyFile(
+            reservation.partialPath,
+            reservation.path,
+            constants.COPYFILE_EXCL
+        );
+    }
     await unlink(reservation.partialPath);
     const fileStats = await stat(reservation.path);
     return fileStats.size;
+}
+
+function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
+    const errorCode = (error as NodeJS.ErrnoException).code;
+    return (
+        errorCode === 'EACCES' ||
+        errorCode === 'ENOSYS' ||
+        errorCode === 'ENOTSUP' ||
+        errorCode === 'EOPNOTSUPP' ||
+        errorCode === 'EPERM' ||
+        errorCode === 'EXDEV'
+    );
 }
 
 function getTotalBytes(

@@ -179,6 +179,7 @@ describe('download runtime pause and resume', () => {
             existsSync: jest.fn(() => false),
         }));
         jest.doMock('node:fs/promises', () => ({
+            copyFile: jest.fn(async () => undefined),
             link: jest.fn(async () => undefined),
             stat: jest.fn(async () => ({ size: 54 })),
             unlink: jest.fn(async () => undefined),
@@ -210,5 +211,87 @@ describe('download runtime pause and resume', () => {
             { allowPrivateNetworks: true }
         );
         await waitForStatus(set, 'completed');
+    });
+
+    it('falls back to copying the completed partial when hard links are unsupported', async () => {
+        jest.resetModules();
+
+        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const db = {
+            update: jest.fn(() => ({ set })),
+        };
+        const requestWithValidatedRedirects = jest.fn(
+            async () =>
+                ({
+                    data: Readable.from([Buffer.from('full')]),
+                    headers: { 'content-length': '4' },
+                    status: 200,
+                }) as never
+        );
+        const link = jest.fn(async () => {
+            const error = new Error('not supported') as NodeJS.ErrnoException;
+            error.code = 'EXDEV';
+            throw error;
+        });
+        const copyFile = jest.fn(async () => undefined);
+        const unlink = jest.fn(async () => undefined);
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('../../util/validated-axios', () => ({
+            requestWithValidatedRedirects,
+        }));
+        jest.doMock('node:fs', () => ({
+            ...jest.requireActual('node:fs'),
+            createWriteStream: jest.fn(() => new PassThrough()),
+            existsSync: jest.fn(() => false),
+        }));
+        jest.doMock('node:fs/promises', () => ({
+            copyFile,
+            link,
+            stat: jest.fn(async () => ({ size: 4 })),
+            unlink,
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadPath: (filePath: string) => `${filePath}.part`,
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile: jest.fn(),
+            reserveAvailablePartialDownloadFile: jest.fn(
+                (directory: string, filename: string) => ({
+                    filename,
+                    partialPath: `${directory}/${filename}.part`,
+                    path: `${directory}/${filename}`,
+                })
+            ),
+        }));
+
+        const runtime = await import('./download-runtime');
+        runtime.setMainWindow({
+            isDestroyed: () => false,
+            webContents: { send: jest.fn() },
+        } as never);
+
+        runtime.enqueueDownload(createTask());
+        await waitForCallCount(requestWithValidatedRedirects, 1);
+        await waitForStatus(set, 'completed');
+
+        expect(link).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            '/downloads/movie.mp4'
+        );
+        expect(copyFile).toHaveBeenCalledWith(
+            '/downloads/movie.mp4.part',
+            '/downloads/movie.mp4',
+            expect.any(Number)
+        );
+        expect(unlink).toHaveBeenCalledWith('/downloads/movie.mp4.part');
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 4,
+                filePath: '/downloads/movie.mp4',
+                status: 'completed',
+            })
+        );
     });
 });
