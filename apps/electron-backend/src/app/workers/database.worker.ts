@@ -770,7 +770,7 @@ async function executeRequest(message: DbWorkerRequestMessage) {
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {
-                updates: { content_id: number; position: number }[];
+                updates: { content_id: number; playlist_id: string; position: number }[];
             };
             return reorderGlobalFavorites(db, payload.updates);
         }

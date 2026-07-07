@@ -111,15 +111,19 @@ describe('favorites.operations', () => {
 
             await expect(
                 reorderGlobalFavorites(db, [
-                    { content_id: 30, position: 0 },
-                    { content_id: 10, position: 1 },
-                    { content_id: 20, position: 2 },
+                    { content_id: 30, playlist_id: 'p1', position: 0 },
+                    { content_id: 10, playlist_id: 'p1', position: 1 },
+                    { content_id: 20, playlist_id: 'p2', position: 2 },
                 ])
             ).resolves.toEqual({ success: true });
 
             expect(updatePrepare).toHaveBeenCalledTimes(1);
             expect(placeholderMock).toHaveBeenCalledWith('position');
             expect(placeholderMock).toHaveBeenCalledWith('contentId');
+            // Regression: favorites are playlist-scoped, so the UPDATE must
+            // filter by playlistId too — otherwise a same-contentId favorite
+            // in another playlist gets its position silently rewritten.
+            expect(placeholderMock).toHaveBeenCalledWith('playlistId');
             expect(transaction).toHaveBeenCalledTimes(1);
 
             // Regression (issue #1137): the prepared UPDATE must be dispatched
@@ -131,14 +135,17 @@ describe('favorites.operations', () => {
             expect(updateRun).toHaveBeenNthCalledWith(1, {
                 position: 0,
                 contentId: 30,
+                playlistId: 'p1',
             });
             expect(updateRun).toHaveBeenNthCalledWith(2, {
                 position: 1,
                 contentId: 10,
+                playlistId: 'p1',
             });
             expect(updateRun).toHaveBeenNthCalledWith(3, {
                 position: 2,
                 contentId: 20,
+                playlistId: 'p2',
             });
         });
     });

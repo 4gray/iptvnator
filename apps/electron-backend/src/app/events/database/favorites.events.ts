@@ -39,7 +39,7 @@ handleWorkerRequest('DB_GET_ALL_GLOBAL_FAVORITES', () => ({}));
 
 handleWorkerRequest(
     'DB_REORDER_GLOBAL_FAVORITES',
-    (updates: { content_id: number; position: number }[]) => ({
+    (updates: { content_id: number; playlist_id: string; position: number }[]) => ({
         updates,
     })
 );
