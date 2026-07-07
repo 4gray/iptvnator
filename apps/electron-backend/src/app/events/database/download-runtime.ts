@@ -220,6 +220,17 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
+        const completedPartialProgress = getCompletedPartialProgress(task);
+        if (completedPartialProgress) {
+            await completeDownloadFromPartial(
+                db,
+                task,
+                reservation,
+                completedPartialProgress
+            );
+            return;
+        }
+
         const progress = await transferToPartialFile(db, task, reservation);
         if (task.cancelRequested) {
             await persistCancellation(db, task);
@@ -230,34 +241,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        let fileSize: number;
-        try {
-            fileSize = await finalizePartialDownload(
-                reservation,
-                progress.bytesDownloaded
-            );
-        } catch (error) {
-            if (task.cancelRequested || task.pauseRequested) {
-                throw error;
-            }
-            await persistFinalizationFailure(
-                db,
-                task,
-                reservation,
-                progress,
-                error
-            );
-            return;
-        }
-
-        await persistCompletion(
-            db,
-            task,
-            reservation.filename,
-            reservation.path,
-            fileSize,
-            progress.totalBytes
-        );
+        await completeDownloadFromPartial(db, task, reservation, progress);
     } catch (error) {
         if (task.cancelRequested) {
             await persistCancellation(db, task);
@@ -310,6 +294,42 @@ async function startDownload(task: DownloadTask): Promise<void> {
         task.abortController = undefined;
         finishTask(task);
     }
+}
+
+async function completeDownloadFromPartial(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    reservation: ReservedPartialDownloadFile,
+    progress: TransferProgress
+): Promise<void> {
+    let fileSize: number;
+    try {
+        fileSize = await finalizePartialDownload(
+            reservation,
+            progress.bytesDownloaded
+        );
+    } catch (error) {
+        if (task.cancelRequested || task.pauseRequested) {
+            throw error;
+        }
+        await persistFinalizationFailure(
+            db,
+            task,
+            reservation,
+            progress,
+            error
+        );
+        return;
+    }
+
+    await persistCompletion(
+        db,
+        task,
+        reservation.filename,
+        reservation.path,
+        fileSize,
+        progress.totalBytes
+    );
 }
 
 async function persistCompletion(
@@ -536,14 +556,6 @@ async function transferToPartialFile(
 ): Promise<TransferProgress> {
     const resumeOffset = getPartialDownloadSize(reservation.path);
     if (task.totalBytes !== null && task.totalBytes !== undefined) {
-        if (resumeOffset === task.totalBytes) {
-            const progress = {
-                bytesDownloaded: resumeOffset,
-                totalBytes: task.totalBytes,
-            };
-            await persistProgress(db, task, progress);
-            return progress;
-        }
         if (resumeOffset > task.totalBytes) {
             throw new Error('Partial download is larger than expected');
         }

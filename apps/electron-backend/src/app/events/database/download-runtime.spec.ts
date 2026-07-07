@@ -521,7 +521,9 @@ describe('download runtime pause and resume', () => {
         jest.doMock('node:fs', () => ({
             ...jest.requireActual('node:fs'),
             createWriteStream: jest.fn(() => new PassThrough()),
-            existsSync: jest.fn(() => false),
+            existsSync: jest.fn((filePath: string) =>
+                filePath.endsWith('.part')
+            ),
         }));
         jest.doMock('node:fs/promises', () => ({
             copyFile: jest.fn(async () => undefined),
