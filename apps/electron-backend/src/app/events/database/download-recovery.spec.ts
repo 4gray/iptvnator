@@ -221,4 +221,103 @@ describe('resetStaleDownloads', () => {
             consoleError.mockRestore();
         }
     });
+
+    it('removes leftover partial files for completed downloads without changing their status', async () => {
+        jest.resetModules();
+
+        const downloads = [
+            {
+                filePath: '/downloads/movie.mp4',
+                id: 1,
+                status: 'completed',
+                totalBytes: 100,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(downloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const removePartialDownloadFile = jest.fn();
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(),
+            removePartialDownloadFile,
+        }));
+
+        const { resetStaleDownloads } = await import('./download-recovery');
+
+        await resetStaleDownloads();
+
+        expect(removePartialDownloadFile).toHaveBeenCalledWith(
+            '/downloads/movie.mp4'
+        );
+        expect(set).not.toHaveBeenCalled();
+    });
+
+    it('keeps completed downloads completed when leftover partial cleanup still fails', async () => {
+        jest.resetModules();
+
+        const downloads = [
+            {
+                filePath: '/downloads/movie.mp4',
+                id: 1,
+                status: 'completed',
+                totalBytes: 100,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(downloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const cleanupError = new Error('locked');
+        const removePartialDownloadFile = jest.fn(() => {
+            throw cleanupError;
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(),
+            removePartialDownloadFile,
+        }));
+
+        const { resetStaleDownloads } = await import('./download-recovery');
+
+        try {
+            await resetStaleDownloads();
+
+            expect(removePartialDownloadFile).toHaveBeenCalledWith(
+                '/downloads/movie.mp4'
+            );
+            expect(set).not.toHaveBeenCalled();
+            expect(consoleError).toHaveBeenCalledWith(
+                '[Downloads] Failed to delete completed partial file:',
+                '/downloads/movie.mp4',
+                cleanupError
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
 });

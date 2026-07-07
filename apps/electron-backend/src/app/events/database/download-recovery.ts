@@ -47,10 +47,26 @@ function removeFailedPartial(download: StaleDownload): boolean {
     }
 }
 
+function removeCompletedPartial(download: StaleDownload): void {
+    if (!download.filePath) {
+        return;
+    }
+
+    try {
+        removePartialDownloadFile(download.filePath);
+    } catch (error) {
+        console.error(
+            '[Downloads] Failed to delete completed partial file:',
+            download.filePath,
+            error
+        );
+    }
+}
+
 export async function resetStaleDownloads(): Promise<void> {
     try {
         const db = await getDatabase();
-        const staleDownloads = await db
+        const downloads = await db
             .select({
                 filePath: schema.downloads.filePath,
                 id: schema.downloads.id,
@@ -58,7 +74,19 @@ export async function resetStaleDownloads(): Promise<void> {
                 totalBytes: schema.downloads.totalBytes,
             })
             .from(schema.downloads)
-            .where(inArray(schema.downloads.status, ['queued', 'downloading']));
+            .where(
+                inArray(schema.downloads.status, [
+                    'queued',
+                    'downloading',
+                    'completed',
+                ])
+            );
+        const completedDownloads = downloads.filter(
+            (download) => download.status === 'completed'
+        );
+        const staleDownloads = downloads.filter(
+            (download) => download.status !== 'completed'
+        );
         const recoverableDownloads = staleDownloads
             .map((download) => ({
                 ...download,
@@ -81,6 +109,8 @@ export async function resetStaleDownloads(): Promise<void> {
         const failedIdsWithRetainedPartials = cleanupResult
             .filter((download) => !download.partialRemoved)
             .map((download) => download.id);
+
+        completedDownloads.forEach(removeCompletedPartial);
 
         for (const download of recoverableDownloads) {
             await db
