@@ -3,12 +3,14 @@
     [resultsCount]="xtreamStore.searchResults().length"
     [isLoading]="xtreamStore.isSearching()"
     [showCloseButton]="false"
+    [showBackButton]="showBackButton"
     [showResultsCount]="!isGlobalSearch || !groupByPlaylist()"
     [showSearchInput]="showInlineSearchInput"
     [minSearchLength]="minSearchLength"
     [initialDescriptionKey]="initialDescriptionKey"
     (searchTermChange)="updateSearchTerm($event)"
     (closeClick)="onCloseDialog()"
+    (backClick)="goBack()"
     (nearEnd)="loadMoreGlobalResults()"
 >
     <!-- Type filters -->
