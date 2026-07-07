@@ -1,6 +1,8 @@
 import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 
 const videoJsMock = jest.fn();
@@ -461,6 +463,58 @@ describe('VjsPlayerComponent', () => {
         nextButton.nativeElement.click();
 
         expect(events).toEqual(['next']);
+    });
+
+    it('keeps the Video.js control bar and no shared controls when the flag is OFF', () => {
+        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
+        fixture.componentRef.setInput('options', {
+            sources: [
+                { src: 'https://example.com/movie.mp4', type: 'video/mp4' },
+            ],
+        });
+        fixture.detectChanges();
+
+        expect(component.sharedControls).toBe(false);
+        expect(videoJsMock.mock.calls[0]?.[1]).not.toMatchObject({
+            controls: false,
+        });
+        expect(
+            fixture.debugElement.query(By.css('app-player-controls'))
+        ).toBeNull();
+    });
+
+    describe('with shared controls flag ON', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+            videoJsMock.mockReset();
+            await TestBed.configureTestingModule({
+                imports: [VjsPlayerComponent, TranslateModule.forRoot()],
+                providers: [
+                    { provide: WEB_PLAYER_SHARED_CONTROLS, useValue: true },
+                ],
+            }).compileComponents();
+
+            fixture = TestBed.createComponent(VjsPlayerComponent);
+            component = fixture.componentInstance;
+        });
+
+        it('disables the Video.js control bar and renders shared controls', () => {
+            videoJsMock.mockReturnValue(createVideoJsPlayerMock());
+            fixture.componentRef.setInput('options', {
+                sources: [
+                    { src: 'https://example.com/movie.mp4', type: 'video/mp4' },
+                ],
+            });
+            fixture.detectChanges();
+
+            expect(component.sharedControls).toBe(true);
+            expect(videoJsMock.mock.calls[0]?.[1]).toMatchObject({
+                controls: false,
+            });
+            expect(
+                fixture.debugElement.query(By.css('app-player-controls'))
+            ).not.toBeNull();
+        });
     });
 });
 
