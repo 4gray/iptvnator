@@ -305,6 +305,16 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(events).toEqual(['ended']);
     });
 
+    it('keeps the native skin and no shared controls when the flag is OFF', () => {
+        expect(component.sharedControls).toBe(false);
+        expect(
+            component.videoPlayer.nativeElement.hasAttribute('controls')
+        ).toBe(true);
+        expect(
+            fixture.debugElement.query(By.css('app-player-controls'))
+        ).toBeNull();
+    });
+
     it('hides series navigation controls when series navigation is absent', () => {
         expect(
             fixture.debugElement.query(
@@ -361,4 +371,5 @@ describe('HtmlVideoPlayerComponent', () => {
 
         expect(events).toEqual(['previous']);
     });
+
 });

@@ -9,12 +9,19 @@ import {
     OnInit,
     Output,
     SimpleChanges,
+    signal,
     ViewChild,
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
 import { DataService } from '@iptvnator/services';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
+import {
+    PlayerControlsComponent,
+    WEB_PLAYER_SHARED_CONTROLS,
+    WebVideoControlsAdapter,
+    attachWebVideoControls,
+} from '../player-controls';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
@@ -37,10 +44,20 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
     selector: 'app-html-video-player',
     templateUrl: './html-video-player.component.html',
     styleUrls: ['./html-video-player.component.scss'],
-    imports: [SeriesPlaybackNavigationControlsComponent],
+    imports: [
+        SeriesPlaybackNavigationControlsComponent,
+        PlayerControlsComponent,
+    ],
+    providers: [WebVideoControlsAdapter],
     standalone: true,
 })
 export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
+    /** Whether the shared `app-player-controls` chrome replaces the native skin. */
+    readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
+    readonly controlsAdapter = inject(WebVideoControlsAdapter);
+    private readonly seriesNavigationSignal =
+        signal<SeriesPlaybackNavigation | null>(null);
+    playerRoot: HTMLElement | null = null;
     /** Channel to play  */
     @Input() channel!: Channel;
     @Input() volume = 1;
@@ -56,6 +73,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Output() nextEpisodeRequested = new EventEmitter<void>();
 
     private readonly dataService = inject(DataService);
+    private readonly hostRef = inject<ElementRef<HTMLElement>>(ElementRef);
 
     /** Video player DOM element */
     @ViewChild('videoPlayer', { static: true })
@@ -139,6 +157,18 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             'ended',
             this.handlePlaybackEnded
         );
+
+        if (this.sharedControls) {
+            // Disable the native skin; the shared controls own the chrome.
+            this.videoPlayer.nativeElement.removeAttribute('controls');
+            this.playerRoot = this.hostRef.nativeElement;
+            attachWebVideoControls({
+                video: this.videoPlayer.nativeElement,
+                adapter: this.controlsAdapter,
+                options: { isLive: () => this.isLiveSource() },
+            });
+            this.syncControlsContext();
+        }
     }
 
     /**
@@ -157,6 +187,22 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.videoPlayer.nativeElement.volume =
                 changes['volume'].currentValue;
         }
+        if (changes['seriesNavigation']) {
+            this.syncControlsContext();
+        }
+    }
+
+    private syncControlsContext(): void {
+        this.seriesNavigationSignal.set(this.seriesNavigation);
+        if (this.sharedControls) {
+            this.controlsAdapter.setContext({
+                seriesNavigation: this.seriesNavigationSignal,
+            });
+        }
+    }
+
+    private isLiveSource(): boolean {
+        return !Number.isFinite(this.videoPlayer.nativeElement.duration);
     }
 
     /**
@@ -407,5 +453,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (this.hls) {
             this.hls.destroy();
         }
+        this.controlsAdapter.detach();
     }
 }

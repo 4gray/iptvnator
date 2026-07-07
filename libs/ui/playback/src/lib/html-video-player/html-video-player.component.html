@@ -6,9 +6,19 @@
         controls="true"
     ></video>
 
-    <app-series-playback-navigation-controls
-        [navigation]="seriesNavigation"
-        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-    />
+    @if (sharedControls) {
+        <app-player-controls
+            [controller]="controlsAdapter"
+            [playerSurface]="playerRoot"
+            [shortcutsEnabled]="true"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    } @else {
+        <app-series-playback-navigation-controls
+            [navigation]="seriesNavigation"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    }
 </div>
