@@ -31,6 +31,10 @@ interface TransferProgress {
     totalBytes: number | null;
 }
 
+interface CompletedPartialProgress extends TransferProgress {
+    filePath: string;
+}
+
 export function setMainWindow(win: BrowserWindow): void {
     mainWindow = win;
 }
@@ -226,7 +230,22 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        const fileSize = await finalizePartialDownload(reservation);
+        let fileSize: number;
+        try {
+            fileSize = await finalizePartialDownload(reservation);
+        } catch (error) {
+            if (task.cancelRequested || task.pauseRequested) {
+                throw error;
+            }
+            await persistFinalizationFailure(
+                db,
+                task,
+                reservation,
+                progress,
+                error
+            );
+            return;
+        }
 
         console.log(`[Downloads] Completed: ${reservation.filename}`);
         await db
@@ -248,6 +267,17 @@ async function startDownload(task: DownloadTask): Promise<void> {
         }
         if (task.pauseRequested) {
             await persistPause(db, task);
+            return;
+        }
+
+        const completedPartialProgress = getCompletedPartialProgress(task);
+        if (completedPartialProgress) {
+            await persistCompletedPartialFailure(
+                db,
+                task,
+                completedPartialProgress,
+                error
+            );
             return;
         }
 
@@ -332,6 +362,99 @@ async function persistPause(
     }
 }
 
+async function persistFinalizationFailure(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    reservation: ReservedPartialDownloadFile,
+    progress: TransferProgress,
+    error: unknown
+): Promise<void> {
+    await persistRetainedPartialFailure(
+        db,
+        task,
+        reservation.filename,
+        reservation.path,
+        progress,
+        error,
+        `[Downloads] Error finalizing ${reservation.filename}:`
+    );
+}
+
+async function persistCompletedPartialFailure(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    progress: CompletedPartialProgress,
+    error: unknown
+): Promise<void> {
+    await persistRetainedPartialFailure(
+        db,
+        task,
+        task.fileName,
+        progress.filePath,
+        progress,
+        error,
+        `[Downloads] Error downloading ${task.fileName}:`
+    );
+}
+
+async function persistRetainedPartialFailure(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    fileName: string,
+    filePath: string,
+    progress: TransferProgress,
+    error: unknown,
+    logMessage: string
+): Promise<void> {
+    console.error(logMessage, error);
+    const totalBytes = progress.totalBytes ?? progress.bytesDownloaded;
+    task.totalBytes = totalBytes;
+    await db
+        .update(schema.downloads)
+        .set({
+            bytesDownloaded: progress.bytesDownloaded,
+            errorMessage:
+                error instanceof Error ? error.message : String(error),
+            fileName,
+            filePath,
+            status: 'failed',
+            totalBytes,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.downloads.id, task.id));
+}
+
+function getCompletedPartialProgress(
+    task: DownloadTask
+): CompletedPartialProgress | null {
+    if (
+        !task.filePath ||
+        task.totalBytes === null ||
+        task.totalBytes === undefined
+    ) {
+        return null;
+    }
+
+    if (!existsSync(getPartialDownloadPath(task.filePath))) {
+        return null;
+    }
+
+    try {
+        const bytesDownloaded = getPartialDownloadSize(task.filePath);
+        if (bytesDownloaded !== task.totalBytes) {
+            return null;
+        }
+        return {
+            bytesDownloaded,
+            filePath: task.filePath,
+            totalBytes: task.totalBytes,
+        };
+    } catch (error) {
+        console.error('[Downloads] Failed to inspect partial file:', error);
+        return null;
+    }
+}
+
 function getPausedByteCount(task: DownloadTask): number {
     try {
         return getPartialDownloadSize(task.filePath);
@@ -347,6 +470,20 @@ async function transferToPartialFile(
     reservation: ReservedPartialDownloadFile
 ): Promise<TransferProgress> {
     const resumeOffset = getPartialDownloadSize(reservation.path);
+    if (task.totalBytes !== null && task.totalBytes !== undefined) {
+        if (resumeOffset === task.totalBytes) {
+            const progress = {
+                bytesDownloaded: resumeOffset,
+                totalBytes: task.totalBytes,
+            };
+            await persistProgress(db, task, progress);
+            return progress;
+        }
+        if (resumeOffset > task.totalBytes) {
+            throw new Error('Partial download is larger than expected');
+        }
+    }
+
     const headers = {
         ...(task.headers ?? {}),
     };

@@ -208,7 +208,6 @@ export async function retryDownloadRequest(
     authorizer: DownloadDirectoryAuthorizer
 ): Promise<{ success: boolean; error?: string }> {
     console.log('[Downloads] Retry download:', downloadId);
-    const directory = await authorizer.requireAuthorized(downloadFolder);
     const db = await getDatabase();
     const existing = await db
         .select()
@@ -229,24 +228,41 @@ export async function retryDownloadRequest(
         };
     }
 
-    const fileName = createFileName(item.title, item.url);
+    const retainedFilePath =
+        item.status === 'failed' && item.filePath ? item.filePath : null;
+    const directory = retainedFilePath
+        ? await authorizer.requireAuthorized(dirname(retainedFilePath))
+        : await authorizer.requireAuthorized(downloadFolder);
+    const fileName = retainedFilePath
+        ? basename(retainedFilePath)
+        : createFileName(item.title, item.url);
+    const queuedUpdate = retainedFilePath
+        ? {
+              errorMessage: null,
+              fileName,
+              status: 'queued' as const,
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+          }
+        : {
+              bytesDownloaded: 0,
+              errorMessage: null,
+              fileName,
+              filePath: null,
+              status: 'queued' as const,
+              totalBytes: null,
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+          };
     await db
         .update(schema.downloads)
-        .set({
-            bytesDownloaded: 0,
-            errorMessage: null,
-            fileName,
-            filePath: null,
-            status: 'queued',
-            totalBytes: null,
-            updatedAt: sql`CURRENT_TIMESTAMP`,
-        })
+        .set(queuedUpdate)
         .where(eq(schema.downloads.id, downloadId));
     enqueueDownload({
         directory,
         fileName,
+        filePath: retainedFilePath,
         headers: parseStoredHeaders(item.requestHeaders),
         id: item.id,
+        totalBytes: retainedFilePath ? item.totalBytes : null,
         url: item.url,
     });
     return { success: true };
