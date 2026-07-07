@@ -232,7 +232,10 @@ async function startDownload(task: DownloadTask): Promise<void> {
 
         let fileSize: number;
         try {
-            fileSize = await finalizePartialDownload(reservation);
+            fileSize = await finalizePartialDownload(
+                reservation,
+                progress.bytesDownloaded
+            );
         } catch (error) {
             if (task.cancelRequested || task.pauseRequested) {
                 throw error;
@@ -247,19 +250,14 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        console.log(`[Downloads] Completed: ${reservation.filename}`);
-        await db
-            .update(schema.downloads)
-            .set({
-                bytesDownloaded: fileSize,
-                errorMessage: null,
-                fileName: reservation.filename,
-                filePath: reservation.path,
-                status: 'completed',
-                totalBytes: progress.totalBytes ?? fileSize,
-                updatedAt: sql`CURRENT_TIMESTAMP`,
-            })
-            .where(eq(schema.downloads.id, task.id));
+        await persistCompletion(
+            db,
+            task,
+            reservation.filename,
+            reservation.path,
+            fileSize,
+            progress.totalBytes
+        );
     } catch (error) {
         if (task.cancelRequested) {
             await persistCancellation(db, task);
@@ -267,6 +265,21 @@ async function startDownload(task: DownloadTask): Promise<void> {
         }
         if (task.pauseRequested) {
             await persistPause(db, task);
+            return;
+        }
+
+        const existingCompletedFileProgress =
+            await getExistingCompletedFileProgress(task);
+        if (existingCompletedFileProgress) {
+            removePartialFile(existingCompletedFileProgress.filePath);
+            await persistCompletion(
+                db,
+                task,
+                task.fileName,
+                existingCompletedFileProgress.filePath,
+                existingCompletedFileProgress.bytesDownloaded,
+                existingCompletedFileProgress.totalBytes
+            );
             return;
         }
 
@@ -297,6 +310,29 @@ async function startDownload(task: DownloadTask): Promise<void> {
         task.abortController = undefined;
         finishTask(task);
     }
+}
+
+async function persistCompletion(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    fileName: string,
+    filePath: string,
+    fileSize: number,
+    totalBytes: number | null
+): Promise<void> {
+    console.log(`[Downloads] Completed: ${fileName}`);
+    await db
+        .update(schema.downloads)
+        .set({
+            bytesDownloaded: fileSize,
+            errorMessage: null,
+            fileName,
+            filePath,
+            status: 'completed',
+            totalBytes: totalBytes ?? fileSize,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.downloads.id, task.id));
 }
 
 function reserveTarget(task: DownloadTask): ReservedPartialDownloadFile {
@@ -422,6 +458,35 @@ async function persistRetainedPartialFailure(
             updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(eq(schema.downloads.id, task.id));
+}
+
+async function getExistingCompletedFileProgress(
+    task: DownloadTask
+): Promise<CompletedPartialProgress | null> {
+    if (
+        !task.filePath ||
+        task.totalBytes === null ||
+        task.totalBytes === undefined
+    ) {
+        return null;
+    }
+
+    try {
+        const fileStats = await stat(task.filePath);
+        if (fileStats.size !== task.totalBytes) {
+            return null;
+        }
+        return {
+            bytesDownloaded: fileStats.size,
+            filePath: task.filePath,
+            totalBytes: task.totalBytes,
+        };
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code !== 'ENOENT') {
+            console.error('[Downloads] Failed to inspect target file:', error);
+        }
+        return null;
+    }
 }
 
 function getCompletedPartialProgress(
@@ -579,7 +644,8 @@ async function persistProgress(
 }
 
 async function finalizePartialDownload(
-    reservation: ReservedPartialDownloadFile
+    reservation: ReservedPartialDownloadFile,
+    expectedFileSize: number
 ): Promise<number> {
     try {
         await link(reservation.partialPath, reservation.path);
@@ -593,9 +659,36 @@ async function finalizePartialDownload(
             constants.COPYFILE_EXCL
         );
     }
-    await unlink(reservation.partialPath);
+    try {
+        await unlink(reservation.partialPath);
+    } catch (error) {
+        const fileSize = await getExpectedFinalFileSize(
+            reservation.path,
+            expectedFileSize
+        );
+        if (fileSize !== null) {
+            console.error(
+                '[Downloads] Failed to delete completed partial file:',
+                error
+            );
+            return fileSize;
+        }
+        throw error;
+    }
     const fileStats = await stat(reservation.path);
     return fileStats.size;
+}
+
+async function getExpectedFinalFileSize(
+    filePath: string,
+    expectedFileSize: number
+): Promise<number | null> {
+    try {
+        const fileStats = await stat(filePath);
+        return fileStats.size === expectedFileSize ? fileStats.size : null;
+    } catch {
+        return null;
+    }
 }
 
 function canCopyCompletedPartialAfterLinkFailure(error: unknown): boolean {
