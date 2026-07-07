@@ -28,11 +28,6 @@ const appMock = {
     commandLine: commandLineMock,
 };
 
-jest.mock('electron', () => ({
-    app: appMock,
-    powerSaveBlocker: powerSaveBlockerMock,
-}));
-
 const mainWindowSendMock = jest.fn();
 const mainWindowGetNativeWindowHandleMock = jest.fn<Buffer, []>(() =>
     Buffer.alloc(8)
@@ -42,6 +37,11 @@ const mainWindowMock = {
     getNativeWindowHandle: mainWindowGetNativeWindowHandleMock,
     webContents: { send: mainWindowSendMock },
 };
+
+jest.mock('electron', () => ({
+    app: appMock,
+    powerSaveBlocker: powerSaveBlockerMock,
+}));
 
 jest.mock('../app', () => ({
     __esModule: true,

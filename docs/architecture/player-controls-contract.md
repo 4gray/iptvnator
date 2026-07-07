@@ -218,26 +218,27 @@ libs/ui/playback/src/lib/player-controls/
 ├── controls-feedback.ts
 ├── controls-visibility.ts
 ├── controls-fullscreen.ts            # built-in DOM fullscreen
+├── controls-fullscreen-binding.ts    # (follow-up PR) resolves host fullscreen delegate vs built-in
 ├── controls-volume.ts
 ├── controls-shortcuts.ts
 ├── controls-surface.ts
 ├── controls-view-model.ts
-├── controls-format.utils.ts          # formatTime intentionally duplicates embedded-mpv-player/embedded-mpv-format.utils.ts until the embedded-MPV PR consolidates consumption
+├── controls-format.utils.ts
 ├── web-video-controls.adapter.ts     # web <video> → contract
 ├── web-video-controls.host.ts        # wires web players to the adapter
 ├── web-player-controls.flag.ts       # WEB_PLAYER_SHARED_CONTROLS flag/token
 └── index.ts                          # barrel
 
 libs/ui/playback/src/lib/embedded-mpv-player/
-├── embedded-mpv-controls.adapter.ts        # (follow-up PR) libmpv session → contract
+├── embedded-mpv-controls.adapter.ts        # libmpv session → contract
 ├── embedded-mpv-session-controller.ts      # session lifecycle + IPC + bounds sync
-├── embedded-mpv-command-runner.ts          # (follow-up PR) imperative IPC command surface
-├── embedded-mpv-session-factory.ts         # (follow-up PR) pure session-snapshot constructors
-├── embedded-mpv-immersive.service.ts       # (follow-up PR) transparency-tunnel owner (active/fullscreen/rect)
-├── embedded-mpv-immersive-backdrop.component.ts  # (follow-up PR) opaque field + transparent hole at video rect
-├── embedded-mpv-compositor.ts              # (follow-up PR) pure full-bleed bounds provider (measureBounds)
-├── embedded-mpv-stalled-tracker.ts         # (follow-up PR) "taking longer than expected" state
-├── embedded-mpv-labels.ts                  # (follow-up PR) label/format helpers + presets
+├── embedded-mpv-command-runner.ts          # imperative IPC command surface
+├── embedded-mpv-session-factory.ts         # pure session-snapshot constructors
+├── embedded-mpv-immersive.service.ts       # transparency-tunnel owner (active/fullscreen/rect)
+├── embedded-mpv-immersive-backdrop.component.ts  # opaque field + transparent hole at video rect
+├── embedded-mpv-compositor.ts              # pure full-bleed bounds provider (measureBounds)
+├── embedded-mpv-stalled-tracker.ts         # "taking longer than expected" state
+├── embedded-mpv-labels.ts                  # label/format helpers + presets
 └── embedded-mpv-player.component.ts        # view shell: native surface + immersive overlay
 ```
 

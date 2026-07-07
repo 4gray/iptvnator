@@ -4,9 +4,6 @@
 }
 
 .embedded-mpv-player {
-    --embedded-mpv-accent: var(--mat-sys-primary, #7dd3fc);
-    --embedded-mpv-track: rgba(255, 255, 255, 0.28);
-    --embedded-mpv-thumb-ring: rgba(255, 255, 255, 0.95);
     --embedded-mpv-glass: color-mix(
         in srgb,
         var(--mat-sys-surface, #0f1620) 78%,
@@ -16,13 +13,15 @@
         --mat-sys-outline-variant,
         rgba(255, 255, 255, 0.16)
     );
-    --embedded-mpv-controls-height: 64px;
 
     position: relative;
     display: block;
     height: 100%;
     min-height: 0;
-    background: var(--mat-sys-surface);
+    // Transparent: the immersive overlay composites the native MPV surface
+    // BELOW the WebContents, so the player layers must be see-through for the
+    // video to show. The native view paints its own black letterbox bars.
+    background: transparent;
     border-radius: inherit;
     overflow: hidden;
 }
@@ -36,23 +35,29 @@
     width: 100vw;
     height: 100vh;
     border-radius: 0;
-    background: #000;
+    background: transparent;
 }
 
 .embedded-mpv-player:fullscreen .embedded-mpv-player__viewport,
 .embedded-mpv-player--fullscreen .embedded-mpv-player__viewport {
-    background: #000;
+    background: transparent;
 }
 
+// The DOM fullscreen backdrop defaults to opaque black, which would cover the
+// native video composited beneath the WebContents — make it transparent.
+.embedded-mpv-player:fullscreen::backdrop {
+    background: transparent;
+}
+
+/*
+ * Full-bleed (inset: 0) and transparent so the native MPV surface beneath the
+ * WebContents shows through and the inline controls float over the video.
+ */
 .embedded-mpv-player__viewport {
     position: absolute;
     inset: 0;
     min-height: 0;
-    background: var(--mat-sys-surface);
-}
-
-.embedded-mpv-player--controls-enabled .embedded-mpv-player__viewport {
-    bottom: var(--embedded-mpv-controls-height);
+    background: transparent;
 }
 
 .embedded-mpv-player__loader {
@@ -100,51 +105,6 @@
     color: color-mix(in srgb, var(--mat-sys-on-surface) 84%, transparent);
 }
 
-.embedded-mpv-player__feedback {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    padding: 10px 18px;
-    color: var(--mat-sys-on-surface);
-    background: color-mix(in srgb, #000 65%, transparent);
-    border-radius: 999px;
-    font-size: 0.95rem;
-    font-variant-numeric: tabular-nums;
-    pointer-events: none;
-    z-index: 2;
-    animation: embedded-mpv-feedback 700ms ease-out forwards;
-}
-
-.embedded-mpv-player__feedback mat-icon {
-    font-size: 22px;
-    width: 22px;
-    height: 22px;
-    color: #ffffff;
-}
-
-@keyframes embedded-mpv-feedback {
-    0% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(0.92);
-    }
-    18% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    70% {
-        opacity: 1;
-        transform: translate(-50%, -50%) scale(1);
-    }
-    100% {
-        opacity: 0;
-        transform: translate(-50%, -50%) scale(1);
-    }
-}
-
 .embedded-mpv-player__status {
     position: absolute;
     inset: 16px 16px auto auto;
@@ -159,364 +119,4 @@
     line-height: 1.4;
     pointer-events: none;
     z-index: 1;
-}
-
-.embedded-mpv-player__controls {
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    left: 0;
-    z-index: 2;
-    display: grid;
-    grid-template-columns: auto minmax(0, 1fr) auto;
-    gap: 16px;
-    align-items: center;
-    align-content: center;
-    min-height: var(--embedded-mpv-controls-height);
-    padding: 8px 16px 10px;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(8px);
-    background: var(--embedded-mpv-glass);
-    border-top: 1px solid var(--embedded-mpv-border);
-    backdrop-filter: blur(18px);
-    transition:
-        opacity 180ms ease-out,
-        transform 200ms ease-out;
-}
-
-.embedded-mpv-player__controls--visible {
-    opacity: 1;
-    pointer-events: auto;
-    transform: translateY(0);
-}
-
-.embedded-mpv-player__transport {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.embedded-mpv-player__timeline {
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-    min-width: 0;
-}
-
-.embedded-mpv-player__time {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    gap: 12px;
-    color: color-mix(in srgb, var(--mat-sys-on-surface) 84%, transparent);
-    font-size: 0.78rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.embedded-mpv-player__recording-status {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    min-width: 0;
-    color: color-mix(in srgb, var(--mat-sys-on-surface) 78%, transparent);
-    font-size: 0.72rem;
-    font-variant-numeric: tabular-nums;
-}
-
-.embedded-mpv-player__recording-status mat-icon {
-    flex: 0 0 auto;
-    width: 16px;
-    height: 16px;
-    font-size: 16px;
-    color: var(--mat-sys-primary);
-}
-
-.embedded-mpv-player__recording-status span {
-    min-width: 0;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.embedded-mpv-player__recording-status--active {
-    color: var(--mat-sys-error);
-    font-weight: 700;
-}
-
-.embedded-mpv-player__recording-status--active mat-icon {
-    color: var(--mat-sys-error);
-}
-
-.embedded-mpv-player__live-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 6px;
-    padding: 2px 8px;
-    border-radius: 4px;
-    color: var(--mat-sys-on-error);
-    background: var(--mat-sys-error);
-    font-size: 0.66rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-}
-
-.embedded-mpv-player__live-dot {
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    background: currentColor;
-    animation: embedded-mpv-live-pulse 1.6s ease-in-out infinite;
-}
-
-@keyframes embedded-mpv-live-pulse {
-    50% {
-        opacity: 0.35;
-    }
-}
-
-.embedded-mpv-player__actions {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
-
-.embedded-mpv-player__popover-anchor {
-    position: relative;
-    display: flex;
-}
-
-.embedded-mpv-player__control-button {
-    position: relative;
-}
-
-.embedded-mpv-player__record-button--active {
-    color: var(--mat-sys-error) !important;
-}
-
-.embedded-mpv-player__slider {
-    --slider-progress: 0%;
-    width: 100%;
-    height: 18px;
-    appearance: none;
-    -webkit-appearance: none;
-    background: transparent;
-    cursor: pointer;
-}
-
-.embedded-mpv-player__slider:focus-visible {
-    outline: 2px solid var(--embedded-mpv-accent);
-    outline-offset: 4px;
-    border-radius: 4px;
-}
-
-/* WebKit / Chromium — track shows played portion via linear-gradient. */
-.embedded-mpv-player__slider::-webkit-slider-runnable-track {
-    height: 4px;
-    border-radius: 999px;
-    background: linear-gradient(
-        to right,
-        var(--embedded-mpv-accent) var(--slider-progress),
-        var(--embedded-mpv-track) var(--slider-progress)
-    );
-}
-
-.embedded-mpv-player__slider::-webkit-slider-thumb {
-    -webkit-appearance: none;
-    appearance: none;
-    width: 14px;
-    height: 14px;
-    margin-top: -5px;
-    border: 2px solid var(--embedded-mpv-thumb-ring);
-    border-radius: 50%;
-    background: var(--embedded-mpv-accent);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
-    transition: transform 120ms ease-out;
-}
-
-.embedded-mpv-player__slider:hover::-webkit-slider-thumb,
-.embedded-mpv-player__slider:focus-visible::-webkit-slider-thumb {
-    transform: scale(1.18);
-}
-
-.embedded-mpv-player__slider:disabled::-webkit-slider-runnable-track {
-    background: var(--embedded-mpv-track);
-}
-
-.embedded-mpv-player__slider:disabled::-webkit-slider-thumb {
-    background: rgba(255, 255, 255, 0.45);
-    border-color: rgba(255, 255, 255, 0.6);
-    box-shadow: none;
-}
-
-/* Firefox — native ::-moz-range-progress for played portion. */
-.embedded-mpv-player__slider::-moz-range-track {
-    height: 4px;
-    border-radius: 999px;
-    background: var(--embedded-mpv-track);
-}
-
-.embedded-mpv-player__slider::-moz-range-progress {
-    height: 4px;
-    border-radius: 999px;
-    background: var(--embedded-mpv-accent);
-}
-
-.embedded-mpv-player__slider::-moz-range-thumb {
-    width: 14px;
-    height: 14px;
-    border: 2px solid var(--embedded-mpv-thumb-ring);
-    border-radius: 50%;
-    background: var(--embedded-mpv-accent);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
-    transition: transform 120ms ease-out;
-}
-
-.embedded-mpv-player__slider:hover::-moz-range-thumb,
-.embedded-mpv-player__slider:focus-visible::-moz-range-thumb {
-    transform: scale(1.18);
-}
-
-.embedded-mpv-player__slider:disabled::-moz-range-thumb {
-    background: rgba(255, 255, 255, 0.45);
-    border-color: rgba(255, 255, 255, 0.6);
-    box-shadow: none;
-}
-
-.embedded-mpv-player__control-panel {
-    min-width: 0;
-    color: var(--mat-sys-on-surface);
-    background: var(--embedded-mpv-glass);
-    border: 1px solid var(--embedded-mpv-border);
-    border-radius: 14px;
-    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
-    backdrop-filter: blur(18px);
-}
-
-.embedded-mpv-player__volume-popover {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
-    display: grid;
-    grid-template-columns: minmax(160px, 200px);
-    gap: 4px;
-    padding: 12px 14px 10px;
-    z-index: 3;
-}
-
-.embedded-mpv-player__volume-popover::before {
-    /* Hover-bridge so the cursor can move from the button to the popover
-       without crossing a dead zone. */
-    content: '';
-    position: absolute;
-    left: 0;
-    right: 0;
-    bottom: -8px;
-    height: 8px;
-}
-
-.embedded-mpv-player__volume-popover .embedded-mpv-player__slider--volume {
-    width: 100%;
-}
-
-.embedded-mpv-player__volume-value {
-    color: color-mix(in srgb, var(--mat-sys-on-surface) 80%, transparent);
-    font-size: 0.74rem;
-    font-variant-numeric: tabular-nums;
-    text-align: right;
-    white-space: nowrap;
-}
-
-.embedded-mpv-player__audio-popover {
-    position: absolute;
-    bottom: calc(100% + 6px);
-    right: 0;
-    min-width: 220px;
-    max-width: min(420px, 80vw);
-    padding: 10px 12px;
-    z-index: 3;
-}
-
-.embedded-mpv-player__menu-title {
-    padding: 0 2px 6px;
-    color: color-mix(in srgb, var(--mat-sys-on-surface) 70%, transparent);
-    font-size: 0.7rem;
-    font-weight: 700;
-    letter-spacing: 0.08em;
-    text-transform: uppercase;
-    white-space: nowrap;
-}
-
-.embedded-mpv-player__audio-track-list {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    max-height: 240px;
-    overflow-y: auto;
-    scrollbar-width: thin;
-}
-
-.embedded-mpv-player__audio-track {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 12px;
-    padding: 8px 10px;
-    color: var(--mat-sys-on-surface);
-    background: transparent;
-    border: 0;
-    border-radius: 10px;
-    cursor: pointer;
-    font: inherit;
-    text-align: left;
-}
-
-.embedded-mpv-player__audio-track span {
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-}
-
-.embedded-mpv-player__audio-track:hover,
-.embedded-mpv-player__audio-track:focus-visible,
-.embedded-mpv-player__audio-track--selected {
-    background: color-mix(in srgb, var(--embedded-mpv-accent) 16%, transparent);
-}
-
-.embedded-mpv-player__audio-track mat-icon {
-    color: var(--embedded-mpv-accent);
-    font-size: 18px;
-    width: 18px;
-    height: 18px;
-}
-
-.embedded-mpv-player :is(button[mat-icon-button]) {
-    color: var(--mat-sys-on-surface);
-}
-
-.embedded-mpv-player :is(button[mat-icon-button]:hover) {
-    color: var(--mat-sys-on-surface);
-    background: color-mix(in srgb, var(--embedded-mpv-accent) 14%, transparent);
-}
-
-@media (max-width: 720px) {
-    .embedded-mpv-player {
-        --embedded-mpv-controls-height: 88px;
-    }
-
-    .embedded-mpv-player__controls {
-        grid-template-columns: 1fr;
-        gap: 8px;
-    }
-
-    .embedded-mpv-player__actions {
-        justify-content: flex-end;
-        min-width: 0;
-    }
-
-    .embedded-mpv-player__volume-popover,
-    .embedded-mpv-player__audio-popover {
-        right: 0;
-        left: auto;
-    }
 }

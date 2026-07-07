@@ -1,14 +1,38 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
+import { PlayerControlsComponent } from '../player-controls';
 import { EmbeddedMpvPlayerComponent } from './embedded-mpv-player.component';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
+
+/**
+ * English values for the shared player-controls labels (localized via
+ * ngx-translate). Loaded so DOM queries can match the rendered aria-labels.
+ */
+const PLAYER_CONTROLS_EN = {
+    EMBEDDED_MPV: {
+        PLAYER: {
+            PLAY: 'Play',
+            PAUSE: 'Pause',
+            PREVIOUS_EPISODE: 'Previous episode',
+            NEXT_EPISODE: 'Next episode',
+            BACK_10_SECONDS: 'Back 10 seconds',
+            FORWARD_10_SECONDS: 'Forward 10 seconds',
+            LIVE_STREAM: 'Live stream',
+            MUTE: 'Mute',
+            UNMUTE: 'Unmute',
+            VOLUME: 'Volume',
+            VOLUME_LABEL: 'Volume {{percent}}%',
+            ENTER_FULLSCREEN: 'Enter fullscreen',
+            EXIT_FULLSCREEN: 'Exit fullscreen',
+        },
+    },
+};
 
 @Component({
     imports: [EmbeddedMpvPlayerComponent],
@@ -98,13 +122,11 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
-            providers: [
-                {
-                    provide: EmbeddedMpvOverlayVisibilityService,
-                    useValue: { overlayActive: signal(false) },
-                },
-            ],
         }).compileComponents();
+
+        const translate = TestBed.inject(TranslateService);
+        translate.setTranslation('en', PLAYER_CONTROLS_EN);
+        translate.use('en');
 
         fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
         fixture.detectChanges();
@@ -118,10 +140,10 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
     it('renders previous and next episode controls with season boundary disabled state', () => {
         const previousButton = fixture.debugElement.query(
-            By.css('[data-test-id="embedded-mpv-previous-episode"]')
+            By.css('[data-test-id="player-controls-previous-episode"]')
         );
         const nextButton = fixture.debugElement.query(
-            By.css('[data-test-id="embedded-mpv-next-episode"]')
+            By.css('[data-test-id="player-controls-next-episode"]')
         );
 
         expect(previousButton).not.toBeNull();
@@ -134,6 +156,38 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
         expect(fixture.componentInstance.previousCount).toBe(1);
         expect(fixture.componentInstance.nextCount).toBe(0);
+    });
+
+    it('renders the inline controls docked over an opaque root', () => {
+        // Docked path: the inline app-player-controls render in the main window
+        // and the root stays opaque — the native surface is composited above
+        // the WebContents and shrunk to expose the controls strip.
+        const controlsDebugElement = fixture.debugElement.query(
+            By.directive(PlayerControlsComponent)
+        );
+        expect(controlsDebugElement).not.toBeNull();
+
+        const root = fixture.debugElement.query(
+            By.css('.embedded-mpv-player')
+        );
+        expect(
+            (root.nativeElement as HTMLElement).classList.contains(
+                'embedded-mpv-player--transparent'
+            )
+        ).toBe(false);
+    });
+
+    it('passes the player root element (not a signal) as the docked controls surface', () => {
+        const controlsDebugElement = fixture.debugElement.query(
+            By.directive(PlayerControlsComponent)
+        );
+        expect(controlsDebugElement).not.toBeNull();
+
+        const controls =
+            controlsDebugElement.componentInstance as PlayerControlsComponent;
+        // S4 regression: the docked template must unwrap the viewChild signal
+        // (playerRoot()?.nativeElement) rather than binding the signal itself.
+        expect(controls.playerSurface()).toBeInstanceOf(HTMLElement);
     });
 
     it('emits playbackEnded exactly once for an ended session snapshot', () => {
@@ -180,170 +234,33 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
         expect(
             fixture.debugElement.query(
-                By.css('[data-test-id="embedded-mpv-previous-episode"]')
+                By.css('[data-test-id="player-controls-previous-episode"]')
             )
         ).toBeNull();
         expect(
             fixture.debugElement.query(
-                By.css('[data-test-id="embedded-mpv-next-episode"]')
+                By.css('[data-test-id="player-controls-next-episode"]')
             )
         ).toBeNull();
         expect(
             fixture.debugElement.query(
-                By.css('.embedded-mpv-player__live-badge')
+                By.css('.player-controls__live-badge')
             )
         ).not.toBeNull();
         expect(
             fixture.debugElement.query(
-                By.css(
-                    'button[aria-label="EMBEDDED_MPV.PLAYER.BACK_10_SECONDS"]'
-                )
+                By.css('button[aria-label="Back 10 seconds"]')
             ).nativeElement.disabled
         ).toBe(true);
         expect(
             fixture.debugElement.query(
-                By.css(
-                    'button[aria-label="EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS"]'
-                )
+                By.css('button[aria-label="Forward 10 seconds"]')
             ).nativeElement.disabled
         ).toBe(true);
         expect(
-            fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
+            fixture.debugElement.query(By.css('.player-controls__slider'))
                 .nativeElement.disabled
         ).toBe(true);
-    });
-
-    it('re-evaluates instant()-based labels when the language changes', () => {
-        const translate = TestBed.inject(TranslateService);
-        translate.setTranslation('en', {
-            EMBEDDED_MPV: { PLAYER: { ENTER_FULLSCREEN: 'Enter fullscreen' } },
-        });
-        translate.use('en');
-        expect(player.fullscreenLabel()).toBe('Enter fullscreen');
-
-        translate.setTranslation('de', {
-            EMBEDDED_MPV: { PLAYER: { ENTER_FULLSCREEN: 'Vollbild starten' } },
-        });
-        translate.use('de');
-
-        // translate.instant() is invisible to the signal graph; the
-        // translationsTick dependency must invalidate the computed.
-        expect(player.fullscreenLabel()).toBe('Vollbild starten');
-    });
-
-    describe('timeline scrubbing', () => {
-        const slider = () =>
-            fixture.debugElement.query(
-                By.css('.embedded-mpv-player__slider')
-            ).nativeElement as HTMLInputElement;
-
-        const dispatch = (type: string, value: string) => {
-            slider().value = value;
-            slider().dispatchEvent(new Event(type, { bubbles: true }));
-            fixture.detectChanges();
-        };
-
-        it('previews the drag position locally without firing seeks', () => {
-            const seekTo = jest
-                .spyOn(controller, 'seekTo')
-                .mockResolvedValue(undefined);
-
-            dispatch('input', '55');
-            dispatch('input', '60');
-
-            expect(seekTo).not.toHaveBeenCalled();
-            expect(player.timelineValue()).toBe(60);
-            expect(fixture.nativeElement.textContent).toContain('01:00');
-        });
-
-        it('commits a single seek on release and returns to session position', () => {
-            const seekTo = jest
-                .spyOn(controller, 'seekTo')
-                .mockResolvedValue(undefined);
-
-            dispatch('input', '60');
-            dispatch('change', '60');
-
-            expect(seekTo).toHaveBeenCalledTimes(1);
-            expect(seekTo).toHaveBeenCalledWith(60);
-            expect(player.scrubPosition()).toBeNull();
-            // Back to the session-reported position once the scrub ends.
-            expect(player.timelineValue()).toBe(30);
-        });
-    });
-
-    describe('viewport click-to-pause', () => {
-        const clickViewport = () => {
-            fixture.debugElement
-                .query(By.css('.embedded-mpv-player__viewport'))
-                .nativeElement.dispatchEvent(
-                    new MouseEvent('click', { bubbles: true })
-                );
-        };
-
-        beforeEach(() => {
-            jest.useFakeTimers();
-        });
-
-        afterEach(() => {
-            jest.useRealTimers();
-        });
-
-        it('toggles pause after the double-click grace period', () => {
-            const togglePaused = jest
-                .spyOn(controller, 'togglePaused')
-                .mockResolvedValue(undefined);
-
-            clickViewport();
-            expect(togglePaused).not.toHaveBeenCalled();
-
-            jest.advanceTimersByTime(300);
-            expect(togglePaused).toHaveBeenCalledTimes(1);
-        });
-
-        it('does not pause when the click turns into a double-click (fullscreen)', () => {
-            const togglePaused = jest
-                .spyOn(controller, 'togglePaused')
-                .mockResolvedValue(undefined);
-
-            clickViewport();
-            fixture.debugElement
-                .query(By.css('.embedded-mpv-player__viewport'))
-                .nativeElement.dispatchEvent(
-                    new MouseEvent('dblclick', { bubbles: true })
-                );
-
-            jest.advanceTimersByTime(300);
-            expect(togglePaused).not.toHaveBeenCalled();
-        });
-
-        it('closes an open popover instead of pausing', () => {
-            const togglePaused = jest
-                .spyOn(controller, 'togglePaused')
-                .mockResolvedValue(undefined);
-            player.menus.open('audio');
-
-            clickViewport();
-            jest.advanceTimersByTime(300);
-
-            expect(player.menus.anyOpen()).toBe(false);
-            expect(togglePaused).not.toHaveBeenCalled();
-        });
-
-        it('ignores clicks while the session is loading', () => {
-            const togglePaused = jest
-                .spyOn(controller, 'togglePaused')
-                .mockResolvedValue(undefined);
-            controller.session.update((session) =>
-                session ? { ...session, status: 'loading' } : session
-            );
-            fixture.detectChanges();
-
-            clickViewport();
-            jest.advanceTimersByTime(300);
-
-            expect(togglePaused).not.toHaveBeenCalled();
-        });
     });
 
     it('does not label VOD or episode playback as live while duration is loading', () => {
@@ -358,9 +275,7 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.debugElement.query(
-                By.css('.embedded-mpv-player__live-badge')
-            )
+            fixture.debugElement.query(By.css('.player-controls__live-badge'))
         ).toBeNull();
         expect(fixture.nativeElement.textContent).toContain('--:--');
     });

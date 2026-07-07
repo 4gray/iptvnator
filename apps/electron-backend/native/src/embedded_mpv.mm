@@ -1378,8 +1378,12 @@ bool createSoftwareView(const std::shared_ptr<Session>& session)
       session->containerView.layer.backgroundColor =
           NSColor.blackColor.CGColor;
       session->containerView.layer.contentsGravity = kCAGravityResize;
+      // Insert the native video surface BELOW the Electron WebContents sibling
+      // so the web layer (made transparent over the player viewport) composites
+      // on top — DOM controls in the main window then float over full-bleed
+      // video (the immersive overlay), no separate child window needed.
       [session->hostView addSubview:session->containerView
-                  positioned:NSWindowAbove
+                  positioned:NSWindowBelow
                   relativeTo:nil];
       created = true;
     });
@@ -1428,8 +1432,12 @@ bool createOpenGLView(const std::shared_ptr<Session>& session)
                            forParameter:NSOpenGLContextParameterSwapInterval];
       [session->openGLContext setView:openGLView];
       session->containerView = openGLView;
+      // Insert the native video surface BELOW the Electron WebContents sibling
+      // so the web layer (made transparent over the player viewport) composites
+      // on top — DOM controls in the main window then float over full-bleed
+      // video (the immersive overlay), no separate child window needed.
       [session->hostView addSubview:session->containerView
-                  positioned:NSWindowAbove
+                  positioned:NSWindowBelow
                   relativeTo:nil];
       created = true;
     });

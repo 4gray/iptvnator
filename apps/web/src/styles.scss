@@ -218,6 +218,52 @@ textarea,
     margin-bottom: calc(76px + env(safe-area-inset-bottom, 0px));
 }
 
+// ─── Immersive embedded-MPV overlay ───────────────────────────────────────────
+// The native MPV video surface composites BELOW the WebContents (macOS), so the
+// web layer must be transparent over the player region for the video to show
+// through. EmbeddedMpvImmersiveService toggles this body class; here we open the
+// tunnel by clearing the opaque layers in the player's ancestor chain. The app
+// stays opaque via a single global backdrop — EmbeddedMpvImmersiveBackdrop
+// (rendered at app root) paints an opaque field with a transparent HOLE at the
+// measured native video rect — so panels show the backdrop instead of needing
+// per-route repaint. No per-route panel selectors here (only fullscreen below).
+body.embedded-mpv-immersive {
+    background-color: transparent; // clear Material's opaque <body> background
+}
+
+// Structural tunnel: `X :has(app-embedded-mpv-player)` matches exactly the
+// ancestor chain of the live embedded player, so EVERY opaque plate on that
+// chain (workspace shell layers, .content-container surfaces, .video-player
+// beds, .player-shell cards, detail-shell hosts, …) goes transparent without
+// enumerating per-route selectors — new routes are covered automatically.
+// Sibling panels keep their backgrounds and are backed by the global backdrop;
+// DOM players (vjs/art/html5) are unaffected because the rule only fires while
+// <app-embedded-mpv-player> exists AND the body class is set (frame visible).
+// <body> itself is not matched by `body :has(...)` (an element is not its own
+// descendant), hence the explicit body clear above.
+// Caveats:
+//  - pseudo-element plates (::before/::after) painted by an ancestor are NOT
+//    neutralized; the dev-mode opaque-cover guard flags those.
+//  - a future dialog-hosted player would turn the CDK overlay containers
+//    transparent too and would need an explicit exception here.
+body.embedded-mpv-immersive :has(app-embedded-mpv-player) {
+    background: transparent !important;
+}
+
+// Fullscreen: the player root goes DOM-fullscreen (transparent) over the native
+// video. Hide the surrounding chrome so the transparent fullscreen surface
+// reveals the video filling the screen instead of the UI behind it. (Same
+// per-route panel set as the repaint above; extend as routes are verified.)
+body.embedded-mpv-fullscreen app-workspace-shell-rail,
+body.embedded-mpv-fullscreen app-workspace-shell-header,
+body.embedded-mpv-fullscreen app-workspace-shell-context-sidebar,
+body.embedded-mpv-fullscreen .sidebar.resizable-element,
+body.embedded-mpv-fullscreen app-live-epg-panel,
+body.embedded-mpv-fullscreen .epg,
+body.embedded-mpv-fullscreen .workspace-now-playing {
+    display: none !important;
+}
+
 // WCAG-friendly visually-hidden helper — content stays in the
 // accessibility tree and DOM query results but occupies no layout box.
 // Used where a visible heading would duplicate adjacent navigation

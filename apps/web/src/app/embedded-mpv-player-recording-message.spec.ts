@@ -1,10 +1,10 @@
-import { Component, signal } from '@angular/core';
+import { Component } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
-import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import { ResolvedPortalPlayback } from '@iptvnator/shared/interfaces';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
-    EmbeddedMpvOverlayVisibilityService,
+    EmbeddedMpvControlsAdapter,
     EmbeddedMpvPlayerComponent,
     EmbeddedMpvSessionController,
 } from '@iptvnator/ui/playback/embedded-mpv-player';
@@ -23,7 +23,7 @@ class EmbeddedMpvPlayerHostComponent {
 
 describe('EmbeddedMpvPlayerComponent recording status message', () => {
     let fixture: ComponentFixture<EmbeddedMpvPlayerHostComponent>;
-    let component: EmbeddedMpvPlayerComponent;
+    let adapter: EmbeddedMpvControlsAdapter;
     let controller: EmbeddedMpvSessionController;
 
     beforeEach(async () => {
@@ -33,12 +33,6 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
 
         await TestBed.configureTestingModule({
             imports: [EmbeddedMpvPlayerHostComponent, TranslateModule.forRoot()],
-            providers: [
-                {
-                    provide: EmbeddedMpvOverlayVisibilityService,
-                    useValue: { overlayActive: signal(false) },
-                },
-            ],
         })
             .overrideComponent(EmbeddedMpvPlayerComponent, {
                 set: { template: '' },
@@ -50,7 +44,8 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
             EMBEDDED_MPV: {
                 PLAYER: {
                     SAVED_TO: 'Saved to {{path}}',
-                    RECORDING_SAVED: 'Recording saved',
+                    RECORDING_FAILED_TO_STOP: 'Recording failed to stop.',
+                    RECORDING_FAILED_TO_START: 'Recording failed to start.',
                 },
             },
         });
@@ -62,7 +57,7 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
         const playerDebugElement = fixture.debugElement.query(
             By.directive(EmbeddedMpvPlayerComponent)
         );
-        component = playerDebugElement.componentInstance;
+        adapter = playerDebugElement.injector.get(EmbeddedMpvControlsAdapter);
         controller = playerDebugElement.injector.get(
             EmbeddedMpvSessionController
         );
@@ -127,15 +122,20 @@ describe('EmbeddedMpvPlayerComponent recording status message', () => {
     it('clears the saved recording path after a short delay', async () => {
         jest.useFakeTimers();
 
-        await component.toggleRecording();
+        // Mirror the host context the component pushes into the adapter.
+        adapter.playback.set(fixture.componentInstance.playback);
 
-        expect(component.recordingStatusText()).toBe(
+        adapter.commands.toggleRecording();
+        await Promise.resolve();
+        await Promise.resolve();
+
+        expect(adapter.state().recording.message).toBe(
             'Saved to /tmp/live-news.ts'
         );
 
         jest.advanceTimersByTime(5000);
         fixture.detectChanges();
 
-        expect(component.recordingStatusText()).toBeNull();
+        expect(adapter.state().recording.message).toBeNull();
     });
 });

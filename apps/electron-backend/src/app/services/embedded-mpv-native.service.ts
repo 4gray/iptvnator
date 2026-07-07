@@ -654,11 +654,11 @@ export class EmbeddedMpvNativeService {
     }
 
     private sendSessionUpdate(session: EmbeddedMpvSession): void {
-        if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+        const mainWindow = App.mainWindow;
+        if (!mainWindow || mainWindow.isDestroyed()) {
             return;
         }
-
-        App.mainWindow.webContents.send(EMBEDDED_MPV_SESSION_UPDATE, session);
+        mainWindow.webContents.send(EMBEDDED_MPV_SESSION_UPDATE, session);
     }
 
     private getRuntimeSession(sessionId: string): EmbeddedMpvRuntimeSession {

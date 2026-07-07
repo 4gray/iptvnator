@@ -23,9 +23,7 @@ import {
 } from './embedded-mpv-session-factory';
 import { EmbeddedMpvStalledTracker } from './embedded-mpv-stalled-tracker';
 
-export type EmbeddedMpvBoundsProvider = (
-    host: HTMLElement
-) => EmbeddedMpvBounds;
+export type EmbeddedMpvBoundsProvider = (host: HTMLElement) => EmbeddedMpvBounds;
 
 type ElectronBridge = Window['electron'];
 
@@ -143,15 +141,14 @@ export class EmbeddedMpvSessionController {
         let disposed = false;
         let activeSessionId: string | null = null;
 
+        // The surface is always full-bleed — no docking transitions remain, so
+        // bounds snap directly (window resize/scroll just follow the viewport).
         const syncBounds = () => {
             if (!activeSessionId) {
                 return;
             }
             void window.electron
-                ?.setEmbeddedMpvBounds(
-                    activeSessionId,
-                    this.boundsProvider(host)
-                )
+                ?.setEmbeddedMpvBounds(activeSessionId, this.boundsProvider(host))
                 .catch(() => undefined);
         };
 

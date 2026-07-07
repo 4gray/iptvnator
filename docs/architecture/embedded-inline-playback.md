@@ -164,6 +164,43 @@ Diagnostics and fallback UI:
 - `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/playback-diagnostics/playback-diagnostics.util.ts`
 - `/Users/4gray/Code/iptvnator/libs/ui/playback/src/lib/web-player-view/web-player-view.component.ts`
 
+## Web Player Shared Controls (Flagged)
+
+The DOM web players (Video.js, html5+hls.js, ArtPlayer) can render the shared
+`app-player-controls` chrome instead of each engine's built-in skin. This is the
+same controls contract the embedded MPV player consumes, so the web inline
+playback path and the desktop MPV path converge on one control surface.
+
+- **Flag:** `WEB_PLAYER_SHARED_CONTROLS` injection token, default **OFF**
+  (`WEB_PLAYER_SHARED_CONTROLS_ENABLED = false`), in
+  `libs/ui/playback/src/lib/player-controls/web-player-controls.flag.ts`.
+  Components inject the token; specs override it via TestBed providers.
+- **Flag OFF (default):** every web player keeps its original engine skin and
+  behaves exactly as before. No `app-player-controls` is rendered and the engine
+  control bar stays enabled.
+- **Flag ON:** the engine control bar is suppressed (e.g. Video.js is created
+  with `controls: false`) and the shared `app-player-controls` is rendered over
+  the `<video>` element, driven by `WebVideoControlsAdapter`. The adapter binds
+  purely to DOM/video APIs so it also works in the PWA (no `window.electron`).
+  Each engine injects engine-specific track/duration accessors via
+  `WebVideoControlsOptions` (`getAudioTracks`, `setAudioTrack`, `isLive`,
+  `getDuration`). `getDuration` lets the Video.js mpegts raw-TS VOD path report
+  the corrected duration from the player (the `<video>` element reads `Infinity`,
+  which would otherwise be misclassified as live with no scrub bar).
+- **Capabilities on web (for now):** seek, volume, playback speed, fullscreen,
+  audio tracks (when more than one), and series navigation. Recording,
+  subtitles, and aspect-ratio control are not wired on web yet.
+- **Scope:** DOM web players remain route-scoped — they stop when their route is
+  torn down. Background playback is MPV-only (see subissue 04); the shared
+  controls do not change that boundary.
+
+Key files:
+
+- `libs/ui/playback/src/lib/player-controls/web-video-controls.adapter.ts`
+- `libs/ui/playback/src/lib/player-controls/web-video-controls.host.ts`
+- `libs/ui/playback/src/lib/vjs-player/vjs-player.component.ts` (+ extracted
+  `vjs-audio-tracks.ts` audio-track helpers)
+
 ## Playback Decision Rule
 
 When a detail view starts playback:
