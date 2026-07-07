@@ -42,6 +42,26 @@ async function waitForStatus(
     expect(set).toHaveBeenCalledWith(expect.objectContaining({ status }));
 }
 
+async function waitForStatusCount(
+    set: jest.Mock,
+    status: string,
+    expectedCount: number
+): Promise<void> {
+    for (let attempt = 0; attempt < 20; attempt++) {
+        const statusCount = set.mock.calls.filter(
+            ([value]) => value?.status === status
+        ).length;
+        if (statusCount >= expectedCount) {
+            return;
+        }
+        await new Promise<void>((resolve) => setImmediate(resolve));
+    }
+
+    expect(
+        set.mock.calls.filter(([value]) => value?.status === status)
+    ).toHaveLength(expectedCount);
+}
+
 describe('download task interruption', () => {
     it('aborts an active task when cancellation is requested', () => {
         const abort = jest.fn();
@@ -293,5 +313,92 @@ describe('download runtime pause and resume', () => {
                 status: 'completed',
             })
         );
+    });
+
+    it('deletes a queued resumed partial file when the queued task is canceled', async () => {
+        jest.resetModules();
+
+        const set = jest.fn(() => ({ where: jest.fn().mockResolvedValue(undefined) }));
+        const db = {
+            update: jest.fn(() => ({ set })),
+        };
+        const removePartialDownloadFile = jest.fn();
+        const activeStream = new PassThrough();
+        const requestWithValidatedRedirects = jest.fn(
+            async (_url: string, options: { signal?: AbortSignal }) => {
+                options.signal?.addEventListener('abort', () => {
+                    activeStream.destroy(new Error('aborted'));
+                });
+                return {
+                    data: activeStream,
+                    headers: { 'content-length': '100' },
+                    status: 200,
+                };
+            }
+        );
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('../../util/validated-axios', () => ({
+            requestWithValidatedRedirects,
+        }));
+        jest.doMock('node:fs', () => ({
+            ...jest.requireActual('node:fs'),
+            createWriteStream: jest.fn(() => new PassThrough()),
+            existsSync: jest.fn(() => false),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadPath: (filePath: string) => `${filePath}.part`,
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile,
+            reserveAvailablePartialDownloadFile: jest.fn(
+                (directory: string, filename: string) => ({
+                    filename,
+                    partialPath: `${directory}/${filename}.part`,
+                    path: `${directory}/${filename}`,
+                })
+            ),
+        }));
+
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+        try {
+            const runtime = await import('./download-runtime');
+            runtime.setMainWindow({
+                isDestroyed: () => false,
+                webContents: { send: jest.fn() },
+            } as never);
+
+            runtime.enqueueDownload(createTask());
+            await waitForCallCount(requestWithValidatedRedirects, 1);
+
+            runtime.enqueueDownload({
+                ...createTask(),
+                fileName: 'resume.mp4',
+                filePath: '/downloads/resume.mp4',
+                id: 43,
+            });
+
+            await expect(runtime.cancelDownload(43)).resolves.toBe(true);
+
+            expect(removePartialDownloadFile).toHaveBeenCalledWith(
+                '/downloads/resume.mp4'
+            );
+            expect(set).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    bytesDownloaded: 0,
+                    filePath: null,
+                    status: 'canceled',
+                    totalBytes: null,
+                })
+            );
+
+            await runtime.cancelDownload(42);
+            await waitForStatusCount(set, 'canceled', 2);
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 });

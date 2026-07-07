@@ -84,7 +84,8 @@ export async function cancelDownload(downloadId: number): Promise<boolean> {
         (task) => task.id === downloadId
     );
     if (queueIndex !== -1) {
-        downloadQueue.splice(queueIndex, 1);
+        const [queuedTask] = downloadQueue.splice(queueIndex, 1);
+        removePartialFile(queuedTask?.filePath);
         const db = await getDatabase();
         await persistQueuedCancellation(db, downloadId);
         broadcastDownloadUpdate();
