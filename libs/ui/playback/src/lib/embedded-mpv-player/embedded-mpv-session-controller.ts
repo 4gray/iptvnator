@@ -13,13 +13,19 @@ import {
     EmbeddedMpvSupport,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { measureBounds } from './embedded-mpv-format.utils';
+import { measureBounds } from './embedded-mpv-compositor';
+import { EmbeddedMpvCommandRunner } from './embedded-mpv-command-runner';
+import {
+    createAttachingSession,
+    createErrorSession,
+    createLoadingSession,
+    waitForStartupPaint,
+} from './embedded-mpv-session-factory';
+import { EmbeddedMpvStalledTracker } from './embedded-mpv-stalled-tracker';
 
 export type EmbeddedMpvBoundsProvider = (
     host: HTMLElement
 ) => EmbeddedMpvBounds;
-
-const STALLED_TIMEOUT_MS = 30_000;
 
 type ElectronBridge = Window['electron'];
 
@@ -28,8 +34,21 @@ export class EmbeddedMpvSessionController {
     readonly support = signal<EmbeddedMpvSupport | null>(null);
     readonly session = signal<EmbeddedMpvSession | null>(null);
     readonly sessionId = signal<string | null>(null);
-    readonly stalled = signal(false);
     readonly retryToken = signal(0);
+    /**
+     * Bumped on every native bounds sync (resize/scroll/fullscreen/RAF). A host
+     * overlay effect reads this to follow the viewport without coupling the
+     * (pure) bounds provider to overlay side-effects.
+     */
+    readonly boundsTick = signal(0);
+
+    private readonly stalledTracker = new EmbeddedMpvStalledTracker();
+    readonly stalled = this.stalledTracker.stalled;
+
+    private readonly commands = new EmbeddedMpvCommandRunner({
+        sessionId: this.sessionId,
+        session: this.session,
+    });
 
     private readonly sessionStatus = computed(
         () => this.session()?.status ?? null
@@ -42,7 +61,6 @@ export class EmbeddedMpvSessionController {
         measureBounds(host);
     private activeBoundsSync: (() => void) | null = null;
     private boundsAnimationFrame: number | null = null;
-    private stalledTimer: number | null = null;
 
     constructor() {
         this.unsubscribeSessionUpdate =
@@ -63,17 +81,16 @@ export class EmbeddedMpvSessionController {
             });
         }
 
-        // Track the narrowest possible signal — status only — so this effect
-        // does not re-run on every position-poll snapshot (~2 Hz during play)
-        // even though handleStalledTracking would be a no-op for those.
+        // Track status only so this effect does not re-run on every
+        // position-poll snapshot (~2 Hz) where stalled tracking is a no-op.
         effect(() => {
             const status = this.sessionStatus();
-            untracked(() => this.handleStalledTracking(status));
+            untracked(() => this.stalledTracker.track(status));
         });
 
         this.destroyRef.onDestroy(() => {
             this.unsubscribeSessionUpdate?.();
-            this.cancelStalledTimer();
+            this.stalledTracker.cancel();
             if (this.boundsAnimationFrame !== null) {
                 cancelAnimationFrame(this.boundsAnimationFrame);
                 this.boundsAnimationFrame = null;
@@ -85,22 +102,38 @@ export class EmbeddedMpvSessionController {
         this.boundsProvider = provider;
     }
 
+    /**
+     * Attach to an existing MPV session owned by another window (the main
+     * renderer). Unlike {@link startSession}, this does NOT create or load a
+     * session — it only sets `sessionId` so the `onEmbeddedMpvSessionUpdate`
+     * subscription populates `session` from broadcasts. Used by the overlay.
+     */
+    attach(sessionId: string): void {
+        this.sessionId.set(sessionId);
+        if (!this.session()) {
+            // Placeholder until the first broadcast snapshot arrives so the
+            // controls render a loading state instead of an empty surface.
+            this.session.set(createAttachingSession(sessionId));
+        }
+        if (typeof window.electron?.getEmbeddedMpvSupport === 'function') {
+            void this.loadSupport();
+        }
+    }
+
     triggerBoundsSync(): void {
         this.activeBoundsSync?.();
     }
 
     retry(): void {
-        this.stalled.set(false);
+        this.stalledTracker.reset();
         this.session.set(null);
         this.sessionId.set(null);
         this.retryToken.update((value) => value + 1);
     }
 
     /**
-     * Spin up an embedded MPV session bound to `host`. Returns a teardown
-     * function the caller must invoke when the host or playback changes (or
-     * the component tears down). All bounds and lifecycle bookkeeping lives
-     * here so the component can stay view-focused.
+     * Spin up an embedded MPV session bound to `host`. Returns a teardown the
+     * caller invokes when host/playback changes or the component tears down.
      */
     startSession(
         host: HTMLElement,
@@ -114,9 +147,11 @@ export class EmbeddedMpvSessionController {
             if (!activeSessionId) {
                 return;
             }
-            const bounds = this.boundsProvider(host);
             void window.electron
-                ?.setEmbeddedMpvBounds(activeSessionId, bounds)
+                ?.setEmbeddedMpvBounds(
+                    activeSessionId,
+                    this.boundsProvider(host)
+                )
                 .catch(() => undefined);
         };
 
@@ -127,6 +162,8 @@ export class EmbeddedMpvSessionController {
             this.boundsAnimationFrame = requestAnimationFrame(() => {
                 this.boundsAnimationFrame = null;
                 syncBounds();
+                // Notify host overlay reconciliation that the viewport moved.
+                this.boundsTick.update((value) => value + 1);
             });
         };
 
@@ -138,10 +175,8 @@ export class EmbeddedMpvSessionController {
         window.addEventListener('scroll', scheduleBoundsSync, true);
 
         const create = async () => {
-            this.session.set(
-                this.createLoadingSession(playback, initialVolume)
-            );
-            await this.waitForStartupPaint();
+            this.session.set(createLoadingSession(playback, initialVolume));
+            await waitForStartupPaint();
             if (disposed) {
                 return;
             }
@@ -192,8 +227,10 @@ export class EmbeddedMpvSessionController {
             if (disposed) {
                 return;
             }
+            // Factory is pure; clear sessionId here (controller owns mutation).
+            this.sessionId.set(null);
             this.session.set(
-                this.createErrorSession(playback, initialVolume, error)
+                createErrorSession(playback, initialVolume, error)
             );
         });
 
@@ -222,172 +259,31 @@ export class EmbeddedMpvSessionController {
         };
     }
 
-    async togglePaused(): Promise<void> {
-        const id = this.sessionId();
-        const session = this.session();
-        const electron = this.getElectronBridge();
-        if (!id || !session || !electron?.setEmbeddedMpvPaused) {
-            return;
-        }
-        const updated = await this.guardIpc(() =>
-            electron.setEmbeddedMpvPaused(id, session.status !== 'paused')
-        );
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async seekBy(deltaSeconds: number): Promise<boolean> {
-        const id = this.sessionId();
-        const session = this.session();
-        const electron = this.getElectronBridge();
-        if (!id || !session || !electron?.seekEmbeddedMpv) {
-            return false;
-        }
-        const next = Math.max(0, session.positionSeconds + deltaSeconds);
-        const updated = await this.guardIpc(() =>
-            electron.seekEmbeddedMpv(id, next)
-        );
-        if (updated) {
-            this.session.set(updated);
-        }
-        return true;
-    }
-
-    async seekTo(seconds: number): Promise<void> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.seekEmbeddedMpv) {
-            return;
-        }
-        const updated = await this.guardIpc(() =>
-            electron.seekEmbeddedMpv(id, seconds)
-        );
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async applyVolume(value: number): Promise<void> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.setEmbeddedMpvVolume) {
-            return;
-        }
-        const updated = await this.guardIpc(() =>
-            electron.setEmbeddedMpvVolume(id, value)
-        );
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async setAudioTrack(trackId: number): Promise<void> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.setEmbeddedMpvAudioTrack) {
-            return;
-        }
-        const updated = await this.guardIpc(() =>
-            electron.setEmbeddedMpvAudioTrack(id, trackId)
-        );
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async setSubtitleTrack(trackId: number): Promise<void> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.setEmbeddedMpvSubtitleTrack) {
-            return;
-        }
-        const setSubtitleTrack = electron.setEmbeddedMpvSubtitleTrack;
-        const updated = await this.guardIpc(() =>
-            setSubtitleTrack(id, trackId)
-        );
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async setSpeed(speed: number): Promise<void> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.setEmbeddedMpvSpeed) {
-            return;
-        }
-        const setSpeed = electron.setEmbeddedMpvSpeed;
-        const updated = await this.guardIpc(() => setSpeed(id, speed));
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async setAspect(aspect: string): Promise<void> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.setEmbeddedMpvAspect) {
-            return;
-        }
-        const setAspect = electron.setEmbeddedMpvAspect;
-        const updated = await this.guardIpc(() => setAspect(id, aspect));
-        if (updated) {
-            this.session.set(updated);
-        }
-    }
-
-    async startRecording(
+    // Transport/track/recording commands delegate to the command runner (owns
+    // IPC + snapshot reconciliation). Bound fields keep the public API stable.
+    readonly togglePaused = (): Promise<void> => this.commands.togglePaused();
+    readonly seekBy = (deltaSeconds: number): Promise<boolean> =>
+        this.commands.seekBy(deltaSeconds);
+    readonly seekTo = (seconds: number): Promise<void> =>
+        this.commands.seekTo(seconds);
+    readonly applyVolume = (value: number): Promise<void> =>
+        this.commands.applyVolume(value);
+    readonly setAudioTrack = (trackId: number): Promise<void> =>
+        this.commands.setAudioTrack(trackId);
+    readonly setSubtitleTrack = (trackId: number): Promise<void> =>
+        this.commands.setSubtitleTrack(trackId);
+    readonly setSpeed = (speed: number): Promise<void> =>
+        this.commands.setSpeed(speed);
+    readonly setAspect = (aspect: string): Promise<void> =>
+        this.commands.setAspect(aspect);
+    readonly startRecording = (
         directory: string | undefined,
         title: string
-    ): Promise<EmbeddedMpvSession['recording'] | null> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.startEmbeddedMpvRecording) {
-            return null;
-        }
-
-        const startEmbeddedMpvRecording = electron.startEmbeddedMpvRecording;
-        const resolvedDirectory =
-            directory?.trim() ||
-            (await electron.getEmbeddedMpvDefaultRecordingFolder?.());
-        const updated = await this.guardIpc(() =>
-            startEmbeddedMpvRecording(id, {
-                directory: resolvedDirectory,
-                title,
-            })
-        );
-        if (updated) {
-            this.session.set(updated);
-            return updated.recording ?? null;
-        }
-        return null;
-    }
-
-    async stopRecording(): Promise<EmbeddedMpvSession['recording'] | null> {
-        const id = this.sessionId();
-        const electron = this.getElectronBridge();
-        if (!id || !electron?.stopEmbeddedMpvRecording) {
-            return null;
-        }
-        const stopEmbeddedMpvRecording = electron.stopEmbeddedMpvRecording;
-        const updated = await this.guardIpc(() => stopEmbeddedMpvRecording(id));
-        if (updated) {
-            this.session.set(updated);
-            return updated.recording ?? null;
-        }
-        return null;
-    }
-
-    private async guardIpc<T>(call: () => Promise<T>): Promise<T | null> {
-        try {
-            return await call();
-        } catch {
-            // The session may have been torn down or an addon-side throw
-            // raced the IPC. Swallow — the next snapshot will resync state.
-            return null;
-        }
-    }
+    ): Promise<EmbeddedMpvSession['recording'] | null> =>
+        this.commands.startRecording(directory, title);
+    readonly stopRecording = (): Promise<
+        EmbeddedMpvSession['recording'] | null
+    > => this.commands.stopRecording();
 
     private async loadSupport(): Promise<void> {
         try {
@@ -409,95 +305,5 @@ export class EmbeddedMpvSessionController {
 
     private getElectronBridge(): ElectronBridge | undefined {
         return window.electron;
-    }
-
-    private handleStalledTracking(
-        status: EmbeddedMpvSession['status'] | null
-    ): void {
-        if (status === 'loading') {
-            if (this.stalledTimer === null) {
-                this.stalledTimer = window.setTimeout(() => {
-                    this.stalled.set(true);
-                    this.stalledTimer = null;
-                }, STALLED_TIMEOUT_MS);
-            }
-            return;
-        }
-
-        this.cancelStalledTimer();
-        if (this.stalled()) {
-            this.stalled.set(false);
-        }
-    }
-
-    private cancelStalledTimer(): void {
-        if (this.stalledTimer !== null) {
-            clearTimeout(this.stalledTimer);
-            this.stalledTimer = null;
-        }
-    }
-
-    private createLoadingSession(
-        playback: ResolvedPortalPlayback,
-        volume: number
-    ): EmbeddedMpvSession {
-        const now = new Date().toISOString();
-        return {
-            id: 'embedded-mpv-starting',
-            title: playback.title,
-            streamUrl: playback.streamUrl,
-            status: 'loading',
-            positionSeconds: 0,
-            durationSeconds: null,
-            volume,
-            audioTracks: [],
-            selectedAudioTrackId: null,
-            subtitleTracks: [],
-            selectedSubtitleTrackId: null,
-            playbackSpeed: 1,
-            aspectOverride: 'no',
-            recording: { active: false },
-            startedAt: now,
-            updatedAt: now,
-        };
-    }
-
-    private createErrorSession(
-        playback: ResolvedPortalPlayback,
-        volume: number,
-        error: unknown
-    ): EmbeddedMpvSession {
-        const now = new Date().toISOString();
-        this.sessionId.set(null);
-        return {
-            id: 'embedded-mpv-error',
-            title: playback.title,
-            streamUrl: playback.streamUrl,
-            status: 'error',
-            positionSeconds: 0,
-            durationSeconds: null,
-            volume,
-            audioTracks: [],
-            selectedAudioTrackId: null,
-            subtitleTracks: [],
-            selectedSubtitleTrackId: null,
-            playbackSpeed: 1,
-            aspectOverride: 'no',
-            recording: { active: false },
-            startedAt: now,
-            updatedAt: now,
-            error: error instanceof Error ? error.message : String(error),
-        };
-    }
-
-    private waitForStartupPaint(): Promise<void> {
-        if (typeof requestAnimationFrame !== 'function') {
-            return Promise.resolve();
-        }
-        return new Promise((resolve) => {
-            requestAnimationFrame(() => {
-                requestAnimationFrame(() => resolve());
-            });
-        });
     }
 }
