@@ -45,6 +45,8 @@ describe('database schema statements', () => {
             'CREATE TABLE IF NOT EXISTS playback_positions'
         );
         expect(schemaSql).toContain('CREATE TABLE IF NOT EXISTS downloads');
+        expect(schemaSql).toContain('request_headers TEXT');
+        expect(schemaSql).toContain("'paused'");
         expect(schemaSql).toContain(
             'CREATE UNIQUE INDEX IF NOT EXISTS favorites_content_playlist_unique'
         );

@@ -1,5 +1,5 @@
 import { and, eq, sql } from 'drizzle-orm';
-import { extname } from 'node:path';
+import { basename, dirname, extname } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { assertRemoteUrlAllowed } from '../url-safety';
@@ -44,13 +44,56 @@ function createFileName(title: string, url: string): string {
 function createHeaders(
     headers: StartDownloadRequest['headers']
 ): Record<string, string> | undefined {
-    return headers
-        ? {
-              'User-Agent': headers.userAgent || '',
-              Origin: headers.origin || '',
-              Referer: headers.referer || '',
-          }
-        : undefined;
+    if (!headers) {
+        return undefined;
+    }
+
+    const result: Record<string, string> = {};
+    if (headers.userAgent) {
+        result['User-Agent'] = headers.userAgent;
+    }
+    if (headers.origin) {
+        result.Origin = headers.origin;
+    }
+    if (headers.referer) {
+        result.Referer = headers.referer;
+    }
+
+    return Object.keys(result).length > 0 ? result : undefined;
+}
+
+function serializeHeaders(
+    headers: Record<string, string> | undefined
+): string | null {
+    return headers ? JSON.stringify(headers) : null;
+}
+
+function parseStoredHeaders(
+    value: string | null
+): Record<string, string> | undefined {
+    if (!value) {
+        return undefined;
+    }
+
+    try {
+        const parsed = JSON.parse(value) as unknown;
+        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+            return undefined;
+        }
+
+        const headers = Object.entries(parsed).reduce<Record<string, string>>(
+            (acc, [key, headerValue]) => {
+                if (typeof headerValue === 'string') {
+                    acc[key] = headerValue;
+                }
+                return acc;
+            },
+            {}
+        );
+        return Object.keys(headers).length > 0 ? headers : undefined;
+    } catch {
+        return undefined;
+    }
 }
 
 export async function startDownloadRequest(
@@ -98,6 +141,7 @@ export async function startDownloadRequest(
         )
         .limit(1);
     const fileName = createFileName(data.title, data.url);
+    const headers = createHeaders(data.headers);
 
     if (existing.length > 0) {
         const item = existing[0];
@@ -116,6 +160,7 @@ export async function startDownloadRequest(
                 errorMessage: null,
                 fileName,
                 filePath: null,
+                requestHeaders: serializeHeaders(headers),
                 status: 'queued',
                 totalBytes: null,
                 updatedAt: sql`CURRENT_TIMESTAMP`,
@@ -125,7 +170,7 @@ export async function startDownloadRequest(
         enqueueDownload({
             directory,
             fileName,
-            headers: createHeaders(data.headers),
+            headers,
             id: item.id,
             url: data.url,
         });
@@ -138,6 +183,7 @@ export async function startDownloadRequest(
         fileName,
         playlistId: data.playlistId,
         posterUrl: data.posterUrl,
+        requestHeaders: serializeHeaders(headers),
         seasonNumber: data.seasonNumber,
         seriesXtreamId: data.seriesXtreamId,
         status: 'queued',
@@ -149,7 +195,7 @@ export async function startDownloadRequest(
     enqueueDownload({
         directory,
         fileName,
-        headers: createHeaders(data.headers),
+        headers,
         id: insertedId,
         url: data.url,
     });
@@ -199,7 +245,62 @@ export async function retryDownloadRequest(
     enqueueDownload({
         directory,
         fileName,
+        headers: parseStoredHeaders(item.requestHeaders),
         id: item.id,
+        url: item.url,
+    });
+    return { success: true };
+}
+
+export async function resumeDownloadRequest(
+    downloadId: number,
+    downloadFolder: string,
+    authorizer: DownloadDirectoryAuthorizer
+): Promise<{ success: boolean; error?: string }> {
+    console.log('[Downloads] Resume download:', downloadId);
+    const db = await getDatabase();
+    const existing = await db
+        .select()
+        .from(schema.downloads)
+        .where(eq(schema.downloads.id, downloadId))
+        .limit(1);
+
+    if (existing.length === 0) {
+        return { error: 'Download not found', success: false };
+    }
+
+    const item = existing[0];
+    await assertRemoteUrlAllowed(item.url, { allowPrivateNetworks: true });
+    if (item.status !== 'paused') {
+        return {
+            error: 'Can only resume paused downloads',
+            success: false,
+        };
+    }
+
+    const directory = item.filePath
+        ? await authorizer.requireAuthorized(dirname(item.filePath))
+        : await authorizer.requireAuthorized(downloadFolder);
+    const fileName = item.filePath
+        ? basename(item.filePath)
+        : createFileName(item.title, item.url);
+
+    await db
+        .update(schema.downloads)
+        .set({
+            errorMessage: null,
+            fileName,
+            status: 'queued',
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.downloads.id, downloadId));
+    enqueueDownload({
+        directory,
+        fileName,
+        filePath: item.filePath,
+        headers: parseStoredHeaders(item.requestHeaders),
+        id: item.id,
+        totalBytes: item.totalBytes,
         url: item.url,
     });
     return { success: true };

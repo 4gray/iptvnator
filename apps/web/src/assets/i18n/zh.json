@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "由于源播放列表已被移除，此下载项无法在库中打开。",
         "FILE_NOT_FOUND": "此下载文件已不在磁盘上。",
         "FILE_ACTION_ERROR": "无法完成此文件操作。",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "取消",
         "RETRY": "重试",
         "REMOVE": "移除",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "下载中",
             "COMPLETED": "已完成",
             "FAILED": "失败",
-            "CANCELED": "已取消"
+            "CANCELED": "已取消",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

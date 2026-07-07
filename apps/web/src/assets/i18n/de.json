@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "Dieser Download kann nicht mehr in der Bibliothek geöffnet werden, weil die zugehörige Playlist entfernt wurde.",
         "FILE_NOT_FOUND": "Diese heruntergeladene Datei ist auf der Festplatte nicht mehr verfügbar.",
         "FILE_ACTION_ERROR": "Die Dateiaktion konnte nicht ausgeführt werden.",
+        "PAUSE": "Pausieren",
+        "RESUME": "Fortsetzen",
         "CANCEL": "Abbrechen",
         "RETRY": "Wiederholen",
         "REMOVE": "Entfernen",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "Wird heruntergeladen",
             "COMPLETED": "Abgeschlossen",
             "FAILED": "Fehlgeschlagen",
-            "CANCELED": "Abgebrochen"
+            "CANCELED": "Abgebrochen",
+            "PAUSED": "Pausiert"
         }
     },
     "REMOTE_CONTROL": {

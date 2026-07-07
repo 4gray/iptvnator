@@ -46,3 +46,59 @@ describe('cleanupStaleDownloadFiles', () => {
         consoleError.mockRestore();
     });
 });
+
+describe('resetStaleDownloads', () => {
+    it('keeps interrupted partial downloads as paused', async () => {
+        jest.resetModules();
+
+        const staleDownloads = [
+            {
+                filePath: '/downloads/movie.mp4',
+                id: 1,
+                status: 'downloading',
+                totalBytes: 100,
+            },
+            {
+                filePath: null,
+                id: 2,
+                status: 'queued',
+                totalBytes: null,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(staleDownloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(() => 64),
+        }));
+
+        const { resetStaleDownloads } = await import('./download-recovery');
+
+        await resetStaleDownloads();
+
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                bytesDownloaded: 64,
+                status: 'paused',
+            })
+        );
+        expect(set).toHaveBeenCalledWith(
+            expect.objectContaining({
+                filePath: null,
+                status: 'failed',
+            })
+        );
+    });
+});

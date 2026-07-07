@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "此下載項目無法在媒體庫中開啟，因為其來源播放清單已被移除。",
         "FILE_NOT_FOUND": "此下載檔案在磁碟上已不存在。",
         "FILE_ACTION_ERROR": "無法完成檔案操作。",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "取消",
         "RETRY": "重試",
         "REMOVE": "移除",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "下載中",
             "COMPLETED": "已完成",
             "FAILED": "失敗",
-            "CANCELED": "已取消"
+            "CANCELED": "已取消",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

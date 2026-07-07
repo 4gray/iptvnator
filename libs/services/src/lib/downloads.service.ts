@@ -4,6 +4,7 @@ import { RuntimeCapabilitiesService } from './runtime-capabilities.service';
 export type DownloadStatus =
     | 'queued'
     | 'downloading'
+    | 'paused'
     | 'completed'
     | 'failed'
     | 'canceled';
@@ -222,6 +223,53 @@ export class DownloadsService implements OnDestroy {
     }
 
     /**
+     * Pause a queued or active download
+     */
+    async pauseDownload(
+        downloadId: number
+    ): Promise<{ success: boolean; error?: string }> {
+        if (!this.isAvailable()) {
+            return { success: false, error: 'Downloads not available' };
+        }
+
+        try {
+            return await window.electron.downloadsPause(downloadId);
+        } catch (error) {
+            console.error('[DownloadsService] Error pausing download:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
+    }
+
+    /**
+     * Resume a paused download
+     */
+    async resumeDownload(
+        downloadId: number
+    ): Promise<{ success: boolean; error?: string }> {
+        if (!this.isAvailable()) {
+            return { success: false, error: 'Downloads not available' };
+        }
+
+        const folder = await this.loadDownloadFolder();
+        if (!folder) {
+            return { success: false, error: 'No download folder configured' };
+        }
+
+        try {
+            return await window.electron.downloadsResume(downloadId, folder);
+        } catch (error) {
+            console.error('[DownloadsService] Error resuming download:', error);
+            return {
+                success: false,
+                error: error instanceof Error ? error.message : String(error),
+            };
+        }
+    }
+
+    /**
      * Retry a failed download
      */
     async retryDownload(
@@ -401,7 +449,7 @@ export class DownloadsService implements OnDestroy {
     }
 
     /**
-     * Check if content is currently downloading or queued
+     * Check if content is currently downloading, queued, or paused
      */
     isDownloading(
         xtreamId: number,
@@ -409,7 +457,11 @@ export class DownloadsService implements OnDestroy {
         contentType: 'vod' | 'episode'
     ): boolean {
         const download = this.getDownloadByContent(xtreamId, playlistId, contentType);
-        return download?.status === 'downloading' || download?.status === 'queued';
+        return (
+            download?.status === 'downloading' ||
+            download?.status === 'queued' ||
+            download?.status === 'paused'
+        );
     }
 
     /**

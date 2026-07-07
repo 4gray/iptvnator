@@ -1,21 +1,35 @@
 import { eq, sql } from 'drizzle-orm';
 import type { BrowserWindow } from 'electron';
-import { CancelError, download } from 'electron-dl';
+import { createWriteStream, existsSync } from 'node:fs';
+import { link, stat, unlink } from 'node:fs/promises';
+import { Readable } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
+import { requestWithValidatedRedirects } from '../../util/validated-axios';
 import {
-    removePartialDownload,
-    reserveAvailableDownloadFile,
+    getPartialDownloadPath,
+    getPartialDownloadSize,
+    removePartialDownloadFile,
+    reserveAvailablePartialDownloadFile,
+    type ReservedPartialDownloadFile,
 } from './download-file-path';
 import {
-    attachDownloadItem,
     requestDownloadCancellation,
+    requestDownloadPause,
     type DownloadTask,
 } from './download-task';
 
 const downloadQueue: DownloadTask[] = [];
 let activeDownload: DownloadTask | null = null;
 let mainWindow: BrowserWindow | null = null;
+
+type DownloadsDatabase = Awaited<ReturnType<typeof getDatabase>>;
+
+interface TransferProgress {
+    bytesDownloaded: number;
+    totalBytes: number | null;
+}
 
 export function setMainWindow(win: BrowserWindow): void {
     mainWindow = win;
@@ -33,9 +47,9 @@ export function enqueueDownload(task: DownloadTask): void {
     void processQueue();
 }
 
-export async function cancelDownload(downloadId: number): Promise<boolean> {
+export async function pauseDownload(downloadId: number): Promise<boolean> {
     if (activeDownload?.id === downloadId) {
-        requestDownloadCancellation(activeDownload);
+        requestDownloadPause(activeDownload);
         return true;
     }
 
@@ -52,11 +66,47 @@ export async function cancelDownload(downloadId: number): Promise<boolean> {
         .update(schema.downloads)
         .set({
             errorMessage: null,
-            filePath: null,
-            status: 'canceled',
+            status: 'paused',
             updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(eq(schema.downloads.id, downloadId));
+    broadcastDownloadUpdate();
+    return true;
+}
+
+export async function cancelDownload(downloadId: number): Promise<boolean> {
+    if (activeDownload?.id === downloadId) {
+        requestDownloadCancellation(activeDownload);
+        return true;
+    }
+
+    const queueIndex = downloadQueue.findIndex(
+        (task) => task.id === downloadId
+    );
+    if (queueIndex !== -1) {
+        downloadQueue.splice(queueIndex, 1);
+        const db = await getDatabase();
+        await persistQueuedCancellation(db, downloadId);
+        broadcastDownloadUpdate();
+        return true;
+    }
+
+    const db = await getDatabase();
+    const rows = await db
+        .select({
+            filePath: schema.downloads.filePath,
+            status: schema.downloads.status,
+        })
+        .from(schema.downloads)
+        .where(eq(schema.downloads.id, downloadId))
+        .limit(1);
+    const item = rows[0];
+    if (item?.status !== 'paused') {
+        return false;
+    }
+
+    removePartialFile(item.filePath);
+    await persistQueuedCancellation(db, downloadId);
     broadcastDownloadUpdate();
     return true;
 }
@@ -104,39 +154,21 @@ function finishTask(task: DownloadTask): void {
     void processQueue();
 }
 
-function createCancellationHandler(
-    task: DownloadTask,
-    db: Awaited<ReturnType<typeof getDatabase>>,
-    reservation: ReturnType<typeof reserveAvailableDownloadFile>
-): (item: Parameters<typeof removePartialDownload>[0]) => Promise<void> {
-    let cancellationPromise: Promise<void> | undefined;
-
-    return (item) => {
-        cancellationPromise ??= (async () => {
-            console.log(`[Downloads] Canceled: ${reservation.filename}`);
-            removePartialFile(item);
-            try {
-                await db
-                    .update(schema.downloads)
-                    .set({
-                        errorMessage: null,
-                        filePath: null,
-                        status: 'canceled',
-                        updatedAt: sql`CURRENT_TIMESTAMP`,
-                    })
-                    .where(eq(schema.downloads.id, task.id));
-            } catch (error) {
-                console.error(
-                    '[Downloads] Failed to persist cancellation:',
-                    error
-                );
-            } finally {
-                finishTask(task);
-            }
-        })();
-
-        return cancellationPromise;
-    };
+async function persistQueuedCancellation(
+    db: DownloadsDatabase,
+    downloadId: number
+): Promise<void> {
+    await db
+        .update(schema.downloads)
+        .set({
+            bytesDownloaded: 0,
+            errorMessage: null,
+            filePath: null,
+            status: 'canceled',
+            totalBytes: null,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.downloads.id, downloadId));
 }
 
 async function startDownload(task: DownloadTask): Promise<void> {
@@ -145,40 +177,25 @@ async function startDownload(task: DownloadTask): Promise<void> {
         .update(schema.downloads)
         .set({
             errorMessage: null,
-            filePath: null,
             status: 'downloading',
             updatedAt: sql`CURRENT_TIMESTAMP`,
         })
         .where(eq(schema.downloads.id, task.id));
     broadcastDownloadUpdate();
 
-    if (!mainWindow || mainWindow.isDestroyed()) {
-        console.error('[Downloads] No main window available');
-        await db
-            .update(schema.downloads)
-            .set({
-                errorMessage: 'No window available for download',
-                status: 'failed',
-                updatedAt: sql`CURRENT_TIMESTAMP`,
-            })
-            .where(eq(schema.downloads.id, task.id));
-        finishTask(task);
-        return;
-    }
-
-    let lastProgressUpdate = 0;
-    const progressThrottleMs = 500;
-    let handleCancellation:
-        | ReturnType<typeof createCancellationHandler>
-        | undefined;
-
     try {
-        const reservation = reserveAvailableDownloadFile(
-            task.directory,
-            task.fileName
-        );
-        task.reservedPath = reservation.path;
-        handleCancellation = createCancellationHandler(task, db, reservation);
+        if (task.cancelRequested) {
+            await persistCancellation(db, task);
+            return;
+        }
+        if (task.pauseRequested) {
+            await persistPause(db, task);
+            return;
+        }
+
+        const reservation = reserveTarget(task);
+        task.fileName = reservation.filename;
+        task.filePath = reservation.path;
         await db
             .update(schema.downloads)
             .set({
@@ -189,87 +206,52 @@ async function startDownload(task: DownloadTask): Promise<void> {
             })
             .where(eq(schema.downloads.id, task.id));
 
-        const downloadOptions: Parameters<typeof download>[2] = {
-            directory: task.directory,
-            filename: reservation.filename,
-            onStarted: (item) => {
-                console.log(`[Downloads] Started: ${reservation.filename}`);
-                attachDownloadItem(task, item);
-            },
-            onProgress: async (progress) => {
-                const now = Date.now();
-                if (now - lastProgressUpdate < progressThrottleMs) {
-                    return;
-                }
-                lastProgressUpdate = now;
-                await db
-                    .update(schema.downloads)
-                    .set({
-                        bytesDownloaded: progress.transferredBytes,
-                        totalBytes: progress.totalBytes,
-                        updatedAt: sql`CURRENT_TIMESTAMP`,
-                    })
-                    .where(eq(schema.downloads.id, task.id));
-                broadcastDownloadUpdate();
-            },
-            onCompleted: async (file) => {
-                console.log(`[Downloads] Completed: ${file.filename}`);
-                try {
-                    await db
-                        .update(schema.downloads)
-                        .set({
-                            bytesDownloaded: file.fileSize,
-                            errorMessage: null,
-                            fileName: file.filename,
-                            filePath: file.path,
-                            status: 'completed',
-                            totalBytes: file.fileSize,
-                            updatedAt: sql`CURRENT_TIMESTAMP`,
-                        })
-                        .where(eq(schema.downloads.id, task.id));
-                } catch (error) {
-                    console.error(
-                        '[Downloads] Failed to persist completion:',
-                        error
-                    );
-                } finally {
-                    finishTask(task);
-                }
-            },
-            onCancel: handleCancellation,
-        };
-
-        if (task.headers) {
-            (
-                downloadOptions as typeof downloadOptions & {
-                    headers: Record<string, string>;
-                }
-            ).headers = task.headers;
+        if (task.cancelRequested) {
+            await persistCancellation(db, task);
+            return;
+        }
+        if (task.pauseRequested) {
+            await persistPause(db, task);
+            return;
         }
 
-        await download(mainWindow, task.url, downloadOptions);
+        const progress = await transferToPartialFile(db, task, reservation);
+        if (task.cancelRequested) {
+            await persistCancellation(db, task);
+            return;
+        }
+        if (task.pauseRequested) {
+            await persistPause(db, task);
+            return;
+        }
+
+        const fileSize = await finalizePartialDownload(reservation);
+
+        console.log(`[Downloads] Completed: ${reservation.filename}`);
+        await db
+            .update(schema.downloads)
+            .set({
+                bytesDownloaded: fileSize,
+                errorMessage: null,
+                fileName: reservation.filename,
+                filePath: reservation.path,
+                status: 'completed',
+                totalBytes: progress.totalBytes ?? fileSize,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+            })
+            .where(eq(schema.downloads.id, task.id));
     } catch (error) {
-        if (error instanceof CancelError) {
-            const reservedPath = task.reservedPath;
-            if (handleCancellation) {
-                await handleCancellation(
-                    task.downloadItem ??
-                        (reservedPath
-                            ? { getSavePath: () => reservedPath }
-                            : undefined)
-                );
-            } else {
-                finishTask(task);
-            }
+        if (task.cancelRequested) {
+            await persistCancellation(db, task);
+            return;
+        }
+        if (task.pauseRequested) {
+            await persistPause(db, task);
             return;
         }
 
         console.error(`[Downloads] Error downloading ${task.fileName}:`, error);
-        const reservedPath = task.reservedPath;
-        removePartialFile(
-            task.downloadItem ??
-                (reservedPath ? { getSavePath: () => reservedPath } : undefined)
-        );
+        removePartialFile(task.filePath);
         await db
             .update(schema.downloads)
             .set({
@@ -280,15 +262,229 @@ async function startDownload(task: DownloadTask): Promise<void> {
                 updatedAt: sql`CURRENT_TIMESTAMP`,
             })
             .where(eq(schema.downloads.id, task.id));
+    } finally {
+        task.abortController = undefined;
         finishTask(task);
     }
 }
 
-function removePartialFile(
-    item: Parameters<typeof removePartialDownload>[0]
-): void {
+function reserveTarget(task: DownloadTask): ReservedPartialDownloadFile {
+    if (task.filePath) {
+        if (existsSync(task.filePath)) {
+            throw new Error(`Destination file already exists: ${task.filePath}`);
+        }
+
+        return {
+            filename: task.fileName,
+            partialPath: getPartialDownloadPath(task.filePath),
+            path: task.filePath,
+        };
+    }
+
+    return reserveAvailablePartialDownloadFile(task.directory, task.fileName);
+}
+
+async function persistCancellation(
+    db: DownloadsDatabase,
+    task: DownloadTask
+): Promise<void> {
+    console.log(`[Downloads] Canceled: ${task.fileName}`);
+    removePartialFile(task.filePath);
     try {
-        removePartialDownload(item);
+        await db
+            .update(schema.downloads)
+            .set({
+                bytesDownloaded: 0,
+                errorMessage: null,
+                filePath: null,
+                status: 'canceled',
+                totalBytes: null,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+            })
+            .where(eq(schema.downloads.id, task.id));
+    } catch (error) {
+        console.error('[Downloads] Failed to persist cancellation:', error);
+    }
+}
+
+async function persistPause(
+    db: DownloadsDatabase,
+    task: DownloadTask
+): Promise<void> {
+    console.log(`[Downloads] Paused: ${task.fileName}`);
+    const bytesDownloaded = getPausedByteCount(task);
+    try {
+        await db
+            .update(schema.downloads)
+            .set({
+                bytesDownloaded,
+                errorMessage: null,
+                fileName: task.fileName,
+                filePath: task.filePath ?? null,
+                status: 'paused',
+                totalBytes: task.totalBytes ?? null,
+                updatedAt: sql`CURRENT_TIMESTAMP`,
+            })
+            .where(eq(schema.downloads.id, task.id));
+    } catch (error) {
+        console.error('[Downloads] Failed to persist pause:', error);
+    }
+}
+
+function getPausedByteCount(task: DownloadTask): number {
+    try {
+        return getPartialDownloadSize(task.filePath);
+    } catch (error) {
+        console.error('[Downloads] Failed to inspect partial file:', error);
+        return 0;
+    }
+}
+
+async function transferToPartialFile(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    reservation: ReservedPartialDownloadFile
+): Promise<TransferProgress> {
+    const resumeOffset = getPartialDownloadSize(reservation.path);
+    const headers = {
+        ...(task.headers ?? {}),
+    };
+    if (resumeOffset > 0) {
+        headers.Range = `bytes=${resumeOffset}-`;
+    }
+
+    const abortController = new AbortController();
+    task.abortController = abortController;
+    if (task.cancelRequested || task.pauseRequested) {
+        abortController.abort();
+    }
+
+    console.log(`[Downloads] Started: ${reservation.filename}`);
+    const response = await requestWithValidatedRedirects<Readable>(
+        task.url,
+        {
+            headers,
+            method: 'GET',
+            responseType: 'stream',
+            signal: abortController.signal,
+            validateStatus: (status) => status >= 200 && status < 300,
+        },
+        { allowPrivateNetworks: true }
+    );
+
+    if (resumeOffset > 0 && response.status !== 206) {
+        throw new Error('Server does not support resuming this download');
+    }
+
+    const totalBytes = getTotalBytes(response.headers, resumeOffset);
+    task.totalBytes = totalBytes;
+
+    let bytesDownloaded = resumeOffset;
+    let lastProgressUpdate = 0;
+    const progressThrottleMs = 500;
+    const readable = response.data;
+    const output = createWriteStream(reservation.partialPath, {
+        flags: resumeOffset > 0 ? 'a' : 'w',
+    });
+    const abortStream = () => {
+        readable.destroy(new Error('Download aborted'));
+    };
+
+    if (abortController.signal.aborted) {
+        abortStream();
+    } else {
+        abortController.signal.addEventListener('abort', abortStream, {
+            once: true,
+        });
+    }
+    readable.on('data', (chunk: Buffer | string) => {
+        bytesDownloaded += Buffer.isBuffer(chunk)
+            ? chunk.length
+            : Buffer.byteLength(chunk);
+        const now = Date.now();
+        if (now - lastProgressUpdate < progressThrottleMs) {
+            return;
+        }
+        lastProgressUpdate = now;
+        void persistProgress(db, task, {
+            bytesDownloaded,
+            totalBytes,
+        }).catch((error) => {
+            console.error('[Downloads] Failed to persist progress:', error);
+        });
+    });
+
+    try {
+        await pipeline(readable, output);
+    } finally {
+        abortController.signal.removeEventListener('abort', abortStream);
+    }
+
+    await persistProgress(db, task, { bytesDownloaded, totalBytes });
+    return { bytesDownloaded, totalBytes };
+}
+
+async function persistProgress(
+    db: DownloadsDatabase,
+    task: DownloadTask,
+    progress: TransferProgress
+): Promise<void> {
+    await db
+        .update(schema.downloads)
+        .set({
+            bytesDownloaded: progress.bytesDownloaded,
+            totalBytes: progress.totalBytes,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+        })
+        .where(eq(schema.downloads.id, task.id));
+    broadcastDownloadUpdate();
+}
+
+async function finalizePartialDownload(
+    reservation: ReservedPartialDownloadFile
+): Promise<number> {
+    await link(reservation.partialPath, reservation.path);
+    await unlink(reservation.partialPath);
+    const fileStats = await stat(reservation.path);
+    return fileStats.size;
+}
+
+function getTotalBytes(
+    headers: unknown,
+    resumeOffset: number
+): number | null {
+    const headerMap = headers as Record<string, unknown>;
+    const contentRange = getHeaderValue(headerMap, 'content-range');
+    if (contentRange) {
+        const match = contentRange.match(/\/(\d+)$/);
+        if (match) {
+            return Number(match[1]);
+        }
+    }
+
+    const contentLength = getHeaderValue(headerMap, 'content-length');
+    if (!contentLength) {
+        return null;
+    }
+
+    const parsed = Number(contentLength);
+    return Number.isFinite(parsed) ? resumeOffset + parsed : null;
+}
+
+function getHeaderValue(
+    headers: Record<string, unknown>,
+    name: string
+): string | undefined {
+    const value = headers[name] ?? headers[name.toLowerCase()];
+    if (Array.isArray(value)) {
+        return value.length > 0 ? String(value[0]) : undefined;
+    }
+    return value === undefined ? undefined : String(value);
+}
+
+function removePartialFile(filePath: string | null | undefined): void {
+    try {
+        removePartialDownloadFile(filePath);
     } catch (error) {
         console.error('[Downloads] Failed to delete partial file:', error);
     }

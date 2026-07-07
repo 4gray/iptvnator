@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "لم يعد بالإمكان فتح هذا التنزيل في المكتبة لأنه تمت إزالة قائمة التشغيل المصدر.",
         "FILE_NOT_FOUND": "هذا الملف الذي تم تنزيله لم يعد متاحًا على القرص.",
         "FILE_ACTION_ERROR": "تعذر إكمال الإجراء على الملف.",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "إلغاء",
         "RETRY": "إعادة المحاولة",
         "REMOVE": "إزالة",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "جارٍ التنزيل",
             "COMPLETED": "مكتمل",
             "FAILED": "فشل",
-            "CANCELED": "ملغى"
+            "CANCELED": "ملغى",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

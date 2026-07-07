@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "Эту загрузку больше нельзя открыть в библиотеке, потому что исходный плейлист был удален.",
         "FILE_NOT_FOUND": "Этот загруженный файл больше недоступен на диске.",
         "FILE_ACTION_ERROR": "Не удалось выполнить действие с файлом.",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "Отмена",
         "RETRY": "Повторить",
         "REMOVE": "Удалить",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "Скачивается",
             "COMPLETED": "Завершено",
             "FAILED": "Ошибка",
-            "CANCELED": "Отменено"
+            "CANCELED": "Отменено",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

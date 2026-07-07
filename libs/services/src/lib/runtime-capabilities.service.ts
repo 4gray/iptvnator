@@ -183,6 +183,8 @@ export class RuntimeCapabilitiesService {
         return [
             'downloadsStart',
             'downloadsCancel',
+            'downloadsPause',
+            'downloadsResume',
             'downloadsRetry',
             'downloadsRemove',
             'downloadsGetList',

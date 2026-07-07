@@ -97,6 +97,8 @@ describe('RuntimeCapabilitiesService', () => {
             dbRestoreXtreamUserData: jest.fn(),
             downloadsStart: jest.fn(),
             downloadsCancel: jest.fn(),
+            downloadsPause: jest.fn(),
+            downloadsResume: jest.fn(),
             downloadsRetry: jest.fn(),
             downloadsRemove: jest.fn(),
             downloadsGetList: jest.fn(),
@@ -366,6 +368,8 @@ describe('RuntimeCapabilitiesService', () => {
         testWindow.electron = {
             downloadsStart: jest.fn(),
             downloadsCancel: jest.fn(),
+            downloadsPause: jest.fn(),
+            downloadsResume: jest.fn(),
             downloadsRetry: jest.fn(),
             downloadsRemove: jest.fn(),
             downloadsGetList: jest.fn(),

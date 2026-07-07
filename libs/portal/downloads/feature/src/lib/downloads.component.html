@@ -228,6 +228,7 @@
 
                                     @if (
                                         item.status === 'downloading' ||
+                                        item.status === 'paused' ||
                                         item.status === 'completed'
                                     ) {
                                         <span class="downloads__item-size">
@@ -252,7 +253,10 @@
                                     }
                                 </div>
 
-                                @if (item.status === 'downloading') {
+                                @if (
+                                    item.status === 'downloading' ||
+                                    item.status === 'paused'
+                                ) {
                                     <mat-progress-bar
                                         mode="determinate"
                                         [value]="getProgress(item)"
@@ -278,6 +282,18 @@
                                                 mat-icon-button
                                                 (click)="
                                                     $event.stopPropagation();
+                                                    pause(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.PAUSE' | translate
+                                                "
+                                            >
+                                                <mat-icon>pause</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                (click)="
+                                                    $event.stopPropagation();
                                                     cancel(item)
                                                 "
                                                 [matTooltip]="
@@ -292,6 +308,18 @@
                                                 mat-icon-button
                                                 (click)="
                                                     $event.stopPropagation();
+                                                    pause(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.PAUSE' | translate
+                                                "
+                                            >
+                                                <mat-icon>pause</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                (click)="
+                                                    $event.stopPropagation();
                                                     cancel(item)
                                                 "
                                                 [matTooltip]="
@@ -299,6 +327,46 @@
                                                 "
                                             >
                                                 <mat-icon>close</mat-icon>
+                                            </button>
+                                        }
+                                        @case ('paused') {
+                                            <button
+                                                mat-icon-button
+                                                color="primary"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    resume(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.RESUME' | translate
+                                                "
+                                            >
+                                                <mat-icon>play_arrow</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    cancel(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.CANCEL' | translate
+                                                "
+                                            >
+                                                <mat-icon>close</mat-icon>
+                                            </button>
+                                            <button
+                                                mat-icon-button
+                                                color="warn"
+                                                (click)="
+                                                    $event.stopPropagation();
+                                                    remove(item)
+                                                "
+                                                [matTooltip]="
+                                                    'DOWNLOADS.REMOVE' | translate
+                                                "
+                                            >
+                                                <mat-icon>delete</mat-icon>
                                             </button>
                                         }
                                         @case ('completed') {

@@ -212,6 +212,8 @@ export class DownloadsComponent {
                 return 'schedule';
             case 'downloading':
                 return 'downloading';
+            case 'paused':
+                return 'pause_circle';
             case 'completed':
                 return 'check_circle';
             case 'failed':
@@ -229,6 +231,8 @@ export class DownloadsComponent {
                 return 'status-queued';
             case 'downloading':
                 return 'status-downloading';
+            case 'paused':
+                return 'status-paused';
             case 'completed':
                 return 'status-completed';
             case 'failed':
@@ -258,6 +262,14 @@ export class DownloadsComponent {
 
     async cancel(item: DownloadItem) {
         await this.downloadsService.cancelDownload(item.id);
+    }
+
+    async pause(item: DownloadItem) {
+        await this.downloadsService.pauseDownload(item.id);
+    }
+
+    async resume(item: DownloadItem) {
+        await this.downloadsService.resumeDownload(item.id);
     }
 
     async retry(item: DownloadItem) {

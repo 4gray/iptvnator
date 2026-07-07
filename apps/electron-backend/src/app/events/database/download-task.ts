@@ -1,5 +1,3 @@
-import type { DownloadItem } from 'electron';
-
 export interface DownloadTask {
     id: number;
     url: string;
@@ -7,21 +5,18 @@ export interface DownloadTask {
     directory: string;
     headers?: Record<string, string>;
     cancelRequested?: boolean;
-    downloadItem?: DownloadItem;
-    reservedPath?: string;
-}
-
-export function attachDownloadItem(
-    task: DownloadTask,
-    item: DownloadItem
-): void {
-    task.downloadItem = item;
-    if (task.cancelRequested) {
-        item.cancel();
-    }
+    pauseRequested?: boolean;
+    abortController?: AbortController;
+    filePath?: string | null;
+    totalBytes?: number | null;
 }
 
 export function requestDownloadCancellation(task: DownloadTask): void {
     task.cancelRequested = true;
-    task.downloadItem?.cancel();
+    task.abortController?.abort();
+}
+
+export function requestDownloadPause(task: DownloadTask): void {
+    task.pauseRequested = true;
+    task.abortController?.abort();
 }

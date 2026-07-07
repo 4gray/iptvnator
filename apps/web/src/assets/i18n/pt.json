@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "Este download não pode mais ser aberto na biblioteca porque sua playlist de origem foi removida.",
         "FILE_NOT_FOUND": "Este arquivo baixado não está mais disponível no disco.",
         "FILE_ACTION_ERROR": "A ação do arquivo não pôde ser concluída.",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "Cancelar",
         "RETRY": "Tentar novamente",
         "REMOVE": "Remover",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "Baixando",
             "COMPLETED": "Concluído",
             "FAILED": "Falhou",
-            "CANCELED": "Cancelado"
+            "CANCELED": "Cancelado",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

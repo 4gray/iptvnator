@@ -119,6 +119,7 @@ export const ELECTRON_BRIDGE_DOWNLOAD_STATUSES = {
     Completed: 'completed',
     Downloading: 'downloading',
     Failed: 'failed',
+    Paused: 'paused',
     Queued: 'queued',
 } as const;
 
@@ -953,6 +954,11 @@ export interface ElectronBridgeApi {
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;
     downloadsCancel: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
+    downloadsPause: (downloadId: number) => Promise<ElectronBridgeErrorResult>;
+    downloadsResume: (
+        downloadId: number,
+        downloadFolder: string
+    ) => Promise<ElectronBridgeErrorResult>;
     downloadsRetry: (
         downloadId: number,
         downloadFolder: string

@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "Tego pobrania nie można już otworzyć w bibliotece, ponieważ jego źródłowa lista odtwarzania została usunięta.",
         "FILE_NOT_FOUND": "Ten pobrany plik nie jest już dostępny na dysku.",
         "FILE_ACTION_ERROR": "Nie udało się wykonać akcji na pliku.",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "Anuluj",
         "RETRY": "Spróbuj ponownie",
         "REMOVE": "Usuń",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "Pobieranie",
             "COMPLETED": "Ukończone",
             "FAILED": "Niepowodzenie",
-            "CANCELED": "Anulowane"
+            "CANCELED": "Anulowane",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

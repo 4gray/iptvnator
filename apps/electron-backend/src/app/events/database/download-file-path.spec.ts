@@ -1,6 +1,10 @@
 import { join } from 'node:path';
 import {
+    getPartialDownloadPath,
+    getPartialDownloadSize,
     removePartialDownload,
+    removePartialDownloadFile,
+    reserveAvailablePartialDownloadFile,
     reserveAvailableDownloadFile,
 } from './download-file-path';
 
@@ -51,6 +55,45 @@ describe('reserveAvailableDownloadFile', () => {
     });
 });
 
+describe('reserveAvailablePartialDownloadFile', () => {
+    it('reserves a .part path while keeping the final path free', () => {
+        const reserveFile = jest.fn();
+
+        expect(
+            reserveAvailablePartialDownloadFile(
+                '/downloads',
+                'movie.mp4',
+                reserveFile,
+                () => false
+            )
+        ).toEqual({
+            filename: 'movie.mp4',
+            partialPath: join('/downloads', 'movie.mp4.part'),
+            path: join('/downloads', 'movie.mp4'),
+        });
+        expect(reserveFile).toHaveBeenCalledWith(
+            join('/downloads', 'movie.mp4.part')
+        );
+    });
+
+    it('skips candidates when the final file already exists', () => {
+        const reserveFile = jest.fn();
+
+        expect(
+            reserveAvailablePartialDownloadFile(
+                '/downloads',
+                'movie.mp4',
+                reserveFile,
+                (filePath) => filePath.endsWith('movie.mp4')
+            )
+        ).toEqual({
+            filename: 'movie (1).mp4',
+            partialPath: join('/downloads', 'movie (1).mp4.part'),
+            path: join('/downloads', 'movie (1).mp4'),
+        });
+    });
+});
+
 describe('removePartialDownload', () => {
     it('removes only the actual partial save path', () => {
         const requestedPath = join('/downloads', 'movie.mp4');
@@ -86,5 +129,29 @@ describe('removePartialDownload', () => {
             )
         ).toBe(false);
         expect(removeFile).not.toHaveBeenCalled();
+    });
+});
+
+describe('partial download helpers', () => {
+    it('derives, removes, and sizes .part files from the final path', () => {
+        const finalPath = join('/downloads', 'movie.mp4');
+        const partialPath = join('/downloads', 'movie.mp4.part');
+        const removeFile = jest.fn();
+
+        expect(getPartialDownloadPath(finalPath)).toBe(partialPath);
+        expect(
+            removePartialDownloadFile(
+                finalPath,
+                (filePath) => filePath === partialPath,
+                removeFile
+            )
+        ).toBe(true);
+        expect(removeFile).toHaveBeenCalledWith(partialPath);
+        expect(
+            getPartialDownloadSize(finalPath, (filePath) => {
+                expect(filePath).toBe(partialPath);
+                return { size: 128 };
+            })
+        ).toBe(128);
     });
 });

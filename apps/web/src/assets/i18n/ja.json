@@ -1004,6 +1004,8 @@
         "SOURCE_PLAYLIST_MISSING": "ソースのプレイリストが削除されたため、このダウンロードはライブラリで開けなくなりました。",
         "FILE_NOT_FOUND": "このダウンロードファイルはディスク上で見つかりませんでした。",
         "FILE_ACTION_ERROR": "ファイル操作を完了できませんでした。",
+        "PAUSE": "Pause",
+        "RESUME": "Resume",
         "CANCEL": "キャンセル",
         "RETRY": "再試行",
         "REMOVE": "削除",
@@ -1017,7 +1019,8 @@
             "DOWNLOADING": "ダウンロード中",
             "COMPLETED": "完了",
             "FAILED": "失敗",
-            "CANCELED": "キャンセル済み"
+            "CANCELED": "キャンセル済み",
+            "PAUSED": "Paused"
         }
     },
     "REMOTE_CONTROL": {

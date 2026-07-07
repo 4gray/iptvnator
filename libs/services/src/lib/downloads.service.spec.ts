@@ -21,6 +21,8 @@ type TestDownloadsService = {
     hasLoadedDownloads: Signal<boolean>;
     loadDownloads: DownloadsService['loadDownloads'];
     loadDownloadFolder: DownloadsService['loadDownloadFolder'];
+    pauseDownload: DownloadsService['pauseDownload'];
+    resumeDownload: DownloadsService['resumeDownload'];
     selectFolder: DownloadsService['selectFolder'];
     _isLoadingDownloads: WritableSignal<boolean>;
     _hasLoadedDownloads: WritableSignal<boolean>;
@@ -29,6 +31,11 @@ type TestDownloadsService = {
 
 type DownloadsElectronStub = {
     downloadsGetDefaultFolder?: jest.Mock<Promise<string>, []>;
+    downloadsPause?: jest.Mock<Promise<{ success: boolean }>, [number]>;
+    downloadsResume?: jest.Mock<
+        Promise<{ success: boolean }>,
+        [number, string]
+    >;
     downloadsSelectFolder?: jest.Mock<Promise<string | null>, []>;
     downloadsGetList: jest.Mock<Promise<DownloadItem[]>, [string?]>;
 };
@@ -161,6 +168,45 @@ describe('DownloadsService', () => {
         await expect(service.selectFolder()).resolves.toBe('/selected');
         expect(service.downloadFolder()).toBe('/selected');
         expect(electron.downloadsSelectFolder).toHaveBeenCalledTimes(1);
+    });
+
+    it('forwards pause requests to the main process', async () => {
+        const electron = {
+            downloadsGetList: jest.fn(async () => []),
+            downloadsPause: jest.fn(async (downloadId: number) => ({
+                success: downloadId === 42,
+            })),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(service.pauseDownload(42)).resolves.toEqual({
+            success: true,
+        });
+        expect(electron.downloadsPause).toHaveBeenCalledWith(42);
+    });
+
+    it('resolves the authorized folder before resuming a paused download', async () => {
+        const electron = {
+            downloadsGetDefaultFolder: jest.fn(async () => '/downloads'),
+            downloadsGetList: jest.fn(async () => []),
+            downloadsResume: jest.fn(
+                async (downloadId: number, downloadFolder: string) => ({
+                    success:
+                        downloadId === 42 && downloadFolder === '/downloads',
+                })
+            ),
+        };
+        testWindow.electron = electron;
+        const service = createService();
+
+        await expect(service.resumeDownload(42)).resolves.toEqual({
+            success: true,
+        });
+        expect(electron.downloadsResume).toHaveBeenCalledWith(
+            42,
+            '/downloads'
+        );
     });
 
     it('marks downloads as loaded after a failed request while preserving existing data', async () => {

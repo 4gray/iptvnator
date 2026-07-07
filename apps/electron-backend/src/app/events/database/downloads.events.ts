@@ -6,7 +6,9 @@ import { join } from 'node:path';
 import { getDatabase } from '../../database/connection';
 import * as schema from '../../database/schema';
 import { DownloadDirectoryAuthorizer } from './download-directory-authorization';
+import { removePartialDownloadFile } from './download-file-path';
 import {
+    resumeDownloadRequest,
     retryDownloadRequest,
     startDownloadRequest,
     type StartDownloadRequest,
@@ -15,6 +17,7 @@ import { resetStaleDownloads } from './download-recovery';
 import {
     broadcastDownloadUpdate,
     cancelDownload,
+    pauseDownload,
     removeDownloadFromRuntime,
     setMainWindow,
 } from './download-runtime';
@@ -104,6 +107,34 @@ ipcMain.handle('DOWNLOADS_CANCEL', async (_event, downloadId: number) => {
     }
 });
 
+ipcMain.handle('DOWNLOADS_PAUSE', async (_event, downloadId: number) => {
+    try {
+        console.log('[Downloads] Pause download:', downloadId);
+        return (await pauseDownload(downloadId))
+            ? { success: true }
+            : { error: 'Download not found in queue', success: false };
+    } catch (error) {
+        console.error('[Downloads] Error pausing download:', error);
+        throw error;
+    }
+});
+
+ipcMain.handle(
+    'DOWNLOADS_RESUME',
+    async (_event, downloadId: number, downloadFolder: string) => {
+        try {
+            return await resumeDownloadRequest(
+                downloadId,
+                downloadFolder,
+                downloadDirectoryAuthorizer
+            );
+        } catch (error) {
+            console.error('[Downloads] Error resuming download:', error);
+            throw error;
+        }
+    }
+);
+
 ipcMain.handle(
     'DOWNLOADS_RETRY',
     async (_event, downloadId: number, downloadFolder: string) => {
@@ -123,8 +154,19 @@ ipcMain.handle(
 ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
     try {
         console.log('[Downloads] Remove download:', downloadId);
-        removeDownloadFromRuntime(downloadId);
         const db = await getDatabase();
+        const rows = await db
+            .select({
+                filePath: schema.downloads.filePath,
+                status: schema.downloads.status,
+        })
+            .from(schema.downloads)
+            .where(eq(schema.downloads.id, downloadId))
+            .limit(1);
+        removeDownloadFromRuntime(downloadId);
+        if (rows[0]?.status === 'paused') {
+            removePartialDownloadFile(rows[0].filePath);
+        }
         await db
             .delete(schema.downloads)
             .where(eq(schema.downloads.id, downloadId));
