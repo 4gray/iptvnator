@@ -22,6 +22,13 @@ import {
     setMainWindow,
 } from './download-runtime';
 
+const removablePartialStatuses = new Set([
+    'queued',
+    'paused',
+    'failed',
+    'canceled',
+]);
+
 function getDownloadAuthorizationPath(): string {
     return join(
         app.getPath('userData'),
@@ -163,9 +170,10 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
             .from(schema.downloads)
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
+        const row = rows[0];
         removeDownloadFromRuntime(downloadId);
-        if (rows[0]?.status === 'paused') {
-            removePartialDownloadFile(rows[0].filePath);
+        if (row?.filePath && removablePartialStatuses.has(row.status)) {
+            removePartialDownloadFile(row.filePath);
         }
         await db
             .delete(schema.downloads)

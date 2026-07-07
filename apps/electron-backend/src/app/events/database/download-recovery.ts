@@ -29,19 +29,21 @@ function getRecoverablePartialSize(download: StaleDownload): number {
     }
 }
 
-function removeFailedPartial(download: StaleDownload): void {
+function removeFailedPartial(download: StaleDownload): boolean {
     if (!download.filePath) {
-        return;
+        return true;
     }
 
     try {
         removePartialDownloadFile(download.filePath);
+        return true;
     } catch (error) {
         console.error(
             '[Downloads] Failed to delete interrupted partial file:',
             download.filePath,
             error
         );
+        return false;
     }
 }
 
@@ -69,7 +71,16 @@ export async function resetStaleDownloads(): Promise<void> {
         const failedDownloads = staleDownloads.filter(
             (download) => !recoverableIds.has(download.id)
         );
-        const failedIds = failedDownloads.map((download) => download.id);
+        const cleanupResult = failedDownloads.map((download) => ({
+            ...download,
+            partialRemoved: removeFailedPartial(download),
+        }));
+        const failedIdsWithRemovedPartials = cleanupResult
+            .filter((download) => download.partialRemoved)
+            .map((download) => download.id);
+        const failedIdsWithRetainedPartials = cleanupResult
+            .filter((download) => !download.partialRemoved)
+            .map((download) => download.id);
 
         for (const download of recoverableDownloads) {
             await db
@@ -84,11 +95,7 @@ export async function resetStaleDownloads(): Promise<void> {
                 .where(inArray(schema.downloads.id, [download.id]));
         }
 
-        if (failedIds.length > 0) {
-            for (const download of failedDownloads) {
-                removeFailedPartial(download);
-            }
-
+        if (failedIdsWithRemovedPartials.length > 0) {
             await db
                 .update(schema.downloads)
                 .set({
@@ -97,7 +104,18 @@ export async function resetStaleDownloads(): Promise<void> {
                     status: 'failed',
                     updatedAt: sql`CURRENT_TIMESTAMP`,
                 })
-                .where(inArray(schema.downloads.id, failedIds));
+                .where(inArray(schema.downloads.id, failedIdsWithRemovedPartials));
+        }
+
+        if (failedIdsWithRetainedPartials.length > 0) {
+            await db
+                .update(schema.downloads)
+                .set({
+                    errorMessage: 'Download interrupted by application restart',
+                    status: 'failed',
+                    updatedAt: sql`CURRENT_TIMESTAMP`,
+                })
+                .where(inArray(schema.downloads.id, failedIdsWithRetainedPartials));
         }
 
         console.log('[Downloads] Reset stale downloads');

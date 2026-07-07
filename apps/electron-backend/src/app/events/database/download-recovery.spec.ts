@@ -153,4 +153,72 @@ describe('resetStaleDownloads', () => {
             })
         );
     });
+
+    it('keeps the persisted path when non-recoverable partial cleanup fails', async () => {
+        jest.resetModules();
+
+        const staleDownloads = [
+            {
+                filePath: '/downloads/locked.mp4',
+                id: 1,
+                status: 'downloading',
+                totalBytes: 100,
+            },
+        ];
+        const set = jest.fn(() => ({
+            where: jest.fn().mockResolvedValue(undefined),
+        }));
+        const db = {
+            select: jest.fn(() => ({
+                from: jest.fn(() => ({
+                    where: jest.fn().mockResolvedValue(staleDownloads),
+                })),
+            })),
+            update: jest.fn(() => ({ set })),
+        };
+        const deleteError = new Error('permission denied');
+        const removePartialDownloadFile = jest.fn(() => {
+            throw deleteError;
+        });
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        jest.doMock('../../database/connection', () => ({
+            getDatabase: jest.fn().mockResolvedValue(db),
+        }));
+        jest.doMock('./download-file-path', () => ({
+            getPartialDownloadSize: jest.fn(() => 0),
+            removePartialDownloadFile,
+        }));
+
+        const { resetStaleDownloads } = await import('./download-recovery');
+
+        try {
+            await resetStaleDownloads();
+
+            expect(removePartialDownloadFile).toHaveBeenCalledWith(
+                '/downloads/locked.mp4'
+            );
+            const failedUpdate = (set.mock.calls as unknown[][]).find(
+                ([value]) =>
+                    (value as { status?: string } | undefined)?.status ===
+                    'failed'
+            )?.[0] as Record<string, unknown> | undefined;
+            expect(failedUpdate).toEqual(
+                expect.objectContaining({
+                    errorMessage: 'Download interrupted by application restart',
+                    status: 'failed',
+                })
+            );
+            expect(failedUpdate).not.toHaveProperty('filePath');
+            expect(consoleError).toHaveBeenCalledWith(
+                '[Downloads] Failed to delete interrupted partial file:',
+                '/downloads/locked.mp4',
+                deleteError
+            );
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
 });
