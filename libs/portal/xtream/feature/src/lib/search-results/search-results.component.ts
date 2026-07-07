@@ -496,10 +496,13 @@ export class SearchResultsComponent implements AfterViewInit {
     /**
      * The in-portal search is a nested view (reached from the toolbar
      * search box or an actor page); the global search is a top-level
-     * sidebar destination, and the dialog has its own close button.
+     * sidebar destination, and the dialog has its own close button — a
+     * back arrow there would navigate the page behind the open dialog.
      */
     get showBackButton(): boolean {
-        return this.isWorkspaceLayout && !this.isGlobalSearch;
+        return (
+            this.isWorkspaceLayout && !this.isGlobalSearch && !this.dialogRef
+        );
     }
 
     get minSearchLength(): number {
