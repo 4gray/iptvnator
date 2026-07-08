@@ -1,6 +1,9 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
-import { EpgItem } from '@iptvnator/shared/interfaces';
+import {
+    ElectronBridgeEpgMapping,
+    EpgItem,
+} from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
 import { XtreamApiService, XtreamCredentials } from './xtream-api.service';
 import { XtreamXmltvFallbackService } from './xtream-xmltv-fallback.service';
@@ -114,6 +117,18 @@ export class EpgQueueService implements OnDestroy {
             typeof entry === 'number' ? { streamId: entry } : { ...entry }
         );
 
+        // Resolve manual EPG mappings before building the per-EPG-id index.
+        // When the user has right-clicked a channel and created a mapping, the
+        // stored key is the xtream_id (streamId), not the provider's
+        // epg_channel_id.  By resolving upfront we get the correct EPG channel
+        // ID for the XMLTV batch call that follows.
+        const hasMappingBridge = !!(window as unknown as {
+            electron?: { getEpgMapping?: unknown }
+        }).electron?.getEpgMapping;
+        if (hasMappingBridge) {
+            await this.resolveManualMappings(normalized);
+        }
+
         const streamsByEpgId = new Map<string, number[]>();
         for (const entry of normalized) {
             const id = entry.epgChannelId?.trim();
@@ -190,6 +205,52 @@ export class EpgQueueService implements OnDestroy {
     ): Promise<Record<string, EpgItem>> {
         if (epgChannelIds.length === 0) return {};
         return this.fallbackService.getCurrentProgramsBatch(epgChannelIds);
+    }
+
+    /**
+     * Resolve manual EPG mappings for entries that have an epgChannelId.
+     *
+     * The user may have opened the mapping dialog (right-click → "Map EPG")
+     * from any channel list and saved a mapping whose key is the stream's
+     * xtream_id.  The stored key does not match the provider's epg_channel_id,
+     * so the batch IPC handler's resolveChannelIds() would miss it.  We
+     * resolve here, upfront, so the XMLTV batch call later uses the
+     * *mapped* epgChannelId — the actual EPG channel that carries the
+     * XMLTV data.
+     */
+    private async resolveManualMappings(
+        entries: EpgQueueEntry[]
+    ): Promise<void> {
+        const electron = (
+            window as unknown as {
+                electron?: {
+                    getEpgMapping?: (
+                        key: string
+                    ) => Promise<ElectronBridgeEpgMapping | null>;
+                };
+            }
+        ).electron;
+        if (!electron?.getEpgMapping) return;
+
+        for (const entry of entries) {
+            const epgId = entry.epgChannelId?.trim();
+            if (!epgId) continue;
+
+            try {
+                const mapping = await electron.getEpgMapping(
+                    String(entry.streamId)
+                );
+                if (mapping?.epgChannelId?.trim()) {
+                    this.logger.info(
+                        `Mapped stream ${entry.streamId}: ${epgId} → ${mapping.epgChannelId}`
+                    );
+                    entry.epgChannelId = mapping.epgChannelId.trim();
+                }
+            } catch {
+                // Mapping lookup failure is non-fatal; keep the original
+                // epgChannelId and proceed.
+            }
+        }
     }
 
     private pruneEphemeralMaps(visibleIds: Set<number>): void {
