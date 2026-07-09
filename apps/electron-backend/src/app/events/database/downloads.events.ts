@@ -172,10 +172,10 @@ ipcMain.handle('DOWNLOADS_REMOVE', async (_event, downloadId: number) => {
             .where(eq(schema.downloads.id, downloadId))
             .limit(1);
         const row = rows[0];
-        removeDownloadFromRuntime(downloadId);
         if (row?.filePath && removablePartialStatuses.has(row.status)) {
             removePartialDownloadFile(row.filePath);
         }
+        removeDownloadFromRuntime(downloadId);
         await db
             .delete(schema.downloads)
             .where(eq(schema.downloads.id, downloadId));

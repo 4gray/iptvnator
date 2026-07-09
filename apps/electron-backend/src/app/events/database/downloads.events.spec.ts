@@ -123,6 +123,9 @@ describe('downloads events', () => {
         );
         expect(
             mockRemovePartialDownloadFile.mock.invocationCallOrder[0]
+        ).toBeLessThan(mockRemoveDownloadFromRuntime.mock.invocationCallOrder[0]);
+        expect(
+            mockRemovePartialDownloadFile.mock.invocationCallOrder[0]
         ).toBeLessThan(deleteWhere.mock.invocationCallOrder[0]);
         expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
     });
@@ -142,7 +145,7 @@ describe('downloads events', () => {
         ).toBeLessThan(deleteWhere.mock.invocationCallOrder[0]);
     });
 
-    it('does not delete the row when queued partial cleanup fails', async () => {
+    it('keeps the queued runtime entry and row when partial cleanup fails', async () => {
         const cleanupError = new Error('permission denied');
         const { deleteWhere } = mockDownloadRow(createDownloadRow('queued'));
         mockRemovePartialDownloadFile.mockImplementation(() => {
@@ -161,6 +164,7 @@ describe('downloads events', () => {
         }
 
         expect(deleteWhere).not.toHaveBeenCalled();
+        expect(mockRemoveDownloadFromRuntime).not.toHaveBeenCalled();
     });
 
     it('removes completed, failed, and canceled partial files before clearing terminal downloads', async () => {
