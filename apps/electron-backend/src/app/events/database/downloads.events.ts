@@ -25,6 +25,7 @@ import {
 const removablePartialStatuses = new Set([
     'queued',
     'paused',
+    'completed',
     'failed',
     'canceled',
 ]);

@@ -127,6 +127,21 @@ describe('downloads events', () => {
         expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
     });
 
+    it('removes completed partial files before deleting the row', async () => {
+        const { deleteWhere } = mockDownloadRow(createDownloadRow('completed'));
+
+        await expect(getHandler('DOWNLOADS_REMOVE')(null, 42)).resolves.toEqual({
+            success: true,
+        });
+
+        expect(mockRemovePartialDownloadFile).toHaveBeenCalledWith(
+            '/downloads/resume.mp4'
+        );
+        expect(
+            mockRemovePartialDownloadFile.mock.invocationCallOrder[0]
+        ).toBeLessThan(deleteWhere.mock.invocationCallOrder[0]);
+    });
+
     it('does not delete the row when queued partial cleanup fails', async () => {
         const cleanupError = new Error('permission denied');
         const { deleteWhere } = mockDownloadRow(createDownloadRow('queued'));
@@ -148,7 +163,7 @@ describe('downloads events', () => {
         expect(deleteWhere).not.toHaveBeenCalled();
     });
 
-    it('removes failed and canceled partial files before clearing terminal downloads', async () => {
+    it('removes completed, failed, and canceled partial files before clearing terminal downloads', async () => {
         const { deleteWhere } = mockTerminalRows([
             { filePath: '/downloads/done.mp4', status: 'completed' },
             { filePath: '/downloads/failed.mp4', status: 'failed' },
@@ -159,13 +174,17 @@ describe('downloads events', () => {
             getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
         ).resolves.toEqual({ success: true });
 
-        expect(mockRemovePartialDownloadFile).toHaveBeenCalledTimes(2);
+        expect(mockRemovePartialDownloadFile).toHaveBeenCalledTimes(3);
         expect(mockRemovePartialDownloadFile).toHaveBeenNthCalledWith(
             1,
-            '/downloads/failed.mp4'
+            '/downloads/done.mp4'
         );
         expect(mockRemovePartialDownloadFile).toHaveBeenNthCalledWith(
             2,
+            '/downloads/failed.mp4'
+        );
+        expect(mockRemovePartialDownloadFile).toHaveBeenNthCalledWith(
+            3,
             '/downloads/canceled.mp4'
         );
         expect(
