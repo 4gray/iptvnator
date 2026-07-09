@@ -198,7 +198,7 @@ async function startDownload(task: DownloadTask): Promise<void> {
             return;
         }
 
-        const reservation = reserveTarget(task);
+        const reservation = await reserveTarget(task);
         task.fileName = reservation.filename;
         task.filePath = reservation.path;
         await db
@@ -355,10 +355,21 @@ async function persistCompletion(
         .where(eq(schema.downloads.id, task.id));
 }
 
-function reserveTarget(task: DownloadTask): ReservedPartialDownloadFile {
+async function reserveTarget(
+    task: DownloadTask
+): Promise<ReservedPartialDownloadFile> {
     if (task.filePath) {
         if (existsSync(task.filePath)) {
-            throw new Error(`Destination file already exists: ${task.filePath}`);
+            const completedPartialProgress = getCompletedPartialProgress(task);
+            const existingCompletedFileProgress =
+                await getExistingCompletedFileProgress(task);
+            if (!completedPartialProgress || existingCompletedFileProgress) {
+                throw new Error(
+                    `Destination file already exists: ${task.filePath}`
+                );
+            }
+
+            await unlink(task.filePath);
         }
 
         return {
