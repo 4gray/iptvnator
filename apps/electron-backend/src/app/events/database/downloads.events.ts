@@ -265,20 +265,38 @@ ipcMain.handle(
                 : terminalStatus;
             const rows = await db
                 .select({
+                    id: schema.downloads.id,
                     filePath: schema.downloads.filePath,
                     status: schema.downloads.status,
                 })
                 .from(schema.downloads)
                 .where(terminalFilter);
+            const downloadIdsToDelete: number[] = [];
             for (const row of rows) {
                 if (row.filePath && removablePartialStatuses.has(row.status)) {
-                    removePartialDownloadFile(row.filePath);
+                    try {
+                        removePartialDownloadFile(row.filePath);
+                    } catch (error) {
+                        console.error(
+                            '[Downloads] Retaining download after partial cleanup failed:',
+                            error
+                        );
+                        continue;
+                    }
                 }
+                downloadIdsToDelete.push(row.id);
             }
-            await db
-                .delete(schema.downloads)
-                .where(terminalFilter);
-            broadcastDownloadUpdate();
+            if (downloadIdsToDelete.length > 0) {
+                await db
+                    .delete(schema.downloads)
+                    .where(
+                        and(
+                            terminalFilter,
+                            inArray(schema.downloads.id, downloadIdsToDelete)
+                        )
+                    );
+                broadcastDownloadUpdate();
+            }
             return { success: true };
         } catch (error) {
             console.error('[Downloads] Error clearing completed:', error);

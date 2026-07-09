@@ -95,7 +95,9 @@ describe('downloads events', () => {
         rows: Array<{ filePath: string | null; status: string }>
     ) {
         const deleteWhere = jest.fn().mockResolvedValue(undefined);
-        const selectWhere = jest.fn().mockResolvedValue(rows);
+        const selectWhere = jest
+            .fn()
+            .mockResolvedValue(rows.map((row, index) => ({ id: index + 1, ...row })));
         const db = {
             delete: jest.fn(() => ({ where: deleteWhere })),
             select: jest.fn(() => ({
@@ -172,12 +174,16 @@ describe('downloads events', () => {
         expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
     });
 
-    it('does not clear terminal downloads when retained partial cleanup fails', async () => {
+    it('retains only downloads whose partial cleanup fails when clearing terminal downloads', async () => {
         const cleanupError = new Error('permission denied');
         const { deleteWhere } = mockTerminalRows([
+            { filePath: '/downloads/done.mp4', status: 'completed' },
             { filePath: '/downloads/failed.mp4', status: 'failed' },
         ]);
-        mockRemovePartialDownloadFile.mockImplementation(() => {
+        mockRemovePartialDownloadFile.mockImplementation((filePath) => {
+            if (filePath !== '/downloads/failed.mp4') {
+                return;
+            }
             throw cleanupError;
         });
         const consoleError = jest
@@ -187,12 +193,12 @@ describe('downloads events', () => {
         try {
             await expect(
                 getHandler('DOWNLOADS_CLEAR_COMPLETED')(null)
-            ).rejects.toBe(cleanupError);
+            ).resolves.toEqual({ success: true });
         } finally {
             consoleError.mockRestore();
         }
 
-        expect(deleteWhere).not.toHaveBeenCalled();
-        expect(mockBroadcastDownloadUpdate).not.toHaveBeenCalled();
+        expect(deleteWhere).toHaveBeenCalledTimes(1);
+        expect(mockBroadcastDownloadUpdate).toHaveBeenCalledTimes(1);
     });
 });
