@@ -3,6 +3,7 @@ import { DatePipe, NgStyle } from '@angular/common';
 import {
     ChangeDetectionStrategy,
     Component,
+    computed,
     effect,
     inject,
     input,
@@ -16,6 +17,8 @@ import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
 import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
 
 @Component({
     selector: 'app-channel-list-item',
@@ -35,10 +38,17 @@ import { EpgProgram } from '@iptvnator/shared/interfaces';
 export class ChannelListItemComponent {
     private readonly dialog = inject(MatDialog);
     private readonly logoFailed = signal(false);
+    private readonly settingsStore = inject(SettingsStore);
 
     readonly isDraggable = input(false);
     readonly logo = input<string | null | undefined>('');
     readonly name = input('');
+    readonly displayName = computed(() => {
+        const raw = this.name();
+        return raw && this.settingsStore.stripCountryPrefix?.()
+            ? stripCountryPrefix(raw)
+            : raw;
+    });
     readonly showFavoriteButton = input(false);
     readonly showAuxActionButton = input(false);
     readonly showProgramInfoButton = input(true);

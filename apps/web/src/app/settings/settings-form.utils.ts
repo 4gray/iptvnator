@@ -54,6 +54,7 @@ export function createSettingsForm(
         }),
         startupBehavior: StartupBehavior.FirstView,
         showExternalPlaybackBar: true,
+        stripCountryPrefix: false,
         theme: Theme.SystemTheme,
         mpvPlayerPath: '',
         mpvPlayerArguments: '',
@@ -121,6 +122,7 @@ export function createSettingsFromFormValue(
         dashboardRails: normalizeDashboardRailsSettings(value.dashboardRails),
         startupBehavior: value.startupBehavior ?? StartupBehavior.FirstView,
         showExternalPlaybackBar: value.showExternalPlaybackBar ?? true,
+        stripCountryPrefix: value.stripCountryPrefix ?? false,
         theme: value.theme ?? Theme.SystemTheme,
         mpvPlayerPath: normalizeExternalPlayerPath(value.mpvPlayerPath),
         mpvPlayerArguments: normalizeExternalPlayerArguments(

@@ -3,6 +3,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    inject,
     input,
     output,
 } from '@angular/core';
@@ -15,6 +16,8 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
+import { SettingsStore } from '@iptvnator/services';
+import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 import type {
     SeriesEpisodeMetadata,
@@ -43,7 +46,13 @@ export class PortalInlinePlayerComponent {
     readonly playback = input<ResolvedPortalPlayback | null>(null);
     readonly episodeMetadata = input<SeriesEpisodeMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
-    readonly title = computed(() => this.playback()?.title ?? '');
+    private readonly settingsStore = inject(SettingsStore);
+    readonly title = computed(() => {
+        const raw = this.playback()?.title ?? '';
+        return raw && this.settingsStore.stripCountryPrefix?.()
+            ? stripCountryPrefix(raw)
+            : raw;
+    });
     readonly streamUrl = computed(() => this.playback()?.streamUrl ?? '');
     readonly startTime = computed(() => this.playback()?.startTime ?? 0);
     readonly contentInfo = computed<PlayerContentInfo | undefined>(

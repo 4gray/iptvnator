@@ -3,6 +3,7 @@ import {
     Component,
     computed,
     effect,
+    inject,
     input,
     output,
     signal,
@@ -12,6 +13,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
+import { SettingsStore } from '@iptvnator/services';
+import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
 
 @Component({
     selector: 'app-external-playback-dock',
@@ -26,12 +29,21 @@ import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
     changeDetection: ChangeDetectionStrategy.OnPush,
 })
 export class ExternalPlaybackDockComponent {
+    private readonly settingsStore = inject(SettingsStore);
+
     readonly session = input.required<ExternalPlayerSession>();
     readonly compact = input(false);
 
     readonly closeClicked = output<void>();
     readonly artworkClicked = output<void>();
     private readonly artworkFailed = signal(false);
+
+    readonly displayTitle = computed(() => {
+        const raw = this.session().title;
+        return raw && this.settingsStore.stripCountryPrefix?.()
+            ? stripCountryPrefix(raw)
+            : raw;
+    });
 
     readonly playerLabel = computed(() => this.session().player.toUpperCase());
     readonly artworkUrl = computed(

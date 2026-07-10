@@ -91,6 +91,7 @@ const DEFAULT_SETTINGS = {
     showDashboard: true,
     startupBehavior: StartupBehavior.FirstView,
     showExternalPlaybackBar: true,
+    stripCountryPrefix: false,
     theme: Theme.SystemTheme,
     mpvPlayerPath: '',
     mpvPlayerArguments: '',

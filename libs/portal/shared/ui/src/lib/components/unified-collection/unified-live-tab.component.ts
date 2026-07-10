@@ -18,6 +18,7 @@ import {
     getM3uArchiveDays,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
+    stripCountryPrefix,
 } from '@iptvnator/shared/m3u-utils';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
@@ -183,12 +184,15 @@ export class UnifiedLiveTabComponent {
             ? this.currentM3uPrograms()
             : this.currentPortalEpgPrograms()
     );
-    readonly timelineChannelName = computed(
-        () =>
+    readonly timelineChannelName = computed(() => {
+        const raw =
             this.currentM3uChannel()?.name ??
             this.activeDetail()?.playback?.title ??
-            ''
-    );
+            '';
+        return raw && this.settingsStore.stripCountryPrefix?.()
+            ? stripCountryPrefix(raw)
+            : raw;
+    });
     readonly timelineChannelLogo = computed(
         () =>
             this.currentM3uChannel()?.tvg?.logo ??
