@@ -34,13 +34,14 @@ jest.mock('electron', () => ({
 }));
 
 const mainWindowSendMock = jest.fn();
+const mainWindowWebContentsOnMock = jest.fn();
 const mainWindowGetNativeWindowHandleMock = jest.fn<Buffer, []>(() =>
     Buffer.alloc(8)
 );
 const mainWindowMock = {
     isDestroyed: () => false,
     getNativeWindowHandle: mainWindowGetNativeWindowHandleMock,
-    webContents: { send: mainWindowSendMock },
+    webContents: { send: mainWindowSendMock, on: mainWindowWebContentsOnMock },
 };
 
 jest.mock('../app', () => ({
@@ -131,6 +132,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         mainWindowGetNativeWindowHandleMock.mockReset();
         mainWindowGetNativeWindowHandleMock.mockReturnValue(Buffer.alloc(8));
         mainWindowSendMock.mockReset();
+        mainWindowWebContentsOnMock.mockReset();
 
         tempDirs = [];
         nextBlockerId = 1;
@@ -207,6 +209,40 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     it('does not acquire a blocker for a loading session', () => {
         startSession('s1', snapshot('loading'));
         expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
+    });
+
+    it('disposes sessions when the renderer reloads or crashes', () => {
+        // Angular teardown never runs on a renderer crash or hard reload, so
+        // the main process must reap sessions itself — otherwise native mpv
+        // handles / frame-copy helper processes leak until app shutdown.
+        startSession('s1', snapshot('playing'));
+        addon.getSessionSnapshot.mockReturnValue(snapshot('playing'));
+
+        const handlers = new Map<string, (...args: unknown[]) => void>(
+            mainWindowWebContentsOnMock.mock.calls.map(
+                ([event, handler]: [string, (...args: unknown[]) => void]) => [
+                    event,
+                    handler,
+                ]
+            )
+        );
+        expect([...handlers.keys()]).toEqual(
+            expect.arrayContaining(['render-process-gone', 'did-navigate'])
+        );
+
+        const consoleWarnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation();
+        handlers.get('did-navigate')?.();
+        expect(addon.disposeSession).toHaveBeenCalledWith('s1');
+
+        // A crash after everything is already disposed must be a no-op.
+        addon.disposeSession.mockClear();
+        handlers.get('render-process-gone')?.(undefined, {
+            reason: 'crashed',
+        });
+        expect(addon.disposeSession).not.toHaveBeenCalled();
+        consoleWarnSpy.mockRestore();
     });
 
     it('keeps the polling timer alive when refreshing a session throws', () => {

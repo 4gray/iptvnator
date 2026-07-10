@@ -408,6 +408,7 @@ export class EmbeddedMpvNativeService {
         });
 
         this.ensurePolling();
+        this.ensureRendererLifecycleWatch();
         return (
             this.refreshSession(sessionId) ?? {
                 id: sessionId,
@@ -655,6 +656,50 @@ export class EmbeddedMpvNativeService {
                 }
             });
         }, 500);
+    }
+
+    /**
+     * Sessions are torn down by the renderer's Angular lifecycle, which
+     * never runs when the renderer crashes or hard-reloads (dev-server HMR,
+     * Cmd+R). Without this watch, native mpv handles or frame-copy helper
+     * processes leak until app shutdown.
+     */
+    private rendererWatchInstalled = false;
+
+    private ensureRendererLifecycleWatch(): void {
+        if (
+            this.rendererWatchInstalled ||
+            !App.mainWindow ||
+            App.mainWindow.isDestroyed()
+        ) {
+            return;
+        }
+        this.rendererWatchInstalled = true;
+
+        const disposeAll = (reason: string) => {
+            if (this.sessions.size === 0) {
+                return;
+            }
+            console.warn(
+                `[Embedded MPV] Disposing ${this.sessions.size} session(s): renderer ${reason}`
+            );
+            [...this.sessions.keys()].forEach((sessionId) => {
+                try {
+                    this.disposeSession(sessionId);
+                } catch {
+                    // best-effort reaping; polling cleanup handles the rest
+                }
+            });
+        };
+
+        App.mainWindow.webContents.on('render-process-gone', (_event, details) =>
+            disposeAll(`process gone (${details.reason})`)
+        );
+        // Full navigations/reloads only — in-app Angular routing emits
+        // did-navigate-in-page and must not kill the active session.
+        App.mainWindow.webContents.on('did-navigate', () =>
+            disposeAll('reloaded')
+        );
     }
 
     private stopPollingIfIdle(): void {
