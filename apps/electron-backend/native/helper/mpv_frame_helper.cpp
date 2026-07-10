@@ -30,6 +30,7 @@
 #include <mutex>
 #include <string>
 #include <thread>
+#include <utility>
 #include <vector>
 
 #include "frame_helper_io.h"
@@ -55,6 +56,8 @@ struct SnapshotState {
     double positionSeconds = 0;
     double durationSeconds = -1; /* <0 => null */
     double volume = 1;           /* 0..1 */
+    int64_t videoWidth = 0;      /* mpv dwidth/dheight; 0 = unknown */
+    int64_t videoHeight = 0;
     std::string streamUrl;
     std::vector<TrackInfo> audioTracks;
     int64_t selectedAudioTrackId = -1;
@@ -80,6 +83,11 @@ struct HelperState {
     bool dirty = true;
     std::string lastEmittedStatus;
     uint64_t lastEmitNs = 0;
+    /* Requested viewport in device pixels; the render target is the
+     * aspect-fit of the video inside it so letterbox bars are never
+     * rendered (and frames stay as small as possible). */
+    int viewportWidth = 0;
+    int viewportHeight = 0;
 
     std::atomic<bool> running{true};
 };
@@ -124,6 +132,10 @@ std::string composeSnapshotLocked() {
     writer.str("event", "snapshot");
     writer.str("status", s.status);
     writer.num("positionSeconds", std::max(0.0, s.positionSeconds));
+    if (s.videoWidth > 0 && s.videoHeight > 0) {
+        writer.num("videoWidth", (double)s.videoWidth);
+        writer.num("videoHeight", (double)s.videoHeight);
+    }
     if (s.durationSeconds >= 0) {
         writer.num("durationSeconds", s.durationSeconds);
     } else {
@@ -182,6 +194,33 @@ void maybeEmitSnapshot(bool force = false) {
 }
 
 void markDirtyLocked() { g_state.dirty = true; }
+
+/* Aspect-fit of the current video inside the requested viewport. Caller
+ * holds g_state.mutex. Letterbox bars are handled by the renderer layout,
+ * not baked into frames. */
+std::pair<int, int> computeRenderSizeLocked() {
+    const int vpW = g_state.viewportWidth;
+    const int vpH = g_state.viewportHeight;
+    const int64_t vw = g_state.snapshot.videoWidth;
+    const int64_t vh = g_state.snapshot.videoHeight;
+    if (vw < 16 || vh < 16 || vpW < 16 || vpH < 16) {
+        return {vpW, vpH};
+    }
+    const double scale =
+        std::min(vpW / (double)vw, vpH / (double)vh);
+    const int width =
+        std::max(16, (int)llround((double)vw * scale)) & ~1;
+    const int height =
+        std::max(16, (int)llround((double)vh * scale)) & ~1;
+    return {width, height};
+}
+
+void applyRenderSizeLocked() {
+    const auto [width, height] = computeRenderSizeLocked();
+    if (width >= 16 && height >= 16) {
+        g_state.pipeline.requestResize(width, height);
+    }
+}
 
 /* ---- track-list parsing (ported from embedded_mpv.mm) ------------------- */
 
@@ -299,6 +338,15 @@ void handlePropertyChange(const mpv_event_property& property) {
     } else if (name == "speed" && property.format == MPV_FORMAT_DOUBLE &&
                property.data) {
         s.playbackSpeed = *static_cast<double*>(property.data);
+    } else if ((name == "dwidth" || name == "dheight") &&
+               property.format == MPV_FORMAT_INT64 && property.data) {
+        const int64_t value = *static_cast<int64_t*>(property.data);
+        if (name == "dwidth") {
+            s.videoWidth = value;
+        } else {
+            s.videoHeight = value;
+        }
+        applyRenderSizeLocked();
     } else if (name == "video-aspect-override" &&
                property.format == MPV_FORMAT_STRING && property.data) {
         const char* value = *static_cast<char**>(property.data);
@@ -526,7 +574,10 @@ void handleCommand(const Command& command) {
         const int width = (int)command.getDouble("width", 0);
         const int height = (int)command.getDouble("height", 0);
         if (width >= 16 && height >= 16) {
-            g_state.pipeline.requestResize(width, height);
+            std::lock_guard<std::mutex> lock(g_state.mutex);
+            g_state.viewportWidth = width;
+            g_state.viewportHeight = height;
+            applyRenderSizeLocked();
         }
     } else if (command.name == "quit") {
         g_state.running.store(false);
@@ -552,6 +603,7 @@ void onRenderUpdate(void* pipeline) {
 struct HelperArgs {
     std::string shmBase = "/impv";
     std::string hwdec = "auto";
+    std::string audioDelay; /* seconds, mpv audio-delay passthrough */
     int width = 1280;
     int height = 720;
     double volume = 1;
@@ -569,6 +621,7 @@ HelperArgs parseArgs(int argc, char** argv) {
         else if (arg == "--height") args.height = std::atoi(next().c_str());
         else if (arg == "--volume") args.volume = std::atof(next().c_str());
         else if (arg == "--hwdec") args.hwdec = next();
+        else if (arg == "--audio-delay") args.audioDelay = next();
     }
     args.width = std::max(16, args.width);
     args.height = std::max(16, args.height);
@@ -597,6 +650,12 @@ int main(int argc, char** argv) {
     mpv_set_option_string(g_state.mpv, "idle", "yes");
     mpv_set_option_string(g_state.mpv, "input-default-bindings", "no");
     mpv_set_option_string(g_state.mpv, "osc", "no");
+    if (!args.audioDelay.empty()) {
+        /* Compensates the frame-copy video-path latency to restore
+         * lip-sync; calibrated per platform, see the architecture doc. */
+        mpv_set_option_string(g_state.mpv, "audio-delay",
+                              args.audioDelay.c_str());
+    }
     if (mpv_initialize(g_state.mpv) < 0) {
         emitLine(JsonWriter()
                      .str("event", "fatal")
@@ -623,6 +682,8 @@ int main(int argc, char** argv) {
     mpv_observe_property(g_state.mpv, 10, "video-aspect-override",
                          MPV_FORMAT_STRING);
     mpv_observe_property(g_state.mpv, 11, "eof-reached", MPV_FORMAT_FLAG);
+    mpv_observe_property(g_state.mpv, 12, "dwidth", MPV_FORMAT_INT64);
+    mpv_observe_property(g_state.mpv, 13, "dheight", MPV_FORMAT_INT64);
 
     g_state.pipeline.onGenerationChanged = [](const std::string& name,
                                               int width, int height,
@@ -635,6 +696,9 @@ int main(int argc, char** argv) {
                      .num("generation", generation)
                      .finish());
     };
+
+    g_state.viewportWidth = args.width;
+    g_state.viewportHeight = args.height;
 
     std::string startError;
     if (!g_state.pipeline.start(g_state.mpv, args.shmBase, args.width,

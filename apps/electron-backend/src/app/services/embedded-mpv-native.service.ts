@@ -41,6 +41,8 @@ export interface NativeEmbeddedMpvSessionSnapshot {
     selectedSubtitleTrackId?: number | null;
     playbackSpeed?: number;
     aspectOverride?: string;
+    videoWidth?: number;
+    videoHeight?: number;
     recording?: EmbeddedMpvRecordingState;
     error?: string;
 }
@@ -768,6 +770,13 @@ export class EmbeddedMpvNativeService {
                 typeof snapshot.aspectOverride === 'string'
                     ? snapshot.aspectOverride
                     : 'no',
+            ...(typeof snapshot.videoWidth === 'number' &&
+            typeof snapshot.videoHeight === 'number'
+                ? {
+                      videoWidth: snapshot.videoWidth,
+                      videoHeight: snapshot.videoHeight,
+                  }
+                : {}),
             recording: snapshot.recording ?? { active: false },
             startedAt: session.startedAt,
             updatedAt: new Date().toISOString(),

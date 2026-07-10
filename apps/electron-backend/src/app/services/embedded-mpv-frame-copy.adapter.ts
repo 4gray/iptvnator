@@ -116,6 +116,15 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
                 String(height),
                 '--volume',
                 String(Math.min(Math.max(initialVolume ?? 1, 0), 1)),
+                // Lip-sync compensation for the video path's added latency
+                // (~10 ms measured on M1 Pro); tunable until calibration
+                // lands, see the architecture doc.
+                ...(process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY
+                    ? [
+                          '--audio-delay',
+                          process.env.IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY,
+                      ]
+                    : []),
             ],
             { stdio: ['pipe', 'pipe', 'pipe'] }
         );

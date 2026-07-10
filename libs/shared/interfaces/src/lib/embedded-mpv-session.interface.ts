@@ -93,6 +93,9 @@ export interface EmbeddedMpvSession {
     selectedSubtitleTrackId: number | null;
     playbackSpeed: number;
     aspectOverride: string;
+    /** Source video size (mpv dwidth/dheight); frame-copy engine only. */
+    videoWidth?: number;
+    videoHeight?: number;
     recording?: EmbeddedMpvRecordingState;
     startedAt: string;
     updatedAt: string;

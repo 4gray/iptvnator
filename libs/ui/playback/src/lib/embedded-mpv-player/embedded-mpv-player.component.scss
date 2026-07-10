@@ -52,15 +52,18 @@
 }
 
 // Frame-copy engine: video frames are painted onto this canvas by the
-// preload frame pump. The backing store is sized to the viewport in device
-// pixels; CSS letterboxes it inside the viewport.
+// preload frame pump. The helper renders at the aspect-fit size of the
+// video inside the viewport (no letterbox bars are baked into frames), so
+// object-fit: contain centers the content and the sides show the app
+// surface instead of TV-style black bars. Fullscreen keeps a black
+// backdrop via the viewport rule above.
 .embedded-mpv-player__frame-canvas {
     position: absolute;
     inset: 0;
     width: 100%;
     height: 100%;
     object-fit: contain;
-    background: #000;
+    background: transparent;
 }
 
 .embedded-mpv-player--controls-enabled .embedded-mpv-player__viewport {
