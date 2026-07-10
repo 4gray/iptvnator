@@ -473,8 +473,16 @@ function main() {
 
     if (targetPlatform === 'darwin') {
         patchAddonForBundledRuntime(outputFile, outputLibDir);
+        // The frame-copy helper executable links libmpv too and sits next to
+        // the same lib/ directory, so it gets the identical dependency-path
+        // rewrite + ad-hoc re-sign.
+        const frameHelperFile = path.join(outputDir, 'iptvnator_mpv_helper');
+        if (fs.existsSync(frameHelperFile)) {
+            patchAddonForBundledRuntime(frameHelperFile, outputLibDir);
+        }
         const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
             outputFile,
+            ...(fs.existsSync(frameHelperFile) ? [frameHelperFile] : []),
             ...runtimeManifest.dylibs.map((dylib) =>
                 path.join(outputLibDir, dylib)
             ),
