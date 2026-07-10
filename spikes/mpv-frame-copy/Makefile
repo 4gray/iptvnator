@@ -6,7 +6,13 @@
 # and Intel (/usr/local) Homebrew layouts.
 
 BREW_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
+# Self-contained bundles vendor the four N-API headers so no Node install
+# is needed; otherwise take headers from the PATH node.
+ifneq (,$(wildcard vendor/node-headers/node_api.h))
+NODE_INC ?= vendor/node-headers
+else
 NODE_INC ?= $(shell node -p "require('path').join(process.execPath, '..', '..', 'include', 'node')" 2>/dev/null)
+endif
 
 BUILD := build
 
