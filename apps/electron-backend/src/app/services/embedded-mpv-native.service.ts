@@ -1,4 +1,4 @@
-import { app, dialog, powerSaveBlocker } from 'electron';
+import { app, dialog, powerSaveBlocker, screen } from 'electron';
 import { spawnSync } from 'child_process';
 import {
     closeSync,
@@ -20,12 +20,16 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSessionStatus,
     EmbeddedMpvSubtitleTrack,
+    EmbeddedMpvEngine,
+    EmbeddedMpvFrameSource,
     EmbeddedMpvSupport,
+    EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 
-interface NativeEmbeddedMpvSessionSnapshot {
+export interface NativeEmbeddedMpvSessionSnapshot {
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
@@ -41,7 +45,7 @@ interface NativeEmbeddedMpvSessionSnapshot {
     error?: string;
 }
 
-interface NativeEmbeddedMpvAddon {
+export interface NativeEmbeddedMpvAddon {
     isSupported(): boolean;
     createSession(
         windowHandle: Buffer,
@@ -77,6 +81,7 @@ interface EmbeddedMpvRuntimeSession {
 }
 
 const EMBEDDED_MPV_EXPERIMENT_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT';
+const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
 const SUPPORTED_EMBEDDED_MPV_PLATFORMS = new Set<NodeJS.Platform>([
     'darwin',
     'win32',
@@ -98,8 +103,87 @@ export class EmbeddedMpvNativeService {
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
+    private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
+
+    /**
+     * Frame-copy engine: helper process + shm ring + renderer canvas.
+     * Experimental, macOS Apple Silicon only (owner decision 2026-07-10),
+     * opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on top of
+     * the regular embedded MPV experiment flag.
+     */
+    private isFrameCopyEngineRequested(): boolean {
+        return ['1', 'true', 'yes', 'on'].includes(
+            (process.env[EMBEDDED_MPV_FRAME_COPY_ENV] ?? '')
+                .trim()
+                .toLowerCase()
+        );
+    }
+
+    private isFrameCopyEngineActive(): boolean {
+        return (
+            this.isFrameCopyEngineRequested() &&
+            process.platform === 'darwin' &&
+            process.arch === 'arm64'
+        );
+    }
+
+    getActiveEngine(): EmbeddedMpvEngine {
+        return this.isFrameCopyEngineActive() ? 'frame-copy' : 'native';
+    }
+
+    getFrameSource(sessionId: string): EmbeddedMpvFrameSource | null {
+        return this.frameCopyAdapter?.getFrameSource(sessionId) ?? null;
+    }
+
+    private getFrameCopyAdapter(): EmbeddedMpvFrameCopyAdapter {
+        if (!this.frameCopyAdapter) {
+            this.frameCopyAdapter = new EmbeddedMpvFrameCopyAdapter({
+                resolveHelperPath: () => this.resolveFrameCopyHelperPath(),
+                getScaleFactor: () => this.getMainWindowScaleFactor(),
+                onFrameSourceChanged: (sessionId, source) => {
+                    if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+                        return;
+                    }
+                    App.mainWindow.webContents.send(
+                        EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
+                        { sessionId, source }
+                    );
+                },
+            });
+        }
+        return this.frameCopyAdapter;
+    }
+
+    private resolveFrameCopyHelperPath(): string | null {
+        const candidates = this.getAddonCandidatePaths().map(
+            (candidatePath) =>
+                path.join(path.dirname(candidatePath), 'iptvnator_mpv_helper')
+        );
+        return candidates.find((candidate) => existsSync(candidate)) ?? null;
+    }
+
+    private getMainWindowScaleFactor(): number {
+        try {
+            if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+                return 1;
+            }
+            return screen.getDisplayMatching(App.mainWindow.getBounds())
+                .scaleFactor;
+        } catch {
+            return 1;
+        }
+    }
 
     private detectCapabilities(): EmbeddedMpvCapabilities {
+        if (this.isFrameCopyEngineActive()) {
+            return {
+                subtitles: true,
+                playbackSpeed: true,
+                aspectOverride: true,
+                screenshot: false,
+                recording: true,
+            };
+        }
         const addon = this.addon;
         return {
             subtitles: typeof addon?.setSubtitleTrack === 'function',
@@ -147,6 +231,35 @@ export class EmbeddedMpvNativeService {
             };
         }
 
+        if (this.isFrameCopyEngineRequested()) {
+            if (!this.isFrameCopyEngineActive()) {
+                return {
+                    supported: false,
+                    platform: process.platform,
+                    reason: 'The frame-copy embedded MPV engine is currently supported on Apple Silicon macOS only.',
+                };
+            }
+            if (!this.resolveFrameCopyHelperPath()) {
+                return {
+                    supported: false,
+                    platform: process.platform,
+                    reason: 'The frame-copy embedded MPV helper binary was not found. Rebuild the native target (pnpm run serve:backend:embedded-mpv rebuilds it).',
+                };
+            }
+            return {
+                supported: true,
+                platform: process.platform,
+                engine: 'frame-copy',
+                capabilities: {
+                    subtitles: true,
+                    playbackSpeed: true,
+                    aspectOverride: true,
+                    screenshot: false,
+                    recording: true,
+                },
+            };
+        }
+
         if (this.addon) {
             try {
                 if (!this.addon.isSupported()) {
@@ -160,6 +273,7 @@ export class EmbeddedMpvNativeService {
                 return {
                     supported: true,
                     platform: process.platform,
+                    engine: this.getActiveEngine(),
                     capabilities: this.detectCapabilities(),
                 };
             } catch (error) {
@@ -224,6 +338,7 @@ export class EmbeddedMpvNativeService {
             return {
                 supported: true,
                 platform: process.platform,
+                engine: this.getActiveEngine(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -254,6 +369,7 @@ export class EmbeddedMpvNativeService {
             return {
                 supported: true,
                 platform: process.platform,
+                engine: this.getActiveEngine(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -841,6 +957,10 @@ export class EmbeddedMpvNativeService {
     }
 
     private getAddon(): NativeEmbeddedMpvAddon {
+        if (this.isFrameCopyEngineActive()) {
+            return this.getFrameCopyAdapter();
+        }
+
         if (this.addon) {
             return this.addon;
         }

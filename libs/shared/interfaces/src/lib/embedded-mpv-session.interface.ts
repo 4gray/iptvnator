@@ -22,11 +22,32 @@ export interface EmbeddedMpvCapabilities {
     recording: boolean;
 }
 
+export type EmbeddedMpvEngine = 'native' | 'frame-copy';
+
 export interface EmbeddedMpvSupport {
     supported: boolean;
     platform: string;
     reason?: string;
     capabilities?: EmbeddedMpvCapabilities;
+    /**
+     * Rendering engine the main process will use for new sessions.
+     * `native` = platform video surface (NSOpenGLView/HWND/X11 wid),
+     * `frame-copy` = helper process + shm ring + renderer canvas.
+     */
+    engine?: EmbeddedMpvEngine;
+}
+
+/**
+ * Where the renderer's frame pump finds the current shm frame ring of a
+ * frame-copy session. A new generation is announced after every viewport
+ * resize; the pump re-attaches to the new segment.
+ */
+export interface EmbeddedMpvFrameSource {
+    shmName: string;
+    width: number;
+    height: number;
+    generation: number;
+    readerPath: string;
 }
 
 export interface EmbeddedMpvAudioTrack {

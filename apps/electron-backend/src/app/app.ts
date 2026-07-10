@@ -79,10 +79,20 @@ export function isTrustedRendererNavigationUrl(
 }
 
 export function getMainWindowWebPreferences(): Electron.BrowserWindowConstructorOptions['webPreferences'] {
+    // The frame-copy embedded MPV experiment needs the preload script to
+    // load the shm frame-reader native addon, which the renderer sandbox
+    // forbids. Only that opt-in flag relaxes the sandbox; context isolation
+    // and nodeIntegration:false stay on either way, so page code never
+    // gains Node access. Revisit before the engine can become a default.
+    const frameCopyExperiment = ['1', 'true', 'yes', 'on'].includes(
+        (process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY ?? '')
+            .trim()
+            .toLowerCase()
+    );
     return {
         contextIsolation: true,
         nodeIntegration: false,
-        sandbox: true,
+        sandbox: !frameCopyExperiment,
         webSecurity: true,
         backgroundThrottling: false,
         preload: join(__dirname, 'main.preload.js'),
