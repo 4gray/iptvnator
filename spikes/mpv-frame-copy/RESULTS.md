@@ -96,10 +96,16 @@ Reference worst-case budget from the analysis doc, for orientation:
 33 MB 4K memcpy est. 6–8 ms (measured ≈1.2 ms); end-to-end added latency
 est. 40–60 ms (measured ≈10 ms produce→uploaded, before compositor).
 
-## Intel Mac — PENDING (device to be sourced)
+## Intel Mac — SKIPPED by decision (2026-07-10)
 
-Target scenarios: same three rows as above (hwdec=videotoolbox on Intel
-iGPU is the interesting case) + windowed vs fullscreen.
+Owner decision: the frame-copy engine targets Apple Silicon (M1+) only on
+macOS; support detection must gate on arm64. Rationale: Intel Macs able to
+run the app at all (Electron 41 ⇒ macOS 10.15+) are a shrinking 2015–2020
+cohort and keep the existing docked/external/web player paths; the only
+Intel device sourced (iMac mid-2011, High Sierra) cannot run the app and
+would not have been representative. The macOS hardware gate is therefore
+closed by the M1 Pro numbers above; the remaining risk hardware is
+Windows/Linux.
 
 ## Windows mid-range laptop (iGPU) — PENDING
 

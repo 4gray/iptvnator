@@ -97,6 +97,14 @@ scope for v1.
 - Windows shm: POSIX `shm_open` on macOS/Linux, `CreateFileMapping` named
   sections on Windows behind the same header layout.
 
+## Platform scope
+
+macOS: **Apple Silicon (arm64) only** — owner decision 2026-07-10. Support
+detection gates on the CPU architecture; Intel Macs keep the existing
+docked native path, external players, and web engines. This closes the
+macOS hardware gate with the M1 Pro measurements and moves all remaining
+hardware risk to Windows/Linux.
+
 ## Platform bring-up order
 
 1. macOS: spike is the implementation seed (CGL headless + PBO ring).
@@ -117,8 +125,8 @@ scope for v1.
 
 ## Open gates before default-ON
 
-- Intel Mac / Windows iGPU numbers (pending hardware; RESULTS.md has the
-  repro recipe).
+- Windows iGPU numbers (needs the Windows helper port; RESULTS.md has the
+  repro recipe). Intel Mac gate closed by the arm64-only scope decision.
 - Latency flash test + per-platform `--audio-delay` calibration.
 - Battery drain delta vs the native-surface approach.
 - Windows/Linux helper ports validated on real machines.

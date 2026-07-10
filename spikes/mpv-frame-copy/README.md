@@ -100,8 +100,9 @@ Measured on M1 Pro (2026-07-10):
 
 Still open:
 
-- Intel Mac and mid-range Windows laptop (iGPU) — the actual risk hardware
-  (pending device; Windows also needs the helper port).
+- Mid-range Windows laptop (iGPU) — the actual risk hardware; needs the
+  Windows helper port first. (Intel Macs: skipped by decision — on macOS
+  the engine targets Apple Silicon only, see RESULTS.md.)
 - End-to-end latency flash test (photodiode/screen-capture method) and
   audio/video sync offset to calibrate `--audio-delay`.
 - Battery drain delta vs the native-surface approach.
