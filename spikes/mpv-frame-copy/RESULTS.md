@@ -38,6 +38,35 @@ Source: commit `7e39d2e5`, libmpv 2.3.0 (Homebrew mpv 0.39.0), Electron 41.7.2.
 Helper-side PBO map+copy at 4K: 1.0–1.8 ms avg. Only fps dip observed was at
 the `--loop` file restart (decoder reinit), not in the copy path.
 
+### Pacing / judder and HDR (2026-07-10, same machine, viewer with interval instrumentation)
+
+Metrics: *present iv sd* — stddev of intervals between texture uploads
+(viewer clock, rAF-quantized); *src iv sd* — stddev of intervals between
+produced frames (helper clock); *late1.5x* — present intervals > 1.5× the
+producer's median interval (a missed beat).
+
+| Scenario | New fps | present iv sd | src iv sd | late (steady state) | Notes |
+| --- | --- | --- | --- | --- | --- |
+| 4K60 HEVC hwdec (steady state) | 60.0 | 0.5–1.4 ms | 0.7–1.2 ms | 0–1 per 2 s | worst intervals only at `--loop` restart |
+| 1080p50 testsrc2 (50→120 Hz cadence) | 50.0 | ~4.1 ms | ~1.9 ms | 0; LONGRUN 30 s: 0.13 % (startup only) | sd is 120 Hz rAF grid quantization (16.7/25 ms alternation around 20 ms), not lost frames |
+| 1080p25 testsrc2 | 25.0 | ~4.1 ms | ~2.7 ms | 0 | same grid effect |
+| 4K25 HDR10 PQ/BT.2020 HEVC hwdec | 25.0 | ~5.5 ms | ~4.3 ms | 0 | mpv tonemaps to SDR before readback (PIXELPROBE spread 255); copy/upload costs unchanged |
+
+Cadence verdict on this hardware: the producer keeps a clean source cadence
+(mpv's own pacing survives); the only jitter is display-grid quantization in
+the rAF presenter, bounded by one 120 Hz tick (~8.3 ms). A future refinement
+could reduce it with display-rate matching, but nothing here blocks the gate.
+
+HDR clip generation for repro:
+
+```bash
+ffmpeg -y -f lavfi -i "testsrc2=size=3840x2160:rate=25" -t 10 \
+  -c:v hevc_videotoolbox -profile:v main10 -pix_fmt p010le -b:v 30M -tag:v hvc1 /tmp/spike-4k-hdr.mp4
+ffmpeg -y -i /tmp/spike-4k-hdr.mp4 -c:v copy \
+  -bsf:v "hevc_metadata=colour_primaries=9:transfer_characteristics=16:matrix_coefficients=9" \
+  /tmp/spike-4k-hdr10.mp4   # videotoolbox omits VUI color tags; inject HDR10 ones
+```
+
 Reference worst-case budget from the analysis doc, for orientation:
 33 MB 4K memcpy est. 6–8 ms (measured ≈1.2 ms); end-to-end added latency
 est. 40–60 ms (measured ≈10 ms produce→uploaded, before compositor).

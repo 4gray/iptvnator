@@ -73,12 +73,23 @@ doc's worst-case budget (33 MB memcpy ≈ 1.2 ms, not 6–8 ms; end-to-end added
 latency ≈ 10 ms, not 40–60 ms). The remaining open gates are weaker hardware
 and long-run pacing, not raw throughput on modern Macs.
 
-## Still to measure (go/no-go gates from the analysis doc)
+## Gate status (details in RESULTS.md)
 
-- Intel Mac and mid-range Windows laptop (iGPU) — the actual risk hardware.
-- Long-run frame-time variance (judder), not average fps; 50 Hz content on a
-  60 Hz display.
-- 4K HDR (tonemapping to SDR before readback).
+Measured on M1 Pro (2026-07-10):
+
+- ✅ Throughput: 4K60 HEVC hwdec sustained end to end with ~10 ms added
+  latency and single-digit-ms copies.
+- ✅ Frame pacing: viewer STATS now report per-interval stddev/p99/late
+  counts (`present iv` / `src iv`, `LONGRUN` cumulative line every 30 s).
+  50 fps and 25 fps cadences are clean; residual jitter is 120 Hz rAF grid
+  quantization (≤ one display tick), not lost frames.
+- ✅ HDR: 4K25 HDR10 (PQ/BT.2020) tonemapped to SDR by mpv before readback
+  at full rate with unchanged copy costs.
+
+Still open:
+
+- Intel Mac and mid-range Windows laptop (iGPU) — the actual risk hardware
+  (pending device; Windows also needs the helper port).
 - End-to-end latency flash test (photodiode/screen-capture method) and
   audio/video sync offset to calibrate `--audio-delay`.
 - Battery drain delta vs the native-surface approach.

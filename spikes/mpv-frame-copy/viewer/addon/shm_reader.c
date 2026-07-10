@@ -148,6 +148,9 @@ static napi_value CopyLatest(napi_env env, napi_callback_info info) {
                      pts_us == SPIKE_PTS_UNKNOWN ? -1.0 : (double)pts_us / 1e6);
     set_named_double(env, result, "ageMs", age_ms);
     set_named_double(env, result, "copyMs", (double)(t1 - t0) / 1e6);
+    /* producer timestamp on the shared monotonic clock, for pacing stats */
+    set_named_double(env, result, "produceMs",
+                     (double)slot->produce_time_ns / 1e6);
     napi_value torn_value;
     napi_get_boolean(env, torn, &torn_value);
     napi_set_named_property(env, result, "torn", torn_value);

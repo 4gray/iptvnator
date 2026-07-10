@@ -52,6 +52,19 @@
         samples.length
             ? samples.reduce((sum, v) => sum + v, 0) / samples.length
             : 0;
+    function stddev(samples) {
+        if (samples.length < 2) return 0;
+        const mean = avg(samples);
+        const variance =
+            samples.reduce((sum, v) => sum + (v - mean) * (v - mean), 0) /
+            (samples.length - 1);
+        return Math.sqrt(variance);
+    }
+    function median(samples) {
+        if (!samples.length) return 0;
+        const sorted = [...samples].sort((a, b) => a - b);
+        return sorted[Math.floor(sorted.length / 2)];
+    }
 
     function start(info) {
         const width = info.width;
@@ -135,6 +148,21 @@
         const copyMs = [];
         const uploadMs = [];
         const ageMs = [];
+        // Pacing/judder instrumentation: intervals between consecutive
+        // presented frames (viewer clock) and between produced frames
+        // (helper clock via produceMs). The gate is variance, not avg fps.
+        const presentIntervals = [];
+        const producerIntervals = [];
+        let lastPresentMs = 0;
+        let lastProduceMs = 0;
+        const longRun = {
+            start: performance.now(),
+            frames: 0,
+            late15: 0, // present interval > 1.5x nominal (one missed beat)
+            late25: 0, // present interval > 2.5x nominal (visible stutter)
+            worstIntervalMs: 0,
+        };
+        let lastSummaryMs = performance.now();
         let windowStart = performance.now();
 
         function tick() {
@@ -163,6 +191,17 @@
                     uploadMs.push(upload);
                     ageMs.push(result.ageMs + upload);
                     if (result.torn) torn++;
+                    const tPresent = performance.now();
+                    if (lastPresentMs > 0) {
+                        presentIntervals.push(tPresent - lastPresentMs);
+                    }
+                    lastPresentMs = tPresent;
+                    if (lastProduceMs > 0) {
+                        producerIntervals.push(
+                            result.produceMs - lastProduceMs,
+                        );
+                    }
+                    lastProduceMs = result.produceMs;
                 }
             }
             gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -170,6 +209,26 @@
             const now = performance.now();
             if (now - windowStart >= 2000) {
                 const seconds = (now - windowStart) / 1000;
+                // Nominal frame interval from the producer's own cadence —
+                // robust against rAF quantization on high-Hz displays.
+                const nominal =
+                    median(producerIntervals) ||
+                    (shm.producerFps() > 0 ? 1000 / shm.producerFps() : 0);
+                let late15 = 0;
+                let late25 = 0;
+                let worst = 0;
+                for (const interval of presentIntervals) {
+                    if (interval > worst) worst = interval;
+                    if (nominal > 0 && interval > nominal * 1.5) late15++;
+                    if (nominal > 0 && interval > nominal * 2.5) late25++;
+                }
+                longRun.frames += newFrames;
+                longRun.late15 += late15;
+                longRun.late25 += late25;
+                longRun.worstIntervalMs = Math.max(
+                    longRun.worstIntervalMs,
+                    worst,
+                );
                 const line =
                     `STATS draw=${(drawTicks / seconds).toFixed(1)}fps ` +
                     `new=${(newFrames / seconds).toFixed(1)}fps ` +
@@ -177,16 +236,39 @@
                     `copy ms avg=${avg(copyMs).toFixed(2)} p95=${percentile(copyMs, 0.95).toFixed(2)} | ` +
                     `upload ms avg=${avg(uploadMs).toFixed(2)} p95=${percentile(uploadMs, 0.95).toFixed(2)} | ` +
                     `age ms avg=${avg(ageMs).toFixed(1)} p95=${percentile(ageMs, 0.95).toFixed(1)} | ` +
+                    `present iv ms sd=${stddev(presentIntervals).toFixed(2)} ` +
+                    `p99=${percentile(presentIntervals, 0.99).toFixed(1)} ` +
+                    `max=${worst.toFixed(1)} late1.5x=${late15} | ` +
+                    `src iv ms sd=${stddev(producerIntervals).toFixed(2)} ` +
+                    `p99=${percentile(producerIntervals, 0.99).toFixed(1)} | ` +
                     `dropped=${dropped} torn=${torn}`;
                 console.log(line);
                 hud.textContent =
                     `shm ${shmName}  ${width}x${height}\n` +
                     line.replace('STATS ', '').replaceAll(' | ', '\n');
+                if (now - lastSummaryMs >= 30000) {
+                    lastSummaryMs = now;
+                    const totalSeconds = (now - longRun.start) / 1000;
+                    const latePct = (
+                        (100 * longRun.late15) / Math.max(1, longRun.frames)
+                    ).toFixed(3);
+                    console.log(
+                        `LONGRUN t=${totalSeconds.toFixed(0)}s ` +
+                            `frames=${longRun.frames} ` +
+                            `avg=${(longRun.frames / totalSeconds).toFixed(2)}fps ` +
+                            `late1.5x=${longRun.late15} (${latePct}%) ` +
+                            `late2.5x=${longRun.late25} ` +
+                            `worstIv=${longRun.worstIntervalMs.toFixed(1)}ms ` +
+                            `dropped=${dropped} torn=${torn}`,
+                    );
+                }
                 drawTicks = 0;
                 newFrames = 0;
                 copyMs.length = 0;
                 uploadMs.length = 0;
                 ageMs.length = 0;
+                presentIntervals.length = 0;
+                producerIntervals.length = 0;
                 windowStart = now;
             }
         }
