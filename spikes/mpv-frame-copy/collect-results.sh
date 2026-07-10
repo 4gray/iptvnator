@@ -22,9 +22,16 @@ if ! xcode-select -p >/dev/null 2>&1; then
     echo "Xcode Command Line Tools required: run 'xcode-select --install'" >&2
     exit 1
 fi
-BREW_PREFIX="$(brew --prefix 2>/dev/null || true)"
-if [[ -z "$BREW_PREFIX" || (! -e "$BREW_PREFIX/lib/libmpv.dylib" && ! -e "$BREW_PREFIX/lib/libmpv.2.dylib") ]]; then
-    echo "Homebrew libmpv required: run 'brew install mpv'" >&2
+MPV_PREFIX=""
+for prefix in "$(brew --prefix 2>/dev/null || true)" /opt/local; do
+    if [[ -n "$prefix" ]] && ls "$prefix"/lib/libmpv*.dylib >/dev/null 2>&1; then
+        MPV_PREFIX="$prefix"
+        break
+    fi
+done
+if [[ -z "$MPV_PREFIX" ]]; then
+    echo "libmpv not found. Install it with Homebrew ('brew install mpv') or," >&2
+    echo "on legacy macOS (e.g. High Sierra), MacPorts: 'sudo port install mpv +libmpv'" >&2
     exit 1
 fi
 

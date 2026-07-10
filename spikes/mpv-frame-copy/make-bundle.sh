@@ -6,15 +6,20 @@
 # Command Line Tools and `brew install mpv`.
 #
 #   ./make-bundle.sh [x64|arm64]      # Electron arch of the TARGET machine
+#
+# For legacy macOS targets override the Electron version — Electron 27+
+# requires macOS 10.15, Electron 26.6.10 is the last for 10.13/10.14:
+#   ELECTRON_VERSION=26.6.10 BUNDLE_SUFFIX=highsierra-x64 ./make-bundle.sh x64
 set -euo pipefail
 
 DIR="$(cd "$(dirname "$0")" && pwd)"
 cd "$DIR"
 
 ARCH="${1:-x64}"
-ELECTRON_VERSION="41.7.2"
+ELECTRON_VERSION="${ELECTRON_VERSION:-41.7.2}"
+BUNDLE_SUFFIX="${BUNDLE_SUFFIX:-$ARCH}"
 BUNDLE_ROOT="build/bundle/mpv-frame-copy-spike"
-TARBALL="build/mpv-frame-copy-spike-macos-$ARCH.tar.gz"
+TARBALL="build/mpv-frame-copy-spike-macos-$BUNDLE_SUFFIX.tar.gz"
 
 rm -rf build/bundle
 mkdir -p "$BUNDLE_ROOT"
@@ -69,7 +74,12 @@ cat > "$BUNDLE_ROOT/START-HERE.md" <<'EOF'
 Target-machine prerequisites (no Node/pnpm needed):
 
 1. Xcode Command Line Tools: `xcode-select --install`
-2. Homebrew mpv: `brew install mpv`
+2. libmpv, either via:
+    - Homebrew (macOS 13+): `brew install mpv`
+    - MacPorts (legacy macOS, e.g. High Sierra — install the MacPorts pkg
+      for your macOS from macports.org first):
+      `sudo port install mpv +libmpv` (compiles from source; can take
+      an hour or more on old hardware)
 
 Then:
 

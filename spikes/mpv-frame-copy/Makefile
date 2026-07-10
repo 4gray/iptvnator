@@ -5,7 +5,15 @@
 # if detection picks the wrong one. Works on Apple Silicon (/opt/homebrew)
 # and Intel (/usr/local) Homebrew layouts.
 
-BREW_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
+# libmpv prefix: Homebrew (Apple Silicon /opt/homebrew or Intel /usr/local)
+# or MacPorts (/opt/local, needed on legacy macOS like High Sierra where
+# Homebrew is unsupported — install with: sudo port install mpv +libmpv).
+MPV_PREFIX ?= $(shell \
+	brew_p="$$(brew --prefix 2>/dev/null)"; \
+	if [ -n "$$brew_p" ] && ls "$$brew_p"/lib/libmpv*.dylib >/dev/null 2>&1; then echo "$$brew_p"; \
+	elif ls /opt/local/lib/libmpv*.dylib >/dev/null 2>&1; then echo /opt/local; \
+	else echo /opt/homebrew; fi)
+BREW_PREFIX ?= $(MPV_PREFIX)
 # Self-contained bundles vendor the four N-API headers so no Node install
 # is needed; otherwise take headers from the PATH node.
 ifneq (,$(wildcard vendor/node-headers/node_api.h))
