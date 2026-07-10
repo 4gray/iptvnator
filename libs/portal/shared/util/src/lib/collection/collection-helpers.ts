@@ -11,6 +11,8 @@ export interface XtreamFavoriteRow {
     readonly type: string;
     readonly poster_url?: string | null;
     readonly rating?: string | null;
+    readonly tv_archive?: number | null;
+    readonly tv_archive_duration?: number | null;
     readonly added_at?: string | null;
     readonly position?: number | null;
 }

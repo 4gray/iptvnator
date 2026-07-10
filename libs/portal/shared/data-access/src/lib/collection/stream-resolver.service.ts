@@ -443,7 +443,14 @@ export class StreamResolverService {
         return this.fetchStalkerShortEpg(playlist, channelId, size);
     }
 
-    private async getXtreamCredentials(playlistId: string) {
+    private async getXtreamCredentials(
+        playlistId: string
+    ): Promise<{
+        serverUrl: string;
+        username: string;
+        password: string;
+        serverTimezone?: string;
+    } | null> {
         const playlist =
             (await this.getElectronPlaylist(playlistId)) ??
             ((await firstValueFrom(
@@ -458,7 +465,35 @@ export class StreamResolverService {
             serverUrl: playlist.serverUrl,
             username: playlist.username,
             password: playlist.password,
+            serverTimezone: playlist.serverTimezone,
         };
+    }
+
+    /**
+     * Resolve an Xtream archive/catch-up URL for a given programme.
+     * Returns the timeshift playback URL, or null when credentials are
+     * missing or the provider doesn't support it.
+     */
+    async resolveXtreamCatchupUrl(
+        item: UnifiedCollectionItem,
+        startTimestamp: number,
+        stopTimestamp: number
+    ): Promise<string | null> {
+        const creds = await this.getXtreamCredentials(item.playlistId);
+        if (!creds || !item.xtreamId) return null;
+
+        try {
+            return await this.xtreamUrl.resolveCatchupUrl(
+                item.playlistId,
+                creds,
+                item.xtreamId,
+                startTimestamp,
+                stopTimestamp,
+                creds.serverTimezone
+            );
+        } catch {
+            return null;
+        }
     }
 
     private async loadM3uEpg(

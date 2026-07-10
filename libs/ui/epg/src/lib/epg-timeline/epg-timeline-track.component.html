@@ -80,6 +80,15 @@
                     <span class="epg-timeline__tag is-now">{{
                         'EPG.TIMELINE.ON_NOW' | translate
                     }}</span>
+                    @if (item.canCatchUp) {
+                        <button
+                            type="button"
+                            class="epg-timeline__watch"
+                            (click)="watchClick.emit(item.block); $event.stopPropagation()"
+                        >
+                            <mat-icon>replay</mat-icon>
+                        </button>
+                    }
                 } @else if (isPlaying(item)) {
                     <span class="epg-timeline__tag is-arch">{{
                         'EPG.TIMELINE.FROM_ARCHIVE' | translate
