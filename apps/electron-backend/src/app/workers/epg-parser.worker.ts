@@ -106,12 +106,7 @@ async function fetchAndParseEpgStreaming(
 
     // Create database connection in worker
     const epgDb = new EpgDatabase(Database);
-
-    // Old rows for this source are retained until the first successful insert
-    // batch arrives — see `hasClearedSource` below. That way, a fetch or parse
-    // that yields zero channels leaves the existing data intact instead of
-    // wiping it and leaving the URL permanently stale.
-    let hasClearedSource = false;
+    let needsClear = true;
 
     try {
         // EPG URLs can originate from an untrusted M3U `url-tvg` attribute.
@@ -168,10 +163,12 @@ async function fetchAndParseEpgStreaming(
 
         const parser = new StreamingEpgParser(
             (channels) => {
-                // Clear old rows in the same transaction as the first insert
-                // so we never end up with zero rows on a failed/empty parse.
-                epgDb.insertChannels(channels, url, !hasClearedSource);
-                hasClearedSource = true;
+                // On the first channel batch, delete programmes starting today
+                // or later inside the same transaction so a partial parse
+                // never leaves a gap in the schedule.
+                const clearToday = needsClear;
+                needsClear = false;
+                epgDb.insertChannels(channels, url, clearToday);
             },
             (programs) => {
                 // Insert programs directly into database
