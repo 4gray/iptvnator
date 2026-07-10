@@ -52,6 +52,14 @@ producer's median interval (a missed beat).
 | 1080p25 testsrc2 | 25.0 | ~4.1 ms | ~2.7 ms | 0 | same grid effect |
 | 4K25 HDR10 PQ/BT.2020 HEVC hwdec | 25.0 | ~5.5 ms | ~4.3 ms | 0 | mpv tonemaps to SDR before readback (PIXELPROBE spread 255); copy/upload costs unchanged |
 
+### Viewport-size scaling check (2026-07-10)
+
+Design claim "render at viewport size, pay viewport price" confirmed:
+the same 4K60 HEVC clip rendered into a 1280×720 FBO costs helper
+map+copy 0.17 ms (vs 1.5 ms at 4K), viewer copy 0.16 ms (vs 1.2),
+upload 0.17 ms (vs 3.5), steady 60 fps. Full 4K price is only paid in
+4K-sized viewports (i.e. fullscreen on a 4K display).
+
 ### 10-minute long run — 4K60 HEVC hwdec, `--loop` (2026-07-10)
 
 Final cumulative line at t=574 s: 33 501 frames, avg 58.32 fps,
