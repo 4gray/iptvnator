@@ -54,6 +54,10 @@ Key design points implemented here:
 
 ## First measurements (2026-07-10, MacBook Pro M1 Pro, 120 Hz display)
 
+> Canonical measurement log (per machine, with repro commands): `RESULTS.md`.
+> Append future runs there — especially the pending Intel Mac / Windows iGPU
+> baselines.
+
 | Scenario | Producer | Viewer new-frame fps | copy ms avg/p95 | upload ms avg/p95 | produce→uploaded age ms avg/p95 | torn |
 | --- | --- | --- | --- | --- | --- | --- |
 | 1080p60 testsrc2 (sw) | 60.0 fps | 59.8 | 0.28 / 0.35 | 0.29 / 0.40 | 4.2 / 6.8 | 0 |
