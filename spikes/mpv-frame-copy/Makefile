@@ -1,11 +1,12 @@
 # mpv frame-copy spike (macOS only for now).
 #
-# Requires: Homebrew libmpv (brew install mpv) and Node headers for the
-# N-API addon. Override NODE_INC if your Node lives elsewhere:
-#   make NODE_INC=$(node -e 'console.log(process.execPath)')/../../include/node
+# Requires: Homebrew libmpv (brew install mpv) and Node >= 18 on PATH (for
+# its N-API headers). Both are auto-detected; override BREW_PREFIX/NODE_INC
+# if detection picks the wrong one. Works on Apple Silicon (/opt/homebrew)
+# and Intel (/usr/local) Homebrew layouts.
 
-BREW_PREFIX ?= /opt/homebrew
-NODE_INC ?= $(HOME)/.nvm/versions/node/v22.14.0/include/node
+BREW_PREFIX ?= $(shell brew --prefix 2>/dev/null || echo /opt/homebrew)
+NODE_INC ?= $(shell node -p "require('path').join(process.execPath, '..', '..', 'include', 'node')" 2>/dev/null)
 
 BUILD := build
 

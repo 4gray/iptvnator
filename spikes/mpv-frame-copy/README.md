@@ -20,8 +20,20 @@ to measure whether the copy pipeline meets the go/no-go gates.
 
 ## Build and run
 
-Requires Homebrew `mpv` (libmpv + headers) and Node headers for the addon
-build (`NODE_INC` in the Makefile, defaults to nvm's v22.14.0).
+Requires Homebrew `mpv` (libmpv + headers) and Node ≥ 18 on `PATH`; the
+Makefile auto-detects the Homebrew prefix (Apple Silicon and Intel) and the
+Node include dir.
+
+Quick checklist for a fresh machine (e.g. the pending Intel Mac run):
+
+```bash
+brew install mpv                     # libmpv + headers
+git clone <repo> && cd <repo>
+pnpm install --frozen-lockfile       # provides the Electron binary for the viewer
+cd spikes/mpv-frame-copy
+./run.sh 'av://lavfi:testsrc2=size=1920x1080:rate=60'   # sanity
+# then the RESULTS.md scenarios (4K synthetic, 4K HEVC hwdec, 50 fps, HDR)
+```
 
 ```bash
 ./run.sh /path/to/video.mkv 3840x2160
