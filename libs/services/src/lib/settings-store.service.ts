@@ -45,6 +45,7 @@ const DEFAULT_SETTINGS: Settings = {
     epgUrl: [],
     downloadFolder: '',
     recordingFolder: '',
+    embeddedMpvFrameCopy: false,
     coverSize: 'medium',
     epgViewMode: 'timeline',
     dashboardRails: DEFAULT_DASHBOARD_RAILS_SETTINGS,
@@ -187,6 +188,8 @@ export const SettingsStore = signalStore(
                 recordingFolder:
                     store.recordingFolder?.() ??
                     DEFAULT_SETTINGS.recordingFolder,
+                embeddedMpvFrameCopy:
+                    store.embeddedMpvFrameCopy?.() ?? false,
                 coverSize: store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
                 epgViewMode:
                     store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,

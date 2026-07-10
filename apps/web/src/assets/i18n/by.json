@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: рухавік frame-copy (эксперыментальна)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Відэа малюецца на канвасе праграмы, таму меню і дыялогі паказваюцца па-над ім. Толькі macOS на Apple Silicon.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Пачне дзейнічаць пасля перазапуску праграмы."
     },
     "THEMES": {
         "DARK_THEME": "Цёмная",

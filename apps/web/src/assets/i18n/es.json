@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: motor frame-copy (experimental)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "El vídeo se dibuja en el lienzo de la aplicación, de modo que los menús y diálogos quedan encima. Solo macOS con Apple Silicon.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Se aplica tras reiniciar la aplicación."
     },
     "THEMES": {
         "DARK_THEME": "Oscuro",

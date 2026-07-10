@@ -131,6 +131,14 @@ export class EmbeddedMpvNativeService {
         return this.isFrameCopyEngineActive() ? 'frame-copy' : 'native';
     }
 
+    isFrameCopyAvailable(): boolean {
+        return (
+            process.platform === 'darwin' &&
+            process.arch === 'arm64' &&
+            this.resolveFrameCopyHelperPath() !== null
+        );
+    }
+
     getFrameSource(sessionId: string): EmbeddedMpvFrameSource | null {
         return this.frameCopyAdapter?.getFrameSource(sessionId) ?? null;
     }
@@ -250,6 +258,7 @@ export class EmbeddedMpvNativeService {
                 supported: true,
                 platform: process.platform,
                 engine: 'frame-copy',
+                frameCopyAvailable: true,
                 capabilities: {
                     subtitles: true,
                     playbackSpeed: true,
@@ -274,6 +283,7 @@ export class EmbeddedMpvNativeService {
                     supported: true,
                     platform: process.platform,
                     engine: this.getActiveEngine(),
+                    frameCopyAvailable: this.isFrameCopyAvailable(),
                     capabilities: this.detectCapabilities(),
                 };
             } catch (error) {
@@ -339,6 +349,7 @@ export class EmbeddedMpvNativeService {
                 supported: true,
                 platform: process.platform,
                 engine: this.getActiveEngine(),
+                frameCopyAvailable: this.isFrameCopyAvailable(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -370,6 +381,7 @@ export class EmbeddedMpvNativeService {
                 supported: true,
                 platform: process.platform,
                 engine: this.getActiveEngine(),
+                frameCopyAvailable: this.isFrameCopyAvailable(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {

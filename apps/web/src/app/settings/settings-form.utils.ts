@@ -72,6 +72,7 @@ export function createSettingsForm(
             ],
         ],
         recordingFolder: '',
+        embeddedMpvFrameCopy: false,
         coverSize: 'medium' as CoverSize,
         ...(supportsEpg
             ? {
@@ -135,6 +136,7 @@ export function createSettingsFromFormValue(
         remoteControl: value.remoteControl ?? false,
         remoteControlPort: Number(value.remoteControlPort ?? 8765),
         recordingFolder: value.recordingFolder ?? '',
+        embeddedMpvFrameCopy: value.embeddedMpvFrameCopy ?? false,
         coverSize: value.coverSize ?? 'medium',
         epgUrl,
         preferUploadedEpgOverXtream:
