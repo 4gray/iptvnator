@@ -120,6 +120,9 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             { stdio: ['pipe', 'pipe', 'pipe'] }
         );
 
+        console.log(
+            `[embedded-mpv-fc][${sessionId}] spawn ${width}x${height} (pid pending)`
+        );
         const session: FrameCopyRuntimeSession = {
             id: sessionId,
             child,
@@ -144,6 +147,9 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             session.snapshot.error = `Helper process failed: ${error.message}`;
         });
         child.on('exit', (code, signal) => {
+            console.log(
+                `[embedded-mpv-fc][${sessionId}] exit code=${code} signal=${signal} disposed=${session.disposed}`
+            );
             session.killTimers.forEach((timer) => clearTimeout(timer));
             session.killTimers = [];
             if (session.disposed) {
@@ -261,8 +267,16 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
             return;
         }
         session.disposed = true;
+        console.log(`[embedded-mpv-fc][${sessionId}] dispose`);
         this.send(sessionId, 'quit');
         const child = session.child;
+        // Belt and braces: the helper also exits on stdin EOF, so closing
+        // the pipe covers a helper that missed the quit line.
+        try {
+            child.stdin.end();
+        } catch {
+            // stdin may already be destroyed with the process
+        }
         session.killTimers.push(
             setTimeout(() => {
                 if (child.exitCode === null) child.kill('SIGTERM');
