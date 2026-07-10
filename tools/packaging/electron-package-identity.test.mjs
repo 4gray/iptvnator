@@ -327,6 +327,51 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
             );
         }
 
+        const darwinResourceDir = join(tempDir, 'darwin');
+        const darwinNativeDir = join(
+            darwinResourceDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(join(darwinNativeDir, 'lib'), { recursive: true });
+        fs.writeFileSync(join(darwinNativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(darwinNativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'vendored-lgpl' })
+        );
+        fs.writeFileSync(join(darwinNativeDir, 'lib', 'libmpv.2.dylib'), '');
+
+        // macOS packages that ship the addon must also ship the frame-copy
+        // engine artifacts built by the same binding.gyp run.
+        const missingFrameCopyErrors = validatePackagedEmbeddedMpv(
+            darwinResourceDir,
+            { platform: 'darwin', required: true }
+        );
+        assert.ok(
+            missingFrameCopyErrors.some((error) =>
+                error.includes('iptvnator_mpv_helper')
+            )
+        );
+        assert.ok(
+            missingFrameCopyErrors.some((error) =>
+                error.includes('embedded_mpv_frame_reader.node')
+            )
+        );
+
+        fs.writeFileSync(join(darwinNativeDir, 'iptvnator_mpv_helper'), '');
+        fs.writeFileSync(
+            join(darwinNativeDir, 'embedded_mpv_frame_reader.node'),
+            ''
+        );
+        assert.deepEqual(
+            validatePackagedEmbeddedMpv(darwinResourceDir, {
+                platform: 'darwin',
+                required: true,
+            }),
+            []
+        );
+
         const linuxResourceDir = join(tempDir, 'linux');
         const linuxNativeDir = join(
             linuxResourceDir,

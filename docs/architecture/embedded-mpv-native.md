@@ -124,6 +124,31 @@ engine that replaces the native-view compositing entirely:
   runs: the helper re-renders at the new viewport size (device pixels via
   the display scale factor).
 
+Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
+checkbox (shown only when support reports `frameCopyAvailable`) persists to
+the main-process config store (`electron-conf`), which `main.ts` reads
+before creating the window and translates into the env flag; an explicitly
+set env var (including `0`) always wins. Changing the toggle requires an
+app restart because the sandbox relaxation is fixed at window creation.
+
+Rendering size: the helper renders at the **aspect-fit** size of the video
+(observed `dwidth`/`dheight`) inside the requested viewport and bumps a shm
+generation when it changes — letterbox bars are never baked into frames,
+frames stay as small as possible, and the canvas letterboxes with a
+transparent background (app surface shows at the sides; fullscreen keeps a
+black backdrop). Snapshots carry `videoWidth`/`videoHeight`.
+`IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY=<seconds>` passes through to mpv's
+`audio-delay` for lip-sync tuning until a calibration flow exists.
+
+Lifecycle safety: `EmbeddedMpvNativeService` watches the main window for
+`render-process-gone` and `did-navigate` (full reloads) and disposes every
+session — Angular teardown never runs on a renderer crash/hard reload, and
+without the watch helper processes (or native mpv handles) would leak until
+app shutdown. Unexpected helper exits surface as a session `error`. macOS
+package validation requires `iptvnator_mpv_helper` and
+`embedded_mpv_frame_reader.node` next to the addon whenever the addon
+ships.
+
 Trade-offs and constraints:
 
 - The experiment flag relaxes the BrowserWindow sandbox (preload must

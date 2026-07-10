@@ -540,6 +540,24 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         return errors;
     }
 
+    if (platform === 'darwin') {
+        // The frame-copy engine artifacts are built by the same binding.gyp
+        // run as the addon; a macOS package that ships the addon without
+        // them would silently lose the engine (support probe hides it).
+        const missingFrameCopyArtifacts = [
+            'iptvnator_mpv_helper',
+            'embedded_mpv_frame_reader.node',
+        ]
+            .map((name) => path.join(unpackedNativeDir, name))
+            .filter((artifactPath) => !fs.existsSync(artifactPath));
+        errors.push(
+            ...missingFrameCopyArtifacts.map(
+                (artifactPath) =>
+                    `Missing embedded MPV frame-copy artifact: ${artifactPath}`
+            )
+        );
+    }
+
     if (!fs.existsSync(manifestPath)) {
         errors.push(`Missing embedded MPV runtime manifest: ${manifestPath}`);
     } else {
