@@ -36,11 +36,19 @@ export class EpgQueryService {
     ): Promise<EpgProgram[]> {
         try {
             const db = await getDatabase();
-            const trimmedChannelId = channelId.trim();
+            let trimmedChannelId = channelId.trim();
             const sourceUrls = this.normalizeSourceUrls(options.sourceUrls);
 
             if (!trimmedChannelId) {
                 return [];
+            }
+
+            // Check for manual EPG mapping — if a user has mapped this
+            // channel key to a different EPG channel ID, use the mapped
+            // ID for all subsequent lookups.
+            const mapped = await this.getMapping(db, trimmedChannelId);
+            if (mapped) {
+                trimmedChannelId = mapped;
             }
 
             let results = await this.selectChannelPrograms(
@@ -904,6 +912,61 @@ export class EpgQueryService {
             !Number.isNaN(new Date(program.start).getTime()) &&
             !Number.isNaN(new Date(program.stop).getTime())
         );
+    }
+
+    private async getMapping(
+        db: EpgDatabase,
+        channelKey: string
+    ): Promise<string | null> {
+        try {
+            // Direct lookup by channel key.
+            const rows = await db
+                .select({
+                    epgChannelId: schema.epgChannelMappings.epgChannelId,
+                })
+                .from(schema.epgChannelMappings)
+                .where(
+                    eq(schema.epgChannelMappings.channelKey, channelKey)
+                )
+                .limit(1);
+            if (rows.length > 0) {
+                return rows[0].epgChannelId;
+            }
+
+            // Fallback: if the key looks like an Xtream epg_channel_id, also
+            // check if a mapping was saved using the xtream_id instead.
+            const contentRows = await db
+                .select({
+                    xtreamId: schema.content.xtreamId,
+                })
+                .from(schema.content)
+                .where(
+                    eq(schema.content.epgChannelId, channelKey)
+                )
+                .limit(1);
+            if (contentRows.length > 0) {
+                const xtreamId = String(contentRows[0].xtreamId);
+                const mapped = await db
+                    .select({
+                        epgChannelId: schema.epgChannelMappings.epgChannelId,
+                    })
+                    .from(schema.epgChannelMappings)
+                    .where(
+                        eq(
+                            schema.epgChannelMappings.channelKey,
+                            xtreamId
+                        )
+                    )
+                    .limit(1);
+                if (mapped.length > 0) {
+                    return mapped[0].epgChannelId;
+                }
+            }
+
+            return null;
+        } catch {
+            return null;
+        }
     }
 }
 

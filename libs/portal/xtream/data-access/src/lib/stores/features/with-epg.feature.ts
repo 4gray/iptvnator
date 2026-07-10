@@ -146,10 +146,39 @@ export function withEpg() {
 
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
+                    // Resolve manual EPG mapping before the provider waterfall.
+                    // The mapping dialog saves by xtream_id, so look up the
+                    // channel key and use the mapped EPG channel ID for the
+                    // XMLTV / provider lookup.
+                    let epgChannelId = selectedItem?.epg_channel_id ?? null;
+                    const electron = (
+                        window as unknown as {
+                            electron?: {
+                                getEpgMapping?: (
+                                    key: string
+                                ) => Promise<{
+                                    epgChannelId: string;
+                                } | null>;
+                            };
+                        }
+                    ).electron;
+                    if (electron?.getEpgMapping && xtreamId) {
+                        try {
+                            const mapping = await electron.getEpgMapping(
+                                String(xtreamId)
+                            );
+                            if (mapping?.epgChannelId?.trim()) {
+                                epgChannelId = mapping.epgChannelId.trim();
+                            }
+                        } catch {
+                            // Non-fatal; keep original epgChannelId.
+                        }
+                    }
+
                     try {
                         const epgItems =
                             await fallbackService.resolveCurrentEpg({
-                                epgChannelId: selectedItem.epg_channel_id,
+                                epgChannelId,
                                 preferUploaded: preferUploaded(),
                                 fetchProvider: () =>
                                     fetchFullProvider(credentials, xtreamId),

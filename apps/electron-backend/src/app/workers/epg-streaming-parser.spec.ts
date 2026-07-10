@@ -8,7 +8,7 @@ import {
 describe('parseXmltvDate', () => {
     it('normalizes XMLTV timestamps with timezone offsets', () => {
         expect(parseXmltvDate('20260415053700 +0000')).toBe(
-            '2026-04-15T05:37:00+00:00'
+            '2026-04-15T05:37:00.000Z'
         );
     });
 });

@@ -13,10 +13,14 @@ import {
     input,
     OnDestroy,
     output,
+    signal,
     untracked,
     viewChild,
 } from '@angular/core';
+import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatIcon } from '@angular/material/icon';
+import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { ActivatedRoute } from '@angular/router';
 import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
@@ -27,9 +31,11 @@ import {
     XtreamCategory,
     XtreamItem,
 } from '@iptvnator/shared/interfaces';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
+    EpgMappingDialogComponent,
 } from '@iptvnator/ui/components';
 import {
     PortalChannelSortMode,
@@ -66,7 +72,9 @@ interface XtreamCategoryLike {
     imports: [
         ChannelListItemComponent,
         ChannelListSkeletonComponent,
+        MatButtonModule,
         MatIcon,
+        MatMenuModule,
         ScrollingModule,
         TranslatePipe,
     ],
@@ -83,6 +91,12 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     private readonly epgQueueService = inject(EpgQueueService);
     private readonly route = inject(ActivatedRoute);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly dialog = inject(MatDialog);
+
+    readonly contextMenuTrigger =
+        viewChild.required<MatMenuTrigger>('contextMenuTrigger');
+    readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
+    readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly supportsEpg = this.runtime.supportsEpg;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
@@ -458,5 +472,43 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         return Number.isFinite(parsedDate)
             ? Math.floor(parsedDate / 1000)
             : null;
+    }
+
+    // ── Context menu ────────────────────────────────────────────
+
+    onChannelContextMenu(channel: XtreamChannelListItem, event: MouseEvent): void {
+        this.contextMenuChannel.set(channel);
+        this.contextMenuPosition.set({
+            x: `${event.clientX}px`,
+            y: `${event.clientY}px`,
+        });
+
+        const trigger = this.contextMenuTrigger();
+        if (trigger.menuOpen) {
+            trigger.closeMenu();
+        }
+
+        queueMicrotask(() => {
+            this.contextMenuTrigger().openMenu();
+        });
+    }
+
+    openEpgMapping(): void {
+        const channel = this.contextMenuChannel();
+        if (!channel) return;
+
+        this.contextMenuTrigger().closeMenu();
+        const channelKey = String(channel.xtream_id ?? channel.id ?? '');
+        if (!channelKey) return;
+
+        this.dialog.open(EpgMappingDialogComponent, {
+            data: {
+                channelKey,
+                channelName: channel.title ?? channel.name ?? channelKey,
+                currentMapping: null,
+            },
+            width: '500px',
+            maxHeight: '90vh',
+        });
     }
 }

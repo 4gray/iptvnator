@@ -30,8 +30,17 @@ export class EpgDatabase {
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
 
+        // Guard against duplicate entries when the clearFirst logic misses old
+        // rows (e.g. because the source URL changed between imports).  The same
+        // channel + start + title is treated as the same programme — a later
+        // import with a corrected stop time simply replaces the earlier row.
+        this.db.prepare(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_epg_programs_dedup
+            ON epg_programs(channel_id, start, title)
+        `).run();
+
         this.insertProgramStmt = this.db.prepare(`
-            INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
+            INSERT OR REPLACE INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 

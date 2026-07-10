@@ -22,6 +22,8 @@ import {
 } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
+import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
+import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -163,7 +165,33 @@ export class GlobalFavoritesListComponent {
     }
 
     hasChannelContextMenu(channel: UnifiedFavoriteChannel): boolean {
-        return Boolean(channel.m3uChannel) || this.mode() === 'recent';
+        return (
+            Boolean(channel.m3uChannel) ||
+            this.mode() === 'recent' ||
+            Boolean(channel.xtreamId)
+        );
+    }
+
+    openEpgMapping(): void {
+        const item = this.contextMenuChannel();
+        if (!item) return;
+
+        this.contextMenuTrigger().closeMenu();
+        const channelKey =
+            item.m3uChannel
+                ? resolveChannelEpgLookupKey(item.m3uChannel)
+                : (item.xtreamId ? String(item.xtreamId) : null);
+        if (!channelKey) return;
+
+        this.dialog.open(EpgMappingDialogComponent, {
+            data: {
+                channelKey,
+                channelName: item.name,
+                currentMapping: null,
+            },
+            width: '500px',
+            maxHeight: '90vh',
+        });
     }
 
     openChannelDetails(): void {
