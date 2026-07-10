@@ -46,11 +46,15 @@ const CANVAS_SELECTOR = 'canvas[data-embedded-mpv-frame]';
 const ATTACH_TIMEOUT_MS = 5000;
 const ATTACH_POLL_MS = 100;
 
+// Note on orientation: the helper renders with MPV_RENDER_PARAM_FLIP_Y and
+// glReadPixels reads rows bottom-up, so the shm buffer arrives in texture
+// order already — sampling uses the un-flipped uv (a second flip here would
+// show the video upside down).
 const VERTEX_SHADER = `#version 300 es
 out vec2 v_uv;
 void main() {
     vec2 corner = vec2((gl_VertexID << 1) & 2, gl_VertexID & 2);
-    v_uv = vec2(corner.x, 1.0 - corner.y);
+    v_uv = corner;
     gl_Position = vec4(corner * 2.0 - 1.0, 0.0, 1.0);
 }`;
 

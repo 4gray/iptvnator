@@ -31,6 +31,10 @@ export class EmbeddedMpvSessionController {
     readonly stalled = signal(false);
     readonly retryToken = signal(0);
 
+    readonly isFrameCopyEngine = computed(
+        () => this.support()?.engine === 'frame-copy'
+    );
+
     private readonly sessionStatus = computed(
         () => this.session()?.status ?? null
     );
@@ -182,6 +186,14 @@ export class EmbeddedMpvSessionController {
             this.sessionId.set(created.id);
             this.session.set(created);
             await electron.loadEmbeddedMpvPlayback(created.id, playback);
+            if (untracked(() => this.isFrameCopyEngine())) {
+                // Frame-copy engine: start the preload frame pump that
+                // paints helper frames onto the component's canvas. Failure
+                // is non-fatal here — the session error/stall paths cover it.
+                void electron
+                    .attachEmbeddedMpvFrameView?.(created.id)
+                    .catch(() => undefined);
+            }
             scheduleBoundsSync();
         };
 
@@ -217,6 +229,9 @@ export class EmbeddedMpvSessionController {
             this.session.set(null);
 
             if (id) {
+                if (untracked(() => this.isFrameCopyEngine())) {
+                    window.electron?.detachEmbeddedMpvFrameView?.();
+                }
                 void window.electron?.disposeEmbeddedMpvSession(id);
             }
         };

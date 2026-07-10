@@ -89,6 +89,59 @@ The MPV video surface is a native platform view/window, not a normal DOM element
 
 The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
 
+## Frame-Copy Engine (Experimental, Apple Silicon Only)
+
+`IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1` (on top of the regular
+embedded MPV experiment flag) switches macOS/arm64 to a second rendering
+engine that replaces the native-view compositing entirely:
+
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper`, a
+  one-process-per-session libmpv host. It decodes (hwdec), renders
+  offscreen at viewport size (headless CGL + async PBO readback ring),
+  publishes BGRA frames into a POSIX shm seqlock ring
+  (`frame_shm.h`, 3 slots, resize creates a new `-g<N>` generation), and
+  plays audio directly. Control protocol: tab-separated commands on stdin,
+  JSON events on stdout; the `snapshot` event mirrors
+  `NativeEmbeddedMpvSessionSnapshot`. Status semantics are ported from
+  `embedded_mpv.mm`.
+- `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` —
+  implements the same `NativeEmbeddedMpvAddon` surface over the helper
+  process, so `EmbeddedMpvNativeService` (polling, diffing, power blocker,
+  recording paths) is reused unchanged. The flag routes `getAddon()` to the
+  adapter and support reports `engine: 'frame-copy'`.
+- `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API
+  shm reader loaded by the preload frame pump
+  (`apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts`): copy
+  the newest complete frame into a reused ArrayBuffer once per rAF and
+  upload it to a WebGL2 texture on the renderer's
+  `<canvas data-embedded-mpv-frame>` (BGRA swizzle in the shader). Frame
+  data never crosses the contextBridge; the bridge only exposes
+  `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
+- Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
+  `support.engine === 'frame-copy'` and skips the compositor workarounds —
+  no `HIDDEN_BOUNDS` when dialogs open, no popover bottom cutout; dialogs
+  and controls stack above the canvas as ordinary DOM. Bounds sync still
+  runs: the helper re-renders at the new viewport size (device pixels via
+  the display scale factor).
+
+Trade-offs and constraints:
+
+- The experiment flag relaxes the BrowserWindow sandbox (preload must
+  `require` the reader addon); `contextIsolation` and
+  `nodeIntegration:false` stay on. The sandbox story must be revisited
+  before this engine can become a default — candidates: utilityProcess +
+  MessagePort (costs one extra copy + GC churn since Electron ports clone
+  ArrayBuffers) or a WebCodecs-based path.
+- Scope: Apple Silicon only by owner decision (2026-07-10); Intel Macs
+  keep the native-view engine. Windows/Linux ports of the helper (WGL/EGL)
+  are future work — the shm protocol and adapter are platform-agnostic.
+- Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
+  sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
+  produce-to-upload latency, zero torn frames over a 10-minute run.
+- Helper crash isolation: an unexpected helper exit surfaces as a session
+  `error` (renderer falls back); it can never take down the Electron main
+  process, unlike in-process libmpv.
+
 ## Resume And Track Handling
 
 `ResolvedPortalPlayback.startTime` is treated as a media offset in seconds for VOD and episodes. The native addon passes it as the `start` option in one MPV `loadfile` options map together with title, user agent, referrer, and HTTP headers.
