@@ -52,6 +52,23 @@ producer's median interval (a missed beat).
 | 1080p25 testsrc2 | 25.0 | ~4.1 ms | ~2.7 ms | 0 | same grid effect |
 | 4K25 HDR10 PQ/BT.2020 HEVC hwdec | 25.0 | ~5.5 ms | ~4.3 ms | 0 | mpv tonemaps to SDR before readback (PIXELPROBE spread 255); copy/upload costs unchanged |
 
+### 10-minute long run — 4K60 HEVC hwdec, `--loop` (2026-07-10)
+
+Final cumulative line at t=574 s: 33 501 frames, avg 58.32 fps,
+late1.5x 0.475 %, late2.5x 0.20 %, worst interval 2306 ms, dropped 261,
+torn 0.
+
+Reading the anomalies before quoting the headline numbers:
+
+- All 261 dropped frames and the single 2.3 s worst-interval stall happened
+  in the **first ~60 s** (startup/warmup); from t=93 s to the end — zero
+  drops over ~8.5 minutes.
+- The steady-state late frames (~102 × late1.5x, ~43 × late2.5x after
+  warmup ≈ 0.36 % / 0.15 %) track the `--loop` restarts of the 12 s test
+  clip (~48 restarts, each a decoder reinit hiccup) — a test-clip artifact,
+  not a pipeline property. A real long-form stream should be cleaner.
+- torn=0 across the whole run: the seqlock ring never produced a torn read.
+
 Cadence verdict on this hardware: the producer keeps a clean source cadence
 (mpv's own pacing survives); the only jitter is display-grid quantization in
 the rAF presenter, bounded by one 120 Hz tick (~8.3 ms). A future refinement
