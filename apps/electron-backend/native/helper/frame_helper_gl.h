@@ -212,18 +212,29 @@ public:
 
 private:
     bool acquireDisplay() {
+        /* Tier log goes to stderr (the adapter mirrors it) — stdout is
+         * reserved for the JSON event protocol. */
         display_ = eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA,
                                          nullptr, nullptr);
-        if (initDisplay(display_)) return true;
+        if (initDisplay(display_)) {
+            std::fprintf(stderr, "egl display: surfaceless-mesa\n");
+            return true;
+        }
 
         display_ = eglGetDisplay(EGL_DEFAULT_DISPLAY);
-        if (initDisplay(display_)) return true;
+        if (initDisplay(display_)) {
+            std::fprintf(stderr, "egl display: default\n");
+            return true;
+        }
 
         display_ = EGL_NO_DISPLAY;
         if (openGbmDevice()) {
             display_ = eglGetPlatformDisplay(EGL_PLATFORM_GBM_KHR, gbmDevice_,
                                              nullptr);
-            if (initDisplay(display_)) return true;
+            if (initDisplay(display_)) {
+                std::fprintf(stderr, "egl display: gbm render node\n");
+                return true;
+            }
         }
         display_ = EGL_NO_DISPLAY;
         return false;

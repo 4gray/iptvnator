@@ -68,7 +68,7 @@ jobs:
               if: matrix.os == 'linux'
               run: |
                   sudo apt-get update
-                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev libmpv-dev mpv pkg-config
+                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev libmpv-dev mpv pkg-config libegl-dev libgl-dev libgbm-dev
 
                   # Configure Flatpak
                   # 1. Add the Flathub repository (source of runtimes)
@@ -334,6 +334,15 @@ jobs:
                       if ldd dist/apps/electron-backend/native/embedded_mpv.node | grep -q 'libmpv'; then
                           echo "::error::Linux embedded MPV addon must not link directly to libmpv"
                           ldd dist/apps/electron-backend/native/embedded_mpv.node
+                          exit 1
+                      fi
+                      # The frame-copy helper is the inverse: a separate process
+                      # that MUST link libmpv (dev-mode engine; stripped from
+                      # packages until the bundled-runtime staging lands).
+                      test -x dist/apps/electron-backend/native/iptvnator_mpv_helper
+                      if ! ldd dist/apps/electron-backend/native/iptvnator_mpv_helper | grep -q 'libmpv'; then
+                          echo "::error::Linux frame-copy helper must link libmpv"
+                          ldd dist/apps/electron-backend/native/iptvnator_mpv_helper
                           exit 1
                       fi
                       ;;
