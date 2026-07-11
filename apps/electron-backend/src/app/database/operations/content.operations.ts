@@ -15,92 +15,29 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { AppDatabase } from '../database.types';
 import {
+    buildCompoundFtsMatchQuery,
+    buildCompoundLikePatterns,
+    buildContentTitleFtsMatchQuery,
+    buildGlobPrefixPatterns,
+    buildLikePatterns,
+    buildM3uPayloadCompoundPatterns,
+    buildM3uPayloadTextFieldPatterns,
+    getCompoundSearchWords,
+    getSqlSearchTokenGroups,
+    isShortSearchTokenGroup,
+    normalizeSearchMatchText,
+    scoreSearchTextMatch,
+    shouldUseContentTitleFts,
+    shouldUseContentTitlePrefixIndex,
+} from './content-search.util';
+import {
     checkpointOperation,
     chunkValues,
     type OperationControl,
     reportOperationProgress,
 } from './operation-control';
 
-function escapeLikePattern(term: string): string {
-    return term.replace(/[%_\\]/g, '\\$&');
-}
-
-function normalizeSearchMatchText(value: unknown): string {
-    return typeof value === 'string'
-        ? value
-              .normalize('NFKD')
-              .replace(/[\u0300-\u036f]/g, '')
-              .toLocaleLowerCase()
-              .replace(/[^\p{L}\p{N}]+/gu, ' ')
-              .trim()
-              .replace(/\s+/g, ' ')
-        : '';
-}
-
-function normalizeSqlSearchText(value: unknown): string {
-    return typeof value === 'string'
-        ? value
-              .toLocaleLowerCase()
-              .replace(/[^\p{L}\p{N}]+/gu, ' ')
-              .trim()
-              .replace(/\s+/g, ' ')
-        : '';
-}
-
-function getSearchTokens(value: unknown): string[] {
-    const normalized = normalizeSearchMatchText(value);
-    return normalized ? normalized.split(' ') : [];
-}
-
-function getSqlSearchTokenGroups(value: unknown): string[][] {
-    const rawTokens = normalizeSqlSearchText(value).split(' ').filter(Boolean);
-    const normalizedTokens = getSearchTokens(value);
-    const tokenCount = Math.max(rawTokens.length, normalizedTokens.length);
-
-    return Array.from({ length: tokenCount }, (_, index) =>
-        [...new Set([rawTokens[index], normalizedTokens[index]])].filter(
-            Boolean
-        )
-    ).filter((group) => group.length > 0);
-}
-
-function isShortSearchTokenGroup(tokens: readonly string[]): boolean {
-    return tokens.some((token) => token.length <= 2);
-}
-
-function getSqlSearchTokenVariants(value: unknown): string[] {
-    return [...new Set(getSqlSearchTokenGroups(value).flat())];
-}
-
-function buildLikePatterns(
-    term: string,
-    mode: 'contains' | 'prefix' = 'contains'
-): string[] {
-    const variants = new Set<string>();
-
-    for (const value of [term, ...getSqlSearchTokenVariants(term)]) {
-        const trimmedValue = value.trim();
-        if (!trimmedValue) {
-            continue;
-        }
-
-        const titleCase =
-            trimmedValue.length > 0
-                ? trimmedValue.charAt(0).toLocaleUpperCase() +
-                  trimmedValue.slice(1).toLocaleLowerCase()
-                : trimmedValue;
-
-        variants.add(trimmedValue);
-        variants.add(trimmedValue.toLocaleLowerCase());
-        variants.add(trimmedValue.toLocaleUpperCase());
-        variants.add(titleCase);
-    }
-
-    return [...variants].map((value) => {
-        const escapedValue = escapeLikePattern(value);
-        return mode === 'prefix' ? `${escapedValue}%` : `%${escapedValue}%`;
-    });
-}
+export { scoreSearchTextMatch } from './content-search.util';
 
 const DEFAULT_GLOBAL_SEARCH_LIMIT = 50;
 const MAX_GLOBAL_SEARCH_LIMIT = 500;
@@ -174,65 +111,6 @@ function normalizeGlobalSearchPagination(
     return { limit, offset };
 }
 
-export function scoreSearchTextMatch(
-    value: string,
-    searchTerm: string
-): number | null {
-    const candidateText = normalizeSearchMatchText(value);
-    const searchText = normalizeSearchMatchText(searchTerm);
-    if (!candidateText || !searchText) {
-        return null;
-    }
-
-    const searchTokens = searchText.split(' ');
-    const candidateTokens = candidateText.split(' ');
-    const firstSearchToken = searchTokens[0];
-
-    if (
-        firstSearchToken.length <= 2 &&
-        !candidateText.startsWith(firstSearchToken)
-    ) {
-        return null;
-    }
-
-    if (candidateText === searchText) {
-        return 0;
-    }
-
-    if (
-        candidateText.startsWith(searchText) &&
-        (searchTokens.length > 1 || firstSearchToken.length <= 2)
-    ) {
-        return 10;
-    }
-
-    if (candidateTokens.some((token) => token.startsWith(searchText))) {
-        return 20;
-    }
-
-    if (
-        searchTokens.every((searchToken) =>
-            candidateTokens.some((candidateToken) =>
-                candidateToken.startsWith(searchToken)
-            )
-        )
-    ) {
-        return 30;
-    }
-
-    if (candidateText.includes(searchText)) {
-        return 40;
-    }
-
-    if (
-        searchTokens.every((searchToken) => candidateText.includes(searchToken))
-    ) {
-        return 50;
-    }
-
-    return null;
-}
-
 function compareScoredGlobalSearchResults(
     first: ScoredGlobalSearchResult,
     second: ScoredGlobalSearchResult
@@ -284,7 +162,7 @@ function buildContentTitleSearchConditions(searchTerm: string) {
         return [];
     }
 
-    return tokenGroups
+    const groupConditions = tokenGroups
         .map((tokens, index) => {
             const mode =
                 index === 0 && isShortSearchTokenGroup(tokens)
@@ -299,52 +177,24 @@ function buildContentTitleSearchConditions(searchTerm: string) {
             return or(...likeConditions);
         })
         .filter((condition) => condition !== undefined);
-}
 
-function shouldUseContentTitlePrefixIndex(searchTerm: string): boolean {
-    const [firstTokenGroup] = getSqlSearchTokenGroups(searchTerm);
-
-    return !!firstTokenGroup && isShortSearchTokenGroup(firstTokenGroup);
-}
-
-function buildContentTitleFtsMatchQuery(searchTerm: string): string {
-    return getSqlSearchTokenGroups(searchTerm)
-        .map((tokens) => {
-            const quotedTokens = tokens
-                .filter((token) => token.length >= 3)
-                .map((token) => `"${token.replace(/"/g, '""')}"`);
-
-            if (quotedTokens.length <= 1) {
-                return quotedTokens[0] ?? '';
-            }
-
-            return `(${quotedTokens.join(' OR ')})`;
-        })
-        .filter(Boolean)
-        .join(' AND ');
-}
-
-function shouldUseContentTitleFts(searchTerm: string): boolean {
-    return (
-        !shouldUseContentTitlePrefixIndex(searchTerm) &&
-        buildContentTitleFtsMatchQuery(searchTerm).length > 0
+    // Punctuation-joined words ("A&E") tokenize into short fragments whose
+    // prefix anchoring would miss "US: A&E", so the intact word also matches
+    // as a contains pattern anywhere in the title (issue #1161).
+    const compoundConditions = getCompoundSearchWords(searchTerm).flatMap(
+        (word) =>
+            buildCompoundLikePatterns(word).map(
+                (pattern) =>
+                    sql`${schema.content.title} LIKE ${pattern} ESCAPE '\\'`
+            )
     );
-}
 
-function buildGlobPrefixPatterns(token: string): string[] {
-    const variants = new Set<string>();
-
-    for (const value of [token, ...getSqlSearchTokenVariants(token)]) {
-        variants.add(value);
-        variants.add(value.toLocaleLowerCase());
-        variants.add(value.toLocaleUpperCase());
-        variants.add(
-            value.charAt(0).toLocaleUpperCase() +
-                value.slice(1).toLocaleLowerCase()
-        );
+    if (compoundConditions.length === 0 || groupConditions.length === 0) {
+        return groupConditions;
     }
 
-    return [...variants].map((value) => `${value}*`);
+    const combined = or(and(...groupConditions), ...compoundConditions);
+    return combined === undefined ? groupConditions : [combined];
 }
 
 function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
@@ -368,6 +218,20 @@ function buildRawContentTitleSearchSql(searchTerm: string): SQL[] {
             ),
             sql` OR `
         )})`;
+    });
+}
+
+function dedupeXtreamCandidatesById(
+    candidates: XtreamGlobalSearchCandidate[]
+): XtreamGlobalSearchCandidate[] {
+    const seenIds = new Set<number>();
+
+    return candidates.filter((candidate) => {
+        if (seenIds.has(candidate.id)) {
+            return false;
+        }
+        seenIds.add(candidate.id);
+        return true;
     });
 }
 
@@ -415,12 +279,11 @@ async function selectXtreamGlobalSearchCandidatesWithTitleIndex(
 
 async function selectXtreamGlobalSearchCandidatesWithFts(
     db: AppDatabase,
-    searchTerm: string,
+    matchQuery: string,
     types: string[],
     excludeHidden: boolean,
     candidateLimit: number
 ): Promise<XtreamGlobalSearchCandidate[]> {
-    const matchQuery = buildContentTitleFtsMatchQuery(searchTerm);
     if (!matchQuery || types.length === 0) {
         return [];
     }
@@ -495,25 +358,13 @@ async function selectXtreamGlobalSearchCandidatesWithContentScan(
         .limit(candidateLimit);
 }
 
-function buildM3uPayloadTextFieldPatterns(
-    token: string,
-    mode: 'contains' | 'prefix'
-): string[] {
-    return buildLikePatterns(token, mode).flatMap((pattern) => [
-        `%"name":"${pattern}"%`,
-        `%"name": "${pattern}"%`,
-        `%"title":"${pattern}"%`,
-        `%"title": "${pattern}"%`,
-    ]);
-}
-
 function buildM3uPayloadSearchConditions(searchTerm: string) {
     const tokenGroups = getSqlSearchTokenGroups(searchTerm);
     if (tokenGroups.length === 0) {
         return [];
     }
 
-    return tokenGroups
+    const groupConditions = tokenGroups
         .map((tokens, index) => {
             const mode =
                 index === 0 && isShortSearchTokenGroup(tokens)
@@ -529,6 +380,24 @@ function buildM3uPayloadSearchConditions(searchTerm: string) {
             return or(...likeConditions);
         })
         .filter((condition) => condition !== undefined);
+
+    // Same compound-word rescue as the content title conditions: "A&E" must
+    // match channel names like "US: A&E" that the prefix-anchored short
+    // tokens would exclude at the playlist payload prefilter (issue #1161).
+    const compoundConditions = getCompoundSearchWords(searchTerm).flatMap(
+        (word) =>
+            buildM3uPayloadCompoundPatterns(word).map(
+                (pattern) =>
+                    sql`${schema.playlists.payload} LIKE ${pattern} ESCAPE '\\'`
+            )
+    );
+
+    if (compoundConditions.length === 0 || groupConditions.length === 0) {
+        return groupConditions;
+    }
+
+    const combined = or(and(...groupConditions), ...compoundConditions);
+    return combined === undefined ? groupConditions : [combined];
 }
 
 function asStringArray(value: unknown): string[] {
@@ -1207,11 +1076,42 @@ export async function globalSearch(
                 excludeHidden,
                 candidateLimit
             );
+
+            // The prefix arm only sees titles that start with the short first
+            // token ("A&E" -> GLOB 'a*'), so a compound word like "a&e" is
+            // additionally looked up as a trigram FTS substring to reach
+            // titles such as "US: A&E" (issue #1161).
+            const compoundMatchQuery = buildCompoundFtsMatchQuery(searchTerm);
+            if (compoundMatchQuery) {
+                try {
+                    const compoundCandidates =
+                        await selectXtreamGlobalSearchCandidatesWithFts(
+                            db,
+                            compoundMatchQuery,
+                            types,
+                            excludeHidden,
+                            candidateLimit
+                        );
+                    candidates = dedupeXtreamCandidatesById([
+                        ...candidates,
+                        ...compoundCandidates,
+                    ]);
+                } catch {
+                    candidates =
+                        await selectXtreamGlobalSearchCandidatesWithContentScan(
+                            db,
+                            searchTerm,
+                            types,
+                            excludeHidden,
+                            candidateLimit
+                        );
+                }
+            }
         } else if (shouldUseContentTitleFts(searchTerm)) {
             try {
                 candidates = await selectXtreamGlobalSearchCandidatesWithFts(
                     db,
-                    searchTerm,
+                    buildContentTitleFtsMatchQuery(searchTerm),
                     types,
                     excludeHidden,
                     candidateLimit

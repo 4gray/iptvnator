@@ -241,7 +241,16 @@ Xtream-only row shape:
    short first tokens such as `tv` stay anchored to the start of the title, so
    `TV Sport` matches but `Test TV` does not. These short first-token queries
    bypass trigram FTS and use the `idx_content_title` prefix index path because
-   trigram tokenization cannot match 1-2 character terms.
+   trigram tokenization cannot match 1-2 character terms. Punctuation-joined
+   words such as `A&E` or `X-Men` are an exception: tokenization splits them
+   into short fragments, so the intact word is preserved as a "compound word"
+   (`content-search.util.ts`) that additionally matches as an exact substring —
+   a supplemental trigram FTS `MATCH '"a&e"'` query for the Xtream arm (merged
+   and deduped with the prefix-index candidates), intact-word `LIKE` contains
+   patterns for the per-playlist and M3U payload prefilters, and a
+   space-bounded whole-phrase check in the ranking step. This lets `A&E` find
+   `US: A&E` anywhere in the title while single short tokens stay
+   prefix-anchored (issue #1161).
 6. `excludeHidden` still filters hidden Xtream categories and also filters M3U
    channels whose `group.title` is listed in the playlist payload's
    `hiddenGroupTitles`.
