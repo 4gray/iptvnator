@@ -649,8 +649,10 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
               )
             : null;
         await this.loadEpgForChannel(selected ?? channel);
+        // Use the unfiltered list so an active search filter cannot drop
+        // the playing channel's mapping override.
         await this.stalkerStore.applyMappedItvEpg(
-            this.visibleChannels().map((item) => item.id)
+            this.channels().map((item) => item.id)
         );
     }
 

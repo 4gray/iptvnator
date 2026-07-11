@@ -1115,12 +1115,19 @@ export class StreamResolverService {
         playlistId: string,
         channel: UnifiedCollectionItem
     ): string[] {
+        // Stalker mappings are only ever saved under the playlist-scoped
+        // key, and a stalker item's tvgId mirrors its raw provider id —
+        // bare tvgId/name candidates could only produce false matches
+        // against unrelated M3U mappings.
+        if (channel.sourceType === 'stalker') {
+            return channel.stalkerId != null
+                ? [buildStalkerEpgMappingKey(playlistId, channel.stalkerId)]
+                : [];
+        }
+
         return [
             channel.xtreamId != null
                 ? buildXtreamEpgMappingKey(playlistId, channel.xtreamId)
-                : null,
-            channel.stalkerId != null
-                ? buildStalkerEpgMappingKey(playlistId, channel.stalkerId)
                 : null,
             channel.tvgId?.trim() || null,
             channel.name?.trim() || null,

@@ -86,6 +86,8 @@ export class GlobalFavoritesListComponent {
     readonly channelsReordered = output<UnifiedFavoriteChannel[]>();
     readonly favoriteToggled = output<UnifiedFavoriteChannel>();
     readonly removeRequested = output<UnifiedFavoriteChannel>();
+    /** Emitted after the mapping dialog closes having changed a mapping. */
+    readonly epgMappingChanged = output<void>();
 
     readonly contextMenuChannel = signal<EnrichedUnifiedFavorite | null>(null);
     readonly contextMenuPosition = signal({
@@ -200,11 +202,34 @@ export class GlobalFavoritesListComponent {
             return;
         }
 
+        void this.openEpgMappingDialog(channelKey, item);
+    }
+
+    private async openEpgMappingDialog(
+        channelKey: string,
+        item: UnifiedFavoriteChannel
+    ): Promise<void> {
+        const before = await this.epgBridge
+            .getEpgMapping(channelKey)
+            .catch(() => null);
+
         EpgMappingDialogComponent.open(this.dialog, {
             channelKey,
             channelName: item.name,
             playlistId: item.m3uChannel ? undefined : item.playlistId,
-        });
+        })
+            .afterClosed()
+            .subscribe(async () => {
+                const after = await this.epgBridge
+                    .getEpgMapping(channelKey)
+                    .catch(() => null);
+                if (
+                    (after?.epgChannelId ?? null) !==
+                    (before?.epgChannelId ?? null)
+                ) {
+                    this.epgMappingChanged.emit();
+                }
+            });
     }
 
     /**

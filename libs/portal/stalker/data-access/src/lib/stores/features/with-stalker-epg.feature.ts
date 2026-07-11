@@ -311,7 +311,16 @@ export function withStalkerEpg() {
                         if (freshIds.length === 0) {
                             return;
                         }
-                        freshIds.forEach((id) => mappingCheckedIds.add(id));
+
+                        // The store is a root singleton, so an in-flight
+                        // call can outlive a portal switch — bail out after
+                        // every await instead of writing portal A's data
+                        // into portal B's state.
+                        const isStale = (): boolean =>
+                            mappingPlaylistId !== playlistId ||
+                            String(
+                                storeContext.currentPlaylist()?._id ?? ''
+                            ) !== playlistId;
 
                         const keyById = new Map(
                             freshIds.map(
@@ -332,13 +341,15 @@ export function withStalkerEpg() {
                                 ...keyById.values(),
                             ]);
                         } catch (error) {
+                            // Nothing is marked checked — the next
+                            // invocation retries the lookup.
                             logger.warn(
                                 'Stalker EPG mapping lookup failed',
                                 error
                             );
                             return;
                         }
-                        if (!mappings) {
+                        if (!mappings || isStale()) {
                             return;
                         }
 
@@ -346,6 +357,9 @@ export function withStalkerEpg() {
                         for (const [channelId, key] of keyById) {
                             const mappedEpgId = mappings[key]?.trim();
                             if (!mappedEpgId) {
+                                // No mapping for this channel — a stable
+                                // outcome, safe to dedupe.
+                                mappingCheckedIds.add(channelId);
                                 continue;
                             }
                             try {
@@ -353,6 +367,10 @@ export function withStalkerEpg() {
                                     (await epgBridge.getChannelPrograms(
                                         mappedEpgId
                                     )) ?? [];
+                                if (isStale()) {
+                                    return;
+                                }
+                                mappingCheckedIds.add(channelId);
                                 if (programs.length === 0) {
                                     continue;
                                 }
@@ -365,10 +383,12 @@ export function withStalkerEpg() {
                                 );
                                 changed = true;
                             } catch {
-                                // Keep the portal EPG for this channel.
+                                // Transient failure — leave the id
+                                // unchecked so a later call retries; the
+                                // portal EPG stays in place meanwhile.
                             }
                         }
-                        if (!changed) {
+                        if (!changed || isStale()) {
                             return;
                         }
 
