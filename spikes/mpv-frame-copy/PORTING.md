@@ -1,10 +1,9 @@
 # Frame-copy engine — Windows/Linux porting handoff
 
-> **Intentionally uncommitted.** This is a working handoff for future
-> Claude/dev sessions on Windows and Linux machines (their sessions won't
-> have this Mac's local memory). Commit it or fold it into DESIGN.md when
-> porting actually starts. Written 2026-07-11 on the macOS session that
-> built the engine.
+> Handoff for future Claude/dev sessions on Windows and Linux machines
+> (they won't have the originating Mac's local session memory — this file
+> is the transfer). Written 2026-07-11 by the macOS session that built the
+> engine; fold into DESIGN.md once both ports land.
 
 ## State as of this handoff
 
