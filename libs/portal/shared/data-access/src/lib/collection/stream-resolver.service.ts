@@ -609,6 +609,14 @@ export class StreamResolverService {
             return;
         }
 
+        // Prefetch manual EPG mappings for the whole batch in one IPC
+        // round-trip — a per-channel lookup would issue O(N × candidates)
+        // IPC calls on every list load.
+        const mappingByKey = await this.prefetchEpgMappings(
+            playlistId,
+            channels
+        );
+
         // Limit concurrency to avoid overwhelming the provider with
         // simultaneous EPG requests when loading a large channel list.
         const concurrency = 3;
@@ -634,31 +642,23 @@ export class StreamResolverService {
                         );
                     }
 
-                    // 2) Fall back to manual mapping (epg_channel_mappings table).
-                    // Try all possible keys the user might have used when saving:
-                    // the playlist-scoped Xtream key (from portal/favorites
-                    // dialogs), tvgId, name (from M3U dialogs).
+                    // 2) Fall back to manual mapping (epg_channel_mappings
+                    // table), using the batch-prefetched map. Candidate key
+                    // order matches how mappings can be saved: the
+                    // playlist-scoped Xtream key (portal/favorites dialogs),
+                    // then tvgId and name (M3U dialogs).
                     if (!currentItem && this.supportsProgramLookup) {
-                        const candidateKeys = [
-                            channel.xtreamId
-                                ? buildXtreamEpgMappingKey(
-                                      playlistId,
-                                      channel.xtreamId
-                                  )
-                                : null,
-                            channel.tvgId?.trim() || null,
-                            channel.name?.trim() || null,
-                        ].filter(Boolean);
-                        for (const key of candidateKeys) {
-                            const mapping = await this.epgBridge
-                                .getEpgMapping(key!)
-                                .catch(() => null);
-                            if (mapping?.epgChannelId) {
-                                currentItem = await this.findCurrentInXmltv(
-                                    mapping.epgChannelId, nowSeconds
-                                );
-                                if (currentItem) break;
-                            }
+                        for (const key of this.mappingCandidateKeys(
+                            playlistId,
+                            channel
+                        )) {
+                            const mappedId = mappingByKey.get(key);
+                            if (!mappedId) continue;
+                            currentItem = await this.findCurrentInXmltv(
+                                mappedId,
+                                nowSeconds
+                            );
+                            if (currentItem) break;
                         }
                     }
 
@@ -680,7 +680,7 @@ export class StreamResolverService {
                         channel.tvgId?.trim() || channel.name?.trim();
 
                     if (!epgKey) {
-                        return;
+                        continue;
                     }
 
                     epgMap.set(
@@ -1024,6 +1024,63 @@ export class StreamResolverService {
 
     private isHttpUrl(value: string): boolean {
         return value.startsWith('http://') || value.startsWith('https://');
+    }
+
+    /**
+     * All keys a manual mapping for this channel may have been saved under:
+     * the playlist-scoped Xtream key first, then the M3U lookup keys.
+     */
+    private mappingCandidateKeys(
+        playlistId: string,
+        channel: UnifiedCollectionItem
+    ): string[] {
+        return [
+            channel.xtreamId != null
+                ? buildXtreamEpgMappingKey(playlistId, channel.xtreamId)
+                : null,
+            channel.tvgId?.trim() || null,
+            channel.name?.trim() || null,
+        ].filter((key): key is string => Boolean(key));
+    }
+
+    /**
+     * Resolve the manual EPG mappings for every candidate key in the batch
+     * with a single IPC call. Returns an empty map when program lookup or
+     * the mapping bridge is unavailable (PWA).
+     */
+    private async prefetchEpgMappings(
+        playlistId: string,
+        channels: UnifiedCollectionItem[]
+    ): Promise<Map<string, string>> {
+        const result = new Map<string, string>();
+        if (!this.supportsProgramLookup) {
+            return result;
+        }
+
+        const keys = new Set<string>();
+        for (const channel of channels) {
+            if (!channel.xtreamId) continue;
+            for (const key of this.mappingCandidateKeys(playlistId, channel)) {
+                keys.add(key);
+            }
+        }
+        if (keys.size === 0) {
+            return result;
+        }
+
+        const mappings = await this.epgBridge
+            .getEpgMappingsBatch([...keys])
+            .catch(() => null);
+        if (!mappings) {
+            return result;
+        }
+        for (const [key, mappedId] of Object.entries(mappings)) {
+            const trimmed = mappedId?.trim();
+            if (trimmed) {
+                result.set(key, trimmed);
+            }
+        }
+        return result;
     }
 
     /** Look up the current program for an EPG channel ID from uploaded XMLTV. */
