@@ -632,6 +632,9 @@ export interface ElectronBridgeApi {
     getEpgMapping: (
         channelKey: string
     ) => Promise<ElectronBridgeEpgMapping | null>;
+    getEpgMappingsBatch: (
+        channelKeys: string[]
+    ) => Promise<Record<string, string>>;
     setEpgMapping: (
         channelKey: string,
         epgChannelId: string,

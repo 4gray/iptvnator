@@ -41,6 +41,7 @@ type EpgElectronBridge = Pick<
     | 'onEpgProgress'
     | 'searchEpgPrograms'
     | 'getEpgMapping'
+    | 'getEpgMappingsBatch'
     | 'setEpgMapping'
     | 'deleteEpgMapping'
     | 'searchEpgChannels'
@@ -239,6 +240,19 @@ export class EpgRuntimeBridgeService {
         }
 
         return this.bridge?.getEpgMapping?.(channelKey) ?? Promise.resolve(null);
+    }
+
+    getEpgMappingsBatch(
+        channelKeys: string[]
+    ): Promise<Record<string, string> | null> {
+        if (!this.supportsEpgMapping || channelKeys.length === 0) {
+            return Promise.resolve(null);
+        }
+
+        return (
+            this.bridge?.getEpgMappingsBatch?.(channelKeys) ??
+            Promise.resolve(null)
+        );
     }
 
     setEpgMapping(

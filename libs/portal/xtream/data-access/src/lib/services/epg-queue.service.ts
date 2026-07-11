@@ -126,7 +126,7 @@ export class EpgQueueService implements OnDestroy {
         // correct EPG channel ID for the XMLTV batch call that follows.
         // Guarded so environments without the bridge (PWA) skip the await
         // entirely and the enqueue keeps its original microtask timing.
-        if (typeof window.electron?.getEpgMapping === 'function') {
+        if (typeof window.electron?.getEpgMappingsBatch === 'function') {
             await this.resolveManualMappings(normalized);
         }
 
@@ -222,31 +222,45 @@ export class EpgQueueService implements OnDestroy {
     private async resolveManualMappings(
         entries: EpgQueueEntry[]
     ): Promise<void> {
-        const getEpgMapping =
-            typeof window.electron?.getEpgMapping === 'function'
-                ? window.electron.getEpgMapping
+        const getEpgMappingsBatch =
+            typeof window.electron?.getEpgMappingsBatch === 'function'
+                ? window.electron.getEpgMappingsBatch
                 : null;
-        if (!getEpgMapping) {
+        if (!getEpgMappingsBatch) {
             return;
         }
 
+        const keyByStreamId = new Map<number, string>();
         for (const entry of entries) {
             if (!entry.playlistId) continue;
+            keyByStreamId.set(
+                entry.streamId,
+                buildXtreamEpgMappingKey(entry.playlistId, entry.streamId)
+            );
+        }
+        if (keyByStreamId.size === 0) {
+            return;
+        }
 
-            try {
-                const mapping = await getEpgMapping(
-                    buildXtreamEpgMappingKey(entry.playlistId, entry.streamId)
-                );
-                if (mapping?.epgChannelId?.trim()) {
+        try {
+            // One IPC round-trip for the whole viewport — a per-entry
+            // lookup would put O(N) IPC calls on every scroll event.
+            const mappings = await getEpgMappingsBatch([
+                ...keyByStreamId.values(),
+            ]);
+            for (const entry of entries) {
+                const key = keyByStreamId.get(entry.streamId);
+                const mapped = key ? mappings[key]?.trim() : undefined;
+                if (mapped) {
                     this.logger.info(
-                        `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapping.epgChannelId}`
+                        `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapped}`
                     );
-                    entry.epgChannelId = mapping.epgChannelId.trim();
+                    entry.epgChannelId = mapped;
                 }
-            } catch {
-                // Mapping lookup failure is non-fatal; keep the original
-                // epgChannelId and proceed.
             }
+        } catch {
+            // Mapping lookup failure is non-fatal; keep the original
+            // epgChannelId values and proceed.
         }
     }
 

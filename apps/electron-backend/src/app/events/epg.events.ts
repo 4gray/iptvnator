@@ -163,6 +163,13 @@ export default class EpgEvents {
         );
 
         ipcMain.handle(
+            'EPG_MAPPING_GET_BATCH',
+            async (_event, args: { channelKeys: string[] }) => {
+                return this.handleGetEpgMappingsBatch(args.channelKeys);
+            }
+        );
+
+        ipcMain.handle(
             'EPG_MAPPING_DELETE',
             async (_event, args: { channelKey: string }) => {
                 return this.handleDeleteEpgMapping(args.channelKey);
@@ -438,6 +445,22 @@ export default class EpgEvents {
             return getEpgMapping(db, channelKey);
         } catch {
             return null;
+        }
+    }
+
+    private static async handleGetEpgMappingsBatch(
+        channelKeys: string[]
+    ): Promise<Record<string, string>> {
+        if (!Array.isArray(channelKeys) || channelKeys.length === 0) {
+            return {};
+        }
+
+        try {
+            const db = await getDatabase();
+            const mappings = await getEpgMappingsBatch(db, channelKeys);
+            return Object.fromEntries(mappings);
+        } catch {
+            return {};
         }
     }
 

@@ -521,6 +521,8 @@ const electronApi: ElectronBridgeApi = {
         ipcRenderer.invoke('EPG_DB_SEARCH_PROGRAMS', searchTerm, limit),
     getEpgMapping: (channelKey: string) =>
         ipcRenderer.invoke('EPG_MAPPING_GET', { channelKey }),
+    getEpgMappingsBatch: (channelKeys: string[]) =>
+        ipcRenderer.invoke('EPG_MAPPING_GET_BATCH', { channelKeys }),
     setEpgMapping: (channelKey: string, epgChannelId: string, playlistId?: string) =>
         ipcRenderer.invoke('EPG_MAPPING_SET', { channelKey, epgChannelId, playlistId }),
     deleteEpgMapping: (channelKey: string) =>
