@@ -111,9 +111,9 @@ export class EmbeddedMpvNativeService {
 
     /**
      * Frame-copy engine: helper process + shm ring + renderer canvas.
-     * Experimental, macOS Apple Silicon only (owner decision 2026-07-10),
-     * opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on top of
-     * the regular embedded MPV experiment flag.
+     * Experimental, macOS Apple Silicon (owner decision 2026-07-10) and
+     * Linux, opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on
+     * top of the regular embedded MPV experiment flag.
      */
     private isFrameCopyEngineRequested(): boolean {
         return ['1', 'true', 'yes', 'on'].includes(
@@ -215,7 +215,13 @@ export class EmbeddedMpvNativeService {
             };
         }
 
-        if (this.isUnsupportedLinuxDisplayServer()) {
+        // The frame-copy engine renders offscreen (headless EGL on Linux)
+        // into a renderer canvas: the Linux X11/Xwayland and system-mpv
+        // requirements below only bind the native --wid engine.
+        if (
+            this.isUnsupportedLinuxDisplayServer() &&
+            !this.isFrameCopyEngineActive()
+        ) {
             return {
                 supported: false,
                 platform: process.platform,
@@ -231,16 +237,6 @@ export class EmbeddedMpvNativeService {
             };
         }
 
-        const missingLinuxMpvExecutableReason =
-            this.getMissingLinuxMpvExecutableReason();
-        if (missingLinuxMpvExecutableReason) {
-            return {
-                supported: false,
-                platform: process.platform,
-                reason: missingLinuxMpvExecutableReason,
-            };
-        }
-
         // A requested-but-unavailable frame-copy engine (wrong platform or
         // missing helper) intentionally falls through to the native path so
         // embedded MPV keeps working and Settings can clear the opt-in.
@@ -251,6 +247,16 @@ export class EmbeddedMpvNativeService {
                 engine: 'frame-copy',
                 frameCopyAvailable: true,
                 capabilities: this.detectCapabilities(),
+            };
+        }
+
+        const missingLinuxMpvExecutableReason =
+            this.getMissingLinuxMpvExecutableReason();
+        if (missingLinuxMpvExecutableReason) {
+            return {
+                supported: false,
+                platform: process.platform,
+                reason: missingLinuxMpvExecutableReason,
             };
         }
 
@@ -385,7 +391,13 @@ export class EmbeddedMpvNativeService {
     ): EmbeddedMpvSession {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
-        const windowHandle = this.getMainWindowHandle();
+        // The frame-copy adapter ignores the native window handle (frames go
+        // through shm to a DOM canvas), so skip resolving it — under native
+        // Wayland the handle assertion would reject an engine that does not
+        // embed into the window at all.
+        const windowHandle = this.isFrameCopyEngineActive()
+            ? Buffer.alloc(0)
+            : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
         const sessionId = addon.createSession(
             windowHandle,

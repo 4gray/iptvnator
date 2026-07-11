@@ -109,7 +109,7 @@ export interface Settings {
     /** Custom live recording folder path (uses system Downloads folder if not set) */
     recordingFolder?: string;
     /**
-     * Embedded MPV frame-copy engine (experimental, macOS Apple Silicon).
+     * Embedded MPV frame-copy engine (experimental, macOS Apple Silicon and Linux).
      * Applied on the next app start — the engine relaxes the window sandbox
      * for its preload frame pump, which is fixed at window creation.
      */

@@ -173,4 +173,33 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         const withoutHelper = createAdapter(null);
         expect(withoutHelper.isSupported()).toBe(false);
     });
+
+    describe('isSupported platform gate', () => {
+        const originalPlatform = process.platform;
+        const originalArch = process.arch;
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', {
+                value: originalPlatform,
+            });
+            Object.defineProperty(process, 'arch', { value: originalArch });
+        });
+
+        it.each<[NodeJS.Platform, string, boolean]>([
+            ['darwin', 'arm64', true],
+            ['darwin', 'x64', false],
+            ['linux', 'x64', true],
+            ['linux', 'arm64', true],
+            ['win32', 'x64', false],
+        ])(
+            'on %s/%s with a helper binary present -> %s',
+            (platform, arch, expected) => {
+                Object.defineProperty(process, 'platform', {
+                    value: platform,
+                });
+                Object.defineProperty(process, 'arch', { value: arch });
+                expect(adapter.isSupported()).toBe(expected);
+            }
+        );
+    });
 });
