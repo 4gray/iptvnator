@@ -62,6 +62,19 @@ targets. Those targets are validated when registered and revalidated before the
 `/xtream` proxy request, including protocol, URL credentials, DNS resolution,
 and private-network checks.
 
+## User-Agent
+
+Electron's `XTREAM_REQUEST` and `XTREAM_PROBE_URL` handlers
+(`apps/electron-backend/src/app/events/xtream.events.ts`) send a shared
+`XTREAM_CLIENT_USER_AGENT` constant on every outgoing request. Some Xtream
+panels sit behind a WAF (e.g. Cloudflare) configured to challenge
+generic/incomplete browser-looking User-Agents while allowlisting known IPTV
+player clients; a player-style User-Agent (currently a VLC signature) avoids
+that challenge page, whereas a browser-looking but non-browser TLS/HTTP client
+(axios/curl with a Chrome or empty User-Agent) can be blocked even though a
+real browser or a VLC-style client passes. Keep all three request sites using
+the shared constant instead of inlining the string again.
+
 ## Playback URL Formats
 
 When account info includes `user_info.allowed_output_formats`, the current
