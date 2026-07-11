@@ -495,8 +495,25 @@ function main() {
         `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
     );
     cleanNativeBuildIntermediates();
-    runNodeGyp('configure', env);
-    runNodeGyp('build', env);
+    try {
+        runNodeGyp('configure', env);
+        runNodeGyp('build', env);
+    } catch (error) {
+        if (!embeddedMpvRequired && runtime.origin === 'system-dev') {
+            // The system-dev fallback triggers on any machine with
+            // libmpv-dev installed; keep the old graceful-skip contract
+            // when the rest of the toolchain (EGL/GL/gbm dev packages) is
+            // missing instead of failing the whole electron build.
+            log(
+                `Embedded MPV native build failed with the system-dev toolchain; continuing without embedded MPV. ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+            cleanOutput();
+            return;
+        }
+        throw error;
+    }
 
     if (!fs.existsSync(outputFile)) {
         throw new Error(`Build finished without producing ${outputFile}.`);

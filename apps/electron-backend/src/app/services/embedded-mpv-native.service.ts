@@ -217,7 +217,10 @@ export class EmbeddedMpvNativeService {
 
         // The frame-copy engine renders offscreen (headless EGL on Linux)
         // into a renderer canvas: the Linux X11/Xwayland and system-mpv
-        // requirements below only bind the native --wid engine.
+        // requirements below only bind the native --wid engine. Both
+        // native-engine failure returns still advertise frameCopyAvailable
+        // so the Settings toggle stays reachable — otherwise the states the
+        // frame-copy engine exists to fix would hide the way to enable it.
         if (
             this.isUnsupportedLinuxDisplayServer() &&
             !this.isFrameCopyEngineActive()
@@ -226,6 +229,7 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: 'Embedded MPV on Linux currently requires X11 or Xwayland. Native Wayland embedding is not supported yet.',
+                frameCopyAvailable: this.isFrameCopyAvailable(),
             };
         }
 
@@ -257,6 +261,7 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: missingLinuxMpvExecutableReason,
+                frameCopyAvailable: this.isFrameCopyAvailable(),
             };
         }
 
@@ -394,10 +399,13 @@ export class EmbeddedMpvNativeService {
         // The frame-copy adapter ignores the native window handle (frames go
         // through shm to a DOM canvas), so skip resolving it — under native
         // Wayland the handle assertion would reject an engine that does not
-        // embed into the window at all.
-        const windowHandle = this.isFrameCopyEngineActive()
-            ? Buffer.alloc(0)
-            : this.getMainWindowHandle();
+        // embed into the window at all. Derive the skip from the dispatched
+        // addon rather than re-evaluating the engine gate, so the two
+        // decisions cannot disagree.
+        const windowHandle =
+            this.frameCopyAdapter && addon === this.frameCopyAdapter
+                ? Buffer.alloc(0)
+                : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
         const sessionId = addon.createSession(
             windowHandle,

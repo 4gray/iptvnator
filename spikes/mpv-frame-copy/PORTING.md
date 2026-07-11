@@ -19,8 +19,8 @@
   measurements in RESULTS.md. Verified end-to-end in-app on Ubuntu 25.04
   (Wayland session) with the xtream mock portal. Dev-build-only on Linux:
   the helper links system libmpv and `electron-after-pack.cjs` strips it
-  from packages until milestone 3 (bundled runtime) — remove that strip
-  when milestone 3 lands. Windows is NOT ported yet — this branch on
+  from packages until milestone 4 (Linux bundled-libmpv runtime) — remove
+  that strip when milestone 4 lands. Windows is NOT ported yet — this branch on
   Windows behaves exactly like master (helper doesn't build there, engine
   can't activate, env flag falls back to native).
 - Coordination: PR #1169 credits larsemig's idea (#1154 comment 4932807350)
@@ -35,17 +35,22 @@ The stdio protocol, shm layout, TS adapter, main-process service, preload
 pump, and Angular UI are shared and already shipped.
 
 ```
-apps/electron-backend/native/helper/
+apps/electron-backend/native/helper/          # state after the Linux port:
 ├── mpv_frame_helper.cpp     # portable: protocol, mpv session, snapshots
 ├── frame_helper_io.h        # portable: TSV-in/JSON-out, percent-encoding
-├── frame_shm.h              # layout portable; POSIX shm calls are not
-└── frame_helper_render.h    # macOS-ONLY: CGL headless GL + PBO + shm write
+├── frame_shm.h              # portable layout + shared CLOCK_MONOTONIC clock
+│                            # (POSIX shm calls still need a Windows twin)
+├── frame_helper_render.h    # portable: FBO/PBO readback + shm publish
+└── frame_helper_gl.h        # PLATFORM SEAM: GlContext — CGL (macOS) and
+                             # EGL (Linux); Windows adds its WGL twin HERE
 apps/electron-backend/native/src/embedded_mpv_frame_reader.c
-                             # real impl under #ifdef __APPLE__, stub elsewhere
+                             # real impl on __APPLE__ + __linux__, stub
+                             # elsewhere (Windows needs shm-open/clock twins)
 ```
 
-Porting = give `frame_helper_render.h` a WGL/EGL twin, give the shm
-create/open a Windows twin, flip the TS gates, extend packaging.
+Porting Windows = give `frame_helper_gl.h` a WGL GlContext twin, give the
+shm create/open (+ `frame_shm_now_ns`) Windows twins, flip the TS gate in
+`embedded-mpv-frame-copy-platform.util.ts`, extend packaging.
 
 ## Branching & merge strategy (do this, not "commit to the current branch")
 

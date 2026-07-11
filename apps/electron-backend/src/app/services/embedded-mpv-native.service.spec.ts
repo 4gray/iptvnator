@@ -335,6 +335,51 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             );
         });
 
+        it('advertises frame-copy availability while native Wayland blocks the native engine', () => {
+            // Pre-opt-in discoverability: without frameCopyAvailable on the
+            // unsupported payload the Settings toggle never appears in
+            // exactly the states the frame-copy engine exists to fix.
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            process.env.WAYLAND_DISPLAY = 'wayland-0';
+            mockHelperPresent();
+
+            const support = service.getSupport();
+            expect(support.supported).toBe(false);
+            expect(support.reason).toContain('Native Wayland embedding');
+            expect(support.frameCopyAvailable).toBe(true);
+        });
+
+        it('advertises frame-copy availability when the system mpv executable is missing', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockHelperPresent();
+
+            const support = service.getSupport();
+            expect(support.supported).toBe(false);
+            expect(support.frameCopyAvailable).toBe(true);
+        });
+
+        it('keeps frame-copy supported on Linux without a system mpv executable', () => {
+            // The helper links libmpv itself; the mpv-on-PATH probe only
+            // binds the native --wid engine.
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockHelperPresent();
+
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: true,
+                    engine: 'frame-copy',
+                })
+            );
+        });
+
         it('activates the frame-copy engine on macOS arm64', () => {
             Object.defineProperty(process, 'arch', { value: 'arm64' });
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
@@ -374,6 +419,14 @@ describe('EmbeddedMpvNativeService power blocker', () => {
                 BOUNDS,
                 '',
                 1
+            );
+
+            // Dispose while the frame-copy env is still set so teardown
+            // dispatches to the adapter that owns the session, not the
+            // native addon the outer afterEach shutdown would pick.
+            service.disposeSession('s-fc');
+            expect(frameCopyAddon.disposeSession).toHaveBeenCalledWith(
+                's-fc'
             );
         });
     });

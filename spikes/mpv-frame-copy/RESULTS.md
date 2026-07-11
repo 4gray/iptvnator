@@ -23,7 +23,9 @@ helper and the `Electron Helper (Renderer)` process during playback.
 Column meanings: *new fps* — frames actually reaching the canvas; *copy* —
 shm→ArrayBuffer memcpy in the addon; *upload* — `texSubImage2D` wall time;
 *age* — produce→uploaded latency (helper memcpy done → texture updated,
-same CLOCK_MONOTONIC_RAW clock).
+same monotonic clock on both sides — CLOCK_MONOTONIC_RAW in the original
+spike harness used for the M1 rows; the production engine uses
+CLOCK_MONOTONIC via `frame_shm_now_ns()` since the Linux port).
 
 ## MacBook Pro M1 Pro (arm64), macOS, 120 Hz internal display — 2026-07-10
 

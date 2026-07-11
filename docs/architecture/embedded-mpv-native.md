@@ -202,17 +202,22 @@ Trade-offs and constraints:
 - Scope: on macOS Apple Silicon only by owner decision (2026-07-10);
   Intel Macs keep the native-view engine. Linux (any arch) is ported —
   headless EGL, works under native Wayland since nothing embeds into a
-  window; dev builds need `libmpv-dev`, `libegl-dev`, `libgl-dev` and
-  `libgbm-dev` (the helper links system libmpv, which is legal
-  out-of-process — the in-process libmpv ban still binds the addon). The
-  Windows port of the helper (WGL) is future work — the shm protocol and
-  adapter are platform-agnostic.
+  window; dev builds need `libmpv-dev`, `libegl-dev`, `libgl-dev`,
+  `libopengl-dev` and `libgbm-dev` (the helper links system libmpv, which
+  is legal out-of-process — the in-process libmpv ban still binds the
+  addon). The helper logs the chosen EGL display tier and the GL renderer
+  string to stderr; on systems whose hardware driver is only reachable
+  via the default display (e.g. NVIDIA proprietary), the surfaceless tier
+  can select Mesa's software renderer — check that log line when
+  diagnosing performance. The Windows port of the helper (WGL) is future
+  work — the shm protocol and adapter are platform-agnostic.
 - Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
   sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
   produce-to-upload latency, zero torn frames over a 10-minute run.
   Linux (i7-1165G7/Iris Xe, same RESULTS.md): 1080p60 sustained with
-  ~1.2 ms copies; 4K rows are software-decode-limited on that hardware;
-  zero torn frames everywhere.
+  ~1.2 ms copies; the 4K rows are limited by software decode/source
+  generation on that hardware, not by the copy path; zero torn frames
+  everywhere.
 - Helper crash isolation: an unexpected helper exit surfaces as a session
   `error` (renderer falls back); it can never take down the Electron main
   process, unlike in-process libmpv.

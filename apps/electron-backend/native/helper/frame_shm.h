@@ -6,7 +6,9 @@
  * resize creates a fresh shm segment named `<base>-g<generation>` and the
  * reader re-attaches when the helper announces the new generation.
  *
- * Must compile as C11 (reader addon) and C++17 (helper).
+ * Must compile as C11 (reader addon) and C++17 (helper). Both consumers
+ * build with node-gyp's GNU dialects; frame_shm_now_ns() relies on POSIX
+ * clock_gettime, which strict -std=c11 (__STRICT_ANSI__) would hide.
  */
 #pragma once
 

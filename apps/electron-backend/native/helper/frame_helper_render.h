@@ -164,6 +164,15 @@ inline bool RenderPipeline::start(mpv_handle* mpv,
 inline bool RenderPipeline::setupGl(std::string& errorOut) {
     gl_.makeCurrent();
 
+    /* Diagnosable renderer choice: e.g. Mesa's surfaceless platform can
+     * silently fall back to llvmpipe when the hardware driver is only
+     * reachable via another EGL display tier. */
+    const GLubyte* renderer = glGetString(GL_RENDERER);
+    if (renderer) {
+        std::fprintf(stderr, "gl renderer: %s\n",
+                     reinterpret_cast<const char*>(renderer));
+    }
+
     if (!rebuildTargets(width_, height_)) {
         errorOut = "framebuffer setup failed";
         return false;
