@@ -13,9 +13,16 @@
   restart → helper process renders mpv offscreen → shm ring → preload pump
   → WebGL canvas. Verified live with real IPTV + Stalker VOD.
 - Scope decision: macOS = arm64 only (Intel Macs keep the native engine).
-  Windows/Linux are NOT ported yet — this branch on those OSes behaves
-  exactly like master (helper doesn't build there, engine can't activate,
-  env flag falls back to native).
+- **UPDATE 2026-07-11: the Linux port below is DONE** (branch
+  `claude/linux-frame-copy-port-0a871b`, stacked PR on #1169) — headless
+  EGL helper, portable clock, reader on `__linux__`, TS gates, i18n,
+  measurements in RESULTS.md. Verified end-to-end in-app on Ubuntu 25.04
+  (Wayland session) with the xtream mock portal. Dev-build-only on Linux:
+  the helper links system libmpv and `electron-after-pack.cjs` strips it
+  from packages until milestone 3 (bundled runtime) — remove that strip
+  when milestone 3 lands. Windows is NOT ported yet — this branch on
+  Windows behaves exactly like master (helper doesn't build there, engine
+  can't activate, env flag falls back to native).
 - Coordination: PR #1169 credits larsemig's idea (#1154 comment 4932807350)
   and proposes the series merge plan: merge the shared-controls subset
   (#1148/#1149/#1152–54) rebased, supersede immersive (#1150/#1151) with
@@ -61,7 +68,7 @@ create/open a Windows twin, flip the TS gates, extend packaging.
 
 ## Per-platform task lists
 
-### Linux (do first — much closer to done)
+### Linux (DONE 2026-07-11 — see the update in "State" above)
 
 1. **Render backend**: headless EGL (`EGL_PLATFORM_SURFACELESS_MESA` /
    `eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA)` with fallback to

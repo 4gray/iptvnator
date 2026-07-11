@@ -18,10 +18,10 @@ Source files for the embedded MPV integration:
 - `libs/shared/interfaces/src/lib/embedded-mpv-session.interface.ts` defines the shared session and audio-track contract.
 - `libs/ui/playback/src/lib/embedded-mpv-player/` owns the Angular UI and controls.
 
-Frame-copy engine sources (experimental, macOS Apple Silicon — see the
-"Frame-Copy Engine" section below):
+Frame-copy engine sources (experimental, macOS Apple Silicon and Linux —
+see the "Frame-Copy Engine" section below):
 
-- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper` process (`mpv_frame_helper.cpp`, `frame_helper_render.h`, `frame_helper_io.h`, `frame_shm.h`).
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper` process (`mpv_frame_helper.cpp`, `frame_helper_render.h`, `frame_helper_gl.h`, `frame_helper_io.h`, `frame_shm.h`).
 - `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API shm frame reader used by the preload frame pump.
 - `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` — helper-process adapter behind the `NativeEmbeddedMpvAddon` surface.
 - `apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts` — preload frame pump (shm → WebGL canvas).
@@ -49,7 +49,9 @@ Linux native Wayland embedding is not implemented. When Electron is started on X
 
 ## Linux Support Matrix
 
-Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available, and `main.ts` appends the same switch on Linux when it is absent so direct binary/AppImage launches from a terminal behave like launcher starts. Explicit user intent is never overridden: both a user-provided `--ozone-platform` switch and the `ELECTRON_OZONE_PLATFORM_HINT` environment variable suppress the fallback.
+Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation.
+
+The experimental frame-copy engine (below) is the exception to both requirements: it renders offscreen through headless EGL into a renderer canvas — no window embedding — and the helper links libmpv itself, so neither the X11/Xwayland constraint nor the system-`mpv`-on-`PATH` probe applies while it is active. It is currently a dev-build-only engine on Linux (the helper links the build host's system `libmpv` and is stripped from packaged apps until the bundled-runtime staging lands). Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available, and `main.ts` appends the same switch on Linux when it is absent so direct binary/AppImage launches from a terminal behave like launcher starts. Explicit user intent is never overridden: both a user-provided `--ozone-platform` switch and the `ELECTRON_OZONE_PLATFORM_HINT` environment variable suppress the fallback.
 
 When the `mpv` executable probe fails inside a Flatpak or Snap sandbox (`FLATPAK_ID`/`SNAP` env present), the support reason explains that sandboxed packages cannot access a system mpv instead of asking the user to install it.
 
@@ -98,16 +100,22 @@ The MPV video surface is a native platform view/window, not a normal DOM element
 
 The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
 
-## Frame-Copy Engine (Experimental, Apple Silicon Only)
+## Frame-Copy Engine (Experimental, Apple Silicon and Linux)
 
 `IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1` (on top of the regular
-embedded MPV experiment flag) switches macOS/arm64 to a second rendering
-engine that replaces the native-view compositing entirely:
+embedded MPV experiment flag) switches macOS/arm64 and Linux to a second
+rendering engine that replaces the native-view compositing entirely
+(gate: `isFrameCopyPlatformSupported()` in
+`embedded-mpv-frame-copy-platform.util.ts`, shared by `main.ts`, the
+service and the adapter):
 
 - `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper`, a
   one-process-per-session libmpv host. It decodes (hwdec), renders
-  offscreen at viewport size (headless CGL + async PBO readback ring),
-  publishes BGRA frames into a POSIX shm seqlock ring
+  offscreen at viewport size (async PBO readback ring over a headless GL
+  context — `frame_helper_gl.h`: CGL on macOS; on Linux EGL, acquiring a
+  display in order surfaceless-Mesa → default display → GBM render node,
+  logging the chosen tier to stderr), publishes BGRA frames into a POSIX
+  shm seqlock ring
   (`frame_shm.h`, 3 slots, resize creates a new `-g<N>` generation), and
   plays audio directly. Control protocol: tab-separated commands on stdin,
   JSON events on stdout; the `snapshot` event mirrors
@@ -175,7 +183,12 @@ ships. The after-pack hook restores the helper's executable mode after the
 asset copy, and optional/skipped native rebuilds remove stale helper/reader
 artifacts before reporting frame-copy availability. This cleanup prevents
 known leftover build output; it is not a compatibility check for a complete
-but version-mismatched runtime pair.
+but version-mismatched runtime pair. Linux packages deliberately do NOT ship
+the helper yet: it links the build host's system `libmpv`, which packaged
+apps cannot assume is installed, so the centralized after-pack artifact
+preparation strips it and the support probe reports frame-copy unavailable.
+The engine is dev-build-only on Linux until bundled-libmpv runtime staging
+lands (PORTING.md milestone 4).
 
 Trade-offs and constraints:
 
@@ -186,12 +199,20 @@ Trade-offs and constraints:
   before this engine can become a default — candidates: utilityProcess +
   MessagePort (costs one extra copy + GC churn since Electron ports clone
   ArrayBuffers) or a WebCodecs-based path.
-- Scope: Apple Silicon only by owner decision (2026-07-10); Intel Macs
-  keep the native-view engine. Windows/Linux ports of the helper (WGL/EGL)
-  are future work — the shm protocol and adapter are platform-agnostic.
+- Scope: on macOS Apple Silicon only by owner decision (2026-07-10);
+  Intel Macs keep the native-view engine. Linux (any arch) is ported —
+  headless EGL, works under native Wayland since nothing embeds into a
+  window; dev builds need `libmpv-dev`, `libegl-dev`, `libgl-dev` and
+  `libgbm-dev` (the helper links system libmpv, which is legal
+  out-of-process — the in-process libmpv ban still binds the addon). The
+  Windows port of the helper (WGL) is future work — the shm protocol and
+  adapter are platform-agnostic.
 - Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
   sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
   produce-to-upload latency, zero torn frames over a 10-minute run.
+  Linux (i7-1165G7/Iris Xe, same RESULTS.md): 1080p60 sustained with
+  ~1.2 ms copies; 4K rows are software-decode-limited on that hardware;
+  zero torn frames everywhere.
 - Helper crash isolation: an unexpected helper exit surfaces as a session
   `error` (renderer falls back); it can never take down the Electron main
   process, unlike in-process libmpv.

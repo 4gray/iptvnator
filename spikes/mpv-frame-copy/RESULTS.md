@@ -107,6 +107,39 @@ would not have been representative. The macOS hardware gate is therefore
 closed by the M1 Pro numbers above; the remaining risk hardware is
 Windows/Linux.
 
+## Linux mid-range laptop (iGPU) — Ubuntu 25.04, i7-1165G7 / Iris Xe, x64 — 2026-07-11
+
+Source: Linux port branch (headless-EGL `frame_helper_gl.h` backend), system
+libmpv 2.5.0 (mpv 0.40), Mesa 25.0 iris. Measured with the production helper
+binary + `embedded_mpv_frame_reader.node` in a Node probe loop (the spike
+viewer harness is macOS-only), so *age* here is produce→reader-copy and
+excludes the renderer texture upload. hwdec was NOT active — this machine
+has no VAAPI driver installed (`intel-media-va-driver`), so HEVC rows are
+software decode; treat them as a decode-limited floor, not a pipeline
+ceiling.
+
+| Scenario | New fps | copy ms avg/p95 | age ms avg/p95 | torn |
+| --- | --- | --- | --- | --- |
+| 1080p60 testsrc2, sw | 60.1 | 1.16 / 1.37 | 2.26 / 3.21 | 0 |
+| 4K60 testsrc2, sw | 50.0 | 5.75 / 6.92 | 7.22 / 8.00 | 0 |
+| 4K60 HEVC 25 Mbit, sw decode | 39.9 | 7.62 / 14.6 | 9.06 / 17.0 | 0 |
+| 4K60 HEVC 25 Mbit in a 1280×720 viewport | 53.1 | 0.94 / 2.57 | 2.42 / 5.28 | 0 |
+
+Readings:
+
+- 1080p60 — the realistic viewport class for this laptop's 1920×1200
+  screen — holds a clean 60 fps with ~1 ms copies.
+- The 4K rows are stress rows: producers are limited by software
+  decode/source generation on 4 cores, not by the copy path (copy stays
+  well under one 60 Hz frame budget even at full 4K).
+- The viewport-size claim reproduces on Linux: the same 4K60 HEVC clip in a
+  720p viewport drops the copy from 7.6 ms to 0.94 ms and lifts fps from
+  ~40 to ~53 (remaining gap = software decode).
+- torn=0 across every run; the aspect-fit generation bump was verified
+  separately (4:3 source in a 16:9 viewport → `-g2` at 960×720).
+- EGL display tier used: Mesa surfaceless platform (first tier; no display
+  server needed).
+
 ## Windows mid-range laptop (iGPU) — PENDING
 
 Blocked on the Windows helper port (WGL or D3D11 readback path).
