@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
     Channel,
     EpgItem,
@@ -489,6 +490,24 @@ export class StreamResolverService {
             return [];
         }
 
+        // Manual mapping first — Stalker items carry no provider XMLTV id,
+        // so the mapping table is the only uploaded-EPG entry point.
+        if (this.supportsProgramLookup) {
+            const mapping = await this.epgBridge
+                .getEpgMapping(
+                    buildStalkerEpgMappingKey(item.playlistId, channelId)
+                )
+                .catch(() => null);
+            if (mapping?.epgChannelId) {
+                const mapped = await this.epgBridge
+                    .getChannelPrograms(mapping.epgChannelId)
+                    .catch(() => null);
+                if (mapped && mapped.length > 0) {
+                    return this.mapProgramsToEpgItems(mapped);
+                }
+            }
+        }
+
         return this.fetchStalkerShortEpg(playlist, channelId, size);
     }
 
@@ -848,6 +867,14 @@ export class StreamResolverService {
             return;
         }
 
+        // One batched IPC round-trip for the manual mappings of the whole
+        // playlist batch — mirrors loadXtreamEpgBatch.
+        const mappingByKey = await this.prefetchEpgMappings(
+            playlistId,
+            channels
+        );
+        const nowSeconds = Math.floor(now / 1000);
+
         await Promise.all(
             channels.map(async (channel) => {
                 const channelId = String(channel.stalkerId ?? '').trim();
@@ -859,6 +886,25 @@ export class StreamResolverService {
                 }
 
                 try {
+                    for (const key of this.mappingCandidateKeys(
+                        playlistId,
+                        channel
+                    )) {
+                        const mappedId = mappingByKey.get(key);
+                        if (!mappedId) continue;
+                        const mappedItem = await this.findCurrentInXmltv(
+                            mappedId,
+                            nowSeconds
+                        );
+                        if (mappedItem) {
+                            epgMap.set(
+                                epgKey,
+                                this.toPreviewProgram(mappedItem, channelId, now)
+                            );
+                            return;
+                        }
+                    }
+
                     const items = await this.fetchStalkerShortEpg(
                         playlist,
                         channelId,
@@ -1073,6 +1119,9 @@ export class StreamResolverService {
             channel.xtreamId != null
                 ? buildXtreamEpgMappingKey(playlistId, channel.xtreamId)
                 : null,
+            channel.stalkerId != null
+                ? buildStalkerEpgMappingKey(playlistId, channel.stalkerId)
+                : null,
             channel.tvgId?.trim() || null,
             channel.name?.trim() || null,
         ].filter((key): key is string => Boolean(key));
@@ -1094,7 +1143,9 @@ export class StreamResolverService {
 
         const keys = new Set<string>();
         for (const channel of channels) {
-            if (!channel.xtreamId) continue;
+            if (channel.xtreamId == null && channel.stalkerId == null) {
+                continue;
+            }
             for (const key of this.mappingCandidateKeys(playlistId, channel)) {
                 keys.add(key);
             }

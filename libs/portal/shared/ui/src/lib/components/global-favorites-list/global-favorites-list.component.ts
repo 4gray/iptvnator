@@ -22,6 +22,7 @@ import {
 } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
 import {
+    buildStalkerEpgMappingKey,
     buildXtreamEpgMappingKey,
     EpgProgram,
 } from '@iptvnator/shared/interfaces';
@@ -174,7 +175,9 @@ export class GlobalFavoritesListComponent {
         return (
             Boolean(channel.m3uChannel) ||
             this.mode() === 'recent' ||
-            (this.supportsEpgMapping && Boolean(channel.xtreamId))
+            (this.supportsEpgMapping &&
+                (channel.xtreamId != null ||
+                    Boolean(this.stalkerItemId(channel))))
         );
     }
 
@@ -185,11 +188,14 @@ export class GlobalFavoritesListComponent {
         }
 
         this.contextMenuTrigger().closeMenu();
+        const stalkerId = this.stalkerItemId(item);
         const channelKey = item.m3uChannel
             ? resolveChannelEpgLookupKey(item.m3uChannel)
             : item.xtreamId != null
               ? buildXtreamEpgMappingKey(item.playlistId, item.xtreamId)
-              : null;
+              : stalkerId
+                ? buildStalkerEpgMappingKey(item.playlistId, stalkerId)
+                : null;
         if (!channelKey) {
             return;
         }
@@ -199,6 +205,19 @@ export class GlobalFavoritesListComponent {
             channelName: item.name,
             playlistId: item.m3uChannel ? undefined : item.playlistId,
         });
+    }
+
+    /**
+     * The stalker item id lives in the uid's third segment
+     * (`stalker::{playlistId}::{stalkerId}`) — same extraction the
+     * unified favorites data service uses.
+     */
+    private stalkerItemId(channel: UnifiedFavoriteChannel): string | null {
+        if (channel.sourceType !== 'stalker') {
+            return null;
+        }
+        const id = channel.uid.split('::')[2]?.trim();
+        return id || null;
     }
 
     openChannelDetails(): void {

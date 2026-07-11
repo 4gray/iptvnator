@@ -6,9 +6,11 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { createLogger } from '@iptvnator/portal/shared/util';
 import { DataService, RuntimeCapabilitiesService } from '@iptvnator/services';
 import {
+    buildStalkerEpgMappingKey,
     EpgItem,
     EpgProgram,
     StalkerPortalActions,
@@ -99,7 +101,8 @@ export function withStalkerEpg() {
                 store,
                 dataService = inject(DataService),
                 stalkerSession = inject(StalkerSessionService),
-                runtime = inject(RuntimeCapabilitiesService)
+                runtime = inject(RuntimeCapabilitiesService),
+                epgBridge = inject(EpgRuntimeBridgeService)
             ) => {
                 const storeContext = store as typeof store &
                     StalkerEpgFeatureStoreContract;
@@ -108,6 +111,31 @@ export function withStalkerEpg() {
                     stalkerSession,
                 };
                 const supportsEpg = (): boolean => runtime.supportsEpg;
+
+                // Manual EPG mapping overrides (uploaded XMLTV programs keyed
+                // by the normalized Stalker channel id). Kept outside the
+                // signal state so ensureBulkItvEpg can merge them back in
+                // whenever it replaces the bulk record.
+                const mappingOverridesById = new Map<string, EpgProgram[]>();
+                const mappingCheckedIds = new Set<string>();
+                let mappingPlaylistId: string | null = null;
+
+                const resetMappingOverrides = (): void => {
+                    mappingOverridesById.clear();
+                    mappingCheckedIds.clear();
+                    mappingPlaylistId = null;
+                };
+
+                const mappingOverridesRecord = (): Record<
+                    string,
+                    EpgProgram[]
+                > => {
+                    const record: Record<string, EpgProgram[]> = {};
+                    for (const [id, programs] of mappingOverridesById) {
+                        record[id] = programs;
+                    }
+                    return record;
+                };
 
                 const requestEpg = async (
                     playlist: NonNullable<
@@ -229,21 +257,131 @@ export function withStalkerEpg() {
                             );
 
                             patchState(store, {
-                                bulkItvEpgByChannel: bulkPrograms,
+                                bulkItvEpgByChannel: {
+                                    ...bulkPrograms,
+                                    ...mappingOverridesRecord(),
+                                },
                                 bulkItvEpgLoaded: true,
                                 isLoadingBulkItvEpg: false,
                             });
                         } catch (error) {
                             logger.warn('Bulk Stalker EPG unavailable', error);
                             patchState(store, {
-                                bulkItvEpgByChannel: {},
+                                bulkItvEpgByChannel: mappingOverridesRecord(),
                                 bulkItvEpgLoaded: true,
                                 isLoadingBulkItvEpg: false,
                             });
                         }
                     },
 
+                    /**
+                     * Overlay manual EPG mappings for the given Stalker
+                     * channel ids onto the bulk ITV record. Each id is
+                     * checked at most once per playlist session; channels
+                     * with a saved mapping get their programs from the
+                     * uploaded XMLTV guide instead of the portal EPG, which
+                     * feeds both the active EPG panel and the row previews.
+                     */
+                    async applyMappedItvEpg(
+                        channelIds: ReadonlyArray<string | number>
+                    ): Promise<void> {
+                        if (!epgBridge.supportsEpgMapping || !supportsEpg()) {
+                            return;
+                        }
+                        const playlist = storeContext.currentPlaylist();
+                        if (!playlist?._id) {
+                            return;
+                        }
+                        const playlistId = String(playlist._id);
+                        if (mappingPlaylistId !== playlistId) {
+                            resetMappingOverrides();
+                            mappingPlaylistId = playlistId;
+                        }
+
+                        const freshIds = [
+                            ...new Set(
+                                channelIds
+                                    .map((id) => normalizeStalkerEntityId(id))
+                                    .filter(
+                                        (id) =>
+                                            id && !mappingCheckedIds.has(id)
+                                    )
+                            ),
+                        ];
+                        if (freshIds.length === 0) {
+                            return;
+                        }
+                        freshIds.forEach((id) => mappingCheckedIds.add(id));
+
+                        const keyById = new Map(
+                            freshIds.map(
+                                (id) =>
+                                    [
+                                        id,
+                                        buildStalkerEpgMappingKey(
+                                            playlistId,
+                                            id
+                                        ),
+                                    ] as const
+                            )
+                        );
+
+                        let mappings: Record<string, string> | null = null;
+                        try {
+                            mappings = await epgBridge.getEpgMappingsBatch([
+                                ...keyById.values(),
+                            ]);
+                        } catch (error) {
+                            logger.warn(
+                                'Stalker EPG mapping lookup failed',
+                                error
+                            );
+                            return;
+                        }
+                        if (!mappings) {
+                            return;
+                        }
+
+                        let changed = false;
+                        for (const [channelId, key] of keyById) {
+                            const mappedEpgId = mappings[key]?.trim();
+                            if (!mappedEpgId) {
+                                continue;
+                            }
+                            try {
+                                const programs =
+                                    (await epgBridge.getChannelPrograms(
+                                        mappedEpgId
+                                    )) ?? [];
+                                if (programs.length === 0) {
+                                    continue;
+                                }
+                                mappingOverridesById.set(
+                                    channelId,
+                                    programs.map((program) => ({
+                                        ...program,
+                                        channel: channelId,
+                                    }))
+                                );
+                                changed = true;
+                            } catch {
+                                // Keep the portal EPG for this channel.
+                            }
+                        }
+                        if (!changed) {
+                            return;
+                        }
+
+                        patchState(store, {
+                            bulkItvEpgByChannel: {
+                                ...store.bulkItvEpgByChannel(),
+                                ...mappingOverridesRecord(),
+                            },
+                        });
+                    },
+
                     clearBulkItvEpgCache(): void {
+                        resetMappingOverrides();
                         patchState(store, initialEpgState);
                     },
                 };
