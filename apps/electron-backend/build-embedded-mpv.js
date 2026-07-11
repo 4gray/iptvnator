@@ -223,6 +223,28 @@ function resolveRuntime() {
         };
     }
 
+    if (targetPlatform === 'linux') {
+        // Dev-first Linux flow (frame-copy helper links system libmpv): a
+        // distro libmpv-dev install is a full runtime — no staging needed.
+        // LIBMPV_INCLUDE_DIR / LINUX_NATIVE_LIBRARY_DIR override the system
+        // paths for machines with a local (non-root) libmpv prefix.
+        const systemIncludeDir =
+            process.env.LIBMPV_INCLUDE_DIR || '/usr/include';
+        if (fs.existsSync(path.join(systemIncludeDir, 'mpv', 'client.h'))) {
+            return {
+                origin: 'system-dev',
+                includeDir: systemIncludeDir,
+                libDir: process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib',
+                binDir: undefined,
+                manifest: {
+                    warning:
+                        'Development-only system libmpv toolchain. Release packaging keeps the external-mpv-process contract.',
+                },
+                windowsImportLib: null,
+            };
+        }
+    }
+
     if (targetPlatform === 'darwin' && homebrewFallbackEnabled) {
         const homebrewLibMpv = findLibMpv(homebrewLibDir);
         const homebrewHeader = path.join(homebrewIncludeDir, 'mpv', 'client.h');
@@ -454,7 +476,10 @@ function main() {
         npm_config_update_binary: 'false',
         LIBMPV_INCLUDE_DIR: runtime.includeDir,
         ...(targetPlatform === 'linux'
-            ? { LINUX_NATIVE_LIBRARY_DIR: runtime.libDir }
+            ? {
+                  LINUX_NATIVE_LIBRARY_DIR:
+                      process.env.LINUX_NATIVE_LIBRARY_DIR || runtime.libDir,
+              }
             : { LIBMPV_LIBRARY_DIR: outputLibDir }),
         ...(runtime.windowsImportLib
             ? {

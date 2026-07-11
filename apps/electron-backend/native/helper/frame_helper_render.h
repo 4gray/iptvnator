@@ -1,23 +1,19 @@
 /*
- * Offscreen render + readback pipeline for the frame-copy helper (macOS).
+ * Offscreen render + readback pipeline for the frame-copy helper.
  *
- * Headless CGL context, mpv render API into an FBO sized to the viewport,
- * async PBO readback ring, BGRA frames published into the FrameShm ring.
- * Validated in spikes/mpv-frame-copy (4K60 sustained on M1 Pro).
+ * Headless GL context (per-platform, see frame_helper_gl.h), mpv render API
+ * into an FBO sized to the viewport, async PBO readback ring, BGRA frames
+ * published into the FrameShm ring. Validated in spikes/mpv-frame-copy
+ * (4K60 sustained on M1 Pro).
  *
  * Threading: everything here runs on the render thread except
  * requestResize()/stop(), which only touch atomics/mutex-guarded state.
  */
 #pragma once
 
-#define GL_SILENCE_DEPRECATION
-#include <OpenGL/OpenGL.h>
-#include <OpenGL/gl3.h>
-
 #include <mpv/client.h>
 #include <mpv/render_gl.h>
 
-#include <dlfcn.h>
 #include <fcntl.h>
 #include <sys/mman.h>
 #include <unistd.h>
@@ -30,12 +26,13 @@
 #include <mutex>
 #include <string>
 
+#include "frame_helper_gl.h"
 #include "frame_helper_io.h"
 #include "frame_shm.h"
 
 namespace frame_helper {
 
-inline uint64_t nowNs() { return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW); }
+inline uint64_t nowNs() { return frame_shm_now_ns(); }
 
 struct ShmRing {
     FrameShmHeader* header = nullptr;
@@ -129,9 +126,8 @@ private:
     void renderFrame();
 
     mpv_handle* mpv_ = nullptr;
-    CGLContextObj cgl_ = nullptr;
+    GlContext gl_;
     mpv_render_context* renderContext_ = nullptr;
-    void* glDylib_ = nullptr;
 
     std::string shmBaseName_;
     ShmRing ring_;
@@ -155,10 +151,6 @@ private:
     std::atomic<int> initState_{0};
 };
 
-inline void* frameHelperGetProcAddress(void* ctx, const char* name) {
-    return dlsym(ctx, name);
-}
-
 inline bool RenderPipeline::start(mpv_handle* mpv,
                                   const std::string& shmBaseName, int width,
                                   int height, std::string& errorOut) {
@@ -166,48 +158,18 @@ inline bool RenderPipeline::start(mpv_handle* mpv,
     shmBaseName_ = shmBaseName;
     width_ = width;
     height_ = height;
-
-    glDylib_ = dlopen(
-        "/System/Library/Frameworks/OpenGL.framework/Versions/Current/OpenGL",
-        RTLD_LAZY | RTLD_LOCAL);
-    if (!glDylib_) {
-        errorOut = "failed to open the OpenGL framework";
-        return false;
-    }
-
-    CGLPixelFormatAttribute attrs[] = {
-        kCGLPFAOpenGLProfile, (CGLPixelFormatAttribute)kCGLOGLPVersion_3_2_Core,
-        kCGLPFAAccelerated,
-        kCGLPFAColorSize, (CGLPixelFormatAttribute)24,
-        kCGLPFAAlphaSize, (CGLPixelFormatAttribute)8,
-        (CGLPixelFormatAttribute)0,
-    };
-    CGLPixelFormatObj pixelFormat = nullptr;
-    GLint matched = 0;
-    if (CGLChoosePixelFormat(attrs, &pixelFormat, &matched) != kCGLNoError ||
-        !pixelFormat) {
-        errorOut = "no accelerated CGL pixel format";
-        return false;
-    }
-    const CGLError contextError =
-        CGLCreateContext(pixelFormat, nullptr, &cgl_);
-    CGLDestroyPixelFormat(pixelFormat);
-    if (contextError != kCGLNoError || !cgl_) {
-        errorOut = "failed to create a headless CGL context";
-        return false;
-    }
-    return true;
+    return gl_.create(errorOut);
 }
 
 inline bool RenderPipeline::setupGl(std::string& errorOut) {
-    CGLSetCurrentContext(cgl_);
+    gl_.makeCurrent();
 
     if (!rebuildTargets(width_, height_)) {
         errorOut = "framebuffer setup failed";
         return false;
     }
 
-    mpv_opengl_init_params glInit = {frameHelperGetProcAddress, glDylib_};
+    mpv_opengl_init_params glInit = {gl_.procLoader(), gl_.procLoaderCtx()};
     mpv_render_param params[] = {
         {MPV_RENDER_PARAM_API_TYPE,
          const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
@@ -399,8 +361,7 @@ inline void RenderPipeline::runLoop() {
     if (texture_) glDeleteTextures(1, &texture_);
     if (fbo_) glDeleteFramebuffers(1, &fbo_);
     if (pbos_[0]) glDeleteBuffers(FRAME_SHM_RING_SLOTS, pbos_);
-    CGLSetCurrentContext(nullptr);
-    if (cgl_) CGLDestroyContext(cgl_);
+    gl_.destroy();
     ring_.destroy();
 }
 

@@ -7,13 +7,13 @@
  * memory cage forbids external ArrayBuffers over foreign memory.
  *
  * Plain C N-API (no node-addon-api) so it stays ABI-stable and trivial.
- * macOS-only for now — other platforms export an empty object; the
- * TypeScript side gates on platform before requiring it.
+ * macOS and Linux (POSIX shm) — other platforms export an empty object;
+ * the TypeScript side gates on platform before requiring it.
  */
 #define NAPI_VERSION 8
 #include <node_api.h>
 
-#ifdef __APPLE__
+#if defined(__APPLE__) || defined(__linux__)
 
 #include <fcntl.h>
 #include <stdatomic.h>
@@ -30,9 +30,8 @@ static FrameShmHeader* g_header = NULL;
 static uint8_t* g_base = NULL;
 static size_t g_size = 0;
 
-static uint64_t now_ns(void) {
-    return clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW);
-}
+/* Same clock as the helper's produce_time_ns/heartbeat_ns writers. */
+static uint64_t now_ns(void) { return frame_shm_now_ns(); }
 
 static void unmap_current(void) {
     if (g_base) {
@@ -205,11 +204,11 @@ static napi_value Init(napi_env env, napi_value exports) {
     return exports;
 }
 
-#else /* !__APPLE__ */
+#else /* neither __APPLE__ nor __linux__ */
 
 static napi_value Init(napi_env env, napi_value exports) {
-    /* Frame-copy is macOS-only for now; loading this module elsewhere
-     * yields an empty exports object and the TS side treats it as
+    /* Frame-copy is not ported to this platform yet; loading this module
+     * here yields an empty exports object and the TS side treats it as
      * unsupported. */
     (void)env;
     return exports;
