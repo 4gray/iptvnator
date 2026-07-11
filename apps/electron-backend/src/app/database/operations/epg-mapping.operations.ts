@@ -100,8 +100,11 @@ export async function searchEpgChannels(
     searchTerm: string,
     limit = 50
 ): Promise<Array<{ id: string; displayName: string; iconUrl: string | null }>> {
-    // Escape LIKE wildcards so user input like "HBO%" or "_BC" is literal.
-    const escaped = searchTerm.trim().replace(/[%_]/g, '\\$&');
+    // Escape the escape character itself and the LIKE wildcards so user
+    // input like "HBO%", "_BC" or a trailing "\" is matched literally —
+    // an unescaped backslash would pair with the following character (or
+    // the closing "%") under the ESCAPE clause and corrupt the pattern.
+    const escaped = searchTerm.trim().replace(/[\\%_]/g, '\\$&');
     const pattern = `%${escaped}%`;
 
     return db

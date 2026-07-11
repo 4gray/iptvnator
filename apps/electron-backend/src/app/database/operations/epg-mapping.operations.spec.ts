@@ -203,6 +203,15 @@ describe('epg-mapping.operations', () => {
             ).toBe(true);
         });
 
+        it('escapes backslashes so a trailing "\\" cannot corrupt the pattern', async () => {
+            const { db } = createDbMock([]);
+
+            await searchEpgChannels(db, 'C\\');
+
+            const patterns = sqlMock.mock.calls.map((call) => call[2]);
+            expect(patterns).toContain('%C\\\\%');
+        });
+
         it('applies the result limit', async () => {
             const { db, chain } = createDbMock([]);
 
