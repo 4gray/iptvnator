@@ -111,9 +111,10 @@ Windows/Linux.
 
 Source: Linux port branch (headless-EGL `frame_helper_gl.h` backend), system
 libmpv 2.5.0 (mpv 0.40), Mesa 25.0 iris. Measured with the production helper
-binary + `embedded_mpv_frame_reader.node` in a Node probe loop (the spike
-viewer harness is macOS-only), so *age* here is produce→reader-copy and
-excludes the renderer texture upload. hwdec was NOT active — this machine
+binary + `embedded_mpv_frame_reader.node` in a Node probe loop
+(`linux-frame-probe.mjs` in this directory — the spike viewer harness is
+macOS-only), so *age* here is produce→reader-copy and excludes the renderer
+texture upload. hwdec was NOT active — this machine
 has no VAAPI driver installed (`intel-media-va-driver`), so HEVC rows are
 software decode; treat them as a decode-limited floor, not a pipeline
 ceiling.
