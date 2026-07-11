@@ -18,6 +18,15 @@ Source files for the embedded MPV integration:
 - `libs/shared/interfaces/src/lib/embedded-mpv-session.interface.ts` defines the shared session and audio-track contract.
 - `libs/ui/playback/src/lib/embedded-mpv-player/` owns the Angular UI and controls.
 
+Frame-copy engine sources (experimental, macOS Apple Silicon — see the
+"Frame-Copy Engine" section below):
+
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper` process (`mpv_frame_helper.cpp`, `frame_helper_render.h`, `frame_helper_io.h`, `frame_shm.h`).
+- `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API shm frame reader used by the preload frame pump.
+- `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` — helper-process adapter behind the `NativeEmbeddedMpvAddon` surface.
+- `apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts` — preload frame pump (shm → WebGL canvas).
+- `spikes/mpv-frame-copy/` — standalone spike, measurement log (RESULTS.md), integration design (DESIGN.md), and the original analysis (ANALYSIS.md).
+
 Generated native-addon build output:
 
 - `apps/electron-backend/native/build/`
