@@ -83,6 +83,12 @@ interface PumpState {
 
 let pump: PumpState | null = null;
 let sourceListenerRegistered = false;
+/**
+ * Monotonic attach epoch: bumped by every attach/detach. Async attach waits
+ * re-check it after each await so a stale attach (for a session that was
+ * replaced meanwhile) can never install itself over the active pump.
+ */
+let attachEpoch = 0;
 
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -226,14 +232,17 @@ export async function attachEmbeddedMpvFrameView(
     sessionId: string
 ): Promise<boolean> {
     detachEmbeddedMpvFrameView();
+    const epoch = ++attachEpoch;
     ensureSourceListener();
 
     const canvas = await waitForCanvas();
+    if (epoch !== attachEpoch) return false;
     if (!canvas) {
         console.error('[embedded-mpv-pump] frame canvas not found in DOM');
         return false;
     }
     const source = await waitForFrameSource(sessionId);
+    if (epoch !== attachEpoch) return false;
     if (!source) {
         console.error('[embedded-mpv-pump] no frame source for', sessionId);
         return false;
@@ -276,6 +285,7 @@ export async function attachEmbeddedMpvFrameView(
 }
 
 export function detachEmbeddedMpvFrameView(): void {
+    attachEpoch++; // aborts any attach still waiting on canvas/frame source
     if (!pump) return;
     cancelAnimationFrame(pump.rafHandle);
     try {

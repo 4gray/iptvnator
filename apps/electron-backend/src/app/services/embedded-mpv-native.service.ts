@@ -122,10 +122,14 @@ export class EmbeddedMpvNativeService {
     }
 
     private isFrameCopyEngineActive(): boolean {
+        // Requires the helper binary too: a stale opt-in (cleaned native
+        // build, bad install) must fall back to the native engine instead
+        // of leaving embedded MPV unsupported with no way to recover.
         return (
             this.isFrameCopyEngineRequested() &&
             process.platform === 'darwin' &&
-            process.arch === 'arm64'
+            process.arch === 'arm64' &&
+            this.resolveFrameCopyHelperPath() !== null
         );
     }
 
@@ -241,33 +245,16 @@ export class EmbeddedMpvNativeService {
             };
         }
 
-        if (this.isFrameCopyEngineRequested()) {
-            if (!this.isFrameCopyEngineActive()) {
-                return {
-                    supported: false,
-                    platform: process.platform,
-                    reason: 'The frame-copy embedded MPV engine is currently supported on Apple Silicon macOS only.',
-                };
-            }
-            if (!this.resolveFrameCopyHelperPath()) {
-                return {
-                    supported: false,
-                    platform: process.platform,
-                    reason: 'The frame-copy embedded MPV helper binary was not found. Rebuild the native target (pnpm run serve:backend:embedded-mpv rebuilds it).',
-                };
-            }
+        // A requested-but-unavailable frame-copy engine (wrong platform or
+        // missing helper) intentionally falls through to the native path so
+        // embedded MPV keeps working and Settings can clear the opt-in.
+        if (this.isFrameCopyEngineActive()) {
             return {
                 supported: true,
                 platform: process.platform,
                 engine: 'frame-copy',
                 frameCopyAvailable: true,
-                capabilities: {
-                    subtitles: true,
-                    playbackSpeed: true,
-                    aspectOverride: true,
-                    screenshot: false,
-                    recording: true,
-                },
+                capabilities: this.detectCapabilities(),
             };
         }
 

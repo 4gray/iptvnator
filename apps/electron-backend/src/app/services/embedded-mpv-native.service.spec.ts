@@ -206,6 +206,28 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         };
     }
 
+    it('falls back to the native engine when frame-copy is requested without a helper binary', () => {
+        // A stale opt-in (cleaned native build) must not brick embedded MPV:
+        // no helper on disk => the engine env flag is ignored, native keeps
+        // working, and support does not advertise frame-copy.
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+        jest.spyOn(
+            service as unknown as {
+                resolveFrameCopyHelperPath: () => string | null;
+            },
+            'resolveFrameCopyHelperPath'
+        ).mockReturnValue(null);
+        try {
+            expect(service.getActiveEngine()).toBe('native');
+            const support = service.getSupport();
+            expect(support.engine).not.toBe('frame-copy');
+            startSession('s-fallback', snapshot('loading'));
+            expect(addon.createSession).toHaveBeenCalled();
+        } finally {
+            delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+        }
+    });
+
     it('does not acquire a blocker for a loading session', () => {
         startSession('s1', snapshot('loading'));
         expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();

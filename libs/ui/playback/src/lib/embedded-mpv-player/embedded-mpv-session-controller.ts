@@ -188,11 +188,21 @@ export class EmbeddedMpvSessionController {
             await electron.loadEmbeddedMpvPlayback(created.id, playback);
             if (untracked(() => this.isFrameCopyEngine())) {
                 // Frame-copy engine: start the preload frame pump that
-                // paints helper frames onto the component's canvas. Failure
-                // is non-fatal here — the session error/stall paths cover it.
-                void electron
+                // paints helper frames onto the component's canvas. A failed
+                // attach (no canvas, no WebGL2, reader missing) must surface
+                // as a session error — otherwise the helper keeps playing
+                // audio behind a black canvas with no recovery UI.
+                const attached = await electron
                     .attachEmbeddedMpvFrameView?.(created.id)
-                    .catch(() => undefined);
+                    .catch(() => false);
+                if (attached === false && !disposed) {
+                    await electron
+                        .disposeEmbeddedMpvSession(created.id)
+                        .catch(() => undefined);
+                    throw new Error(
+                        'The embedded MPV frame view failed to initialize.'
+                    );
+                }
             }
             scheduleBoundsSync();
         };
