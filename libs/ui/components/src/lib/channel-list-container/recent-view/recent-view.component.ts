@@ -12,6 +12,7 @@ import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import { EpgMappingDialogComponent } from '../epg-mapping-dialog/epg-mapping-dialog.component';
@@ -42,6 +43,8 @@ export interface RecentViewItem {
 })
 export class RecentViewComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly contextMenuTrigger =
         viewChild.required<MatMenuTrigger>('contextMenuTrigger');
@@ -137,22 +140,23 @@ export class RecentViewComponent {
 
     openEpgMapping(): void {
         const channel = this.contextMenuChannel();
-        if (!channel) return;
+        if (!channel) {
+            return;
+        }
+
         this.contextMenuTrigger().closeMenu();
         const channelKey = resolveChannelEpgLookupKey(channel);
-        if (!channelKey) return;
-        this.dialog.open(EpgMappingDialogComponent, {
-            data: {
-                channelKey,
-                channelName: channel.name ?? channelKey,
-                currentMapping: null,
-            },
-            width: '500px',
-            maxHeight: '90vh',
+        if (!channelKey) {
+            return;
+        }
+
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: channel.name ?? channelKey,
         });
     }
 
-    
+
     openChannelDetails(): void {
         const channel = this.contextMenuChannel();
         if (!channel) {

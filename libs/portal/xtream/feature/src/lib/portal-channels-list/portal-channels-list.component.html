@@ -43,7 +43,7 @@
                 "
                 [showFavoriteButton]="true"
                 [showProgramInfoButton]="false"
-                [showDetailsContextMenu]="true"
+                [showDetailsContextMenu]="supportsEpgMapping"
                 [isFavorite]="favorites.get(favoriteKeyFor(item)) ?? false"
                 (clicked)="playClicked.emit(item)"
                 (activated)="playbackRequested.emit(item)"

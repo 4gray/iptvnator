@@ -268,7 +268,7 @@ describe('StreamResolverService', () => {
                 password: 'pass',
             },
             1,
-            10,
+            50,
             {
                 suppressErrorLog: true,
             }
@@ -417,7 +417,7 @@ describe('StreamResolverService', () => {
                                         stop_timestamp: '1774526400',
                                     },
                                 ]),
-                            10_000
+                            30_000
                         );
                     })
             );
@@ -432,7 +432,7 @@ describe('StreamResolverService', () => {
                 xtreamId: 1,
             } satisfies UnifiedCollectionItem);
 
-            await jest.advanceTimersByTimeAsync(3000);
+            await jest.advanceTimersByTimeAsync(10_000);
 
             await expect(detailPromise).resolves.toMatchObject({
                 epgMode: 'portal',

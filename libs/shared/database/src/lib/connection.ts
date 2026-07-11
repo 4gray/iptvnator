@@ -169,6 +169,7 @@ const CREATE_TABLE_STATEMENTS = [
     `CREATE INDEX IF NOT EXISTS idx_categories_playlist ON categories(playlist_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_title ON content(title)`,
     `CREATE INDEX IF NOT EXISTS idx_content_xtream ON content(xtream_id)`,
+    `CREATE INDEX IF NOT EXISTS idx_content_epg_channel ON content(epg_channel_id)`,
     `CREATE INDEX IF NOT EXISTS idx_content_type_added ON content(type, added)`,
     `CREATE INDEX IF NOT EXISTS idx_categories_type ON categories(type)`,
     // Partial covering index for visible categories — supports the dashboard's

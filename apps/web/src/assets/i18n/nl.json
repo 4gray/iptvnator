@@ -559,6 +559,7 @@
         "REMOVE_FAVORITE": "Verwijder uit favorieten",
         "ADD_FAVORITE": "Toevoegen aan favorieten",
         "SHOW_DETAILS": "Toon kanaaldetails",
+        "MAP_EPG": "EPG-kanaal koppelen",
         "FAVORITES_UPDATED": "Favorieten zijn bijgewerkt!",
         "SELECT_CHANNEL_PLAYBACK": "Selecteer een kanaal om af te spelen",
         "SORT_BY": "Sorteren op",
@@ -703,6 +704,21 @@
             "GROUP_SHORT": "korte progr.",
             "GROUP_EXPAND": "toon ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "EPG-kanaal koppelen",
+        "SUBTITLE": "Selecteer handmatig een EPG-kanaal voor \"{{channelName}}\"",
+        "SEARCH_PLACEHOLDER": "EPG-kanalen zoeken...",
+        "CURRENT_MAPPING": "Huidige koppeling",
+        "NO_MAPPING": "Geen EPG-koppeling ingesteld",
+        "SAVE": "Koppeling opslaan",
+        "REMOVE": "Koppeling verwijderen",
+        "CLOSE": "Sluiten",
+        "NO_RESULTS": "Geen EPG-kanalen gevonden",
+        "SEARCH_HINT": "Typ minimaal {{min}} tekens om te zoeken",
+        "SAVED": "EPG-koppeling opgeslagen",
+        "REMOVED": "EPG-koppeling verwijderd",
+        "SAVE_FAILED": "Kan de EPG-koppeling niet bijwerken"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

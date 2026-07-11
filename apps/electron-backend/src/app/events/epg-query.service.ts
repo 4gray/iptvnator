@@ -1,5 +1,9 @@
 import { and, eq, inArray, isNull, or, sql, type SQL } from 'drizzle-orm';
-import { EpgChannelMetadata, EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    buildXtreamEpgMappingKey,
+    EpgChannelMetadata,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { getDatabase } from '../database/connection';
 import * as schema from '../database/schema';
 
@@ -933,28 +937,36 @@ export class EpgQueryService {
                 return rows[0].epgChannelId;
             }
 
-            // Fallback: if the key looks like an Xtream epg_channel_id, also
-            // check if a mapping was saved using the xtream_id instead.
+            // Fallback: the key may be an Xtream provider epg_channel_id
+            // while the mapping was saved under the playlist-scoped Xtream
+            // key. Resolve the owning streams (joined through categories for
+            // the playlist ID) and check their mapping keys. The same
+            // epg_channel_id can appear in several playlists, so check a few.
             const contentRows = await db
                 .select({
                     xtreamId: schema.content.xtreamId,
+                    playlistId: schema.categories.playlistId,
                 })
                 .from(schema.content)
-                .where(
-                    eq(schema.content.epgChannelId, channelKey)
+                .innerJoin(
+                    schema.categories,
+                    eq(schema.content.categoryId, schema.categories.id)
                 )
-                .limit(1);
+                .where(eq(schema.content.epgChannelId, channelKey))
+                .limit(5);
             if (contentRows.length > 0) {
-                const xtreamId = String(contentRows[0].xtreamId);
+                const candidateKeys = contentRows.map((row) =>
+                    buildXtreamEpgMappingKey(row.playlistId, row.xtreamId)
+                );
                 const mapped = await db
                     .select({
                         epgChannelId: schema.epgChannelMappings.epgChannelId,
                     })
                     .from(schema.epgChannelMappings)
                     .where(
-                        eq(
+                        inArray(
                             schema.epgChannelMappings.channelKey,
-                            xtreamId
+                            candidateKeys
                         )
                     )
                     .limit(1);

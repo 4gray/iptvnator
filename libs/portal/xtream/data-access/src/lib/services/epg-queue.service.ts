@@ -1,7 +1,7 @@
 import { inject, Injectable, OnDestroy } from '@angular/core';
 import { Subject } from 'rxjs';
 import {
-    ElectronBridgeEpgMapping,
+    buildXtreamEpgMappingKey,
     EpgItem,
 } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
@@ -22,6 +22,8 @@ interface CacheEntry {
 export interface EpgQueueEntry {
     streamId: number;
     epgChannelId?: string | null;
+    /** Owning playlist — required to resolve manual EPG mappings. */
+    playlistId?: string | null;
 }
 
 /**
@@ -118,14 +120,13 @@ export class EpgQueueService implements OnDestroy {
         );
 
         // Resolve manual EPG mappings before building the per-EPG-id index.
-        // When the user has right-clicked a channel and created a mapping, the
-        // stored key is the xtream_id (streamId), not the provider's
-        // epg_channel_id.  By resolving upfront we get the correct EPG channel
-        // ID for the XMLTV batch call that follows.
-        const hasMappingBridge = !!(window as unknown as {
-            electron?: { getEpgMapping?: unknown }
-        }).electron?.getEpgMapping;
-        if (hasMappingBridge) {
+        // When the user has right-clicked a channel and created a mapping,
+        // the stored key is the playlist-scoped Xtream key, not the
+        // provider's epg_channel_id.  By resolving upfront we get the
+        // correct EPG channel ID for the XMLTV batch call that follows.
+        // Guarded so environments without the bridge (PWA) skip the await
+        // entirely and the enqueue keeps its original microtask timing.
+        if (typeof window.electron?.getEpgMapping === 'function') {
             await this.resolveManualMappings(normalized);
         }
 
@@ -208,41 +209,37 @@ export class EpgQueueService implements OnDestroy {
     }
 
     /**
-     * Resolve manual EPG mappings for entries that have an epgChannelId.
+     * Resolve manual EPG mappings for the queued entries.
      *
      * The user may have opened the mapping dialog (right-click → "Map EPG")
-     * from any channel list and saved a mapping whose key is the stream's
-     * xtream_id.  The stored key does not match the provider's epg_channel_id,
-     * so the batch IPC handler's resolveChannelIds() would miss it.  We
-     * resolve here, upfront, so the XMLTV batch call later uses the
-     * *mapped* epgChannelId — the actual EPG channel that carries the
-     * XMLTV data.
+     * from any channel list; the stored key is the playlist-scoped Xtream
+     * key, which does not match the provider's epg_channel_id, so the batch
+     * IPC handler's resolveChannelIds() would miss it.  We resolve here,
+     * upfront, so the XMLTV batch call later uses the *mapped* epgChannelId
+     * — the actual EPG channel that carries the XMLTV data. A mapping also
+     * supplies an epgChannelId to entries whose provider did not send one.
      */
     private async resolveManualMappings(
         entries: EpgQueueEntry[]
     ): Promise<void> {
-        const electron = (
-            window as unknown as {
-                electron?: {
-                    getEpgMapping?: (
-                        key: string
-                    ) => Promise<ElectronBridgeEpgMapping | null>;
-                };
-            }
-        ).electron;
-        if (!electron?.getEpgMapping) return;
+        const getEpgMapping =
+            typeof window.electron?.getEpgMapping === 'function'
+                ? window.electron.getEpgMapping
+                : null;
+        if (!getEpgMapping) {
+            return;
+        }
 
         for (const entry of entries) {
-            const epgId = entry.epgChannelId?.trim();
-            if (!epgId) continue;
+            if (!entry.playlistId) continue;
 
             try {
-                const mapping = await electron.getEpgMapping(
-                    String(entry.streamId)
+                const mapping = await getEpgMapping(
+                    buildXtreamEpgMappingKey(entry.playlistId, entry.streamId)
                 );
                 if (mapping?.epgChannelId?.trim()) {
                     this.logger.info(
-                        `Mapped stream ${entry.streamId}: ${epgId} → ${mapping.epgChannelId}`
+                        `Mapped stream ${entry.streamId}: ${entry.epgChannelId ?? '(none)'} → ${mapping.epgChannelId}`
                     );
                     entry.epgChannelId = mapping.epgChannelId.trim();
                 }

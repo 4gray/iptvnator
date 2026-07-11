@@ -3,6 +3,7 @@ import { firstValueFrom } from 'rxjs';
 import { DataService, PlaylistsService } from '@iptvnator/services';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
+    buildXtreamEpgMappingKey,
     Channel,
     EpgItem,
     EpgProgram,
@@ -423,10 +424,13 @@ export class StreamResolverService {
                 }
             }
 
-            // 2) Fall back to manual mapping table (xtream_id → epgChannelId).
+            // 2) Fall back to the manual mapping table (playlist-scoped
+            // Xtream key → epgChannelId).
             if (this.supportsProgramLookup && item.xtreamId) {
                 const mapping = await this.epgBridge
-                    .getEpgMapping(String(item.xtreamId))
+                    .getEpgMapping(
+                        buildXtreamEpgMappingKey(item.playlistId, item.xtreamId)
+                    )
                     .catch(() => null);
                 if (mapping?.epgChannelId) {
                     const mapped = await this.epgBridge
@@ -632,10 +636,16 @@ export class StreamResolverService {
 
                     // 2) Fall back to manual mapping (epg_channel_mappings table).
                     // Try all possible keys the user might have used when saving:
-                    // xtream_id (from favorites dialog), tvgId, name.
+                    // the playlist-scoped Xtream key (from portal/favorites
+                    // dialogs), tvgId, name (from M3U dialogs).
                     if (!currentItem && this.supportsProgramLookup) {
                         const candidateKeys = [
-                            channel.xtreamId ? String(channel.xtreamId) : null,
+                            channel.xtreamId
+                                ? buildXtreamEpgMappingKey(
+                                      playlistId,
+                                      channel.xtreamId
+                                  )
+                                : null,
                             channel.tvgId?.trim() || null,
                             channel.name?.trim() || null,
                         ].filter(Boolean);

@@ -383,6 +383,7 @@ describe('EpgEvents', () => {
         function queryChain<T>(data: T) {
             const chain: Record<string, jest.Mock> = {} as Record<string, jest.Mock>;
             chain.where = jest.fn().mockReturnValue(chain);
+            chain.innerJoin = jest.fn().mockReturnValue(chain);
             chain.orderBy = jest.fn().mockReturnValue(chain);
             chain.limit = jest.fn().mockResolvedValue(data);
             return chain;

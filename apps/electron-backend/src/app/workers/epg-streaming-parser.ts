@@ -62,14 +62,19 @@ export function parseXmltvDate(dateStr: string): string {
         // SQL queries (e.g. lte(start, now)) produce incorrect results
         // when offset-containing strings like "+01:00" are compared against
         // the always-UTC `now` string.
-        const offsetHours = Number(tz.slice(0, 3));
-        const offsetMinutes = Number(tz.slice(3));
+        // The sign is parsed from the string rather than derived from the
+        // hours value: Math.sign(0) would silently drop the minutes of
+        // offsets like "+0030".
+        const offsetSign = tz.startsWith('-') ? -1 : 1;
+        const offsetTotalMinutes =
+            offsetSign *
+            (Number(tz.slice(1, 3)) * 60 + Number(tz.slice(3)));
         const utcMs = Date.UTC(
             Number(year),
             Number(month) - 1,
             Number(day),
             Number(hour),
-            Number(minute) - offsetHours * 60 - Math.sign(offsetHours) * offsetMinutes,
+            Number(minute) - offsetTotalMinutes,
             Number(second)
         );
         return new Date(utcMs).toISOString();

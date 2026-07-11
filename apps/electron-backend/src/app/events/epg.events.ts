@@ -340,8 +340,6 @@ export default class EpgEvents {
         channelId: string,
         options?: { sourceUrls?: string[] }
     ): Promise<EpgProgram[]> {
-        // Mapping resolution is now in epg-query.service.ts getChannelPrograms
-        // via its own getMapping call — no need to resolve here.
         return epgQueryService.getChannelPrograms(channelId, options);
     }
 
@@ -411,22 +409,6 @@ export default class EpgEvents {
     // ---------------------------------------------------------------------------
     // EPG mapping resolution — called at the IPC boundary before queries.
     // ---------------------------------------------------------------------------
-
-    /**
-     * Resolve a single channel ID through manual mappings.
-     * Returns the mapped EPG channel ID when a mapping exists, or the original.
-     */
-    private static async resolveChannelId(
-        channelId: string
-    ): Promise<string> {
-        try {
-            const db = await getDatabase();
-            const mapping = await getEpgMapping(db, channelId);
-            return mapping?.epgChannelId ?? channelId;
-        } catch {
-            return channelId;
-        }
-    }
 
     /**
      * Batch-resolve multiple channel IDs through manual mappings.

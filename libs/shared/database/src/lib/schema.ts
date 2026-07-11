@@ -110,6 +110,9 @@ export const content = sqliteTable(
         categoryIdx: index('idx_content_category').on(table.categoryId),
         titleIdx: index('idx_content_title').on(table.title),
         xtreamIdx: index('idx_content_xtream').on(table.xtreamId),
+        epgChannelIdx: index('idx_content_epg_channel').on(
+            table.epgChannelId
+        ),
         categoryTypeXtreamUnique: uniqueIndex(
             'content_category_type_xtream_unique'
         ).on(table.categoryId, table.type, table.xtreamId),

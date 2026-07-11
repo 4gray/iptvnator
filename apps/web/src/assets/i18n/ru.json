@@ -559,6 +559,7 @@
         "REMOVE_FAVORITE": "Удалить из списка фаворитов",
         "ADD_FAVORITE": "Добавить в избранное",
         "SHOW_DETAILS": "Показать сведения о канале",
+        "MAP_EPG": "Привязать канал EPG",
         "FAVORITES_UPDATED": "Список фаворитов был обновлен!",
         "SELECT_CHANNEL_PLAYBACK": "Пожалуйста, выберите канал для начала воспроизведения",
         "SORT_BY": "Сортировать по",
@@ -703,6 +704,21 @@
             "GROUP_SHORT": "коротких",
             "GROUP_EXPAND": "показать ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Привязка канала EPG",
+        "SUBTITLE": "Выберите канал EPG для \"{{channelName}}\" вручную",
+        "SEARCH_PLACEHOLDER": "Поиск каналов EPG...",
+        "CURRENT_MAPPING": "Текущая привязка",
+        "NO_MAPPING": "Привязка EPG не задана",
+        "SAVE": "Сохранить привязку",
+        "REMOVE": "Удалить привязку",
+        "CLOSE": "Закрыть",
+        "NO_RESULTS": "Каналы EPG не найдены",
+        "SEARCH_HINT": "Введите не менее {{min}} символов для поиска",
+        "SAVED": "Привязка EPG сохранена",
+        "REMOVED": "Привязка EPG удалена",
+        "SAVE_FAILED": "Не удалось обновить привязку EPG"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

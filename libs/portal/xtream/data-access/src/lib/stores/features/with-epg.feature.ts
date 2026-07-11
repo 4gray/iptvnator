@@ -6,7 +6,7 @@ import {
     withMethods,
     withState,
 } from '@ngrx/signals';
-import { EpgItem } from '@iptvnator/shared/interfaces';
+import { buildXtreamEpgMappingKey, EpgItem } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import {
     XtreamApiService,
@@ -40,7 +40,7 @@ const initialEpgState: EpgState = {
 export function withEpg() {
     const logger = createLogger('withEpg');
     type ParentSelectionStoreLike = {
-        currentPlaylist?: () => XtreamCredentials | null;
+        currentPlaylist?: () => (XtreamCredentials & { id?: string }) | null;
         selectedItem?: () => {
             xtream_id?: number | null;
             epg_channel_id?: string | null;
@@ -147,26 +147,20 @@ export function withEpg() {
                     patchState(store, { epgItems: [], isLoadingEpg: true });
 
                     // Resolve manual EPG mapping before the provider waterfall.
-                    // The mapping dialog saves by xtream_id, so look up the
-                    // channel key and use the mapped EPG channel ID for the
-                    // XMLTV / provider lookup.
+                    // The mapping dialog saves under the playlist-scoped
+                    // Xtream key, so look it up and use the mapped EPG
+                    // channel ID for the XMLTV / provider lookup.
                     let epgChannelId = selectedItem?.epg_channel_id ?? null;
-                    const electron = (
-                        window as unknown as {
-                            electron?: {
-                                getEpgMapping?: (
-                                    key: string
-                                ) => Promise<{
-                                    epgChannelId: string;
-                                } | null>;
-                            };
-                        }
-                    ).electron;
-                    if (electron?.getEpgMapping && xtreamId) {
+                    const playlistId = storeAny.currentPlaylist?.()?.id;
+                    if (runtime.supportsEpgMapping && playlistId) {
                         try {
-                            const mapping = await electron.getEpgMapping(
-                                String(xtreamId)
-                            );
+                            const mapping =
+                                await window.electron?.getEpgMapping?.(
+                                    buildXtreamEpgMappingKey(
+                                        playlistId,
+                                        xtreamId
+                                    )
+                                );
                             if (mapping?.epgChannelId?.trim()) {
                                 epgChannelId = mapping.epgChannelId.trim();
                             }

@@ -1,4 +1,4 @@
-<h2 mat-dialog-title>{{ 'CHANNELS.MAP_EPG' | translate }}</h2>
+<h2 mat-dialog-title>{{ 'EPG_MAPPING_DIALOG.TITLE' | translate }}</h2>
 
 <mat-dialog-content>
     <p class="epg-mapping-subtitle">
@@ -25,6 +25,14 @@
         <mat-icon matPrefix>search</mat-icon>
         @if (loading()) {
             <mat-spinner matSuffix diameter="20" />
+        }
+        @if (!hasSearchTerm()) {
+            <mat-hint>
+                {{
+                    'EPG_MAPPING_DIALOG.SEARCH_HINT'
+                        | translate: { min: searchMinChars }
+                }}
+            </mat-hint>
         }
     </mat-form-field>
 

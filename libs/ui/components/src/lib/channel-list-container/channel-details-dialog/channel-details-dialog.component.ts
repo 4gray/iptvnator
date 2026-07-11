@@ -8,6 +8,7 @@ import {
 } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { getM3uArchiveDays, isM3uCatchupPlaybackSupported } from '@iptvnator/shared/m3u-utils';
 import { Channel } from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
@@ -42,6 +43,8 @@ interface HeroStat {
 export class ChannelDetailsDialogComponent {
     readonly channel = inject<Channel>(MAT_DIALOG_DATA);
     private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly archiveDays = getM3uArchiveDays(this.channel);
     readonly catchupAvailable = this.archiveDays > 0;
@@ -192,16 +195,13 @@ export class ChannelDetailsDialogComponent {
 
     openEpgMapping(): void {
         const channelKey = resolveChannelEpgLookupKey(this.channel);
-        if (!channelKey) return;
+        if (!channelKey) {
+            return;
+        }
 
-        this.dialog.open(EpgMappingDialogComponent, {
-            data: {
-                channelKey,
-                channelName: this.channel.name ?? channelKey,
-                currentMapping: null,
-            },
-            width: '500px',
-            maxHeight: '90vh',
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: this.channel.name ?? channelKey,
         });
     }
 }

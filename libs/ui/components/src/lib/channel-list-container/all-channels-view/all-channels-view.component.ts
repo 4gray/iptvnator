@@ -16,6 +16,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule, MatMenuTrigger } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { Channel, EpgProgram } from '@iptvnator/shared/interfaces';
 import {
@@ -52,6 +53,8 @@ export type { ChannelEpgMetadata } from '../epg-enrichment.util';
 })
 export class AllChannelsViewComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
 
     readonly contextMenuTrigger =
         viewChild.required<MatMenuTrigger>('contextMenuTrigger');
@@ -216,14 +219,9 @@ export class AllChannelsViewComponent {
             return;
         }
 
-        this.dialog.open(EpgMappingDialogComponent, {
-            data: {
-                channelKey,
-                channelName: channel.name ?? channelKey,
-                currentMapping: null,
-            },
-            width: '500px',
-            maxHeight: '90vh',
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: channel.name ?? channelKey,
         });
     }
 }

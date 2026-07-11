@@ -26,12 +26,12 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { Subscription } from 'rxjs';
 import { debounceTime } from 'rxjs/operators';
 import {
+    buildXtreamEpgMappingKey,
     EpgItem,
     EpgProgram,
     XtreamCategory,
     XtreamItem,
 } from '@iptvnator/shared/interfaces';
-import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import {
     ChannelListItemComponent,
     ChannelListSkeletonComponent,
@@ -98,6 +98,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
     readonly contextMenuChannel = signal<XtreamChannelListItem | null>(null);
     readonly contextMenuPosition = signal({ x: '0px', y: '0px' });
     readonly supportsEpg = this.runtime.supportsEpg;
+    readonly supportsEpgMapping = this.runtime.supportsEpgMapping;
     readonly isSelectedTypeContentLoading =
         this.xtreamStore.selectedTypeContentLoading;
     readonly channels = computed(() => {
@@ -260,6 +261,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
         const uncachedEntries: {
             streamId: number;
             epgChannelId?: string | null;
+            playlistId?: string | null;
         }[] = [];
 
         // Apply cached results immediately
@@ -280,6 +282,7 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
                 uncachedEntries.push({
                     streamId: channel.xtream_id,
                     epgChannelId: channel.epg_channel_id ?? null,
+                    playlistId: playlist.id ?? null,
                 });
             }
         }
@@ -495,20 +498,21 @@ export class PortalChannelsListComponent implements AfterViewInit, OnDestroy {
 
     openEpgMapping(): void {
         const channel = this.contextMenuChannel();
-        if (!channel) return;
+        if (!channel) {
+            return;
+        }
 
         this.contextMenuTrigger().closeMenu();
-        const channelKey = String(channel.xtream_id ?? channel.id ?? '');
-        if (!channelKey) return;
+        const playlistId = this.xtreamStore.currentPlaylist()?.id;
+        const xtreamId = channel.xtream_id ?? channel.id;
+        if (!playlistId || xtreamId == null) {
+            return;
+        }
 
-        this.dialog.open(EpgMappingDialogComponent, {
-            data: {
-                channelKey,
-                channelName: channel.title ?? channel.name ?? channelKey,
-                currentMapping: null,
-            },
-            width: '500px',
-            maxHeight: '90vh',
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey: buildXtreamEpgMappingKey(playlistId, xtreamId),
+            channelName: channel.title ?? channel.name ?? String(xtreamId),
+            playlistId,
         });
     }
 }

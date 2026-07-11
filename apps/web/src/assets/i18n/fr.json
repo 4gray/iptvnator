@@ -559,6 +559,7 @@
         "REMOVE_FAVORITE": "Retirer des favoris",
         "ADD_FAVORITE": "Ajouter aux favoris",
         "SHOW_DETAILS": "Afficher les détails de la chaîne",
+        "MAP_EPG": "Associer une chaîne EPG",
         "FAVORITES_UPDATED": "Les favoris ont été mis à jour !",
         "SELECT_CHANNEL_PLAYBACK": "Veuillez sélectionner une chaîne pour démarrer la lecture",
         "SORT_BY": "Trier par",
@@ -703,6 +704,21 @@
             "GROUP_SHORT": "progr. courts",
             "GROUP_EXPAND": "afficher ›"
         }
+    },
+    "EPG_MAPPING_DIALOG": {
+        "TITLE": "Associer une chaîne EPG",
+        "SUBTITLE": "Sélectionner manuellement une chaîne EPG pour « {{channelName}} »",
+        "SEARCH_PLACEHOLDER": "Rechercher des chaînes EPG...",
+        "CURRENT_MAPPING": "Association actuelle",
+        "NO_MAPPING": "Aucune association EPG définie",
+        "SAVE": "Enregistrer l'association",
+        "REMOVE": "Supprimer l'association",
+        "CLOSE": "Fermer",
+        "NO_RESULTS": "Aucune chaîne EPG trouvée",
+        "SEARCH_HINT": "Saisissez au moins {{min}} caractères pour rechercher",
+        "SAVED": "Association EPG enregistrée",
+        "REMOVED": "Association EPG supprimée",
+        "SAVE_FAILED": "Impossible de mettre à jour l'association EPG"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",

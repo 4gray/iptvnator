@@ -21,9 +21,13 @@ import {
     ChannelListItemComponent,
 } from '@iptvnator/ui/components';
 import { SettingsStore } from '@iptvnator/services';
-import { EpgProgram } from '@iptvnator/shared/interfaces';
+import {
+    buildXtreamEpgMappingKey,
+    EpgProgram,
+} from '@iptvnator/shared/interfaces';
 import { resolveChannelEpgLookupKey } from '@iptvnator/m3u-state';
 import { EpgMappingDialogComponent } from '@iptvnator/ui/components';
+import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
 import {
     DEFAULT_FAVORITES_CHANNEL_SORT_MODE,
     FavoritesChannelSortMode,
@@ -54,6 +58,8 @@ export type GlobalFavoritesListMode = 'favorites' | 'recent';
 })
 export class GlobalFavoritesListComponent {
     private readonly dialog = inject(MatDialog);
+    private readonly epgBridge = inject(EpgRuntimeBridgeService);
+    readonly supportsEpgMapping = this.epgBridge.supportsEpgMapping;
     private readonly settingsStore = inject(SettingsStore);
 
     readonly contextMenuTrigger =
@@ -168,29 +174,30 @@ export class GlobalFavoritesListComponent {
         return (
             Boolean(channel.m3uChannel) ||
             this.mode() === 'recent' ||
-            Boolean(channel.xtreamId)
+            (this.supportsEpgMapping && Boolean(channel.xtreamId))
         );
     }
 
     openEpgMapping(): void {
         const item = this.contextMenuChannel();
-        if (!item) return;
+        if (!item) {
+            return;
+        }
 
         this.contextMenuTrigger().closeMenu();
-        const channelKey =
-            item.m3uChannel
-                ? resolveChannelEpgLookupKey(item.m3uChannel)
-                : (item.xtreamId ? String(item.xtreamId) : null);
-        if (!channelKey) return;
+        const channelKey = item.m3uChannel
+            ? resolveChannelEpgLookupKey(item.m3uChannel)
+            : item.xtreamId != null
+              ? buildXtreamEpgMappingKey(item.playlistId, item.xtreamId)
+              : null;
+        if (!channelKey) {
+            return;
+        }
 
-        this.dialog.open(EpgMappingDialogComponent, {
-            data: {
-                channelKey,
-                channelName: item.name,
-                currentMapping: null,
-            },
-            width: '500px',
-            maxHeight: '90vh',
+        EpgMappingDialogComponent.open(this.dialog, {
+            channelKey,
+            channelName: item.name,
+            playlistId: item.m3uChannel ? undefined : item.playlistId,
         });
     }
 

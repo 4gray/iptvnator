@@ -21,12 +21,30 @@ function normalizeSql(sql: unknown): string {
     return String(sql).replace(/\s+/g, ' ').trim();
 }
 
-function createEpgDatabaseMock() {
+function createEpgDatabaseMock(
+    options: {
+        /** Result of the sqlite_master index-existence probe. */
+        dedupIndexExists?: boolean;
+        /** Make the CREATE UNIQUE INDEX statement throw on run(). */
+        failIndexCreation?: boolean;
+    } = {}
+) {
     const statements = new Map<string, jest.Mock>();
     const prepare = jest.fn((statement: string) => {
-        const run = jest.fn();
-        statements.set(normalizeSql(statement), run);
-        return { run };
+        const normalized = normalizeSql(statement);
+        const run = jest.fn(() => {
+            if (
+                options.failIndexCreation &&
+                normalized.startsWith('CREATE UNIQUE INDEX')
+            ) {
+                throw new Error('UNIQUE constraint failed');
+            }
+        });
+        const get = jest.fn(() =>
+            options.dedupIndexExists ? { 1: 1 } : undefined
+        );
+        statements.set(normalized, run);
+        return { run, get };
     });
     const transaction = jest.fn((callback: (rows: unknown[]) => void) => {
         return (rows: unknown[]) => callback(rows);
@@ -100,6 +118,78 @@ describe('EpgDatabase', () => {
         expect(insertChannelSql).not.toContain(
             'source_url = excluded.source_url'
         );
+    });
+
+    it('removes pre-existing duplicate programs before creating the dedup index', () => {
+        const { Database, database, statements } = createEpgDatabaseMock();
+
+        new EpgDatabase(Database);
+
+        const preparedSql = database.prepare.mock.calls.map(([sql]) =>
+            normalizeSql(sql)
+        );
+        const dedupDeleteSql = preparedSql.find((sql) =>
+            sql.startsWith('DELETE FROM epg_programs WHERE id NOT IN')
+        );
+        const createIndexSql = preparedSql.find((sql) =>
+            sql.startsWith('CREATE UNIQUE INDEX idx_epg_programs_dedup')
+        );
+
+        expect(dedupDeleteSql).toBeDefined();
+        expect(createIndexSql).toBeDefined();
+        expect(statements.get(dedupDeleteSql!)).toHaveBeenCalled();
+        expect(statements.get(createIndexSql!)).toHaveBeenCalled();
+
+        const insertProgramSql = preparedSql.find((sql) =>
+            sql.startsWith('INSERT INTO epg_programs')
+        );
+        expect(insertProgramSql).toContain(
+            'ON CONFLICT(channel_id, start, title) DO UPDATE SET'
+        );
+    });
+
+    it('skips the dedup pass when the index already exists', () => {
+        const { Database, database } = createEpgDatabaseMock({
+            dedupIndexExists: true,
+        });
+
+        new EpgDatabase(Database);
+
+        const preparedSql = database.prepare.mock.calls.map(([sql]) =>
+            normalizeSql(sql)
+        );
+        expect(
+            preparedSql.some((sql) =>
+                sql.startsWith('DELETE FROM epg_programs WHERE id NOT IN')
+            )
+        ).toBe(false);
+        expect(
+            preparedSql.some((sql) => sql.startsWith('CREATE UNIQUE INDEX'))
+        ).toBe(false);
+
+        const insertProgramSql = preparedSql.find((sql) =>
+            sql.startsWith('INSERT INTO epg_programs')
+        );
+        expect(insertProgramSql).toContain(
+            'ON CONFLICT(channel_id, start, title) DO UPDATE SET'
+        );
+    });
+
+    it('falls back to plain inserts when index creation fails', () => {
+        const { Database, database } = createEpgDatabaseMock({
+            failIndexCreation: true,
+        });
+
+        expect(() => new EpgDatabase(Database)).not.toThrow();
+
+        const preparedSql = database.prepare.mock.calls.map(([sql]) =>
+            normalizeSql(sql)
+        );
+        const insertProgramSql = preparedSql.find((sql) =>
+            sql.startsWith('INSERT INTO epg_programs')
+        );
+        expect(insertProgramSql).toBeDefined();
+        expect(insertProgramSql).not.toContain('ON CONFLICT');
     });
 });
 

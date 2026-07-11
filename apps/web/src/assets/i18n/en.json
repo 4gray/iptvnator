@@ -714,7 +714,11 @@
         "SAVE": "Save mapping",
         "REMOVE": "Remove mapping",
         "CLOSE": "Close",
-        "NO_RESULTS": "No EPG channels found"
+        "NO_RESULTS": "No EPG channels found",
+        "SEARCH_HINT": "Type at least {{min}} characters to search",
+        "SAVED": "EPG mapping saved",
+        "REMOVED": "EPG mapping removed",
+        "SAVE_FAILED": "Could not update the EPG mapping"
     },
     "LANGUAGES": {
         "ARABIC": "العربية",
