@@ -182,6 +182,23 @@ function findWindowsLibMpv(runtimeRoot) {
     return null;
 }
 
+/* Debian/Ubuntu install linker targets under the multiarch triple dir. The
+ * compiler's built-in search paths cover it for -l resolution either way;
+ * this keeps the -L flag and the helper's baked rpath pointing somewhere
+ * real. */
+function defaultLinuxSystemLibDir() {
+    const multiarchTriples = {
+        arm: 'arm-linux-gnueabihf',
+        arm64: 'aarch64-linux-gnu',
+        x64: 'x86_64-linux-gnu',
+    };
+    const triple = multiarchTriples[targetArch];
+    if (triple && fs.existsSync(`/usr/lib/${triple}`)) {
+        return `/usr/lib/${triple}`;
+    }
+    return '/usr/lib';
+}
+
 function findLinuxLibMpv(libDir) {
     for (const candidate of ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so']) {
         const candidatePath = path.join(libDir, candidate);
@@ -234,7 +251,9 @@ function resolveRuntime() {
             return {
                 origin: 'system-dev',
                 includeDir: systemIncludeDir,
-                libDir: process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib',
+                libDir:
+                    process.env.LINUX_NATIVE_LIBRARY_DIR ||
+                    defaultLinuxSystemLibDir(),
                 binDir: undefined,
                 manifest: {
                     warning:
