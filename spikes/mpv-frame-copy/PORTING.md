@@ -41,6 +41,25 @@ apps/electron-backend/native/src/embedded_mpv_frame_reader.c
 Porting = give `frame_helper_render.h` a WGL/EGL twin, give the shm
 create/open a Windows twin, flip the TS gates, extend packaging.
 
+## Branching & merge strategy (do this, not "commit to the current branch")
+
+- **Never commit port work into `claude/embedded-mpv-frame-copy-6ddc36`** —
+  that branch backs PR #1169, which is a frozen review/testing target
+  (review fixes only).
+- Create a port branch off it: `claude/frame-copy-linux-port` (Windows
+  later: branch off the Linux port branch if it reuses its portable
+  clock/shm refactors — likely yes — otherwise off the frame-copy branch).
+- Open the port PR with **base = the frame-copy branch**, so the diff shows
+  only the port. Merge order: #1169 → Linux PR → Windows PR. When #1169
+  merges and its branch is deleted, GitHub retargets the stacked PR to
+  master automatically.
+- Keep the stack at most one unmerged level deep; if #1169 gains review
+  commits, rebase the port branch onto it early and often.
+- Commit incrementally within the port branch; land each platform's
+  measurement rows in `RESULTS.md` in the same PR as its port.
+- If #1169 has already merged by the time you read this: branch off
+  `master` instead and ignore the retargeting notes.
+
 ## Per-platform task lists
 
 ### Linux (do first — much closer to done)
