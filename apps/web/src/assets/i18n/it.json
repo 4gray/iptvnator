@@ -315,6 +315,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Visualizza/nascondi i sottotitoli per impostazione predefinita",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Mostra footer In riproduzione",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Mantieni visibile la barra di stato del lettore esterno in fondo all'area di lavoro su desktop.",
+        "STRIP_COUNTRY_PREFIX": "Rimuovi i prefissi del paese dai nomi dei canali",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Rimuove i prefissi di paese/gruppo come \"US | \" o \"UK - \" dai nomi dei canali live in tutta l'app.",
         "VERSION_DESCRIPTION": "Versione attuale dell'applicazione",
         "ABOUT_SUBTITLE": "Versione, link al progetto e modi per supportare IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Runtime MPV integrato",

@@ -12,7 +12,7 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
-import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import { SettingsStore } from '@iptvnator/services';
 import {
     ProgressCapsuleComponent,
@@ -256,11 +256,16 @@ export class GridListComponent {
     protected readonly hasActiveSearch = computed(
         () => (this.searchTerm() ?? '').trim().length > 0
     );
+    /** Prefix stripping applies to channel grids only, never VOD/series. */
+    private readonly isLiveGrid = computed(() =>
+        ['live', 'itv', 'radio'].includes(this.type())
+    );
     protected readonly channelTitle = (item: GridListItem): string => {
         const raw = item.title ?? item.o_name ?? item.name ?? '';
-        const stripped = raw && this.settingsStore.stripCountryPrefix?.()
-            ? stripCountryPrefix(raw)
-            : raw;
+        const stripped = applyChannelNameStrip(
+            raw,
+            this.isLiveGrid() && this.settingsStore.stripCountryPrefix?.()
+        );
         return stripped || 'No name';
     };
 

@@ -315,6 +315,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Domyślnie pokaż lub ukryj napisy",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Pokaż stopkę „teraz odtwarzane”",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Pozostaw pasek statusu zewnętrznego odtwarzacza widoczny u dołu obszaru roboczego na komputerze.",
+        "STRIP_COUNTRY_PREFIX": "Usuń prefiksy krajów z nazw kanałów",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Usuwa prefiksy kraju/grupy, takie jak \"US | \" lub \"UK - \", z nazw kanałów na żywo w całej aplikacji.",
         "VERSION_DESCRIPTION": "Aktualna wersja aplikacji",
         "ABOUT_SUBTITLE": "Wersja, linki do projektu i sposoby wsparcia IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Środowisko wbudowanego MPV",

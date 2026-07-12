@@ -1,8 +1,10 @@
 import { DatePipe } from '@angular/common';
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { NoopAnimationsModule } from '@angular/platform-browser/animations';
 import { MatDialog } from '@angular/material/dialog';
 import { TranslateModule } from '@ngx-translate/core';
+import { SettingsStore } from '@iptvnator/services';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { ChannelListItemComponent } from './channel-list-item.component';
 
@@ -140,5 +142,49 @@ describe('ChannelListItemComponent', () => {
                 clientY: 56,
             })
         );
+    });
+
+    it('renders the raw channel name while prefix stripping is disabled', () => {
+        fixture.componentRef.setInput('name', 'US | CNN');
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement
+                .querySelector('.channel-name')
+                .textContent.trim()
+        ).toBe('US | CNN');
+    });
+
+    describe('with strip country prefix enabled', () => {
+        beforeEach(async () => {
+            TestBed.resetTestingModule();
+            await TestBed.configureTestingModule({
+                imports: [
+                    ChannelListItemComponent,
+                    NoopAnimationsModule,
+                    TranslateModule.forRoot(),
+                ],
+                providers: [
+                    { provide: MatDialog, useValue: dialog },
+                    {
+                        provide: SettingsStore,
+                        useValue: { stripCountryPrefix: signal(true) },
+                    },
+                ],
+            }).compileComponents();
+
+            fixture = TestBed.createComponent(ChannelListItemComponent);
+        });
+
+        it('strips the country prefix from the rendered channel name', () => {
+            fixture.componentRef.setInput('name', 'US | CNN');
+            fixture.detectChanges();
+
+            expect(
+                fixture.nativeElement
+                    .querySelector('.channel-name')
+                    .textContent.trim()
+            ).toBe('CNN');
+        });
     });
 });

@@ -14,7 +14,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { TranslatePipe } from '@ngx-translate/core';
 import { ExternalPlayerSession } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
-import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 
 @Component({
     selector: 'app-external-playback-dock',
@@ -38,12 +38,18 @@ export class ExternalPlaybackDockComponent {
     readonly artworkClicked = output<void>();
     private readonly artworkFailed = signal(false);
 
-    readonly displayTitle = computed(() => {
-        const raw = this.session().title;
-        return raw && this.settingsStore.stripCountryPrefix?.()
-            ? stripCountryPrefix(raw)
-            : raw;
-    });
+    /**
+     * Sessions with contentInfo are tracked VOD/episode playback — their
+     * titles are movie/episode names, so the channel-prefix strip is
+     * applied only to sessions without it (live channels).
+     */
+    readonly displayTitle = computed(() =>
+        applyChannelNameStrip(
+            this.session().title,
+            !this.session().contentInfo &&
+                this.settingsStore.stripCountryPrefix?.()
+        )
+    );
 
     readonly playerLabel = computed(() => this.session().player.toUpperCase());
     readonly artworkUrl = computed(

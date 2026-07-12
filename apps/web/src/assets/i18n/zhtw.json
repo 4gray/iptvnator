@@ -315,6 +315,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "預設顯示或隱藏字幕",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "顯示「正在播放」列",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "在桌面工作區底部保留外部播放器狀態列可見。",
+        "STRIP_COUNTRY_PREFIX": "從頻道名稱中移除國家前綴",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "移除應用程式中直播頻道名稱裡的國家/群組前綴，例如「US | 」或「UK - 」。",
         "VERSION_DESCRIPTION": "應用程式目前版本",
         "ABOUT_SUBTITLE": "版本、專案連結，以及支持 IPTVnator 的方式。",
         "EMBEDDED_MPV_NOTICE_TITLE": "內嵌 MPV 執行環境",

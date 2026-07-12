@@ -17,7 +17,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import type { PlaybackFallbackRequest } from '../playback-diagnostics/playback-diagnostics.util';
 import { SettingsStore } from '@iptvnator/services';
-import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 import { WebPlayerViewComponent } from '../web-player-view/web-player-view.component';
 import type {
     SeriesEpisodeMetadata,
@@ -47,12 +47,15 @@ export class PortalInlinePlayerComponent {
     readonly episodeMetadata = input<SeriesEpisodeMetadata | null>(null);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     private readonly settingsStore = inject(SettingsStore);
-    readonly title = computed(() => {
-        const raw = this.playback()?.title ?? '';
-        return raw && this.settingsStore.stripCountryPrefix?.()
-            ? stripCountryPrefix(raw)
-            : raw;
-    });
+    // Strip only live-channel titles — VOD/series titles ("Mission:
+    // Impossible - Fallout") must never lose their leading segment.
+    readonly title = computed(() =>
+        applyChannelNameStrip(
+            this.playback()?.title,
+            this.playback()?.isLive &&
+                this.settingsStore.stripCountryPrefix?.()
+        )
+    );
     readonly streamUrl = computed(() => this.playback()?.streamUrl ?? '');
     readonly startTime = computed(() => this.playback()?.startTime ?? 0);
     readonly contentInfo = computed<PlayerContentInfo | undefined>(

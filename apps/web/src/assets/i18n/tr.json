@@ -315,6 +315,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Varsayılan olarak altyazıları göster veya gizle",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Şu an oynatılıyor altbilgisini göster",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Masaüstünde harici oynatıcı durum çubuğunu çalışma alanının altında görünür tutun.",
+        "STRIP_COUNTRY_PREFIX": "Kanal adlarından ülke ön eklerini kaldır",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Uygulama genelinde canlı kanal adlarından \"US | \" veya \"UK - \" gibi ülke/grup ön eklerini kaldırır.",
         "VERSION_DESCRIPTION": "Uygulamanın geçerli sürümü",
         "ABOUT_SUBTITLE": "Sürüm, proje bağlantıları ve IPTVnator'u desteklemenin yolları.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Gömülü MPV çalışma zamanı",

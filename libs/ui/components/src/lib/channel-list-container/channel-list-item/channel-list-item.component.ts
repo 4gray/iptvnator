@@ -18,7 +18,7 @@ import { TranslatePipe } from '@ngx-translate/core';
 import { EpgItemDescriptionComponent } from '@iptvnator/ui/epg';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 import { SettingsStore } from '@iptvnator/services';
-import { stripCountryPrefix } from '@iptvnator/shared/m3u-utils';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
 
 @Component({
     selector: 'app-channel-list-item',
@@ -43,12 +43,12 @@ export class ChannelListItemComponent {
     readonly isDraggable = input(false);
     readonly logo = input<string | null | undefined>('');
     readonly name = input('');
-    readonly displayName = computed(() => {
-        const raw = this.name();
-        return raw && this.settingsStore.stripCountryPrefix?.()
-            ? stripCountryPrefix(raw)
-            : raw;
-    });
+    readonly displayName = computed(() =>
+        applyChannelNameStrip(
+            this.name(),
+            this.settingsStore.stripCountryPrefix?.()
+        )
+    );
     readonly showFavoriteButton = input(false);
     readonly showAuxActionButton = input(false);
     readonly showProgramInfoButton = input(true);

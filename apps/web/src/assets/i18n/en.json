@@ -315,6 +315,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Show or hide subtitles by default",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Show now playing footer",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Keep the external-player status bar visible at the bottom of the workspace on desktop.",
+        "STRIP_COUNTRY_PREFIX": "Strip country prefixes from channel names",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Removes country/group prefixes like \"US | \" or \"UK - \" from live channel names throughout the app.",
         "VERSION_DESCRIPTION": "Current version of the application",
         "ABOUT_SUBTITLE": "Version, project links and ways to support IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Embedded MPV runtime",
