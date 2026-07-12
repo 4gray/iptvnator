@@ -414,6 +414,8 @@ export interface ElectronBridgeGlobalRecentlyAddedItem extends ElectronBridgeXtr
 
 export interface ElectronBridgeFavoriteReorderUpdate {
     content_id: number;
+    /** Favorites are playlist-scoped — scope the position write per playlist */
+    playlist_id: string;
     position: number;
 }
 

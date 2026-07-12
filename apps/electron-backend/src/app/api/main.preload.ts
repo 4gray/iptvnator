@@ -710,7 +710,7 @@ const electronApi: ElectronBridgeApi = {
     dbGetAllGlobalFavorites: () =>
         ipcRenderer.invoke('DB_GET_ALL_GLOBAL_FAVORITES'),
     dbReorderGlobalFavorites: (
-        updates: { content_id: number; position: number }[]
+        updates: { content_id: number; playlist_id: string; position: number }[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),
     // Recently viewed (playlist-specific)
     dbGetRecentItems: (playlistId: string) =>
