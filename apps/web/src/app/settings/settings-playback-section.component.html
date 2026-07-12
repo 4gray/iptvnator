@@ -114,7 +114,10 @@
             </div>
         </div>
 
-        @if (frameCopyAvailable() || form().value.embeddedMpvFrameCopy) {
+        @if (
+            isDesktop() &&
+            (frameCopyAvailable() || form().value.embeddedMpvFrameCopy)
+        ) {
             <div
                 class="setting-item"
                 data-test-id="embedded-mpv-frame-copy-setting"

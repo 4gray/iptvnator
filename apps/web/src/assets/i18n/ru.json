@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Открыть GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "Что нового",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: движок frame-copy (экспериментально)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Видео рисуется на канвасе приложения, поэтому меню и диалоги отображаются поверх него. Только macOS на Apple Silicon, Windows и Linux.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Видео рисуется на канвасе приложения, поэтому меню и диалоги отображаются поверх него.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Вступит в силу после перезапуска приложения."
     },
     "THEMES": {

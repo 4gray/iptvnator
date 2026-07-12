@@ -171,6 +171,48 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).toBeNull();
     });
 
+    it('shows the frame-copy toggle when the engine is available on desktop', () => {
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('frameCopyAvailable', true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="embedded-mpv-frame-copy-setting"]'
+            )
+        ).not.toBeNull();
+    });
+
+    it('keeps a stale frame-copy opt-in clearable on desktop without the helper', () => {
+        const form = createForm();
+        form.controls['embeddedMpvFrameCopy'].setValue(true);
+        fixture.componentRef.setInput('form', form);
+        fixture.componentRef.setInput('isDesktop', true);
+        fixture.componentRef.setInput('frameCopyAvailable', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="embedded-mpv-frame-copy-setting"]'
+            )
+        ).not.toBeNull();
+    });
+
+    it('never shows the frame-copy toggle in the PWA, even with a stored opt-in', () => {
+        const form = createForm();
+        form.controls['embeddedMpvFrameCopy'].setValue(true);
+        fixture.componentRef.setInput('form', form);
+        fixture.componentRef.setInput('isDesktop', false);
+        fixture.componentRef.setInput('frameCopyAvailable', false);
+        fixture.detectChanges();
+
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="embedded-mpv-frame-copy-setting"]'
+            )
+        ).toBeNull();
+    });
+
     it('shows the recording folder setting only in desktop builds', () => {
         fixture.componentRef.setInput('isDesktop', true);
         fixture.detectChanges();
@@ -364,6 +406,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
+        embeddedMpvFrameCopy: new FormControl(false),
         mpvPlayerPath: new FormControl(''),
         mpvPlayerArguments: new FormControl(''),
         mpvReuseInstance: new FormControl(false),

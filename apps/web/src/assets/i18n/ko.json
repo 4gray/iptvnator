@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "내장 MPV: 프레임 복사 엔진(실험적)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "비디오를 앱 캔버스에 렌더링하여 메뉴와 대화 상자가 그 위에 표시됩니다. Apple Silicon macOS, Windows 및 Linux 전용.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "비디오를 앱 캔버스에 렌더링하여 메뉴와 대화 상자가 그 위에 표시됩니다.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "앱을 다시 시작한 후 적용됩니다."
     },
     "THEMES": {
