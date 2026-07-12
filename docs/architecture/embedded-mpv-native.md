@@ -225,6 +225,12 @@ Trade-offs and constraints:
   directory. Windows 11 Smart App Control blocks unsigned locally-built
   executables — turn it off on dev machines or the helper cannot spawn
   (the support probe still reports available; the session errors).
+  Runtime trait, not frame-copy-specific: the vendored mpv-winbuild
+  libmpv routes http(s) through mpv's curl stream backend and ships no CA
+  bundle, so https streams currently fail TLS verification (`mpv/curl`
+  errors in the helper log); the in-process native engine links the same
+  DLL and shares the trait. Resolving the CA story belongs to Windows
+  runtime packaging, not to either engine.
 - Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
   sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
   produce-to-upload latency, zero torn frames over a 10-minute run.
