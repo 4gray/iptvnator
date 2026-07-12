@@ -1,5 +1,8 @@
 import { app, BrowserWindow, Menu, screen, session, shell } from 'electron';
-import { WINDOW_STATE_CHANGED } from '@iptvnator/shared/interfaces';
+import {
+    ElectronBridgeWindowState,
+    WINDOW_STATE_CHANGED,
+} from '@iptvnator/shared/interfaces';
 import { join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 import { rendererAppName, rendererAppPort } from './constants';
@@ -304,21 +307,40 @@ export default class App {
             return;
         }
 
-        const sendWindowState = () => {
+        // Each handler derives the flag its event names from the event
+        // itself instead of re-reading it from the window: on Windows,
+        // isFullScreen() can still report true while 'leave-full-screen'
+        // fires for HTML-element fullscreen (video player) exits. Polling
+        // here would push a stale `isFullScreen: true` with no later event
+        // to correct it, leaving the renderer controls hidden forever.
+        const sendWindowState = (state: ElectronBridgeWindowState) => {
             if (win.isDestroyed()) {
                 return;
             }
 
-            win.webContents.send(WINDOW_STATE_CHANGED, {
-                isMaximized: win.isMaximized(),
-                isFullScreen: win.isFullScreen(),
-            });
+            win.webContents.send(WINDOW_STATE_CHANGED, state);
         };
 
-        win.on('maximize', sendWindowState);
-        win.on('unmaximize', sendWindowState);
-        win.on('enter-full-screen', sendWindowState);
-        win.on('leave-full-screen', sendWindowState);
+        const sendMaximizedState = (isMaximized: boolean) =>
+            sendWindowState({
+                isMaximized,
+                isFullScreen: win.isFullScreen(),
+            });
+        const sendFullScreenState = (isFullScreen: boolean) =>
+            sendWindowState({
+                isMaximized: win.isMaximized(),
+                isFullScreen,
+            });
+
+        win.on('maximize', () => sendMaximizedState(true));
+        win.on('unmaximize', () => sendMaximizedState(false));
+        // The html variants cover HTML-element fullscreen; not every
+        // platform/trigger emits both pairs, and duplicate pushes with the
+        // same payload are harmless.
+        win.on('enter-full-screen', () => sendFullScreenState(true));
+        win.on('enter-html-full-screen', () => sendFullScreenState(true));
+        win.on('leave-full-screen', () => sendFullScreenState(false));
+        win.on('leave-html-full-screen', () => sendFullScreenState(false));
     }
 
     private static initMainWindow() {
