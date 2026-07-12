@@ -511,14 +511,22 @@ Always call the synchronous `.run(placeholderValues)` on prepared statements
 executed inside a synchronous transaction callback:
 
 ```ts
+// favorites is playlist-scoped: filter by (contentId, playlistId), otherwise
+// a same-contentId favorite in another playlist gets rewritten too.
 const stmt = db.update(schema.favorites)
     .set({ position: sql<number>`${sql.placeholder('position')}` })
-    .where(eq(schema.favorites.contentId, sql.placeholder('contentId')))
+    .where(
+        and(
+            eq(schema.favorites.contentId, sql.placeholder('contentId')),
+            eq(schema.favorites.playlistId, sql.placeholder('playlistId'))
+        )
+    )
     .prepare();
 
 db.transaction(() => {
-    for (const { content_id, position } of chunk) {
-        stmt.run({ position, contentId: content_id }); // NOT .execute()
+    for (const { content_id, playlist_id, position } of chunk) {
+        // NOT .execute()
+        stmt.run({ position, contentId: content_id, playlistId: playlist_id });
     }
 });
 ```

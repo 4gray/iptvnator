@@ -141,6 +141,9 @@ export class GlobalFavoritesService {
             )
             .map((ch, index) => ({
                 content_id: ch.contentId,
+                // The backend UPDATE is scoped by (contentId, playlistId) —
+                // without the playlist id the write matches no rows.
+                playlist_id: ch.playlistId,
                 position: index,
             }));
 
