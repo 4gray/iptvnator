@@ -1,5 +1,5 @@
 /*
- * Linux frame-copy probe: spawns iptvnator_mpv_helper, attaches the
+ * Linux/Windows frame-copy probe: spawns iptvnator_mpv_helper, attaches the
  * embedded_mpv_frame_reader addon to the announced shm generation, and
  * reports producer fps, copy latency (ageMs), copy wall time, torn reads
  * and pixel spread. Usage:
@@ -22,7 +22,12 @@ const hwdecIdx = rest.indexOf('--hwdec');
 const hwdec = hwdecIdx >= 0 ? rest[hwdecIdx + 1] : null;
 
 const reader = require(path.join(releaseDir, 'embedded_mpv_frame_reader.node'));
-const helperPath = path.join(releaseDir, 'iptvnator_mpv_helper');
+const helperPath = path.join(
+    releaseDir,
+    process.platform === 'win32'
+        ? 'iptvnator_mpv_helper.exe'
+        : 'iptvnator_mpv_helper'
+);
 const shmBase = `/impv-probe-${process.pid}`;
 
 const args = ['--shm-base', shmBase, '--width', width, '--height', height];
@@ -56,6 +61,13 @@ child.stdout.on('data', (chunk) => {
 });
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+/* Poll yield between latestSeq checks: Windows quantizes setTimeout to the
+ * ~15.6 ms system timer, which would dominate ageMs; setImmediate keeps the
+ * poll sub-ms there at the cost of one busy event loop. */
+const pollYield =
+    process.platform === 'win32'
+        ? () => new Promise((r) => setImmediate(r))
+        : () => sleep(2);
 
 await sleep(300);
 child.stdin.write(`load\turl=${url.replace(/%/g, '%25')}\n`);
@@ -102,7 +114,7 @@ while (Date.now() - start < durationMs) {
             if (result.torn) torn += 1;
         }
     }
-    await sleep(2);
+    await pollYield();
 }
 const elapsed = (Date.now() - start) / 1000;
 
