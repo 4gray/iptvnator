@@ -1,4 +1,5 @@
 import { EventEmitter } from 'events';
+import path from 'path';
 
 const spawnMock = jest.fn();
 jest.mock('child_process', () => ({
@@ -117,8 +118,10 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
         expect(frameSourceChanges).toEqual([
             { sessionId, shmName: `/${sessionId}-g1` },
         ]);
+        // path.join output is host-specific; build the expectation the
+        // same way so the spec passes on Windows checkouts too.
         expect(adapter.getFrameSource(sessionId)?.readerPath).toBe(
-            '/native/embedded_mpv_frame_reader.node'
+            path.join('/native', 'embedded_mpv_frame_reader.node')
         );
     });
 
@@ -190,7 +193,8 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             ['darwin', 'x64', false],
             ['linux', 'x64', true],
             ['linux', 'arm64', true],
-            ['win32', 'x64', false],
+            ['win32', 'x64', true],
+            ['freebsd', 'x64', false],
         ])(
             'on %s/%s with a helper binary present -> %s',
             (platform, arch, expected) => {

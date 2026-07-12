@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: motore frame-copy (sperimentale)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Il video viene disegnato sul canvas dell'app, così menu e finestre di dialogo appaiono sopra di esso. Solo macOS con Apple Silicon e Linux.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Il video viene disegnato sul canvas dell'app, così menu e finestre di dialogo appaiono sopra di esso. Solo macOS con Apple Silicon, Windows e Linux.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Ha effetto dopo il riavvio dell'app."
     },
     "THEMES": {

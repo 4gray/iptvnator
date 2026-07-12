@@ -8,12 +8,17 @@ import path from 'path';
  * sandbox and engine decisions cannot drift. These helpers must remain
  * callable before app.whenReady().
  *
- * macOS stays Apple-Silicon-only. Linux supports every architecture because
- * its helper renders through headless EGL and links libmpv out of process.
+ * macOS: Apple Silicon only (owner decision 2026-07-10) — Intel Macs keep
+ * the docked native engine. Linux: any arch — the helper renders offscreen
+ * through headless EGL and links libmpv out of process, so neither window
+ * embedding nor the in-process-libmpv ban constrains it. Windows: any arch
+ * with a helper binary (WGL offscreen render; in practice x64, the only
+ * vendored runtime) — the helper-presence check below is the real gate.
  */
 export function isFrameCopyPlatformSupported(): boolean {
     return (
         process.platform === 'linux' ||
+        process.platform === 'win32' ||
         (process.platform === 'darwin' && process.arch === 'arm64')
     );
 }
@@ -80,7 +85,8 @@ export function getEmbeddedMpvAddonCandidatePaths(): string[] {
 /**
  * Resolve the first executable frame-copy helper with a readable regular-file
  * frame reader beside it. Both artifacts are required before the engine may
- * relax the renderer sandbox.
+ * relax the renderer sandbox. Windows uses the `.exe` helper name; X_OK is an
+ * existence check there, while POSIX platforms also require the execute bit.
  */
 export function resolveFrameCopyHelperPath(): string | null {
     // Packaged startup must never fall through to cwd/dist development
@@ -89,12 +95,15 @@ export function resolveFrameCopyHelperPath(): string | null {
     const addonCandidates = app.isPackaged
         ? getPackagedAddonPaths()
         : [getLocalBuildAddonPath(), ...getDistAddonPaths()];
-
+    const helperFileName =
+        process.platform === 'win32'
+            ? 'iptvnator_mpv_helper.exe'
+            : 'iptvnator_mpv_helper';
     return (
         addonCandidates
             .map((candidatePath) => path.dirname(candidatePath))
             .map((nativeDir) => ({
-                helper: path.join(nativeDir, 'iptvnator_mpv_helper'),
+                helper: path.join(nativeDir, helperFileName),
                 reader: path.join(
                     nativeDir,
                     'embedded_mpv_frame_reader.node'
