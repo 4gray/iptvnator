@@ -1,6 +1,6 @@
 /*
  * iptvnator-mpv-helper — frame-copy embedded MPV helper process
- * (macOS + Linux; platform GL context in frame_helper_gl.h).
+ * (macOS + Linux + Windows; platform GL context in frame_helper_gl.h).
  *
  * One process = one playback session. Owns libmpv end to end: decodes,
  * renders offscreen at viewport size, publishes BGRA frames into a shared
@@ -101,7 +101,11 @@ std::string isoTimestampNow() {
     char buffer[32];
     const time_t now = time(nullptr);
     struct tm utc;
+#if defined(_WIN32)
+    gmtime_s(&utc, &now);
+#else
     gmtime_r(&now, &utc);
+#endif
     strftime(buffer, sizeof(buffer), "%Y-%m-%dT%H:%M:%SZ", &utc);
     return buffer;
 }
@@ -633,7 +637,9 @@ HelperArgs parseArgs(int argc, char** argv) {
 
 int main(int argc, char** argv) {
     std::setlocale(LC_NUMERIC, "C");
+#if !defined(_WIN32)
     signal(SIGPIPE, SIG_IGN);
+#endif
     const HelperArgs args = parseArgs(argc, argv);
 
     g_state.mpv = mpv_create();
@@ -725,9 +731,14 @@ int main(int argc, char** argv) {
     mpv_render_context_set_update_callback(g_state.pipeline.renderContext(),
                                            onRenderUpdate, &g_state.pipeline);
 
+#if defined(_WIN32)
+    const double helperPid = (double)GetCurrentProcessId();
+#else
+    const double helperPid = (double)getpid();
+#endif
     emitLine(JsonWriter()
                  .str("event", "hello")
-                 .num("pid", (double)getpid())
+                 .num("pid", helperPid)
                  .num("protocolVersion", 1)
                  .finish());
 

@@ -6,14 +6,29 @@
  * resize creates a fresh shm segment named `<base>-g<generation>` and the
  * reader re-attaches when the helper announces the new generation.
  *
- * Must compile as C11 (reader addon) and C++17 (helper). Both consumers
- * build with node-gyp's GNU dialects; frame_shm_now_ns() relies on POSIX
- * clock_gettime, which strict -std=c11 (__STRICT_ANSI__) would hide.
+ * Must compile as C11 (reader addon) and C++17 (helper) on POSIX; on
+ * Windows both consumers build as C++ (MSVC's C mode lacks <stdatomic.h>).
+ * POSIX builds use node-gyp's GNU dialects; frame_shm_now_ns() relies on
+ * clock_gettime there, which strict -std=c11 (__STRICT_ANSI__) would hide.
  */
 #pragma once
 
 #include <stdint.h>
+
+#if defined(_WIN32)
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+#include <stdio.h>
+#include <string.h>
+#else
 #include <time.h>
+#endif
 
 #ifdef __cplusplus
 #include <atomic>
@@ -25,13 +40,40 @@ typedef _Atomic uint64_t frame_shm_atomic_u64;
 
 /* Monotonic clock for produce_time_ns/heartbeat_ns. Producer (helper) and
  * consumer (reader addon) MUST use this same clock so age math stays valid.
- * CLOCK_MONOTONIC is portable across macOS (10.12+) and Linux; the Windows
- * port will need a QueryPerformanceCounter shim here. */
+ * POSIX: CLOCK_MONOTONIC (macOS 10.12+, Linux). Windows: QPC, scaled to ns
+ * without overflow by splitting whole seconds from the remainder. */
 static inline uint64_t frame_shm_now_ns(void) {
+#if defined(_WIN32)
+    /* QPF is fixed after boot, so the benign init race writes one value. */
+    static uint64_t frequency;
+    LARGE_INTEGER counter;
+    if (frequency == 0) {
+        LARGE_INTEGER f;
+        QueryPerformanceFrequency(&f);
+        frequency = (uint64_t)f.QuadPart;
+    }
+    QueryPerformanceCounter(&counter);
+    const uint64_t ticks = (uint64_t)counter.QuadPart;
+    return (ticks / frequency) * 1000000000ull +
+           (ticks % frequency) * 1000000000ull / frequency;
+#else
     struct timespec ts;
     clock_gettime(CLOCK_MONOTONIC, &ts);
     return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+#endif
 }
+
+#if defined(_WIN32)
+/* The stdio protocol carries POSIX-style names ("/impv-...-gN") on every
+ * platform so the TypeScript layer stays platform-agnostic; on Windows the
+ * helper (create) and reader (open) both derive the actual file-mapping
+ * object name from it: session-local namespace, slashes stripped. */
+static inline void frame_shm_windows_name(const char* posix_name, char* out,
+                                          size_t out_size) {
+    while (*posix_name == '/') posix_name++;
+    snprintf(out, out_size, "Local\\%s", posix_name);
+}
+#endif
 
 #define FRAME_SHM_MAGIC 0x564d5046u /* 'FPMV' */
 #define FRAME_SHM_VERSION 1u

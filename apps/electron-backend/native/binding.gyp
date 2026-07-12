@@ -83,6 +83,23 @@
       ],
       "include_dirs": [
         "helper"
+      ],
+      "conditions": [
+        [
+          "OS==\"win\"",
+          {
+            "defines": [
+              "WIN32_LEAN_AND_MEAN",
+              "NOMINMAX"
+            ],
+            "msvs_settings": {
+              "VCCLCompilerTool": {
+                "CompileAs": 2,
+                "ExceptionHandling": 1
+              }
+            }
+          }
+        ]
       ]
     },
     {
@@ -151,6 +168,34 @@
               "-lOpenGL",
               "-lgbm",
               "-ldl"
+            ]
+          }
+        ],
+        [
+          "OS==\"win\"",
+          {
+            "type": "executable",
+            "sources": [
+              "helper/mpv_frame_helper.cpp"
+            ],
+            "include_dirs": [
+              "<!(node -p \"(process.env.LIBMPV_INCLUDE_DIR || process.cwd()).replace(/\\\\\\\\/g, '/')\")",
+              "helper"
+            ],
+            "defines": [
+              "WIN32_LEAN_AND_MEAN",
+              "NOMINMAX"
+            ],
+            "msvs_settings": {
+              "VCCLCompilerTool": {
+                "ExceptionHandling": 1
+              }
+            },
+            "libraries": [
+              "<!(node -e \"const path = require('path'); const dir = process.env.LIBMPV_LIBRARY_DIR || process.cwd(); const lib = process.env.LIBMPV_IMPORT_LIB || path.join(dir, 'mpv.lib'); process.stdout.write(lib.replace(/\\\\\\\\/g, '/'))\")",
+              "opengl32.lib",
+              "gdi32.lib",
+              "user32.lib"
             ]
           }
         ]

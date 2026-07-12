@@ -15,6 +15,13 @@
  * core symbols from that linked library and falls back to eglGetProcAddress
  * for extensions.
  *
+ * Windows: WGL against a hidden 1x1 window (never shown, never pumped —
+ * offscreen FBO rendering only, no SwapBuffers). A legacy context
+ * bootstraps wglCreateContextAttribsARB for a 3.2 core context. opengl32
+ * only exports GL 1.1, so the post-1.1 entry points the render pipeline
+ * needs are declared here as same-named function pointers and resolved via
+ * wglGetProcAddress; mpv resolves its own through the same loader.
+ *
  * Threading contract: create() runs on the main thread and must leave the
  * context unbound; the render thread calls makeCurrent() once and owns the
  * context until destroy().
@@ -58,6 +65,59 @@
 #ifndef EGL_PLATFORM_GBM_KHR
 #define EGL_PLATFORM_GBM_KHR 0x31D7
 #endif
+
+#elif defined(_WIN32)
+
+#ifndef WIN32_LEAN_AND_MEAN
+#define WIN32_LEAN_AND_MEAN
+#endif
+#ifndef NOMINMAX
+#define NOMINMAX
+#endif
+#include <windows.h>
+
+#include <GL/gl.h>
+
+#include <cstdint>
+#include <cstdio>
+
+/* The Windows SDK ships GL 1.1 headers only; everything newer that the
+ * render pipeline touches is declared below and resolved at runtime. */
+#ifndef GL_BGRA
+#define GL_BGRA 0x80E1
+#endif
+#ifndef GL_UNSIGNED_INT_8_8_8_8_REV
+#define GL_UNSIGNED_INT_8_8_8_8_REV 0x8367
+#endif
+#ifndef GL_FRAMEBUFFER
+#define GL_FRAMEBUFFER 0x8D40
+#endif
+#ifndef GL_READ_FRAMEBUFFER
+#define GL_READ_FRAMEBUFFER 0x8CA8
+#endif
+#ifndef GL_COLOR_ATTACHMENT0
+#define GL_COLOR_ATTACHMENT0 0x8CE0
+#endif
+#ifndef GL_FRAMEBUFFER_COMPLETE
+#define GL_FRAMEBUFFER_COMPLETE 0x8CD5
+#endif
+#ifndef GL_PIXEL_PACK_BUFFER
+#define GL_PIXEL_PACK_BUFFER 0x88EB
+#endif
+#ifndef GL_STREAM_READ
+#define GL_STREAM_READ 0x88E1
+#endif
+#ifndef GL_MAP_READ_BIT
+#define GL_MAP_READ_BIT 0x0001
+#endif
+
+typedef ptrdiff_t GLsizeiptr;
+typedef ptrdiff_t GLintptr;
+
+#define WGL_CONTEXT_MAJOR_VERSION_ARB 0x2091
+#define WGL_CONTEXT_MINOR_VERSION_ARB 0x2092
+#define WGL_CONTEXT_PROFILE_MASK_ARB 0x9126
+#define WGL_CONTEXT_CORE_PROFILE_BIT_ARB 0x00000001
 
 #endif
 
@@ -510,6 +570,174 @@ private:
     struct gbm_device* gbmDevice_ = nullptr;
     int gbmFd_ = -1;
     std::string renderer_;
+};
+
+#elif defined(_WIN32)
+
+/* Post-1.1 GL entry points used by frame_helper_render.h, with their real
+ * names so the shared render code compiles unchanged. APIENTRY (stdcall)
+ * must match the driver exports. Single-TU helper; inline for safety. */
+#define FRAME_HELPER_WGL_ENTRY_POINTS(X)                                      \
+    X(void, glGenFramebuffers, (GLsizei n, GLuint* out))                      \
+    X(void, glDeleteFramebuffers, (GLsizei n, const GLuint* ids))             \
+    X(void, glBindFramebuffer, (GLenum target, GLuint fbo))                   \
+    X(void, glFramebufferTexture2D,                                           \
+      (GLenum target, GLenum attachment, GLenum textarget, GLuint texture,    \
+       GLint level))                                                          \
+    X(GLenum, glCheckFramebufferStatus, (GLenum target))                      \
+    X(void, glGenBuffers, (GLsizei n, GLuint* out))                           \
+    X(void, glDeleteBuffers, (GLsizei n, const GLuint* ids))                  \
+    X(void, glBindBuffer, (GLenum target, GLuint buffer))                     \
+    X(void, glBufferData,                                                     \
+      (GLenum target, GLsizeiptr size, const void* data, GLenum usage))       \
+    X(void*, glMapBufferRange,                                                \
+      (GLenum target, GLintptr offset, GLsizeiptr length, GLbitfield access)) \
+    X(GLboolean, glUnmapBuffer, (GLenum target))
+
+#define FRAME_HELPER_WGL_DECLARE(ret, name, args)                             \
+    inline ret(APIENTRY* name) args = nullptr;
+FRAME_HELPER_WGL_ENTRY_POINTS(FRAME_HELPER_WGL_DECLARE)
+#undef FRAME_HELPER_WGL_DECLARE
+
+typedef HGLRC(WINAPI* FrameHelperWglCreateContextAttribsFn)(HDC, HGLRC,
+                                                            const int*);
+
+/* wglGetProcAddress covers post-1.1 symbols but returns sentinel values for
+ * the 1.1 core set, which lives in opengl32.dll instead. */
+inline void* wglLoaderGetProcAddress(void* ctx, const char* name) {
+    PROC proc = wglGetProcAddress(name);
+    const intptr_t sentinel = reinterpret_cast<intptr_t>(proc);
+    if (proc && sentinel != 1 && sentinel != 2 && sentinel != 3 &&
+        sentinel != -1) {
+        return reinterpret_cast<void*>(proc);
+    }
+    return reinterpret_cast<void*>(
+        GetProcAddress(static_cast<HMODULE>(ctx), name));
+}
+
+class GlContext {
+public:
+    bool create(std::string& errorOut) {
+        opengl32_ = GetModuleHandleA("opengl32.dll");
+        if (!opengl32_) {
+            errorOut = "opengl32.dll is not loaded";
+            return false;
+        }
+
+        WNDCLASSA windowClass = {};
+        windowClass.style = CS_OWNDC;
+        windowClass.lpfnWndProc = DefWindowProcA;
+        windowClass.hInstance = GetModuleHandleA(nullptr);
+        windowClass.lpszClassName = "iptvnator_mpv_helper_gl";
+        /* Re-registration fails harmlessly if a previous context leaked the
+         * class; CreateWindow below is the real gate. */
+        RegisterClassA(&windowClass);
+        window_ = CreateWindowExA(0, windowClass.lpszClassName, "", WS_POPUP,
+                                  0, 0, 1, 1, nullptr, nullptr,
+                                  windowClass.hInstance, nullptr);
+        if (!window_) {
+            errorOut = "failed to create the hidden GL window";
+            return false;
+        }
+        dc_ = GetDC(window_);
+        if (!dc_) {
+            errorOut = "failed to get a DC for the hidden GL window";
+            return false;
+        }
+
+        PIXELFORMATDESCRIPTOR descriptor = {};
+        descriptor.nSize = sizeof(descriptor);
+        descriptor.nVersion = 1;
+        descriptor.dwFlags = PFD_SUPPORT_OPENGL | PFD_DRAW_TO_WINDOW;
+        descriptor.iPixelType = PFD_TYPE_RGBA;
+        descriptor.cColorBits = 32;
+        descriptor.cAlphaBits = 8;
+        descriptor.iLayerType = PFD_MAIN_PLANE;
+        const int pixelFormat = ChoosePixelFormat(dc_, &descriptor);
+        if (pixelFormat == 0 ||
+            SetPixelFormat(dc_, pixelFormat, &descriptor) != TRUE) {
+            errorOut = "no usable pixel format for the hidden GL window";
+            return false;
+        }
+
+        HGLRC legacy = wglCreateContext(dc_);
+        if (!legacy) {
+            errorOut = "failed to create a legacy WGL context";
+            return false;
+        }
+        if (wglMakeCurrent(dc_, legacy) != TRUE) {
+            wglDeleteContext(legacy);
+            errorOut = "failed to bind the legacy WGL context";
+            return false;
+        }
+
+        const auto createContextAttribs =
+            reinterpret_cast<FrameHelperWglCreateContextAttribsFn>(
+                wglGetProcAddress("wglCreateContextAttribsARB"));
+        if (createContextAttribs) {
+            const int attribs[] = {
+                WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
+                WGL_CONTEXT_MINOR_VERSION_ARB, 2,
+                WGL_CONTEXT_PROFILE_MASK_ARB, WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
+                0,
+            };
+            HGLRC core = createContextAttribs(dc_, nullptr, attribs);
+            if (core) {
+                wglMakeCurrent(dc_, core);
+                wglDeleteContext(legacy);
+                context_ = core;
+            } else {
+                /* Pre-3.2 driver: keep the legacy (compatibility) context;
+                 * the entry-point loading below decides adequacy. */
+                context_ = legacy;
+            }
+        } else {
+            context_ = legacy;
+        }
+
+        bool loaded = true;
+        const char* missing = nullptr;
+#define FRAME_HELPER_WGL_LOAD(ret, name, args)                                \
+    name = reinterpret_cast<ret(APIENTRY*) args>(                             \
+        wglLoaderGetProcAddress(opengl32_, #name));                           \
+    if (!name && loaded) {                                                    \
+        loaded = false;                                                       \
+        missing = #name;                                                      \
+    }
+        FRAME_HELPER_WGL_ENTRY_POINTS(FRAME_HELPER_WGL_LOAD)
+#undef FRAME_HELPER_WGL_LOAD
+        if (!loaded) {
+            errorOut = std::string("missing GL entry point: ") + missing;
+            wglMakeCurrent(nullptr, nullptr);
+            return false;
+        }
+
+        /* Unbind before returning — see the threading contract above. */
+        wglMakeCurrent(nullptr, nullptr);
+        return true;
+    }
+
+    void makeCurrent() { wglMakeCurrent(dc_, context_); }
+
+    void destroy() {
+        wglMakeCurrent(nullptr, nullptr);
+        if (context_) wglDeleteContext(context_);
+        context_ = nullptr;
+        /* The hidden window/class belong to the main thread (DestroyWindow
+         * is thread-affine and this runs on the render thread); the process
+         * exits right after, so they are left to OS teardown. */
+        dc_ = nullptr;
+        window_ = nullptr;
+    }
+
+    GlGetProcAddressFn procLoader() const { return wglLoaderGetProcAddress; }
+    void* procLoaderCtx() const { return opengl32_; }
+
+private:
+    HWND window_ = nullptr;
+    HDC dc_ = nullptr;
+    HGLRC context_ = nullptr;
+    HMODULE opengl32_ = nullptr;
 };
 
 #else
