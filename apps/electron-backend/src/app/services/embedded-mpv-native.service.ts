@@ -474,32 +474,35 @@ export class EmbeddedMpvNativeService {
                 lastRecording = undefined;
             }
             addon.disposeSession(sessionId);
-        } finally {
-            this.sessions.delete(sessionId);
-            this.pollFailuresLogged.delete(sessionId);
-            const payload: EmbeddedMpvSession = {
-                id: session.id,
-                title: session.title,
-                streamUrl: session.streamUrl,
-                status: 'closed',
-                positionSeconds: 0,
-                durationSeconds: null,
-                volume: 1,
-                audioTracks: [],
-                selectedAudioTrackId: null,
-                subtitleTracks: [],
-                selectedSubtitleTrackId: null,
-                playbackSpeed: 1,
-                aspectOverride: 'no',
-                recording: this.createClosedRecordingState(lastRecording),
-                startedAt: session.startedAt,
-                updatedAt: new Date().toISOString(),
-            };
-            this.sendSessionUpdate(payload);
-            this.stopPollingIfIdle();
-            this.updatePowerBlocker();
-            return payload;
+        } catch {
+            // Native dispose failures must not block registry cleanup or the
+            // closed-session broadcast below.
         }
+
+        this.sessions.delete(sessionId);
+        this.pollFailuresLogged.delete(sessionId);
+        const payload: EmbeddedMpvSession = {
+            id: session.id,
+            title: session.title,
+            streamUrl: session.streamUrl,
+            status: 'closed',
+            positionSeconds: 0,
+            durationSeconds: null,
+            volume: 1,
+            audioTracks: [],
+            selectedAudioTrackId: null,
+            subtitleTracks: [],
+            selectedSubtitleTrackId: null,
+            playbackSpeed: 1,
+            aspectOverride: 'no',
+            recording: this.createClosedRecordingState(lastRecording),
+            startedAt: session.startedAt,
+            updatedAt: new Date().toISOString(),
+        };
+        this.sendSessionUpdate(payload);
+        this.stopPollingIfIdle();
+        this.updatePowerBlocker();
+        return payload;
     }
 
     shutdown(): void {
@@ -738,6 +741,9 @@ export class EmbeddedMpvNativeService {
 
     private sanitizeRecordingFileName(title: string): string {
         const normalized = title
+            // Control characters are invalid in file names on Windows; the
+            // range is matched intentionally.
+            // eslint-disable-next-line no-control-regex
             .replace(/[<>:"/\\|?*\u0000-\u001f]/g, '_')
             .replace(/\s+/g, ' ')
             .trim();

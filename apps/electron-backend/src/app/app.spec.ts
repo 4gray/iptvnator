@@ -40,6 +40,8 @@ import {
 } from './app';
 import App from './app';
 import { app as electronApp, BrowserWindow, screen } from 'electron';
+import * as path from 'path';
+import { pathToFileURL } from 'url';
 import { store } from './services/store.service';
 
 type MockMainWindow = {
@@ -147,18 +149,23 @@ describe('Electron app security helpers', () => {
     });
 
     it('allows only the packaged renderer file in packaged navigation', () => {
+        // Resolve to host-native absolute paths: POSIX-style file URLs such
+        // as file:///tmp/... are not valid win32 file URLs (no drive letter).
+        const packagedIndexPath = path.resolve('/tmp/iptvnator/index.html');
+        const otherIndexPath = path.resolve('/tmp/other/index.html');
+
         expect(
             isTrustedRendererNavigationUrl(
-                'file:///tmp/iptvnator/index.html',
+                pathToFileURL(packagedIndexPath).href,
                 false,
-                '/tmp/iptvnator/index.html'
+                packagedIndexPath
             )
         ).toBe(true);
         expect(
             isTrustedRendererNavigationUrl(
-                'file:///tmp/other/index.html',
+                pathToFileURL(otherIndexPath).href,
                 false,
-                '/tmp/iptvnator/index.html'
+                packagedIndexPath
             )
         ).toBe(false);
         expect(

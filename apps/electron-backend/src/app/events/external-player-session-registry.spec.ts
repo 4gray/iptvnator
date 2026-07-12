@@ -47,6 +47,24 @@ describe('ExternalPlayerSessionRegistry', () => {
         expect(registry.getActiveSessionId()).toBeNull();
     });
 
+    it('marks the session closed even when the runtime close fails', async () => {
+        const close = jest.fn().mockRejectedValue(new Error('close failed'));
+        const session = registry.beginSession({
+            player: 'vlc',
+            title: 'Example',
+            streamUrl: 'https://example.com/video.m3u8',
+        });
+
+        registry.attachCloser(session.id, close);
+
+        const closed = await registry.closeSession(session.id);
+
+        expect(close).toHaveBeenCalled();
+        expect(closed?.status).toBe('closed');
+        expect(closed?.canClose).toBe(false);
+        expect(registry.getActiveSessionId()).toBeNull();
+    });
+
     it('marks runtime failures as errors without clearing the active id', () => {
         const session = registry.beginSession({
             player: 'mpv',

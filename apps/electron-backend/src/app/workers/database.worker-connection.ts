@@ -15,7 +15,6 @@ import {
     trace,
 } from '../services/debug-trace';
 
-let Database: typeof BetterSqlite3;
 let drizzleFactory:
     | (typeof import('drizzle-orm/better-sqlite3'))['drizzle']
     | undefined;
@@ -37,7 +36,6 @@ function loadBetterSqlite3(): typeof BetterSqlite3 {
         loggerLabel: '[DB Worker]',
         searchPaths: nativeModuleSearchPaths,
         fallbackRequire: () =>
-            // eslint-disable-next-line @typescript-eslint/no-require-imports
             require('better-sqlite3') as typeof BetterSqlite3,
     });
 }
@@ -49,7 +47,6 @@ function getDrizzleFactory(): (typeof import('drizzle-orm/better-sqlite3'))['dri
 
     // Require drizzle only after native lookup paths have been registered.
     // Its better-sqlite3 driver resolves the native package at module load time.
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     drizzleFactory = require('drizzle-orm/better-sqlite3').drizzle as (
         typeof import('drizzle-orm/better-sqlite3')
     )['drizzle'];
@@ -57,7 +54,7 @@ function getDrizzleFactory(): (typeof import('drizzle-orm/better-sqlite3'))['dri
     return drizzleFactory;
 }
 
-Database = loadBetterSqlite3();
+const Database = loadBetterSqlite3();
 
 let db: AppDatabase | null = null;
 let sqlite: BetterSqlite3.Database | null = null;

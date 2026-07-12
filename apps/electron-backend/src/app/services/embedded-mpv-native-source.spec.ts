@@ -1,43 +1,33 @@
 import { readFileSync } from 'fs';
 import path from 'path';
 
+// Checkouts with core.autocrlf=true materialize these sources with CRLF
+// line endings; normalize so the multi-line assertions below match the
+// LF-based expectations on every host.
+function readSource(relativePath: string): string {
+    return readFileSync(path.resolve(__dirname, relativePath), 'utf8').replace(
+        /\r\n/g,
+        '\n'
+    );
+}
+
 describe('Embedded MPV native source recording invariants', () => {
-    const nativeSource = readFileSync(
-        path.resolve(__dirname, '../../../native/src/embedded_mpv.mm'),
-        'utf8'
+    const nativeSource = readSource('../../../native/src/embedded_mpv.mm');
+    const widCommonSource = readSource(
+        '../../../native/src/embedded_mpv_wid_common.h'
     );
-    const widCommonSource = readFileSync(
-        path.resolve(
-            __dirname,
-            '../../../native/src/embedded_mpv_wid_common.h'
-        ),
-        'utf8'
+    const win32Source = readSource(
+        '../../../native/src/embedded_mpv_win32.cc'
     );
-    const win32Source = readFileSync(
-        path.resolve(__dirname, '../../../native/src/embedded_mpv_win32.cc'),
-        'utf8'
+    const linuxSource = readSource(
+        '../../../native/src/embedded_mpv_linux.cc'
     );
-    const linuxSource = readFileSync(
-        path.resolve(__dirname, '../../../native/src/embedded_mpv_linux.cc'),
-        'utf8'
+    const buildScriptSource = readSource('../../../build-embedded-mpv.js');
+    const buildAndMakeWorkflowSource = readSource(
+        '../../../../../.github/workflows/build-and-make.yaml'
     );
-    const buildScriptSource = readFileSync(
-        path.resolve(__dirname, '../../../build-embedded-mpv.js'),
-        'utf8'
-    );
-    const buildAndMakeWorkflowSource = readFileSync(
-        path.resolve(
-            __dirname,
-            '../../../../../.github/workflows/build-and-make.yaml'
-        ),
-        'utf8'
-    );
-    const stageRuntimeSource = readFileSync(
-        path.resolve(
-            __dirname,
-            '../../../../../tools/embedded-mpv/stage-runtime.mjs'
-        ),
-        'utf8'
+    const stageRuntimeSource = readSource(
+        '../../../../../tools/embedded-mpv/stage-runtime.mjs'
     );
 
     function functionBody(name: string): string {

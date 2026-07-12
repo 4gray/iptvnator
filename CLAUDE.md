@@ -210,6 +210,12 @@ are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
 with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
 Never add new files to the baseline.
 
+Project `lint` targets that shell out to eslint must quote the glob, e.g.
+`eslint "apps/<project>/**/*.ts"`. An unquoted `**` is expanded by the POSIX
+shell on Linux (matching only a shallow subset of files) while Windows passes
+the literal pattern to ESLint, which expands it recursively — the two hosts
+then lint different file sets.
+
 ## Architecture
 
 ### Monorepo Structure (Nx Workspace)
