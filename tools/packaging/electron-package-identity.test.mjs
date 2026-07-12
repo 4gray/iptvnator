@@ -119,8 +119,10 @@ test('Linux package identity does not expose the internal Electron backend proje
 });
 
 test('GitHub Releases auto-update metadata is generated and uploaded', () => {
+    // \r?\n keeps this host-agnostic: Windows checkouts with autocrlf see
+    // CRLF in the workflow file.
     const releaseFiles = buildAndMakeWorkflow.match(
-        /files: \|\n([\s\S]*?)\n\s+env:/
+        /files: \|\r?\n([\s\S]*?)\r?\n\s+env:/
     )?.[1];
 
     assert.ok(releaseFiles, 'release upload files block must exist');
@@ -307,7 +309,13 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
             ['windows', join('lib', 'mpv.dll')],
             ['windows', join('lib', 'libmpv.dll')],
         ]) {
-            const resourceDir = join(tempDir, platform);
+            // One fixture dir per runtime-file scenario: the frame-copy
+            // artifacts written below must not leak into the next
+            // iteration's missing-artifact assertions.
+            const resourceDir = join(
+                tempDir,
+                `${platform}-${runtimeFile.replace(/[\\/]/g, '_')}`
+            );
             const nativeDir = join(
                 resourceDir,
                 'app.asar.unpacked',
@@ -321,6 +329,29 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
                 JSON.stringify({ origin: 'vendored-lgpl' })
             );
             fs.writeFileSync(join(nativeDir, runtimeFile), '');
+
+            // Windows packages that ship the addon must also ship the
+            // frame-copy engine artifacts built by the same binding.gyp run.
+            const missingWindowsFrameCopyErrors = validatePackagedEmbeddedMpv(
+                resourceDir,
+                { platform, required: true }
+            );
+            assert.ok(
+                missingWindowsFrameCopyErrors.some((error) =>
+                    error.includes('iptvnator_mpv_helper.exe')
+                )
+            );
+            assert.ok(
+                missingWindowsFrameCopyErrors.some((error) =>
+                    error.includes('embedded_mpv_frame_reader.node')
+                )
+            );
+
+            fs.writeFileSync(join(nativeDir, 'iptvnator_mpv_helper.exe'), '');
+            fs.writeFileSync(
+                join(nativeDir, 'embedded_mpv_frame_reader.node'),
+                ''
+            );
 
             assert.deepEqual(
                 validatePackagedEmbeddedMpv(resourceDir, {

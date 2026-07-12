@@ -540,12 +540,16 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         return errors;
     }
 
-    if (platform === 'darwin') {
+    if (platform === 'darwin' || platform === 'win32') {
         // The frame-copy engine artifacts are built by the same binding.gyp
-        // run as the addon; a macOS package that ships the addon without
-        // them would silently lose the engine (support probe hides it).
+        // run as the addon; a macOS/Windows package that ships the addon
+        // without them would silently lose the engine (support probe hides
+        // it). Linux packages intentionally strip the helper until the
+        // bundled-libmpv runtime lands (see electron-after-pack.cjs).
         const missingFrameCopyArtifacts = [
-            'iptvnator_mpv_helper',
+            platform === 'win32'
+                ? 'iptvnator_mpv_helper.exe'
+                : 'iptvnator_mpv_helper',
             'embedded_mpv_frame_reader.node',
         ]
             .map((name) => path.join(unpackedNativeDir, name))

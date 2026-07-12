@@ -323,6 +323,12 @@ jobs:
                       ;;
                     win32)
                       test -f dist/apps/electron-backend/native/lib/mpv-2.dll || test -f dist/apps/electron-backend/native/lib/libmpv-2.dll || test -f dist/apps/electron-backend/native/lib/mpv.dll || test -f dist/apps/electron-backend/native/lib/libmpv.dll
+                      # Frame-copy engine artifacts ship on Windows. The helper
+                      # resolves the mpv DLL from its own directory, so the DLL
+                      # must sit beside it at the native/ top level too.
+                      test -f dist/apps/electron-backend/native/iptvnator_mpv_helper.exe
+                      test -f dist/apps/electron-backend/native/embedded_mpv_frame_reader.node
+                      find dist/apps/electron-backend/native -maxdepth 1 \( -name 'mpv-2.dll' -o -name 'libmpv-2.dll' -o -name 'mpv.dll' -o -name 'libmpv.dll' \) -print -quit | grep -q .
                       ;;
                     linux)
                       node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'external-mpv-process') { throw new Error('Linux embedded MPV manifest must use external-mpv-process origin.'); }"
