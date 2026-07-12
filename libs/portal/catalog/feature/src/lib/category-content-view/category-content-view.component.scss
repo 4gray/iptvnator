@@ -245,7 +245,8 @@ app-grid-list {
     padding: 16px 20px 20px;
     display: block;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.08) transparent;
+    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
+        transparent;
 }
 
 @media (max-width: 768px) {

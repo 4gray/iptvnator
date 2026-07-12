@@ -108,6 +108,20 @@ body.frameless-platform #epg-navigation {
 }
 
 // ─── Base ─────────────────────────────────────────────────────────────────────
+// Native UI (scrollbars, form controls, popups) must follow the app theme,
+// not the OS preference. Chromium colors unstyled/native scrollbars from the
+// element's color-scheme, so declare it explicitly for both themes.
+html {
+    color-scheme: light;
+}
+
+// The root scroller (html) sits outside body.dark-theme, so flip it via
+// :has(); the color-scheme declaration in .dark-theme below keeps the body
+// subtree covered in engines without :has() support.
+html:has(> body.dark-theme) {
+    color-scheme: dark;
+}
+
 body,
 html {
     user-select: none;
@@ -155,6 +169,7 @@ textarea,
 // ─── Dark Theme ───────────────────────────────────────────────────────────────
 .dark-theme {
     background: var(--mat-sys-surface) !important;
+    color-scheme: dark;
 
     // Refined scrollbar for dark mode
     ::-webkit-scrollbar {
@@ -167,11 +182,15 @@ textarea,
     }
 
     ::-webkit-scrollbar-thumb {
-        background-color: var(--mat-sys-outline-variant);
+        background-color: color-mix(
+            in srgb,
+            var(--app-muted-color) 70%,
+            transparent
+        );
         border-radius: 999px;
 
         &:hover {
-            background-color: var(--mat-sys-outline);
+            background-color: var(--app-muted-color);
         }
     }
 }

@@ -454,6 +454,8 @@
     max-height: 240px;
     overflow-y: auto;
     scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
+        transparent;
 }
 
 .embedded-mpv-player__audio-track {
