@@ -103,6 +103,67 @@ test.describe('Custom window controls', () => {
         }
     });
 
+    test('@electron controls reappear after leaving HTML element fullscreen', async ({
+        dataDir,
+    }) => {
+        test.skip(
+            isWindowManagerlessCi,
+            'xvfb on Linux CI has no window manager'
+        );
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            const controls = app.mainWindow.locator('app-window-controls');
+            await expect(controls).not.toHaveClass(/is-hidden/);
+
+            // The video players fullscreen their player root through the
+            // HTML element-fullscreen API. That API needs transient user
+            // activation, so trigger it from a real click on a temporary
+            // overlay instead of calling it directly from evaluate().
+            await app.mainWindow.evaluate(() => {
+                const overlay = document.createElement('div');
+                overlay.id = 'e2e-fullscreen-trigger';
+                overlay.style.cssText =
+                    'position: fixed; inset: 0; z-index: 2147483647;';
+                overlay.addEventListener('click', () => {
+                    overlay.remove();
+                    void document.documentElement.requestFullscreen();
+                });
+                document.body.append(overlay);
+            });
+            await app.mainWindow.locator('#e2e-fullscreen-trigger').click();
+
+            const isHtmlFullScreen = () =>
+                app.mainWindow.evaluate(
+                    () => document.fullscreenElement !== null
+                );
+
+            await expect.poll(isHtmlFullScreen, { timeout: 10_000 }).toBe(
+                true
+            );
+            await expect(controls).toHaveClass(/is-hidden/, {
+                timeout: 10_000,
+            });
+
+            await app.mainWindow.evaluate(() => document.exitFullscreen());
+            await expect.poll(isHtmlFullScreen, { timeout: 10_000 }).toBe(
+                false
+            );
+
+            // Regression: the exit push must not carry a stale
+            // isFullScreen=true read mid-transition — the controls have to
+            // come back once fullscreen is left.
+            await expect(controls).not.toHaveClass(/is-hidden/, {
+                timeout: 10_000,
+            });
+            await expect(
+                app.mainWindow.getByTestId('window-minimize')
+            ).toBeVisible();
+        } finally {
+            await closeElectronApp(app);
+        }
+    });
+
     test('@electron minimize button minimizes the window', async ({
         dataDir,
     }) => {
