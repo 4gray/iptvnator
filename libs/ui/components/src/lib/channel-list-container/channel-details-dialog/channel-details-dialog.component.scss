@@ -1,6 +1,6 @@
 :host {
     display: block;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-body-color);
 }
 
 // ─── Hero header ────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@
     gap: 18px;
     background:
         var(--app-accent-gradient),
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+        var(--app-widget-header-bg);
     border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
 }
 
@@ -25,7 +25,7 @@
     align-items: center;
     gap: 8px;
     margin: 0;
-    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-eyebrow-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -36,8 +36,8 @@
     width: 8px;
     height: 8px;
     border-radius: 999px;
-    background: var(--mat-sys-primary);
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
+    background: var(--app-selection-color);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-selection-color) 14%, transparent);
 }
 
 .channel-dialog__headline-row {
@@ -59,7 +59,7 @@
     height: 48px;
     border-radius: 12px;
     object-fit: contain;
-    background: var(--mat-sys-surface-container);
+    background: var(--app-widget-bg);
     border: 1px solid var(--app-separator);
     flex-shrink: 0;
 }
@@ -70,12 +70,12 @@
     line-height: 1.2;
     font-weight: 650;
     letter-spacing: -0.02em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
 }
 
 .channel-dialog__subtitle {
     margin: 4px 0 0;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.88rem;
 }
 
@@ -96,8 +96,8 @@
     padding: 0 10px;
     border-radius: 999px;
     border: 1px solid var(--app-separator);
-    background: var(--mat-sys-surface-container);
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    background: var(--app-widget-bg);
+    color: var(--app-body-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -111,15 +111,15 @@
 }
 
 .channel-dialog__status-pill--radio {
-    border-color: color-mix(in srgb, var(--mat-sys-tertiary) 30%, transparent);
-    background: color-mix(in srgb, var(--mat-sys-tertiary) 12%, transparent);
-    color: var(--mat-sys-tertiary);
+    border-color: color-mix(in srgb, var(--app-accent-color) 30%, transparent);
+    background: color-mix(in srgb, var(--app-accent-color) 12%, transparent);
+    color: var(--app-accent-color);
 }
 
 .channel-dialog__status-pill--playback {
-    border-color: color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
-    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
-    color: var(--mat-sys-primary);
+    border-color: color-mix(in srgb, var(--app-selection-color) 30%, transparent);
+    background: color-mix(in srgb, var(--app-selection-color) 12%, transparent);
+    color: var(--app-selection-color);
 }
 
 // ─── Hero stat cards ────────────────────────────────────────────────────────
@@ -135,7 +135,7 @@
     padding: 12px 14px;
     border-radius: 12px;
     border: 1px solid var(--app-widget-border, transparent);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container));
+    background: var(--app-widget-bg);
     box-shadow: var(--app-widget-shadow, none);
     outline: 1px solid rgba(255, 255, 255, 0.04);
     outline-offset: -1px;
@@ -148,8 +148,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 10px;
-    background: color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
-    color: var(--mat-sys-primary);
+    background: color-mix(in srgb, var(--app-selection-color) 12%, transparent);
+    color: var(--app-selection-color);
 
     mat-icon {
         font-size: 18px;
@@ -159,7 +159,7 @@
 }
 
 .channel-stat__label {
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -170,7 +170,7 @@
     font-size: 1.1rem;
     font-weight: 650;
     letter-spacing: -0.02em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -181,7 +181,7 @@
     }
 
     &--empty {
-        color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+        color: var(--app-muted-color);
         font-style: italic;
         font-weight: 500;
         font-size: 0.88rem;
@@ -192,7 +192,7 @@
 .channel-dialog__content {
     margin: 0;
     padding: 20px;
-    background: var(--app-widget-bg, var(--mat-sys-surface));
+    background: var(--app-widget-bg);
 }
 
 .channel-dialog__grid {
@@ -209,7 +209,7 @@
     padding: 10px 10px 10px 14px;
     border-radius: 10px;
     border: 1px solid var(--app-separator);
-    background: var(--mat-sys-surface-container);
+    background: var(--app-widget-bg);
 
     code {
         flex: 1;
@@ -217,7 +217,7 @@
         font-family: 'JetBrains Mono', 'Roboto Mono', monospace;
         font-size: 0.82rem;
         line-height: 1.5;
-        color: var(--app-body-color, var(--mat-sys-on-surface));
+        color: var(--app-body-color);
         overflow-wrap: anywhere;
         word-break: break-word;
     }
@@ -229,7 +229,7 @@
     height: 32px;
     --mdc-icon-button-state-layer-size: 32px;
     --mdc-icon-button-icon-size: 18px;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
 }
 
 // ─── Detail panels ──────────────────────────────────────────────────────────
@@ -239,7 +239,7 @@
     padding: 16px;
     border-radius: 16px;
     border: 1px solid var(--app-widget-border, transparent);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-widget-bg);
     box-shadow: var(--app-widget-shadow, none);
     outline: 1px solid rgba(255, 255, 255, 0.04);
     outline-offset: -1px;
@@ -256,12 +256,12 @@
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: -0.01em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
 }
 
 .channel-panel__eyebrow {
     margin: 0;
-    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-eyebrow-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -291,7 +291,7 @@
 
 .channel-detail-row dt {
     margin: 0;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -300,7 +300,7 @@
 
 .channel-detail-row dd {
     margin: 0;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-body-color);
     font-size: 0.88rem;
     font-weight: 500;
     word-break: break-word;
@@ -313,7 +313,7 @@
 }
 
 .channel-detail-row__value--empty {
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-style: italic;
 }
 
@@ -326,7 +326,7 @@
 
 .channel-chip-section__label {
     margin: 0;
-    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-eyebrow-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -342,7 +342,7 @@
     justify-content: flex-end;
     gap: 10px;
     border-top: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
-    background: var(--app-widget-bg, var(--mat-sys-surface));
+    background: var(--app-widget-bg);
 }
 
 .channel-dialog__close {

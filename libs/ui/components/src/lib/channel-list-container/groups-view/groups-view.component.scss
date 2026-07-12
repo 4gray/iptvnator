@@ -16,7 +16,7 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: var(--app-content-bg, var(--mat-sys-surface));
+    background: var(--app-content-bg);
 }
 
 .groups-nav-panel {
@@ -27,7 +27,7 @@
     min-height: 0;
     display: flex;
     overflow: hidden;
-    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-rail-bg);
     padding: 12px 10px 10px 12px;
     box-sizing: border-box;
     container-type: inline-size;
@@ -96,8 +96,8 @@
     padding: 0 10px;
     min-height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-search-border);
+    background: var(--app-search-bg);
     cursor: text;
     transition:
         border-color 0.15s ease,
@@ -194,7 +194,7 @@
     align-items: center;
     text-align: center;
     padding: 24px 12px;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
 
     &__icon {
         width: 28px;
@@ -243,7 +243,7 @@
     flex-direction: column;
     overflow: hidden;
     border-right: none;
-    background: var(--app-content-bg, var(--mat-sys-surface));
+    background: var(--app-content-bg);
     border-top-left-radius: 16px;
 }
 

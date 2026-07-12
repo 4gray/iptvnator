@@ -31,7 +31,7 @@
         font-size: 0.94rem;
         font-weight: 600;
         letter-spacing: -0.01em;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 }
 
@@ -54,14 +54,14 @@
     }
 
     &--active mat-icon {
-        color: var(--mat-sys-primary);
+        color: var(--app-selection-color);
     }
 
     mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-muted-color);
     }
 }
 
@@ -72,8 +72,8 @@
     margin-top: 5px;
     padding: 2px 0;
     border-radius: 999px;
-    background: var(--mat-sys-surface-container);
-    color: var(--mat-sys-on-surface-variant);
+    background: var(--app-hover-overlay);
+    color: var(--app-muted-color);
     font-size: 0.72rem;
     font-weight: 500;
     letter-spacing: 0.04em;
@@ -87,7 +87,7 @@
 .context-header p {
     margin: 4px 0 0;
     font-size: 0.78rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
 }
 
 // ─── Search Bar ──────────────────────────────────────────────────────────────
@@ -99,8 +99,8 @@
     padding: 0 10px;
     min-height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-search-border);
+    background: var(--app-search-bg);
     flex-shrink: 0;
     cursor: text;
     transition:
@@ -108,9 +108,9 @@
         box-shadow 0.15s ease;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-selection-color);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-selection-color) 12%, transparent);
     }
 }
 
@@ -118,7 +118,7 @@
     font-size: 18px;
     width: 18px;
     height: 18px;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
     flex-shrink: 0;
 }
 
@@ -127,14 +127,14 @@
     border: none;
     outline: none;
     background: transparent;
-    color: var(--mat-sys-on-surface);
+    color: var(--app-heading-color);
     font: inherit;
     font-size: 0.84rem;
     width: 100%;
     min-width: 0;
 
     &::placeholder {
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-muted-color);
         opacity: 0.6;
     }
 
@@ -161,7 +161,7 @@
 // ─── Divider ──────────────────────────────────────────────────────────────────
 .context-divider {
     height: 1px;
-    background: var(--mat-sys-outline-variant);
+    background: var(--app-separator);
     margin: 0 0 6px;
     opacity: 0.6;
     flex-shrink: 0;
@@ -197,15 +197,11 @@ app-workspace-context-category-view {
     border-radius: 12px;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 88%,
-        var(--app-widget-bg, var(--mat-sys-surface-container)) 12%
+        var(--app-widget-header-bg) 88%,
+        var(--app-widget-bg) 12%
     );
     border: 1px solid
-        color-mix(
-            in srgb,
-            var(--app-widget-header-border, var(--mat-sys-outline-variant)) 96%,
-            transparent
-        );
+        color-mix(in srgb, var(--app-widget-header-border) 96%, transparent);
 }
 
 .context-skeleton__dot,
@@ -215,8 +211,8 @@ app-workspace-context-category-view {
     overflow: hidden;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 48%
+        var(--app-widget-header-bg) 52%,
+        var(--app-body-color) 48%
     );
 
     &::after {
@@ -226,12 +222,7 @@ app-workspace-context-category-view {
         background: linear-gradient(
             100deg,
             transparent 8%,
-            color-mix(
-                    in srgb,
-                    var(--app-heading-color, var(--mat-sys-on-surface)) 18%,
-                    transparent
-                )
-                44%,
+            color-mix(in srgb, var(--app-heading-color) 18%, transparent) 44%,
             transparent 74%
         );
         transform: translateX(-120%);

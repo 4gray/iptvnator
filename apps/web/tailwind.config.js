@@ -13,28 +13,32 @@ module.exports = {
                 sans: ['Inter', 'Roboto', 'Helvetica Neue', 'sans-serif'],
             },
             colors: {
-                // Surface colors wired to Material sys vars so Tailwind
-                // utilities automatically respect the active theme
-                surface: 'var(--mat-sys-surface)',
-                'surface-low': 'var(--mat-sys-surface-container-low)',
-                'surface-mid': 'var(--mat-sys-surface-container)',
-                'surface-high': 'var(--mat-sys-surface-container-high)',
-                'on-surface': 'var(--mat-sys-on-surface)',
-                'on-surface-variant': 'var(--mat-sys-on-surface-variant)',
-                outline: 'var(--mat-sys-outline)',
-                'outline-variant': 'var(--mat-sys-outline-variant)',
-                primary: 'var(--mat-sys-primary)',
-                'on-primary': 'var(--mat-sys-on-primary)',
-                'primary-container': 'var(--mat-sys-primary-container)',
-                'on-primary-container': 'var(--mat-sys-on-primary-container)',
-                secondary: 'var(--mat-sys-secondary)',
-                'secondary-container': 'var(--mat-sys-secondary-container)',
-                'on-secondary-container':
-                    'var(--mat-sys-on-secondary-container)',
-                tertiary: 'var(--mat-sys-tertiary)',
-                'tertiary-container': 'var(--mat-sys-tertiary-container)',
-                error: 'var(--mat-sys-error)',
-                'error-container': 'var(--mat-sys-error-container)',
+                // Surface colors wired to the --app-* design tokens
+                // (m3-theme.scss) so Tailwind utilities automatically respect
+                // the active theme. Never wire these to --mat-sys-* vars: the
+                // current Material theme setup does not emit system tokens
+                // (see docs/architecture/theme-design-tokens.md).
+                surface: 'var(--app-content-bg)',
+                'surface-low': 'var(--app-widget-bg)',
+                'surface-mid': 'var(--app-widget-bg)',
+                'surface-high': 'var(--app-widget-header-bg)',
+                'on-surface': 'var(--app-heading-color)',
+                'on-surface-variant': 'var(--app-body-color)',
+                outline: 'var(--app-separator)',
+                'outline-variant': 'var(--app-separator)',
+                primary: 'var(--app-selection-color)',
+                'on-primary': 'var(--app-selection-on-color)',
+                'primary-container': 'var(--app-selection-surface)',
+                'on-primary-container': 'var(--app-selection-color)',
+                secondary: 'var(--app-body-color)',
+                'secondary-container': 'var(--app-hover-overlay)',
+                'on-secondary-container': 'var(--app-heading-color)',
+                tertiary: 'var(--app-accent-color)',
+                'tertiary-container':
+                    'color-mix(in srgb, var(--app-accent-color) 15%, transparent)',
+                error: 'var(--app-error-color)',
+                'error-container':
+                    'color-mix(in srgb, var(--app-error-color) 12%, transparent)',
             },
             borderRadius: {
                 widget: '14px',

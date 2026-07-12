@@ -9,8 +9,8 @@
     gap: 12px;
     height: 56px;
     padding: 0 24px;
-    border-bottom: 1px solid var(--mat-sys-outline-variant);
-    background: var(--app-header-bg, var(--mat-sys-surface-container-low));
+    border-bottom: 1px solid var(--app-widget-header-border);
+    background: var(--app-header-bg);
     app-region: drag;
 }
 
@@ -26,8 +26,8 @@
     max-width: 560px;
     height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-search-border);
+    background: var(--app-search-bg);
     display: flex;
     align-items: center;
     gap: 8px;
@@ -39,16 +39,16 @@
     app-region: no-drag;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-selection-color);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-selection-color) 12%, transparent);
     }
 
     mat-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-muted-color);
         flex-shrink: 0;
     }
 
@@ -60,14 +60,10 @@
         display: inline-flex;
         align-items: center;
         justify-content: center;
-        color: var(--mat-sys-on-surface-variant);
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-surface-container-high) 76%,
-            transparent
-        );
+        color: var(--app-muted-color);
+        background: var(--app-hover-overlay);
         border: 1px solid
-            color-mix(in srgb, var(--mat-sys-outline-variant) 82%, transparent);
+            color-mix(in srgb, var(--app-separator) 82%, transparent);
         font-size: 0.75rem;
         font-weight: 600;
         line-height: 1;
@@ -79,19 +75,19 @@
     }
 
     .search-chip--scope {
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 
     .search-chip--status {
-        color: var(--app-selection-color, var(--mat-sys-primary));
+        color: var(--app-selection-color);
         background: color-mix(
             in srgb,
-            var(--app-selection-surface, var(--mat-sys-primary-container)) 70%,
+            var(--app-selection-surface) 70%,
             transparent
         );
         border-color: color-mix(
             in srgb,
-            var(--app-selection-border, var(--mat-sys-primary)) 52%,
+            var(--app-selection-border) 52%,
             transparent
         );
     }
@@ -101,7 +97,7 @@
         border: none;
         outline: none;
         background: transparent;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
         font: inherit;
         font-size: 0.875rem;
 
@@ -111,7 +107,7 @@
         }
 
         &::placeholder {
-            color: var(--mat-sys-on-surface-variant);
+            color: var(--app-muted-color);
             opacity: 0.7;
         }
     }
@@ -124,14 +120,10 @@
         min-width: 36px;
         padding: 0 6px;
         margin-right: -2px;
-        color: var(--mat-sys-on-surface-variant);
-        background: color-mix(
-            in srgb,
-            var(--mat-sys-surface-container-high) 76%,
-            transparent
-        );
+        color: var(--app-muted-color);
+        background: var(--app-hover-overlay);
         border: 1px solid
-            color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+            color-mix(in srgb, var(--app-separator) 70%, transparent);
         border-radius: 5px;
         font-family: inherit;
         font-size: 0.7rem;
@@ -146,17 +138,17 @@
             border-color 0.15s ease;
 
         &:hover {
-            background: var(--mat-sys-surface-container-highest);
-            color: var(--mat-sys-on-surface);
+            background: var(--app-card-hover-bg);
+            color: var(--app-heading-color);
             border-color: color-mix(
                 in srgb,
-                var(--mat-sys-outline-variant) 100%,
+                var(--app-separator) 100%,
                 transparent
             );
         }
 
         &:focus-visible {
-            outline: 2px solid var(--mat-sys-primary);
+            outline: 2px solid var(--app-selection-color);
             outline-offset: 1px;
         }
     }
@@ -170,15 +162,26 @@
 
     button,
     a {
-        color: var(--mat-sys-on-surface-variant);
+        // Body-tier (not muted) so these read as active controls, not
+        // disabled. Hover brightens to --app-heading-color below.
+        color: var(--app-body-color);
         border-radius: 8px;
         transition:
             color 0.15s ease,
             background 0.15s ease;
 
+        // Suppress Material's circular state-layer overlay so only the
+        // rounded-rectangle hover/active states below render. Keeps the
+        // header consistent with the rail, nav items, and the .is-active
+        // state (all rounded rectangles). The click ripple is left intact —
+        // it is clipped to the button's 8px radius.
+        ::ng-deep .mat-mdc-button-persistent-ripple {
+            display: none;
+        }
+
         &:hover {
-            color: var(--mat-sys-on-surface);
-            background: var(--mat-sys-surface-container);
+            color: var(--app-heading-color);
+            background: var(--app-hover-overlay);
         }
 
         &.is-active {
@@ -202,7 +205,6 @@
 .header-actions--trailing {
     margin-left: auto;
     padding-left: 8px;
-    border-left: 1px solid var(--mat-sys-outline-variant);
     app-region: no-drag;
 }
 

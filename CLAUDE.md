@@ -210,6 +210,11 @@ are baselined in `tools/eslint/max-lines-baseline.mjs`; regenerate the baseline
 with `node tools/eslint/generate-max-lines-baseline.mjs` after splitting a file.
 Never add new files to the baseline.
 
+The CI lint job also runs `pnpm run lint:styles`
+(`tools/styles/check-mat-sys-usage.mjs`), which fails on new `var(--mat-sys-*)`
+references — those tokens are never emitted by the current theme; use the
+`--app-*` design tokens instead (see `docs/architecture/theme-design-tokens.md`).
+
 ## Architecture
 
 ### Monorepo Structure (Nx Workspace)
@@ -474,6 +479,15 @@ Typical split strategies:
 - Utility files: group by domain and export from a barrel `index.ts`
 
 This rule exists to keep the codebase navigable and reviewable. A 150-line file is always preferable to a 500-line file.
+
+---
+
+**Design Tokens (Theming)**:
+
+- The app theme (light + dark) lives in `apps/web/src/m3-theme.scss` (older Material M3 API: `mat.define-theme` + `mat.all-component-themes`). It defines the canonical `--app-*` design tokens for both themes.
+- **Never reference `--mat-sys-*` tokens in styles** — this theme setup never emits Material system tokens, so such references are silent no-ops (invalid at computed-value time). Use the `--app-*` tokens instead.
+- CI fails on new `var(--mat-sys-*)` usages: `pnpm run lint:styles` (`tools/styles/check-mat-sys-usage.mjs`; legacy usages are baselined in `tools/styles/mat-sys-baseline.mjs`, which must only shrink).
+- Token mapping and screenshot-driven migration protocol: `docs/architecture/theme-design-tokens.md`.
 
 ---
 

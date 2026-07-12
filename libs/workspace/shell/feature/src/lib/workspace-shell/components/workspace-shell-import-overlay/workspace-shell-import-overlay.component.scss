@@ -45,7 +45,7 @@
         font-size: 1.55rem;
         font-weight: 650;
         letter-spacing: -0.03em;
-        color: var(--app-heading-color, var(--mat-sys-on-surface));
+        color: var(--app-heading-color);
     }
 }
 
@@ -85,13 +85,13 @@
 .workspace-loading-overlay__phase {
     font-size: 1rem;
     font-weight: 560;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-body-color);
 }
 
 .workspace-loading-overlay__detail {
     max-width: 32ch;
     justify-self: center;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     line-height: 1.45;
 }
 
@@ -100,7 +100,7 @@
     justify-self: center;
     line-height: 1.45;
     font-variant-numeric: tabular-nums;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     text-wrap: balance;
 }
 

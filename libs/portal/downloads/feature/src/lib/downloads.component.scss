@@ -10,8 +10,8 @@
     overflow: hidden;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 56%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 44%
+        var(--app-widget-header-bg) 56%,
+        var(--app-body-color) 44%
     );
 
     &::after {
@@ -23,7 +23,7 @@
             transparent 8%,
             color-mix(
                     in srgb,
-                    var(--app-heading-color, var(--mat-sys-on-surface)) 18%,
+                    var(--app-heading-color) 18%,
                     transparent
                 )
                 44%,
@@ -57,7 +57,7 @@
         justify-content: space-between;
         margin-bottom: 1rem;
         padding: 24px 16px 12px;
-        border-bottom: 1px solid var(--mat-sys-outline-variant);
+        border-bottom: 1px solid var(--app-separator);
 
         &-left {
             display: flex;
@@ -92,8 +92,8 @@
     }
 
     &__badge {
-        background: var(--mat-sys-primary);
-        color: var(--mat-sys-on-primary);
+        background: var(--app-selection-color);
+        color: var(--app-selection-on-color);
         padding: 0.125rem 0.5rem;
         border-radius: 12px;
         font-size: 0.75rem;
@@ -108,19 +108,19 @@
         padding: 7px 10px;
         background: color-mix(
             in srgb,
-            var(--mat-sys-surface-container-high) 86%,
+            var(--app-widget-header-bg) 86%,
             transparent
         );
-        border: 1px solid var(--mat-sys-outline-variant);
+        border: 1px solid var(--app-separator);
         border-radius: 8px;
         box-shadow: inset 0 1px 0
-            color-mix(in srgb, var(--mat-sys-on-surface) 8%, transparent);
+            color-mix(in srgb, var(--app-on-surface) 8%, transparent);
 
         mat-icon {
             width: 16px;
             height: 16px;
             font-size: 16px;
-            color: var(--mat-sys-primary);
+            color: var(--app-selection-color);
             flex-shrink: 0;
         }
     }
@@ -130,7 +130,7 @@
             'JetBrains Mono', 'SFMono-Regular', Menlo, Monaco, Consolas,
             monospace;
         font-size: 0.78rem;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
         overflow: hidden;
         text-overflow: ellipsis;
         white-space: nowrap;
@@ -143,7 +143,7 @@
         justify-content: center;
         flex: 1;
         text-align: center;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-body-color);
 
         mat-icon {
             font-size: 4rem;
@@ -158,7 +158,7 @@
             font-size: 1.05rem;
             font-weight: 520;
             letter-spacing: -0.01em;
-            color: var(--mat-sys-on-surface);
+            color: var(--app-heading-color);
         }
 
         span {
@@ -198,7 +198,7 @@
         font-size: 0.86rem;
         font-weight: 600;
         letter-spacing: -0.01em;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 
     &__skeleton-item {
@@ -212,10 +212,10 @@
         border-radius: 14px;
         background: color-mix(
             in srgb,
-            var(--app-widget-bg, var(--mat-sys-surface-container-high)) 88%,
-            var(--mat-sys-surface-container) 12%
+            var(--app-widget-bg) 88%,
+            var(--app-widget-header-bg) 12%
         );
-        border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+        border: 1px solid var(--app-separator);
         box-shadow: var(--app-widget-shadow, none);
     }
 
@@ -224,7 +224,7 @@
         width: 64px;
         height: 90px;
         border-radius: 10px;
-        border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+        border: 1px solid var(--app-separator);
     }
 
     &__skeleton-info {
@@ -281,7 +281,7 @@
         border-top: 1px solid
             color-mix(
                 in srgb,
-                var(--app-separator, var(--mat-sys-outline-variant)) 72%,
+                var(--app-separator) 72%,
                 transparent
             );
 
@@ -300,12 +300,9 @@
         gap: 1rem;
         padding: 1rem;
         min-width: 0;
-        background: var(
-            --app-widget-bg,
-            var(--mat-sys-surface-container-high)
-        );
+        background: var(--app-widget-bg);
         border-radius: 14px;
-        border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+        border: 1px solid var(--app-separator);
         box-shadow: var(--app-widget-shadow, none);
         transition:
             background 0.18s ease,
@@ -317,7 +314,7 @@
             cursor: pointer;
 
             &:focus-visible {
-                outline: 2px solid var(--mat-sys-primary);
+                outline: 2px solid var(--app-selection-color);
                 outline-offset: 2px;
             }
         }
@@ -341,14 +338,11 @@
             border-radius: 10px;
             overflow: hidden;
             flex-shrink: 0;
-            background: var(
-                --app-widget-header-bg,
-                var(--mat-sys-surface-container-high)
-            );
+            background: var(--app-widget-header-bg);
             display: flex;
             align-items: center;
             justify-content: center;
-            border: 1px solid var(--app-separator, var(--mat-sys-outline-variant));
+            border: 1px solid var(--app-separator);
 
             img {
                 width: 100%;
@@ -360,7 +354,7 @@
                 font-size: 2rem;
                 width: 2rem;
                 height: 2rem;
-                color: var(--mat-sys-on-surface-variant);
+                color: var(--app-body-color);
                 opacity: 0.5;
             }
         }
@@ -377,7 +371,7 @@
         &-title {
             font-size: 1.05rem;
             font-weight: 600;
-            color: var(--mat-sys-on-surface);
+            color: var(--app-heading-color);
             display: flex;
             align-items: flex-start;
             gap: 0.5rem;
@@ -399,7 +393,7 @@
             flex-wrap: wrap;
             gap: 1rem;
             font-size: 0.85rem;
-            color: var(--mat-sys-on-surface-variant);
+            color: var(--app-body-color);
         }
 
         &-status {
@@ -409,10 +403,7 @@
             font-weight: 500;
             padding: 2px 8px;
             border-radius: 12px;
-            background: var(
-                --app-widget-header-bg,
-                var(--mat-sys-surface-container-high)
-            );
+            background: var(--app-widget-header-bg);
 
             mat-icon {
                 font-size: 1.1rem;
@@ -431,16 +422,16 @@
             }
 
             &.status-failed {
-                color: var(--mat-sys-error);
+                color: var(--app-error-color);
                 background: color-mix(
                     in srgb,
-                    var(--mat-sys-error) 12%,
+                    var(--app-error-color) 12%,
                     transparent
                 );
             }
 
             &.status-queued {
-                color: var(--mat-sys-on-surface-variant);
+                color: var(--app-body-color);
             }
         }
 
@@ -454,11 +445,11 @@
         }
 
         &-error {
-            color: var(--mat-sys-error);
+            color: var(--app-error-color);
             font-size: 0.8rem;
             background: color-mix(
                 in srgb,
-                var(--mat-sys-error) 12%,
+                var(--app-error-color) 12%,
                 transparent
             );
             padding: 2px 8px;
@@ -475,7 +466,7 @@
             border-top: 1px solid
                 color-mix(
                     in srgb,
-                    var(--app-separator, var(--mat-sys-outline-variant)) 72%,
+                    var(--app-separator) 72%,
                     transparent
                 );
 
@@ -514,8 +505,8 @@
     }
 
     &__episode-badge {
-        background: var(--mat-sys-primary);
-        color: var(--mat-sys-on-primary);
+        background: var(--app-selection-color);
+        color: var(--app-selection-on-color);
         padding: 0.125rem 0.5rem;
         border-radius: 6px;
         font-size: 0.7rem;

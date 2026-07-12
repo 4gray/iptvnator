@@ -73,7 +73,7 @@
     flex-shrink: 0;
     min-height: 32px;
     border-radius: 999px;
-    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-body-color);
     --mdc-text-button-label-text-color: currentColor;
     --mat-text-button-state-layer-color: currentColor;
 
@@ -154,7 +154,7 @@
     font-size: 0.72rem;
     font-weight: 700;
     line-height: 1.2;
-    color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-body-color);
     text-transform: uppercase;
     letter-spacing: 0.04em;
 }
@@ -174,10 +174,7 @@ mat-paginator {
     flex-shrink: 0;
     // Shrink paginator text to fit header height comfortably
     --mat-paginator-container-size: 40px;
-    --mat-paginator-enabled-icon-color: var(
-        --app-body-color,
-        var(--mat-sys-on-surface-variant)
-    );
+    --mat-paginator-enabled-icon-color: var(--app-body-color);
     --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
 }
 

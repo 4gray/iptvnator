@@ -17,7 +17,7 @@
 
     .sidebar-header {
         padding: 8px 12px;
-        background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+        background: var(--app-widget-header-bg);
         border-bottom: 1px solid var(--app-separator);
         app-region: drag;
         display: flex;

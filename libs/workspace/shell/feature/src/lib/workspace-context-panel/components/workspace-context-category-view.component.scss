@@ -16,13 +16,13 @@
     border-radius: 12px;
     background: color-mix(
         in srgb,
-        var(--app-selection-surface, var(--mat-sys-surface-container)) 72%,
+        var(--app-selection-surface) 72%,
         transparent
     );
     border: 1px solid
         color-mix(
             in srgb,
-            var(--app-selection-border, var(--mat-sys-outline-variant)) 70%,
+            var(--app-selection-border) 70%,
             transparent
         );
     color: var(--mat-sys-on-surface-variant);
@@ -52,8 +52,8 @@
     border-radius: 999px;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 48%
+        var(--app-widget-header-bg) 52%,
+        var(--app-body-color) 48%
     );
 
     &::after {
@@ -65,7 +65,7 @@
             transparent 8%,
             color-mix(
                     in srgb,
-                    var(--app-heading-color, var(--mat-sys-on-surface)) 18%,
+                    var(--app-heading-color) 18%,
                     transparent
                 )
                 44%,

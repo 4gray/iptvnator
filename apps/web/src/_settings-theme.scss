@@ -16,12 +16,12 @@
     --settings-action-bar-space: 0px;
     --settings-page-header-bg: color-mix(
         in srgb,
-        var(--mat-sys-surface-container-low) 94%,
+        var(--app-widget-bg) 94%,
         rgba(255, 255, 255, 0.98)
     );
     --settings-page-header-border: color-mix(
         in srgb,
-        var(--mat-sys-outline-variant) 72%,
+        var(--app-separator) 72%,
         transparent
     );
     --settings-page-header-shadow:
@@ -29,12 +29,12 @@
         0 1px 0 rgba(255, 255, 255, 0.68) inset;
     --settings-group-bg: color-mix(
         in srgb,
-        var(--mat-sys-surface) 96%,
+        var(--app-content-bg) 96%,
         rgba(255, 255, 255, 0.96)
     );
     --settings-group-border: color-mix(
         in srgb,
-        var(--mat-sys-outline-variant) 78%,
+        var(--app-separator) 78%,
         transparent
     );
     --settings-group-shadow: 0 14px 28px -32px rgba(15, 23, 42, 0.14);
@@ -59,42 +59,38 @@
     --settings-item-border: var(--app-separator);
     --settings-item-danger-bg: color-mix(
         in srgb,
-        var(--mat-sys-error) 4%,
+        var(--app-error-color) 4%,
         rgba(255, 255, 255, 0.96)
     );
     --settings-item-danger-border: color-mix(
         in srgb,
-        var(--mat-sys-error) 14%,
+        var(--app-error-color) 14%,
         transparent
     );
     --settings-action-bar-bg: color-mix(
         in srgb,
-        var(--mat-sys-surface-container-low) 94%,
+        var(--app-widget-bg) 94%,
         rgba(255, 255, 255, 0.9)
     );
     --settings-action-bar-border: color-mix(
         in srgb,
-        var(--mat-sys-outline-variant) 62%,
+        var(--app-separator) 62%,
         transparent
     );
     --settings-action-bar-shadow: 0 10px 26px -26px rgba(15, 23, 42, 0.22);
-    --settings-muted: color-mix(
-        in srgb,
-        var(--mat-sys-on-surface) 64%,
-        transparent
-    );
+    --settings-muted: var(--app-muted-color);
 }
 
 :where(.dark-theme, [data-theme='dark'], .mat-app-background.dark)
     .settings-container {
     --settings-page-header-bg: color-mix(
         in srgb,
-        var(--mat-sys-surface-container) 92%,
+        var(--app-widget-bg) 92%,
         rgba(12, 16, 24, 0.94)
     );
     --settings-page-header-border: color-mix(
         in srgb,
-        var(--mat-sys-outline-variant) 38%,
+        var(--app-separator) 38%,
         transparent
     );
     --settings-page-header-shadow:
@@ -102,7 +98,7 @@
         0 16px 26px -34px rgba(0, 0, 0, 0.4);
     --settings-group-bg: color-mix(
         in srgb,
-        var(--mat-sys-surface-container) 94%,
+        var(--app-widget-bg) 94%,
         rgba(10, 14, 22, 0.82)
     );
     --settings-group-border: rgba(255, 255, 255, 0.08);
@@ -127,26 +123,22 @@
         0 10px 22px -28px var(--settings-group-active-glow);
     --settings-item-danger-bg: color-mix(
         in srgb,
-        var(--mat-sys-error) 8%,
+        var(--app-error-color) 8%,
         rgba(24, 10, 12, 0.86)
     );
     --settings-item-danger-border: color-mix(
         in srgb,
-        var(--mat-sys-error) 24%,
+        var(--app-error-color) 24%,
         transparent
     );
     --settings-action-bar-bg: color-mix(
         in srgb,
-        var(--mat-sys-surface-container) 92%,
+        var(--app-widget-bg) 92%,
         transparent
     );
     --settings-action-bar-border: rgba(255, 255, 255, 0.08);
     --settings-action-bar-shadow: 0 8px 30px rgba(0, 0, 0, 0.18);
-    --settings-muted: color-mix(
-        in srgb,
-        var(--mat-sys-on-surface) 68%,
-        transparent
-    );
+    --settings-muted: var(--app-muted-color);
 }
 
 .settings-container {
@@ -171,11 +163,7 @@
                 color-mix(in srgb, #ffb347 14%, transparent) 0%,
                 transparent 60%
             ),
-            color-mix(
-                in srgb,
-                var(--mat-sys-surface-container-low) 92%,
-                transparent
-            );
+            color-mix(in srgb, var(--app-widget-bg) 92%, transparent);
         overflow: hidden;
 
         &::after {
@@ -272,7 +260,7 @@
         &:focus-visible {
             outline: none;
             box-shadow:
-                0 0 0 2px var(--mat-sys-surface),
+                0 0 0 2px var(--app-content-bg),
                 0 0 0 4px
                     color-mix(
                         in srgb,

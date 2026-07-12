@@ -61,6 +61,7 @@
         "release:artwork:generate": "tsx tools/release/generate-marketing-artwork.ts --generate",
         "release:artwork:validate": "tsx tools/release/generate-marketing-artwork.ts --validate",
         "lint": "nx run-many --target=lint --all",
+        "lint:styles": "node tools/styles/check-mat-sys-usage.mjs",
         "build": "nx build electron-backend"
     },
     "private": true,

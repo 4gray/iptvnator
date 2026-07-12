@@ -116,7 +116,7 @@
         font-size: 64px;
         width: 64px;
         height: 64px;
-        color: var(--app-selection-color, var(--mat-sys-primary));
+        color: var(--app-selection-color);
         opacity: 0.5;
     }
 }
@@ -205,8 +205,8 @@
 // Play / Pause uses the unified app primary, not the station's dominant color
 // — same blue as every other CTA so radio doesn't feel like a different app.
 .play-btn {
-    --mdc-fab-container-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mat-fab-container-color: var(--app-selection-color, var(--mat-sys-primary));
+    --mdc-fab-container-color: var(--app-selection-color);
+    --mat-fab-container-color: var(--app-selection-color);
     --mdc-fab-icon-color: #fff;
     --mat-fab-foreground-color: #fff;
     --mat-fab-icon-color: #fff;
@@ -243,10 +243,10 @@
 
 .vol-slider {
     flex: 1;
-    --mdc-slider-active-track-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mdc-slider-handle-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mat-slider-active-track-color: var(--app-selection-color, var(--mat-sys-primary));
-    --mat-slider-handle-color: var(--app-selection-color, var(--mat-sys-primary));
+    --mdc-slider-active-track-color: var(--app-selection-color);
+    --mdc-slider-handle-color: var(--app-selection-color);
+    --mat-slider-active-track-color: var(--app-selection-color);
+    --mat-slider-handle-color: var(--app-selection-color);
     --mdc-slider-inactive-track-color: var(--mat-sys-outline-variant);
     --mdc-slider-handle-width: 12px;
     --mdc-slider-handle-height: 12px;

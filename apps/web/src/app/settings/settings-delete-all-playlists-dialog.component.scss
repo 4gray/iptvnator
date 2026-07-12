@@ -28,7 +28,7 @@
     font-weight: 700;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 }
 
 .settings-delete-dialog__summary {
@@ -42,14 +42,9 @@
     justify-content: space-between;
     gap: 12px;
     padding: 10px 12px;
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline) 46%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-separator) 46%, transparent);
     border-radius: 14px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container) 84%,
-        transparent
-    );
+    background: color-mix(in srgb, var(--app-widget-bg) 84%, transparent);
 
     strong {
         font-size: 1rem;
@@ -68,7 +63,7 @@
     width: 18px;
     height: 18px;
     font-size: 18px;
-    color: var(--mat-sys-primary);
+    color: var(--app-selection-color);
 }
 
 .settings-delete-dialog__list {
@@ -86,7 +81,7 @@
         var(--app-selection-surface) 32%,
         transparent
     );
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 }
 
 .settings-delete-dialog__actions {

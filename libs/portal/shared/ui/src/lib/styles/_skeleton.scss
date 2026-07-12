@@ -15,13 +15,13 @@
     overflow: hidden;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 84%,
-        var(--app-widget-bg, var(--mat-sys-surface-container)) 16%
+        var(--app-widget-header-bg) 84%,
+        var(--app-widget-bg) 16%
     );
     border: 1px solid
         color-mix(
             in srgb,
-            var(--app-widget-header-border, var(--mat-sys-outline-variant)) 94%,
+            var(--app-widget-header-border) 94%,
             transparent
         );
 }
@@ -35,8 +35,8 @@
     border-radius: 999px;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 56%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 44%
+        var(--app-widget-header-bg) 56%,
+        var(--app-body-color) 44%
     );
 }
 
@@ -52,8 +52,8 @@
     border-radius: 999px;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 52%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 48%
+        var(--app-widget-header-bg) 52%,
+        var(--app-body-color) 48%
     );
 
     &--primary {
@@ -87,8 +87,8 @@
     flex-shrink: 0;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 60%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 40%
+        var(--app-widget-header-bg) 60%,
+        var(--app-body-color) 40%
     );
 }
 
@@ -99,8 +99,8 @@
     flex-shrink: 0;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 84%,
-        var(--app-widget-bg, var(--mat-sys-surface-container)) 16%
+        var(--app-widget-header-bg) 84%,
+        var(--app-widget-bg) 16%
     );
 }
 
@@ -118,8 +118,8 @@
     flex-shrink: 0;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 60%,
-        var(--app-body-color, var(--mat-sys-on-surface-variant)) 40%
+        var(--app-widget-header-bg) 60%,
+        var(--app-body-color) 40%
     );
 }
 
@@ -144,7 +144,7 @@
             transparent 10%,
             color-mix(
                     in srgb,
-                    var(--app-heading-color, var(--mat-sys-on-surface)) 20%,
+                    var(--app-heading-color) 20%,
                     transparent
                 )
                 46%,

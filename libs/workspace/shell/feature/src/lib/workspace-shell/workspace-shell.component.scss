@@ -13,7 +13,7 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: var(--app-shell-bg, var(--mat-sys-surface));
+    background: var(--app-shell-bg);
     color: var(--mat-sys-on-surface);
 }
 
@@ -37,7 +37,7 @@ app-workspace-shell-header {
     min-height: 0;
     min-width: 0;
     overflow: hidden;
-    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-rail-bg);
 
     &.single-pane {
         grid-template-columns: 1fr;
@@ -53,14 +53,14 @@ app-workspace-shell-context-sidebar {
     grid-column: 2;
     grid-row: 3;
     padding: 0;
-    background: var(--app-content-bg, var(--mat-sys-surface));
+    background: var(--app-content-bg);
 }
 
 .workspace-content {
     min-width: 0;
     min-height: 0;
     overflow: auto;
-    background: var(--app-content-bg, var(--mat-sys-surface));
+    background: var(--app-content-bg);
     border-radius: 16px 0 0 0;
     box-shadow: -4px 8px 20px var(--app-content-shadow, rgba(0, 0, 0, 0.18));
 }

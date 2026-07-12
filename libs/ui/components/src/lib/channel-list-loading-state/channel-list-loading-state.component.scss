@@ -61,7 +61,7 @@
     height: 100%;
     min-height: 0;
     overflow: hidden;
-    background: var(--app-content-bg, var(--mat-sys-surface));
+    background: var(--app-content-bg);
 }
 
 .groups-loading-nav {
@@ -73,7 +73,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-rail-bg);
     padding: 12px 10px 10px 12px;
     box-sizing: border-box;
 }
@@ -100,15 +100,11 @@
     border-radius: 12px;
     background: color-mix(
         in srgb,
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high)) 88%,
-        var(--app-widget-bg, var(--mat-sys-surface-container)) 12%
+        var(--app-widget-header-bg) 88%,
+        var(--app-widget-bg) 12%
     );
     border: 1px solid
-        color-mix(
-            in srgb,
-            var(--app-widget-header-border, var(--mat-sys-outline-variant)) 96%,
-            transparent
-        );
+        color-mix(in srgb, var(--app-widget-header-border) 96%, transparent);
 }
 
 .groups-loading-nav__label,
@@ -135,7 +131,7 @@
     display: flex;
     flex-direction: column;
     overflow: hidden;
-    background: var(--app-content-bg, var(--mat-sys-surface));
+    background: var(--app-content-bg);
     border-top-left-radius: 16px;
 }
 

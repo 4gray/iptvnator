@@ -87,11 +87,7 @@ const EPG_URL_PATTERN = /^\s*(http|https|file):\/\/[^ "]+\s*$/;
                 flex-direction: column;
                 gap: 10px;
                 padding: 12px;
-                border: 1px solid
-                    var(
-                        --app-widget-header-border,
-                        var(--mat-sys-outline-variant)
-                    );
+                border: 1px solid var(--app-widget-header-border);
                 border-radius: 8px;
                 background: var(--mat-sys-surface-container-low);
             }

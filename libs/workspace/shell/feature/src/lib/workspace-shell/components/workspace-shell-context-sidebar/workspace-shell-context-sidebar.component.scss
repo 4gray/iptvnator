@@ -6,7 +6,7 @@
 
 .context-panel {
     border-right: 1px solid var(--mat-sys-outline-variant);
-    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-rail-bg);
     display: flex;
     flex-direction: column;
     gap: 6px;

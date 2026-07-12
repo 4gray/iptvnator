@@ -35,7 +35,7 @@
     box-sizing: border-box;
     display: flex;
     align-items: center;
-    background: var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+    background: var(--app-widget-header-bg);
     border-bottom: 1px solid var(--app-separator);
     app-region: drag;
 }

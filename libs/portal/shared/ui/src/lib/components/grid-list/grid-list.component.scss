@@ -59,7 +59,7 @@ mat-card:hover {
             box-sizing: border-box;
             display: grid;
             place-items: center;
-            color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+            color: var(--app-muted-color);
             border-radius: 10px;
 
             mat-icon {
@@ -101,7 +101,7 @@ mat-card:hover {
             overflow: hidden;
             font-size: 0.8rem;
             line-height: 1.35;
-            color: var(--app-body-color, var(--mat-sys-on-surface-variant));
+            color: var(--app-body-color);
         }
     }
 }

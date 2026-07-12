@@ -18,10 +18,10 @@
 
 .selection-info {
     font-size: 0.8125rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
 
     strong {
-        color: var(--mat-sys-primary);
+        color: var(--app-selection-color);
     }
 }
 
@@ -41,17 +41,17 @@
     padding: 0 10px;
     min-height: 36px;
     border-radius: 10px;
-    border: 1px solid var(--app-search-border, var(--mat-sys-outline-variant));
-    background: var(--app-search-bg, var(--mat-sys-surface-container));
+    border: 1px solid var(--app-search-border);
+    background: var(--app-search-bg);
     cursor: text;
     transition:
         border-color 0.15s ease,
         box-shadow 0.15s ease;
 
     &:focus-within {
-        border-color: var(--mat-sys-primary);
+        border-color: var(--app-selection-color);
         box-shadow: 0 0 0 3px
-            color-mix(in srgb, var(--mat-sys-primary) 12%, transparent);
+            color-mix(in srgb, var(--app-selection-color) 12%, transparent);
     }
 }
 
@@ -59,7 +59,7 @@
     width: 18px;
     height: 18px;
     font-size: 18px;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
     flex-shrink: 0;
 }
 
@@ -70,12 +70,12 @@
     border: none;
     outline: none;
     background: transparent;
-    color: var(--mat-sys-on-surface);
+    color: var(--app-heading-color);
     font: inherit;
     font-size: 0.84rem;
 
     &::placeholder {
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-muted-color);
         opacity: 0.6;
     }
 
@@ -103,7 +103,7 @@
     flex: 1;
     min-height: 200px;
     overflow-y: auto;
-    border: 1px solid var(--mat-sys-outline-variant);
+    border: 1px solid var(--app-separator);
     border-radius: 8px;
 }
 
@@ -117,11 +117,11 @@
     transition: background-color 0.12s ease;
 
     &:hover {
-        background-color: var(--mat-sys-surface-container);
+        background-color: var(--app-hover-overlay);
     }
 
     &:not(:last-child) {
-        border-bottom: 1px solid var(--mat-sys-surface-container);
+        border-bottom: 1px solid var(--app-widget-header-border);
     }
 
     mat-checkbox {
@@ -139,12 +139,12 @@
 
 .item-count {
     font-size: 0.8rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
 }
 
 .empty-message {
     padding: 24px;
     text-align: center;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
     font-size: 0.8125rem;
 }

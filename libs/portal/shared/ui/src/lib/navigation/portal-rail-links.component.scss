@@ -78,17 +78,3 @@ nav.flex .portal-rail-link.active {
         inset 0 0 0 1px var(--app-selection-border),
         0 10px 20px -16px var(--app-selection-glow);
 }
-
-nav.flex .portal-rail-link.is-active::after,
-nav.flex .portal-rail-link.active::after {
-    content: '';
-    position: absolute;
-    right: -4px;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 4px;
-    height: 20px;
-    border-radius: 999px;
-    background: var(--app-selection-color);
-    box-shadow: 0 0 10px var(--app-selection-glow);
-}

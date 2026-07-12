@@ -32,20 +32,20 @@
         font-size: 0.94rem;
         font-weight: 600;
         letter-spacing: -0.01em;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 }
 
 .context-header p {
     margin: 4px 0 0;
     font-size: 0.78rem;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
 }
 
 // ─── Divider ──────────────────────────────────────────────────────────────────
 .context-divider {
     height: 1px;
-    background: var(--mat-sys-outline-variant);
+    background: var(--app-separator);
     margin: 0 0 6px;
     opacity: 0.6;
     flex-shrink: 0;
@@ -97,6 +97,6 @@
     font-weight: 600;
     text-transform: uppercase;
     letter-spacing: 0.08em;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-muted-color);
     opacity: 0.85;
 }

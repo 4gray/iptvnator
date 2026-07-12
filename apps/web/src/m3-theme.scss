@@ -89,6 +89,13 @@ html {
     // Live / on-air accent (broadcast indicator)
     --app-live-color: #d12c2c;
 
+    // Error / destructive accent (M3 error role)
+    --app-error-color: #ba1a1a;
+
+    // Secondary cyan accent (M3 "tertiary" role): radio badges,
+    // external-playback + success states
+    --app-accent-color: #0e7490;
+
     // Content area
     --app-content-shadow: -2px 4px 12px rgba(0, 0, 0, 0.06);
 
@@ -163,6 +170,13 @@ html {
 
         // Live / on-air accent (broadcast indicator)
         --app-live-color: #ff8f8f;
+
+        // Error / destructive accent (M3 error role)
+        --app-error-color: #ffb4ab;
+
+        // Secondary cyan accent (M3 "tertiary" role): radio badges,
+        // external-playback + success states
+        --app-accent-color: #5cd6ff;
 
         // Content area
         --app-content-shadow: -4px 8px 20px rgba(0, 0, 0, 0.18);

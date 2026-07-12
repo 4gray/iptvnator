@@ -37,6 +37,9 @@ jobs:
                   CI: true
                   NX_TASKS_RUNNER_DYNAMIC_OUTPUT: false
 
+            - name: Check for new --mat-sys-* token usages
+              run: node tools/styles/check-mat-sys-usage.mjs
+
     unit-and-typecheck:
         name: Unit Tests and Typechecks
         runs-on: ubuntu-latest

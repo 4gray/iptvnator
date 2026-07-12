@@ -1,6 +1,6 @@
 :host {
     display: block;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-body-color);
 }
 
 // ─── Hero header ────────────────────────────────────────────────────────────
@@ -11,7 +11,7 @@
     gap: 18px;
     background:
         var(--app-accent-gradient),
-        var(--app-widget-header-bg, var(--mat-sys-surface-container-high));
+        var(--app-widget-header-bg);
     border-bottom: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
 }
 
@@ -25,7 +25,7 @@
     align-items: center;
     gap: 8px;
     margin: 0;
-    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-eyebrow-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -36,8 +36,8 @@
     width: 8px;
     height: 8px;
     border-radius: 999px;
-    background: var(--app-provider-xtream, var(--mat-sys-primary));
-    box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 14%, transparent);
+    background: var(--app-provider-xtream);
+    box-shadow: 0 0 0 4px color-mix(in srgb, var(--app-provider-xtream) 14%, transparent);
 }
 
 .account-dialog__eyebrow-divider {
@@ -61,12 +61,12 @@
     line-height: 1.2;
     font-weight: 650;
     letter-spacing: -0.02em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
 }
 
 .account-dialog__subtitle {
     margin: 4px 0 0;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.88rem;
 }
 
@@ -86,8 +86,8 @@
     padding: 0 10px;
     border-radius: 999px;
     border: 1px solid var(--app-separator);
-    background: var(--mat-sys-surface-container);
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    background: var(--app-hover-overlay);
+    color: var(--app-body-color);
     font-size: 0.76rem;
     font-weight: 600;
     letter-spacing: 0.06em;
@@ -111,14 +111,14 @@
 .account-dialog__loading-copy {
     margin: 0;
     max-width: 60ch;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-body-color);
 }
 
 .account-dialog__message {
     padding: 10px 14px;
     border-radius: 10px;
     border: 1px solid var(--app-separator);
-    background: var(--mat-sys-surface-container);
+    background: var(--app-hover-overlay);
     line-height: 1.5;
     font-size: 0.88rem;
 }
@@ -136,7 +136,7 @@
     padding: 12px 14px;
     border-radius: 12px;
     border: 1px solid var(--app-widget-border, transparent);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container));
+    background: var(--app-widget-bg);
     box-shadow: var(--app-widget-shadow, none);
     // Subtle inset highlight matching widget-shell pattern
     outline: 1px solid rgba(255, 255, 255, 0.04);
@@ -150,8 +150,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 10px;
-    background: color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 12%, transparent);
-    color: var(--app-provider-xtream, var(--mat-sys-primary));
+    background: color-mix(in srgb, var(--app-provider-xtream) 12%, transparent);
+    color: var(--app-provider-xtream);
 
     mat-icon {
         font-size: 18px;
@@ -161,7 +161,7 @@
 }
 
 .account-stat__label {
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -172,7 +172,7 @@
     font-size: 1.3rem;
     font-weight: 650;
     letter-spacing: -0.03em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
 }
 
 .account-stat__meter {
@@ -187,14 +187,14 @@
     display: block;
     height: 100%;
     border-radius: inherit;
-    background: var(--app-provider-xtream, var(--mat-sys-primary));
+    background: var(--app-provider-xtream);
 }
 
 // ─── Content area ───────────────────────────────────────────────────────────
 .account-dialog__content {
     margin: 0;
     padding: 20px;
-    background: var(--app-widget-bg, var(--mat-sys-surface));
+    background: var(--app-widget-bg);
 }
 
 .account-dialog__grid {
@@ -210,7 +210,7 @@
     padding: 16px;
     border-radius: 16px;
     border: 1px solid var(--app-widget-border, transparent);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-widget-bg);
     box-shadow: var(--app-widget-shadow, none);
     outline: 1px solid rgba(255, 255, 255, 0.04);
     outline-offset: -1px;
@@ -226,12 +226,12 @@
     font-size: 1rem;
     font-weight: 600;
     letter-spacing: -0.01em;
-    color: var(--app-heading-color, var(--mat-sys-on-surface));
+    color: var(--app-heading-color);
 }
 
 .account-panel__eyebrow {
     margin: 0;
-    color: var(--app-eyebrow-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-eyebrow-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -261,7 +261,7 @@
 
 .account-detail-row dt {
     margin: 0;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -270,7 +270,7 @@
 
 .account-detail-row dd {
     margin: 0;
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    color: var(--app-body-color);
     font-size: 0.9rem;
     font-weight: 500;
     word-break: break-word;
@@ -282,7 +282,7 @@
 }
 
 .account-detail-row__value--accent {
-    color: var(--app-provider-xtream, var(--mat-sys-primary));
+    color: var(--app-provider-xtream);
 }
 
 .account-detail-row__value--positive {
@@ -301,7 +301,7 @@
 
 .account-chip-section__label {
     margin: 0;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     font-size: 0.72rem;
     font-weight: 600;
     letter-spacing: 0.1em;
@@ -320,9 +320,9 @@
     min-height: 28px;
     padding: 0 10px;
     border-radius: 999px;
-    border: 1px solid color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 16%, transparent);
-    background: color-mix(in srgb, var(--app-provider-xtream, var(--mat-sys-primary)) 8%, transparent);
-    color: var(--app-body-color, var(--mat-sys-on-surface));
+    border: 1px solid color-mix(in srgb, var(--app-provider-xtream) 16%, transparent);
+    background: color-mix(in srgb, var(--app-provider-xtream) 8%, transparent);
+    color: var(--app-body-color);
     font-size: 0.8rem;
     font-weight: 600;
     text-transform: uppercase;
@@ -335,8 +335,8 @@
 
 .account-chip--muted {
     border-color: var(--app-separator);
-    background: var(--mat-sys-surface-container);
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    background: var(--app-hover-overlay);
+    color: var(--app-muted-color);
 }
 
 // ─── Error state ────────────────────────────────────────────────────────────
@@ -347,7 +347,7 @@
     padding: 36px 20px;
     border-radius: 16px;
     border: 1px dashed var(--app-separator);
-    background: var(--app-widget-bg, var(--mat-sys-surface-container-low));
+    background: var(--app-widget-bg);
     text-align: center;
 }
 
@@ -358,7 +358,7 @@
 
 .account-dialog__error-state p {
     max-width: 52ch;
-    color: var(--app-muted-color, var(--mat-sys-on-surface-variant));
+    color: var(--app-muted-color);
     line-height: 1.5;
     font-size: 0.88rem;
 }
@@ -370,8 +370,8 @@
     align-items: center;
     justify-content: center;
     border-radius: 14px;
-    background: color-mix(in srgb, var(--mat-sys-error) 12%, transparent);
-    color: var(--mat-sys-error);
+    background: color-mix(in srgb, var(--app-error-color) 12%, transparent);
+    color: var(--app-error-color);
 }
 
 // ─── Skeleton loading ───────────────────────────────────────────────────────
@@ -394,7 +394,7 @@
     background: linear-gradient(
         90deg,
         transparent,
-        color-mix(in srgb, var(--app-heading-color, var(--mat-sys-on-surface)) 10%, transparent),
+        color-mix(in srgb, var(--app-heading-color) 10%, transparent),
         transparent
     );
     animation: account-dialog-shimmer 1.4s infinite;
@@ -426,7 +426,7 @@
     justify-content: flex-end;
     gap: 10px;
     border-top: 1px solid var(--app-widget-header-border, rgba(255, 255, 255, 0.05));
-    background: var(--app-widget-bg, var(--mat-sys-surface));
+    background: var(--app-widget-bg);
 }
 
 .account-dialog__close {

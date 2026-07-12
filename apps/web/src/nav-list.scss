@@ -18,7 +18,7 @@
     border: 1px solid transparent;
     border-radius: 10px;
     background: transparent;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     text-align: left;
     text-decoration: none;
     cursor: pointer;
@@ -54,13 +54,13 @@
         min-width: 2ch;
         text-align: right;
         flex-shrink: 0;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-body-color);
         opacity: 0.7;
     }
 
     &:hover:not(.selected):not(.active):not(.is-active) {
         background: var(--app-selection-surface);
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 
     &.selected,

@@ -13,8 +13,8 @@
     box-sizing: border-box;
     padding: 10px 8px;
     border-right: 1px solid
-        var(--app-rail-border, var(--mat-sys-outline-variant));
-    background: var(--app-rail-bg, var(--mat-sys-surface-container-low));
+        var(--app-rail-border);
+    background: var(--app-rail-bg);
     app-region: drag;
     overflow-y: auto;
     overflow-x: hidden;
@@ -82,19 +82,6 @@
 
     mat-icon {
         color: var(--rail-link-active-icon);
-    }
-
-    &::after {
-        content: '';
-        position: absolute;
-        right: -4px;
-        top: 50%;
-        transform: translateY(-50%);
-        width: 3px;
-        height: 18px;
-        border-radius: 999px;
-        background: var(--rail-link-active-icon);
-        box-shadow: 0 0 10px var(--rail-link-active-glow);
     }
 }
 
@@ -207,19 +194,6 @@
         &:hover:not(.is-active) {
             background: var(--app-hover-overlay);
             color: var(--app-on-surface);
-        }
-
-        &.is-active::after {
-            content: '';
-            position: absolute;
-            right: -4px;
-            top: 50%;
-            transform: translateY(-50%);
-            width: 4px;
-            height: 20px;
-            border-radius: 999px;
-            background: var(--app-selection-color);
-            box-shadow: 0 0 10px var(--app-selection-glow);
         }
     }
 }

@@ -61,10 +61,7 @@ mat-paginator {
     background: transparent !important;
     flex-shrink: 0;
     --mat-paginator-container-size: 40px;
-    --mat-paginator-enabled-icon-color: var(
-        --app-body-color,
-        var(--mat-sys-on-surface-variant)
-    );
+    --mat-paginator-enabled-icon-color: var(--app-body-color);
     --mat-paginator-disabled-icon-color: rgba(255, 255, 255, 0.18);
 }
 

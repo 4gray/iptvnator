@@ -154,7 +154,7 @@ textarea,
 
 // ─── Dark Theme ───────────────────────────────────────────────────────────────
 .dark-theme {
-    background: var(--mat-sys-surface) !important;
+    background: var(--app-shell-bg) !important;
 
     // Refined scrollbar for dark mode
     ::-webkit-scrollbar {

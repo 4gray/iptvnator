@@ -278,13 +278,8 @@
     display: inline-flex;
     padding: 3px;
     gap: 2px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 80%,
-        transparent
-    );
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 60%, transparent);
+    background: color-mix(in srgb, var(--app-widget-bg) 80%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-separator) 60%, transparent);
     border-radius: 10px;
 }
 
@@ -299,7 +294,7 @@
     border: 0;
     border-radius: 7px;
     background: transparent;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font: inherit;
     font-size: 0.82rem;
     font-weight: 500;
@@ -320,10 +315,10 @@
     &:hover {
         background: color-mix(
             in srgb,
-            var(--mat-sys-surface-container-highest) 70%,
+            var(--app-card-hover-bg) 70%,
             transparent
         );
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 
     &:focus-visible {
@@ -334,7 +329,7 @@
 }
 
 .theme-switcher__option--selected {
-    background: var(--app-widget-bg, var(--mat-sys-surface));
+    background: var(--app-widget-bg);
     color: var(--app-selection-color);
     font-weight: 600;
     box-shadow:
@@ -358,7 +353,7 @@
     text-align: center;
     gap: 8px;
     padding: 24px 16px 16px;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 
     .epg-sources-empty__icon {
         font-size: 40px;
@@ -372,7 +367,7 @@
         margin: 0;
         font-size: 0.95rem;
         font-weight: 600;
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
     }
 
     .epg-sources-empty__hint {
@@ -479,7 +474,7 @@
 
     small {
         margin-top: 4px;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-body-color);
         text-align: right;
     }
 }
@@ -499,15 +494,10 @@
     align-items: center;
     gap: 12px;
     padding: 12px 14px;
-    border: 1px solid
-        color-mix(in srgb, var(--mat-sys-outline-variant) 70%, transparent);
+    border: 1px solid color-mix(in srgb, var(--app-separator) 70%, transparent);
     border-radius: 16px;
-    background: color-mix(
-        in srgb,
-        var(--mat-sys-surface-container-low) 88%,
-        transparent
-    );
-    color: var(--mat-sys-on-surface);
+    background: color-mix(in srgb, var(--app-widget-bg) 88%, transparent);
+    color: var(--app-heading-color);
     text-decoration: none;
     transition:
         border-color 0.18s ease,
@@ -520,11 +510,11 @@
         border-color: color-mix(
             in srgb,
             var(--app-selection-border) 54%,
-            var(--mat-sys-outline-variant)
+            var(--app-separator)
         );
         background: color-mix(
             in srgb,
-            var(--mat-sys-surface-container-high) 92%,
+            var(--app-widget-header-bg) 92%,
             transparent
         );
         box-shadow: 0 10px 20px -22px rgba(15, 23, 42, 0.5);
@@ -538,7 +528,7 @@
     &:focus-visible {
         outline: none;
         box-shadow:
-            0 0 0 2px var(--mat-sys-surface),
+            0 0 0 2px var(--app-content-bg),
             0 0 0 4px
                 color-mix(in srgb, var(--app-selection-color) 40%, transparent);
     }
@@ -553,10 +543,10 @@
     border-radius: 12px;
     background: color-mix(
         in srgb,
-        var(--mat-sys-surface-container-high) 82%,
+        var(--app-widget-header-bg) 82%,
         transparent
     );
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
 
     svg {
         width: 20px;
@@ -571,8 +561,8 @@
 }
 
 .link-card--github .link-card__glyph {
-    background: color-mix(in srgb, var(--mat-sys-on-surface) 10%, transparent);
-    color: var(--mat-sys-on-surface);
+    background: color-mix(in srgb, var(--app-heading-color) 10%, transparent);
+    color: var(--app-heading-color);
 }
 
 .link-card--blog .link-card__glyph {
@@ -625,9 +615,9 @@
     padding: 10px 12px;
     border-radius: 14px;
     font-size: 0.84rem;
-    background: color-mix(in srgb, var(--mat-sys-primary) 8%, transparent);
+    background: color-mix(in srgb, var(--app-selection-color) 8%, transparent);
     border: 1px solid
-        color-mix(in srgb, var(--mat-sys-primary) 30%, transparent);
+        color-mix(in srgb, var(--app-selection-color) 30%, transparent);
     line-height: 1.45;
 
     a {
@@ -675,20 +665,20 @@
     border-radius: 12px;
     background: color-mix(
         in srgb,
-        var(--mat-sys-surface-container-high) 78%,
+        var(--app-widget-header-bg) 78%,
         transparent
     );
     border: 1px solid
         color-mix(in srgb, var(--settings-item-danger-border) 60%, transparent);
     font-size: 0.82rem;
     line-height: 1.2;
-    color: var(--mat-sys-on-surface);
+    color: var(--app-heading-color);
 
     .danger-zone__summary-icon {
         font-size: 18px;
         width: 18px;
         height: 18px;
-        color: var(--mat-sys-on-surface-variant);
+        color: var(--app-body-color);
         flex-shrink: 0;
     }
 
@@ -707,10 +697,10 @@
         border-radius: 999px;
         background: color-mix(
             in srgb,
-            var(--mat-sys-on-surface) 10%,
+            var(--app-heading-color) 10%,
             transparent
         );
-        color: var(--mat-sys-on-surface);
+        color: var(--app-heading-color);
         font-size: 0.78rem;
         font-weight: 700;
         font-variant-numeric: tabular-nums;
@@ -720,7 +710,7 @@
 
 .danger-zone__progress {
     margin: 0;
-    color: var(--mat-sys-on-surface-variant);
+    color: var(--app-body-color);
     font-size: 0.84rem;
 }
 
@@ -812,10 +802,10 @@
     &[disabled] {
         background: color-mix(
             in srgb,
-            var(--mat-sys-on-surface) 12%,
+            var(--app-heading-color) 12%,
             transparent
         );
-        color: color-mix(in srgb, var(--mat-sys-on-surface) 38%, transparent);
+        color: color-mix(in srgb, var(--app-heading-color) 38%, transparent);
         box-shadow: none;
     }
 }
