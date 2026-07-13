@@ -1,0 +1,124 @@
+import { REDACTED_VALUE, redactSensitiveData } from './redact-sensitive-data';
+
+const TEST_SECRETS = [
+    'settings-api-key-secret',
+    'nested-user-secret',
+    'nested-password-secret',
+    'nested-token-secret',
+    'nested-auth-secret',
+    'nested-mac-secret',
+    'query-password-secret',
+    'query-token-secret',
+];
+
+function serialized(value: unknown): string {
+    return JSON.stringify(value);
+}
+
+describe('redactSensitiveData', () => {
+    it('recursively redacts credentials while retaining diagnostic fields', () => {
+        const input = {
+            operation: 'get_profile',
+            settings: { tmdb: { apiKey: TEST_SECRETS[0] } },
+            params: {
+                username: TEST_SECRETS[1],
+                PASSWORD: TEST_SECRETS[2],
+                access_token: TEST_SECRETS[3],
+                headers: { Authorization: `Bearer ${TEST_SECRETS[4]}` },
+                macAddress: TEST_SECRETS[5],
+            },
+        };
+
+        const result = redactSensitiveData(input);
+        const output = serialized(result);
+
+        for (const secret of TEST_SECRETS) {
+            expect(output).not.toContain(secret);
+        }
+        expect(result).toEqual({
+            operation: 'get_profile',
+            settings: { tmdb: { apiKey: REDACTED_VALUE } },
+            params: {
+                username: REDACTED_VALUE,
+                PASSWORD: REDACTED_VALUE,
+                access_token: REDACTED_VALUE,
+                headers: { Authorization: REDACTED_VALUE },
+                macAddress: REDACTED_VALUE,
+            },
+        });
+    });
+
+    it('redacts credentials embedded in URL, URLSearchParams, errors, and serialized strings', () => {
+        const url = new URL(
+            `https://user:pass@example.com/live?password=${TEST_SECRETS[6]}&token=${TEST_SECRETS[7]}&action=get_live_streams`
+        );
+        const params = new URLSearchParams({
+            authorization: TEST_SECRETS[4],
+            category: 'news',
+        });
+        const error = new Error(
+            `Request failed: https://example.com/api?token=${TEST_SECRETS[3]}&action=profile`
+        );
+        const json = JSON.stringify({
+            refreshToken: TEST_SECRETS[3],
+            status: 401,
+        });
+
+        const output = serialized(
+            redactSensitiveData({ url, params, error, json })
+        );
+
+        for (const secret of TEST_SECRETS) {
+            expect(output).not.toContain(secret);
+        }
+        expect(output).toContain('action=get_live_streams');
+        expect(output).toContain('category=news');
+        expect(output).toContain('status');
+        expect(output).toContain('401');
+    });
+
+    it('redacts credentials nested inside non-sensitive query values', () => {
+        const nestedUrl = `https://identity.example/callback?token=${TEST_SECRETS[3]}&step=authorize`;
+        const url = new URL('https://example.com/portal');
+        url.searchParams.set('redirect', nestedUrl);
+        url.searchParams.set(
+            'payload',
+            JSON.stringify({ password: TEST_SECRETS[2], action: 'profile' })
+        );
+
+        const output = serialized(redactSensitiveData(url));
+
+        expect(output).not.toContain(TEST_SECRETS[2]);
+        expect(output).not.toContain(TEST_SECRETS[3]);
+        expect(output).toContain('authorize');
+        expect(output).toContain('profile');
+    });
+
+    it('does not mutate input and safely bounds cycles, depth, arrays, objects, and strings', () => {
+        const input: Record<string, unknown> = {
+            status: 'ok',
+            password: TEST_SECRETS[2],
+            items: [1, 2, 3, 4],
+            long: 'abcdefghij',
+            nested: { level: { value: 'too deep' } },
+            extraA: 'a',
+            extraB: 'b',
+        };
+        input['self'] = input;
+        const originalItems = input['items'];
+
+        const result = redactSensitiveData(input, {
+            maxArrayItems: 2,
+            maxDepth: 2,
+            maxObjectKeys: 6,
+            maxStringLength: 8,
+        });
+
+        expect(input['password']).toBe(TEST_SECRETS[2]);
+        expect(input['items']).toBe(originalItems);
+        expect(result).not.toBe(input);
+        expect(() => serialized(result)).not.toThrow();
+        expect(serialized(result)).not.toContain(TEST_SECRETS[2]);
+        expect(serialized(result)).toContain('[Truncated');
+    });
+});

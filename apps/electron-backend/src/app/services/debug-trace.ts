@@ -146,10 +146,10 @@ export function summarizeForTrace(value: unknown, depth = 0): unknown {
 
 export function safeStringifyForTrace(payload: unknown): string {
     try {
-        return JSON.stringify(payload);
+        return JSON.stringify(redactSensitiveData(payload));
     } catch (error) {
         return JSON.stringify({
-            fallback: summarizeForTrace(payload),
+            fallback: summarizeForTrace(redactSensitiveData(payload)),
             stringifyError:
                 error instanceof Error
                     ? truncateString(error.message)
@@ -166,7 +166,8 @@ export function trace(scope: string, message: string, payload?: unknown): void {
 
     console.log(
         `${TRACE_PREFIX}[${scope}] ${message} ${safeStringifyForTrace(
-            summarizeForTrace(payload)
+            summarizeForTrace(redactSensitiveData(payload))
         )}`
     );
 }
+import { redactSensitiveData } from '@iptvnator/shared/logging';
