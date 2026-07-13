@@ -277,43 +277,51 @@ export function redactSensitiveData(
         }
         seen.add(object);
 
-        if (input instanceof URL) {
-            return redactUrl(input, (entry) => visitString(entry, depth + 1));
-        }
-        if (input instanceof URLSearchParams) {
-            return redactSearchParams(input, (entry) =>
-                visitString(entry, depth + 1)
-            ).toString();
-        }
-        if (input instanceof Error) {
-            return visitError(input, depth);
-        }
-        if (input instanceof Date) {
-            return input.toISOString();
-        }
-        if (Array.isArray(input)) {
-            const output = input
-                .slice(0, resolved.maxArrayItems)
-                .map((entry) => visit(entry, depth + 1));
-            if (input.length > resolved.maxArrayItems) {
-                output.push(
-                    `[Truncated ${input.length - resolved.maxArrayItems} items]`
+        try {
+            if (input instanceof URL) {
+                return redactUrl(input, (entry) =>
+                    visitString(entry, depth + 1)
                 );
             }
-            return output;
-        }
-        if (input instanceof Map) {
-            const entries: Record<string, unknown> = {};
-            for (const [key, entry] of input) {
-                entries[String(key)] = entry;
+            if (input instanceof URLSearchParams) {
+                return redactSearchParams(input, (entry) =>
+                    visitString(entry, depth + 1)
+                ).toString();
             }
-            return visitObject(entries, depth);
-        }
-        if (input instanceof Set) {
-            return visit(Array.from(input), depth);
-        }
+            if (input instanceof Error) {
+                return visitError(input, depth);
+            }
+            if (input instanceof Date) {
+                return input.toISOString();
+            }
+            if (Array.isArray(input)) {
+                const output = input
+                    .slice(0, resolved.maxArrayItems)
+                    .map((entry) => visit(entry, depth + 1));
+                if (input.length > resolved.maxArrayItems) {
+                    output.push(
+                        `[Truncated ${
+                            input.length - resolved.maxArrayItems
+                        } items]`
+                    );
+                }
+                return output;
+            }
+            if (input instanceof Map) {
+                const entries: Record<string, unknown> = {};
+                for (const [key, entry] of input) {
+                    entries[String(key)] = entry;
+                }
+                return visitObject(entries, depth);
+            }
+            if (input instanceof Set) {
+                return visit(Array.from(input), depth);
+            }
 
-        return visitObject(input as Record<string, unknown>, depth);
+            return visitObject(input as Record<string, unknown>, depth);
+        } finally {
+            seen.delete(object);
+        }
     };
 
     return visit(value, 0);

@@ -121,4 +121,24 @@ describe('redactSensitiveData', () => {
         expect(serialized(result)).not.toContain(TEST_SECRETS[2]);
         expect(serialized(result)).toContain('[Truncated');
     });
+
+    it('preserves repeated non-circular references while still redacting them', () => {
+        const shared = {
+            operation: 'get_profile',
+            password: TEST_SECRETS[2],
+        };
+
+        const result = redactSensitiveData({ first: shared, second: shared });
+
+        expect(result).toEqual({
+            first: {
+                operation: 'get_profile',
+                password: REDACTED_VALUE,
+            },
+            second: {
+                operation: 'get_profile',
+                password: REDACTED_VALUE,
+            },
+        });
+    });
 });
