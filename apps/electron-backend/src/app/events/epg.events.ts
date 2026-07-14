@@ -99,7 +99,25 @@ export default class EpgEvents {
                 const options =
                     typeof args === 'string' ? undefined : args.options;
                 epgWorkerService.deleteFetchedUrl(url);
-                return await this.handleFetchEpg([url], options);
+                epgWorkerService.sendProgressToRenderer(
+                    url,
+                    'queued',
+                    undefined,
+                    undefined,
+                    1
+                );
+                try {
+                    await this.fetchEpgFromUrl(url, options);
+                    return { success: true };
+                } catch (error) {
+                    return {
+                        success: false,
+                        message:
+                            error instanceof Error
+                                ? error.message
+                                : String(error),
+                    };
+                }
             }
         );
 

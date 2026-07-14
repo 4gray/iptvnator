@@ -13,6 +13,7 @@ export class EpgDatabase {
     private readonly insertProgramStmt: BetterSqlite3.Statement;
     private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
+    private readonly deleteTodayAndFutureStmt: BetterSqlite3.Statement;
 
     constructor(Database: typeof BetterSqlite3) {
         this.db = new Database(getIptvnatorDatabasePath());
@@ -30,8 +31,24 @@ export class EpgDatabase {
                 updated_at = strftime('%Y-%m-%dT%H:%M:%SZ', 'now')
         `);
 
+        // Delete duplicate (channel_id, start, title) rows before creating
+        // the unique index — multi-source setups may already have dupes from
+        // overlapping feeds, and CREATE UNIQUE INDEX would throw on them.
+        this.db.prepare(`
+            DELETE FROM epg_programs
+            WHERE rowid NOT IN (
+              SELECT MIN(rowid) FROM epg_programs
+              GROUP BY channel_id, start, title
+            )
+        `).run();
+
+        this.db.prepare(`
+            CREATE UNIQUE INDEX IF NOT EXISTS idx_epg_programs_dedup
+            ON epg_programs(channel_id, start, title)
+        `).run();
+
         this.insertProgramStmt = this.db.prepare(`
-            INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
+            INSERT OR REPLACE INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
         `);
 
@@ -48,21 +65,28 @@ export class EpgDatabase {
                   WHERE epg_programs.channel_id = epg_channels.id
               )
         `);
+
+        this.deleteTodayAndFutureStmt = this.db.prepare(`
+            DELETE FROM epg_programs
+            WHERE source_url = ?
+              AND (start >= date('now') OR start < date('now', '-7 days'))
+        `);
     }
 
     /**
-     * Insert a batch of channels. When `clearFirst` is true, the existing rows
-     * for `sourceUrl` are deleted inside the same transaction as the insert so
-     * old data is preserved if the fetch/parse never produces any channels.
+     * Insert a batch of channels. When `clearTodayAndFuture` is true, the
+     * selective delete (today+future and older-than-7-days) runs inside the
+     * same transaction so a parse failure after the delete atomically rolls
+     * back both — no gap left in the schedule.
      */
     insertChannels(
         channels: ParsedChannel[],
         sourceUrl: string,
-        clearFirst = false
+        clearTodayAndFuture = false
     ): void {
         const insertMany = this.db.transaction((channels: ParsedChannel[]) => {
-            if (clearFirst) {
-                this.deleteProgramsForSourceStmt.run(sourceUrl);
+            if (clearTodayAndFuture) {
+                this.deleteTodayAndFutureStmt.run(sourceUrl);
                 this.deleteOrphanChannelsForSourceStmt.run(sourceUrl);
                 this.knownChannelIds.clear();
             }
