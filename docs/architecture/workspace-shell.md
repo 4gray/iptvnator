@@ -164,6 +164,26 @@ Rail navigation is also shell-owned:
 3. On dashboard, sources, settings, global search, global favorites, and global
    recent, the shell falls back to the currently selected playlist so provider
    navigation remains available even outside a provider route.
+4. The top disclosure button is not a route. It shows a downward triangle in
+   the default 60px icon rail and a right-pointing triangle when expanded, so
+   the Dashboard destination appears exactly once in the actual link list.
+5. The expanded rail shows the IPTVnator logo/name plus translated labels for
+   every workspace, provider, and settings entry. Language direction controls
+   the rail's `dir` attribute; logical start alignment therefore follows LTR
+   and RTL translations without maintaining separate layouts.
+6. Expanded width is content-driven with lower and upper bounds. Navigation
+   links own the scrollable area while Settings remains visible in the fixed
+   footer.
+7. At the compact shell breakpoint the rail remains horizontal and icon-only;
+   direct attempts to set the expanded model are rejected as well as button
+   clicks.
+8. The rail keeps the standard theme-token surface and selection styling.
+   Hovered entries use the same blue selection surface as the settings
+   navigation. Fine-pointer devices magnify only the hovered icon to 2.1, so a
+   20px icon remains inside its 44px menu slot in both rail states. Neighboring
+   icons, labels, and the disclosure triangle are not transformed;
+   reduced-motion mode disables the remaining transform. Interactive controls
+   remain explicit Electron `no-drag` regions.
 
 Command palette behavior is shell-owned but view-extensible:
 

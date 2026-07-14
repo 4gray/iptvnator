@@ -1046,6 +1046,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "ナビゲーションを展開",
+            "COLLAPSE_NAVIGATION": "ナビゲーションを折りたたむ",
             "RAIL_DASHBOARD": "ダッシュボード",
             "OPEN_DASHBOARD": "ダッシュボードを開く",
             "RAIL_SOURCES": "ソース",

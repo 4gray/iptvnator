@@ -55,21 +55,6 @@ export class WorkspaceShellRouteStateService {
     readonly showDashboard = computed(() =>
         this.startupPreferences.showDashboard()
     );
-    readonly brandLink = computed(() =>
-        this.startupPreferences.getFirstAvailableWorkspacePath(
-            this.showDashboard()
-        )
-    );
-    readonly brandTooltipKey = computed(() =>
-        this.showDashboard()
-            ? 'WORKSPACE.SHELL.RAIL_DASHBOARD'
-            : 'WORKSPACE.SHELL.RAIL_SOURCES'
-    );
-    readonly brandAriaLabelKey = computed(() =>
-        this.showDashboard()
-            ? 'WORKSPACE.SHELL.OPEN_DASHBOARD'
-            : 'WORKSPACE.SHELL.OPEN_SOURCES'
-    );
     readonly workspaceLinks = computed<PortalRailLink[]>(() => {
         this.languageTick();
 

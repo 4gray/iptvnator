@@ -1046,6 +1046,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "Développer la navigation",
+            "COLLAPSE_NAVIGATION": "Réduire la navigation",
             "RAIL_DASHBOARD": "Tableau de bord",
             "OPEN_DASHBOARD": "Ouvrir le tableau de bord",
             "RAIL_SOURCES": "Sources",
