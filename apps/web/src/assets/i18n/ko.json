@@ -1046,6 +1046,8 @@
         },
         "SHELL": {
             "BRAND_ALT": "IPTVnator",
+            "EXPAND_NAVIGATION": "탐색 펼치기",
+            "COLLAPSE_NAVIGATION": "탐색 접기",
             "RAIL_DASHBOARD": "대시보드",
             "OPEN_DASHBOARD": "대시보드 열기",
             "RAIL_SOURCES": "소스",
