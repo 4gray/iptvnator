@@ -15,11 +15,13 @@ import {
     PORTAL_EXTERNAL_PLAYBACK,
     PORTAL_PLAYBACK_POSITIONS,
     PORTAL_PLAYER,
+    SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
 import { XtreamStore } from '@iptvnator/portal/xtream/data-access';
 import { PortalInlinePlayerComponent } from '@iptvnator/ui/playback';
 import { of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details.component';
+import { XTREAM_SERIES_RESUME_TARGET } from './serial-details-resume-target.token';
 
 @Component({
     selector: 'app-season-container',
@@ -84,8 +86,12 @@ describe('SerialDetailsComponent', () => {
     const constructEpisodeStreamUrl = jest.fn();
     const addRecentItem = jest.fn();
     const openResolvedPlayback = jest.fn();
+    const savePlaybackPosition = jest.fn();
     const isEmbeddedPlayer = jest.fn();
     const getSeriesPlaybackPositions = jest.fn().mockResolvedValue([]);
+    let seriesResumeTarget: ReturnType<
+        typeof signal<SeriesResumeTarget | null>
+    >;
 
     beforeEach(async () => {
         selectedItem.set({
@@ -133,11 +139,15 @@ describe('SerialDetailsComponent', () => {
                 `http://xtream.example/series/${episode.id}.mp4`
         );
         addRecentItem.mockClear();
-        openResolvedPlayback.mockClear();
+        openResolvedPlayback.mockReset();
+        openResolvedPlayback.mockResolvedValue(undefined);
+        savePlaybackPosition.mockReset();
+        savePlaybackPosition.mockResolvedValue(undefined);
         isEmbeddedPlayer.mockReset();
         isEmbeddedPlayer.mockReturnValue(false);
         getSeriesPlaybackPositions.mockClear();
         getSeriesPlaybackPositions.mockResolvedValue([]);
+        seriesResumeTarget = signal<SeriesResumeTarget | null>(null);
 
         await TestBed.configureTestingModule({
             imports: [SerialDetailsComponent],
@@ -187,7 +197,7 @@ describe('SerialDetailsComponent', () => {
                     provide: PORTAL_PLAYBACK_POSITIONS,
                     useValue: {
                         getSeriesPlaybackPositions,
-                        savePlaybackPosition: jest.fn(),
+                        savePlaybackPosition,
                         clearPlaybackPosition: jest.fn(),
                     },
                 },
@@ -197,6 +207,10 @@ describe('SerialDetailsComponent', () => {
                         isEmbeddedPlayer,
                         openResolvedPlayback,
                     },
+                },
+                {
+                    provide: XTREAM_SERIES_RESUME_TARGET,
+                    useValue: seriesResumeTarget,
                 },
                 {
                     provide: MatSnackBar,
@@ -402,6 +416,102 @@ describe('SerialDetailsComponent', () => {
                 startTime: 42,
                 contentInfo: expect.objectContaining({
                     contentXtreamId: 1001,
+                }),
+            }),
+            true
+        );
+    });
+
+    it('records the selected episode after a successful external-player launch', async () => {
+        openResolvedPlayback.mockResolvedValue({
+            id: 'vlc-session-1',
+            player: 'vlc',
+            status: 'opened',
+            title: 'Season 2 Episode 1',
+            streamUrl: 'http://xtream.example/series/2001.mp4',
+            startedAt: '2026-07-14T10:00:00.000Z',
+            updatedAt: '2026-07-14T10:00:00.000Z',
+            canClose: true,
+        });
+        fixture.detectChanges();
+        await fixture.whenStable();
+
+        fixture.componentInstance.playEpisode({
+            id: '2001',
+            episode_num: 1,
+            title: 'Season 2 Episode 1',
+            season: 2,
+        } as never);
+        await fixture.whenStable();
+
+        expect(savePlaybackPosition).toHaveBeenCalledWith(
+            'xtream-1',
+            expect.objectContaining({
+                playlistId: 'xtream-1',
+                contentXtreamId: 2001,
+                contentType: 'episode',
+                seriesXtreamId: 103,
+                seasonNumber: 2,
+                episodeNumber: 1,
+                positionSeconds: 0,
+                updatedAt: expect.any(String),
+            })
+        );
+        fixture.detectChanges();
+        const quickStartButton: HTMLButtonElement | null =
+            fixture.nativeElement.querySelector(
+                '[data-testid="series-quick-start"]'
+            );
+        expect(quickStartButton?.textContent).toContain(
+            'XTREAM.PLAY_EPISODE'
+        );
+        expect(quickStartButton?.textContent).toContain(
+            'S02E01 \u00b7 Season 2 Episode 1'
+        );
+    });
+
+    it('automatically resumes the exact dashboard episode after positions load', async () => {
+        getSeriesPlaybackPositions.mockResolvedValue([
+            {
+                contentXtreamId: 2001,
+                contentType: 'episode',
+                seriesXtreamId: 103,
+                seasonNumber: 2,
+                episodeNumber: 1,
+                positionSeconds: 84,
+                durationSeconds: 1200,
+                playlistId: 'xtream-1',
+                updatedAt: '2026-05-10T12:00:00.000Z',
+            },
+        ]);
+        seriesResumeTarget.set({
+            seriesXtreamId: 103,
+            contentXtreamId: 2001,
+            seasonNumber: 2,
+            episodeNumber: 1,
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(constructEpisodeStreamUrl).toHaveBeenCalledTimes(1);
+        expect(constructEpisodeStreamUrl).toHaveBeenCalledWith(
+            expect.objectContaining({
+                id: '2001',
+                season: 2,
+                episode_num: 1,
+            })
+        );
+        expect(openResolvedPlayback).toHaveBeenCalledWith(
+            expect.objectContaining({
+                streamUrl: 'http://xtream.example/series/2001.mp4',
+                startTime: 84,
+                contentInfo: expect.objectContaining({
+                    contentXtreamId: 2001,
+                    seriesXtreamId: 103,
+                    seasonNumber: 2,
+                    episodeNumber: 1,
                 }),
             }),
             true

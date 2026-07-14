@@ -779,6 +779,7 @@
         "RESTART": "Baştan Başla",
         "CONTINUE_WATCHING": "İzlemeye Devam Et",
         "PLAY_FIRST_EPISODE": "İlk bölümü oynat",
+        "PLAY_EPISODE": "{{episode}}. bölümü oynat",
         "RESUME_EPISODE": "Bölüme devam et",
         "PLAY_NEXT_EPISODE": "Sonraki bölümü oynat",
         "SERIES_WATCHED": "Dizi izlendi",

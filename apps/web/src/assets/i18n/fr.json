@@ -779,6 +779,7 @@
         "RESTART": "Recommencer",
         "CONTINUE_WATCHING": "Reprendre la lecture",
         "PLAY_FIRST_EPISODE": "Lire le premier épisode",
+        "PLAY_EPISODE": "Lire l'épisode {{episode}}",
         "RESUME_EPISODE": "Reprendre l'épisode",
         "PLAY_NEXT_EPISODE": "Lire l'épisode suivant",
         "SERIES_WATCHED": "Série vue",

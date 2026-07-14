@@ -779,6 +779,7 @@
         "RESTART": "從頭開始",
         "CONTINUE_WATCHING": "繼續觀看",
         "PLAY_FIRST_EPISODE": "播放第一集",
+        "PLAY_EPISODE": "播放第 {{episode}} 集",
         "RESUME_EPISODE": "繼續播放本集",
         "PLAY_NEXT_EPISODE": "播放下一集",
         "SERIES_WATCHED": "劇集已看完",

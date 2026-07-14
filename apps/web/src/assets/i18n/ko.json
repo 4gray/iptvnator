@@ -779,6 +779,7 @@
         "RESTART": "처음부터 보기",
         "CONTINUE_WATCHING": "이어서 시청",
         "PLAY_FIRST_EPISODE": "첫 에피소드 재생",
+        "PLAY_EPISODE": "에피소드 {{episode}} 재생",
         "RESUME_EPISODE": "에피소드 이어 보기",
         "PLAY_NEXT_EPISODE": "다음 에피소드 재생",
         "SERIES_WATCHED": "시리즈 시청 완료",

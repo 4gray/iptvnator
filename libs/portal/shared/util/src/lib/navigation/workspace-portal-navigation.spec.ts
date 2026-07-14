@@ -153,6 +153,50 @@ describe('workspace-portal-navigation', () => {
         });
     });
 
+    it('carries an exact Xtream series resume target into recent collection detail state', () => {
+        const navigation = getRecentItemNavigation(
+            {
+                id: 81,
+                title: 'Series Eighty One',
+                type: 'series',
+                playlist_id: 'xtream-1',
+                category_id: 12,
+                xtream_id: 8000,
+                source: 'xtream',
+                poster_url: 'https://example.com/series.png',
+                viewed_at: '2026-03-01T00:00:00.000Z',
+            },
+            {
+                seriesXtreamId: 8000,
+                contentXtreamId: 8024,
+                seasonNumber: 2,
+                episodeNumber: 4,
+            }
+        );
+
+        expect(navigation).toEqual({
+            link: ['/workspace', 'global-recent'],
+            state: {
+                openCollectionDetailItem: {
+                    item: expect.objectContaining({
+                        contentType: 'series',
+                        sourceType: 'xtream',
+                        xtreamId: 8000,
+                    }),
+                    seriesResume: {
+                        seriesXtreamId: 8000,
+                        contentXtreamId: 8024,
+                        seasonNumber: 2,
+                        episodeNumber: 4,
+                    },
+                },
+            },
+        });
+        expect(getOpenCollectionDetailItemState(navigation.state)).toEqual(
+            navigation.state?.[OPEN_COLLECTION_DETAIL_STATE_KEY]
+        );
+    });
+
     it('matches collection live state against multiple live item identifiers', () => {
         expect(
             matchesOpenLiveCollectionItem(

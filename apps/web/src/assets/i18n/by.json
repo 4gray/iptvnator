@@ -779,6 +779,7 @@
         "RESTART": "Спачатку",
         "CONTINUE_WATCHING": "Працягнуць прагляд",
         "PLAY_FIRST_EPISODE": "Прайграць першы эпізод",
+        "PLAY_EPISODE": "Прайграць эпізод {{episode}}",
         "RESUME_EPISODE": "Працягнуць эпізод",
         "PLAY_NEXT_EPISODE": "Прайграць наступны эпізод",
         "SERIES_WATCHED": "Серыял прагледжаны",

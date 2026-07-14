@@ -779,6 +779,7 @@
         "RESTART": "С начала",
         "CONTINUE_WATCHING": "Продолжить просмотр",
         "PLAY_FIRST_EPISODE": "Воспроизвести первую серию",
+        "PLAY_EPISODE": "Воспроизвести серию {{episode}}",
         "RESUME_EPISODE": "Продолжить серию",
         "PLAY_NEXT_EPISODE": "Следующая серия",
         "SERIES_WATCHED": "Сериал просмотрен",

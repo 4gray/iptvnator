@@ -1,5 +1,6 @@
 import {
     PlaylistMeta,
+    PlaybackPositionData,
     PortalActivityType,
     PortalAddedItem,
     PortalFavoriteItem,
@@ -12,6 +13,7 @@ import {
     getGlobalFavoriteNavigation,
     getRecentItemNavigation,
     WorkspaceNavigationTarget,
+    type SeriesResumeTarget,
 } from '@iptvnator/portal/shared/util';
 
 /**
@@ -58,9 +60,53 @@ export function getRecentItemLink(item: PortalRecentItem): string[] {
 }
 
 export function getRecentItemNavigationState(
-    item: PortalRecentItem
+    item: PortalRecentItem,
+    playbackPosition?: PlaybackPositionData | null
 ): WorkspaceNavigationTarget['state'] {
-    return getRecentItemNavigation(item).state;
+    return getRecentItemNavigation(
+        item,
+        buildRecentSeriesResumeTarget(item, playbackPosition)
+    ).state;
+}
+
+function buildRecentSeriesResumeTarget(
+    item: PortalRecentItem,
+    playbackPosition?: PlaybackPositionData | null
+): SeriesResumeTarget | null {
+    if (
+        item.type !== 'series' ||
+        item.source !== 'xtream' ||
+        playbackPosition?.contentType !== 'episode'
+    ) {
+        return null;
+    }
+
+    const seriesXtreamId = Number(
+        playbackPosition.seriesXtreamId ?? item.xtream_id
+    );
+    const contentXtreamId = Number(playbackPosition.contentXtreamId);
+    const seasonNumber = Number(playbackPosition.seasonNumber);
+    const episodeNumber = Number(playbackPosition.episodeNumber);
+
+    if (
+        !Number.isInteger(seriesXtreamId) ||
+        seriesXtreamId <= 0 ||
+        !Number.isInteger(contentXtreamId) ||
+        contentXtreamId <= 0 ||
+        !Number.isInteger(seasonNumber) ||
+        seasonNumber < 0 ||
+        !Number.isInteger(episodeNumber) ||
+        episodeNumber < 0
+    ) {
+        return null;
+    }
+
+    return {
+        seriesXtreamId,
+        contentXtreamId,
+        seasonNumber,
+        episodeNumber,
+    };
 }
 
 export function getGlobalFavoriteLink(item: PortalFavoriteItem): string[] {

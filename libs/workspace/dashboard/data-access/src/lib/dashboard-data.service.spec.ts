@@ -969,6 +969,9 @@ describe('DashboardDataService', () => {
         const series = vodItems.find(
             (item) => item.title === 'Color Orchard S02E04'
         );
+        if (!series) {
+            throw new Error('expected the series recent item');
+        }
 
         // Movie: vod position with 60% watched.
         const moviePos = service.getPlaybackPositionForItem(movie!);
@@ -977,13 +980,27 @@ describe('DashboardDataService', () => {
 
         // Series: episode position keyed by the recent item's xtream_id (the
         // episode id, not the series id).
-        const seriesPos = service.getPlaybackPositionForItem(series!);
+        const seriesPos = service.getPlaybackPositionForItem(series);
         expect(seriesPos?.contentType).toBe('episode');
         expect(seriesPos?.positionSeconds).toBe(720);
         // Season/episode metadata travels with the position so cards can
         // render an "S2 · E5" badge without an extra round-trip.
         expect(seriesPos?.seasonNumber).toBe(2);
         expect(seriesPos?.episodeNumber).toBe(4);
+        expect(service.getRecentItemNavigationState(series)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    contentType: 'series',
+                    xtreamId: 900,
+                }),
+                seriesResume: {
+                    seriesXtreamId: 900,
+                    contentXtreamId: 909,
+                    seasonNumber: 2,
+                    episodeNumber: 4,
+                },
+            },
+        });
     });
 
     it('resolves the latest episode position for series whose recent_items row carries the series id', async () => {
@@ -1077,6 +1094,21 @@ describe('DashboardDataService', () => {
         expect(position?.contentType).toBe('episode');
         expect(position?.seasonNumber).toBe(3);
         expect(position?.episodeNumber).toBe(7);
+        expect(service.getRecentItemNavigationState(series)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    contentType: 'series',
+                    sourceType: 'xtream',
+                    xtreamId: 4000,
+                }),
+                seriesResume: {
+                    seriesXtreamId: 4000,
+                    contentXtreamId: 4007,
+                    seasonNumber: 3,
+                    episodeNumber: 7,
+                },
+            },
+        });
         expect(failOnLinearScan).not.toHaveBeenCalled();
     });
 
