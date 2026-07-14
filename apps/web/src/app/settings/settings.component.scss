@@ -738,31 +738,23 @@
     );
 }
 
-// Sticky-footer Save bar — full content width so it never overlaps form
-// rows. The previous chip-style bar (border-radius:18px, margin-left:auto)
-// floated in the bottom-right corner and clipped fields underneath; the
-// UX audit called this out as the worst of three available patterns.
-// Now the bar acts as a proper footer: spans the column, separator line
-// on top, sits flush with the bottom edge while still sticking on scroll.
+// Compact sticky action chip. The settings layout reserves space below the
+// content so this remains visible without covering the final form rows.
 .action-bar {
     position: sticky;
     bottom: calc(
         var(--settings-action-bar-offset) + var(--settings-safe-bottom)
     );
-    margin-left: 0;
-    margin-right: 0;
+    margin-left: auto;
     z-index: 100;
     display: flex;
     justify-content: flex-end;
     align-items: center;
     gap: 12px;
     flex-wrap: wrap;
-    padding: 12px 18px;
-    border-top: 1px solid var(--settings-action-bar-border);
-    border-left: 0;
-    border-right: 0;
-    border-bottom: 0;
-    border-radius: 0;
+    padding: 10px 14px;
+    border: 1px solid var(--settings-action-bar-border);
+    border-radius: 18px;
     background: var(--settings-action-bar-bg);
     backdrop-filter: blur(12px);
     box-shadow: var(--settings-action-bar-shadow);
@@ -775,7 +767,6 @@
     box-shadow: none;
     border-radius: 16px;
     padding: 12px;
-    border-top: 1px solid var(--settings-action-bar-border);
     justify-content: space-between;
 }
 
