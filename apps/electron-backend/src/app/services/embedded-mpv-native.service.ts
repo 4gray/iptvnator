@@ -111,9 +111,9 @@ export class EmbeddedMpvNativeService {
 
     /**
      * Frame-copy engine: helper process + shm ring + renderer canvas.
-     * Experimental, macOS Apple Silicon (owner decision 2026-07-10) and
-     * Linux, opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on
-     * top of the regular embedded MPV experiment flag.
+     * Experimental, macOS Apple Silicon (owner decision 2026-07-10), Linux
+     * and Windows, opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1
+     * on top of the regular embedded MPV experiment flag.
      */
     private isFrameCopyEngineRequested(): boolean {
         return ['1', 'true', 'yes', 'on'].includes(
@@ -215,9 +215,9 @@ export class EmbeddedMpvNativeService {
             };
         }
 
-        // The frame-copy engine renders offscreen (headless EGL on Linux)
-        // into a renderer canvas: the Linux X11/Xwayland and system-mpv
-        // requirements below only bind the native --wid engine. Both
+        // The frame-copy engine renders offscreen (headless EGL on Linux,
+        // WGL on Windows) into a renderer canvas: the Linux X11/Xwayland and
+        // system-mpv requirements below only bind the native --wid engine. Both
         // native-engine failure returns still advertise frameCopyAvailable
         // so the Settings toggle stays reachable — otherwise the states the
         // frame-copy engine exists to fix would hide the way to enable it.

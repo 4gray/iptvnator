@@ -171,6 +171,30 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).toBeNull();
     });
 
+    it.each<[string, boolean, boolean, boolean, boolean]>([
+        ['shows the available desktop engine', true, true, false, true],
+        ['keeps a stale desktop opt-in clearable', true, false, true, true],
+        ['hides a stale opt-in in the PWA', false, false, true, false],
+    ])(
+        '%s',
+        (_description, isDesktop, frameCopyAvailable, stored, expected) => {
+            const form = createForm();
+            form.controls['embeddedMpvFrameCopy'].setValue(stored);
+            fixture.componentRef.setInput('form', form);
+            fixture.componentRef.setInput('isDesktop', isDesktop);
+            fixture.componentRef.setInput(
+                'frameCopyAvailable',
+                frameCopyAvailable
+            );
+            fixture.detectChanges();
+
+            const setting = fixture.nativeElement.querySelector(
+                '[data-test-id="embedded-mpv-frame-copy-setting"]'
+            );
+            expect(Boolean(setting)).toBe(expected);
+        }
+    );
+
     it('shows the recording folder setting only in desktop builds', () => {
         fixture.componentRef.setInput('isDesktop', true);
         fixture.detectChanges();
@@ -364,6 +388,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
+        embeddedMpvFrameCopy: new FormControl(false),
         mpvPlayerPath: new FormControl(''),
         mpvPlayerArguments: new FormControl(''),
         mpvReuseInstance: new FormControl(false),

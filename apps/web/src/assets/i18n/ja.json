@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "埋め込みMPV：フレームコピーエンジン（実験的）",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "映像をアプリのキャンバスに描画するため、メニューやダイアログをその上に表示できます。Apple Silicon搭載macOSおよびLinuxのみ。",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "映像をアプリのキャンバスに描画するため、メニューやダイアログをその上に表示できます。",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "アプリの再起動後に有効になります。"
     },
     "THEMES": {

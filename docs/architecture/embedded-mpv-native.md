@@ -18,8 +18,8 @@ Source files for the embedded MPV integration:
 - `libs/shared/interfaces/src/lib/embedded-mpv-session.interface.ts` defines the shared session and audio-track contract.
 - `libs/ui/playback/src/lib/embedded-mpv-player/` owns the Angular UI and controls.
 
-Frame-copy engine sources (experimental, macOS Apple Silicon and Linux —
-see the "Frame-Copy Engine" section below):
+Frame-copy engine sources (experimental, macOS Apple Silicon, Linux and
+Windows — see the "Frame-Copy Engine" section below):
 
 - `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper` process (`mpv_frame_helper.cpp`, `frame_helper_render.h`, `frame_helper_gl.h`, `frame_helper_io.h`, `frame_shm.h`).
 - `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API shm frame reader used by the preload frame pump.
@@ -41,7 +41,11 @@ Windows packaged runtimes must preserve the MPV DLL basename referenced by the
 import library used at native-addon link time. For example, an archive that
 ships `libmpv.dll.a` and `libmpv-2.dll` must package `libmpv-2.dll`; renaming it
 to `mpv-2.dll` leaves `embedded_mpv.node` with an unresolved DLL dependency at
-startup, so the Settings support probe hides the Embedded MPV option.
+startup, so the Settings support probe hides the Embedded MPV option. The
+frame-copy helper is a separate executable and resolves that same import from
+its own directory. Package validation therefore reads the helper's PE import
+table and requires the exact referenced MPV DLL beside
+`iptvnator_mpv_helper.exe`, not only under `native/lib/`.
 
 On Linux, `embedded_mpv.node` must not link directly to `libmpv` or load libmpv in-process. Electron loads its own `libffmpeg` and Chromium graphics stack; in-process libmpv can resolve FFmpeg/GL symbols against incompatible Electron symbols, while isolated dynamic-loader namespaces introduce thread/runtime ownership problems. The Linux addon therefore owns only the X11 child-window embedding, process lifecycle, and a private MPV JSON IPC socket. It starts `mpv --wid=<window> --input-ipc-server=<socket>`, polls `time-pos`, `duration`, `volume`, and `pause`, and forwards pause/seek/volume/audio-track commands through that socket. The Linux MPV JSON IPC polling runs on an addon-owned background thread; `getSessionSnapshot()` returns the last cached snapshot and must not perform socket round trips on Electron's main thread. Linux MPV process teardown sends `SIGTERM` on the caller path, then waits and escalates to `SIGKILL` on a detached cleanup thread. A healthy Linux build lists X11/Xext as addon dependencies, but `ldd apps/electron-backend/native/build/Release/embedded_mpv.node` must not list `libmpv`. Runtime support also requires an `mpv` executable on `PATH`.
 
@@ -100,11 +104,11 @@ The MPV video surface is a native platform view/window, not a normal DOM element
 
 The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
 
-## Frame-Copy Engine (Experimental, Apple Silicon and Linux)
+## Frame-Copy Engine (Experimental, Apple Silicon, Linux and Windows)
 
 `IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1` (on top of the regular
-embedded MPV experiment flag) switches macOS/arm64 and Linux to a second
-rendering engine that replaces the native-view compositing entirely
+embedded MPV experiment flag) switches macOS/arm64, Linux and Windows to a
+second rendering engine that replaces the native-view compositing entirely
 (gate: `isFrameCopyPlatformSupported()` in
 `embedded-mpv-frame-copy-platform.util.ts`, shared by `main.ts`, the
 service and the adapter):
@@ -115,14 +119,16 @@ service and the adapter):
   context — `frame_helper_gl.h`: CGL on macOS; on Linux EGL, acquiring a
   display in order surfaceless-Mesa → default display → GBM render node;
   every tier must complete config/context/bind validation, hardware rendering
-  is preferred, and a software tier is retained only as the final fallback),
-  publishes BGRA frames into a POSIX
-  shm seqlock ring
-  (`frame_shm.h`, 3 slots, resize creates a new `-g<N>` generation), and
-  plays audio directly. Control protocol: tab-separated commands on stdin,
-  JSON events on stdout; the `snapshot` event mirrors
-  `NativeEmbeddedMpvSessionSnapshot`. Status semantics are ported from
-  `embedded_mpv.mm`.
+  is preferred, and a software tier is retained only as the final fallback;
+  on Windows WGL against a hidden window, bootstrapping a 3.2 core context
+  through `wglCreateContextAttribsARB`), publishes BGRA frames into a shm
+  seqlock ring (`frame_shm.h`, 3 slots, resize creates a new `-g<N>`
+  generation — POSIX shm on macOS/Linux, a `Local\` named file mapping on
+  Windows; the protocol carries POSIX-style `/impv-*` names everywhere and
+  the native sides derive the mapping name), and plays audio directly.
+  Control protocol: tab-separated commands on stdin, JSON events on stdout;
+  the `snapshot` event mirrors `NativeEmbeddedMpvSessionSnapshot`. Status
+  semantics are ported from `embedded_mpv.mm`.
 - `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` —
   implements the same `NativeEmbeddedMpvAddon` surface over the helper
   process, so `EmbeddedMpvNativeService` (polling, diffing, power blocker,
@@ -179,18 +185,20 @@ Lifecycle safety: `EmbeddedMpvNativeService` watches the main window for
 session — Angular teardown never runs on a renderer crash/hard reload, and
 without the watch helper processes (or native mpv handles) would leak until
 app shutdown. Unexpected helper exits surface as a session `error`. macOS
-package validation requires `iptvnator_mpv_helper` and
+and Windows package validation requires the helper
+(`iptvnator_mpv_helper` / `iptvnator_mpv_helper.exe`) and
 `embedded_mpv_frame_reader.node` next to the addon whenever the addon
-ships. The after-pack hook restores the helper's executable mode after the
-asset copy, and optional/skipped native rebuilds remove stale helper/reader
-artifacts before reporting frame-copy availability. This cleanup prevents
-known leftover build output; it is not a compatibility check for a complete
-but version-mismatched runtime pair. Linux packages deliberately do NOT ship
-the helper yet: it links the build host's system `libmpv`, which packaged
-apps cannot assume is installed, so the centralized after-pack artifact
-preparation strips both possible helper basenames and package validation
-rejects either one if it survives. The support probe therefore reports
-frame-copy unavailable in Linux packages.
+ships; on Windows the bundled mpv DLL is also copied beside the helper so
+the executable resolves it from its own directory. The after-pack hook
+restores the POSIX helper's executable mode after the asset copy, and
+optional/skipped native rebuilds remove stale helper/reader artifacts before
+reporting frame-copy availability. This cleanup prevents known leftover build
+output; it is not a compatibility check for a complete but version-mismatched
+runtime pair. Linux packages deliberately do NOT ship the helper yet: it links
+the build host's system `libmpv`, which packaged apps cannot assume is
+installed, so centralized after-pack preparation strips both possible helper
+basenames and package validation rejects either one if it survives. The
+support probe therefore reports frame-copy unavailable in Linux packages.
 The engine is dev-build-only on Linux until bundled-libmpv runtime staging
 lands (PORTING.md milestone 4).
 
@@ -213,8 +221,20 @@ Trade-offs and constraints:
   string to stderr. If an early tier selects Mesa software rendering (for
   example, while a proprietary NVIDIA driver is reachable through the default
   display or GBM), it probes the remaining tiers and uses software only when
-  no hardware-backed context works. The Windows port of the helper (WGL) is
-  future work — the shm protocol and adapter are platform-agnostic.
+  no hardware-backed context works. Windows (any arch with a helper, in
+  practice x64) is ported: WGL renders offscreen against a hidden window,
+  the shm ring is a session-local named file mapping, and the reader addon
+  compiles as C++ there (MSVC has no C11 `<stdatomic.h>`). The helper
+  links the vendored libmpv import library and loads the DLL from its own
+  directory. Windows 11 Smart App Control blocks unsigned locally-built
+  executables — turn it off on dev machines or the helper cannot spawn
+  (the support probe still reports available; the session errors).
+  Runtime trait, not frame-copy-specific: the vendored mpv-winbuild
+  libmpv routes http(s) through mpv's curl stream backend and ships no CA
+  bundle, so https streams currently fail TLS verification (`mpv/curl`
+  errors in the helper log); the in-process native engine links the same
+  DLL and shares the trait. Resolving the CA story belongs to Windows
+  runtime packaging, not to either engine.
 - Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
   sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
   produce-to-upload latency, zero torn frames over a 10-minute run.

@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: frame-copy engine (experimental)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Render video onto the app canvas so menus and dialogs stack above it. macOS (Apple Silicon) and Linux only.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Render video onto the app canvas so menus and dialogs stack above it.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Takes effect after restarting the app."
     },
     "THEMES": {

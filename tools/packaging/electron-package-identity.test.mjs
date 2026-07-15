@@ -102,6 +102,37 @@ const embeddedMpvWin32Source = fs.readFileSync(
 );
 const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
 
+function writeWindowsHelperFixture(helperPath, importedDllName) {
+    const peOffset = 0x80;
+    const optionalHeaderOffset = peOffset + 24;
+    const optionalHeaderSize = 0xf0;
+    const sectionTableOffset = optionalHeaderOffset + optionalHeaderSize;
+    const importRva = 0x1000;
+    const importRawOffset = 0x200;
+    const importNameOffset = 0x30;
+    const image = Buffer.alloc(0x400);
+
+    image.write('MZ', 0, 'ascii');
+    image.writeUInt32LE(peOffset, 0x3c);
+    image.write('PE\0\0', peOffset, 'ascii');
+    image.writeUInt16LE(0x8664, peOffset + 4);
+    image.writeUInt16LE(1, peOffset + 6);
+    image.writeUInt16LE(optionalHeaderSize, peOffset + 20);
+    image.writeUInt16LE(0x20b, optionalHeaderOffset);
+    image.writeUInt32LE(0x200, optionalHeaderOffset + 60);
+    image.writeUInt32LE(16, optionalHeaderOffset + 108);
+    image.writeUInt32LE(importRva, optionalHeaderOffset + 120);
+    image.writeUInt32LE(40, optionalHeaderOffset + 124);
+    image.write('.idata\0\0', sectionTableOffset, 'ascii');
+    image.writeUInt32LE(0x200, sectionTableOffset + 8);
+    image.writeUInt32LE(importRva, sectionTableOffset + 12);
+    image.writeUInt32LE(0x200, sectionTableOffset + 16);
+    image.writeUInt32LE(importRawOffset, sectionTableOffset + 20);
+    image.writeUInt32LE(importRva + importNameOffset, importRawOffset + 12);
+    image.write(`${importedDllName}\0`, importRawOffset + importNameOffset);
+    fs.writeFileSync(helperPath, image);
+}
+
 test('Linux package identity does not expose the internal Electron backend project name', () => {
     assert.equal(electronBuilderConfig.productName, 'IPTVnator');
     assert.equal(electronBuilderConfig.extraMetadata?.name, 'iptvnator');
@@ -119,8 +150,10 @@ test('Linux package identity does not expose the internal Electron backend proje
 });
 
 test('GitHub Releases auto-update metadata is generated and uploaded', () => {
+    // \r?\n keeps this host-agnostic: Windows checkouts with autocrlf see
+    // CRLF in the workflow file.
     const releaseFiles = buildAndMakeWorkflow.match(
-        /files: \|\n([\s\S]*?)\n\s+env:/
+        /files: \|\r?\n([\s\S]*?)\r?\n\s+env:/
     )?.[1];
 
     assert.ok(releaseFiles, 'release upload files block must exist');
@@ -304,10 +337,16 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
         for (const [platform, runtimeFile] of [
             ['windows', 'mpv-2.dll'],
             ['windows', 'libmpv-2.dll'],
-            ['windows', join('lib', 'mpv.dll')],
-            ['windows', join('lib', 'libmpv.dll')],
+            ['windows', 'mpv.dll'],
+            ['windows', 'libmpv.dll'],
         ]) {
-            const resourceDir = join(tempDir, platform);
+            // One fixture dir per runtime-file scenario: the frame-copy
+            // artifacts written below must not leak into the next
+            // iteration's missing-artifact assertions.
+            const resourceDir = join(
+                tempDir,
+                `${platform}-${runtimeFile.replace(/[\\/]/g, '_')}`
+            );
             const nativeDir = join(
                 resourceDir,
                 'app.asar.unpacked',
@@ -321,6 +360,32 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
                 JSON.stringify({ origin: 'vendored-lgpl' })
             );
             fs.writeFileSync(join(nativeDir, runtimeFile), '');
+
+            // Windows packages that ship the addon must also ship the
+            // frame-copy engine artifacts built by the same binding.gyp run.
+            const missingWindowsFrameCopyErrors = validatePackagedEmbeddedMpv(
+                resourceDir,
+                { platform, required: true }
+            );
+            assert.ok(
+                missingWindowsFrameCopyErrors.some((error) =>
+                    error.includes('iptvnator_mpv_helper.exe')
+                )
+            );
+            assert.ok(
+                missingWindowsFrameCopyErrors.some((error) =>
+                    error.includes('embedded_mpv_frame_reader.node')
+                )
+            );
+
+            writeWindowsHelperFixture(
+                join(nativeDir, 'iptvnator_mpv_helper.exe'),
+                runtimeFile
+            );
+            fs.writeFileSync(
+                join(nativeDir, 'embedded_mpv_frame_reader.node'),
+                ''
+            );
 
             assert.deepEqual(
                 validatePackagedEmbeddedMpv(resourceDir, {
@@ -371,10 +436,10 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
         // Host-agnostic assertion: on non-macOS hosts the validator also
         // reports that link validation needs a macOS host, so only the
         // frame-copy artifact requirement is asserted here.
-        const remainingErrors = validatePackagedEmbeddedMpv(
-            darwinResourceDir,
-            { platform: 'darwin', required: true }
-        );
+        const remainingErrors = validatePackagedEmbeddedMpv(darwinResourceDir, {
+            platform: 'darwin',
+            required: true,
+        });
         assert.ok(
             !remainingErrors.some((error) =>
                 error.includes('frame-copy artifact')
@@ -402,6 +467,138 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
                 required: true,
             }),
             []
+        );
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('Windows frame-copy packages reject an mpv DLL that exists only under native/lib', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        for (const runtimeFile of [
+            'mpv-2.dll',
+            'libmpv-2.dll',
+            'mpv.dll',
+            'libmpv.dll',
+        ]) {
+            const resourceDir = join(tempDir, runtimeFile);
+            const nativeDir = join(
+                resourceDir,
+                'app.asar.unpacked',
+                'electron-backend',
+                'native'
+            );
+            fs.mkdirSync(join(nativeDir, 'lib'), { recursive: true });
+            fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+            fs.writeFileSync(
+                join(nativeDir, 'embedded-mpv-runtime.json'),
+                JSON.stringify({ origin: 'vendored-lgpl' })
+            );
+            writeWindowsHelperFixture(
+                join(nativeDir, 'iptvnator_mpv_helper.exe'),
+                runtimeFile
+            );
+            fs.writeFileSync(
+                join(nativeDir, 'embedded_mpv_frame_reader.node'),
+                ''
+            );
+            fs.writeFileSync(join(nativeDir, 'lib', runtimeFile), '');
+
+            const errors = validatePackagedEmbeddedMpv(resourceDir, {
+                platform: 'windows',
+                required: true,
+            });
+
+            assert.ok(
+                errors.some(
+                    (error) =>
+                        error.includes(
+                            'beside the Windows frame-copy helper'
+                        ) && error.includes(nativeDir)
+                ),
+                `${runtimeFile} under native/lib must not satisfy the helper DLL requirement: ${errors.join('; ')}`
+            );
+        }
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('Windows frame-copy packages require the DLL imported by the helper', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        const nativeDir = join(
+            tempDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(nativeDir, { recursive: true });
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(nativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'vendored-lgpl' })
+        );
+        writeWindowsHelperFixture(
+            join(nativeDir, 'iptvnator_mpv_helper.exe'),
+            'mpv-2.dll'
+        );
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv_frame_reader.node'), '');
+        fs.writeFileSync(join(nativeDir, 'libmpv.dll'), '');
+
+        const errors = validatePackagedEmbeddedMpv(tempDir, {
+            platform: 'windows',
+            required: true,
+        });
+
+        assert.ok(
+            errors.some(
+                (error) =>
+                    error.includes('imports mpv-2.dll') &&
+                    error.includes(join(nativeDir, 'mpv-2.dll'))
+            ),
+            `a different accepted DLL must not satisfy the helper import: ${errors.join('; ')}`
+        );
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('Windows frame-copy package validation fails closed for a malformed helper', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        const nativeDir = join(
+            tempDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(nativeDir, { recursive: true });
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(nativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'vendored-lgpl' })
+        );
+        fs.writeFileSync(join(nativeDir, 'iptvnator_mpv_helper.exe'), 'MZ');
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv_frame_reader.node'), '');
+        fs.writeFileSync(join(nativeDir, 'mpv-2.dll'), '');
+
+        const errors = validatePackagedEmbeddedMpv(tempDir, {
+            platform: 'windows',
+            required: true,
+        });
+
+        assert.ok(
+            errors.some((error) =>
+                error.includes(
+                    'Unable to inspect Windows frame-copy helper imports'
+                )
+            ),
+            `malformed helper must fail package validation: ${errors.join('; ')}`
         );
     } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
@@ -472,10 +669,7 @@ test('frame-copy packaging file operations enforce modes and remove stale artifa
 
     try {
         const helperPath = join(tempDir, 'iptvnator_mpv_helper');
-        const windowsHelperPath = join(
-            tempDir,
-            'iptvnator_mpv_helper.exe'
-        );
+        const windowsHelperPath = join(tempDir, 'iptvnator_mpv_helper.exe');
         const readerPath = join(tempDir, 'embedded_mpv_frame_reader.node');
         fs.writeFileSync(helperPath, '#!/bin/sh\n');
         fs.chmodSync(helperPath, 0o644);

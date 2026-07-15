@@ -143,6 +143,50 @@ Readings:
 - EGL display tier used: Mesa surfaceless platform (first tier; no display
   server needed).
 
-## Windows mid-range laptop (iGPU) — PENDING
+## Windows mid-range laptop (iGPU) — Windows 11 Home 26200, i7-1165G7 / Iris Xe, x64 — 2026-07-12
 
-Blocked on the Windows helper port (WGL or D3D11 readback path).
+Source: Windows port branch (WGL `frame_helper_gl.h` backend), vendored
+libmpv from zhongfly/mpv-winbuild 2026-06-14 (`git-7d245fd100`,
+`libmpv-2.dll`), Intel driver 30.0.101.1340. **Same physical laptop as the
+Linux section above** (TUXEDO Book XP14 Gen12, dual boot), so the two
+sections compare OS/driver stacks on identical hardware. Measured with the
+production helper + `embedded_mpv_frame_reader.node` through
+`linux-frame-probe.mjs` (now cross-platform; on Windows it polls via
+setImmediate because setTimeout quantizes to the ~15.6 ms system timer,
+which would dominate *age*), so *age* is produce→reader-copy and excludes
+the renderer texture upload — same semantics as the Linux rows. Unlike the
+Linux rows, hwdec IS available here: mpv's `hwdec=auto` engages d3d11va
+(verified by helper CPU: 0.51 core-s/s vs 2.82 core-s/s with `--hwdec no`
+on the 4K row — a 5.5× CPU drop). Test clip generated with `hevc_qsv`
+(the Intel encoder), so decode complexity is not byte-identical to the
+videotoolbox/x265 clips of the other sections.
+
+| Scenario | New fps | copy ms avg/p95 | age ms avg/p95 | torn |
+| --- | --- | --- | --- | --- |
+| 1080p60 testsrc2, sw | 60.0 | 1.80 / 2.10 | 1.83 / 2.14 | 0 |
+| 4K60 testsrc2, sw | 56.0 | 8.81 / 9.88 | 8.83 / 9.86 | 0 |
+| 4K60 HEVC 25 Mbit, hwdec=d3d11va | 41.1 | 8.57 / 10.4 | 8.71 / 10.4 | 0 |
+| 4K60 HEVC 25 Mbit, sw decode | 45.7 | 10.3 / 15.1 | 10.4 / 15.4 | 0 |
+| 4K60 HEVC 25 Mbit in a 1280×720 viewport, hwdec | 60.2 | 1.29 / 1.87 | 1.27 / 1.82 | 0 |
+
+Readings:
+
+- 1080p60 — the realistic viewport class for this laptop's 1920×1200
+  screen — holds a clean 60 fps with ~1.8 ms copies. A 60-second sustained
+  run kept 60.0 fps over 3601 frames (copy 1.57 / 1.84 ms, torn 0).
+- The 4K rows are stress rows, as on Linux: at a full-4K viewport the
+  Iris Xe is saturated by mpv render + readback (56 fps ceiling with no
+  decode at all), so d3d11va decode — which shares the same iGPU — buys
+  CPU headroom (5.5×), not fps; sw decode trades ~2.3 cores for ~4 fps.
+- The viewport-size claim reproduces on Windows: the same 4K60 HEVC clip
+  in a 720p viewport runs 60 fps with 1.3 ms copies and hardware decode
+  active.
+- torn=0 across every run; the aspect-fit generation bump was verified
+  (4:3 960×720 source in a 1280×720 viewport → `-g2` at 960×720).
+- WGL context: `gl renderer: Intel(R) Iris(R) Xe Graphics` (hardware,
+  3.2 core via wglCreateContextAttribsARB). Machine prerequisite hit
+  during bring-up: Windows 11 Smart App Control blocks locally-built
+  unsigned executables (the helper) until turned off, and a fresh Windows
+  install may run the iGPU on the Basic Display Adapter — the frame-copy
+  engine needs the real Intel driver bound (WGL on the basic adapter has
+  no 3.2 core context, and there is no d3d11va).

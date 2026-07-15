@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: μηχανή frame-copy (πειραματικό)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Το βίντεο σχεδιάζεται στον καμβά της εφαρμογής, ώστε τα μενού και τα παράθυρα διαλόγου να εμφανίζονται από πάνω του. Μόνο macOS με Apple Silicon και Linux.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Το βίντεο σχεδιάζεται στον καμβά της εφαρμογής, ώστε τα μενού και τα παράθυρα διαλόγου να εμφανίζονται από πάνω του.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Ισχύει μετά την επανεκκίνηση της εφαρμογής."
     },
     "THEMES": {

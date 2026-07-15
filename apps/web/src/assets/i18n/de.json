@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: Frame-Copy-Engine (experimentell)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Das Video wird auf die App-Leinwand gerendert, sodass Menüs und Dialoge darüber liegen. Nur macOS auf Apple Silicon und Linux.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Das Video wird auf die App-Leinwand gerendert, sodass Menüs und Dialoge darüber liegen.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Wird nach einem Neustart der App wirksam."
     },
     "THEMES": {

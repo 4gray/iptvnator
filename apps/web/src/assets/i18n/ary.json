@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "الفيديو كيترسم على لوحة التطبيق باش القوائم والحوارات يبانو فوقو. غير على macOS ب Apple Silicon و Linux.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "الفيديو كيترسم على لوحة التطبيق باش القوائم والحوارات يبانو فوقو.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "غادي يخدم من بعد ما تعاود تشغل التطبيق."
     },
     "THEMES": {

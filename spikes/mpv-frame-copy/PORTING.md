@@ -1,9 +1,8 @@
 # Frame-copy engine — Windows/Linux porting handoff
 
-> Handoff for future Claude/dev sessions on Windows and Linux machines
-> (they won't have the originating Mac's local session memory — this file
-> is the transfer). Written 2026-07-11 by the macOS session that built the
-> engine; fold into DESIGN.md once both ports land.
+> Historical handoff and maintenance notes for the completed Linux and
+> Windows ports. The canonical runtime contract now lives in
+> `docs/architecture/embedded-mpv-native.md`.
 
 ## State as of 2026-07-15
 
@@ -19,12 +18,28 @@
   (Wayland session) with the xtream mock portal. Dev-build-only on Linux:
   the helper links system libmpv and `electron-after-pack.cjs` strips it
   from packages until milestone 4 (Linux bundled-libmpv runtime) — remove
-  that strip when milestone 4 lands. The Windows implementation lives in the
-  follow-up PR #1175; until that PR lands, `master` still has no WGL/named-shm
-  helper and the frame-copy flag falls back to the native engine on Windows.
+  that strip when milestone 4 lands.
+- **The Windows port below landed through PR #1175** — WGL GlContext twin,
+  QPC clock + `Local\` named-file-mapping
+  shm twins (the protocol keeps POSIX-style `/impv-*` names; the native
+  sides derive the mapping name), reader compiled as C++ on `_WIN32`
+  (MSVC has no C11 `<stdatomic.h>`), helper `.exe` binding.gyp target
+  linking the vendored import lib + opengl32 (mpv DLL resolved from the
+  exe's own directory), TS gates + `.exe` helper discovery, i18n,
+  packaging/CI guards (win32 packages must ship helper + reader; MSVC
+  intermediates and import libs excluded from dist). **The open iGPU perf
+  gate is CLOSED**: RESULTS.md rows on the same i7-1165G7/Iris Xe laptop
+  as the Linux section (dual boot) — 1080p60 sustained (clean 60 s run),
+  the viewport-price claim reproduces, d3d11va hwdec active (5.5× CPU
+  drop), torn=0 everywhere. Machine gotchas for future sessions: Windows
+  11 Smart App Control must be OFF to run locally-built unsigned helpers,
+  and a fresh Windows install can leave the iGPU on the Basic Display
+  Adapter — bind the real Intel driver (`pnputil /remove-device` +
+  `/scan-devices` once the driver is in the store) or WGL has no 3.2 core
+  context and no d3d11va.
 - PR #1169 credits larsemig's idea (#1154 comment 4932807350). Shared-player
-  controls are reviewed as a separate integration after this platform stack;
-  do not conflate that UI layer with the frame-copy transport ports.
+  controls remain a separate integration after this platform stack; do not
+  conflate that UI layer with the frame-copy transport ports.
 
 ## What "porting" means
 
@@ -33,35 +48,32 @@ The stdio protocol, shm layout, TS adapter, main-process service, preload
 pump, and Angular UI are shared and already shipped.
 
 ```
-apps/electron-backend/native/helper/          # state after the Linux port:
+apps/electron-backend/native/helper/          # state after all three ports:
 ├── mpv_frame_helper.cpp     # portable: protocol, mpv session, snapshots
 ├── frame_helper_io.h        # portable: TSV-in/JSON-out, percent-encoding
-├── frame_shm.h              # portable layout + shared CLOCK_MONOTONIC clock
-│                            # (POSIX shm calls still need a Windows twin)
-├── frame_helper_render.h    # portable: FBO/PBO readback + shm publish
-└── frame_helper_gl.h        # PLATFORM SEAM: GlContext — CGL (macOS) and
-                             # EGL (Linux); Windows adds its WGL twin HERE
+├── frame_shm.h              # portable layout + shared clock (POSIX
+│                            # CLOCK_MONOTONIC / Windows QPC) + the Windows
+│                            # Local\ mapping-name derivation
+├── frame_helper_render.h    # portable render + ShmRing (POSIX shm_open /
+│                            # Windows CreateFileMapping twins)
+└── frame_helper_gl.h        # PLATFORM SEAM: GlContext — CGL (macOS),
+                             # EGL (Linux) and WGL (Windows)
 apps/electron-backend/native/src/embedded_mpv_frame_reader.c
-                             # real impl on __APPLE__ + __linux__, stub
-                             # elsewhere (Windows needs shm-open/clock twins)
+                             # real impl on __APPLE__ + __linux__ + _WIN32
+                             # (compiled as C++ there), stub elsewhere
 ```
 
-Porting Windows = give `frame_helper_gl.h` a WGL GlContext twin, give the
-shm create/open (+ `frame_shm_now_ns`) Windows twins, flip the TS gate in
-`embedded-mpv-frame-copy-platform.util.ts`, extend packaging.
+All three ports have landed; new platforms follow the same seams: a
+GlContext twin in `frame_helper_gl.h`, shm create/open + `frame_shm_now_ns`
+twins, the TS gate in `embedded-mpv-frame-copy-platform.util.ts`, packaging.
 
 ## Branching & merge strategy
 
-- Merge order is #1169 → #1171 → #1175. #1169 is already merged; #1171 is
-  based directly on that `master`, while #1175 remains stacked on the Linux
-  port until #1171 lands.
-- Rewrite only the platform-specific commit range when moving a stacked PR;
-  do not replay the old parent history after its squash merge. Retarget the PR
-  explicitly and keep the parent branch until its child has been rewritten.
-- Keep the stack at most one unmerged level deep. New follow-up work branches
-  from the latest landed platform base on `master`.
-- Commit incrementally within the port branch; land each platform's
-  measurement rows in `RESULTS.md` in the same PR as its port.
+- The platform stack landed in order #1169 → #1171 → #1175.
+- Each child was rewritten onto the latest squash-merged `master` using only
+  its platform-specific commit range; the old parent history was not replayed.
+- New frame-copy work branches directly from `master`. Keep future stacks at
+  most one unmerged level deep and land platform measurements with their port.
 
 ## Per-platform task lists
 
@@ -95,7 +107,11 @@ shm create/open (+ `frame_shm_now_ns`) Windows twins, flip the TS gate in
    the Linux support matrix in `docs/architecture/embedded-mpv-native.md`
    when this lands.
 
-### Windows
+### Windows (DONE 2026-07-12 — see the update in "State" above)
+
+One deviation from the checklist below: the WGL context uses a hidden
+regular window, not a message-only one — SetPixelFormat needs a
+display-capable DC.
 
 1. **Render backend**: WGL headless — create a hidden message-only window +
    dummy pixel format, `wglCreateContextAttribsARB` 3.2 core, then the same
@@ -195,10 +211,10 @@ shm create/open (+ `frame_shm_now_ns`) Windows twins, flip the TS gate in
   `node -e "const r=require('.../embedded_mpv_frame_reader.node'); const i=r.open('/impv-t-g2'); ..."`
   → `latestSeq()` advancing + pixel min/max spread.
 - **In-app**: `IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 pnpm run
-  serve:backend:embedded-mpv` or the Settings toggle (+restart). Second
+serve:backend:embedded-mpv` or the Settings toggle (+restart). Second
   parallel instance for CDP testing: build, then run
   `electron dist/apps/electron-backend/main.js --remote-debugging-port=9223
-  --user-data-dir=/tmp/x` with `ELECTRON_IS_DEV=0` for the file:// renderer
+--user-data-dir=/tmp/x` with `ELECTRON_IS_DEV=0` for the file:// renderer
   (dist package.json has no `main` field — point at main.js explicitly;
   a separate user-data-dir avoids the Chromium profile singleton).
 - **Perf gate**: follow `RESULTS.md` methodology (STATS/LONGRUN lines,
