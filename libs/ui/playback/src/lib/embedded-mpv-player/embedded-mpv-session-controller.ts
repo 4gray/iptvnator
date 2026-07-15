@@ -31,6 +31,10 @@ export class EmbeddedMpvSessionController {
     readonly stalled = signal(false);
     readonly retryToken = signal(0);
 
+    readonly isFrameCopyEngine = computed(
+        () => this.support()?.engine === 'frame-copy'
+    );
+
     private readonly sessionStatus = computed(
         () => this.session()?.status ?? null
     );
@@ -182,6 +186,24 @@ export class EmbeddedMpvSessionController {
             this.sessionId.set(created.id);
             this.session.set(created);
             await electron.loadEmbeddedMpvPlayback(created.id, playback);
+            if (untracked(() => this.isFrameCopyEngine())) {
+                // Frame-copy engine: start the preload frame pump that
+                // paints helper frames onto the component's canvas. A failed
+                // attach (no canvas, no WebGL2, reader missing) must surface
+                // as a session error — otherwise the helper keeps playing
+                // audio behind a black canvas with no recovery UI.
+                const attached = await electron
+                    .attachEmbeddedMpvFrameView?.(created.id)
+                    .catch(() => false);
+                if (attached === false && !disposed) {
+                    await electron
+                        .disposeEmbeddedMpvSession(created.id)
+                        .catch(() => undefined);
+                    throw new Error(
+                        'The embedded MPV frame view failed to initialize.'
+                    );
+                }
+            }
             scheduleBoundsSync();
         };
 
@@ -217,6 +239,9 @@ export class EmbeddedMpvSessionController {
             this.session.set(null);
 
             if (id) {
+                if (untracked(() => this.isFrameCopyEngine())) {
+                    window.electron?.detachEmbeddedMpvFrameView?.();
+                }
                 void window.electron?.disposeEmbeddedMpvSession(id);
             }
         };

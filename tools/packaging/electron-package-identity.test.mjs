@@ -60,6 +60,10 @@ const electronAfterPackSource = fs.readFileSync(
     join(currentDir, 'electron-after-pack.cjs'),
     'utf8'
 );
+const frameCopyFilesModulePath = join(
+    currentDir,
+    'embedded-mpv-frame-copy-files.cjs'
+);
 const embeddedMpvPackagingSource = fs.readFileSync(
     join(currentDir, 'embedded-mpv-packaging.cjs'),
     'utf8'
@@ -327,6 +331,57 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
             );
         }
 
+        const darwinResourceDir = join(tempDir, 'darwin');
+        const darwinNativeDir = join(
+            darwinResourceDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(join(darwinNativeDir, 'lib'), { recursive: true });
+        fs.writeFileSync(join(darwinNativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(darwinNativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'vendored-lgpl' })
+        );
+        fs.writeFileSync(join(darwinNativeDir, 'lib', 'libmpv.2.dylib'), '');
+
+        // macOS packages that ship the addon must also ship the frame-copy
+        // engine artifacts built by the same binding.gyp run.
+        const missingFrameCopyErrors = validatePackagedEmbeddedMpv(
+            darwinResourceDir,
+            { platform: 'darwin', required: true }
+        );
+        assert.ok(
+            missingFrameCopyErrors.some((error) =>
+                error.includes('iptvnator_mpv_helper')
+            )
+        );
+        assert.ok(
+            missingFrameCopyErrors.some((error) =>
+                error.includes('embedded_mpv_frame_reader.node')
+            )
+        );
+
+        fs.writeFileSync(join(darwinNativeDir, 'iptvnator_mpv_helper'), '');
+        fs.writeFileSync(
+            join(darwinNativeDir, 'embedded_mpv_frame_reader.node'),
+            ''
+        );
+        // Host-agnostic assertion: on non-macOS hosts the validator also
+        // reports that link validation needs a macOS host, so only the
+        // frame-copy artifact requirement is asserted here.
+        const remainingErrors = validatePackagedEmbeddedMpv(
+            darwinResourceDir,
+            { platform: 'darwin', required: true }
+        );
+        assert.ok(
+            !remainingErrors.some((error) =>
+                error.includes('frame-copy artifact')
+            ),
+            `unexpected frame-copy errors: ${remainingErrors.join('; ')}`
+        );
+
         const linuxResourceDir = join(tempDir, 'linux');
         const linuxNativeDir = join(
             linuxResourceDir,
@@ -402,6 +457,55 @@ test('embedded MPV packaging helpers use a cross-platform module name', () => {
         packageLayoutVerifier,
         /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
     );
+});
+
+test('frame-copy packaging file operations enforce modes and remove stale artifacts', () => {
+    assert.ok(
+        fs.existsSync(frameCopyFilesModulePath),
+        'shared frame-copy packaging file helper must exist'
+    );
+    const {
+        preparePackagedFrameCopyArtifacts,
+        removeStaleFrameCopyArtifacts,
+    } = require(frameCopyFilesModulePath);
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'impv-fc-files-'));
+
+    try {
+        const helperPath = join(tempDir, 'iptvnator_mpv_helper');
+        const windowsHelperPath = join(
+            tempDir,
+            'iptvnator_mpv_helper.exe'
+        );
+        const readerPath = join(tempDir, 'embedded_mpv_frame_reader.node');
+        fs.writeFileSync(helperPath, '#!/bin/sh\n');
+        fs.chmodSync(helperPath, 0o644);
+        fs.writeFileSync(windowsHelperPath, 'exe');
+        fs.writeFileSync(readerPath, 'reader');
+
+        if (process.platform !== 'win32') {
+            preparePackagedFrameCopyArtifacts(tempDir, 'darwin');
+            assert.notEqual(
+                fs.statSync(helperPath).mode & 0o111,
+                0,
+                'macOS helper must be executable after packaging'
+            );
+        }
+
+        preparePackagedFrameCopyArtifacts(tempDir, 'linux');
+        assert.equal(
+            fs.existsSync(helperPath),
+            false,
+            'Linux packages must omit the unsupported frame-copy helper'
+        );
+
+        fs.writeFileSync(helperPath, '#!/bin/sh\n');
+        removeStaleFrameCopyArtifacts(tempDir);
+        assert.equal(fs.existsSync(helperPath), false);
+        assert.equal(fs.existsSync(windowsHelperPath), false);
+        assert.equal(fs.existsSync(readerPath), false);
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
 });
 
 test('Windows CI packages embedded MPV from a staged x64 runtime', () => {

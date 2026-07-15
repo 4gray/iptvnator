@@ -18,6 +18,15 @@ Source files for the embedded MPV integration:
 - `libs/shared/interfaces/src/lib/embedded-mpv-session.interface.ts` defines the shared session and audio-track contract.
 - `libs/ui/playback/src/lib/embedded-mpv-player/` owns the Angular UI and controls.
 
+Frame-copy engine sources (experimental, macOS Apple Silicon — see the
+"Frame-Copy Engine" section below):
+
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper` process (`mpv_frame_helper.cpp`, `frame_helper_render.h`, `frame_helper_io.h`, `frame_shm.h`).
+- `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API shm frame reader used by the preload frame pump.
+- `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` — helper-process adapter behind the `NativeEmbeddedMpvAddon` surface.
+- `apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts` — preload frame pump (shm → WebGL canvas).
+- `spikes/mpv-frame-copy/` — standalone spike, measurement log (RESULTS.md), integration design (DESIGN.md), and the original analysis (ANALYSIS.md).
+
 Generated native-addon build output:
 
 - `apps/electron-backend/native/build/`
@@ -88,6 +97,104 @@ When `embedded-mpv` is the saved player, the settings store schedules an idle `p
 The MPV video surface is a native platform view/window, not a normal DOM element. Do not place critical Angular overlays on top of the video viewport and expect CSS `z-index` to win. The embedded MPV controls use a compositor-safe control dock below the native viewport instead of a true overlay on top of the native video surface.
 
 The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
+
+## Frame-Copy Engine (Experimental, Apple Silicon Only)
+
+`IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1` (on top of the regular
+embedded MPV experiment flag) switches macOS/arm64 to a second rendering
+engine that replaces the native-view compositing entirely:
+
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper`, a
+  one-process-per-session libmpv host. It decodes (hwdec), renders
+  offscreen at viewport size (headless CGL + async PBO readback ring),
+  publishes BGRA frames into a POSIX shm seqlock ring
+  (`frame_shm.h`, 3 slots, resize creates a new `-g<N>` generation), and
+  plays audio directly. Control protocol: tab-separated commands on stdin,
+  JSON events on stdout; the `snapshot` event mirrors
+  `NativeEmbeddedMpvSessionSnapshot`. Status semantics are ported from
+  `embedded_mpv.mm`.
+- `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` —
+  implements the same `NativeEmbeddedMpvAddon` surface over the helper
+  process, so `EmbeddedMpvNativeService` (polling, diffing, power blocker,
+  recording paths) is reused unchanged. The flag routes `getAddon()` to the
+  adapter and support reports `engine: 'frame-copy'`.
+- `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API
+  shm reader loaded by the preload frame pump
+  (`apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts`): copy
+  the newest complete frame into a reused ArrayBuffer once per rAF and
+  upload it to a WebGL2 texture on the renderer's
+  `<canvas data-embedded-mpv-frame>` (BGRA swizzle in the shader). Frame
+  copies whose post-copy seqlock check reports a writer race are discarded
+  without advancing the consumed sequence, so the next rAF retries instead
+  of uploading partial pixels. Frame data never crosses the contextBridge;
+  the bridge only exposes
+  `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
+- Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
+  `support.engine === 'frame-copy'` and skips the compositor workarounds —
+  no `HIDDEN_BOUNDS` when dialogs open, no popover bottom cutout; dialogs
+  and controls stack above the canvas as ordinary DOM. Bounds sync still
+  runs: the helper re-renders at the new viewport size (device pixels via
+  the display scale factor), including a forced current-frame render when a
+  paused resize creates a fresh shared-memory generation.
+
+Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
+checkbox (shown only when support reports `frameCopyAvailable`) persists to
+the main-process config store (`electron-conf`), which `main.ts` reads
+before creating the window and translates into the env flag; an explicitly
+set env var (including `0`) wins over the stored preference, but cannot bypass
+the platform/runtime safety gate. Frame-copy can relax the window sandbox only
+when embedded MPV itself is enabled for the current run (packaged app or the
+regular development experiment flag) and discovery finds both an executable
+(`X_OK`) helper and a readable regular frame-reader addon in the same native
+directory. Packaged discovery is limited to packaged resource locations and
+never falls through to writable cwd/dist development paths. A disabled base
+experiment keeps the renderer sandbox enabled and embedded MPV unavailable.
+When the base feature is enabled, a missing, mode-stripped, or incomplete
+frame-copy runtime keeps the sandbox enabled and falls back to the native
+engine.
+Changing the toggle requires an app restart because web preferences are fixed
+at window creation.
+
+Rendering size: the helper renders at the **aspect-fit** size of the video
+(observed `dwidth`/`dheight`) inside the requested viewport and bumps a shm
+generation when it changes — letterbox bars are never baked into frames,
+frames stay as small as possible, and the canvas letterboxes with a
+transparent background (app surface shows at the sides; fullscreen keeps a
+black backdrop). Snapshots carry `videoWidth`/`videoHeight`.
+`IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY=<seconds>` passes through to mpv's
+`audio-delay` for lip-sync tuning until a calibration flow exists.
+
+Lifecycle safety: `EmbeddedMpvNativeService` watches the main window for
+`render-process-gone` and `did-navigate` (full reloads) and disposes every
+session — Angular teardown never runs on a renderer crash/hard reload, and
+without the watch helper processes (or native mpv handles) would leak until
+app shutdown. Unexpected helper exits surface as a session `error`. macOS
+package validation requires `iptvnator_mpv_helper` and
+`embedded_mpv_frame_reader.node` next to the addon whenever the addon
+ships. The after-pack hook restores the helper's executable mode after the
+asset copy, and optional/skipped native rebuilds remove stale helper/reader
+artifacts before reporting frame-copy availability. This cleanup prevents
+known leftover build output; it is not a compatibility check for a complete
+but version-mismatched runtime pair.
+
+Trade-offs and constraints:
+
+- The frame-copy experiment flag can relax the BrowserWindow sandbox only
+  while the base embedded-MPV feature is enabled (preload must
+  `require` the reader addon); `contextIsolation` and
+  `nodeIntegration:false` stay on. The sandbox story must be revisited
+  before this engine can become a default — candidates: utilityProcess +
+  MessagePort (costs one extra copy + GC churn since Electron ports clone
+  ArrayBuffers) or a WebCodecs-based path.
+- Scope: Apple Silicon only by owner decision (2026-07-10); Intel Macs
+  keep the native-view engine. Windows/Linux ports of the helper (WGL/EGL)
+  are future work — the shm protocol and adapter are platform-agnostic.
+- Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
+  sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
+  produce-to-upload latency, zero torn frames over a 10-minute run.
+- Helper crash isolation: an unexpected helper exit surfaces as a session
+  `error` (renderer falls back); it can never take down the Electron main
+  process, unlike in-process libmpv.
 
 ## Resume And Track Handling
 

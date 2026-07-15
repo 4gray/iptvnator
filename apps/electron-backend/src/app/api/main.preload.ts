@@ -7,6 +7,10 @@ import {
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
 } from '@iptvnator/shared/interfaces/ipc-commands';
+import {
+    attachEmbeddedMpvFrameView,
+    detachEmbeddedMpvFrameView,
+} from './embedded-mpv-frame-pump';
 import type {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -484,6 +488,9 @@ const electronApi: ElectronBridgeApi = {
         sessionId: string
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_DISPOSE_SESSION', sessionId),
+    attachEmbeddedMpvFrameView: (sessionId: string): Promise<boolean> =>
+        attachEmbeddedMpvFrameView(sessionId),
+    detachEmbeddedMpvFrameView: (): void => detachEmbeddedMpvFrameView(),
     autoUpdatePlaylists: (
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions

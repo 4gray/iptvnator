@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "內嵌 MPV：幀複製引擎（實驗性）",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "影片會繪製到應用程式畫布上，選單和對話框可顯示在其上方。僅限 Apple Silicon 的 macOS。",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "重新啟動應用程式後生效。"
     },
     "THEMES": {
         "DARK_THEME": "深色",
