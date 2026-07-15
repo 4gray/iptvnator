@@ -666,14 +666,19 @@ public:
             return false;
         }
         if (wglMakeCurrent(dc_, legacy) != TRUE) {
-            wglDeleteContext(legacy);
+            if (wglDeleteContext(legacy) != TRUE) {
+                std::fprintf(stderr,
+                             "wgl create: failed to delete unbound legacy "
+                             "context\n");
+            }
             errorOut = "failed to bind the legacy WGL context";
             return false;
         }
 
         const auto createContextAttribs =
             reinterpret_cast<FrameHelperWglCreateContextAttribsFn>(
-                wglGetProcAddress("wglCreateContextAttribsARB"));
+                wglLoaderGetProcAddress(opengl32_,
+                                        "wglCreateContextAttribsARB"));
         if (createContextAttribs) {
             const int attribs[] = {
                 WGL_CONTEXT_MAJOR_VERSION_ARB, 3,
@@ -683,9 +688,29 @@ public:
             };
             HGLRC core = createContextAttribs(dc_, nullptr, attribs);
             if (core) {
-                wglMakeCurrent(dc_, core);
-                wglDeleteContext(legacy);
-                context_ = core;
+                if (wglMakeCurrent(dc_, core) != TRUE) {
+                    if (wglDeleteContext(core) != TRUE) {
+                        std::fprintf(
+                            stderr,
+                            "wgl create: failed to delete unbound core "
+                            "context\n");
+                    }
+                    if (wglGetCurrentContext() != legacy &&
+                        wglMakeCurrent(dc_, legacy) != TRUE) {
+                        errorOut =
+                            "failed to restore the legacy WGL context";
+                        return false;
+                    }
+                    context_ = legacy;
+                } else {
+                    context_ = core;
+                    if (wglDeleteContext(legacy) != TRUE) {
+                        std::fprintf(
+                            stderr,
+                            "wgl create: failed to delete superseded legacy "
+                            "context\n");
+                    }
+                }
             } else {
                 /* Pre-3.2 driver: keep the legacy (compatibility) context;
                  * the entry-point loading below decides adequacy. */
@@ -708,20 +733,43 @@ public:
 #undef FRAME_HELPER_WGL_LOAD
         if (!loaded) {
             errorOut = std::string("missing GL entry point: ") + missing;
-            wglMakeCurrent(nullptr, nullptr);
+            if (wglMakeCurrent(nullptr, nullptr) != TRUE) {
+                errorOut += "; failed to release the WGL context";
+            }
             return false;
         }
 
         /* Unbind before returning — see the threading contract above. */
-        wglMakeCurrent(nullptr, nullptr);
+        if (wglMakeCurrent(nullptr, nullptr) != TRUE) {
+            errorOut =
+                "failed to release the WGL context for render-thread handoff";
+            return false;
+        }
         return true;
     }
 
-    void makeCurrent() { wglMakeCurrent(dc_, context_); }
+    bool makeCurrent(std::string& errorOut) {
+        if (!dc_ || !context_) {
+            errorOut = "WGL render context is unavailable";
+            return false;
+        }
+        if (wglMakeCurrent(dc_, context_) != TRUE) {
+            errorOut = "failed to bind the WGL render context";
+            return false;
+        }
+        return true;
+    }
 
     void destroy() {
-        wglMakeCurrent(nullptr, nullptr);
-        if (context_) wglDeleteContext(context_);
+        if (context_ && wglMakeCurrent(nullptr, nullptr) != TRUE) {
+            std::fprintf(stderr,
+                         "wgl teardown: failed to release current context\n");
+            return;
+        }
+        if (context_ && wglDeleteContext(context_) != TRUE) {
+            std::fprintf(stderr, "wgl teardown: failed to delete context\n");
+            return;
+        }
         context_ = nullptr;
         /* The hidden window/class belong to the main thread (DestroyWindow
          * is thread-affine and this runs on the render thread); the process

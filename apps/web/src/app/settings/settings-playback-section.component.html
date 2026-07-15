@@ -114,10 +114,7 @@
             </div>
         </div>
 
-        @if (
-            isDesktop() &&
-            (frameCopyAvailable() || form().value.embeddedMpvFrameCopy)
-        ) {
+        @if (frameCopyAvailable() || form().value.embeddedMpvFrameCopy) {
             <div
                 class="setting-item"
                 data-test-id="embedded-mpv-frame-copy-setting"
@@ -187,7 +184,9 @@
         </div>
     }
 
-    @if (supportsExternalPlayerPathSettings() && form().value.player === 'mpv') {
+    @if (
+        supportsExternalPlayerPathSettings() && form().value.player === 'mpv'
+    ) {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
@@ -259,7 +258,9 @@
         </div>
     }
 
-    @if (supportsExternalPlayerPathSettings() && form().value.player === 'vlc') {
+    @if (
+        supportsExternalPlayerPathSettings() && form().value.player === 'vlc'
+    ) {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>

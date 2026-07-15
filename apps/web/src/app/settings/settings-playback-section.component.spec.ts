@@ -171,47 +171,29 @@ describe('SettingsPlaybackSectionComponent', () => {
         ).toBeNull();
     });
 
-    it('shows the frame-copy toggle when the engine is available on desktop', () => {
-        fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('frameCopyAvailable', true);
-        fixture.detectChanges();
+    it.each<[string, boolean, boolean, boolean, boolean]>([
+        ['shows the available desktop engine', true, true, false, true],
+        ['keeps a stale desktop opt-in clearable', true, false, true, true],
+        ['hides a stale opt-in in the PWA', false, false, true, false],
+    ])(
+        '%s',
+        (_description, isDesktop, frameCopyAvailable, stored, expected) => {
+            const form = createForm();
+            form.controls['embeddedMpvFrameCopy'].setValue(stored);
+            fixture.componentRef.setInput('form', form);
+            fixture.componentRef.setInput('isDesktop', isDesktop);
+            fixture.componentRef.setInput(
+                'frameCopyAvailable',
+                frameCopyAvailable
+            );
+            fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector(
+            const setting = fixture.nativeElement.querySelector(
                 '[data-test-id="embedded-mpv-frame-copy-setting"]'
-            )
-        ).not.toBeNull();
-    });
-
-    it('keeps a stale frame-copy opt-in clearable on desktop without the helper', () => {
-        const form = createForm();
-        form.controls['embeddedMpvFrameCopy'].setValue(true);
-        fixture.componentRef.setInput('form', form);
-        fixture.componentRef.setInput('isDesktop', true);
-        fixture.componentRef.setInput('frameCopyAvailable', false);
-        fixture.detectChanges();
-
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="embedded-mpv-frame-copy-setting"]'
-            )
-        ).not.toBeNull();
-    });
-
-    it('never shows the frame-copy toggle in the PWA, even with a stored opt-in', () => {
-        const form = createForm();
-        form.controls['embeddedMpvFrameCopy'].setValue(true);
-        fixture.componentRef.setInput('form', form);
-        fixture.componentRef.setInput('isDesktop', false);
-        fixture.componentRef.setInput('frameCopyAvailable', false);
-        fixture.detectChanges();
-
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="embedded-mpv-frame-copy-setting"]'
-            )
-        ).toBeNull();
-    });
+            );
+            expect(Boolean(setting)).toBe(expected);
+        }
+    );
 
     it('shows the recording folder setting only in desktop builds', () => {
         fixture.componentRef.setInput('isDesktop', true);

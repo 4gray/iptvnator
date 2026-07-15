@@ -110,7 +110,10 @@ libmpv import library, and `mpv-2.dll`/`mpv.dll` or
 (`lib/` and `bin/`) or the common `mpv-dev-lgpl` flat layout with the import
 library and DLL in the archive root. The staged runtime preserves the DLL
 basename from the archive because Windows import libraries encode the DLL name
-that `embedded_mpv.node` must load at runtime. If
+that native binaries must load at runtime. Package validation reads the
+frame-copy helper's PE imports and requires that exact DLL basename beside
+`iptvnator_mpv_helper.exe`; a different accepted MPV DLL name or a copy only
+under `native/lib/` is not sufficient. If
 `runtime-manifest.json` is missing, CI generates a minimal manifest from the
 archive URL/path and checksum; release-ready runtime archives should still
 provide full source/build metadata.

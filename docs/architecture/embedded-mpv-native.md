@@ -41,7 +41,11 @@ Windows packaged runtimes must preserve the MPV DLL basename referenced by the
 import library used at native-addon link time. For example, an archive that
 ships `libmpv.dll.a` and `libmpv-2.dll` must package `libmpv-2.dll`; renaming it
 to `mpv-2.dll` leaves `embedded_mpv.node` with an unresolved DLL dependency at
-startup, so the Settings support probe hides the Embedded MPV option.
+startup, so the Settings support probe hides the Embedded MPV option. The
+frame-copy helper is a separate executable and resolves that same import from
+its own directory. Package validation therefore reads the helper's PE import
+table and requires the exact referenced MPV DLL beside
+`iptvnator_mpv_helper.exe`, not only under `native/lib/`.
 
 On Linux, `embedded_mpv.node` must not link directly to `libmpv` or load libmpv in-process. Electron loads its own `libffmpeg` and Chromium graphics stack; in-process libmpv can resolve FFmpeg/GL symbols against incompatible Electron symbols, while isolated dynamic-loader namespaces introduce thread/runtime ownership problems. The Linux addon therefore owns only the X11 child-window embedding, process lifecycle, and a private MPV JSON IPC socket. It starts `mpv --wid=<window> --input-ipc-server=<socket>`, polls `time-pos`, `duration`, `volume`, and `pause`, and forwards pause/seek/volume/audio-track commands through that socket. The Linux MPV JSON IPC polling runs on an addon-owned background thread; `getSessionSnapshot()` returns the last cached snapshot and must not perform socket round trips on Electron's main thread. Linux MPV process teardown sends `SIGTERM` on the caller path, then waits and escalates to `SIGKILL` on a detached cleanup thread. A healthy Linux build lists X11/Xext as addon dependencies, but `ldd apps/electron-backend/native/build/Release/embedded_mpv.node` must not list `libmpv`. Runtime support also requires an `mpv` executable on `PATH`.
 

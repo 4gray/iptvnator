@@ -1,9 +1,8 @@
 # Frame-copy engine — Windows/Linux porting handoff
 
-> Handoff for future Claude/dev sessions on Windows and Linux machines
-> (they won't have the originating Mac's local session memory — this file
-> is the transfer). Written 2026-07-11 by the macOS session that built the
-> engine; fold into DESIGN.md once both ports land.
+> Historical handoff and maintenance notes for the completed Linux and
+> Windows ports. The canonical runtime contract now lives in
+> `docs/architecture/embedded-mpv-native.md`.
 
 ## State as of 2026-07-15
 
@@ -70,16 +69,11 @@ twins, the TS gate in `embedded-mpv-frame-copy-platform.util.ts`, packaging.
 
 ## Branching & merge strategy
 
-- Merge order is #1169 → #1171 → #1175. #1169 is already merged; #1171 is
-  based directly on that `master`, while #1175 remains stacked on the Linux
-  port until #1171 lands.
-- Rewrite only the platform-specific commit range when moving a stacked PR;
-  do not replay the old parent history after its squash merge. Retarget the PR
-  explicitly and keep the parent branch until its child has been rewritten.
-- Keep the stack at most one unmerged level deep. New follow-up work branches
-  from the latest landed platform base on `master`.
-- Commit incrementally within the port branch; land each platform's
-  measurement rows in `RESULTS.md` in the same PR as its port.
+- The platform stack landed in order #1169 → #1171 → #1175.
+- Each child was rewritten onto the latest squash-merged `master` using only
+  its platform-specific commit range; the old parent history was not replayed.
+- New frame-copy work branches directly from `master`. Keep future stacks at
+  most one unmerged level deep and land platform measurements with their port.
 
 ## Per-platform task lists
 
@@ -217,10 +211,10 @@ display-capable DC.
   `node -e "const r=require('.../embedded_mpv_frame_reader.node'); const i=r.open('/impv-t-g2'); ..."`
   → `latestSeq()` advancing + pixel min/max spread.
 - **In-app**: `IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 pnpm run
-  serve:backend:embedded-mpv` or the Settings toggle (+restart). Second
+serve:backend:embedded-mpv` or the Settings toggle (+restart). Second
   parallel instance for CDP testing: build, then run
   `electron dist/apps/electron-backend/main.js --remote-debugging-port=9223
-  --user-data-dir=/tmp/x` with `ELECTRON_IS_DEV=0` for the file:// renderer
+--user-data-dir=/tmp/x` with `ELECTRON_IS_DEV=0` for the file:// renderer
   (dist package.json has no `main` field — point at main.js explicitly;
   a separate user-data-dir avoids the Chromium profile singleton).
 - **Perf gate**: follow `RESULTS.md` methodology (STATS/LONGRUN lines,

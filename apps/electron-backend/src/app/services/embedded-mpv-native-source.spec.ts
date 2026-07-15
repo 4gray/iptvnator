@@ -40,18 +40,22 @@ describe('Embedded MPV native source recording invariants', () => {
         'utf8'
     );
     const frameHelperRenderSource = readFileSync(
-        path.resolve(
-            __dirname,
-            '../../../native/helper/frame_helper_render.h'
-        ),
+        path.resolve(__dirname, '../../../native/helper/frame_helper_render.h'),
         'utf8'
     );
     const frameHelperGlSource = readFileSync(
         path.resolve(__dirname, '../../../native/helper/frame_helper_gl.h'),
         'utf8'
     );
+    const frameShmSource = readFileSync(
+        path.resolve(__dirname, '../../../native/helper/frame_shm.h'),
+        'utf8'
+    );
     const linuxFrameHelperGlSource = frameHelperGlSource.slice(
         frameHelperGlSource.indexOf('inline void* eglWrapGetProcAddress')
+    );
+    const windowsFrameHelperGlSource = frameHelperGlSource.slice(
+        frameHelperGlSource.indexOf('#define FRAME_HELPER_WGL_ENTRY_POINTS')
     );
 
     function functionBody(name: string): string {
@@ -304,9 +308,7 @@ describe('Embedded MPV native source recording invariants', () => {
     });
 
     it('copies Windows runtime DLLs next to the addon for Windows loader lookup', () => {
-        expect(buildScriptSource).toContain(
-            "'libmpv-2.dll',"
-        );
+        expect(buildScriptSource).toContain("'libmpv-2.dll',");
         expect(buildScriptSource).toContain(
             'path.join(outputDir, windowsDllName)'
         );
@@ -717,6 +719,57 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(setupGl).toContain(
             'if (!gl_.makeCurrent(errorOut)) return false;'
         );
+    });
+
+    it('checks WGL context handoff and never deletes a context after failed unbind', () => {
+        const create = sourceFunctionBody(
+            windowsFrameHelperGlSource,
+            'bool create(std::string& errorOut)',
+            'WGL GlContext::create'
+        );
+        const makeCurrent = sourceFunctionBody(
+            windowsFrameHelperGlSource,
+            'bool makeCurrent(std::string& errorOut)',
+            'WGL GlContext::makeCurrent'
+        );
+        const destroy = sourceFunctionBody(
+            windowsFrameHelperGlSource,
+            'void destroy()',
+            'WGL GlContext::destroy'
+        );
+
+        expect(create).toContain('wglMakeCurrent(dc_, core) != TRUE');
+        expect(create).toContain('wglMakeCurrent(nullptr, nullptr) != TRUE');
+        expect(create).toContain('wglLoaderGetProcAddress(opengl32_,');
+        expect(create).toContain('"wglCreateContextAttribsARB")');
+        expect(create).not.toContain(
+            'wglGetProcAddress("wglCreateContextAttribsARB")'
+        );
+        expect(makeCurrent).toContain('wglMakeCurrent(dc_, context_) != TRUE');
+        expect(makeCurrent).toContain('return false;');
+
+        const unbindIndex = destroy.indexOf(
+            'wglMakeCurrent(nullptr, nullptr) != TRUE'
+        );
+        const deleteIndex = destroy.indexOf(
+            'wglDeleteContext(context_) != TRUE'
+        );
+        expect(unbindIndex).toBeGreaterThanOrEqual(0);
+        expect(deleteIndex).toBeGreaterThan(unbindIndex);
+        expect(destroy.slice(0, deleteIndex)).toContain('return;');
+    });
+
+    it('initializes the Windows QPC frequency without a cross-thread data race', () => {
+        const nowNs = sourceFunctionBody(
+            frameShmSource,
+            'static inline uint64_t frame_shm_now_ns(void)',
+            'frame_shm_now_ns'
+        );
+
+        expect(nowNs).toContain(
+            'static const uint64_t frequency = []() -> uint64_t'
+        );
+        expect(nowNs).not.toContain('static uint64_t frequency;');
     });
 
     it('resolves linked core GL symbols before falling back to EGL extension lookup', () => {

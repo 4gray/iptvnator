@@ -44,14 +44,17 @@ typedef _Atomic uint64_t frame_shm_atomic_u64;
  * without overflow by splitting whole seconds from the remainder. */
 static inline uint64_t frame_shm_now_ns(void) {
 #if defined(_WIN32)
-    /* QPF is fixed after boot, so the benign init race writes one value. */
-    static uint64_t frequency;
+    /* C++11 function-local initialization is synchronized, so the helper's
+     * render/event threads cannot race while caching the boot-stable QPF. */
+    static const uint64_t frequency = []() -> uint64_t {
+        LARGE_INTEGER value;
+        if (QueryPerformanceFrequency(&value) != TRUE ||
+            value.QuadPart <= 0) {
+            return 1;
+        }
+        return (uint64_t)value.QuadPart;
+    }();
     LARGE_INTEGER counter;
-    if (frequency == 0) {
-        LARGE_INTEGER f;
-        QueryPerformanceFrequency(&f);
-        frequency = (uint64_t)f.QuadPart;
-    }
     QueryPerformanceCounter(&counter);
     const uint64_t ticks = (uint64_t)counter.QuadPart;
     return (ticks / frequency) * 1000000000ull +
