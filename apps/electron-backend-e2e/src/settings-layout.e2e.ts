@@ -13,6 +13,9 @@ test.describe('Electron Settings Layout', () => {
         const app = await launchElectronApp(dataDir);
 
         try {
+            await app.electronApp.evaluate(({ BrowserWindow }) => {
+                BrowserWindow.getAllWindows()[0]?.setSize(1000, 760);
+            });
             await openSettings(app.mainWindow);
 
             const layout = app.mainWindow.locator('.settings-layout');
