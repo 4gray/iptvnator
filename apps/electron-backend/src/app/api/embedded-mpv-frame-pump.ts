@@ -24,12 +24,16 @@ interface FrameReaderInfo {
     generation: number;
 }
 
+interface FrameCopyResult {
+    seq: number;
+    ageMs: number;
+    torn: boolean;
+}
+
 interface FrameReaderAddon {
     open(shmName: string): FrameReaderInfo;
     latestSeq(): number;
-    copyLatest(
-        buffer: ArrayBuffer
-    ): { seq: number; ageMs: number; torn: boolean } | null;
+    copyLatest(buffer: ArrayBuffer): FrameCopyResult | null;
     producerAliveMs(): number;
     close(): void;
 }
@@ -89,6 +93,20 @@ let sourceListenerRegistered = false;
  * replaced meanwhile) can never install itself over the active pump.
  */
 let attachEpoch = 0;
+
+export function copyStableLatestFrame(
+    reader: Pick<FrameReaderAddon, 'latestSeq' | 'copyLatest'>,
+    buffer: ArrayBuffer,
+    lastSeq: number
+): FrameCopyResult | null {
+    if (reader.latestSeq() <= lastSeq) return null;
+
+    const result = reader.copyLatest(buffer);
+    // A torn memcpy raced the helper overwriting this ring slot. Keep the
+    // previous sequence so the next animation tick retries instead of
+    // uploading partially copied pixels or marking the frame consumed.
+    return result && !result.torn ? result : null;
+}
 
 function delay(ms: number): Promise<void> {
     return new Promise((resolve) => setTimeout(resolve, ms));
@@ -196,23 +214,25 @@ function pumpTick(): void {
     pump.rafHandle = requestAnimationFrame(pumpTick);
 
     const { gl, reader, frame } = pump;
-    if (reader.latestSeq() > pump.lastSeq) {
-        const result = reader.copyLatest(frame.buffer as ArrayBuffer);
-        if (result) {
-            gl.texSubImage2D(
-                gl.TEXTURE_2D,
-                0,
-                0,
-                0,
-                pump.width,
-                pump.height,
-                gl.RGBA,
-                gl.UNSIGNED_BYTE,
-                frame
-            );
-            pump.lastSeq = result.seq;
-            gl.drawArrays(gl.TRIANGLES, 0, 3);
-        }
+    const result = copyStableLatestFrame(
+        reader,
+        frame.buffer as ArrayBuffer,
+        pump.lastSeq
+    );
+    if (result) {
+        gl.texSubImage2D(
+            gl.TEXTURE_2D,
+            0,
+            0,
+            0,
+            pump.width,
+            pump.height,
+            gl.RGBA,
+            gl.UNSIGNED_BYTE,
+            frame
+        );
+        pump.lastSeq = result.seq;
+        gl.drawArrays(gl.TRIANGLES, 0, 3);
     }
 }
 

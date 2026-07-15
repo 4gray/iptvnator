@@ -7,6 +7,9 @@ const {
     patchAddonForBundledRuntime,
     validateNoForbiddenRuntimeLinks,
 } = require('../../tools/packaging/embedded-mpv-packaging.cjs');
+const {
+    removeStaleFrameCopyArtifacts,
+} = require('../../tools/packaging/embedded-mpv-frame-copy-files.cjs');
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(
@@ -59,6 +62,9 @@ function log(message) {
 function cleanOutput() {
     fs.rmSync(outputFile, { force: true });
     fs.rmSync(outputLibDir, { recursive: true, force: true });
+    // Do not let an optional/skipped rebuild leave frame-copy artifacts that
+    // could make startup treat an incomplete runtime as available.
+    removeStaleFrameCopyArtifacts(outputDir);
     for (const windowsDllName of [
         'mpv-2.dll',
         'libmpv-2.dll',

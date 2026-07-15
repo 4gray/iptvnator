@@ -352,6 +352,7 @@ inline void RenderPipeline::runLoop() {
     while (true) {
         int resizeWidth = 0;
         int resizeHeight = 0;
+        bool targetsRebuilt = false;
         {
             std::unique_lock<std::mutex> lock(mutex_);
             cv_.wait_for(lock, std::chrono::milliseconds(100), [&] {
@@ -374,10 +375,13 @@ inline void RenderPipeline::runLoop() {
                              .finish());
                 break;
             }
+            targetsRebuilt = true;
         }
 
         const uint64_t flags = mpv_render_context_update(renderContext_);
-        if (flags & MPV_RENDER_UPDATE_FRAME) {
+        /* A resize installs an empty shm ring. Redraw the current frame even
+         * while paused; the async PBO is published on the next loop. */
+        if (targetsRebuilt || (flags & MPV_RENDER_UPDATE_FRAME)) {
             renderFrame();
         } else {
             /* Flush a stranded readback so pause keeps the last frame. */

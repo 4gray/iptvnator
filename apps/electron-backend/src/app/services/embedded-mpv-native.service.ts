@@ -28,6 +28,15 @@ import {
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
+import {
+    getEmbeddedMpvAddonCandidatePaths,
+    isFrameCopyRuntimeUsable,
+    resolveFrameCopyHelperPath,
+} from './embedded-mpv-frame-copy-platform.util';
+import {
+    EMBEDDED_MPV_EXPERIMENT_ENV,
+    isEmbeddedMpvFeatureEnabled,
+} from './embedded-mpv-runtime-policy.util';
 
 export interface NativeEmbeddedMpvSessionSnapshot {
     status: EmbeddedMpvSessionStatus;
@@ -82,19 +91,12 @@ interface EmbeddedMpvRuntimeSession {
     lastStatus: EmbeddedMpvSessionStatus | null;
 }
 
-const EMBEDDED_MPV_EXPERIMENT_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT';
 const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
 const SUPPORTED_EMBEDDED_MPV_PLATFORMS = new Set<NodeJS.Platform>([
     'darwin',
     'win32',
     'linux',
 ]);
-
-function dedupePaths(paths: Array<string | undefined>): string[] {
-    return [
-        ...new Set(paths.filter((value): value is string => Boolean(value))),
-    ];
-}
 
 export class EmbeddedMpvNativeService {
     private addon: NativeEmbeddedMpvAddon | null = null;
@@ -127,9 +129,7 @@ export class EmbeddedMpvNativeService {
         // of leaving embedded MPV unsupported with no way to recover.
         return (
             this.isFrameCopyEngineRequested() &&
-            process.platform === 'darwin' &&
-            process.arch === 'arm64' &&
-            this.resolveFrameCopyHelperPath() !== null
+            isFrameCopyRuntimeUsable(() => this.resolveFrameCopyHelperPath())
         );
     }
 
@@ -138,10 +138,8 @@ export class EmbeddedMpvNativeService {
     }
 
     isFrameCopyAvailable(): boolean {
-        return (
-            process.platform === 'darwin' &&
-            process.arch === 'arm64' &&
-            this.resolveFrameCopyHelperPath() !== null
+        return isFrameCopyRuntimeUsable(() =>
+            this.resolveFrameCopyHelperPath()
         );
     }
 
@@ -169,11 +167,9 @@ export class EmbeddedMpvNativeService {
     }
 
     private resolveFrameCopyHelperPath(): string | null {
-        const candidates = this.getAddonCandidatePaths().map(
-            (candidatePath) =>
-                path.join(path.dirname(candidatePath), 'iptvnator_mpv_helper')
-        );
-        return candidates.find((candidate) => existsSync(candidate)) ?? null;
+        // Shared with the startup sandbox gate; kept as an instance method so
+        // service tests can stub helper discovery per scenario.
+        return resolveFrameCopyHelperPath();
     }
 
     private getMainWindowScaleFactor(): number {
@@ -227,7 +223,7 @@ export class EmbeddedMpvNativeService {
             };
         }
 
-        if (!this.isEmbeddedMpvEnabled()) {
+        if (!isEmbeddedMpvFeatureEnabled()) {
             return {
                 supported: false,
                 platform: process.platform,
@@ -926,20 +922,8 @@ export class EmbeddedMpvNativeService {
         return `${parts[0]}${parts[1]}${parts[2]}-${parts[3]}${parts[4]}${parts[5]}`;
     }
 
-    private isExperimentEnabled(): boolean {
-        return ['1', 'true', 'yes', 'on'].includes(
-            (process.env[EMBEDDED_MPV_EXPERIMENT_ENV] ?? '')
-                .trim()
-                .toLowerCase()
-        );
-    }
-
-    private isEmbeddedMpvEnabled(): boolean {
-        return app.isPackaged || this.isExperimentEnabled();
-    }
-
     private assertEmbeddedMpvEnabled(): void {
-        if (!this.isEmbeddedMpvEnabled()) {
+        if (!isEmbeddedMpvFeatureEnabled()) {
             throw new Error(
                 `Embedded MPV is disabled. Set ${EMBEDDED_MPV_EXPERIMENT_ENV}=1 to enable the local desktop harness, or use a packaged build with the bundled runtime.`
             );
@@ -1066,47 +1050,7 @@ export class EmbeddedMpvNativeService {
     }
 
     private getAddonCandidatePaths(): string[] {
-        const localBuildAddonPath = path.resolve(
-            process.cwd(),
-            'apps/electron-backend/native/build/Release/embedded_mpv.node'
-        );
-        const distAddonPaths = [
-            path.resolve(__dirname, 'native/embedded_mpv.node'),
-            path.resolve(__dirname, '../../native/embedded_mpv.node'),
-        ];
-        const packagedAddonPaths = [
-            path.resolve(
-                (process as NodeJS.Process & { resourcesPath?: string })
-                    .resourcesPath ?? '',
-                'app.asar.unpacked',
-                'electron-backend',
-                'native',
-                'embedded_mpv.node'
-            ),
-            app.getAppPath()
-                ? path.join(
-                      path.dirname(app.getAppPath()),
-                      'app.asar.unpacked',
-                      'electron-backend',
-                      'native',
-                      'embedded_mpv.node'
-                  )
-                : undefined,
-        ];
-
-        return dedupePaths(
-            app.isPackaged
-                ? [
-                      ...packagedAddonPaths,
-                      ...distAddonPaths,
-                      localBuildAddonPath,
-                  ]
-                : [
-                      localBuildAddonPath,
-                      ...distAddonPaths,
-                      ...packagedAddonPaths,
-                  ]
-        );
+        return getEmbeddedMpvAddonCandidatePaths();
     }
 
     private readUnavailableReason(candidatePaths: string[]): string | null {

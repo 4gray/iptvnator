@@ -3,7 +3,14 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import {
+    chmodSync,
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+} from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
@@ -113,7 +120,9 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     let addon: MockAddon;
     let nextBlockerId: number;
     let originalPlatform: NodeJS.Platform;
+    let originalArch: string;
     let originalDisplay: string | undefined;
+    let originalExperiment: string | undefined;
     let originalOzonePlatformHint: string | undefined;
     let originalWaylandDisplay: string | undefined;
     let tempDirs: string[];
@@ -133,16 +142,21 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         mainWindowGetNativeWindowHandleMock.mockReturnValue(Buffer.alloc(8));
         mainWindowSendMock.mockReset();
         mainWindowWebContentsOnMock.mockReset();
+        appMock.isPackaged = true;
 
         tempDirs = [];
         nextBlockerId = 1;
         powerSaveBlockerMock.start.mockImplementation(() => nextBlockerId++);
         powerSaveBlockerMock.isStarted.mockReturnValue(true);
         originalPlatform = process.platform;
+        originalArch = process.arch;
         Object.defineProperty(process, 'platform', {
             value: 'darwin',
         });
+        Object.defineProperty(process, 'arch', { value: 'arm64' });
         originalDisplay = process.env.DISPLAY;
+        originalExperiment =
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
         originalOzonePlatformHint = process.env.ELECTRON_OZONE_PLATFORM_HINT;
         originalWaylandDisplay = process.env.WAYLAND_DISPLAY;
 
@@ -164,7 +178,12 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         Object.defineProperty(process, 'platform', {
             value: originalPlatform,
         });
+        Object.defineProperty(process, 'arch', { value: originalArch });
         restoreEnv('DISPLAY', originalDisplay);
+        restoreEnv(
+            'IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT',
+            originalExperiment
+        );
         restoreEnv('ELECTRON_OZONE_PLATFORM_HINT', originalOzonePlatformHint);
         restoreEnv('WAYLAND_DISPLAY', originalWaylandDisplay);
     });
@@ -227,6 +246,56 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
         }
     });
+
+    it('requires the base embedded-MPV opt-in for unpackaged runs', () => {
+        appMock.isPackaged = false;
+        delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
+
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({ supported: false })
+        );
+
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT = '1';
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({ supported: true })
+        );
+    });
+
+    (process.platform === 'win32' ? it.skip : it)(
+        'falls back to the native engine when the frame-copy helper is not executable',
+        () => {
+            const tempDir = createTempDir();
+            const releaseDir = path.join(
+                tempDir,
+                'apps',
+                'electron-backend',
+                'native',
+                'build',
+                'Release'
+            );
+            const helperPath = path.join(
+                releaseDir,
+                'iptvnator_mpv_helper'
+            );
+            mkdirSync(releaseDir, { recursive: true });
+            writeFileSync(helperPath, '#!/bin/sh\n');
+            chmodSync(helperPath, 0o644);
+            writeFileSync(
+                path.join(releaseDir, 'embedded_mpv_frame_reader.node'),
+                'reader'
+            );
+            const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tempDir);
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+
+            try {
+                expect(service.getActiveEngine()).toBe('native');
+                expect(service.isFrameCopyAvailable()).toBe(false);
+            } finally {
+                delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+                cwdSpy.mockRestore();
+            }
+        }
+    );
 
     it('does not acquire a blocker for a loading session', () => {
         startSession('s1', snapshot('loading'));

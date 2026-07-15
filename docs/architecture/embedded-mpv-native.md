@@ -124,21 +124,36 @@ engine that replaces the native-view compositing entirely:
   the newest complete frame into a reused ArrayBuffer once per rAF and
   upload it to a WebGL2 texture on the renderer's
   `<canvas data-embedded-mpv-frame>` (BGRA swizzle in the shader). Frame
-  data never crosses the contextBridge; the bridge only exposes
+  copies whose post-copy seqlock check reports a writer race are discarded
+  without advancing the consumed sequence, so the next rAF retries instead
+  of uploading partial pixels. Frame data never crosses the contextBridge;
+  the bridge only exposes
   `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
 - Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
   `support.engine === 'frame-copy'` and skips the compositor workarounds —
   no `HIDDEN_BOUNDS` when dialogs open, no popover bottom cutout; dialogs
   and controls stack above the canvas as ordinary DOM. Bounds sync still
   runs: the helper re-renders at the new viewport size (device pixels via
-  the display scale factor).
+  the display scale factor), including a forced current-frame render when a
+  paused resize creates a fresh shared-memory generation.
 
 Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
 checkbox (shown only when support reports `frameCopyAvailable`) persists to
 the main-process config store (`electron-conf`), which `main.ts` reads
 before creating the window and translates into the env flag; an explicitly
-set env var (including `0`) always wins. Changing the toggle requires an
-app restart because the sandbox relaxation is fixed at window creation.
+set env var (including `0`) wins over the stored preference, but cannot bypass
+the platform/runtime safety gate. Frame-copy can relax the window sandbox only
+when embedded MPV itself is enabled for the current run (packaged app or the
+regular development experiment flag) and discovery finds both an executable
+(`X_OK`) helper and a readable regular frame-reader addon in the same native
+directory. Packaged discovery is limited to packaged resource locations and
+never falls through to writable cwd/dist development paths. A disabled base
+experiment keeps the renderer sandbox enabled and embedded MPV unavailable.
+When the base feature is enabled, a missing, mode-stripped, or incomplete
+frame-copy runtime keeps the sandbox enabled and falls back to the native
+engine.
+Changing the toggle requires an app restart because web preferences are fixed
+at window creation.
 
 Rendering size: the helper renders at the **aspect-fit** size of the video
 (observed `dwidth`/`dheight`) inside the requested viewport and bumps a shm
@@ -156,11 +171,16 @@ without the watch helper processes (or native mpv handles) would leak until
 app shutdown. Unexpected helper exits surface as a session `error`. macOS
 package validation requires `iptvnator_mpv_helper` and
 `embedded_mpv_frame_reader.node` next to the addon whenever the addon
-ships.
+ships. The after-pack hook restores the helper's executable mode after the
+asset copy, and optional/skipped native rebuilds remove stale helper/reader
+artifacts before reporting frame-copy availability. This cleanup prevents
+known leftover build output; it is not a compatibility check for a complete
+but version-mismatched runtime pair.
 
 Trade-offs and constraints:
 
-- The experiment flag relaxes the BrowserWindow sandbox (preload must
+- The frame-copy experiment flag can relax the BrowserWindow sandbox only
+  while the base embedded-MPV feature is enabled (preload must
   `require` the reader addon); `contextIsolation` and
   `nodeIntegration:false` stay on. The sandbox story must be revisited
   before this engine can become a default — candidates: utilityProcess +

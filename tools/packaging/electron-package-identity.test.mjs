@@ -60,6 +60,10 @@ const electronAfterPackSource = fs.readFileSync(
     join(currentDir, 'electron-after-pack.cjs'),
     'utf8'
 );
+const frameCopyFilesModulePath = join(
+    currentDir,
+    'embedded-mpv-frame-copy-files.cjs'
+);
 const embeddedMpvPackagingSource = fs.readFileSync(
     join(currentDir, 'embedded-mpv-packaging.cjs'),
     'utf8'
@@ -453,6 +457,55 @@ test('embedded MPV packaging helpers use a cross-platform module name', () => {
         packageLayoutVerifier,
         /require\(['"]\.\/embedded-mpv-packaging\.cjs['"]\)/
     );
+});
+
+test('frame-copy packaging file operations enforce modes and remove stale artifacts', () => {
+    assert.ok(
+        fs.existsSync(frameCopyFilesModulePath),
+        'shared frame-copy packaging file helper must exist'
+    );
+    const {
+        preparePackagedFrameCopyArtifacts,
+        removeStaleFrameCopyArtifacts,
+    } = require(frameCopyFilesModulePath);
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'impv-fc-files-'));
+
+    try {
+        const helperPath = join(tempDir, 'iptvnator_mpv_helper');
+        const windowsHelperPath = join(
+            tempDir,
+            'iptvnator_mpv_helper.exe'
+        );
+        const readerPath = join(tempDir, 'embedded_mpv_frame_reader.node');
+        fs.writeFileSync(helperPath, '#!/bin/sh\n');
+        fs.chmodSync(helperPath, 0o644);
+        fs.writeFileSync(windowsHelperPath, 'exe');
+        fs.writeFileSync(readerPath, 'reader');
+
+        if (process.platform !== 'win32') {
+            preparePackagedFrameCopyArtifacts(tempDir, 'darwin');
+            assert.notEqual(
+                fs.statSync(helperPath).mode & 0o111,
+                0,
+                'macOS helper must be executable after packaging'
+            );
+        }
+
+        preparePackagedFrameCopyArtifacts(tempDir, 'linux');
+        assert.equal(
+            fs.existsSync(helperPath),
+            false,
+            'Linux packages must omit the unsupported frame-copy helper'
+        );
+
+        fs.writeFileSync(helperPath, '#!/bin/sh\n');
+        removeStaleFrameCopyArtifacts(tempDir);
+        assert.equal(fs.existsSync(helperPath), false);
+        assert.equal(fs.existsSync(windowsHelperPath), false);
+        assert.equal(fs.existsSync(readerPath), false);
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
 });
 
 test('Windows CI packages embedded MPV from a staged x64 runtime', () => {

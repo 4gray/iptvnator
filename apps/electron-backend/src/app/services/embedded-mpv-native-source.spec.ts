@@ -39,6 +39,13 @@ describe('Embedded MPV native source recording invariants', () => {
         ),
         'utf8'
     );
+    const frameHelperRenderSource = readFileSync(
+        path.resolve(
+            __dirname,
+            '../../../native/helper/frame_helper_render.h'
+        ),
+        'utf8'
+    );
 
     function functionBody(name: string): string {
         return sourceFunctionBody(nativeSource, `Napi::Value ${name}(`, name);
@@ -598,6 +605,20 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(buildScriptSource).toContain("origin: 'external-mpv-process'");
         expect(buildScriptSource).toContain('writeLinuxProcessRuntimeManifest');
         expect(buildScriptSource).toContain('runtimeFiles: []');
+    });
+
+    it('forces the current frame into a rebuilt shm generation after a paused resize', () => {
+        const runLoop = sourceFunctionBody(
+            frameHelperRenderSource,
+            'inline void RenderPipeline::runLoop()',
+            'RenderPipeline::runLoop'
+        );
+
+        expect(runLoop).toContain('bool targetsRebuilt = false;');
+        expect(runLoop).toContain('targetsRebuilt = true;');
+        expect(runLoop).toContain(
+            'if (targetsRebuilt || (flags & MPV_RENDER_UPDATE_FRAME))'
+        );
     });
 });
 
