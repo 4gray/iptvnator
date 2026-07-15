@@ -762,6 +762,8 @@
 
 .settings-container.dialog-mode .action-bar {
     position: static;
+    align-self: stretch;
+    margin-left: 0;
     margin-top: 12px;
     margin-bottom: 2px;
     box-shadow: none;
