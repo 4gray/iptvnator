@@ -5,21 +5,26 @@
 > is the transfer). Written 2026-07-11 by the macOS session that built the
 > engine; fold into DESIGN.md once both ports land.
 
-## State as of this handoff
+## State as of 2026-07-15
 
-- Branch: `claude/embedded-mpv-frame-copy-6ddc36`, PR:
-  https://github.com/4gray/iptvnator/pull/1169 (CI fully green).
+- The macOS base shipped through PR #1169 and is now merged into `master`.
 - The engine works end-to-end on macOS Apple Silicon: Settings toggle →
   restart → helper process renders mpv offscreen → shm ring → preload pump
   → WebGL canvas. Verified live with real IPTV + Stalker VOD.
 - Scope decision: macOS = arm64 only (Intel Macs keep the native engine).
-  Windows/Linux are NOT ported yet — this branch on those OSes behaves
-  exactly like master (helper doesn't build there, engine can't activate,
-  env flag falls back to native).
-- Coordination: PR #1169 credits larsemig's idea (#1154 comment 4932807350)
-  and proposes the series merge plan: merge the shared-controls subset
-  (#1148/#1149/#1152–54) rebased, supersede immersive (#1150/#1151) with
-  this engine. **Do not touch the controls layer** until that lands.
+- **The Linux port below is DONE in PR #1171** (rebased directly onto the
+  merged #1169 result) — headless
+  EGL helper, portable clock, reader on `__linux__`, TS gates, i18n,
+  measurements in RESULTS.md. Verified end-to-end in-app on Ubuntu 25.04
+  (Wayland session) with the xtream mock portal. Dev-build-only on Linux:
+  the helper links system libmpv and `electron-after-pack.cjs` strips it
+  from packages until milestone 4 (Linux bundled-libmpv runtime) — remove
+  that strip when milestone 4 lands. The Windows implementation lives in the
+  follow-up PR #1175; until that PR lands, `master` still has no WGL/named-shm
+  helper and the frame-copy flag falls back to the native engine on Windows.
+- PR #1169 credits larsemig's idea (#1154 comment 4932807350). Shared-player
+  controls are reviewed as a separate integration after this platform stack;
+  do not conflate that UI layer with the frame-copy transport ports.
 
 ## What "porting" means
 
@@ -28,45 +33,47 @@ The stdio protocol, shm layout, TS adapter, main-process service, preload
 pump, and Angular UI are shared and already shipped.
 
 ```
-apps/electron-backend/native/helper/
+apps/electron-backend/native/helper/          # state after the Linux port:
 ├── mpv_frame_helper.cpp     # portable: protocol, mpv session, snapshots
 ├── frame_helper_io.h        # portable: TSV-in/JSON-out, percent-encoding
-├── frame_shm.h              # layout portable; POSIX shm calls are not
-└── frame_helper_render.h    # macOS-ONLY: CGL headless GL + PBO + shm write
+├── frame_shm.h              # portable layout + shared CLOCK_MONOTONIC clock
+│                            # (POSIX shm calls still need a Windows twin)
+├── frame_helper_render.h    # portable: FBO/PBO readback + shm publish
+└── frame_helper_gl.h        # PLATFORM SEAM: GlContext — CGL (macOS) and
+                             # EGL (Linux); Windows adds its WGL twin HERE
 apps/electron-backend/native/src/embedded_mpv_frame_reader.c
-                             # real impl under #ifdef __APPLE__, stub elsewhere
+                             # real impl on __APPLE__ + __linux__, stub
+                             # elsewhere (Windows needs shm-open/clock twins)
 ```
 
-Porting = give `frame_helper_render.h` a WGL/EGL twin, give the shm
-create/open a Windows twin, flip the TS gates, extend packaging.
+Porting Windows = give `frame_helper_gl.h` a WGL GlContext twin, give the
+shm create/open (+ `frame_shm_now_ns`) Windows twins, flip the TS gate in
+`embedded-mpv-frame-copy-platform.util.ts`, extend packaging.
 
-## Branching & merge strategy (do this, not "commit to the current branch")
+## Branching & merge strategy
 
-- **Never commit port work into `claude/embedded-mpv-frame-copy-6ddc36`** —
-  that branch backs PR #1169, which is a frozen review/testing target
-  (review fixes only).
-- Create a port branch off it: `claude/frame-copy-linux-port` (Windows
-  later: branch off the Linux port branch if it reuses its portable
-  clock/shm refactors — likely yes — otherwise off the frame-copy branch).
-- Open the port PR with **base = the frame-copy branch**, so the diff shows
-  only the port. Merge order: #1169 → Linux PR → Windows PR. When #1169
-  merges and its branch is deleted, GitHub retargets the stacked PR to
-  master automatically.
-- Keep the stack at most one unmerged level deep; if #1169 gains review
-  commits, rebase the port branch onto it early and often.
+- Merge order is #1169 → #1171 → #1175. #1169 is already merged; #1171 is
+  based directly on that `master`, while #1175 remains stacked on the Linux
+  port until #1171 lands.
+- Rewrite only the platform-specific commit range when moving a stacked PR;
+  do not replay the old parent history after its squash merge. Retarget the PR
+  explicitly and keep the parent branch until its child has been rewritten.
+- Keep the stack at most one unmerged level deep. New follow-up work branches
+  from the latest landed platform base on `master`.
 - Commit incrementally within the port branch; land each platform's
   measurement rows in `RESULTS.md` in the same PR as its port.
-- If #1169 has already merged by the time you read this: branch off
-  `master` instead and ignore the retargeting notes.
 
 ## Per-platform task lists
 
-### Linux (do first — much closer to done)
+### Linux (DONE 2026-07-11 — see the update in "State" above)
 
 1. **Render backend**: headless EGL (`EGL_PLATFORM_SURFACELESS_MESA` /
    `eglGetPlatformDisplay(EGL_PLATFORM_SURFACELESS_MESA)` with fallback to
-   GBM) + the same FBO/PBO/readback code. GL entry points via
-   `eglGetProcAddress` in mpv's `get_proc_address`.
+   default-display and GBM candidates) + the same FBO/PBO/readback code.
+   Each candidate is validated through context bind and `GL_RENDERER`; a
+   hardware renderer wins over an earlier software tier. mpv resolves linked
+   core GL symbols through `dlsym(RTLD_DEFAULT)` and falls back to
+   `eglGetProcAddress` for extensions.
 2. **shm**: POSIX `shm_open` works as-is. The ONLY blocker in shared code:
    `clock_gettime_nsec_np(CLOCK_MONOTONIC_RAW)` is **macOS-only** — replace
    with a portable `now_ns()` (`clock_gettime(CLOCK_MONOTONIC, ...)`) in
@@ -201,8 +208,8 @@ create/open a Windows twin, flip the TS gates, extend packaging.
 
 ## Suggested milestone order
 
-1. Linux helper bring-up (EGL + portable clock) → lavfi smoke → in-app
-   behind flag → measure.
+1. **Completed in #1171:** Linux helper bring-up (EGL + portable clock) →
+   lavfi smoke → in-app behind flag → measure.
 2. Windows helper bring-up (WGL, named shm, reader twin) → same ladder →
    **iGPU laptop numbers = the decisive open gate**.
 3. Packaging: per-platform artifact validation + runtime staging.

@@ -6,6 +6,7 @@ import {
     EmbeddedMpvFrameSource,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { isFrameCopyPlatformSupported } from './embedded-mpv-frame-copy-platform.util';
 import type {
     NativeEmbeddedMpvAddon,
     NativeEmbeddedMpvSessionSnapshot,
@@ -81,8 +82,7 @@ export class EmbeddedMpvFrameCopyAdapter implements NativeEmbeddedMpvAddon {
 
     isSupported(): boolean {
         return (
-            process.platform === 'darwin' &&
-            process.arch === 'arm64' &&
+            isFrameCopyPlatformSupported() &&
             this.options.resolveHelperPath() !== null
         );
     }

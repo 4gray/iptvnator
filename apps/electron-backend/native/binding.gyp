@@ -117,6 +117,42 @@
               "<!(node -e \"const path = require('path'); const dir = process.env.LIBMPV_LIBRARY_DIR || '/opt/homebrew/lib'; process.stdout.write(path.join(dir, 'libmpv.2.dylib'))\")"
             ]
           }
+        ],
+        [
+          "OS==\"linux\"",
+          {
+            "type": "executable",
+            "sources": [
+              "helper/mpv_frame_helper.cpp"
+            ],
+            "include_dirs": [
+              "<!(node -p \"process.env.LIBMPV_INCLUDE_DIR || '/usr/include'\")",
+              "helper"
+            ],
+            "cflags_cc!": [
+              "-fno-exceptions"
+            ],
+            "cflags_cc": [
+              "-std=c++17",
+              "-fexceptions"
+            ],
+            "cflags": [
+              "-pthread"
+            ],
+            "ldflags": [
+              "-pthread",
+              "-Wl,-rpath,'$$ORIGIN/lib'",
+              "-Wl,-rpath,<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")"
+            ],
+            "libraries": [
+              "-L<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")",
+              "-lmpv",
+              "-lEGL",
+              "-lOpenGL",
+              "-lgbm",
+              "-ldl"
+            ]
+          }
         ]
       ]
     }

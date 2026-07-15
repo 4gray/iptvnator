@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: motor frame-copy (experimental)",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "O vídeo é desenhado na tela da aplicação, para que menus e diálogos fiquem por cima. Apenas macOS com Apple Silicon.",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "O vídeo é desenhado na tela da aplicação, para que menus e diálogos fiquem por cima. Apenas macOS com Apple Silicon e Linux.",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "Entra em vigor após reiniciar a aplicação."
     },
     "THEMES": {

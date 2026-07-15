@@ -1,5 +1,6 @@
 /*
- * iptvnator-mpv-helper — frame-copy embedded MPV helper process (macOS).
+ * iptvnator-mpv-helper — frame-copy embedded MPV helper process
+ * (macOS + Linux; platform GL context in frame_helper_gl.h).
  *
  * One process = one playback session. Owns libmpv end to end: decodes,
  * renders offscreen at viewport size, publishes BGRA frames into a shared

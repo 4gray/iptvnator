@@ -37,7 +37,8 @@ export interface EmbeddedMpvSupport {
     engine?: EmbeddedMpvEngine;
     /**
      * True when this machine could run the frame-copy engine (macOS arm64
-     * with the helper binary present), regardless of whether it is active.
+     * or Linux, with the helper binary present), regardless of whether it
+     * is active.
      * Drives the Settings toggle; switching engines requires an app restart.
      */
     frameCopyAvailable?: boolean;

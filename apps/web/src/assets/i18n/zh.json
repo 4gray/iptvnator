@@ -430,7 +430,7 @@
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
         "APP_UPDATE_RELEASE_NOTES": "What's new",
         "EMBEDDED_MPV_FRAME_COPY": "嵌入式 MPV：帧拷贝引擎（实验性）",
-        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "视频渲染到应用画布上，菜单和对话框可以显示在其上方。仅限 Apple Silicon 的 macOS。",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "视频渲染到应用画布上，菜单和对话框可以显示在其上方。仅限 Apple Silicon 的 macOS 和 Linux。",
         "EMBEDDED_MPV_FRAME_COPY_RESTART": "重启应用后生效。"
     },
     "THEMES": {

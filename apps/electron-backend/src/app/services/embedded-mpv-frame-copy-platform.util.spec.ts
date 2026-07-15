@@ -30,7 +30,8 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
         it.each<[NodeJS.Platform, string, boolean]>([
             ['darwin', 'arm64', true],
             ['darwin', 'x64', false],
-            ['linux', 'x64', false],
+            ['linux', 'x64', true],
+            ['linux', 'arm64', true],
             ['win32', 'x64', false],
         ])('%s/%s -> %s', (platform, arch, expected) => {
             Object.defineProperty(process, 'platform', { value: platform });

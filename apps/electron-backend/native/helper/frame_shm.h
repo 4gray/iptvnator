@@ -6,11 +6,14 @@
  * resize creates a fresh shm segment named `<base>-g<generation>` and the
  * reader re-attaches when the helper announces the new generation.
  *
- * Must compile as C11 (reader addon) and C++17 (helper).
+ * Must compile as C11 (reader addon) and C++17 (helper). Both consumers
+ * build with node-gyp's GNU dialects; frame_shm_now_ns() relies on POSIX
+ * clock_gettime, which strict -std=c11 (__STRICT_ANSI__) would hide.
  */
 #pragma once
 
 #include <stdint.h>
+#include <time.h>
 
 #ifdef __cplusplus
 #include <atomic>
@@ -20,6 +23,16 @@ typedef std::atomic<uint64_t> frame_shm_atomic_u64;
 typedef _Atomic uint64_t frame_shm_atomic_u64;
 #endif
 
+/* Monotonic clock for produce_time_ns/heartbeat_ns. Producer (helper) and
+ * consumer (reader addon) MUST use this same clock so age math stays valid.
+ * CLOCK_MONOTONIC is portable across macOS (10.12+) and Linux; the Windows
+ * port will need a QueryPerformanceCounter shim here. */
+static inline uint64_t frame_shm_now_ns(void) {
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    return (uint64_t)ts.tv_sec * 1000000000ull + (uint64_t)ts.tv_nsec;
+}
+
 #define FRAME_SHM_MAGIC 0x564d5046u /* 'FPMV' */
 #define FRAME_SHM_VERSION 1u
 #define FRAME_SHM_RING_SLOTS 3u
@@ -27,7 +40,7 @@ typedef _Atomic uint64_t frame_shm_atomic_u64;
 
 typedef struct {
     frame_shm_atomic_u64 seq; /* 0 while the slot is being (re)written */
-    uint64_t produce_time_ns; /* CLOCK_MONOTONIC_RAW after copy completes */
+    uint64_t produce_time_ns; /* frame_shm_now_ns() after copy completes */
 } FrameShmSlot;
 
 typedef struct {

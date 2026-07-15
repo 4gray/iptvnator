@@ -4,11 +4,18 @@ import path from 'path';
 
 /**
  * Platform gate + helper discovery for the embedded MPV frame-copy engine,
- * shared by startup and the runtime service so sandbox and engine decisions
- * cannot drift. These helpers must remain callable before app.whenReady().
+ * shared by startup, the runtime service, and the frame-copy adapter so
+ * sandbox and engine decisions cannot drift. These helpers must remain
+ * callable before app.whenReady().
+ *
+ * macOS stays Apple-Silicon-only. Linux supports every architecture because
+ * its helper renders through headless EGL and links libmpv out of process.
  */
 export function isFrameCopyPlatformSupported(): boolean {
-    return process.platform === 'darwin' && process.arch === 'arm64';
+    return (
+        process.platform === 'linux' ||
+        (process.platform === 'darwin' && process.arch === 'arm64')
+    );
 }
 
 function dedupeDefinedPaths(paths: Array<string | undefined>): string[] {
