@@ -20,7 +20,7 @@
     .portal-rail-link {
         width: 100%;
         justify-content: flex-start;
-        gap: 12px;
+        gap: calc(12px + var(--rail-dock-hover-overhang));
         padding: 0 12px;
     }
 }
@@ -71,7 +71,8 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .portal-rail-link mat-icon {
+    .portal-rail-link mat-icon,
+    .portal-rail-link:hover mat-icon {
         transition: none;
         transform: none;
     }

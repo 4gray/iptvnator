@@ -47,6 +47,7 @@
     // Dock-like hover magnification capped at 42px, so a 20px icon stays
     // inside its 44px slot without scaling neighboring icons or labels.
     --rail-dock-hover-scale: 2.1;
+    --rail-dock-hover-overhang: 11px;
 
     &.is-macos {
         padding-top: 36px;
@@ -142,7 +143,9 @@
 
 @media (prefers-reduced-motion: reduce) {
     .app-rail a mat-icon,
-    .app-rail button mat-icon {
+    .app-rail a:hover mat-icon,
+    .app-rail button mat-icon,
+    .app-rail button:hover mat-icon {
         transition: none;
         transform: none;
     }
@@ -334,7 +337,7 @@
 .app-rail.is-expanded .rail-footer .rail-shortcut {
     width: 100%;
     justify-content: flex-start;
-    gap: 12px;
+    gap: calc(12px + var(--rail-dock-hover-overhang));
     padding: 0 12px;
 }
 
