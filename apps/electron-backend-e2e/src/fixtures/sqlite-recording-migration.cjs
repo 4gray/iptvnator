@@ -3,7 +3,17 @@ const Database = require('better-sqlite3');
 const { mkdirSync, writeFileSync } = require('node:fs');
 const { dirname } = require('node:path');
 
-const [, , mode, databasePath, resultPath] = process.argv;
+const mode = process.env.IPTVNATOR_E2E_MIGRATION_MODE;
+const databasePath = process.env.IPTVNATOR_E2E_MIGRATION_DATABASE_PATH;
+const resultPath = process.env.IPTVNATOR_E2E_MIGRATION_RESULT_PATH;
+
+if (
+    (mode !== 'create' && mode !== 'inspect') ||
+    !databasePath ||
+    !resultPath
+) {
+    throw new Error('SQLite recording migration fixture arguments are invalid');
+}
 
 const legacyRecordingsSql = `CREATE TABLE recordings (
     id TEXT PRIMARY KEY,

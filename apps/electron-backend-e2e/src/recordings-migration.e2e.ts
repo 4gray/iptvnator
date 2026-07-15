@@ -87,7 +87,7 @@ async function runSqliteFixture(
     dataDir: string
 ): Promise<MigrationInspection> {
     const resultPath = join(dataDir, `recording-migration-${mode}.json`);
-    const args = [fixtureMainPath, mode, databasePath, resultPath];
+    const args = [fixtureMainPath];
     if (process.platform === 'linux' && process.env['CI']) {
         args.unshift('--no-sandbox', '--disable-gpu');
     }
@@ -96,6 +96,9 @@ async function runSqliteFixture(
         env: {
             ...process.env,
             ELECTRON_IS_DEV: '0',
+            IPTVNATOR_E2E_MIGRATION_DATABASE_PATH: databasePath,
+            IPTVNATOR_E2E_MIGRATION_MODE: mode,
+            IPTVNATOR_E2E_MIGRATION_RESULT_PATH: resultPath,
             NODE_ENV: 'test',
         },
     });
