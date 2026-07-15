@@ -46,6 +46,13 @@ describe('Embedded MPV native source recording invariants', () => {
         ),
         'utf8'
     );
+    const frameHelperGlSource = readFileSync(
+        path.resolve(__dirname, '../../../native/helper/frame_helper_gl.h'),
+        'utf8'
+    );
+    const linuxFrameHelperGlSource = frameHelperGlSource.slice(
+        frameHelperGlSource.indexOf('inline void* eglWrapGetProcAddress')
+    );
 
     function functionBody(name: string): string {
         return sourceFunctionBody(nativeSource, `Napi::Value ${name}(`, name);
@@ -590,7 +597,7 @@ describe('Embedded MPV native source recording invariants', () => {
 
     it('requires Linux embedded MPV build inputs and validates process isolation in CI', () => {
         expect(buildAndMakeWorkflowSource).toContain(
-            'libmpv-dev mpv pkg-config'
+            'libmpv-dev mpv pkg-config libegl-dev libgl-dev libopengl-dev libgbm-dev'
         );
         expect(buildAndMakeWorkflowSource).toContain(
             'Stage Linux embedded MPV build inputs'
@@ -602,9 +609,33 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(buildAndMakeWorkflowSource).toContain(
             'Linux embedded MPV addon must not link directly to libmpv'
         );
+        expect(buildAndMakeWorkflowSource).toContain(
+            'test -f dist/apps/electron-backend/native/iptvnator_mpv_helper'
+        );
+        expect(buildAndMakeWorkflowSource).toContain(
+            'Linux frame-copy helper must link libmpv'
+        );
         expect(buildScriptSource).toContain("origin: 'external-mpv-process'");
         expect(buildScriptSource).toContain('writeLinuxProcessRuntimeManifest');
         expect(buildScriptSource).toContain('runtimeFiles: []');
+    });
+
+    it('supports Linux system-development inputs without leaving stale frame-copy artifacts', () => {
+        expect(buildScriptSource).toContain(
+            "const systemIncludeDir =\n            process.env.LIBMPV_INCLUDE_DIR || '/usr/include';"
+        );
+        expect(buildScriptSource).toContain(
+            'process.env.LINUX_NATIVE_LIBRARY_DIR ||\n                    defaultLinuxSystemLibDir()'
+        );
+        expect(buildScriptSource).toContain("arm: 'arm-linux-gnueabihf'");
+        expect(buildScriptSource).toContain("arm64: 'aarch64-linux-gnu'");
+        expect(buildScriptSource).toContain("x64: 'x86_64-linux-gnu'");
+        expect(buildScriptSource).toContain(
+            "if (!embeddedMpvRequired && runtime.origin === 'system-dev')"
+        );
+        expect(buildScriptSource).toContain(
+            'removeStaleFrameCopyArtifacts(outputDir);'
+        );
     });
 
     it('forces the current frame into a rebuilt shm generation after a paused resize', () => {
@@ -620,6 +651,85 @@ describe('Embedded MPV native source recording invariants', () => {
             'if (targetsRebuilt || (flags & MPV_RENDER_UPDATE_FRAME))'
         );
     });
+
+    it('validates complete EGL candidates and keeps software rendering as the final fallback', () => {
+        const tryCandidate = sourceFunctionBody(
+            linuxFrameHelperGlSource,
+            'bool tryCandidate(',
+            'GlContext::tryCandidate'
+        );
+        const create = sourceFunctionBody(
+            linuxFrameHelperGlSource,
+            'bool create(std::string& errorOut)',
+            'GlContext::create'
+        );
+
+        for (const requiredStep of [
+            'eglInitialize(',
+            'eglBindAPI(EGL_OPENGL_API)',
+            'chooseConfig(',
+            'eglCreateContext(',
+            'eglMakeCurrent(',
+            'glGetString(GL_RENDERER)',
+        ]) {
+            expect(tryCandidate).toContain(requiredStep);
+        }
+        expect(create).toContain('softwareFallback');
+        expect(create).toContain('candidate.softwareRenderer');
+        expect(create.indexOf('DisplayTier::SurfacelessMesa')).toBeLessThan(
+            create.indexOf('DisplayTier::Default')
+        );
+        expect(create.indexOf('DisplayTier::Default')).toBeLessThan(
+            create.indexOf('DisplayTier::Gbm')
+        );
+    });
+
+    it('binds the desktop GL API on the render thread and releases it before EGL teardown', () => {
+        const makeCurrent = sourceFunctionBody(
+            linuxFrameHelperGlSource,
+            'bool makeCurrent(std::string& errorOut)',
+            'GlContext::makeCurrent'
+        );
+        const destroy = sourceFunctionBody(
+            linuxFrameHelperGlSource,
+            'void destroy()',
+            'GlContext::destroy'
+        );
+
+        expect(makeCurrent).toContain('eglBindAPI(EGL_OPENGL_API)');
+        expect(makeCurrent).toContain('eglMakeCurrent(');
+        expect(makeCurrent).toContain('return false;');
+
+        const bindIndex = destroy.indexOf('eglBindAPI(EGL_OPENGL_API)');
+        const unbindIndex = destroy.indexOf('eglMakeCurrent(');
+        const releaseIndex = destroy.indexOf('eglReleaseThread()');
+        const destroySurfaceIndex = destroy.indexOf('eglDestroySurface(');
+        expect(bindIndex).toBeGreaterThanOrEqual(0);
+        expect(unbindIndex).toBeGreaterThan(bindIndex);
+        expect(releaseIndex).toBeGreaterThan(unbindIndex);
+        expect(destroySurfaceIndex).toBeGreaterThan(releaseIndex);
+
+        const setupGl = sourceFunctionBody(
+            frameHelperRenderSource,
+            'inline bool RenderPipeline::setupGl(std::string& errorOut)',
+            'RenderPipeline::setupGl'
+        );
+        expect(setupGl).toContain(
+            'if (!gl_.makeCurrent(errorOut)) return false;'
+        );
+    });
+
+    it('resolves linked core GL symbols before falling back to EGL extension lookup', () => {
+        const dlsymIndex = linuxFrameHelperGlSource.indexOf(
+            'dlsym(RTLD_DEFAULT, name)'
+        );
+        const eglIndex = linuxFrameHelperGlSource.indexOf(
+            'eglGetProcAddress(name)'
+        );
+
+        expect(dlsymIndex).toBeGreaterThanOrEqual(0);
+        expect(eglIndex).toBeGreaterThan(dlsymIndex);
+    });
 });
 
 describe('Embedded MPV native build configuration', () => {
@@ -633,11 +743,35 @@ describe('Embedded MPV native build configuration', () => {
         (candidate: { target_name?: string }) =>
             candidate.target_name === 'embedded_mpv'
     );
+    const helperTarget = bindingGyp.targets.find(
+        (candidate: { target_name?: string }) =>
+            candidate.target_name === 'iptvnator_mpv_helper'
+    );
 
     it('declares platform-specific native sources for macOS, Windows, and Linux', () => {
         expect(target).toBeDefined();
         expect(JSON.stringify(target)).toContain('src/embedded_mpv.mm');
         expect(JSON.stringify(target)).toContain('src/embedded_mpv_win32.cc');
         expect(JSON.stringify(target)).toContain('src/embedded_mpv_linux.cc');
+    });
+
+    it('links libmpv and headless GL only into the Linux helper process', () => {
+        const linuxAddonConfig = target.conditions.find(
+            ([condition]: [string]) => condition === 'OS=="linux"'
+        )?.[1];
+        const linuxHelperConfig = helperTarget.conditions.find(
+            ([condition]: [string]) => condition === 'OS=="linux"'
+        )?.[1];
+
+        expect(linuxAddonConfig?.libraries).not.toContain('-lmpv');
+        expect(linuxHelperConfig?.libraries).toEqual(
+            expect.arrayContaining([
+                '-lmpv',
+                '-lEGL',
+                '-lOpenGL',
+                '-lgbm',
+                '-ldl',
+            ])
+        );
     });
 });

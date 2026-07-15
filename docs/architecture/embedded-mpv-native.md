@@ -113,8 +113,10 @@ service and the adapter):
   one-process-per-session libmpv host. It decodes (hwdec), renders
   offscreen at viewport size (async PBO readback ring over a headless GL
   context — `frame_helper_gl.h`: CGL on macOS; on Linux EGL, acquiring a
-  display in order surfaceless-Mesa → default display → GBM render node,
-  logging the chosen tier to stderr), publishes BGRA frames into a POSIX
+  display in order surfaceless-Mesa → default display → GBM render node;
+  every tier must complete config/context/bind validation, hardware rendering
+  is preferred, and a software tier is retained only as the final fallback),
+  publishes BGRA frames into a POSIX
   shm seqlock ring
   (`frame_shm.h`, 3 slots, resize creates a new `-g<N>` generation), and
   plays audio directly. Control protocol: tab-separated commands on stdin,
@@ -186,7 +188,9 @@ known leftover build output; it is not a compatibility check for a complete
 but version-mismatched runtime pair. Linux packages deliberately do NOT ship
 the helper yet: it links the build host's system `libmpv`, which packaged
 apps cannot assume is installed, so the centralized after-pack artifact
-preparation strips it and the support probe reports frame-copy unavailable.
+preparation strips both possible helper basenames and package validation
+rejects either one if it survives. The support probe therefore reports
+frame-copy unavailable in Linux packages.
 The engine is dev-build-only on Linux until bundled-libmpv runtime staging
 lands (PORTING.md milestone 4).
 
@@ -206,11 +210,11 @@ Trade-offs and constraints:
   `libopengl-dev` and `libgbm-dev` (the helper links system libmpv, which
   is legal out-of-process — the in-process libmpv ban still binds the
   addon). The helper logs the chosen EGL display tier and the GL renderer
-  string to stderr; on systems whose hardware driver is only reachable
-  via the default display (e.g. NVIDIA proprietary), the surfaceless tier
-  can select Mesa's software renderer — check that log line when
-  diagnosing performance. The Windows port of the helper (WGL) is future
-  work — the shm protocol and adapter are platform-agnostic.
+  string to stderr. If an early tier selects Mesa software rendering (for
+  example, while a proprietary NVIDIA driver is reachable through the default
+  display or GBM), it probes the remaining tiers and uses software only when
+  no hardware-backed context works. The Windows port of the helper (WGL) is
+  future work — the shm protocol and adapter are platform-agnostic.
 - Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
   sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
   produce-to-upload latency, zero torn frames over a 10-minute run.
@@ -327,11 +331,11 @@ The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-
 Current development behavior:
 
 - The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
-- The build script first looks for a staged runtime at `vendor/embedded-mpv/<platform>-<arch>/`.
-- The staged runtime/build inputs must contain `include/mpv/client.h` and `runtime-manifest.json`. macOS and Windows staging also contains the platform runtime files that are bundled into the app.
+- The build script first looks for staged inputs at `vendor/embedded-mpv/<platform>-<arch>/`. On Linux, local development can fall back to distribution `libmpv-dev` headers and libraries; `LIBMPV_INCLUDE_DIR` and `LINUX_NATIVE_LIBRARY_DIR` override the default system paths.
+- When the staged-input path is used, it must contain `include/mpv/client.h` and `runtime-manifest.json`. macOS and Windows staging also contains the platform runtime files that are bundled into the app.
 - The compiled `.node` addon is copied into `dist/apps/electron-backend/native/embedded_mpv.node`.
 - Bundled runtime files are copied into `dist/apps/electron-backend/native/lib/` for macOS and Windows. macOS copies `.dylib` and non-`.dylib` Mach-O dependencies; Windows copies the staged `mpv-2.dll`/`libmpv-2.dll`/`mpv.dll`/`libmpv.dll` runtime name plus import libraries. Linux writes an `external-mpv-process` manifest and intentionally leaves `libmpv.so` out of the package.
-- Linux does not bundle or load `libmpv` in the Electron process. Its native addon still requires staged MPV headers, but runtime support depends on the X11/Xwayland window handle plus an `mpv` executable on `PATH`.
+- Linux does not bundle or load `libmpv` in the Electron process. The addon can compile against staged or system-development MPV headers. Its native engine still depends on an X11/Xwayland window handle plus an `mpv` executable on `PATH`; the dev-only frame-copy helper is a separate process linked to system `libmpv` and renders through headless EGL, so it bypasses those native-engine prerequisites.
 - `afterPack` copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` on macOS, Windows, and Linux so the addon, manifest, and runtime libraries are filesystem-addressable.
 
 Current release caveat:
@@ -339,7 +343,7 @@ Current release caveat:
 - Release packaging requires a `vendored-lgpl` runtime manifest on macOS and Windows, and an `external-mpv-process` manifest on Linux.
 - The Linux addon is built once per CI host architecture (x64). Linux packages for other architectures (arm64, armv7l) must not ship that foreign addon: `afterPack` replaces the native directory with an `embedded-mpv-unavailable.txt` marker explaining that embedded MPV is not bundled for that architecture, and package-layout verification rejects a foreign-architecture `embedded_mpv.node` while requiring the marker.
 - macOS release packaging rejects embedded MPV binaries linked to `/opt/homebrew` or `/usr/local`.
-- Windows release packaging verifies that the platform runtime file is present when Embedded MPV is required. Linux release packaging verifies that the addon and manifest are present and that no bundled `libmpv.so` files slipped into the package.
+- Windows release packaging verifies that the platform runtime file is present when Embedded MPV is required. Linux release packaging verifies that the addon and manifest are present, no bundled `libmpv.so` files slipped into the package, and no development-only frame-copy helper survived `afterPack`.
 - Local development can opt into Homebrew `libmpv` only by setting `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`; packaged release validation rejects that runtime origin.
 
 Before public release, packaging must:
@@ -387,7 +391,7 @@ During temporary PR and `master` artifact testing, CI can restore an exact-keyed
 
 The CI builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`, libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `8.5.0`. FFmpeg disables autodetected external libraries so Homebrew libraries cannot silently enter the runtime. Libplacebo is checked out from git with the submodules required by its Meson build because the generated GitHub archive does not include submodule contents. Even with Vulkan disabled, libplacebo still compiles Vulkan stubs and needs `3rdparty/Vulkan-Headers`. The generated manifest records source URLs, archive SHA-256 values where applicable, libplacebo git commit/submodule metadata, FFmpeg configure flags, and mpv Meson flags. The staging step normalizes macOS/Windows manifests to `origin: vendored-lgpl`, which release package validation requires on those platforms.
 
-The Electron backend build consumes the staged runtime/build inputs and copies macOS/Windows runtime files into the native build output. Linux consumes the staged MPV headers, writes an `external-mpv-process` manifest, and does not copy `libmpv.so` into the package. macOS additionally rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
+The Electron backend build consumes the staged runtime/build inputs and copies macOS/Windows runtime files into the native build output. Linux consumes staged MPV headers when available or distribution development headers for local builds, writes an `external-mpv-process` manifest, and does not copy `libmpv.so` into the package. macOS additionally rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
 
 For local development before the vendored runtime exists, Homebrew can be used explicitly:
 

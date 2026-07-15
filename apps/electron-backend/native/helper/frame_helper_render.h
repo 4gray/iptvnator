@@ -162,11 +162,10 @@ inline bool RenderPipeline::start(mpv_handle* mpv,
 }
 
 inline bool RenderPipeline::setupGl(std::string& errorOut) {
-    gl_.makeCurrent();
+    if (!gl_.makeCurrent(errorOut)) return false;
 
-    /* Diagnosable renderer choice: e.g. Mesa's surfaceless platform can
-     * silently fall back to llvmpipe when the hardware driver is only
-     * reachable via another EGL display tier. */
+    /* Keep the accepted renderer diagnosable. Linux already rejected earlier
+     * software tiers when a later hardware-backed EGL candidate was usable. */
     const GLubyte* renderer = glGetString(GL_RENDERER);
     if (renderer) {
         std::fprintf(stderr, "gl renderer: %s\n",
@@ -316,6 +315,8 @@ inline void RenderPipeline::runLoop() {
                      .str("error", "render init failed: " + glError)
                      .finish());
         initState_.store(-1);
+        gl_.destroy();
+        ring_.destroy();
         return;
     }
     initState_.store(1);

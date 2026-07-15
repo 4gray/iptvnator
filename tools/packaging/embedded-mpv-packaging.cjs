@@ -572,6 +572,22 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
     }
 
     if (platform === 'linux') {
+        const packagedFrameCopyHelpers = [
+            path.join(unpackedNativeDir, 'iptvnator_mpv_helper'),
+            path.join(unpackedNativeDir, 'iptvnator_mpv_helper.exe'),
+        ].filter((candidate) => fs.existsSync(candidate));
+        if (packagedFrameCopyHelpers.length > 0) {
+            errors.push(
+                [
+                    'Linux packages must not ship frame-copy helpers linked against the build host system libmpv.',
+                    'Remove:',
+                    ...packagedFrameCopyHelpers.map(
+                        (candidate) => `- ${candidate}`
+                    ),
+                ].join('\n')
+            );
+        }
+
         const bundledLinuxRuntime = [
             path.join(libDir, 'libmpv.so.2'),
             path.join(libDir, 'libmpv.so.1'),

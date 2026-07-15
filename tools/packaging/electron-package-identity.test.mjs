@@ -497,6 +497,11 @@ test('frame-copy packaging file operations enforce modes and remove stale artifa
             false,
             'Linux packages must omit the unsupported frame-copy helper'
         );
+        assert.equal(
+            fs.existsSync(windowsHelperPath),
+            false,
+            'Linux packages must omit stale Windows frame-copy helpers too'
+        );
 
         fs.writeFileSync(helperPath, '#!/bin/sh\n');
         removeStaleFrameCopyArtifacts(tempDir);
@@ -614,6 +619,39 @@ test('embedded MPV package validation rejects bundled Linux libmpv', () => {
         });
 
         assert.match(errors.join('\n'), /must not bundle libmpv/);
+    } finally {
+        fs.rmSync(tempDir, { recursive: true, force: true });
+    }
+});
+
+test('embedded MPV package validation rejects frame-copy helpers in Linux packages', () => {
+    const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
+
+    try {
+        const nativeDir = join(
+            tempDir,
+            'app.asar.unpacked',
+            'electron-backend',
+            'native'
+        );
+        fs.mkdirSync(nativeDir, { recursive: true });
+        fs.writeFileSync(join(nativeDir, 'embedded_mpv.node'), '');
+        fs.writeFileSync(
+            join(nativeDir, 'embedded-mpv-runtime.json'),
+            JSON.stringify({ origin: 'external-mpv-process' })
+        );
+        fs.writeFileSync(join(nativeDir, 'iptvnator_mpv_helper'), '');
+        fs.writeFileSync(join(nativeDir, 'iptvnator_mpv_helper.exe'), '');
+
+        const errors = validatePackagedEmbeddedMpv(tempDir, {
+            platform: 'linux',
+            required: true,
+        });
+
+        const message = errors.join('\n');
+        assert.match(message, /must not ship frame-copy helpers/);
+        assert.match(message, /iptvnator_mpv_helper\n/);
+        assert.match(message, /iptvnator_mpv_helper\.exe/);
     } finally {
         fs.rmSync(tempDir, { recursive: true, force: true });
     }

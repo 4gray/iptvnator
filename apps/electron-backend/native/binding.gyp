@@ -149,7 +149,8 @@
               "-lmpv",
               "-lEGL",
               "-lOpenGL",
-              "-lgbm"
+              "-lgbm",
+              "-ldl"
             ]
           }
         ]
