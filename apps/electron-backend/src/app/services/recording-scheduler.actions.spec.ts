@@ -183,6 +183,29 @@ describe('RecordingSchedulerService actions', () => {
         expect(engine.stop).not.toHaveBeenCalled();
     });
 
+    it('allows deleting all playlists when a listed recording finishes before cancellation', async () => {
+        await scheduler.initialize();
+        const scheduled = item('recording-canceled-during-delete-all', 'scheduled');
+        const completed = item('recording-finished-during-delete-all', 'scheduled');
+        repository.records.set(scheduled.id, scheduled);
+        repository.records.set(completed.id, completed);
+        const originalList = repository.list.bind(repository);
+        jest.spyOn(repository, 'list').mockImplementation(async (statuses) => {
+            const listed = await originalList(statuses);
+            if (listed.some((recording) => recording.id === completed.id)) {
+                repository.records.set(completed.id, {
+                    ...completed,
+                    status: 'completed',
+                });
+            }
+            return listed;
+        });
+
+        await expect(scheduler.cancelAllActive()).resolves.toBeUndefined();
+        expect(repository.records.get(scheduled.id)?.status).toBe('canceled');
+        expect(repository.records.get(completed.id)?.status).toBe('completed');
+    });
+
     it('preserves engine metadata if persisting active cancellation fails', async () => {
         await scheduler.initialize();
         const active = item('recording-cancel-write-failure', 'recording');

@@ -181,11 +181,7 @@ export class RecordingSchedulerService {
             for (const recording of active) {
                 const result = await this.cancel(recording.id);
                 if (!result.success) {
-                    const current = await this.repository.get(recording.id);
-                    if (
-                        current &&
-                        !['scheduled', 'recording'].includes(current.status)
-                    ) {
+                    if (await this.recordingBecameTerminal(recording.id)) {
                         continue;
                     }
                     throw new Error(
@@ -210,6 +206,9 @@ export class RecordingSchedulerService {
             for (const recording of active) {
                 const result = await this.cancel(recording.id);
                 if (!result.success) {
+                    if (await this.recordingBecameTerminal(recording.id)) {
+                        continue;
+                    }
                     throw new Error(
                         result.error || 'Failed to cancel active recording'
                     );
@@ -242,6 +241,15 @@ export class RecordingSchedulerService {
             }
             return result;
         });
+    }
+
+    private async recordingBecameTerminal(
+        recordingId: string
+    ): Promise<boolean> {
+        const current = await this.repository.get(recordingId);
+        return Boolean(
+            current && !['scheduled', 'recording'].includes(current.status)
+        );
     }
 
     async shutdown(): Promise<void> {
