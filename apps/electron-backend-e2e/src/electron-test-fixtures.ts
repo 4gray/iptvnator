@@ -908,6 +908,7 @@ async function clickButtonToggleOption(
     toggleGroup: Locator,
     label: string
 ): Promise<void> {
+    const page = toggleGroup.page();
     const toggle = toggleGroup
         .locator('mat-button-toggle')
         .filter({ hasText: flexibleTextPattern(label) })
@@ -924,6 +925,13 @@ async function clickButtonToggleOption(
             timeout: 10000,
         })
         .toBe(true);
+
+    // A visible Material tooltip can overlap the content grid on macOS and
+    // intercept the next click while the pointer remains over the toggle.
+    await page.keyboard.press('Escape');
+    await expect(page.locator('.mat-mdc-tooltip-surface:visible')).toHaveCount(
+        0
+    );
 }
 
 export function channelItemByTitle(page: Page, title: string): Locator {

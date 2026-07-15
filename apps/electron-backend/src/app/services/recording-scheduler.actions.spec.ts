@@ -160,6 +160,29 @@ describe('RecordingSchedulerService actions', () => {
         expect(repository.records.size).toBe(1);
     });
 
+    it('allows playlist deletion when a listed recording finishes before cancellation', async () => {
+        await scheduler.initialize();
+        const active = item('recording-finished-during-delete', 'scheduled');
+        repository.records.set(active.id, active);
+        const originalList = repository.list.bind(repository);
+        jest.spyOn(repository, 'list').mockImplementation(async (statuses) => {
+            const listed = await originalList(statuses);
+            if (listed.some((recording) => recording.id === active.id)) {
+                repository.records.set(active.id, {
+                    ...active,
+                    status: 'completed',
+                });
+            }
+            return listed;
+        });
+
+        await expect(
+            scheduler.cancelForPlaylist(active.playlistId)
+        ).resolves.toBeUndefined();
+        expect(repository.records.get(active.id)?.status).toBe('completed');
+        expect(engine.stop).not.toHaveBeenCalled();
+    });
+
     it('preserves engine metadata if persisting active cancellation fails', async () => {
         await scheduler.initialize();
         const active = item('recording-cancel-write-failure', 'recording');
@@ -222,6 +245,16 @@ describe('RecordingSchedulerService actions', () => {
 
         finishEngineShutdown?.();
         await shutdown;
+        expect(engine.shutdown).toHaveBeenCalled();
+    });
+
+    it('continues best-effort shutdown when listing recordings fails', async () => {
+        jest.spyOn(repository, 'list').mockRejectedValueOnce(
+            new Error('Database unavailable')
+        );
+
+        await expect(scheduler.shutdown()).resolves.toBeUndefined();
+
         expect(engine.shutdown).toHaveBeenCalled();
     });
 

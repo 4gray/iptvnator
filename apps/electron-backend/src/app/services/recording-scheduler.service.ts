@@ -66,7 +66,9 @@ export class RecordingSchedulerService {
 
     async list(): Promise<RecordingItem[]> {
         await this.initialize();
-        return (await this.repository.list()).map(toPublicRecordingItem);
+        return Promise.all(
+            (await this.repository.list()).map(toPublicRecordingItem)
+        );
     }
 
     async getAvailableFilePath(recordingId: string): Promise<string | null> {
@@ -130,7 +132,7 @@ export class RecordingSchedulerService {
                 if (duplicate) {
                     return {
                         success: true,
-                        recording: toPublicRecordingItem(duplicate),
+                        recording: await toPublicRecordingItem(duplicate),
                     };
                 }
 
@@ -147,12 +149,12 @@ export class RecordingSchedulerService {
                         success: false,
                         error:
                             updated.errorMessage || 'Recording could not start',
-                        recording: toPublicRecordingItem(updated),
+                        recording: await toPublicRecordingItem(updated),
                     };
                 }
                 return {
                     success: true,
-                    recording: toPublicRecordingItem(updated),
+                    recording: await toPublicRecordingItem(updated),
                 };
             })
         );
@@ -179,6 +181,13 @@ export class RecordingSchedulerService {
             for (const recording of active) {
                 const result = await this.cancel(recording.id);
                 if (!result.success) {
+                    const current = await this.repository.get(recording.id);
+                    if (
+                        current &&
+                        !['scheduled', 'recording'].includes(current.status)
+                    ) {
+                        continue;
+                    }
                     throw new Error(
                         result.error || 'Failed to cancel playlist recording'
                     );

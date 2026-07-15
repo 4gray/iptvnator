@@ -81,7 +81,7 @@ function settleWithin<T>(
     operation: Promise<T>,
     timeoutMs: number
 ): Promise<T | undefined> {
-    return new Promise((resolve, reject) => {
+    return new Promise((resolve) => {
         const timeout = setTimeout(() => resolve(undefined), timeoutMs);
         timeout.unref?.();
         operation.then(
@@ -89,9 +89,9 @@ function settleWithin<T>(
                 clearTimeout(timeout);
                 resolve(value);
             },
-            (error) => {
+            () => {
                 clearTimeout(timeout);
-                reject(error);
+                resolve(undefined);
             }
         );
     });

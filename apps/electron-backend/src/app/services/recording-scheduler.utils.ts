@@ -5,7 +5,7 @@ import type {
     ScheduleRecordingRequest,
     ScheduleRecordingResult,
 } from '@iptvnator/shared/interfaces';
-import { existsSync } from 'node:fs';
+import { access } from 'node:fs/promises';
 
 const MAX_PADDING_SECONDS = 60 * 60;
 const ALLOWED_STREAM_PROTOCOLS = new Set([
@@ -134,9 +134,9 @@ export function recordingErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : String(error);
 }
 
-export function toPublicRecordingItem(
+export async function toPublicRecordingItem(
     recording: PersistedRecordingItem
-): RecordingItem {
+): Promise<RecordingItem> {
     return {
         id: recording.id,
         playlistId: recording.playlistId,
@@ -154,9 +154,7 @@ export function toPublicRecordingItem(
         paddingAfterSeconds: recording.paddingAfterSeconds,
         status: recording.status,
         fileName: recording.fileName,
-        fileAvailable: Boolean(
-            recording.filePath && existsSync(recording.filePath)
-        ),
+        fileAvailable: await isRecordingFileAvailable(recording.filePath),
         bytesRecorded: recording.bytesRecorded,
         errorMessage: recording.errorMessage,
         startedAt: recording.startedAt,
@@ -164,6 +162,18 @@ export function toPublicRecordingItem(
         createdAt: recording.createdAt,
         updatedAt: recording.updatedAt,
     };
+}
+
+async function isRecordingFileAvailable(
+    filePath: string | null | undefined
+): Promise<boolean> {
+    if (!filePath) return false;
+    try {
+        await access(filePath);
+        return true;
+    } catch {
+        return false;
+    }
 }
 
 function isAllowedStreamUrl(value: string): boolean {

@@ -66,6 +66,35 @@ describe('VLC recording process lifecycle', () => {
         expect(process.kill).toHaveBeenCalledWith('SIGKILL');
     });
 
+    it('keeps the session tracked when VLC survives SIGKILL', async () => {
+        const process = fakeProcess();
+        (process.stdin?.write as jest.Mock).mockReturnValue(true);
+        (process.kill as jest.Mock).mockReturnValue(true);
+        const engine = createEngine(process);
+        const started = await engine.start(recording());
+        writeFileSync(started.filePath, Buffer.from('mpeg-ts-data'));
+
+        jest.useFakeTimers();
+        try {
+            const stopping = engine.stop('recording-1');
+            const rejected = expect(stopping).rejects.toThrow(
+                'VLC recording process did not exit after SIGKILL'
+            );
+
+            await jest.advanceTimersByTimeAsync(1_005);
+            await rejected;
+
+            expect(engine.hasActiveSession('recording-1')).toBe(true);
+
+            (process as unknown as { exitCode: number | null }).exitCode = 0;
+            process.emit('exit', 0, null);
+            await engine.stop('recording-1');
+            expect(engine.hasActiveSession('recording-1')).toBe(false);
+        } finally {
+            jest.useRealTimers();
+        }
+    });
+
     it('falls back to a signal when the VLC control pipe fails', async () => {
         const process = fakeProcess();
         (process.stdin?.write as jest.Mock).mockReturnValue(true);

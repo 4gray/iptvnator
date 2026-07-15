@@ -266,6 +266,9 @@ export class VlcRecordingEngine implements RecordingEngine {
             }
             return result;
         } finally {
+            // Keep sessions whose process is still alive. The scheduler uses
+            // hasActiveSession() to retry cancellation instead of marking a
+            // still-running VLC capture as terminal and orphaning the process.
             if (active.exited || active.process.exitCode !== null) {
                 this.activeSessions.delete(recordingId);
                 active.cleanupInput();
