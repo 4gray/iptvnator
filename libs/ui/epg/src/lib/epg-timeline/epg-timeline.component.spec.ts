@@ -40,7 +40,9 @@ describe('EpgTimelineComponent', () => {
             providers: [
                 {
                     provide: MatDialog,
-                    useValue: { open: () => ({ afterClosed: () => of(undefined) }) },
+                    useValue: {
+                        open: () => ({ afterClosed: () => of(undefined) }),
+                    },
                 },
                 {
                     provide: TranslateService,
@@ -181,6 +183,29 @@ describe('EpgTimelineComponent', () => {
 
         component.onBlockClick(now as TimelineBlock);
         expect(returned).toBe(true);
+    });
+
+    it('emits normalized recording times from the programme dialog', () => {
+        const program = programAt(-5, 60, 'Record me');
+        setInputs({ programs: [program], recordingAvailable: true });
+        const block = component.blocks().find((item) => item.when === 'now');
+        const dialog = TestBed.inject(MatDialog);
+        jest.spyOn(dialog, 'open').mockReturnValue({
+            afterClosed: () => of('record'),
+        } as never);
+        const events: Array<{ scheduledStartAt: string }> = [];
+        component.recordingRequested.subscribe((event) => events.push(event));
+
+        component.openDetails(block as TimelineBlock);
+
+        expect(events).toEqual([
+            expect.objectContaining({
+                program,
+                scheduledStartAt: new Date(
+                    (block as TimelineBlock).startMs
+                ).toISOString(),
+            }),
+        ]);
     });
 
     it('emits the centred day when stepping forward', () => {

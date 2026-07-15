@@ -645,7 +645,8 @@
             "LANGUAGE": "Язык",
             "SHOW_PROGRAM_DETAILS": "Показать подробности",
             "EPISODE": "Эпизод",
-            "DURATION": "Длительность"
+            "DURATION": "Длительность",
+            "RECORD_PROGRAM": "Записать программу"
         },
         "FETCH_SUCCESS": "Программа каналов (EPG) была успешно получена",
         "IMPORT_PROGRESS": "Импорт EPG",
@@ -944,6 +945,42 @@
         "ALL_RADIO": "Все радио"
     },
     "INFORMATION": "Инфо",
+    "RECORDINGS": {
+        "TITLE": "Записи",
+        "SUBTITLE": "Запланированные записи и локальная библиотека DVR",
+        "DESKTOP_ONLY_TITLE": "Записи доступны в приложении для компьютера",
+        "DESKTOP_ONLY_BODY": "Для работы планировщика DVR приложение IPTVnator должно быть запущено на компьютере.",
+        "ENGINE_UNAVAILABLE_TITLE": "Модуль записи недоступен",
+        "ENGINE_UNAVAILABLE_BODY": "Поддерживаемый движок записи недоступен. Установите Embedded MPV или VLC, чтобы планировать новые записи.",
+        "ACTIVE_COUNT_LABEL": "Активные записи: {{count}}",
+        "RETRY": "Повторить",
+        "LOAD_FAILED_TITLE": "Не удалось загрузить библиотеку записей",
+        "LOAD_FAILED_BODY": "Проверьте подключение к настольному приложению и повторите попытку.",
+        "FILTER_LABEL": "Фильтр записей",
+        "FILTERS": {
+            "ALL": "Все",
+            "UPCOMING": "Запланированные",
+            "LIBRARY": "Библиотека"
+        },
+        "EMPTY_TITLE": "Записей пока нет",
+        "EMPTY_BODY": "Запланируйте запись прямого эфира в телепрограмме, чтобы добавить её сюда.",
+        "CANCEL": "Отменить запись",
+        "PLAY": "Воспроизвести",
+        "REVEAL": "Показать в папке",
+        "REMOVE": "Удалить из библиотеки",
+        "ACTION_COMPLETE": "Библиотека записей обновлена",
+        "ACTION_FAILED": "Не удалось выполнить действие с записью",
+        "STATUS": {
+            "SCHEDULED": "Запланировано",
+            "RECORDING": "Идёт запись",
+            "COMPLETED": "Завершено",
+            "FAILED": "Ошибка",
+            "CANCELED": "Отменено",
+            "MISSED": "Пропущено",
+            "INTERRUPTED": "Прервано"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Будущие записи Stalker недоступны, поскольку портал создаёт краткосрочные ссылки. Можно записать текущую программу."
+    },
     "DOWNLOADS": {
         "TITLE": "Загрузки",
         "DOWNLOAD": "Скачать",
@@ -1066,6 +1103,7 @@
             "RAIL_RECENT": "Недавно просмотренные",
             "RAIL_FAVORITES": "Избранное",
             "RAIL_DOWNLOADS": "Загрузки",
+            "RAIL_RECORDINGS": "Записи",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Все каналы",
             "RAIL_GROUPS": "Группы",

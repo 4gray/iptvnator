@@ -5,6 +5,7 @@ jest.mock('electron', () => ({
 }));
 
 const mockEmbeddedMpvService = {
+    assertRendererSession: jest.fn(),
     getSupport: jest.fn(),
     setPaused: jest.fn(),
 };
@@ -42,6 +43,7 @@ function getIpcMainHandler(
 describe('EmbeddedMpvEvents IPC handlers', () => {
     beforeEach(() => {
         mockEmbeddedMpvService.getSupport.mockReset();
+        mockEmbeddedMpvService.assertRendererSession.mockReset();
         mockEmbeddedMpvService.setPaused.mockReset();
     });
 
@@ -56,6 +58,28 @@ describe('EmbeddedMpvEvents IPC handlers', () => {
             'session-1',
             true
         );
+        expect(
+            mockEmbeddedMpvService.assertRendererSession
+        ).toHaveBeenCalledWith('session-1');
+    });
+
+    it('rejects renderer control of a main-process-owned recording session', async () => {
+        mockEmbeddedMpvService.assertRendererSession.mockImplementation(() => {
+            throw new Error('Session is owned by the Electron main process');
+        });
+        const consoleErrorSpy = jest
+            .spyOn(console, 'error')
+            .mockImplementation();
+
+        try {
+            const handler = getIpcMainHandler(EMBEDDED_MPV_SET_PAUSED);
+            await expect(
+                handler({}, 'private-recording', true)
+            ).rejects.toThrow('owned by the Electron main process');
+            expect(mockEmbeddedMpvService.setPaused).not.toHaveBeenCalled();
+        } finally {
+            consoleErrorSpy.mockRestore();
+        }
     });
 
     it('logs in the main process and rethrows when the native service throws', async () => {

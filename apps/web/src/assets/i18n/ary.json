@@ -645,7 +645,8 @@
             "LANGUAGE": "اللغة",
             "SHOW_PROGRAM_DETAILS": "وري تفاصيل حول هاد البرنامج",
             "EPISODE": "الحلقة",
-            "DURATION": "المدة"
+            "DURATION": "المدة",
+            "RECORD_PROGRAM": "سجّل البرنامج"
         },
         "FETCH_SUCCESS": "EPG تجلب بنجاح",
         "IMPORT_PROGRESS": "استيراد EPG",
@@ -944,6 +945,42 @@
         "ALL_RADIO": "All radio"
     },
     "INFORMATION": "معلومات",
+    "RECORDINGS": {
+        "TITLE": "التسجيلات",
+        "SUBTITLE": "التسجيلات المبرمجة ومكتبة DVR المحلية ديالك",
+        "DESKTOP_ONLY_TITLE": "التسجيلات متوفرة فتطبيق سطح المكتب",
+        "DESKTOP_ONLY_BODY": "خاص IPTVnator يبقى خدام فالحاسوب ديالك باش يخدم مبرمج DVR.",
+        "ENGINE_UNAVAILABLE_TITLE": "محرك التسجيل ما متوفرش",
+        "ENGINE_UNAVAILABLE_BODY": "ما كاين حتى محرك تسجيل مدعوم. ثبّت Embedded MPV ولا VLC باش تبرمج تسجيلات جديدة.",
+        "ACTIVE_COUNT_LABEL": "التسجيلات الخدامة: {{count}}",
+        "RETRY": "عاود جرّب",
+        "LOAD_FAILED_TITLE": "ما قدراتش تتحمّل مكتبة التسجيلات",
+        "LOAD_FAILED_BODY": "تأكد من الاتصال بتطبيق سطح المكتب وعاود جرّب.",
+        "FILTER_LABEL": "تصفية التسجيلات",
+        "FILTERS": {
+            "ALL": "الكل",
+            "UPCOMING": "الجاية",
+            "LIBRARY": "المكتبة"
+        },
+        "EMPTY_TITLE": "ما كاين حتى تسجيل دابا",
+        "EMPTY_BODY": "برمج تسجيل برنامج مباشر من دليل البرامج الإلكتروني باش يتزاد هنا.",
+        "CANCEL": "لغي التسجيل",
+        "PLAY": "شغّل",
+        "REVEAL": "بيّن فالمجلد",
+        "REMOVE": "حيد من المكتبة",
+        "ACTION_COMPLETE": "تحدّثات مكتبة التسجيلات",
+        "ACTION_FAILED": "ما قدرش يكمل إجراء التسجيل",
+        "STATUS": {
+            "SCHEDULED": "مبرمج",
+            "RECORDING": "كيتسجل",
+            "COMPLETED": "مكتمل",
+            "FAILED": "فشل",
+            "CANCELED": "ملغى",
+            "MISSED": "فات",
+            "INTERRUPTED": "تقطع"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "تسجيلات Stalker الجاية ما متوفراش حيت البوابة كتنشئ روابط بث قصيرة. تقدر تسجل البرنامج اللي دايز دابا."
+    },
     "DOWNLOADS": {
         "TITLE": "التحميلات",
         "DOWNLOAD": "تحميل",
@@ -1066,6 +1103,7 @@
             "RAIL_RECENT": "متشافين مؤخراً",
             "RAIL_FAVORITES": "المفضلة",
             "RAIL_DOWNLOADS": "التحميلات",
+            "RAIL_RECORDINGS": "التسجيلات",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "جميع القنوات",
             "RAIL_GROUPS": "المجموعات",

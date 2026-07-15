@@ -6,6 +6,7 @@ import {
     ElectronBridgeSecurityErrorCode,
     ElectronBridgeTrustOptions,
 } from '@iptvnator/shared/interfaces';
+import { initDatabase } from '../database/connection';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
 
 export type EpgProgressStatus = 'queued' | 'loading' | 'complete' | 'error';
@@ -29,6 +30,8 @@ interface ClearWorkerMessage {
     sourceUrl?: string;
 }
 
+type DatabaseBarrier = () => Promise<unknown> | unknown;
+
 export class EpgWorkerService {
     private readonly fetchedUrls = new Set<string>();
     private readonly workers = new Map<string, Worker>();
@@ -36,7 +39,8 @@ export class EpgWorkerService {
 
     constructor(
         private readonly loggerLabel = '[EPG Events]',
-        private readonly fetchTimeoutMs = 5 * 60 * 1000
+        private readonly fetchTimeoutMs = 5 * 60 * 1000,
+        private readonly waitForDatabase: DatabaseBarrier = () => undefined
     ) {}
 
     hasFetchedUrl(url: string): boolean {
@@ -102,7 +106,9 @@ export class EpgWorkerService {
             return;
         }
 
-        const fetchPromise = this.startFetch(url, options).finally(() => {
+        const fetchPromise = this.runAfterDatabaseReady(() =>
+            this.startFetch(url, options)
+        ).finally(() => {
             this.inFlightFetches.delete(url);
         });
         this.inFlightFetches.set(url, fetchPromise);
@@ -336,33 +342,38 @@ export class EpgWorkerService {
     }
 
     async clearEpgData(): Promise<void> {
-        return this.runClearWorker({
-            timeoutLabel: 'EPG clear',
-            exitLabel: 'Clear worker',
-            readyMessage: { type: 'CLEAR_EPG' },
-            completeWorkerLabel: 'completed clear',
-            failedWorkerLabel: 'failed clear',
-            erroredWorkerLabel: 'errored clear',
-            onComplete: async (worker) => {
-                console.log(this.loggerLabel, 'EPG data cleared via worker');
-                this.fetchedUrls.clear();
-                // Resolve only after every interrupted fetch worker has exited
-                // too — they may still hold the SQLite lock the caller expects
-                // to be free.
-                const terminations = [...this.workers.values()].map(
-                    (runningWorker) =>
-                        this.terminateWorker(
-                            runningWorker,
-                            'fetch during clear'
-                        )
-                );
-                this.workers.clear();
-                terminations.push(
-                    this.terminateWorker(worker, 'completed clear')
-                );
-                await Promise.all(terminations);
-            },
-        });
+        return this.runAfterDatabaseReady(() =>
+            this.runClearWorker({
+                timeoutLabel: 'EPG clear',
+                exitLabel: 'Clear worker',
+                readyMessage: { type: 'CLEAR_EPG' },
+                completeWorkerLabel: 'completed clear',
+                failedWorkerLabel: 'failed clear',
+                erroredWorkerLabel: 'errored clear',
+                onComplete: async (worker) => {
+                    console.log(
+                        this.loggerLabel,
+                        'EPG data cleared via worker'
+                    );
+                    this.fetchedUrls.clear();
+                    // Resolve only after every interrupted fetch worker has exited
+                    // too — they may still hold the SQLite lock the caller expects
+                    // to be free.
+                    const terminations = [...this.workers.values()].map(
+                        (runningWorker) =>
+                            this.terminateWorker(
+                                runningWorker,
+                                'fetch during clear'
+                            )
+                    );
+                    this.workers.clear();
+                    terminations.push(
+                        this.terminateWorker(worker, 'completed clear')
+                    );
+                    await Promise.all(terminations);
+                },
+            })
+        );
     }
 
     async clearEpgDataForSource(sourceUrl: string): Promise<void> {
@@ -377,25 +388,30 @@ export class EpgWorkerService {
             await this.terminateWorker(runningWorker, 'source clear');
         }
 
-        return this.runClearWorker({
-            timeoutLabel: 'EPG source clear',
-            exitLabel: 'Source clear worker',
-            readyMessage: {
-                type: 'CLEAR_EPG_SOURCE',
-                sourceUrl: normalizedSourceUrl,
-            },
-            completeWorkerLabel: 'completed source clear',
-            failedWorkerLabel: 'failed source clear',
-            erroredWorkerLabel: 'errored source clear',
-            onComplete: async (worker) => {
-                console.log(
-                    this.loggerLabel,
-                    `EPG data cleared for source via worker: ${normalizedSourceUrl}`
-                );
-                this.fetchedUrls.delete(normalizedSourceUrl);
-                await this.terminateWorker(worker, 'completed source clear');
-            },
-        });
+        return this.runAfterDatabaseReady(() =>
+            this.runClearWorker({
+                timeoutLabel: 'EPG source clear',
+                exitLabel: 'Source clear worker',
+                readyMessage: {
+                    type: 'CLEAR_EPG_SOURCE',
+                    sourceUrl: normalizedSourceUrl,
+                },
+                completeWorkerLabel: 'completed source clear',
+                failedWorkerLabel: 'failed source clear',
+                erroredWorkerLabel: 'errored source clear',
+                onComplete: async (worker) => {
+                    console.log(
+                        this.loggerLabel,
+                        `EPG data cleared for source via worker: ${normalizedSourceUrl}`
+                    );
+                    this.fetchedUrls.delete(normalizedSourceUrl);
+                    await this.terminateWorker(
+                        worker,
+                        'completed source clear'
+                    );
+                },
+            })
+        );
     }
 
     private runClearWorker(options: {
@@ -497,6 +513,18 @@ export class EpgWorkerService {
         });
     }
 
+    private runAfterDatabaseReady<T>(action: () => Promise<T>): Promise<T> {
+        try {
+            const readiness = this.waitForDatabase();
+            if (isPromiseLike(readiness)) {
+                return Promise.resolve(readiness).then(action);
+            }
+            return action();
+        } catch (error) {
+            return Promise.reject(error);
+        }
+    }
+
     /**
      * Awaits worker shutdown so callers can sequence work (e.g. the next DB
      * access) after the thread has really exited. Termination failures are
@@ -541,4 +569,17 @@ export class EpgWorkerService {
     }
 }
 
-export const epgWorkerService = new EpgWorkerService();
+function isPromiseLike(value: unknown): value is PromiseLike<unknown> {
+    return (
+        typeof value === 'object' &&
+        value !== null &&
+        'then' in value &&
+        typeof value.then === 'function'
+    );
+}
+
+export const epgWorkerService = new EpgWorkerService(
+    '[EPG Events]',
+    5 * 60 * 1000,
+    () => initDatabase()
+);

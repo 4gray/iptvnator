@@ -149,6 +149,11 @@ describe('WorkspaceShellRailComponent', () => {
                 ?.getAttribute('aria-expanded')
         ).toBeNull();
         expect(
+            fixture.nativeElement
+                .querySelector('.rail-toggle')
+                ?.getAttribute('aria-label')
+        ).toBe('WORKSPACE.SHELL.EXPAND_NAVIGATION');
+        expect(
             fixture.nativeElement.querySelector<HTMLButtonElement>(
                 '.rail-toggle'
             )?.disabled

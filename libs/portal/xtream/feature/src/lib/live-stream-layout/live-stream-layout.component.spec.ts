@@ -9,13 +9,15 @@ import {
     convertToParamMap,
 } from '@angular/router';
 import { MockPipe } from 'ng-mocks';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { BehaviorSubject, Subject, of } from 'rxjs';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     LIVE_SIDEBAR_STATE_STORAGE_KEY,
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
+    RECORDING_ACTIONS,
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -26,6 +28,7 @@ import {
 import {
     EpgListViewComponent,
     EpgProgramActivationEvent,
+    EpgRecordingRequestEvent,
     EpgTimelineComponent,
     EpgTimelineSummary,
 } from '@iptvnator/ui/epg';
@@ -100,6 +103,7 @@ class StubEpgTimelineComponent {
     readonly channelLogo = input('');
     readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly recordingAvailable = input(false);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(true);
@@ -109,6 +113,7 @@ class StubEpgTimelineComponent {
     readonly summary = input<EpgTimelineSummary | null>(null);
     readonly summaryLabelKey = input('');
     readonly programActivated = output<EpgProgramActivationEvent>();
+    readonly recordingRequested = output<EpgRecordingRequestEvent>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
     readonly collapsedChange = output<boolean>();
@@ -189,12 +194,19 @@ describe('LiveStreamLayoutComponent', () => {
         getFavorites: jest.fn().mockReturnValue(of([])),
     };
     const xtreamUrlService = {
+        constructLiveUrl: jest
+            .fn()
+            .mockReturnValue('https://example.com/live/101.ts'),
         resolveCatchupUrl: jest
             .fn()
             .mockResolvedValue('https://example.com/timeshift.ts'),
     };
     const portalPlayer = {
         isEmbeddedPlayer: jest.fn().mockReturnValue(true),
+    };
+    const recordingActions = {
+        isAvailable: jest.fn(() => true),
+        schedule: jest.fn().mockResolvedValue({ success: true }),
     };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
@@ -238,6 +250,8 @@ describe('LiveStreamLayoutComponent', () => {
         limit.set(25);
         favoritesService.getFavorites.mockClear();
         xtreamUrlService.resolveCatchupUrl.mockClear();
+        xtreamUrlService.constructLiveUrl.mockClear();
+        recordingActions.schedule.mockClear();
         portalPlayer.isEmbeddedPlayer.mockReset();
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
 
@@ -303,6 +317,12 @@ describe('LiveStreamLayoutComponent', () => {
                 },
                 { provide: SettingsStore, useValue: settingsStore },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
+                { provide: RECORDING_ACTIONS, useValue: recordingActions },
+                {
+                    provide: TranslateService,
+                    useValue: { instant: jest.fn((key: string) => key) },
+                },
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
             ],
         })
             .overrideComponent(LiveStreamLayoutComponent, {
@@ -337,6 +357,37 @@ describe('LiveStreamLayoutComponent', () => {
         component = fixture.componentInstance;
 
         TestBed.inject(LiveLayoutSidebarStateService).setState('expanded');
+    });
+
+    it('schedules the selected Xtream channel from an EPG request', async () => {
+        const program: EpgProgram = {
+            channel: '101',
+            start: '2026-07-14T18:00:00.000Z',
+            stop: '2026-07-14T19:00:00.000Z',
+            title: 'Record this show',
+            desc: null,
+            category: null,
+            startTimestamp: 1784052000,
+            stopTimestamp: 1784055600,
+        };
+
+        await component.onRecordingRequested({
+            program,
+            scheduledStartAt: program.start,
+            scheduledEndAt: program.stop,
+        });
+
+        expect(recordingActions.schedule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: playlist.id,
+                sourceType: 'xtream',
+                channelId: String(sampleChannel.xtream_id),
+                playback: expect.objectContaining({
+                    streamUrl: 'https://example.com/live/101.ts',
+                    isLive: true,
+                }),
+            })
+        );
     });
 
     afterEach(() => {
@@ -893,7 +944,9 @@ describe('LiveStreamLayoutComponent', () => {
                 isLive: true,
             })
         );
-        expect(timeline.componentInstance.summary()?.title).toBe('Current Show');
+        expect(timeline.componentInstance.summary()?.title).toBe(
+            'Current Show'
+        );
         expect(timeline.componentInstance.summaryLabelKey()).toBe(
             'EPG.CURRENT_PROGRAM'
         );
@@ -1066,7 +1119,9 @@ describe('LiveStreamLayoutComponent', () => {
         const timeline = fixture.debugElement.query(
             By.directive(StubEpgTimelineComponent)
         );
-        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(true);
+        expect(timeline.componentInstance.archivePlaybackAvailable()).toBe(
+            true
+        );
     });
 
     it('shows the floating restore button when the sidebar is collapsed even without a selected category', () => {

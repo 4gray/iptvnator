@@ -645,7 +645,8 @@
             "LANGUAGE": "Language",
             "SHOW_PROGRAM_DETAILS": "Show details about this program",
             "EPISODE": "Episode",
-            "DURATION": "Duration"
+            "DURATION": "Duration",
+            "RECORD_PROGRAM": "Record programme"
         },
         "FETCH_SUCCESS": "EPG was fetched successfully",
         "IMPORT_PROGRESS": "EPG Import",
@@ -944,6 +945,42 @@
         "ALL_RADIO": "All radio"
     },
     "INFORMATION": "Information",
+    "RECORDINGS": {
+        "TITLE": "Recordings",
+        "SUBTITLE": "Scheduled recordings and your local DVR library",
+        "DESKTOP_ONLY_TITLE": "Recordings are available in the desktop app",
+        "DESKTOP_ONLY_BODY": "The DVR scheduler needs IPTVnator to be running on your computer.",
+        "ENGINE_UNAVAILABLE_TITLE": "Recording engine unavailable",
+        "ENGINE_UNAVAILABLE_BODY": "No supported recording engine is available. Install Embedded MPV or VLC to schedule new recordings.",
+        "ACTIVE_COUNT_LABEL": "Active recordings: {{count}}",
+        "RETRY": "Retry",
+        "LOAD_FAILED_TITLE": "Recording library could not be loaded",
+        "LOAD_FAILED_BODY": "Check the desktop connection and try again.",
+        "FILTER_LABEL": "Filter recordings",
+        "FILTERS": {
+            "ALL": "All",
+            "UPCOMING": "Upcoming",
+            "LIBRARY": "Library"
+        },
+        "EMPTY_TITLE": "No recordings yet",
+        "EMPTY_BODY": "Schedule a live programme from the EPG to add it here.",
+        "CANCEL": "Cancel recording",
+        "PLAY": "Play",
+        "REVEAL": "Show in folder",
+        "REMOVE": "Remove from library",
+        "ACTION_COMPLETE": "Recording library updated",
+        "ACTION_FAILED": "The recording action could not be completed",
+        "STATUS": {
+            "SCHEDULED": "Scheduled",
+            "RECORDING": "Recording",
+            "COMPLETED": "Completed",
+            "FAILED": "Failed",
+            "CANCELED": "Canceled",
+            "MISSED": "Missed",
+            "INTERRUPTED": "Interrupted"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Future Stalker recordings are not available because the portal creates short-lived stream links. You can record the programme currently airing."
+    },
     "DOWNLOADS": {
         "TITLE": "Downloads",
         "DOWNLOAD": "Download",
@@ -1066,6 +1103,7 @@
             "RAIL_RECENT": "Recently viewed",
             "RAIL_FAVORITES": "Favorites",
             "RAIL_DOWNLOADS": "Downloads",
+            "RAIL_RECORDINGS": "Recordings",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "All channels",
             "RAIL_GROUPS": "Groups",

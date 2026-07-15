@@ -125,7 +125,7 @@ Useful narrower flags:
 
 - `IPTVNATOR_TRACE_IPC=1` traces renderer `window.electron.*` bridge calls
 - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and DB progress events
-- `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in both main and worker connections
+- `IPTVNATOR_TRACE_SQL=1` traces redacted SQLite statement shapes in both main and worker connections; string/blob literals and database paths are omitted
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
 - `IPTVNATOR_TRACE_PLAYER=1` traces external-player launch/reuse/polling debug output
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
@@ -236,6 +236,7 @@ This is an Nx monorepo with the following structure:
     - **portal/catalog/feature** - Portal catalog UI
     - **portal/downloads/feature** - Download manager UI
     - **portal/shared/{data-access,ui,util}** - Cross-portal shared code
+    - **recording/{data-access,feature}** - Electron DVR renderer service and routed recording library
     - **services** - Abstract DataService contract and shared app services (incl. the TMDB metadata enrichment module in `lib/tmdb/`)
     - **shared/interfaces** - TypeScript interfaces and types (incl. `ElectronBridgeApi`)
     - **shared/database** - Canonical Drizzle schema and DB connection (used by the Electron backend)
@@ -431,6 +432,7 @@ See `docs/architecture/m3u-playlist-module.md` for complete documentation.
 - Global collections: `/workspace/global-favorites`, `/workspace/global-recent`
 - Global search: `/workspace/search` (Electron-only; a guard redirects the PWA to `/workspace/sources`)
 - Downloads: `/workspace/downloads`
+- Recordings: `/workspace/recordings` (Electron-only capability; library UI in `libs/recording/feature`)
 - Settings: `/workspace/settings` (`/settings` redirects there)
 
 **Service Architecture** (Factory Pattern):
@@ -575,6 +577,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `epgChannels`, `epgPrograms` - Persisted EPG data
     - `playbackPositions` - Resume positions
     - `downloads` - Download manager state
+    - `recordings` - DVR schedules, lifecycle state, and main-process-only playback/file metadata
     - `appState` - Key-value app state (also tracks one-off data migrations)
     - `tmdbMetadata` - TMDB enrichment cache (details payloads + search match resolutions, keyed by media type/lookup key/language)
 - **Connection**: `libs/shared/database/src/lib/connection.ts`
@@ -589,7 +592,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - All IPC channels defined here (playlist operations, EPG, database CRUD, external players, etc.)
     - The canonical TypeScript contract is `ElectronBridgeApi` in `libs/shared/interfaces/src/lib/electron-api.interface.ts`; `global.d.ts`, `apps/web/src/typings.d.ts`, and `main.preload.ts` must reference this shared type instead of maintaining separate method lists.
 - **Event handlers**: `apps/electron-backend/src/app/events/`
-    - `database.events.ts` - Database CRUD operations
+    - `database.events.ts` - Database CRUD operations and registration of semantic DVR handlers in `database/recordings.events.ts`
     - `playlist.events.ts` - Playlist import/update
     - `epg.events.ts` - EPG IPC registration and freshness/fetch orchestration; worker lifecycle lives in `epg-worker.service.ts`, DB lookups in `epg-query.service.ts`
     - `xtream.events.ts` - Xtream Codes API
@@ -604,6 +607,10 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Non-EPG SQLite work: `database.worker.ts` (see `docs/architecture/sqlite-db-worker.md`)
 - Playlist refresh: `playlist-refresh.worker.ts`
 
+Recording CRUD runs through `database.worker.ts` but is restricted to the
+Electron main process. The renderer uses semantic `recordings*` preload methods
+rather than raw worker operations. See `docs/architecture/dvr-recording.md`.
+
 ### Key Features
 
 **Playlist Support**:
@@ -616,7 +623,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 
 - Built-in HTML5 player with HLS.js or Video.js
 - External players: MPV, VLC (via IPC to Electron backend)
-- Embedded MPV (experimental, macOS/Windows/Linux): renders mpv video inside the Electron window through a native addon. macOS uses the libmpv render API in an `NSOpenGLView`; Windows uses in-process libmpv with `--wid` against an app-owned child `HWND`; Linux spawns an out-of-process `mpv --wid=<x11-window>` controlled over a JSON IPC socket (X11/XWayland only, requires system `mpv` on PATH; subtitles/speed/aspect/recording are not exported there). mpv's own screensaver inhibition does not apply to any of these paths, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever any session's status is `playing`, and releases it on pause, dispose, or shutdown. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`; full architecture: `docs/architecture/embedded-mpv-native.md`.
+- Embedded MPV (experimental, macOS/Windows/Linux): renders mpv video inside the Electron window through a native addon. macOS uses the libmpv render API in an `NSOpenGLView`; Windows uses in-process libmpv with `--wid` against an app-owned child `HWND`; Linux spawns an out-of-process `mpv --wid=<x11-window>` controlled over a JSON IPC socket (X11/XWayland only, requires system `mpv` on PATH; subtitles/speed/aspect/recording are not exported there). mpv's own screensaver inhibition does not apply to any of these paths, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever a renderer-owned session's status is `playing`, and releases it on pause, dispose, or shutdown. Hidden main-process DVR sessions use the DVR engine's separate `prevent-app-suspension` blocker. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`; full architecture: `docs/architecture/embedded-mpv-native.md`.
 
 **VOD/Series Detail Pages (two-state layout)**:
 
@@ -641,6 +648,23 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - XMLTV format support
 - Background parsing in worker thread
 - Stored in database for quick lookup
+
+**DVR Recording**:
+
+- Electron-only EPG recording for M3U and Xtream live streams; Stalker supports the current program only because future `create_link` URLs expire
+- Persisted scheduler statuses: `scheduled`, `recording`, `completed`, `failed`, `canceled`, `missed`, and `interrupted`
+- Recording library route: `/workspace/recordings`
+- Hidden, independent embedded-MPV sessions write recordings without taking over visible playback; when embedded MPV is unavailable, a dedicated headless VLC process is used if the installed/configured VLC binary supports the stream request
+- VLC receives credentials through a transient mode-`0600` M3U control file rather than process arguments; request-specific preflight rejects unsupported headers before a schedule is saved
+- VLC DVR can forward User-Agent and Referer only; streams that require Origin, Authorization, Cookie, or custom HTTP headers require embedded MPV, and Flatpak-host VLC recording is intentionally unsupported
+- IPTVnator must remain running for the complete recording window; schedules are restored after restart, but there is no OS background service
+- Public renderer DTOs omit stream URLs, request headers, recording directories, and absolute file paths; play/reveal actions resolve paths in the main process
+- Existing recording-library actions remain available when no recording engine is installed; engine support gates only new schedules
+- Library and engine-probe failures expose localized, single-flight retry states; per-record action locks prevent duplicate IPC requests, and the page follows LTR/RTL locale direction
+- Database and EPG worker creation waits for main-process schema migration; schedule creation is serialized with playlist deletion, stale worker events cannot reset replacements, and expanded SQL trace literals are redacted
+- A VLC process that cannot be confirmed stopped remains tracked with its app-suspension blocker so automatic stop and cancellation can be retried
+- Removing a library entry deletes metadata, not the recorded media file
+- Ownership and lifecycle details: `docs/architecture/dvr-recording.md`
 
 **TMDB Metadata Enrichment** (opt-in):
 
@@ -691,6 +715,7 @@ IPTVnator supports both Electron (desktop app) and PWA (web browser) to provide 
     - Electron → SQLite/Drizzle ORM → `~/.iptvnator/databases/iptvnator.db`
     - PWA → IndexedDB → Browser storage
 - External player support (MPV/VLC) only available in Electron
+- DVR scheduling, recording, and the recording library are Electron-only; the app must remain running during a recording window
 - File system operations only available in Electron (uploading playlists from disk)
 
 **Base Href Configuration**:

@@ -1,0 +1,105 @@
+.recording-card__actions {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 14px;
+}
+
+.recording-card__actions .recording-action {
+    min-height: 40px;
+    padding-inline: 18px;
+}
+
+.recording-card__actions .recording-action mat-icon {
+    width: 18px;
+    height: 18px;
+    margin: 0;
+    margin-inline-end: 7px;
+    font-size: 18px;
+    line-height: 18px;
+}
+
+.recording-card__actions .recording-icon-action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 40px;
+    height: 40px;
+    padding: 0;
+    border: 1px solid var(--app-separator);
+    color: var(--mat-sys-primary);
+    background: var(--app-widget-bg);
+    transition:
+        color 140ms ease,
+        background-color 140ms ease,
+        border-color 140ms ease;
+}
+
+.recording-card__actions .recording-icon-action:hover:not(:disabled) {
+    border-color: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 45%,
+        var(--app-separator)
+    );
+    background: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 12%,
+        var(--app-widget-bg)
+    );
+}
+
+.recording-card__actions .recording-icon-action--danger:hover:not(:disabled) {
+    border-color: color-mix(
+        in srgb,
+        var(--mat-sys-error) 45%,
+        var(--app-separator)
+    );
+    color: var(--mat-sys-error);
+    background: var(--mat-sys-error-container);
+}
+
+.recording-card__actions .recording-icon-action mat-icon {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    font-size: 20px;
+    line-height: 20px;
+}
+
+.recordings-empty {
+    display: grid;
+    justify-items: center;
+    gap: 8px;
+    padding: 72px 24px;
+    color: var(--app-body-color);
+    text-align: center;
+}
+
+.recordings-empty > mat-icon {
+    width: 48px;
+    height: 48px;
+    font-size: 48px;
+}
+
+.recordings-spin {
+    animation: recordings-spin 1s linear infinite;
+}
+
+@keyframes recordings-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .recordings-spin {
+        animation: none;
+    }
+
+    .recording-card__actions .recording-action,
+    .recording-card__actions .recording-icon-action {
+        transition: none;
+    }
+}

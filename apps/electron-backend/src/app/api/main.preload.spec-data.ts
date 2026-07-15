@@ -50,6 +50,17 @@ const tmdbCacheEntry = {
     tmdbId: 603,
     payload: '{"id":603}',
 };
+const recordingId = 'recording-1';
+const recordingRequest = {
+    playlistId,
+    sourceType: 'xtream' as const,
+    channelId: 'channel-1',
+    channelName: 'News',
+    title: 'Evening News',
+    scheduledStartAt: '2026-07-14T18:00:00.000Z',
+    scheduledEndAt: '2026-07-14T19:00:00.000Z',
+    playback: { streamUrl: 'https://example.com/live/news.m3u8' },
+};
 
 export const dbPreloadCases: PreloadInvokeCase[] = [
     {
@@ -375,6 +386,48 @@ export const dbPreloadCases: PreloadInvokeCase[] = [
         args: [[['The Matrix', 'Inception']][0]],
         channel: 'DB_MATCH_TITLES',
         forwardedArgs: [['The Matrix', 'Inception']],
+    },
+    {
+        method: 'recordingsSchedule',
+        args: [recordingRequest],
+        channel: 'RECORDINGS:SCHEDULE',
+        forwardedArgs: [recordingRequest],
+    },
+    {
+        method: 'recordingsGetSupport',
+        args: [],
+        channel: 'RECORDINGS:GET_SUPPORT',
+        forwardedArgs: [],
+    },
+    {
+        method: 'recordingsGetList',
+        args: [],
+        channel: 'RECORDINGS:GET_LIST',
+        forwardedArgs: [],
+    },
+    {
+        method: 'recordingsCancel',
+        args: [recordingId],
+        channel: 'RECORDINGS:CANCEL',
+        forwardedArgs: [recordingId],
+    },
+    {
+        method: 'recordingsRemove',
+        args: [recordingId],
+        channel: 'RECORDINGS:REMOVE',
+        forwardedArgs: [recordingId],
+    },
+    {
+        method: 'recordingsRevealFile',
+        args: [recordingId],
+        channel: 'RECORDINGS:REVEAL_FILE',
+        forwardedArgs: [recordingId],
+    },
+    {
+        method: 'recordingsPlayFile',
+        args: [recordingId],
+        channel: 'RECORDINGS:PLAY_FILE',
+        forwardedArgs: [recordingId],
     },
 ];
 

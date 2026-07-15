@@ -68,6 +68,56 @@ describe('EpgWorkerService worker lifecycle', () => {
     });
 
     describe('worker lifecycle', () => {
+        it('waits for database migrations before starting a fetch worker', async () => {
+            let releaseDatabase!: () => void;
+            const databaseReady = new Promise<void>((resolve) => {
+                releaseDatabase = resolve;
+            });
+            service = new EpgWorkerService(
+                '[Test EPG]',
+                1000,
+                () => databaseReady
+            );
+
+            const fetchPromise = service.fetchEpgFromUrl(url);
+            expect(mockWorkerInstances).toHaveLength(0);
+            releaseDatabase();
+            await Promise.resolve();
+
+            const worker = mockWorkerInstances[0];
+            worker.emit('message', { type: 'READY' });
+            worker.emit('message', {
+                type: 'EPG_COMPLETE',
+                stats: { totalChannels: 1, totalPrograms: 1 },
+            });
+            await expect(fetchPromise).resolves.toBeUndefined();
+        });
+
+        it('waits for database migrations before starting a clear worker', async () => {
+            let releaseDatabase!: () => void;
+            const databaseReady = new Promise<void>((resolve) => {
+                releaseDatabase = resolve;
+            });
+            service = new EpgWorkerService(
+                '[Test EPG]',
+                1000,
+                () => databaseReady
+            );
+
+            const clearPromise = service.clearEpgData();
+            expect(mockWorkerInstances).toHaveLength(0);
+            releaseDatabase();
+            await Promise.resolve();
+
+            const worker = mockWorkerInstances[0];
+            worker.emit('message', { type: 'READY' });
+            expect(worker.postMessage).toHaveBeenCalledWith({
+                type: 'CLEAR_EPG',
+            });
+            worker.emit('message', { type: 'CLEAR_COMPLETE' });
+            await expect(clearPromise).resolves.toBeUndefined();
+        });
+
         it('spawns the worker with bootstrap paths and drives the FETCH_EPG flow', async () => {
             const options = { manuallyTrustedHosts: ['example.com'] } as any;
             const fetchPromise = service.fetchEpgFromUrl(url, options);

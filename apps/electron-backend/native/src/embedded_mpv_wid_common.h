@@ -2144,29 +2144,26 @@ Napi::Value SetAudioTrack(const Napi::CallbackInfo& info)
     const auto session =
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
     const std::string targetPath = info[1].As<Napi::String>().Utf8Value();
-    const char* targetValue = targetPath.c_str();
-    const uint64_t requestId = nextAsyncRequestId();
-    {
-        std::lock_guard<std::mutex> lock(session->mutex);
-        session->pendingRecordingStartRequestId = requestId;
-        session->pendingRecordingTargetPath = targetPath;
-        session->pendingRecordingStartedAt = nowIsoString();
-        session->snapshot.recordingError.clear();
-    }
-    const int result = mpv_set_property_async(
+    const std::string startedAt = nowIsoString();
+    const int result = mpv_set_property_string(
         session->handle,
-        requestId,
         "stream-record",
-        MPV_FORMAT_STRING,
-        const_cast<char**>(&targetValue)
+        targetPath.c_str()
     );
     if (result < 0) {
         std::lock_guard<std::mutex> lock(session->mutex);
-        session->pendingRecordingStartRequestId = 0;
-        session->pendingRecordingTargetPath.clear();
-        session->pendingRecordingStartedAt.clear();
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingTargetPath = targetPath;
+        session->snapshot.recordingStartedAt.clear();
         session->snapshot.recordingError = mpv_error_string(result);
         throw Napi::Error::New(env, mpv_error_string(result));
+    }
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.recordingActive = true;
+        session->snapshot.recordingTargetPath = targetPath;
+        session->snapshot.recordingStartedAt = startedAt;
+        session->snapshot.recordingError.clear();
     }
     return env.Undefined();
 }
@@ -2179,27 +2176,21 @@ Napi::Value SetAudioTrack(const Napi::CallbackInfo& info)
     }
     const auto session =
         getSessionOrThrow(env, info[0].As<Napi::String>().Utf8Value());
-    const char* disabledValue = "";
-    const uint64_t requestId = nextAsyncRequestId();
-    {
-        std::lock_guard<std::mutex> lock(session->mutex);
-        session->pendingRecordingStopRequestId = requestId;
-        session->pendingRecordingStopStartedAt =
-            session->snapshot.recordingStartedAt;
-    }
-    const int result = mpv_set_property_async(
+    const int result = mpv_set_property_string(
         session->handle,
-        requestId,
         "stream-record",
-        MPV_FORMAT_STRING,
-        const_cast<char**>(&disabledValue)
+        ""
     );
     if (result < 0) {
         std::lock_guard<std::mutex> lock(session->mutex);
-        session->pendingRecordingStopRequestId = 0;
-        session->pendingRecordingStopStartedAt.clear();
         session->snapshot.recordingError = mpv_error_string(result);
         throw Napi::Error::New(env, mpv_error_string(result));
+    }
+    {
+        std::lock_guard<std::mutex> lock(session->mutex);
+        session->snapshot.recordingActive = false;
+        session->snapshot.recordingStartedAt.clear();
+        session->snapshot.recordingError.clear();
     }
     return env.Undefined();
 }

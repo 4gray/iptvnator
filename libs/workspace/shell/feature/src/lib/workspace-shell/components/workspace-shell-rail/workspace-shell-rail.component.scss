@@ -40,8 +40,8 @@
     --rail-link-hover-bg: var(--app-selection-surface);
     --rail-link-active-bg: var(--app-selection-surface);
     --rail-link-active-bg-strong: var(--app-selection-surface-strong);
-    --rail-link-active-color: var(--app-selection-color);
-    --rail-link-active-icon: var(--app-selection-color);
+    --rail-link-active-color: var(--mat-sys-primary);
+    --rail-link-active-icon: var(--mat-sys-primary);
     --rail-link-active-border: var(--app-selection-border);
     --rail-link-active-glow: var(--app-selection-glow);
     // Dock-like hover magnification capped at 42px, so a 20px icon stays
@@ -141,7 +141,15 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+    .app-rail a,
+    .app-rail button,
+    .rail-context-region {
+        animation: none;
+        transition: none;
+    }
+
     .app-rail a mat-icon,
+    .app-rail a:hover mat-icon,
     .app-rail button mat-icon {
         transition: none;
         transform: none;
@@ -168,7 +176,7 @@
     &::after {
         content: '';
         position: absolute;
-        right: 3px;
+        inset-inline-end: 3px;
         top: 50%;
         width: 3px;
         height: 18px;
@@ -291,6 +299,12 @@
     }
 }
 
+@media (prefers-reduced-motion: reduce) {
+    .rail-context-region {
+        animation: none;
+    }
+}
+
 .rail-divider {
     width: 44px;
     height: 1px;
@@ -319,7 +333,7 @@
         &.is-active::after {
             content: '';
             position: absolute;
-            right: 3px;
+            inset-inline-end: 3px;
             top: 50%;
             width: 4px;
             height: 20px;

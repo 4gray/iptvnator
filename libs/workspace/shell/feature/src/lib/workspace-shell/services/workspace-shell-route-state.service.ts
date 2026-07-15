@@ -86,6 +86,15 @@ export class WorkspaceShellRouteStateService {
             });
         }
 
+        if (this.runtime.supportsRecordings) {
+            links.push({
+                icon: 'video_library',
+                tooltip: this.translateText('WORKSPACE.SHELL.RAIL_RECORDINGS'),
+                path: ['/workspace/recordings'],
+                exact: true,
+            });
+        }
+
         links.push({
             icon: 'favorite',
             tooltip: this.translateText('HOME.PLAYLISTS.GLOBAL_FAVORITES'),
@@ -128,7 +137,8 @@ export class WorkspaceShellRouteStateService {
             currentRoute.kind !== 'global-favorites' &&
             currentRoute.kind !== 'global-recent' &&
             currentRoute.kind !== 'global-search' &&
-            currentRoute.kind !== 'downloads'
+            currentRoute.kind !== 'downloads' &&
+            currentRoute.kind !== 'recordings'
         ) {
             return null;
         }

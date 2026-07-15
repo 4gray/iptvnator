@@ -24,6 +24,7 @@ describe('RuntimeCapabilitiesService', () => {
         expect(service.supportsSqlite).toBe(false);
         expect(service.supportsXtreamSqliteDataSource).toBe(false);
         expect(service.supportsDownloads).toBe(false);
+        expect(service.supportsRecordings).toBe(false);
         expect(service.supportsPortalActivityStorage).toBe(false);
         expect(service.supportsPlaybackPositionStorage).toBe(false);
         expect(service.supportsPlaybackPositionUpdates).toBe(false);
@@ -397,6 +398,28 @@ describe('RuntimeCapabilitiesService', () => {
         };
 
         expect(service.supportsDesktopFileSave).toBe(true);
+    });
+
+    it('requires the complete recordings preload surface', () => {
+        testWindow.electron = { recordingsGetList: jest.fn() };
+        const service = new RuntimeCapabilitiesService();
+
+        expect(service.supportsRecordings).toBe(false);
+
+        testWindow.electron = {
+            recordingsSchedule: jest.fn(),
+            recordingsGetSupport: jest.fn(),
+            recordingsGetList: jest.fn(),
+            recordingsCancel: jest.fn(),
+            recordingsRemove: jest.fn(),
+            recordingsRevealFile: jest.fn(),
+            recordingsPlayFile: jest.fn(),
+            onRecordingsUpdate: jest.fn(),
+        };
+
+        expect(service.supportsRecordings).toBe(true);
+        delete testWindow.electron['recordingsPlayFile'];
+        expect(service.supportsRecordings).toBe(false);
     });
 
     it('requires the complete playlist refresh preload surface', () => {

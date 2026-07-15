@@ -645,7 +645,8 @@
             "LANGUAGE": "اللغة",
             "SHOW_PROGRAM_DETAILS": "عرض تفاصيل البرنامج",
             "EPISODE": "الحلقة",
-            "DURATION": "المدة"
+            "DURATION": "المدة",
+            "RECORD_PROGRAM": "تسجيل البرنامج"
         },
         "FETCH_SUCCESS": "تم جلب الدليل بنجاح.",
         "IMPORT_PROGRESS": "استيراد EPG",
@@ -944,6 +945,42 @@
         "ALL_RADIO": "كل الراديو"
     },
     "INFORMATION": "معلومات",
+    "RECORDINGS": {
+        "TITLE": "التسجيلات",
+        "SUBTITLE": "التسجيلات المجدولة ومكتبة DVR المحلية",
+        "DESKTOP_ONLY_TITLE": "تتوفر التسجيلات في تطبيق سطح المكتب",
+        "DESKTOP_ONLY_BODY": "يجب أن يكون IPTVnator قيد التشغيل على جهاز الكمبيوتر لكي يعمل مجدول DVR.",
+        "ENGINE_UNAVAILABLE_TITLE": "محرك التسجيل غير متوفر",
+        "ENGINE_UNAVAILABLE_BODY": "لا يتوفر محرك تسجيل مدعوم. ثبّت Embedded MPV أو VLC لجدولة تسجيلات جديدة.",
+        "ACTIVE_COUNT_LABEL": "التسجيلات النشطة: {{count}}",
+        "RETRY": "إعادة المحاولة",
+        "LOAD_FAILED_TITLE": "تعذر تحميل مكتبة التسجيلات",
+        "LOAD_FAILED_BODY": "تحقق من اتصال تطبيق سطح المكتب وحاول مرة أخرى.",
+        "FILTER_LABEL": "تصفية التسجيلات",
+        "FILTERS": {
+            "ALL": "الكل",
+            "UPCOMING": "القادمة",
+            "LIBRARY": "المكتبة"
+        },
+        "EMPTY_TITLE": "لا توجد تسجيلات بعد",
+        "EMPTY_BODY": "جدول تسجيل برنامج مباشر من دليل البرامج الإلكتروني لإضافته هنا.",
+        "CANCEL": "إلغاء التسجيل",
+        "PLAY": "تشغيل",
+        "REVEAL": "إظهار في المجلد",
+        "REMOVE": "إزالة من المكتبة",
+        "ACTION_COMPLETE": "تم تحديث مكتبة التسجيلات",
+        "ACTION_FAILED": "تعذر إكمال إجراء التسجيل",
+        "STATUS": {
+            "SCHEDULED": "مجدول",
+            "RECORDING": "جارٍ التسجيل",
+            "COMPLETED": "مكتمل",
+            "FAILED": "فشل",
+            "CANCELED": "ملغى",
+            "MISSED": "فائت",
+            "INTERRUPTED": "متوقف"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "لا تتوفر تسجيلات Stalker المستقبلية لأن البوابة تنشئ روابط بث قصيرة العمر. يمكنك تسجيل البرنامج المعروض حاليًا."
+    },
     "DOWNLOADS": {
         "TITLE": "التنزيلات",
         "DOWNLOAD": "تنزيل",
@@ -1066,6 +1103,7 @@
             "RAIL_RECENT": "تمت مشاهدتها مؤخرًا",
             "RAIL_FAVORITES": "المفضلة",
             "RAIL_DOWNLOADS": "التنزيلات",
+            "RAIL_RECORDINGS": "التسجيلات",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "جميع القنوات",
             "RAIL_GROUPS": "المجموعات",

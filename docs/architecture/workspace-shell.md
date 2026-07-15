@@ -45,10 +45,11 @@ Current workspace routes:
 6. `/workspace/global-favorites`
 7. `/workspace/global-recent`
 8. `/workspace/search`
-9. `/workspace/downloads`
-10. `/workspace/settings`
-11. `/workspace/xtreams/:id/...`
-12. `/workspace/stalker/:id/...`
+9. `/workspace/recordings`
+10. `/workspace/downloads`
+11. `/workspace/settings`
+12. `/workspace/xtreams/:id/...`
+13. `/workspace/stalker/:id/...`
 
 Compatibility redirect:
 
@@ -77,8 +78,9 @@ The shell is intentionally split into four persistent regions:
 
 1. Left rail:
     1. Static workspace links for dashboard, sources, global favorites, and
-       recently viewed. The routed global-search rail link is Electron-only
-       because its data source is the SQLite worker bridge.
+       recently viewed. The routed global-search and recordings links are
+       Electron-only because their data sources use Electron's SQLite and
+       native runtime bridges.
     2. Provider-aware context links derived from the active or current playlist.
     3. Settings remains a persistent footer shortcut in the rail.
 2. Top header:
@@ -161,9 +163,10 @@ Rail navigation is also shell-owned:
 
 1. Workspace-global entries are static.
 2. Provider entries come from `buildPortalRailLinks(...)`.
-3. On dashboard, sources, settings, global search, global favorites, and global
-   recent, the shell falls back to the currently selected playlist so provider
-   navigation remains available even outside a provider route.
+3. On dashboard, sources, settings, global search, recordings, global
+   favorites, and global recent, the shell falls back to the currently selected
+   playlist so provider navigation remains available even outside a provider
+   route.
 4. The top disclosure button is not a route. It shows a downward triangle in
    the default 60px icon rail and a right-pointing triangle when expanded, so
    the Dashboard destination appears exactly once in the actual link list.

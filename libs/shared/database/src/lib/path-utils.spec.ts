@@ -5,7 +5,7 @@ jest.mock('os', () => ({
     homedir: () => homedirMock(),
 }));
 
-import { existsSync, mkdtempSync, rmSync } from 'fs';
+import { existsSync, mkdtempSync, rmSync, statSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
 import {
@@ -43,6 +43,9 @@ describe('path-utils', () => {
 
         expect(getIptvnatorDataRoot()).toBe(e2eDataDir);
         expect(existsSync(e2eDataDir)).toBe(true);
+        if (process.platform !== 'win32') {
+            expect(statSync(e2eDataDir).mode & 0o777).toBe(0o700);
+        }
     });
 
     it('falls back to ~/.iptvnator when the env override is blank', () => {

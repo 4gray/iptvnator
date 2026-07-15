@@ -1,0 +1,217 @@
+<section class="recordings-page" [attr.dir]="textDirection()">
+    <header class="recordings-header">
+        <div>
+            <div class="recordings-title-row">
+                <h1>{{ 'RECORDINGS.TITLE' | translate }}</h1>
+                @if (recordingService.activeCount() > 0) {
+                    <span
+                        class="recordings-active-badge"
+                        [attr.aria-label]="
+                            'RECORDINGS.ACTIVE_COUNT_LABEL'
+                                | translate
+                                    : {
+                                          count: recordingService.activeCount(),
+                                      }
+                        "
+                    >
+                        {{ recordingService.activeCount() }}
+                    </span>
+                }
+            </div>
+            <p>{{ 'RECORDINGS.SUBTITLE' | translate }}</p>
+        </div>
+    </header>
+
+    @if (!recordingService.hasDesktopBridge()) {
+        <div class="recordings-empty">
+            <mat-icon>desktop_access_disabled</mat-icon>
+            <h2>{{ 'RECORDINGS.DESKTOP_ONLY_TITLE' | translate }}</h2>
+            <p>{{ 'RECORDINGS.DESKTOP_ONLY_BODY' | translate }}</p>
+        </div>
+    } @else {
+        @if (recordingService.support()?.supported === false) {
+            <div class="recordings-engine-warning" role="status">
+                <mat-icon>error_outline</mat-icon>
+                <div>
+                    <h2>
+                        {{ 'RECORDINGS.ENGINE_UNAVAILABLE_TITLE' | translate }}
+                    </h2>
+                    <p>
+                        {{ 'RECORDINGS.ENGINE_UNAVAILABLE_BODY' | translate }}
+                    </p>
+                </div>
+                <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="recordingService.refresh()"
+                    [disabled]="recordingService.isLoading()"
+                >
+                    {{ 'RECORDINGS.RETRY' | translate }}
+                </button>
+            </div>
+        }
+        <nav
+            class="recordings-filters"
+            [attr.aria-label]="'RECORDINGS.FILTER_LABEL' | translate"
+        >
+            @for (filter of filters; track filter.id) {
+                <button
+                    type="button"
+                    class="recordings-filter"
+                    [class.is-active]="selectedFilter() === filter.id"
+                    [attr.aria-pressed]="selectedFilter() === filter.id"
+                    (click)="selectedFilter.set(filter.id)"
+                >
+                    {{ filter.label | translate }}
+                </button>
+            }
+        </nav>
+
+        @if (recordingService.error()) {
+            <div class="recordings-empty" role="alert">
+                <mat-icon>sync_problem</mat-icon>
+                <h2>{{ 'RECORDINGS.LOAD_FAILED_TITLE' | translate }}</h2>
+                <p>{{ 'RECORDINGS.LOAD_FAILED_BODY' | translate }}</p>
+                <button
+                    mat-stroked-button
+                    type="button"
+                    (click)="recordingService.refresh()"
+                    [disabled]="recordingService.isLoading()"
+                >
+                    {{ 'RECORDINGS.RETRY' | translate }}
+                </button>
+            </div>
+        } @else if (
+            recordingService.isLoading() && !recordingService.hasLoaded()
+        ) {
+            <div class="recordings-empty" aria-live="polite">
+                <mat-icon class="recordings-spin">sync</mat-icon>
+                <p>{{ 'CHANNELS.LOADING' | translate }}</p>
+            </div>
+        } @else if (visibleRecordings().length === 0) {
+            <div class="recordings-empty">
+                <mat-icon>video_library</mat-icon>
+                <h2>{{ 'RECORDINGS.EMPTY_TITLE' | translate }}</h2>
+                <p>{{ 'RECORDINGS.EMPTY_BODY' | translate }}</p>
+            </div>
+        } @else {
+            <div class="recordings-list">
+                @for (item of visibleRecordings(); track item.id) {
+                    <article
+                        class="recording-card"
+                        [class.is-recording]="item.status === 'recording'"
+                        [attr.aria-busy]="isActionPending(item.id)"
+                    >
+                        <div class="recording-card__artwork">
+                            @if (item.posterUrl) {
+                                <img
+                                    [src]="item.posterUrl"
+                                    [alt]="item.title"
+                                />
+                            } @else {
+                                <mat-icon>live_tv</mat-icon>
+                            }
+                        </div>
+                        <div class="recording-card__body">
+                            <div class="recording-card__heading">
+                                <div>
+                                    <h2>{{ item.title }}</h2>
+                                    <p>{{ item.channelName }}</p>
+                                </div>
+                                <span
+                                    class="recording-status"
+                                    [attr.data-status]="item.status"
+                                >
+                                    <mat-icon>{{
+                                        statusIcon(item.status)
+                                    }}</mat-icon>
+                                    {{ statusLabel(item.status) | translate }}
+                                </span>
+                            </div>
+                            <div class="recording-card__meta">
+                                <span>
+                                    <mat-icon>event</mat-icon>
+                                    {{
+                                        item.scheduledStartAt
+                                            | date
+                                                : 'medium'
+                                                : ''
+                                                : currentLocale()
+                                    }}
+                                </span>
+                                @if (formatBytes(item.bytesRecorded); as size) {
+                                    <span
+                                        ><mat-icon>hard_drive</mat-icon
+                                        >{{ size }}</span
+                                    >
+                                }
+                            </div>
+                            @if (item.status === 'failed') {
+                                <p class="recording-card__error">
+                                    {{ 'RECORDINGS.ACTION_FAILED' | translate }}
+                                </p>
+                            }
+                            <div class="recording-card__actions">
+                                @if (isActive(item.status)) {
+                                    <button
+                                        mat-stroked-button
+                                        class="recording-action"
+                                        (click)="cancel(item)"
+                                        [disabled]="isActionPending(item.id)"
+                                    >
+                                        <mat-icon>stop_circle</mat-icon>
+                                        {{ 'RECORDINGS.CANCEL' | translate }}
+                                    </button>
+                                } @else {
+                                    @if (item.fileAvailable) {
+                                        <button
+                                            mat-flat-button
+                                            class="recording-action recording-action--primary"
+                                            (click)="play(item)"
+                                            [disabled]="
+                                                isActionPending(item.id)
+                                            "
+                                        >
+                                            <mat-icon>play_arrow</mat-icon>
+                                            {{ 'RECORDINGS.PLAY' | translate }}
+                                        </button>
+                                        <button
+                                            mat-icon-button
+                                            class="recording-icon-action"
+                                            (click)="reveal(item)"
+                                            [disabled]="
+                                                isActionPending(item.id)
+                                            "
+                                            [attr.aria-label]="
+                                                'RECORDINGS.REVEAL' | translate
+                                            "
+                                            [matTooltip]="
+                                                'RECORDINGS.REVEAL' | translate
+                                            "
+                                        >
+                                            <mat-icon>folder_open</mat-icon>
+                                        </button>
+                                    }
+                                    <button
+                                        mat-icon-button
+                                        class="recording-icon-action recording-icon-action--danger"
+                                        (click)="remove(item)"
+                                        [disabled]="isActionPending(item.id)"
+                                        [attr.aria-label]="
+                                            'RECORDINGS.REMOVE' | translate
+                                        "
+                                        [matTooltip]="
+                                            'RECORDINGS.REMOVE' | translate
+                                        "
+                                    >
+                                        <mat-icon>delete</mat-icon>
+                                    </button>
+                                }
+                            </div>
+                        </div>
+                    </article>
+                }
+            </div>
+        }
+    }
+</section>

@@ -6,6 +6,14 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    RECORDINGS_CANCEL,
+    RECORDINGS_GET_LIST,
+    RECORDINGS_GET_SUPPORT,
+    RECORDINGS_PLAY_FILE,
+    RECORDINGS_REMOVE,
+    RECORDINGS_REVEAL_FILE,
+    RECORDINGS_SCHEDULE,
+    RECORDINGS_UPDATE_EVENT,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import type {
     EmbeddedMpvBounds,
@@ -37,6 +45,7 @@ import type {
     PlaylistRefreshPayload,
     PortalDebugEvent,
     ResolvedPortalPlayback,
+    ScheduleRecordingRequest,
     Settings,
     TmdbCacheEntry,
     TmdbCacheMediaType,
@@ -820,6 +829,24 @@ const electronApi: ElectronBridgeApi = {
             contentType
         ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
+    // DVR recordings
+    recordingsSchedule: (request: ScheduleRecordingRequest) =>
+        ipcRenderer.invoke(RECORDINGS_SCHEDULE, request),
+    recordingsGetSupport: () => ipcRenderer.invoke(RECORDINGS_GET_SUPPORT),
+    recordingsGetList: () => ipcRenderer.invoke(RECORDINGS_GET_LIST),
+    recordingsCancel: (recordingId: string) =>
+        ipcRenderer.invoke(RECORDINGS_CANCEL, recordingId),
+    recordingsRemove: (recordingId: string) =>
+        ipcRenderer.invoke(RECORDINGS_REMOVE, recordingId),
+    recordingsRevealFile: (recordingId: string) =>
+        ipcRenderer.invoke(RECORDINGS_REVEAL_FILE, recordingId),
+    recordingsPlayFile: (recordingId: string) =>
+        ipcRenderer.invoke(RECORDINGS_PLAY_FILE, recordingId),
+    onRecordingsUpdate: (callback: () => void) => {
+        const handler = () => callback();
+        ipcRenderer.on(RECORDINGS_UPDATE_EVENT, handler);
+        return () => ipcRenderer.off(RECORDINGS_UPDATE_EVENT, handler);
+    },
     // Downloads
     downloadsStart: (data: ElectronBridgeDownloadStartPayload) =>
         ipcRenderer.invoke('DOWNLOADS_START', data),

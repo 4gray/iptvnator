@@ -28,6 +28,7 @@ import { isStartupTraceEnabled, trace } from './app/services/debug-trace';
 import { registerStaticHeaderShims } from './app/services/request-header-overrides.service';
 import { AppUpdateService } from './app/services/app-update.service';
 import { databaseWorkerClient } from './app/services/database-worker-client';
+import { recordingSchedulerService } from './app/services/recording-scheduler.service';
 import WindowEvents from './app/events/window.events';
 import XtreamEvents from './app/events/xtream.events';
 import { environment } from './environments/environment';
@@ -56,6 +57,8 @@ if (electronUserDataPath) {
 }
 
 let fixPathScheduled = false;
+let shutdownStarted = false;
+let shutdownComplete = false;
 
 /**
  * Update process.env.PATH from the user's interactive login shell so that
@@ -148,6 +151,16 @@ export default class Main {
 
         await resetStaleDownloads();
 
+        try {
+            await recordingSchedulerService.initialize();
+        } catch (error) {
+            // DVR recovery must not prevent the rest of IPTVnator from starting.
+            console.error(
+                'Failed to initialize the recording scheduler:',
+                error
+            );
+        }
+
         if (isStartupTraceEnabled()) {
             trace('startup', 'reset-stale-downloads:done');
         }
@@ -181,9 +194,37 @@ app.whenReady().then(async () => {
     await Main.bootstrapAppEvents();
 });
 
-app.on('before-quit', () => {
-    shutdownEmbeddedMpv();
-    shutdownMpvSession();
-    shutdownVlcSession();
-    void databaseWorkerClient.shutdown();
+app.on('before-quit', (event) => {
+    if (shutdownComplete) {
+        return;
+    }
+
+    event.preventDefault();
+    if (shutdownStarted) {
+        return;
+    }
+    shutdownStarted = true;
+
+    void (async () => {
+        try {
+            await recordingSchedulerService.shutdown();
+        } catch (error) {
+            console.error('Failed to stop DVR recording sessions:', error);
+        }
+        try {
+            shutdownEmbeddedMpv();
+            shutdownMpvSession();
+            shutdownVlcSession();
+        } catch (error) {
+            console.error('Failed to stop native player sessions:', error);
+        }
+        try {
+            await databaseWorkerClient.shutdown();
+        } catch (error) {
+            console.error('Failed to stop the database worker:', error);
+        }
+    })().finally(() => {
+        shutdownComplete = true;
+        app.quit();
+    });
 });

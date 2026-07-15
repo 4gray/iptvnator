@@ -645,7 +645,8 @@
             "LANGUAGE": "Idioma",
             "SHOW_PROGRAM_DETAILS": "Mostrar detalles del programa",
             "EPISODE": "Episodio",
-            "DURATION": "Duración"
+            "DURATION": "Duración",
+            "RECORD_PROGRAM": "Grabar programa"
         },
         "FETCH_SUCCESS": "EPG obtenida correctamente",
         "IMPORT_PROGRESS": "Importación de EPG",
@@ -944,6 +945,42 @@
         "ALL_RADIO": "Todas las radios"
     },
     "INFORMATION": "Información",
+    "RECORDINGS": {
+        "TITLE": "Grabaciones",
+        "SUBTITLE": "Grabaciones programadas y tu biblioteca DVR local",
+        "DESKTOP_ONLY_TITLE": "Las grabaciones están disponibles en la aplicación de escritorio",
+        "DESKTOP_ONLY_BODY": "El programador DVR requiere que IPTVnator esté en ejecución en tu ordenador.",
+        "ENGINE_UNAVAILABLE_TITLE": "Motor de grabación no disponible",
+        "ENGINE_UNAVAILABLE_BODY": "No hay un motor de grabación compatible disponible. Instala Embedded MPV o VLC para programar nuevas grabaciones.",
+        "ACTIVE_COUNT_LABEL": "Grabaciones activas: {{count}}",
+        "RETRY": "Reintentar",
+        "LOAD_FAILED_TITLE": "No se pudo cargar la biblioteca de grabaciones",
+        "LOAD_FAILED_BODY": "Comprueba la conexión con la aplicación de escritorio e inténtalo de nuevo.",
+        "FILTER_LABEL": "Filtrar grabaciones",
+        "FILTERS": {
+            "ALL": "Todas",
+            "UPCOMING": "Próximas",
+            "LIBRARY": "Biblioteca"
+        },
+        "EMPTY_TITLE": "Aún no hay grabaciones",
+        "EMPTY_BODY": "Programa la grabación de una emisión en directo desde la guía EPG para añadirla aquí.",
+        "CANCEL": "Cancelar grabación",
+        "PLAY": "Reproducir",
+        "REVEAL": "Mostrar en la carpeta",
+        "REMOVE": "Eliminar de la biblioteca",
+        "ACTION_COMPLETE": "Biblioteca de grabaciones actualizada",
+        "ACTION_FAILED": "No se pudo completar la acción de grabación",
+        "STATUS": {
+            "SCHEDULED": "Programada",
+            "RECORDING": "Grabando",
+            "COMPLETED": "Completada",
+            "FAILED": "Fallida",
+            "CANCELED": "Cancelada",
+            "MISSED": "Perdida",
+            "INTERRUPTED": "Interrumpida"
+        },
+        "STALKER_FUTURE_UNAVAILABLE": "Las grabaciones futuras de Stalker no están disponibles porque el portal crea enlaces de corta duración. Puedes grabar el programa en emisión."
+    },
     "DOWNLOADS": {
         "TITLE": "Descargas",
         "DOWNLOAD": "Descargar",
@@ -1066,6 +1103,7 @@
             "RAIL_RECENT": "Vistos recientemente",
             "RAIL_FAVORITES": "Favoritos",
             "RAIL_DOWNLOADS": "Descargas",
+            "RAIL_RECORDINGS": "Grabaciones",
             "EXTERNAL_PLAYBACK_CLOSE": "Close player",
             "RAIL_ALL_CHANNELS": "Todos los canales",
             "RAIL_GROUPS": "Grupos",

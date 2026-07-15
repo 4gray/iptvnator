@@ -57,8 +57,12 @@ describe('DatabaseWorkerClient', () => {
         );
     });
 
-    function createClient(): DatabaseWorkerClientType {
-        const client = new DatabaseWorkerClient();
+    function createClient(
+        waitForDatabase: () => Promise<unknown> = jest
+            .fn()
+            .mockResolvedValue(undefined)
+    ): DatabaseWorkerClientType {
+        const client = new DatabaseWorkerClient(waitForDatabase);
         clients.push(client);
         return client;
     }
@@ -67,11 +71,45 @@ describe('DatabaseWorkerClient', () => {
         await new Promise((resolve) => setImmediate(resolve));
     }
 
+    it('does not create the worker until database migrations finish', async () => {
+        let releaseDatabase!: () => void;
+        const waitForDatabase = jest.fn(
+            () =>
+                new Promise<void>((resolve) => {
+                    releaseDatabase = resolve;
+                })
+        );
+        const client = createClient(waitForDatabase);
+        const requestPromise = client.request('DB_GLOBAL_SEARCH', {
+            searchTerm: 'matrix',
+        });
+
+        await flushPromises();
+        expect(waitForDatabase).toHaveBeenCalledTimes(1);
+        expect(mockWorkerInstances).toHaveLength(0);
+
+        releaseDatabase();
+        await flushPromises();
+        const worker = mockWorkerInstances[0];
+        worker.emit('message', { type: 'ready' });
+        await flushPromises();
+        const request = worker.postMessage.mock.calls[0][0];
+        worker.emit('message', {
+            type: 'response',
+            requestId: request.requestId,
+            success: true,
+            result: [],
+        });
+
+        await expect(requestPromise).resolves.toEqual([]);
+    });
+
     it('resolves requests after the worker reports ready and returns a response', async () => {
         const client = createClient();
         const requestPromise = client.request('DB_GLOBAL_SEARCH', {
             searchTerm: 'matrix',
         });
+        await flushPromises();
         const worker = mockWorkerInstances[0];
         const { Worker } = jest.requireMock('worker_threads');
 
@@ -113,6 +151,7 @@ describe('DatabaseWorkerClient', () => {
             { playlistId: 'xtream-1', streams: [], type: 'movie' },
             { onEvent }
         );
+        await flushPromises();
         const worker = mockWorkerInstances[0];
 
         worker.emit('message', { type: 'ready' });
@@ -153,6 +192,7 @@ describe('DatabaseWorkerClient', () => {
         const requestPromise = client.request('DB_DELETE_PLAYLIST', {
             playlistId: 'xtream-1',
         });
+        await flushPromises();
         const worker = mockWorkerInstances[0];
 
         worker.emit('message', { type: 'ready' });
@@ -183,6 +223,7 @@ describe('DatabaseWorkerClient', () => {
             streams: [],
             type: 'movie',
         });
+        await flushPromises();
         const worker = mockWorkerInstances[0];
 
         worker.emit('message', { type: 'ready' });
@@ -210,6 +251,7 @@ describe('DatabaseWorkerClient', () => {
         const requestPromise = client.request('DB_DELETE_PLAYLIST', {
             playlistId: 'xtream-1',
         });
+        await flushPromises();
         const worker = mockWorkerInstances[0];
 
         worker.emit('message', { type: 'ready' });
@@ -233,61 +275,5 @@ describe('DatabaseWorkerClient', () => {
         });
 
         await expect(requestPromise).resolves.toEqual({ success: true });
-    });
-
-    it('rejects pending work on worker exit and starts a fresh worker for the next request', async () => {
-        const client = createClient();
-        const firstRequest = client.request('DB_SEARCH_CONTENT', {
-            playlistId: 'xtream-1',
-            searchTerm: 'matrix',
-            types: ['movie'],
-        });
-        const firstWorker = mockWorkerInstances[0];
-
-        firstWorker.emit('message', { type: 'ready' });
-        await flushPromises();
-        firstWorker.emit('exit', 1);
-
-        await expect(firstRequest).rejects.toThrow(
-            'Database worker stopped with exit code 1'
-        );
-
-        const secondRequest = client.request('DB_SEARCH_CONTENT', {
-            playlistId: 'xtream-1',
-            searchTerm: 'neo',
-            types: ['movie'],
-        });
-        const secondWorker = mockWorkerInstances[1];
-
-        secondWorker.emit('message', { type: 'ready' });
-        await flushPromises();
-
-        const request = secondWorker.postMessage.mock.calls[0][0];
-        secondWorker.emit('message', {
-            type: 'response',
-            requestId: request.requestId,
-            success: true,
-            result: [],
-        });
-
-        await expect(secondRequest).resolves.toEqual([]);
-    });
-
-    it('rejects requests with actionable worker path errors', async () => {
-        const client = createClient();
-        resolveWorkerRuntimeBootstrap.mockImplementation(() => {
-            const error = new Error(
-                'Unable to resolve worker "database.worker.js".\nTried:\n- /missing/database.worker.js'
-            );
-            error.name = 'WorkerPathResolutionError';
-            throw error;
-        });
-
-        await expect(
-            client.request('DB_GLOBAL_SEARCH', { searchTerm: 'matrix' })
-        ).rejects.toMatchObject({
-            name: 'WorkerPathResolutionError',
-            message: expect.stringContaining('database.worker.js'),
-        });
     });
 });

@@ -187,6 +187,19 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    get supportsRecordings(): boolean {
+        return [
+            'recordingsSchedule',
+            'recordingsGetSupport',
+            'recordingsGetList',
+            'recordingsCancel',
+            'recordingsRemove',
+            'recordingsRevealFile',
+            'recordingsPlayFile',
+            'onRecordingsUpdate',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsPortalActivityStorage(): boolean {
         return [
             'dbGetRecentlyViewed',

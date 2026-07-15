@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync } from 'fs';
+import { chmodSync, existsSync, mkdirSync } from 'fs';
 import { homedir } from 'os';
 import { join } from 'path';
 
@@ -6,7 +6,10 @@ export const IPTVNATOR_E2E_DATA_DIR_ENV = 'IPTVNATOR_E2E_DATA_DIR';
 
 function ensureDirectory(dirPath: string): string {
     if (!existsSync(dirPath)) {
-        mkdirSync(dirPath, { recursive: true });
+        mkdirSync(dirPath, { recursive: true, mode: 0o700 });
+    }
+    if (process.platform !== 'win32') {
+        chmodSync(dirPath, 0o700);
     }
 
     return dirPath;

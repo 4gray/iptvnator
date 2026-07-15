@@ -12,7 +12,8 @@ import { By } from '@angular/platform-browser';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { MockPipe } from 'ng-mocks';
 import { BehaviorSubject, of } from 'rxjs';
 import {
@@ -30,6 +31,7 @@ import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
 import {
     PORTAL_EXTERNAL_PLAYBACK,
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
+    RECORDING_ACTIONS,
     WorkspaceHeaderContextService,
 } from '@iptvnator/portal/shared/util';
 import {
@@ -45,6 +47,7 @@ import {
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
 import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
+import type { EpgRecordingRequestEvent } from '@iptvnator/ui/epg';
 import { Overlay } from '@angular/cdk/overlay';
 import type { PlaybackFallbackRequest } from '@iptvnator/ui/playback';
 import type { VideoPlayerComponent as VideoPlayerComponentInstance } from './video-player.component';
@@ -133,6 +136,7 @@ class StubEpgTimelineComponent {
     readonly channelName = input('');
     readonly channelLogo = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly recordingAvailable = input(false);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(true);
@@ -146,6 +150,7 @@ class StubEpgTimelineComponent {
         program?: EpgProgram;
         type: 'timeshift' | 'live';
     }>();
+    readonly recordingRequested = output<EpgRecordingRequestEvent>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
     readonly openEpgSettings = output<void>();
@@ -276,6 +281,10 @@ describe('VideoPlayerComponent', () => {
     const dataServiceMock = {
         sendIpcEvent: jest.fn(),
     };
+    const recordingActionsMock = {
+        isAvailable: jest.fn(() => true),
+        schedule: jest.fn().mockResolvedValue({ success: true }),
+    };
 
     const sampleChannel: Channel = {
         id: 'channel-1',
@@ -327,6 +336,7 @@ describe('VideoPlayerComponent', () => {
         routerMock.navigate.mockClear();
         storeMock.dispatch.mockClear();
         dataServiceMock.sendIpcEvent.mockClear();
+        recordingActionsMock.schedule.mockClear();
 
         await TestBed.configureTestingModule({
             imports: [VideoPlayerComponent],
@@ -409,6 +419,12 @@ describe('VideoPlayerComponent', () => {
                         activeSession: signal(null),
                     },
                 },
+                { provide: RECORDING_ACTIONS, useValue: recordingActionsMock },
+                {
+                    provide: TranslateService,
+                    useValue: { instant: jest.fn((key: string) => key) },
+                },
+                { provide: MatSnackBar, useValue: { open: jest.fn() } },
             ],
         })
             .overrideComponent(VideoPlayerComponent, {
@@ -512,7 +528,9 @@ describe('VideoPlayerComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(headerContext.action()).toBeNull();
     });
 
@@ -802,6 +820,30 @@ describe('VideoPlayerComponent', () => {
 
         expect(storeMock.dispatch).toHaveBeenCalledWith(
             EpgActions.returnToLivePlayback()
+        );
+    });
+
+    it('schedules the selected M3U channel from an EPG request', async () => {
+        syncStoreState(sampleChannel);
+        const program = buildProgram('Record this show');
+
+        await component.onRecordingRequested({
+            program,
+            scheduledStartAt: '2026-07-14T18:00:00.000Z',
+            scheduledEndAt: '2026-07-14T19:00:00.000Z',
+        });
+
+        expect(recordingActionsMock.schedule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'playlist-1',
+                sourceType: 'm3u',
+                channelId: sampleChannel.id,
+                title: program.title,
+                playback: expect.objectContaining({
+                    streamUrl: sampleChannel.url,
+                    isLive: true,
+                }),
+            })
         );
     });
 

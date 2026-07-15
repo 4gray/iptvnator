@@ -29,7 +29,9 @@
 
     <div class="epg-dialog__body">
         <div class="epg-dialog__meta">
-            <span>{{ startMs | date: 'EEE d MMM' : '' : currentLocale() }}</span>
+            <span>{{
+                startMs | date: 'EEE d MMM' : '' : currentLocale()
+            }}</span>
             <span class="epg-dialog__dot"></span>
             <span
                 >{{ startMs | date: 'HH:mm' }} –
@@ -91,6 +93,16 @@
                 >
                     <mat-icon>replay</mat-icon>
                     {{ 'EPG.TIMELINE.WATCH_FROM_START' | translate }}
+                </button>
+            }
+            @if (recordingAvailable) {
+                <button
+                    type="button"
+                    class="epg-dialog__btn epg-dialog__btn--ghost"
+                    [mat-dialog-close]="'record'"
+                >
+                    <mat-icon>fiber_manual_record</mat-icon>
+                    {{ 'EPG.PROGRAM_DIALOG.RECORD_PROGRAM' | translate }}
                 </button>
             }
             @if (archiveUnavailableNote) {

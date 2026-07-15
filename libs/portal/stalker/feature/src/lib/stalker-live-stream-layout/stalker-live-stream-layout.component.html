@@ -169,6 +169,8 @@
                 [sourceLabel]="'Stalker Portal'"
                 [archivePlaybackAvailable]="false"
                 [archiveDays]="0"
+                [recordingAvailable]="recordingAvailable()"
+                [recordingFutureAvailable]="false"
                 [loading]="isLoadingEpg()"
                 [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
                 [selectedDate]="selectedLiveEpgDate()"
@@ -178,6 +180,7 @@
                     isLiveEpgPanelCollapsed()
                 "
                 [summary]="liveEpgPanelSummary()"
+                (recordingRequested)="onRecordingRequested($event)"
                 (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
                 (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
             />
@@ -191,6 +194,8 @@
                 [sourceLabel]="'Stalker Portal'"
                 [archivePlaybackAvailable]="false"
                 [archiveDays]="0"
+                [recordingAvailable]="recordingAvailable()"
+                [recordingFutureAvailable]="false"
                 [loading]="isLoadingEpg()"
                 [emptyReason]="supportsEpg ? 'none' : 'provider-no-epg'"
                 [selectedDate]="selectedLiveEpgDate()"
@@ -200,6 +205,7 @@
                     isLiveEpgPanelCollapsed()
                 "
                 [summary]="liveEpgPanelSummary()"
+                (recordingRequested)="onRecordingRequested($event)"
                 (selectedDateChange)="onLiveEpgSelectedDateChange($event)"
                 (collapsedChange)="onLiveEpgPanelCollapsedChange($event)"
             />

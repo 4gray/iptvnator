@@ -23,7 +23,7 @@ export function resolveElectronOnlyGlobalSearchRoute(
     return runtime.isElectron ? true : router.parseUrl('/workspace/sources');
 }
 
-const electronOnlyGlobalSearchGuard = () => {
+const electronOnlyWorkspaceGuard = () => {
     return resolveElectronOnlyGlobalSearchRoute(
         inject(RuntimeCapabilitiesService),
         inject(Router)
@@ -97,7 +97,7 @@ export const routes: Routes = [
             },
             {
                 path: 'search',
-                canActivate: [electronOnlyGlobalSearchGuard],
+                canActivate: [electronOnlyWorkspaceGuard],
                 data: {
                     isGlobalSearch: true,
                 },
@@ -111,6 +111,14 @@ export const routes: Routes = [
                 loadComponent: () =>
                     import('@iptvnator/portal/downloads/feature').then(
                         (c) => c.DownloadsComponent
+                    ),
+            },
+            {
+                path: 'recordings',
+                canActivate: [electronOnlyWorkspaceGuard],
+                loadComponent: () =>
+                    import('@iptvnator/recording/feature').then(
+                        (c) => c.RecordingLibraryComponent
                     ),
             },
             {

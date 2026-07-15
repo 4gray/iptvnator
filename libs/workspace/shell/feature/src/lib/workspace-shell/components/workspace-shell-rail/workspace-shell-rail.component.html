@@ -20,12 +20,10 @@
         aria-controls="workspace-primary-navigation-content"
         [attr.aria-expanded]="isCompact() ? null : expanded()"
         [attr.aria-label]="
-            isCompact()
-                ? null
-                : ((expanded()
-                      ? 'WORKSPACE.SHELL.COLLAPSE_NAVIGATION'
-                      : 'WORKSPACE.SHELL.EXPAND_NAVIGATION'
-                  ) | translate)
+            (expanded()
+                ? 'WORKSPACE.SHELL.COLLAPSE_NAVIGATION'
+                : 'WORKSPACE.SHELL.EXPAND_NAVIGATION'
+            ) | translate
         "
     >
         <mat-icon class="rail-toggle-icon" aria-hidden="true">

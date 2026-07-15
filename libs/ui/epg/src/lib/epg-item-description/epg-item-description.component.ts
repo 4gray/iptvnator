@@ -9,7 +9,7 @@ import { differenceInMinutes } from 'date-fns';
 import { startWith } from 'rxjs';
 import { EpgProgram } from '@iptvnator/shared/interfaces';
 
-export type EpgItemDialogAction = 'live' | 'timeshift';
+export type EpgItemDialogAction = 'live' | 'timeshift' | 'record';
 
 export type EpgItemDialogData = EpgProgram & {
     channelName?: string | null;
@@ -21,6 +21,8 @@ export type EpgItemDialogData = EpgProgram & {
     primaryAction?: EpgItemDialogAction | null;
     /** Show a "catch-up unavailable" note instead of an action button. */
     archiveUnavailableNote?: boolean;
+    /** Allow scheduling this current or future programme for recording. */
+    recordingAvailable?: boolean;
 };
 
 @Component({
@@ -45,6 +47,7 @@ export class EpgItemDescriptionComponent {
     duration: string | null = null;
     primaryAction: EpgItemDialogAction | null = null;
     archiveUnavailableNote = false;
+    recordingAvailable = false;
     /** ms timestamps for the date pipe (prefer unix timestamp when present). */
     startMs = 0;
     stopMs = 0;
@@ -58,10 +61,11 @@ export class EpgItemDescriptionComponent {
     constructor() {
         this.epgProgram = this.dialogData;
         // Check multiple possible field names for channel name
-        this.channelName = this.dialogData.channelName
-            || this.dialogData.channel_name
-            || this.dialogData.display_name
-            || null;
+        this.channelName =
+            this.dialogData.channelName ||
+            this.dialogData.channel_name ||
+            this.dialogData.display_name ||
+            null;
         // Prefer the channel logo; fall back to the programme/EPG icon
         // (M3U playlists without tvg-logo still get an icon from the EPG feed).
         this.channelLogo =
@@ -72,6 +76,7 @@ export class EpgItemDescriptionComponent {
         this.primaryAction = this.dialogData.primaryAction ?? null;
         this.archiveUnavailableNote =
             this.dialogData.archiveUnavailableNote ?? false;
+        this.recordingAvailable = this.dialogData.recordingAvailable ?? false;
         this.startMs = toMs(
             this.epgProgram.start,
             this.epgProgram.startTimestamp
@@ -90,7 +95,9 @@ export class EpgItemDescriptionComponent {
             }
             const hours = Math.floor(mins / 60);
             const remainingMins = mins % 60;
-            return remainingMins > 0 ? `${hours}h ${remainingMins}m` : `${hours}h`;
+            return remainingMins > 0
+                ? `${hours}h ${remainingMins}m`
+                : `${hours}h`;
         } catch {
             return null;
         }

@@ -142,6 +142,18 @@ export default [
                             ],
                         },
                         {
+                            sourceTag: 'domain:recording',
+                            onlyDependOnLibsWithTags: [
+                                'domain:recording',
+                                'domain:playback',
+                                'domain:portal-shared',
+                                'domain:shared-contracts',
+                                'domain:shared-runtime',
+                                'domain:shared-ui',
+                                'scope:shared',
+                            ],
+                        },
+                        {
                             sourceTag: 'domain:shared-contracts',
                             onlyDependOnLibsWithTags: [
                                 'domain:shared-contracts',

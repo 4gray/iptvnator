@@ -26,6 +26,11 @@ import {
 } from '../epg-date';
 import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
 import type { EpgProgramActivationEvent } from '../epg-program-activation-event';
+import {
+    canScheduleEpgRecording,
+    createEpgRecordingRequestEvent,
+    EpgRecordingRequestEvent,
+} from '../epg-recording-request-event';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import { epgDialogActionFor } from '../epg-timeline/epg-archive.util';
 import {
@@ -81,6 +86,8 @@ export class EpgListViewComponent {
     readonly sourceLabel = input('Programme guide');
     readonly archivePlaybackAvailable = input(false);
     readonly archiveDays = input(0);
+    readonly recordingAvailable = input(false);
+    readonly recordingFutureAvailable = input(true);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(true);
     readonly loading = input(false);
@@ -91,6 +98,7 @@ export class EpgListViewComponent {
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
 
     readonly programActivated = output<EpgProgramActivationEvent>();
+    readonly recordingRequested = output<EpgRecordingRequestEvent>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
     readonly openEpgSettings = output<void>();
@@ -135,7 +143,9 @@ export class EpgListViewComponent {
     );
     readonly nowRowMinutesLeft = computed(() => {
         const row = this.nowRow();
-        return row ? Math.max(0, Math.round((row.stopMs - this.nowMs()) / 60_000)) : null;
+        return row
+            ? Math.max(0, Math.round((row.stopMs - this.nowMs()) / 60_000))
+            : null;
     });
 
     readonly viewDate = computed(() => parseEpgDateKey(this.viewDayKey()));
@@ -262,6 +272,11 @@ export class EpgListViewComponent {
                 primaryAction: epgDialogActionFor(row.when, row.canCatchUp),
                 archiveUnavailableNote:
                     row.when === 'past' && !this.archivePlaybackAvailable(),
+                recordingAvailable: canScheduleEpgRecording(
+                    this.recordingAvailable(),
+                    this.recordingFutureAvailable(),
+                    row.when
+                ),
             })
             .subscribe((result: EpgItemDialogAction | undefined) => {
                 if (result === 'live') {
@@ -272,6 +287,14 @@ export class EpgListViewComponent {
                         program: row.program,
                         type: 'timeshift',
                     });
+                } else if (result === 'record') {
+                    this.recordingRequested.emit(
+                        createEpgRecordingRequestEvent(
+                            row.program,
+                            row.startMs,
+                            row.stopMs
+                        )
+                    );
                 }
             });
     }

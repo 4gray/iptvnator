@@ -3,6 +3,7 @@ import type EpgEventsType from './epg.events';
 const mockWorkerInstances: any[] = [];
 const resolveWorkerRuntimeBootstrap = jest.fn();
 const getDatabase = jest.fn();
+const initDatabase = jest.fn();
 
 jest.mock('electron', () => ({
     app: {
@@ -41,6 +42,7 @@ jest.mock('../workers/worker-runtime-paths', () => ({
 
 jest.mock('../database/connection', () => ({
     getDatabase: (...args: unknown[]) => getDatabase(...args),
+    initDatabase: (...args: unknown[]) => initDatabase(...args),
 }));
 
 describe('EpgEvents', () => {
@@ -55,6 +57,7 @@ describe('EpgEvents', () => {
         consoleLogSpy = jest.spyOn(console, 'log').mockImplementation();
         consoleErrorSpy = jest.spyOn(console, 'error').mockImplementation();
         resolveWorkerRuntimeBootstrap.mockReset();
+        initDatabase.mockReset().mockResolvedValue(undefined);
         resolveWorkerRuntimeBootstrap.mockReturnValue({
             workerPath: '/mock/workers/epg-parser.worker.js',
             workerPathCandidates: ['/mock/workers/epg-parser.worker.js'],
@@ -82,6 +85,7 @@ describe('EpgEvents', () => {
         const fetchPromise = (EpgEvents as unknown as Record<string, any>)[
             'fetchEpgFromUrl'
         ]('https://example.com/guide.xml');
+        await flushPromises();
         const worker = mockWorkerInstances[0];
         const { Worker } = jest.requireMock('worker_threads');
 

@@ -4,6 +4,9 @@ import {
 } from './database.worker-connection';
 import { parentPort } from 'worker_threads';
 import type {
+    PersistedRecordingUpdate,
+    RecordingStatus,
+    ScheduleRecordingRequest,
     XtreamBackupFavoriteItem,
     XtreamBackupRecentlyViewedItem,
 } from '@iptvnator/shared/interfaces';
@@ -82,6 +85,13 @@ import {
     getTmdbMetadata,
     setTmdbMetadata,
 } from '../database/operations/tmdb.operations';
+import {
+    createRecording,
+    deleteRecording,
+    getRecording,
+    listRecordings,
+    updateRecording,
+} from '../database/operations/recording.operations';
 import {
     deleteXtreamContent,
     restoreXtreamUserData,
@@ -770,7 +780,11 @@ async function executeRequest(message: DbWorkerRequestMessage) {
 
         case 'DB_REORDER_GLOBAL_FAVORITES': {
             const payload = message.payload as {
-                updates: { content_id: number; playlist_id: string; position: number }[];
+                updates: {
+                    content_id: number;
+                    playlist_id: string;
+                    position: number;
+                }[];
             };
             return reorderGlobalFavorites(db, payload.updates);
         }
@@ -899,6 +913,39 @@ async function executeRequest(message: DbWorkerRequestMessage) {
                 payload.contentXtreamId,
                 payload.contentType
             );
+        }
+
+        case 'DB_CREATE_RECORDING': {
+            const payload = message.payload as {
+                id: string;
+                request: ScheduleRecordingRequest;
+            };
+            return createRecording(db, payload.id, payload.request);
+        }
+
+        case 'DB_GET_RECORDING': {
+            const payload = message.payload as { id: string };
+            return getRecording(db, payload.id);
+        }
+
+        case 'DB_LIST_RECORDINGS': {
+            const payload = message.payload as {
+                statuses?: RecordingStatus[];
+            };
+            return listRecordings(db, payload.statuses);
+        }
+
+        case 'DB_UPDATE_RECORDING': {
+            const payload = message.payload as {
+                id: string;
+                update: PersistedRecordingUpdate;
+            };
+            return updateRecording(db, payload.id, payload.update);
+        }
+
+        case 'DB_DELETE_RECORDING': {
+            const payload = message.payload as { id: string };
+            return deleteRecording(db, payload.id);
         }
     }
 }

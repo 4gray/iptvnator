@@ -1,0 +1,21 @@
+{
+    "name": "recording-data-access",
+    "$schema": "../../../node_modules/nx/schemas/project-schema.json",
+    "sourceRoot": "libs/recording/data-access/src",
+    "prefix": "lib",
+    "projectType": "library",
+    "tags": ["scope:recording", "domain:recording", "type:data-access"],
+    "targets": {
+        "test": {
+            "executor": "@nx/jest:jest",
+            "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "options": {
+                "jestConfig": "libs/recording/data-access/jest.config.cts",
+                "tsConfig": "libs/recording/data-access/tsconfig.spec.json"
+            }
+        },
+        "lint": {
+            "executor": "@nx/eslint:lint"
+        }
+    }
+}

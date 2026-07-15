@@ -40,6 +40,7 @@ import {
 import {
     EpgDateNavigationDirection,
     EpgListViewComponent,
+    EpgRecordingRequestEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     shiftEpgDateKey,
@@ -53,6 +54,7 @@ import { LiveEpgPanelSummary } from '@iptvnator/ui/shared-portals';
 import {
     LiveLayoutSidebarStateService,
     PORTAL_PLAYER,
+    RECORDING_ACTIONS,
     createLogger,
     getAdjacentChannelItem,
     getChannelItemByNumber,
@@ -102,6 +104,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     private readonly runtime = inject(RuntimeCapabilitiesService);
     private readonly settingsStore = inject(SettingsStore);
     private readonly portalPlayer = inject(PORTAL_PLAYER);
+    private readonly recordingActions = inject(RECORDING_ACTIONS, {
+        optional: true,
+    });
     private readonly snackBar = inject(MatSnackBar);
     private readonly translate = inject(TranslateService);
     private readonly liveSidebarStateService = inject(
@@ -149,6 +154,9 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
     protected readonly normalizeStalkerEntityId = normalizeStalkerEntityId;
     readonly isElectron = this.runtime.isElectron;
     readonly supportsEpg = this.runtime.supportsEpg;
+    readonly recordingAvailable = computed(
+        () => this.recordingActions?.isAvailable() ?? false
+    );
     readonly openStreamOnDoubleClick = computed(() =>
         this.settingsStore.openStreamOnDoubleClick()
     );
@@ -451,6 +459,64 @@ export class StalkerLiveStreamLayoutComponent implements OnDestroy {
                     ? this.translate.instant('PORTALS.CONTENT_NOT_AVAILABLE')
                     : this.translate.instant('PORTALS.PLAYBACK_ERROR');
             this.snackBar.open(errorMessage, undefined, { duration: 3000 });
+        }
+    }
+
+    async onRecordingRequested(event: EpgRecordingRequestEvent): Promise<void> {
+        const recordingActions = this.recordingActions;
+        const playlistId = this.stalkerStore.currentPlaylist()?._id;
+        const item =
+            this.stalkerStore.selectedItem() as StalkerItvChannel | null;
+        if (!recordingActions || !playlistId || !item?.id) {
+            return;
+        }
+
+        if (Date.parse(event.scheduledStartAt) > Date.now() + 30_000) {
+            this.snackBar.open(
+                this.translate.instant('RECORDINGS.STALKER_FUTURE_UNAVAILABLE'),
+                undefined,
+                { duration: 4000 }
+            );
+            return;
+        }
+
+        try {
+            const channelId = normalizeStalkerEntityId(item.id);
+            const channelName = item.o_name || item.name || channelId;
+            const playback = await this.resolvePlaybackForChannel(
+                item,
+                channelId
+            );
+            const result = await recordingActions.schedule({
+                playlistId: String(playlistId),
+                sourceType: 'stalker',
+                channelId,
+                channelName,
+                title: event.program.title,
+                description: event.program.desc ?? undefined,
+                posterUrl:
+                    item.logo ||
+                    item.cover ||
+                    event.program.iconUrl ||
+                    undefined,
+                epgChannelId: event.program.channel ?? undefined,
+                scheduledStartAt: event.scheduledStartAt,
+                scheduledEndAt: event.scheduledEndAt,
+                playback: { ...playback, isLive: true },
+            });
+            this.snackBar.open(
+                result.success
+                    ? this.translate.instant('RECORDINGS.ACTION_COMPLETE')
+                    : this.translate.instant('RECORDINGS.ACTION_FAILED'),
+                undefined,
+                { duration: 3000 }
+            );
+        } catch {
+            this.snackBar.open(
+                this.translate.instant('RECORDINGS.ACTION_FAILED'),
+                undefined,
+                { duration: 3000 }
+            );
         }
     }
 

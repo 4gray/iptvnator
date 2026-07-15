@@ -28,6 +28,11 @@ import {
 } from '../epg-date';
 import { EpgItemDialogAction } from '../epg-item-description/epg-item-description.component';
 import type { EpgProgramActivationEvent } from '../epg-program-activation-event';
+import {
+    canScheduleEpgRecording,
+    createEpgRecordingRequestEvent,
+    EpgRecordingRequestEvent,
+} from '../epg-recording-request-event';
 import { EpgProgrammeDialogService } from '../epg-programme-dialog.service';
 import {
     EpgTimelineSummary,
@@ -37,35 +42,14 @@ import {
     summaryMinutesLeft,
     summaryProgress,
 } from './epg-summary.util';
-import {
-    canCatchUpProgramme,
-    epgDialogActionFor,
-} from './epg-archive.util';
+import { canCatchUpProgramme, epgDialogActionFor } from './epg-archive.util';
 import {
     EpgTimelineEmptyReason,
     EpgTimelineEmptyStateComponent,
 } from './epg-timeline-empty-state.component';
 import { TimelineScrollController } from './epg-timeline-scroll.controller';
 import { EpgTimelineTrackComponent } from './epg-timeline-track.component';
-import {
-    buildTimelineAxis,
-    buildTimelineBlocks,
-    buildTimelineDayDividers,
-    buildTimelineRenderItems,
-    buildTimelineTicks,
-    hasProgramsForDateKey,
-    nearestDateKeyWithPrograms,
-    TIMELINE_DEFAULT_SCALE,
-    TIMELINE_GROUP_EXPAND_ZOOM,
-    TIMELINE_GROUP_ZOOM_MAX,
-    TIMELINE_MINUTE_MS,
-    TIMELINE_ZOOM_MAX,
-    TIMELINE_ZOOM_MIN,
-    TIMELINE_ZOOM_STEP,
-    TimelineBlock,
-    TimelineRenderGroup,
-    timelineTickStepForScale,
-} from './epg-timeline.utils';
+import * as timeline from './epg-timeline.utils';
 
 type RenderState = 'loading' | 'ribbon' | EpgTimelineEmptyReason;
 
@@ -92,6 +76,8 @@ export class EpgTimelineComponent {
     readonly sourceLabel = input('Timeline');
     readonly archivePlaybackAvailable = input(false);
     readonly archiveDays = input(0);
+    readonly recordingAvailable = input(false);
+    readonly recordingFutureAvailable = input(true);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(true);
     readonly loading = input(false);
@@ -102,6 +88,7 @@ export class EpgTimelineComponent {
     readonly summaryLabelKey = input('EPG.CURRENT_PROGRAM');
 
     readonly programActivated = output<EpgProgramActivationEvent>();
+    readonly recordingRequested = output<EpgRecordingRequestEvent>();
     readonly returnToLive = output<void>();
     readonly selectedDateChange = output<string>();
     readonly openEpgSettings = output<void>();
@@ -113,10 +100,10 @@ export class EpgTimelineComponent {
 
     readonly ribbon = viewChild<ElementRef<HTMLElement>>('ribbon');
     /** px-per-minute zoom (D). */
-    readonly scale = signal(TIMELINE_DEFAULT_SCALE);
-    readonly zoomMin = TIMELINE_ZOOM_MIN;
-    readonly zoomMax = TIMELINE_ZOOM_MAX;
-    readonly zoomStep = TIMELINE_ZOOM_STEP;
+    readonly scale = signal(timeline.TIMELINE_DEFAULT_SCALE);
+    readonly zoomMin = timeline.TIMELINE_ZOOM_MIN;
+    readonly zoomMax = timeline.TIMELINE_ZOOM_MAX;
+    readonly zoomStep = timeline.TIMELINE_ZOOM_STEP;
     readonly skeletonWidths = [120, 170, 150, 200, 140, 180];
 
     private readonly nowMs = signal(Date.now());
@@ -138,7 +125,7 @@ export class EpgTimelineComponent {
         viewDayKey: () => this.viewDayKey(),
         commitDay: (dayKey) => this.commitDay(dayKey),
         hasProgramsForDay: (dayKey) =>
-            hasProgramsForDateKey(this.programs(), dayKey),
+            timeline.hasProgramsForDateKey(this.programs(), dayKey),
     });
 
     private readonly languageTick = toSignal(
@@ -153,40 +140,52 @@ export class EpgTimelineComponent {
     });
 
     readonly axis = computed(() =>
-        buildTimelineAxis(this.programs(), this.nowMs())
+        timeline.buildTimelineAxis(this.programs(), this.nowMs())
     );
     readonly blocks = computed(() =>
-        buildTimelineBlocks(this.programs(), this.axis(), this.nowMs())
+        timeline.buildTimelineBlocks(this.programs(), this.axis(), this.nowMs())
     );
     private readonly archiveWindowStartMs = computed(() => {
         const days = this.archiveDays();
         return days > 0
-            ? this.nowMs() - days * 24 * 60 * TIMELINE_MINUTE_MS
+            ? this.nowMs() - days * 24 * 60 * timeline.TIMELINE_MINUTE_MS
             : Number.NEGATIVE_INFINITY;
     });
     readonly renderItems = computed(() =>
-        buildTimelineRenderItems(this.blocks(), this.scale(), {
-            allowGroup: this.scale() < TIMELINE_GROUP_ZOOM_MAX,
+        timeline.buildTimelineRenderItems(this.blocks(), this.scale(), {
+            allowGroup: this.scale() < timeline.TIMELINE_GROUP_ZOOM_MAX,
             nowMs: this.nowMs(),
             archivePlaybackAvailable: this.archivePlaybackAvailable(),
             archiveWindowStartMs: this.archiveWindowStartMs(),
         })
     );
     readonly ticks = computed(() =>
-        buildTimelineTicks(this.axis(), timelineTickStepForScale(this.scale()))
+        timeline.buildTimelineTicks(
+            this.axis(),
+            timeline.timelineTickStepForScale(this.scale())
+        )
     );
-    readonly dividers = computed(() => buildTimelineDayDividers(this.axis()));
+    readonly dividers = computed(() =>
+        timeline.buildTimelineDayDividers(this.axis())
+    );
     readonly trackWidthPx = computed(() => {
         const axis = this.axis();
-        return ((axis.endMs - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale();
+        return (
+            ((axis.endMs - axis.startMs) / timeline.TIMELINE_MINUTE_MS) *
+            this.scale()
+        );
     });
     readonly playheadLeftPx = computed(() => {
         const axis = this.axis();
-        return ((this.nowMs() - axis.startMs) / TIMELINE_MINUTE_MS) * this.scale();
+        return (
+            ((this.nowMs() - axis.startMs) / timeline.TIMELINE_MINUTE_MS) *
+            this.scale()
+        );
     });
     readonly zoomLabelKey = computed(() => {
         const scale = this.scale();
-        if (scale < TIMELINE_GROUP_ZOOM_MAX) return 'EPG.TIMELINE.ZOOM_DAY';
+        if (scale < timeline.TIMELINE_GROUP_ZOOM_MAX)
+            return 'EPG.TIMELINE.ZOOM_DAY';
         if (scale < 3) return 'EPG.TIMELINE.ZOOM_HOURS';
         return 'EPG.TIMELINE.ZOOM_DETAIL';
     });
@@ -208,7 +207,9 @@ export class EpgTimelineComponent {
         if (this.programs().length === 0) {
             return 'channel-unmapped';
         }
-        if (!hasProgramsForDateKey(this.programs(), this.viewDayKey())) {
+        if (
+            !timeline.hasProgramsForDateKey(this.programs(), this.viewDayKey())
+        ) {
             return 'empty-day';
         }
         return 'ribbon';
@@ -225,7 +226,9 @@ export class EpgTimelineComponent {
      * could become usable, but with no programmes for the day there is nothing
      * to jump to or zoom.
      */
-    readonly showRibbonControls = computed(() => this.renderState() === 'ribbon');
+    readonly showRibbonControls = computed(
+        () => this.renderState() === 'ribbon'
+    );
 
     /**
      * The date stepper navigates between days, which is only meaningful when the
@@ -241,9 +244,7 @@ export class EpgTimelineComponent {
 
     // ── collapsed-summary state ──
     readonly hasSummary = computed(() => summaryHasTitle(this.summary()));
-    readonly hasTimeRange = computed(() =>
-        summaryHasTimeRange(this.summary())
-    );
+    readonly hasTimeRange = computed(() => summaryHasTimeRange(this.summary()));
     readonly progress = computed(() =>
         summaryProgress(this.summary(), this.nowMs())
     );
@@ -260,11 +261,6 @@ export class EpgTimelineComponent {
             onCleanup(() => clearInterval(intervalId));
         });
 
-        // Auto-focus the current programme whenever a channel's EPG (re)loads
-        // or the ribbon (re)mounts — this is what makes selecting a channel land
-        // on "now" without the user pressing the Now button. Tracked deps are
-        // only `ribbon` + `programs`; the body runs untracked so 30s "now" ticks
-        // and zoom changes never re-trigger a jump.
         effect(() => {
             const scroller = this.ribbon()?.nativeElement;
             const programs = this.programs();
@@ -277,34 +273,27 @@ export class EpgTimelineComponent {
     }
 
     onZoom(value: number): void {
-        const requested = Number(value);
-        const next = Number.isFinite(requested)
-            ? Math.min(this.zoomMax, Math.max(this.zoomMin, requested))
-            : this.scale();
-        // Keep the viewport centre stable across a zoom change.
-        const scroller = this.ribbon()?.nativeElement;
-        const prev = this.scale();
-        const centreMin = scroller
-            ? (scroller.scrollLeft + scroller.clientWidth / 2) / prev
-            : null;
-        this.scale.set(next);
-        if (scroller && centreMin !== null) {
-            requestAnimationFrame(() => {
-                scroller.scrollLeft =
-                    centreMin * next - scroller.clientWidth / 2;
-            });
-        }
+        this.scale.set(
+            timeline.updateTimelineZoom(
+                value,
+                this.scale(),
+                this.zoomMin,
+                this.zoomMax,
+                this.ribbon()?.nativeElement
+            )
+        );
     }
 
-    onGroupExpand(group: TimelineRenderGroup): void {
-        this.scale.set(TIMELINE_GROUP_EXPAND_ZOOM);
+    onGroupExpand(group: timeline.TimelineRenderGroup): void {
+        this.scale.set(timeline.TIMELINE_GROUP_EXPAND_ZOOM);
         const axis = this.axis();
         const centreMs = (group.startMs + group.stopMs) / 2;
-        const offsetMin = (centreMs - axis.startMs) / TIMELINE_MINUTE_MS;
+        const offsetMin =
+            (centreMs - axis.startMs) / timeline.TIMELINE_MINUTE_MS;
         this.scroll.scrollToOffset(offsetMin, 0.5);
     }
 
-    canCatchUp(block: TimelineBlock): boolean {
+    canCatchUp(block: timeline.TimelineBlock): boolean {
         return canCatchUpProgramme(
             block.when,
             block.startMs,
@@ -314,7 +303,7 @@ export class EpgTimelineComponent {
         );
     }
 
-    onBlockClick(block: TimelineBlock): void {
+    onBlockClick(block: timeline.TimelineBlock): void {
         this.selectedKey.set(block.key);
         if (block.when === 'now') {
             this.returnToLive.emit();
@@ -328,7 +317,7 @@ export class EpgTimelineComponent {
         }
     }
 
-    onWatch(block: TimelineBlock): void {
+    onWatch(block: timeline.TimelineBlock): void {
         this.selectedKey.set(block.key);
         this.programActivated.emit({
             program: block.program,
@@ -336,15 +325,23 @@ export class EpgTimelineComponent {
         });
     }
 
-    openDetails(block: TimelineBlock): void {
+    openDetails(block: timeline.TimelineBlock): void {
         this.programmeDialog
             .open({
                 ...block.program,
                 channelName: this.channelName(),
                 channelLogo: this.channelLogo(),
-                primaryAction: this.dialogActionFor(block),
+                primaryAction: epgDialogActionFor(
+                    block.when,
+                    this.canCatchUp(block)
+                ),
                 archiveUnavailableNote:
                     block.when === 'past' && !this.archivePlaybackAvailable(),
+                recordingAvailable: canScheduleEpgRecording(
+                    this.recordingAvailable(),
+                    this.recordingFutureAvailable(),
+                    block.when
+                ),
             })
             .subscribe((result: EpgItemDialogAction | undefined) => {
                 if (result === 'live') {
@@ -355,6 +352,14 @@ export class EpgTimelineComponent {
                         program: block.program,
                         type: 'timeshift',
                     });
+                } else if (result === 'record') {
+                    this.recordingRequested.emit(
+                        createEpgRecordingRequestEvent(
+                            block.program,
+                            block.startMs,
+                            block.stopMs
+                        )
+                    );
                 }
             });
     }
@@ -367,12 +372,11 @@ export class EpgTimelineComponent {
 
     jumpToNow(): void {
         this.commitDay(getTodayEpgDateKey());
-        // Deliberate user action → animate so the movement reads.
         this.scroll.focusCurrentProgram(true);
     }
 
     jumpToNearestDay(): void {
-        const nearest = nearestDateKeyWithPrograms(
+        const nearest = timeline.nearestDateKeyWithPrograms(
             this.programs(),
             this.nowMs()
         );
@@ -392,9 +396,5 @@ export class EpgTimelineComponent {
         }
         this.viewDayKey.set(dayKey);
         this.selectedDateChange.emit(dayKey);
-    }
-
-    private dialogActionFor(block: TimelineBlock): EpgItemDialogAction | null {
-        return epgDialogActionFor(block.when, this.canCatchUp(block));
     }
 }

@@ -209,6 +209,29 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
     });
 
+    it('keeps main-process sessions private from renderer updates and access', () => {
+        addon.createSession.mockReturnValueOnce('private-recording');
+        addon.getSessionSnapshot.mockReturnValue(
+            snapshot('playing', {
+                streamUrl: 'https://example.com/private-token',
+                recording: {
+                    active: true,
+                    targetPath: '/private/recordings/news.ts',
+                },
+            })
+        );
+
+        service.createMainProcessSession(BOUNDS, 'Private recording', 0);
+
+        expect(mainWindowSendMock).not.toHaveBeenCalled();
+        expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
+        expect(() =>
+            service.assertRendererSession('private-recording')
+        ).toThrow('owned by the main process');
+        service.disposeSession('private-recording');
+        expect(mainWindowSendMock).not.toHaveBeenCalled();
+    });
+
     it('keeps the polling timer alive when refreshing a session throws', () => {
         jest.useFakeTimers();
         const consoleErrorSpy = jest

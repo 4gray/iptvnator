@@ -27,6 +27,7 @@ export * from './lib/playlist.interface';
 export * from './lib/portal-activity-item.interface';
 export * from './lib/portal-debug.interface';
 export * from './lib/portal-playback.interface';
+export * from './lib/recording.interface';
 export * from './lib/security-policy-error.utils';
 export * from './lib/settings.interface';
 export * from './lib/stalker-portal-actions.enum';

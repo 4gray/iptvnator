@@ -71,7 +71,13 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-    .portal-rail-link mat-icon {
+    .portal-rail-link {
+        animation: none;
+        transition: none;
+    }
+
+    .portal-rail-link mat-icon,
+    .portal-rail-link:hover mat-icon {
         transition: none;
         transform: none;
     }
@@ -107,7 +113,7 @@
 
 .portal-rail-link.is-active,
 .portal-rail-link.active {
-    color: var(--rail-link-active-color, var(--app-selection-color));
+    color: var(--rail-link-active-color, var(--mat-sys-primary));
     background: linear-gradient(
         145deg,
         var(--rail-link-active-bg-strong, var(--app-selection-surface-strong)),
@@ -121,7 +127,7 @@
     transform: translateY(-1px);
 
     mat-icon {
-        color: var(--rail-link-active-icon, var(--app-selection-color));
+        color: var(--rail-link-active-icon, var(--mat-sys-primary));
     }
 }
 
@@ -129,7 +135,7 @@
 .portal-rail-link.active::after {
     content: '';
     position: absolute;
-    right: 3px;
+    inset-inline-end: 3px;
     top: 50%;
     transform: translateY(-50%);
     width: 4px;

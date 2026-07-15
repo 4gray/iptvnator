@@ -350,6 +350,12 @@ export const downloads = sqliteTable(
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
 
+export {
+    recordings,
+    type Recording,
+    type NewRecording,
+} from './recording-schema';
+
 // TMDB metadata cache table.
 // Two row kinds share the table, discriminated by the lookup_key prefix:
 // - 'id:<tmdbId>'                 → full TMDB details payload (JSON)
@@ -359,7 +365,9 @@ export const tmdbMetadata = sqliteTable(
     'tmdb_metadata',
     {
         id: integer('id').primaryKey({ autoIncrement: true }),
-        mediaType: text('media_type', { enum: ['movie', 'tv', 'person'] }).notNull(),
+        mediaType: text('media_type', {
+            enum: ['movie', 'tv', 'person'],
+        }).notNull(),
         lookupKey: text('lookup_key').notNull(),
         language: text('language').notNull(),
         tmdbId: integer('tmdb_id'),

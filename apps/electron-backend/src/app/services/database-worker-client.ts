@@ -4,10 +4,10 @@ import * as path from 'path';
 import { pathToFileURL } from 'url';
 import { Worker } from 'worker_threads';
 import type {
-    DbOperationEvent,
     DbWorkerMessage,
     DbWorkerOperation,
 } from '../workers/database-worker.types';
+import { initDatabase } from '../database/connection';
 import {
     isDbTraceEnabled,
     roundTraceDuration,
@@ -15,44 +15,35 @@ import {
     trace,
 } from './debug-trace';
 import { resolveWorkerRuntimeBootstrap } from '../workers/worker-runtime-paths';
-
-type PendingRequest = {
-    resolve: (value: unknown) => void;
-    reject: (reason?: unknown) => void;
-    onEvent?: (event: DbOperationEvent) => void;
-    operation: DbWorkerOperation;
-    startedAt: number;
-};
-
-type RequestOptions = {
-    onEvent?: (event: DbOperationEvent) => void;
-};
-
-function createWorkerError(error: {
-    message: string;
-    name?: string;
-    stack?: string;
-}): Error {
-    const workerError = new Error(error.message);
-    workerError.name = error.name || 'DatabaseWorkerError';
-    workerError.stack = error.stack || workerError.stack;
-    return workerError;
-}
+import { createDatabaseWorkerError } from './database-worker-client.types';
+import type {
+    DatabaseRequestOptions,
+    PendingDatabaseRequest,
+} from './database-worker-client.types';
 
 export class DatabaseWorkerClient {
     private worker: Worker | null = null;
     private readyPromise: Promise<void> | null = null;
     private readyResolve: (() => void) | null = null;
     private readyReject: ((reason?: unknown) => void) | null = null;
-    private pendingRequests = new Map<string, PendingRequest>();
+    private pendingRequests = new Map<string, PendingDatabaseRequest>();
     private shuttingDown = false;
+
+    constructor(
+        private readonly waitForDatabase: () => Promise<unknown> = () =>
+            initDatabase()
+    ) {}
 
     async request<TResult>(
         operation: DbWorkerOperation,
         payload: unknown,
-        options?: RequestOptions
+        options?: DatabaseRequestOptions
     ): Promise<TResult> {
+        this.assertAcceptingRequests();
+        await this.waitForDatabase();
+        this.assertAcceptingRequests();
         await this.ensureWorker();
+        this.assertAcceptingRequests();
 
         const requestId = randomUUID();
         const startedAt = Date.now();
@@ -88,7 +79,11 @@ export class DatabaseWorkerClient {
             return { success: false };
         }
 
+        this.assertAcceptingRequests();
+        await this.waitForDatabase();
+        this.assertAcceptingRequests();
         await this.ensureWorker();
+        this.assertAcceptingRequests();
         this.worker?.postMessage({
             type: 'cancel',
             operationId,
@@ -98,10 +93,17 @@ export class DatabaseWorkerClient {
     }
 
     async shutdown(): Promise<void> {
+        if (this.shuttingDown) {
+            return;
+        }
+
         this.shuttingDown = true;
+        const shutdownError = new Error('Database worker shut down');
+        this.readyReject?.(shutdownError);
         this.readyResolve = null;
         this.readyReject = null;
         this.readyPromise = null;
+        this.rejectAllPending(shutdownError);
 
         if (!this.worker) {
             return;
@@ -109,25 +111,22 @@ export class DatabaseWorkerClient {
 
         const currentWorker = this.worker;
         this.worker = null;
-        this.rejectAllPending(new Error('Database worker shut down'));
-
-        try {
-            await currentWorker.terminate();
-        } finally {
-            this.shuttingDown = false;
-        }
+        await currentWorker.terminate();
     }
 
     private async ensureWorker(): Promise<void> {
+        this.assertAcceptingRequests();
         if (this.worker && this.readyPromise) {
             return this.readyPromise;
         }
 
         this.createWorker();
-        return this.readyPromise!;
+        await this.readyPromise;
+        this.assertAcceptingRequests();
     }
 
     private createWorker(): void {
+        this.assertAcceptingRequests();
         const bootstrap = resolveWorkerRuntimeBootstrap({
             isPackaged: app.isPackaged,
             workerFilename: 'database.worker.js',
@@ -154,25 +153,27 @@ export class DatabaseWorkerClient {
                 });
             }
 
-            this.worker = new Worker(workerURL, {
+            const worker = new Worker(workerURL, {
                 workerData: {
                     nativeModuleSearchPaths: bootstrap.nativeModuleSearchPaths,
                 },
             });
+            this.worker = worker;
         } catch (error) {
             this.readyReject?.(error);
             this.resetWorkerState();
             throw error;
         }
 
-        this.worker.on('message', (message: DbWorkerMessage) => {
-            this.handleMessage(message);
+        const worker = this.worker;
+        worker.on('message', (message: DbWorkerMessage) => {
+            if (this.worker === worker) this.handleMessage(message);
         });
-        this.worker.on('error', (error) => {
-            this.handleWorkerFailure(error);
+        worker.on('error', (error) => {
+            this.handleWorkerFailure(worker, error);
         });
-        this.worker.on('exit', (code) => {
-            this.handleWorkerExit(code);
+        worker.on('exit', (code) => {
+            this.handleWorkerExit(worker, code);
         });
     }
 
@@ -186,7 +187,6 @@ export class DatabaseWorkerClient {
             this.readyReject = null;
             return;
         }
-
         if (message.type === 'event') {
             if (isDbTraceEnabled()) {
                 trace('db-event', 'worker-event', {
@@ -194,15 +194,15 @@ export class DatabaseWorkerClient {
                     requestId: message.requestId,
                 });
             }
-            this.pendingRequests.get(message.requestId)?.onEvent?.(message.event);
+            this.pendingRequests
+                .get(message.requestId)
+                ?.onEvent?.(message.event);
             return;
         }
-
         const pendingRequest = this.pendingRequests.get(message.requestId);
         if (!pendingRequest) {
             return;
         }
-
         this.pendingRequests.delete(message.requestId);
 
         if (message.success) {
@@ -219,7 +219,6 @@ export class DatabaseWorkerClient {
             pendingRequest.resolve(message.result);
             return;
         }
-
         if (isDbTraceEnabled()) {
             trace('db-request', 'failed', {
                 durationMs: roundTraceDuration(
@@ -232,13 +231,14 @@ export class DatabaseWorkerClient {
         }
 
         pendingRequest.reject(
-            createWorkerError(
+            createDatabaseWorkerError(
                 message.error ?? { message: 'Database worker request failed' }
             )
         );
     }
 
-    private handleWorkerFailure(error: Error): void {
+    private handleWorkerFailure(worker: Worker, error: Error): void {
+        if (this.worker !== worker) return;
         if (isDbTraceEnabled()) {
             trace('db-worker', 'error', error);
         }
@@ -251,8 +251,8 @@ export class DatabaseWorkerClient {
         this.rejectAllPending(error);
     }
 
-    private handleWorkerExit(code: number): void {
-        if (this.shuttingDown) {
+    private handleWorkerExit(worker: Worker, code: number): void {
+        if (this.shuttingDown || this.worker !== worker) {
             return;
         }
 
@@ -287,6 +287,12 @@ export class DatabaseWorkerClient {
         pendingRequests.forEach((request) => {
             request.reject(error);
         });
+    }
+
+    private assertAcceptingRequests(): void {
+        if (this.shuttingDown) {
+            throw new Error('Database worker shut down');
+        }
     }
 }
 

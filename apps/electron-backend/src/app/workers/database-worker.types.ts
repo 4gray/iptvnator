@@ -52,9 +52,42 @@ export const DB_WORKER_OPERATIONS = [
     'DB_GET_TMDB_METADATA',
     'DB_SET_TMDB_METADATA',
     'DB_MATCH_TITLES',
+    'DB_CREATE_RECORDING',
+    'DB_GET_RECORDING',
+    'DB_LIST_RECORDINGS',
+    'DB_UPDATE_RECORDING',
+    'DB_DELETE_RECORDING',
 ] as const;
 
 export type DbWorkerOperation = (typeof DB_WORKER_OPERATIONS)[number];
+
+/**
+ * Worker operations that are intentionally available only to trusted main-process
+ * services. Recordings use a higher-level IPC API so the renderer cannot mutate
+ * scheduler state or persisted file paths directly.
+ */
+export const DB_MAIN_PROCESS_ONLY_WORKER_OPERATIONS = [
+    'DB_CREATE_RECORDING',
+    'DB_GET_RECORDING',
+    'DB_LIST_RECORDINGS',
+    'DB_UPDATE_RECORDING',
+    'DB_DELETE_RECORDING',
+] as const satisfies readonly DbWorkerOperation[];
+
+export type DbMainProcessOnlyWorkerOperation =
+    (typeof DB_MAIN_PROCESS_ONLY_WORKER_OPERATIONS)[number];
+
+export const DB_RENDERER_WORKER_OPERATIONS = DB_WORKER_OPERATIONS.filter(
+    (
+        operation
+    ): operation is Exclude<
+        DbWorkerOperation,
+        DbMainProcessOnlyWorkerOperation
+    > =>
+        !DB_MAIN_PROCESS_ONLY_WORKER_OPERATIONS.includes(
+            operation as DbMainProcessOnlyWorkerOperation
+        )
+);
 
 export const DB_OPERATION_NAMES = {
     SAVE_CONTENT: 'save-content',

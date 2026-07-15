@@ -16,10 +16,11 @@ import { toObservable, toSignal } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { ActivatedRoute, Router } from '@angular/router';
 import { Store } from '@ngrx/store';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     getM3uArchiveDays,
@@ -31,6 +32,7 @@ import {
     EpgDateNavigationDirection,
     EpgListViewComponent,
     EpgProgramActivationEvent,
+    EpgRecordingRequestEvent,
     EpgTimelineComponent,
     getTodayEpgDateKey,
     MultiEpgContainerComponent,
@@ -73,6 +75,7 @@ import {
     persistLiveEpgPanelState,
     persistLiveSidebarState,
     PORTAL_EXTERNAL_PLAYBACK,
+    RECORDING_ACTIONS,
     restoreLiveEpgPanelState,
     restoreLiveSidebarState,
     WorkspaceHeaderContextService,
@@ -150,6 +153,11 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly store = inject(Store);
     private readonly epgService = inject(EpgService);
     private readonly externalPlayback = inject(PORTAL_EXTERNAL_PLAYBACK);
+    private readonly recordingActions = inject(RECORDING_ACTIONS, {
+        optional: true,
+    });
+    private readonly snackBar = inject(MatSnackBar);
+    private readonly translate = inject(TranslateService);
     private readonly workspaceHeaderContext = inject(
         WorkspaceHeaderContextService
     );
@@ -160,9 +168,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly activePlaybackUrl = this.store.selectSignal(
         selectActivePlaybackUrl
     );
-    readonly activeEpgProgram = this.store.selectSignal(
-        selectActiveEpgProgram
-    );
+    readonly activeEpgProgram = this.store.selectSignal(selectActiveEpgProgram);
     readonly activeEpgProgramOrNull = computed(
         () => this.activeEpgProgram() ?? null
     );
@@ -171,6 +177,9 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly channelsLoading = this.store.selectSignal(selectChannelsLoading);
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
+    );
+    readonly recordingAvailable = computed(
+        () => this.recordingActions?.isAvailable() ?? false
     );
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
@@ -189,9 +198,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     private readonly epgChannelLogo = toSignal(
         toObservable(this.activeChannel).pipe(
             switchMap((channel) => {
-                const key = channel
-                    ? resolveChannelEpgLookupKey(channel)
-                    : '';
+                const key = channel ? resolveChannelEpgLookupKey(channel) : '';
                 if (!key) {
                     return of('');
                 }
@@ -662,6 +669,48 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
         }
         this.store.dispatch(
             EpgActions.setActiveEpgProgram({ program: event.program })
+        );
+    }
+
+    async onRecordingRequested(event: EpgRecordingRequestEvent): Promise<void> {
+        const recordingActions = this.recordingActions;
+        const playlistId = this.activePlaylistId();
+        const channel = this.activeChannel();
+        if (!recordingActions || !playlistId || !channel?.url) {
+            return;
+        }
+
+        const http: Partial<Channel['http']> = channel.http ?? {};
+        const headers: Record<string, string> = {};
+        if (http['user-agent']) headers['User-Agent'] = http['user-agent'];
+        if (http.referrer) headers['Referer'] = http.referrer;
+        if (http.origin) headers['Origin'] = http.origin;
+
+        const result = await recordingActions.schedule({
+            playlistId,
+            sourceType: 'm3u',
+            channelId: channel.id || channel.tvg?.id || channel.url,
+            channelName: channel.name || channel.tvg?.name || channel.url,
+            title: event.program.title,
+            description: event.program.desc ?? undefined,
+            posterUrl: channel.tvg?.logo || event.program.iconUrl || undefined,
+            epgChannelId: event.program.channel ?? undefined,
+            scheduledStartAt: event.scheduledStartAt,
+            scheduledEndAt: event.scheduledEndAt,
+            playback: {
+                streamUrl: `${channel.url}${channel.epgParams ?? ''}`,
+                title: channel.name || channel.tvg?.name || channel.url,
+                thumbnail: channel.tvg?.logo || null,
+                isLive: true,
+                headers: Object.keys(headers).length ? headers : undefined,
+            },
+        });
+        this.snackBar.open(
+            result.success
+                ? this.translate.instant('RECORDINGS.ACTION_COMPLETE')
+                : this.translate.instant('RECORDINGS.ACTION_FAILED'),
+            undefined,
+            { duration: 3000 }
         );
     }
 

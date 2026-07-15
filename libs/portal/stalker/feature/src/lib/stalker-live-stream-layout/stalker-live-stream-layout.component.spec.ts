@@ -7,11 +7,13 @@ import { PortalEmptyStateComponent } from '@iptvnator/portal/shared/ui';
 import {
     LIVE_EPG_PANEL_STATE_STORAGE_KEY,
     PORTAL_PLAYER,
+    RECORDING_ACTIONS,
     ResizableDirective,
 } from '@iptvnator/portal/shared/util';
 import { StalkerStore } from '@iptvnator/portal/stalker/data-access';
 import {
     EpgListViewComponent,
+    EpgRecordingRequestEvent,
     EpgTimelineComponent,
 } from '@iptvnator/ui/epg';
 import { AudioPlayerComponent } from '@iptvnator/ui/playback';
@@ -87,6 +89,8 @@ class StubEpgTimelineComponent {
     readonly channelLogo = input('');
     readonly sourceLabel = input('');
     readonly archivePlaybackAvailable = input(false);
+    readonly recordingAvailable = input(false);
+    readonly recordingFutureAvailable = input(true);
     readonly archiveDays = input(0);
     readonly activeProgram = input<EpgProgram | null>(null);
     readonly isLivePlayback = input(false);
@@ -98,6 +102,7 @@ class StubEpgTimelineComponent {
     readonly summaryLabelKey = input('');
     readonly selectedDateChange = output<string>();
     readonly programActivated = output<EpgProgram>();
+    readonly recordingRequested = output<EpgRecordingRequestEvent>();
     readonly returnToLive = output<void>();
     readonly openEpgSettings = output<void>();
     readonly retry = output<void>();
@@ -233,6 +238,10 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         isEmbeddedPlayer: jest.fn(() => true),
         openResolvedPlayback: jest.fn(),
     };
+    const recordingActions = {
+        isAvailable: jest.fn(() => true),
+        schedule: jest.fn().mockResolvedValue({ success: true }),
+    };
     const settingsStore = {
         openStreamOnDoubleClick: signal(false),
         resolvedEpgViewMode: signal<'timeline' | 'list'>('timeline'),
@@ -284,6 +293,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         portalPlayer.isEmbeddedPlayer.mockReset();
         portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
         portalPlayer.openResolvedPlayback.mockClear();
+        recordingActions.schedule.mockClear();
         fetchChannelEpg.mockReset();
         fetchChannelEpg.mockResolvedValue([]);
         ensureBulkItvEpg.mockReset();
@@ -331,6 +341,7 @@ describe('StalkerLiveStreamLayoutComponent', () => {
                 { provide: PlaylistsService, useValue: playlistService },
                 { provide: SettingsStore, useValue: settingsStore },
                 { provide: PORTAL_PLAYER, useValue: portalPlayer },
+                { provide: RECORDING_ACTIONS, useValue: recordingActions },
                 {
                     provide: TranslateService,
                     useValue: {
@@ -377,6 +388,42 @@ describe('StalkerLiveStreamLayoutComponent', () => {
 
         fixture = TestBed.createComponent(StalkerLiveStreamLayoutComponent);
         component = fixture.componentInstance;
+    });
+
+    it('schedules a currently airing Stalker programme with fresh playback', async () => {
+        const program = buildProgram('10001', 'Record this show');
+
+        await component.onRecordingRequested({
+            program,
+            scheduledStartAt: new Date(Date.now() - 30_000).toISOString(),
+            scheduledEndAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        });
+
+        expect(resolveItvPlayback).toHaveBeenCalled();
+        expect(recordingActions.schedule).toHaveBeenCalledWith(
+            expect.objectContaining({
+                playlistId: 'playlist-1',
+                sourceType: 'stalker',
+                channelId: '10001',
+                playback: expect.objectContaining({
+                    streamUrl: 'https://example.com/alpha.m3u8',
+                    isLive: true,
+                }),
+            })
+        );
+    });
+
+    it('does not resolve short-lived Stalker playback for future programmes', async () => {
+        const program = buildProgram('10001', 'Future show');
+
+        await component.onRecordingRequested({
+            program,
+            scheduledStartAt: new Date(Date.now() + 60_000).toISOString(),
+            scheduledEndAt: new Date(Date.now() + 30 * 60_000).toISOString(),
+        });
+
+        expect(resolveItvPlayback).not.toHaveBeenCalled();
+        expect(recordingActions.schedule).not.toHaveBeenCalled();
     });
 
     afterEach(() => {
@@ -434,7 +481,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
             fixture.nativeElement.querySelector('app-web-player-view')
         ).not.toBeNull();
         expect(fixture.nativeElement.querySelector('.epg')).toBeNull();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
     });
 
     it('restores the collapsed live EPG panel state after embedded playback starts', async () => {
@@ -688,7 +737,9 @@ describe('StalkerLiveStreamLayoutComponent', () => {
         expect(ensureBulkItvEpg).not.toHaveBeenCalled();
         expect(fetchChannelEpg).not.toHaveBeenCalled();
         expect(portalPlayer.openResolvedPlayback).not.toHaveBeenCalled();
-        expect(fixture.nativeElement.querySelector('app-epg-timeline')).toBeNull();
+        expect(
+            fixture.nativeElement.querySelector('app-epg-timeline')
+        ).toBeNull();
         expect(
             fixture.nativeElement.querySelector('app-audio-player')
         ).not.toBeNull();
