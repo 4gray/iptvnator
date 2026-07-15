@@ -178,6 +178,30 @@ test.describe('Electron App Smoke Test', () => {
                 )
                 .toBe(1);
 
+            const [magnifiedIconBox, sourcesLabelBox] = await Promise.all([
+                sourcesLink.locator('mat-icon').boundingBox(),
+                sourcesLink
+                    .locator('.portal-rail-link-label')
+                    .boundingBox(),
+            ]);
+            expect(magnifiedIconBox).not.toBeNull();
+            expect(sourcesLabelBox).not.toBeNull();
+            expect(
+                (magnifiedIconBox?.x ?? 0) +
+                    (magnifiedIconBox?.width ?? 0)
+            ).toBeLessThanOrEqual(sourcesLabelBox?.x ?? 0);
+
+            await app.mainWindow.emulateMedia({
+                reducedMotion: 'reduce',
+            });
+            await expect(sourcesLink.locator('mat-icon')).toHaveCSS(
+                'transform',
+                'none'
+            );
+            await app.mainWindow.emulateMedia({
+                reducedMotion: 'no-preference',
+            });
+
             await app.mainWindow
                 .getByRole('button', { name: 'Collapse navigation' })
                 .click();
