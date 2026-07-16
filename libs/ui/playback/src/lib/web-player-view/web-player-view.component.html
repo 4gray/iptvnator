@@ -20,6 +20,8 @@
             [channel]="$any(channel)"
             [volume]="volume()"
             [showCaptions]="showCaptions()"
+            [isLive]="resolvedIsLive()"
+            [interactionEnabled]="playbackInteractionEnabled()"
             [startTime]="startTime()"
             [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"
