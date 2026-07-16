@@ -1,4 +1,7 @@
-import { EmbeddedMpvAudioTrack, EmbeddedMpvBounds } from '@iptvnator/shared/interfaces';
+import {
+    EmbeddedMpvAudioTrack,
+    EmbeddedMpvBounds,
+} from '@iptvnator/shared/interfaces';
 
 export const HIDDEN_BOUNDS: EmbeddedMpvBounds = Object.freeze({
     x: -100000,
@@ -117,6 +120,12 @@ export function persistVolume(value: number): void {
     localStorage.setItem('volume', String(value));
 }
 
-// Kept as a re-export for existing imports; the implementation moved to the
-// compositor module alongside the session controller's bounds handling.
-export { measureBounds } from './embedded-mpv-compositor';
+export function measureBounds(host: HTMLElement): EmbeddedMpvBounds {
+    const rect = host.getBoundingClientRect();
+    return {
+        x: Math.round(rect.left),
+        y: Math.round(rect.top),
+        width: Math.max(1, Math.round(rect.width)),
+        height: Math.max(1, Math.round(rect.height)),
+    };
+}

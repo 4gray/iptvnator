@@ -2,7 +2,6 @@ import {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { readStoredVolume } from '../player-controls';
 
 /**
  * Pure snapshot factories for the placeholder {@link EmbeddedMpvSession} states
@@ -46,16 +45,6 @@ export function createLoadingSession(
         streamUrl: playback.streamUrl,
         status: 'loading',
         volume,
-    });
-}
-
-export function createAttachingSession(sessionId: string): EmbeddedMpvSession {
-    return baseSession({
-        id: sessionId,
-        status: 'loading',
-        // Seed from stored volume so the slider does not flash 100% before the
-        // first broadcast snapshot reconciles the real value.
-        volume: readStoredVolume(),
     });
 }
 

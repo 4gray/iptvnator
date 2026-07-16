@@ -13,10 +13,9 @@ import {
     EmbeddedMpvSupport,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { measureBounds } from './embedded-mpv-compositor';
 import { EmbeddedMpvCommandRunner } from './embedded-mpv-command-runner';
+import { measureBounds } from './embedded-mpv-format.utils';
 import {
-    createAttachingSession,
     createErrorSession,
     createLoadingSession,
     waitForStartupPaint,
@@ -35,12 +34,6 @@ export class EmbeddedMpvSessionController {
     readonly session = signal<EmbeddedMpvSession | null>(null);
     readonly sessionId = signal<string | null>(null);
     readonly retryToken = signal(0);
-    /**
-     * Bumped on every native bounds sync (resize/scroll/fullscreen/RAF). A host
-     * overlay effect reads this to follow the viewport without coupling the
-     * (pure) bounds provider to overlay side-effects.
-     */
-    readonly boundsTick = signal(0);
 
     private readonly stalledTracker = new EmbeddedMpvStalledTracker();
     readonly stalled = this.stalledTracker.stalled;
@@ -106,24 +99,6 @@ export class EmbeddedMpvSessionController {
         this.boundsProvider = provider;
     }
 
-    /**
-     * Attach to an existing MPV session owned by another window (the main
-     * renderer). Unlike {@link startSession}, this does NOT create or load a
-     * session — it only sets `sessionId` so the `onEmbeddedMpvSessionUpdate`
-     * subscription populates `session` from broadcasts. Used by the overlay.
-     */
-    attach(sessionId: string): void {
-        this.sessionId.set(sessionId);
-        if (!this.session()) {
-            // Placeholder until the first broadcast snapshot arrives so the
-            // controls render a loading state instead of an empty surface.
-            this.session.set(createAttachingSession(sessionId));
-        }
-        if (typeof window.electron?.getEmbeddedMpvSupport === 'function') {
-            void this.loadSupport();
-        }
-    }
-
     triggerBoundsSync(): void {
         this.activeBoundsSync?.();
     }
@@ -166,8 +141,6 @@ export class EmbeddedMpvSessionController {
             this.boundsAnimationFrame = requestAnimationFrame(() => {
                 this.boundsAnimationFrame = null;
                 syncBounds();
-                // Notify host overlay reconciliation that the viewport moved.
-                this.boundsTick.update((value) => value + 1);
             });
         };
 

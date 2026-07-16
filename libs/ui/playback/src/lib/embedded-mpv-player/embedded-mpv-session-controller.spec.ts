@@ -167,27 +167,6 @@ describe('EmbeddedMpvSessionController', () => {
         );
     });
 
-    it('attaches to an existing session and applies only matching broadcasts', async () => {
-        const controller = TestBed.inject(EmbeddedMpvSessionController);
-
-        controller.attach('mpv-1');
-
-        expect(controller.sessionId()).toBe('mpv-1');
-        // A loading placeholder is set until the first broadcast arrives.
-        expect(controller.session()).toEqual(
-            expect.objectContaining({ id: 'mpv-1', status: 'loading' })
-        );
-        // attach must not create or load a session.
-        expect(electron.createEmbeddedMpvSession).not.toHaveBeenCalled();
-        expect(electron.loadEmbeddedMpvPlayback).not.toHaveBeenCalled();
-
-        sessionUpdate?.(createSession({ id: 'other', status: 'paused' }));
-        expect(controller.session()?.status).toBe('loading');
-
-        sessionUpdate?.(createSession({ id: 'mpv-1', status: 'playing' }));
-        expect(controller.session()?.status).toBe('playing');
-    });
-
     it('sets an error session when Electron cannot create playback', async () => {
         electron.prepareEmbeddedMpv.mockRejectedValueOnce(
             new Error('native module missing')

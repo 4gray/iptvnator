@@ -209,10 +209,7 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         const started = await controller.startRecording('/rec', 'Show');
         const stopped = await controller.stopRecording();
 
-        expect(commandBridge.seekEmbeddedMpv).toHaveBeenCalledWith(
-            'mpv-1',
-            75
-        );
+        expect(commandBridge.seekEmbeddedMpv).toHaveBeenCalledWith('mpv-1', 75);
         expect(commandBridge.setEmbeddedMpvAudioTrack).toHaveBeenCalledWith(
             'mpv-1',
             2
@@ -248,7 +245,6 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             'session to start'
         );
         electron.setEmbeddedMpvBounds.mockClear();
-        const tickBefore = controller.boundsTick();
 
         controller.triggerBoundsSync();
         await waitFor(
@@ -262,7 +258,6 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             width: 300,
             height: 200,
         });
-        expect(controller.boundsTick()).toBe(tickBefore + 1);
     });
 });
 
