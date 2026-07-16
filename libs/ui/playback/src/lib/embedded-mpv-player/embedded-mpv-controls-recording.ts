@@ -3,7 +3,11 @@ import type {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import type { TranslateService } from '@ngx-translate/core';
+import {
+    RECORDING_FEEDBACK,
+    RECORDING_TRANSLATION,
+    type RecordingFeedback,
+} from './embedded-mpv-controls-recording-feedback';
 import type { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 
 const RECORDING_ACK_TIMEOUT_MS = 5000;
@@ -14,40 +18,13 @@ const RECORDING_OPERATION = {
     STOP: 'stop',
 } as const;
 
-const RECORDING_FEEDBACK = {
-    RAW: 'raw',
-    TRANSLATED: 'translated',
-} as const;
-
-const RECORDING_TRANSLATION = {
-    START_FAILED: 'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_START',
-    STOP_FAILED: 'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_STOP',
-    SAVED_TO: 'EMBEDDED_MPV.PLAYER.SAVED_TO',
-} as const;
-
 type RecordingOperation =
     (typeof RECORDING_OPERATION)[keyof typeof RECORDING_OPERATION];
-type RecordingTranslationKey =
-    (typeof RECORDING_TRANSLATION)[keyof typeof RECORDING_TRANSLATION];
-
-interface RawRecordingFeedback {
-    readonly kind: typeof RECORDING_FEEDBACK.RAW;
-    readonly text: string;
-}
-
-interface TranslatedRecordingFeedback {
-    readonly kind: typeof RECORDING_FEEDBACK.TRANSLATED;
-    readonly key: RecordingTranslationKey;
-    readonly params?: Readonly<Record<string, string>>;
-}
-
-export type RecordingFeedback =
-    | RawRecordingFeedback
-    | TranslatedRecordingFeedback;
 
 interface RecordingOutcome {
     readonly feedback: RecordingFeedback | null;
     readonly autoDismiss?: boolean;
+    readonly expectedActive?: boolean;
 }
 
 interface PendingRecordingOperation {
@@ -115,10 +92,7 @@ export class EmbeddedMpvControlsRecording {
             sawErrorClear: initialError === null,
         };
         this.setFeedback(null);
-        this.acknowledgementTimer = window.setTimeout(
-            () => this.handleAcknowledgementTimeout(generation),
-            RECORDING_ACK_TIMEOUT_MS
-        );
+        this.scheduleAcknowledgementTimeout(generation);
         const command =
             kind === RECORDING_OPERATION.START
                 ? this.controller.startRecording(
@@ -149,6 +123,19 @@ export class EmbeddedMpvControlsRecording {
             this.setFeedback(null);
             return;
         }
+        const observedOutcome = pending.observedOutcome;
+        if (
+            pending.commandSettled &&
+            observedOutcome?.expectedActive !== undefined &&
+            !this.recordingError(session) &&
+            session.recording?.active === observedOutcome.expectedActive
+        ) {
+            this.completePending(
+                observedOutcome.feedback,
+                observedOutcome.autoDismiss
+            );
+            return;
+        }
         if (
             this.recordingSnapshotIdentity(session) ===
             pending.baselineSnapshotIdentity
@@ -176,7 +163,10 @@ export class EmbeddedMpvControlsRecording {
             return;
         }
         if (pending.kind === RECORDING_OPERATION.START) {
-            this.observeOutcome(pending, { feedback: null });
+            this.observeOutcome(pending, {
+                feedback: null,
+                expectedActive: pending.expectedActive,
+            });
             return;
         }
         const targetPath = recording.targetPath ?? pending.targetPath;
@@ -189,6 +179,7 @@ export class EmbeddedMpvControlsRecording {
                   }
                 : null,
             autoDismiss: Boolean(targetPath),
+            expectedActive: pending.expectedActive,
         });
     }
 
@@ -235,7 +226,7 @@ export class EmbeddedMpvControlsRecording {
         if (
             !pending ||
             pending.generation !== generation ||
-            pending.observedOutcome
+            (pending.observedOutcome && !pending.commandSettled)
         ) {
             return;
         }
@@ -282,11 +273,14 @@ export class EmbeddedMpvControlsRecording {
         if (!reconciledPending || reconciledPending.generation !== generation) {
             return;
         }
-        if (reconciledPending.observedOutcome) {
-            this.completePending(
-                reconciledPending.observedOutcome.feedback,
-                reconciledPending.observedOutcome.autoDismiss
-            );
+        const outcome = reconciledPending.observedOutcome;
+        if (outcome && outcome.expectedActive === undefined) {
+            this.completePending(outcome.feedback, outcome.autoDismiss);
+            return;
+        }
+        if (outcome) {
+            this.setFeedback(outcome.feedback);
+            this.scheduleAcknowledgementTimeout(generation);
             return;
         }
         if (reconciledPending.timeoutFeedback) {
@@ -379,21 +373,18 @@ export class EmbeddedMpvControlsRecording {
         }
     }
 
+    private scheduleAcknowledgementTimeout(generation: number): void {
+        this.clearAcknowledgementTimer();
+        this.acknowledgementTimer = window.setTimeout(
+            () => this.handleAcknowledgementTimeout(generation),
+            RECORDING_ACK_TIMEOUT_MS
+        );
+    }
+
     private clearMessageTimer(): void {
         if (this.messageTimer !== null) {
             window.clearTimeout(this.messageTimer);
             this.messageTimer = null;
         }
     }
-}
-export function resolveRecordingFeedback(
-    feedback: RecordingFeedback | null,
-    translate: TranslateService
-): string | null {
-    if (!feedback) {
-        return null;
-    }
-    return feedback.kind === RECORDING_FEEDBACK.RAW
-        ? feedback.text
-        : translate.instant(feedback.key, feedback.params);
 }

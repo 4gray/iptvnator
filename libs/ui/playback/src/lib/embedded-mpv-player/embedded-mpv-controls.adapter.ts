@@ -35,10 +35,8 @@ import {
     readStoredVolume,
     subtitleTrackLabel,
 } from './embedded-mpv-format.utils';
-import {
-    EmbeddedMpvControlsRecording,
-    resolveRecordingFeedback,
-} from './embedded-mpv-controls-recording';
+import { resolveRecordingFeedback } from './embedded-mpv-controls-recording-feedback';
+import { EmbeddedMpvControlsRecording } from './embedded-mpv-controls-recording';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 
 export interface EmbeddedMpvControlsContext {

@@ -21,6 +21,8 @@ interface Deferred<T> {
     readonly resolve: (value: T) => void;
 }
 
+type RecordingState = EmbeddedMpvSession['recording'] | null;
+
 function deferred<T>(): Deferred<T> {
     let resolve!: (value: T) => void;
     const promise = new Promise<T>((resolver) => {
@@ -92,13 +94,10 @@ function createController() {
             .fn<Promise<void>, [string]>()
             .mockResolvedValue(undefined),
         startRecording: jest
-            .fn<
-                Promise<EmbeddedMpvSession['recording'] | null>,
-                [string | undefined, string]
-            >()
+            .fn<Promise<RecordingState>, [string | undefined, string]>()
             .mockResolvedValue({ active: false }),
         stopRecording: jest
-            .fn<Promise<EmbeddedMpvSession['recording'] | null>, []>()
+            .fn<Promise<RecordingState>, []>()
             .mockResolvedValue({ active: true }),
     };
 }
@@ -170,16 +169,13 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
             controller.session.set(session({ recording: stoppedRecording }));
             return stoppedRecording;
         });
-
         adapter.commands.toggleRecording();
         await flushPromises();
-
         expect(adapter.state().recording.active).toBe(true);
         adapter.commands.toggleRecording();
         expect(controller.stopRecording).toHaveBeenCalledTimes(1);
         await flushPromises();
         jest.advanceTimersByTime(ACK_TIMEOUT_MS);
-
         expect(adapter.state().recording.message).toBeNull();
     });
 
@@ -207,10 +203,8 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
             controller.session.set(session({ recording: startedRecording }));
             return startedRecording;
         });
-
         adapter.commands.toggleRecording();
         await flushPromises();
-
         expect(adapter.state().recording.message).toBe(
             `Saved to ${targetPath}`
         );
@@ -222,7 +216,7 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
     });
 
     it.each(['start', 'stop'] as const)(
-        'serializes a delayed %s command and finalizes its stored acknowledgement',
+        'latches a buffered %s success through stale settlement',
         async (operation) => {
             const targetPath = '/recordings/live.ts';
             const baselineRecording =
@@ -240,63 +234,69 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
                           startedAt: '2026-07-16T10:00:03.000Z',
                       }
                     : { active: false, targetPath };
-            const command = deferred<EmbeddedMpvSession['recording'] | null>();
-            const lateCommand = deferred<
-                EmbeddedMpvSession['recording'] | null
-            >();
-            controller.session.set(session({ recording: baselineRecording }));
-            if (operation === 'start') {
-                controller.startRecording
-                    .mockReturnValueOnce(command.promise)
-                    .mockReturnValueOnce(lateCommand.promise);
-            } else {
-                controller.stopRecording
-                    .mockReturnValueOnce(command.promise)
-                    .mockReturnValueOnce(lateCommand.promise);
-            }
+            const command = deferred<RecordingState>();
+            const lateCommand = deferred<RecordingState>();
+            const successMessage =
+                operation === 'stop' ? `Saved to ${targetPath}` : null;
+            const failureMessage = `Failed to ${operation} recording`;
+            const setRecording = (recording: RecordingState) =>
+                controller.session.set(session({ recording }));
+            const originalCommand =
+                operation === 'start'
+                    ? controller.startRecording
+                    : controller.stopRecording;
+            const inverseCommand =
+                operation === 'start'
+                    ? controller.stopRecording
+                    : controller.startRecording;
+            setRecording(baselineRecording);
+            originalCommand
+                .mockReturnValueOnce(command.promise)
+                .mockReturnValueOnce(lateCommand.promise);
+            inverseCommand.mockImplementation(async () => {
+                setRecording(baselineRecording);
+                return baselineRecording;
+            });
             adapter.commands.toggleRecording();
-            controller.session.set(
-                session({ recording: acknowledgedRecording })
-            );
+            setRecording(acknowledgedRecording);
             jest.advanceTimersByTime(ACK_TIMEOUT_MS + 1);
             expect(adapter.state().recording.message).toBeNull();
             adapter.commands.toggleRecording();
-            expect(controller.startRecording).toHaveBeenCalledTimes(
-                operation === 'start' ? 1 : 0
-            );
-            expect(controller.stopRecording).toHaveBeenCalledTimes(
-                operation === 'stop' ? 1 : 0
-            );
-            controller.session.set(session({ recording: baselineRecording }));
+            expect(originalCommand).toHaveBeenCalledTimes(1);
+            expect(inverseCommand).not.toHaveBeenCalled();
+            setRecording(baselineRecording);
             command.resolve(baselineRecording);
             await flushPromises();
-            expect(adapter.state().recording.message).toBe(
-                operation === 'stop' ? `Saved to ${targetPath}` : null
-            );
+            expect(adapter.state().recording.message).toBe(successMessage);
+            adapter.commands.toggleRecording();
+            expect(originalCommand).toHaveBeenCalledTimes(1);
+            expect(inverseCommand).not.toHaveBeenCalled();
+            setRecording(acknowledgedRecording);
+            TestBed.tick();
+            adapter.commands.toggleRecording();
+            expect(originalCommand).toHaveBeenCalledTimes(1);
+            expect(inverseCommand).toHaveBeenCalledTimes(1);
+            await flushPromises();
             adapter.commands.toggleRecording();
             jest.advanceTimersByTime(ACK_TIMEOUT_MS);
-            expect(adapter.state().recording.message).toBe(
-                operation === 'start'
-                    ? 'Failed to start recording'
-                    : 'Failed to stop recording'
-            );
-            controller.session.set(
-                session({ recording: acknowledgedRecording })
-            );
+            expect(adapter.state().recording.message).toBe(failureMessage);
+            setRecording(acknowledgedRecording);
             TestBed.tick();
-            expect(adapter.state().recording.message).toBe(
-                operation === 'stop' ? `Saved to ${targetPath}` : null
-            );
+            expect(adapter.state().recording.message).toBe(successMessage);
             adapter.commands.toggleRecording();
-            expect(controller.startRecording).toHaveBeenCalledTimes(
-                operation === 'start' ? 2 : 0
-            );
-            expect(controller.stopRecording).toHaveBeenCalledTimes(
-                operation === 'stop' ? 2 : 0
-            );
-            controller.session.set(session({ recording: baselineRecording }));
+            expect(originalCommand).toHaveBeenCalledTimes(2);
+            expect(inverseCommand).toHaveBeenCalledTimes(1);
+            setRecording(baselineRecording);
             lateCommand.resolve(baselineRecording);
             await flushPromises();
+            adapter.commands.toggleRecording();
+            expect(originalCommand).toHaveBeenCalledTimes(2);
+            expect(inverseCommand).toHaveBeenCalledTimes(1);
+            jest.advanceTimersByTime(ACK_TIMEOUT_MS);
+            expect(adapter.state().recording.message).toBe(failureMessage);
+            adapter.commands.toggleRecording();
+            expect(originalCommand).toHaveBeenCalledTimes(3);
+            expect(inverseCommand).toHaveBeenCalledTimes(1);
         }
     );
 
@@ -305,7 +305,6 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
         const command = deferred<EmbeddedMpvSession['recording'] | null>();
         controller.session.set(session({ recording: { active: true } }));
         controller.stopRecording.mockReturnValue(command.promise);
-
         adapter.commands.toggleRecording();
         controller.session.set(
             session({ recording: { active: false, targetPath } })
@@ -316,7 +315,6 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
         );
         command.resolve({ active: true });
         await flushPromises();
-
         expect(adapter.state().recording.message).toBeNull();
     });
 
