@@ -1,0 +1,339 @@
+import { signal } from '@angular/core';
+import type {
+    EmbeddedMpvSession,
+    ResolvedPortalPlayback,
+} from '@iptvnator/shared/interfaces';
+import type { TranslateService } from '@ngx-translate/core';
+import type { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
+
+const RECORDING_ACK_TIMEOUT_MS = 5000;
+const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
+
+const RECORDING_OPERATION = {
+    START: 'start',
+    STOP: 'stop',
+} as const;
+
+const RECORDING_FEEDBACK = {
+    RAW: 'raw',
+    TRANSLATED: 'translated',
+} as const;
+
+const RECORDING_TRANSLATION = {
+    START_FAILED: 'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_START',
+    STOP_FAILED: 'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_STOP',
+    SAVED_TO: 'EMBEDDED_MPV.PLAYER.SAVED_TO',
+} as const;
+
+type RecordingOperation =
+    (typeof RECORDING_OPERATION)[keyof typeof RECORDING_OPERATION];
+type RecordingTranslationKey =
+    (typeof RECORDING_TRANSLATION)[keyof typeof RECORDING_TRANSLATION];
+
+interface RawRecordingFeedback {
+    readonly kind: typeof RECORDING_FEEDBACK.RAW;
+    readonly text: string;
+}
+
+interface TranslatedRecordingFeedback {
+    readonly kind: typeof RECORDING_FEEDBACK.TRANSLATED;
+    readonly key: RecordingTranslationKey;
+    readonly params?: Readonly<Record<string, string>>;
+}
+
+export type RecordingFeedback =
+    | RawRecordingFeedback
+    | TranslatedRecordingFeedback;
+
+interface PendingRecordingOperation {
+    readonly generation: number;
+    readonly kind: RecordingOperation;
+    readonly playbackIdentity: string;
+    readonly sessionId: string;
+    readonly expectedActive: boolean;
+    readonly initialError: string | null;
+    readonly targetPath: string | null;
+    commandSnapshotIdentity: string | null;
+    commandSettled: boolean;
+    sawErrorClear: boolean;
+}
+
+export interface RecordingToggleContext {
+    readonly folder: string;
+    readonly playback: ResolvedPortalPlayback;
+    readonly playbackIdentity: string;
+    readonly session: EmbeddedMpvSession;
+}
+
+export class EmbeddedMpvControlsRecording {
+    private readonly feedbackState = signal<RecordingFeedback | null>(null);
+    readonly feedback = this.feedbackState.asReadonly();
+
+    private pending: PendingRecordingOperation | null = null;
+    private operationGeneration = 0;
+    private acknowledgementTimer: number | null = null;
+    private messageTimer: number | null = null;
+    private ownerIdentity: string | null | undefined;
+    private destroyed = false;
+
+    constructor(private readonly controller: EmbeddedMpvSessionController) {}
+
+    toggle(context: RecordingToggleContext): void {
+        if (this.destroyed || this.pending) {
+            return;
+        }
+
+        const recording = context.session.recording;
+        const initialError = this.recordingError(context.session);
+        const kind = recording?.active
+            ? RECORDING_OPERATION.STOP
+            : RECORDING_OPERATION.START;
+        const generation = ++this.operationGeneration;
+        this.pending = {
+            generation,
+            kind,
+            playbackIdentity: context.playbackIdentity,
+            sessionId: context.session.id,
+            expectedActive: kind === RECORDING_OPERATION.START,
+            initialError,
+            targetPath: recording?.targetPath ?? null,
+            commandSnapshotIdentity: null,
+            commandSettled: false,
+            sawErrorClear: initialError === null,
+        };
+        this.setFeedback(null);
+        this.acknowledgementTimer = window.setTimeout(
+            () => this.handleAcknowledgementTimeout(generation),
+            RECORDING_ACK_TIMEOUT_MS
+        );
+
+        const command =
+            kind === RECORDING_OPERATION.START
+                ? this.controller.startRecording(
+                      context.folder,
+                      context.playback.title
+                  )
+                : this.controller.stopRecording();
+        void command.then(
+            () => this.markCommandSettled(generation),
+            () => this.markCommandSettled(generation)
+        );
+    }
+
+    reconcile(
+        session: EmbeddedMpvSession | null,
+        playbackIdentity: string | null
+    ): void {
+        const pending = this.pending;
+        if (!pending) {
+            return;
+        }
+        if (
+            !session ||
+            session.id !== pending.sessionId ||
+            playbackIdentity !== pending.playbackIdentity
+        ) {
+            this.cancelPending();
+            return;
+        }
+        if (
+            !pending.commandSettled ||
+            this.recordingSnapshotIdentity(session) ===
+                pending.commandSnapshotIdentity
+        ) {
+            return;
+        }
+
+        const recording = session.recording;
+        if (!recording) {
+            return;
+        }
+        const error = this.recordingError(session);
+        if (error) {
+            if (pending.sawErrorClear || error !== pending.initialError) {
+                this.completePending({
+                    kind: RECORDING_FEEDBACK.RAW,
+                    text: error,
+                });
+            }
+            return;
+        }
+        pending.sawErrorClear = true;
+        if (recording.active !== pending.expectedActive) {
+            return;
+        }
+
+        if (pending.kind === RECORDING_OPERATION.START) {
+            this.completePending(null);
+            return;
+        }
+
+        const targetPath = recording.targetPath ?? pending.targetPath;
+        this.completePending(
+            targetPath
+                ? {
+                      kind: RECORDING_FEEDBACK.TRANSLATED,
+                      key: RECORDING_TRANSLATION.SAVED_TO,
+                      params: { path: targetPath },
+                  }
+                : null,
+            Boolean(targetPath)
+        );
+    }
+
+    syncOwner(playbackIdentity: string | null, sessionId: string | null): void {
+        const nextIdentity =
+            playbackIdentity === null
+                ? null
+                : JSON.stringify([playbackIdentity, sessionId]);
+        if (this.ownerIdentity === undefined) {
+            this.ownerIdentity = nextIdentity;
+            return;
+        }
+        if (this.ownerIdentity === nextIdentity) {
+            return;
+        }
+
+        this.ownerIdentity = nextIdentity;
+        this.setFeedback(null);
+        if (
+            this.pending &&
+            (this.pending.playbackIdentity !== playbackIdentity ||
+                this.pending.sessionId !== sessionId)
+        ) {
+            this.cancelPending();
+        }
+    }
+
+    destroy(): void {
+        this.destroyed = true;
+        this.cancelPending();
+        this.clearMessageTimer();
+    }
+
+    private handleAcknowledgementTimeout(generation: number): void {
+        const pending = this.pending;
+        if (!pending || pending.generation !== generation) {
+            return;
+        }
+
+        const currentSession = this.controller.session();
+        const currentOwnerIdentity = JSON.stringify([
+            pending.playbackIdentity,
+            pending.sessionId,
+        ]);
+        const error =
+            currentSession?.id === pending.sessionId &&
+            this.ownerIdentity === currentOwnerIdentity
+                ? this.recordingError(currentSession)
+                : null;
+        this.completePending({
+            ...(error
+                ? { kind: RECORDING_FEEDBACK.RAW, text: error }
+                : {
+                      kind: RECORDING_FEEDBACK.TRANSLATED,
+                      key:
+                          pending.kind === RECORDING_OPERATION.START
+                              ? RECORDING_TRANSLATION.START_FAILED
+                              : RECORDING_TRANSLATION.STOP_FAILED,
+                  }),
+        });
+    }
+
+    private markCommandSettled(generation: number): void {
+        const pending = this.pending;
+        if (!pending || pending.generation !== generation) {
+            return;
+        }
+        pending.commandSettled = true;
+        pending.commandSnapshotIdentity = this.recordingSnapshotIdentity(
+            this.controller.session()
+        );
+    }
+
+    private recordingSnapshotIdentity(
+        session: EmbeddedMpvSession | null
+    ): string | null {
+        if (!session) {
+            return null;
+        }
+        const recording = session.recording;
+        return JSON.stringify([
+            session.id,
+            recording?.active ?? false,
+            recording?.targetPath ?? null,
+            recording?.startedAt ?? null,
+            recording?.error ?? null,
+        ]);
+    }
+
+    private recordingError(session: EmbeddedMpvSession): string | null {
+        const error = session.recording?.error;
+        return error?.trim() ? error : null;
+    }
+
+    private completePending(
+        feedback: RecordingFeedback | null,
+        autoDismiss = false
+    ): void {
+        this.clearAcknowledgementTimer();
+        this.pending = null;
+        this.setFeedback(feedback, autoDismiss);
+    }
+
+    private cancelPending(): void {
+        this.operationGeneration += 1;
+        this.pending = null;
+        this.clearAcknowledgementTimer();
+    }
+
+    private setFeedback(
+        feedback: RecordingFeedback | null,
+        autoDismiss = false
+    ): void {
+        if (this.destroyed) {
+            return;
+        }
+        this.clearMessageTimer();
+        this.feedbackState.set(feedback);
+        if (!feedback || !autoDismiss) {
+            return;
+        }
+
+        const timerId = window.setTimeout(() => {
+            if (!this.destroyed && this.feedbackState() === feedback) {
+                this.feedbackState.set(null);
+            }
+            if (this.messageTimer === timerId) {
+                this.messageTimer = null;
+            }
+        }, RECORDING_MESSAGE_DISMISS_DELAY_MS);
+        this.messageTimer = timerId;
+    }
+
+    private clearAcknowledgementTimer(): void {
+        if (this.acknowledgementTimer !== null) {
+            window.clearTimeout(this.acknowledgementTimer);
+            this.acknowledgementTimer = null;
+        }
+    }
+
+    private clearMessageTimer(): void {
+        if (this.messageTimer !== null) {
+            window.clearTimeout(this.messageTimer);
+            this.messageTimer = null;
+        }
+    }
+}
+
+export function resolveRecordingFeedback(
+    feedback: RecordingFeedback | null,
+    translate: TranslateService
+): string | null {
+    if (!feedback) {
+        return null;
+    }
+    return feedback.kind === RECORDING_FEEDBACK.RAW
+        ? feedback.text
+        : translate.instant(feedback.key, feedback.params);
+}

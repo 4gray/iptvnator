@@ -35,9 +35,11 @@ import {
     readStoredVolume,
     subtitleTrackLabel,
 } from './embedded-mpv-format.utils';
+import {
+    EmbeddedMpvControlsRecording,
+    resolveRecordingFeedback,
+} from './embedded-mpv-controls-recording';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
-
-const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
 export interface EmbeddedMpvControlsContext {
     readonly playback: Signal<ResolvedPortalPlayback>;
@@ -66,10 +68,20 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
     private readonly configuredContext =
         signal<EmbeddedMpvControlsContext | null>(null);
+    private readonly recordingControls = new EmbeddedMpvControlsRecording(
+        this.controller
+    );
+    private readonly recordingActive = computed(
+        () => this.controller.session()?.recording?.active === true
+    );
+    private readonly activeSessionId = computed(
+        () => this.controller.session()?.id ?? null
+    );
+    private readonly playbackIdentity = computed(() => {
+        const playback = this.configuredContext()?.playback();
+        return playback ? JSON.stringify(playback) : null;
+    });
     private readonly recordingTick = signal(Date.now());
-    private readonly recordingMessage = signal<string | null>(null);
-    private recordingMessageTimer: number | null = null;
-    private destroyed = false;
 
     readonly capabilities = computed<PlayerControlsCapabilities>(() => {
         const context = this.configuredContext();
@@ -159,7 +171,10 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 elapsedSeconds: this.recordingElapsedSeconds(
                     recording?.startedAt
                 ),
-                message: this.recordingMessage(),
+                message: resolveRecordingFeedback(
+                    this.recordingControls.feedback(),
+                    this.translate
+                ),
             },
             canPreviousEpisode:
                 hasSeriesNavigation && seriesNavigation?.canPrevious === true,
@@ -182,7 +197,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
     constructor() {
         effect((onCleanup) => {
-            if (this.controller.session()?.recording?.active !== true) {
+            if (!this.recordingActive()) {
                 return;
             }
 
@@ -194,10 +209,23 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             onCleanup(() => window.clearInterval(intervalId));
         });
 
-        this.destroyRef.onDestroy(() => {
-            this.destroyed = true;
-            this.clearRecordingMessageTimer();
+        effect(() => {
+            const playbackIdentity = this.playbackIdentity();
+            const sessionId = this.activeSessionId();
+            untracked(() =>
+                this.recordingControls.syncOwner(playbackIdentity, sessionId)
+            );
         });
+
+        effect(() => {
+            const session = this.controller.session();
+            const playbackIdentity = this.playbackIdentity();
+            untracked(() =>
+                this.recordingControls.reconcile(session, playbackIdentity)
+            );
+        });
+
+        this.destroyRef.onDestroy(() => this.recordingControls.destroy());
     }
 
     configure(context: EmbeddedMpvControlsContext): void {
@@ -276,12 +304,15 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         return Math.max(0, Math.floor((Date.now() - startedAtMs) / 1000));
     }
 
-    private async toggleRecording(): Promise<void> {
+    private toggleRecording(): void {
         const context = this.configuredContext();
         const support = this.controller.support();
         const session = this.controller.session();
+        const playbackIdentity = this.playbackIdentity();
         if (
             !context ||
+            !session ||
+            !playbackIdentity ||
             !support?.supported ||
             support.capabilities?.recording !== true ||
             !this.isLivePlayback(context.playback()) ||
@@ -290,107 +321,11 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             return;
         }
 
-        if (session?.recording?.active === true) {
-            await this.stopRecording();
-            return;
-        }
-
-        await this.startRecording(context);
-    }
-
-    private async startRecording(
-        context: EmbeddedMpvControlsContext
-    ): Promise<void> {
-        this.setRecordingMessage(null);
-
-        try {
-            const recording = await this.controller.startRecording(
-                context.recordingFolder(),
-                context.playback().title
-            );
-            if (this.destroyed || recording?.active) {
-                return;
-            }
-
-            this.setRecordingMessage(
-                recording?.error ??
-                    this.translate.instant(
-                        'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_START'
-                    )
-            );
-        } catch {
-            this.setRecordingMessage(
-                this.translate.instant(
-                    'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_START'
-                )
-            );
-        }
-    }
-
-    private async stopRecording(): Promise<void> {
-        try {
-            const recording = await this.controller.stopRecording();
-            if (this.destroyed) {
-                return;
-            }
-
-            if (recording?.targetPath) {
-                this.setRecordingMessage(
-                    this.translate.instant('EMBEDDED_MPV.PLAYER.SAVED_TO', {
-                        path: recording.targetPath,
-                    }),
-                    { autoDismiss: true }
-                );
-                return;
-            }
-
-            this.setRecordingMessage(
-                recording?.error ??
-                    this.translate.instant(
-                        'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_STOP'
-                    )
-            );
-        } catch {
-            this.setRecordingMessage(
-                this.translate.instant(
-                    'EMBEDDED_MPV.PLAYER.RECORDING_FAILED_TO_STOP'
-                )
-            );
-        }
-    }
-
-    private setRecordingMessage(
-        message: string | null,
-        options: { autoDismiss?: boolean } = {}
-    ): void {
-        if (this.destroyed) {
-            return;
-        }
-
-        this.clearRecordingMessageTimer();
-        this.recordingMessage.set(message);
-
-        if (!message || !options.autoDismiss) {
-            return;
-        }
-
-        const timerId = window.setTimeout(() => {
-            if (!this.destroyed && this.recordingMessage() === message) {
-                this.recordingMessage.set(null);
-            }
-            if (this.recordingMessageTimer === timerId) {
-                this.recordingMessageTimer = null;
-            }
-        }, RECORDING_MESSAGE_DISMISS_DELAY_MS);
-        this.recordingMessageTimer = timerId;
-    }
-
-    private clearRecordingMessageTimer(): void {
-        if (this.recordingMessageTimer === null) {
-            return;
-        }
-
-        window.clearTimeout(this.recordingMessageTimer);
-        this.recordingMessageTimer = null;
+        this.recordingControls.toggle({
+            folder: context.recordingFolder(),
+            playback: context.playback(),
+            playbackIdentity,
+            session,
+        });
     }
 }

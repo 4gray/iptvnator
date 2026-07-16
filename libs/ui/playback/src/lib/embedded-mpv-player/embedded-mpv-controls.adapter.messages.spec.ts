@@ -190,88 +190,6 @@ describe('EmbeddedMpvControlsAdapter recording messages and lifecycle', () => {
         expect(controller.startRecording).not.toHaveBeenCalled();
     });
 
-    it('starts recording with the configured folder and playback title', async () => {
-        controller.startRecording.mockResolvedValue({
-            active: true,
-            startedAt: new Date().toISOString(),
-        });
-
-        adapter.commands.toggleRecording();
-        await flushPromises();
-
-        expect(controller.startRecording).toHaveBeenCalledWith(
-            '/recordings',
-            'Live news'
-        );
-        expect(adapter.state().recording.message).toBeNull();
-    });
-
-    it('reports detailed and translated generic recording-start failures', async () => {
-        controller.startRecording.mockResolvedValue({
-            active: false,
-            error: 'Disk is read-only',
-        });
-        adapter.commands.toggleRecording();
-        await flushPromises();
-        expect(adapter.state().recording.message).toBe('Disk is read-only');
-
-        controller.startRecording.mockResolvedValue(null);
-        adapter.commands.toggleRecording();
-        await flushPromises();
-        expect(adapter.state().recording.message).toBe(
-            'Failed to start recording'
-        );
-    });
-
-    it('reports a saved path after stop and auto-dismisses it after five seconds', async () => {
-        controller.session.set(
-            session({
-                recording: {
-                    active: true,
-                    startedAt: '2026-07-16T10:00:00.000Z',
-                },
-            })
-        );
-        controller.stopRecording.mockResolvedValue({
-            active: false,
-            targetPath: '/recordings/live-news.ts',
-        });
-
-        adapter.commands.toggleRecording();
-        await flushPromises();
-
-        expect(controller.stopRecording).toHaveBeenCalledTimes(1);
-        expect(adapter.state().recording.message).toBe(
-            'Saved to /recordings/live-news.ts'
-        );
-
-        jest.advanceTimersByTime(4999);
-        expect(adapter.state().recording.message).toBe(
-            'Saved to /recordings/live-news.ts'
-        );
-
-        jest.advanceTimersByTime(1);
-        expect(adapter.state().recording.message).toBeNull();
-    });
-
-    it('reports detailed and translated generic recording-stop failures', async () => {
-        controller.session.set(session({ recording: { active: true } }));
-        controller.stopRecording.mockResolvedValue({
-            active: false,
-            error: 'Muxer failed',
-        });
-        adapter.commands.toggleRecording();
-        await flushPromises();
-        expect(adapter.state().recording.message).toBe('Muxer failed');
-
-        controller.stopRecording.mockResolvedValue(null);
-        adapter.commands.toggleRecording();
-        await flushPromises();
-        expect(adapter.state().recording.message).toBe(
-            'Failed to stop recording'
-        );
-    });
-
     it('computes recording elapsed time and refreshes it every second', () => {
         controller.session.set(
             session({
@@ -330,31 +248,98 @@ describe('EmbeddedMpvControlsAdapter recording messages and lifecycle', () => {
         expect(adapter.state().audioTracks[0].label).toBe('DE Audio 1');
     });
 
-    it('keeps a newer persistent message when an older saved-message timer expires', async () => {
-        controller.session.set(session({ recording: { active: true } }));
-        controller.stopRecording.mockResolvedValue({
-            active: false,
-            targetPath: '/recordings/first.ts',
-        });
+    it('relocalizes saved feedback for every translate event source', async () => {
+        const targetPath = '/recordings/live.ts';
+        controller.session.set(
+            session({ recording: { active: true, targetPath } })
+        );
         adapter.commands.toggleRecording();
         await flushPromises();
+        controller.session.set(
+            session({ recording: { active: false, targetPath } })
+        );
+        TestBed.tick();
         expect(adapter.state().recording.message).toBe(
-            'Saved to /recordings/first.ts'
+            `Saved to ${targetPath}`
         );
 
-        controller.stopRecording.mockResolvedValue({
-            active: false,
-            error: 'Newer failure',
-        });
-        adapter.commands.toggleRecording();
-        await flushPromises();
-        expect(adapter.state().recording.message).toBe('Newer failure');
+        translate.setTranslation('de', translations('DE '));
+        translate.use('de');
+        expect(adapter.state().recording.message).toBe(
+            `DE Saved to ${targetPath}`
+        );
 
-        jest.advanceTimersByTime(5000);
-        expect(adapter.state().recording.message).toBe('Newer failure');
+        translate.setTranslation('de', translations('Updated '));
+        expect(adapter.state().recording.message).toBe(
+            `Updated Saved to ${targetPath}`
+        );
+
+        translate.setTranslation('fr', translations('FR '));
+        translate.use('');
+        translate.setDefaultLang('fr');
+        expect(adapter.state().recording.message).toBe(
+            `FR Saved to ${targetPath}`
+        );
     });
 
-    it('clears the elapsed interval when recording stops', () => {
+    it('times out and relocalizes generic feedback for every translate event source', async () => {
+        adapter.commands.toggleRecording();
+        await flushPromises();
+        jest.advanceTimersByTime(5000);
+        expect(adapter.state().recording.message).toBe(
+            'Failed to start recording'
+        );
+
+        translate.setTranslation('de', translations('DE '));
+        translate.use('de');
+        expect(adapter.state().recording.message).toBe(
+            'DE Failed to start recording'
+        );
+
+        translate.setTranslation('de', translations('Updated '));
+        expect(adapter.state().recording.message).toBe(
+            'Updated Failed to start recording'
+        );
+
+        translate.setTranslation('fr', translations('FR '));
+        translate.use('');
+        translate.setDefaultLang('fr');
+        expect(adapter.state().recording.message).toBe(
+            'FR Failed to start recording'
+        );
+    });
+
+    it('retains the pre-stop path and protects newer feedback from the saved timer', async () => {
+        const targetPath = '/recordings/original.ts';
+        controller.session.set(
+            session({ recording: { active: true, targetPath } })
+        );
+        adapter.commands.toggleRecording();
+        await flushPromises();
+        controller.session.set(session({ recording: { active: false } }));
+        TestBed.tick();
+        expect(adapter.state().recording.message).toBe(
+            `Saved to ${targetPath}`
+        );
+
+        adapter.commands.toggleRecording();
+        await flushPromises();
+        controller.session.set(
+            session({
+                recording: {
+                    active: false,
+                    error: 'Newer addon failure',
+                },
+            })
+        );
+        TestBed.tick();
+        jest.advanceTimersByTime(5000);
+
+        expect(adapter.state().recording.message).toBe('Newer addon failure');
+    });
+
+    it('does not restart the elapsed interval for position-only snapshots', () => {
+        const setIntervalSpy = jest.spyOn(window, 'setInterval');
         const clearIntervalSpy = jest.spyOn(window, 'clearInterval');
         controller.session.set(
             session({
@@ -366,31 +351,48 @@ describe('EmbeddedMpvControlsAdapter recording messages and lifecycle', () => {
         );
         TestBed.tick();
 
-        controller.session.set(session({ recording: { active: false } }));
+        controller.session.set(
+            session({
+                positionSeconds: 1,
+                recording: {
+                    active: true,
+                    startedAt: '2026-07-16T10:00:00.000Z',
+                },
+            })
+        );
+        TestBed.tick();
+        controller.session.set(
+            session({
+                positionSeconds: 2,
+                recording: {
+                    active: true,
+                    startedAt: '2026-07-16T10:00:00.000Z',
+                },
+            })
+        );
         TestBed.tick();
 
-        expect(clearIntervalSpy).toHaveBeenCalled();
+        expect(setIntervalSpy).toHaveBeenCalledTimes(1);
+        expect(clearIntervalSpy).not.toHaveBeenCalled();
+        setIntervalSpy.mockRestore();
         clearIntervalSpy.mockRestore();
     });
 
-    it('clears message timers on destruction and prevents late mutation', async () => {
-        const clearTimeoutSpy = jest.spyOn(window, 'clearTimeout');
-        controller.session.set(session({ recording: { active: true } }));
-        controller.stopRecording.mockResolvedValue({
-            active: false,
-            targetPath: '/recordings/final.ts',
-        });
-        adapter.commands.toggleRecording();
-        await flushPromises();
-
-        const state = adapter.state;
-        expect(state().recording.message).toBe('Saved to /recordings/final.ts');
+    it('clears an active elapsed interval on destruction', () => {
+        const clearIntervalSpy = jest.spyOn(window, 'clearInterval');
+        controller.session.set(
+            session({
+                recording: {
+                    active: true,
+                    startedAt: '2026-07-16T10:00:00.000Z',
+                },
+            })
+        );
+        TestBed.tick();
 
         TestBed.resetTestingModule();
-        expect(clearTimeoutSpy).toHaveBeenCalled();
-        jest.advanceTimersByTime(5000);
 
-        expect(state().recording.message).toBe('Saved to /recordings/final.ts');
-        clearTimeoutSpy.mockRestore();
+        expect(clearIntervalSpy).toHaveBeenCalled();
+        clearIntervalSpy.mockRestore();
     });
 });
