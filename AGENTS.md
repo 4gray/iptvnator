@@ -159,8 +159,19 @@ Key files:
   interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
   diagnostic actions remain visible. The flag-off path keeps native controls
   and legacy series navigation unchanged.
-- Video.js and ArtPlayer are not wired yet. Their existing skins remain active,
-  and the web rollout token remains default-off.
+- Video.js is the third guarded consumer. `VjsPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; its bridge binds the current Tech
+  video, rebinds after `playerreset`, exposes source-stable audio/subtitle IDs,
+  preserves caption preference and explicit subtitle-off state, and reads
+  duration from Video.js. Reset-driven raw MPEG-TS changes pause first,
+  coalesce to the latest desired source, preserve actual volume across
+  Video.js's reset, and restart when authoritative live/VOD metadata changes.
+  The flag-on path disables native controls, Video.js
+  click/double-click/hotkey actions, and spatial navigation;
+  diagnostic gating and owned-fullscreen exit match HTML5. The flag-off path
+  keeps the existing Video.js skin and legacy series navigation unchanged.
+- ArtPlayer is not wired yet. Its existing skin remains active, and the web
+  rollout token remains default-off.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 

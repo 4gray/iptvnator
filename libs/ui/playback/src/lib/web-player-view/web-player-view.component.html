@@ -3,6 +3,8 @@
         <app-vjs-player
             [options]="vjsOptions"
             [volume]="volume()"
+            [showCaptions]="showCaptions()"
+            [interactionEnabled]="playbackInteractionEnabled()"
             [startTime]="startTime()"
             [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"
@@ -65,6 +67,8 @@
         <app-vjs-player
             [options]="vjsOptions"
             [volume]="volume()"
+            [showCaptions]="showCaptions()"
+            [interactionEnabled]="playbackInteractionEnabled()"
             [startTime]="startTime()"
             [seriesNavigation]="seriesNavigation()"
             (timeUpdate)="timeUpdate.emit($event)"

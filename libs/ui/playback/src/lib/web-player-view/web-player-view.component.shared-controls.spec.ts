@@ -35,6 +35,8 @@ jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
 class StubVjsPlayerComponent {
     readonly options = input<unknown>();
     readonly volume = input(1);
+    readonly showCaptions = input(false);
+    readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
@@ -85,7 +87,7 @@ class StubEmbeddedMpvPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
-describe('WebPlayerViewComponent shared HTML5 controls metadata', () => {
+describe('WebPlayerViewComponent shared web controls metadata', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
     let fixture: ComponentFixture<WebPlayerViewComponentInstance>;
     let component: WebPlayerViewComponentInstance;
@@ -167,6 +169,18 @@ describe('WebPlayerViewComponent shared HTML5 controls metadata', () => {
         expect(htmlPlayer.isLive()).toBe(false);
     });
 
+    it('passes resolved playback metadata and caption preference to Video.js', async () => {
+        fixture.componentRef.setInput('showCaptions', true);
+
+        const vjsPlayer = await renderVjsPlayer({ isLive: false });
+
+        expect(vjsPlayer.options()).toEqual(
+            expect.objectContaining({ isLive: false })
+        );
+        expect(vjsPlayer.showCaptions()).toBe(true);
+        expect(vjsPlayer.interactionEnabled()).toBe(true);
+    });
+
     it('disables HTML5 surface interaction while a diagnostic is visible', async () => {
         const htmlPlayer = await renderHtmlPlayer();
 
@@ -197,6 +211,26 @@ describe('WebPlayerViewComponent shared HTML5 controls metadata', () => {
         fixture.detectChanges();
         expect(component.playbackInteractionEnabled()).toBe(true);
         expect(htmlPlayer.interactionEnabled()).toBe(true);
+    });
+
+    it('disables and restores Video.js interaction around diagnostics', async () => {
+        const vjsPlayer = await renderVjsPlayer();
+
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+        expect(vjsPlayer.interactionEnabled()).toBe(false);
+
+        component.retryPlayback();
+        fixture.detectChanges();
+        expect(vjsPlayer.interactionEnabled()).toBe(true);
+
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+        expect(vjsPlayer.interactionEnabled()).toBe(false);
+
+        component.handlePlaybackIssue(null);
+        fixture.detectChanges();
+        expect(vjsPlayer.interactionEnabled()).toBe(true);
     });
 
     it.each([
@@ -250,6 +284,19 @@ describe('WebPlayerViewComponent shared HTML5 controls metadata', () => {
         return fixture.debugElement.query(
             By.directive(StubHtmlVideoPlayerComponent)
         ).componentInstance as StubHtmlVideoPlayerComponent;
+    }
+
+    async function renderVjsPlayer(
+        metadata: Partial<ResolvedPortalPlayback> = {}
+    ): Promise<StubVjsPlayerComponent> {
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.VideoJs);
+        setPlayback(metadata);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        return fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
+            .componentInstance as StubVjsPlayerComponent;
     }
 });
 

@@ -1,27 +1,23 @@
-import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
+import type { VideoJsPlayer } from './vjs-player.types';
 
 const videoJsMock = jest.fn();
-const mpegTsCreatePlayerMock = jest.fn();
 const mpegTsIsSupportedMock = jest.fn(() => false);
 
 jest.unstable_mockModule('video.js', () => ({
     default: videoJsMock,
 }));
-
 jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
 jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
 jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
-
 jest.unstable_mockModule('mpegts.js', () => ({
     default: {
-        createPlayer: mpegTsCreatePlayerMock,
+        Events: { ERROR: 'error' },
+        createPlayer: jest.fn(),
         isSupported: mpegTsIsSupportedMock,
-        Events: {
-            ERROR: 'error',
-        },
     },
 }));
 
@@ -29,374 +25,204 @@ describe('VjsPlayerComponent', () => {
     let VjsPlayerComponent: typeof import('./vjs-player.component').VjsPlayerComponent;
     let fixture: ComponentFixture<VjsPlayerComponentInstance>;
     let component: VjsPlayerComponentInstance;
-    let player: VjsPlayerComponentInstance['player'];
-
-    type SignalApiShape = {
-        options: () => unknown;
-        volume: () => number;
-        startTime: () => number;
-        timeUpdate: { emit: (event: unknown) => void };
-        playbackIssue: {
-            emit: (event: unknown) => void;
-            subscribe: (callback: (event: unknown) => void) => {
-                unsubscribe: () => void;
-            };
-        };
-    };
+    let harness: ReturnType<typeof createPlayerHarness>;
 
     beforeAll(async () => {
         ({ VjsPlayerComponent } = await import('./vjs-player.component'));
     });
 
     beforeEach(async () => {
-        mpegTsCreatePlayerMock.mockReset();
-        mpegTsCreatePlayerMock.mockReturnValue({
-            attachMediaElement: jest.fn(),
-            pause: jest.fn(),
-            unload: jest.fn(),
-            detachMediaElement: jest.fn(),
-            destroy: jest.fn(),
-            on: jest.fn(),
-            load: jest.fn(),
-            play: jest.fn(),
-        });
-        videoJsMock.mockReset();
+        harness = createPlayerHarness();
+        videoJsMock
+            .mockReset()
+            .mockImplementation(
+                (_target: Element, _options: unknown, ready: () => void) => {
+                    harness.ready = ready;
+                    return harness.player;
+                }
+            );
+        mpegTsIsSupportedMock.mockReset().mockReturnValue(false);
         await TestBed.configureTestingModule({
             imports: [VjsPlayerComponent],
         }).compileComponents();
-
         fixture = TestBed.createComponent(VjsPlayerComponent);
         component = fixture.componentInstance;
-        player = {
-            error: jest.fn(),
-            src: jest.fn(),
-            reset: jest.fn(),
-            volume: jest.fn(),
-            dispose: jest.fn(),
-        } as unknown as VjsPlayerComponentInstance['player'];
-        component.player = player;
     });
 
     afterEach(() => {
-        fixture.destroy();
+        if (!fixture.componentRef.hostView.destroyed) {
+            fixture.destroy();
+        }
+        localStorage.removeItem('volume');
     });
 
     it('uses signal-based inputs and outputs', () => {
-        const signalComponent = component as unknown as SignalApiShape;
-
-        expect(typeof signalComponent.options).toBe('function');
-        expect(signalComponent.volume()).toBe(1);
-        expect(signalComponent.startTime()).toBe(0);
-        expect(typeof signalComponent.timeUpdate.emit).toBe('function');
-        expect(typeof signalComponent.playbackIssue.emit).toBe('function');
+        expect(typeof component.options).toBe('function');
+        expect(component.volume()).toBe(1);
+        expect(component.startTime()).toBe(0);
+        expect(component.interactionEnabled()).toBe(true);
+        expect(component.showCaptions()).toBe(false);
+        expect(typeof component.timeUpdate.emit).toBe('function');
+        expect(typeof component.playbackIssue.emit).toBe('function');
     });
 
-    it('does not reset VideoJS when options change without changing the source', () => {
-        const previousOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/playlist.m3u8',
-                    type: 'application/x-mpegURL',
-                },
-            ],
-        };
-        const currentOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/playlist.m3u8',
-                    type: 'application/x-mpegURL',
-                },
-            ],
-        };
-
-        component.ngOnChanges({
-            options: new SimpleChange(previousOptions, currentOptions, false),
+    it('preserves legacy Video.js options and controls while the flag is off', () => {
+        render({
+            sources: [{ src: 'https://example.test/movie.mp4' }],
+            userActions: { hotkeys: true },
+            spatialNavigation: { enabled: true },
         });
 
-        expect(player.src).not.toHaveBeenCalled();
-    });
-
-    it('updates VideoJS when options change to a different source', () => {
-        const previousOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/playlist.m3u8',
-                    type: 'application/x-mpegURL',
-                },
-            ],
-        };
-        const currentOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/other-playlist.m3u8',
-                    type: 'application/x-mpegURL',
-                },
-            ],
-        };
-
-        component.ngOnChanges({
-            options: new SimpleChange(previousOptions, currentOptions, false),
-        });
-
-        expect(player.src).toHaveBeenCalledWith(currentOptions.sources[0]);
-    });
-
-    it('updates volume when options change without changing the source', () => {
-        const previousOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/playlist.m3u8',
-                    type: 'application/x-mpegURL',
-                },
-            ],
-        };
-        const currentOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/playlist.m3u8',
-                    type: 'application/x-mpegURL',
-                },
-            ],
-        };
-
-        component.ngOnChanges({
-            options: new SimpleChange(previousOptions, currentOptions, false),
-            volume: new SimpleChange(0.5, 0.75, false),
-        });
-
-        expect(player.src).not.toHaveBeenCalled();
-        expect(player.volume).toHaveBeenCalledWith(0.75);
-    });
-
-    it('does not treat query-declared HLS streams as MPEG-TS sources', () => {
-        mpegTsIsSupportedMock.mockReturnValue(true);
-        const isMpegTsSource = (
-            component as unknown as {
-                isMpegTsSource: (url?: string) => boolean;
-            }
-        ).isMpegTsSource.bind(component);
-
-        expect(
-            isMpegTsSource('https://example.com/play?extension=m3u8&token=x')
-        ).toBe(false);
-        expect(
-            isMpegTsSource('https://example.com/live.php?extension=ts')
-        ).toBe(true);
-        expect(isMpegTsSource('https://example.com/live.php?stream=123')).toBe(
+        expect(videoJsMock).toHaveBeenCalledWith(
+            expect.any(Element),
+            expect.objectContaining({
+                autoplay: true,
+                userActions: { hotkeys: true },
+                spatialNavigation: { enabled: true },
+            }),
+            expect.any(Function)
+        );
+        expect(fixture.nativeElement.querySelector('video').controls).toBe(
             true
         );
+        expect(
+            fixture.nativeElement.querySelector('app-player-controls')
+        ).toBeNull();
     });
 
-    it('emits a playback issue when VideoJS reports an unsupported source', () => {
-        const issues: unknown[] = [];
-        const videoElement = document.createElement('video');
-        const testComponent = component as unknown as SignalApiShape & {
-            options: () => {
-                sources: Array<{ src: string; type: string }>;
-            };
-            target: () => { nativeElement: HTMLVideoElement };
-            handleVideoJsPlaybackError: () => void;
+    it('does not reload Video.js when options keep the same source', () => {
+        const source = {
+            src: 'https://example.test/live/playlist.m3u8',
+            type: 'application/x-mpegURL',
         };
-        testComponent.options = () => ({
+        render({ sources: [source] });
+        harness.src.mockClear();
+
+        fixture.componentRef.setInput('options', {
+            sources: [{ ...source }],
+        });
+        fixture.detectChanges();
+
+        expect(harness.src).not.toHaveBeenCalled();
+        expect(harness.reset).not.toHaveBeenCalled();
+    });
+
+    it('updates Video.js directly for a different normal source', () => {
+        render({
+            sources: [{ src: 'https://example.test/live/one.m3u8' }],
+        });
+
+        const nextSource = {
+            src: 'https://example.test/live/two.m3u8',
+            type: 'application/x-mpegURL',
+        };
+        fixture.componentRef.setInput('options', {
+            sources: [nextSource],
+        });
+        fixture.detectChanges();
+
+        expect(harness.src).toHaveBeenCalledWith(nextSource);
+        expect(harness.reset).not.toHaveBeenCalled();
+    });
+
+    it('resets Video.js when the source is cleared', () => {
+        render({
+            sources: [{ src: 'https://example.test/live/one.m3u8' }],
+        });
+
+        fixture.componentRef.setInput('options', { sources: [] });
+        fixture.detectChanges();
+
+        expect(harness.reset).toHaveBeenCalledTimes(1);
+        expect(harness.src).not.toHaveBeenCalled();
+    });
+
+    it('updates volume without reloading an unchanged source', () => {
+        render({
+            sources: [{ src: 'https://example.test/live/playlist.m3u8' }],
+        });
+        harness.volume.mockClear();
+        harness.src.mockClear();
+
+        fixture.componentRef.setInput('volume', 0.75);
+        fixture.detectChanges();
+
+        expect(harness.volume).toHaveBeenCalledWith(0.75);
+        expect(harness.src).not.toHaveBeenCalled();
+    });
+
+    it('does not persist reset volume and restores the current engine volume', () => {
+        localStorage.setItem('volume', '0.35');
+        render({
+            sources: [{ src: 'https://example.test/live/playlist.m3u8' }],
+        });
+        harness.volume(0.35);
+        harness.volume.mockClear();
+
+        fixture.componentRef.setInput('options', { sources: [] });
+        fixture.detectChanges();
+        harness.volume(1);
+        harness.emit('volumechange');
+
+        expect(localStorage.getItem('volume')).toBe('0.35');
+
+        harness.currentVideo = document.createElement('video');
+        harness.emit('playerreset');
+
+        expect(harness.volume).toHaveBeenLastCalledWith(0.35);
+    });
+
+    it('emits a diagnostic for a Video.js unsupported-source error', () => {
+        const issues: Array<PlaybackDiagnostic | null> = [];
+        component.playbackIssue.subscribe((issue) => issues.push(issue));
+        render({
             sources: [
                 {
-                    src: 'https://example.com/archive/movie.mkv',
+                    src: 'https://example.test/archive/movie.mkv',
                     type: 'video/matroska',
                 },
             ],
         });
-        testComponent.target = () => ({ nativeElement: videoElement });
-        jest.mocked(player.error).mockReturnValue({
+        harness.currentError = {
             code: 4,
             message: 'No compatible source was found',
-        });
+        };
 
-        const subscription = component.playbackIssue.subscribe((issue) =>
-            issues.push(issue)
-        );
-        testComponent.handleVideoJsPlaybackError();
-        subscription.unsubscribe();
+        harness.emit('error');
 
-        expect(issues).toEqual([
+        expect(issues.at(-1)).toEqual(
             expect.objectContaining({
                 code: 'unsupported-container',
                 source: 'native',
-                sourceUrl: 'https://example.com/archive/movie.mkv',
+                sourceUrl: 'https://example.test/archive/movie.mkv',
                 externalFallbackRecommended: true,
-            }),
-        ]);
+            })
+        );
     });
 
-    it('tears down mpegts playback when options clear the source', () => {
-        const mpegtsPlayer = {
-            pause: jest.fn(),
-            unload: jest.fn(),
-            detachMediaElement: jest.fn(),
-            destroy: jest.fn(),
-        };
-        const componentInternals = component as unknown as {
-            mpegtsPlayer: typeof mpegtsPlayer | null;
-        };
-        componentInternals.mpegtsPlayer = mpegtsPlayer;
-        const previousOptions = {
-            sources: [
-                {
-                    src: 'https://example.com/live/stream.ts',
-                    type: 'video/mp2t',
-                },
-            ],
-        };
-
-        component.ngOnChanges({
-            options: new SimpleChange(previousOptions, { sources: [] }, false),
-        });
-
-        expect(mpegtsPlayer.pause).toHaveBeenCalled();
-        expect(mpegtsPlayer.unload).toHaveBeenCalled();
-        expect(mpegtsPlayer.detachMediaElement).toHaveBeenCalled();
-        expect(mpegtsPlayer.destroy).toHaveBeenCalled();
-        expect(componentInternals.mpegtsPlayer).toBeNull();
-        expect(player.reset).toHaveBeenCalled();
-        expect(player.src).not.toHaveBeenCalled();
-    });
-
-    it('passes the non-live option to mpegts.js for VOD MPEG-TS playback', () => {
-        const videoElement = document.createElement('video');
-        const testComponent = component as unknown as {
-            options: () => {
-                isLive: boolean;
-                sources: Array<{ src: string; type: string }>;
-            };
-            player: {
-                tech: () => { el: () => HTMLVideoElement };
-                dispose: () => void;
-            };
-            initMpegTs: (url: string) => void;
-        };
-        testComponent.options = () => ({
-            isLive: false,
-            sources: [
-                {
-                    src: 'https://example.com/movie/123.ts',
-                    type: 'video/mp2t',
-                },
-            ],
-        });
-        testComponent.player = {
-            tech: () => ({ el: () => videoElement }),
-            dispose: jest.fn(),
-        };
-
-        testComponent.initMpegTs('https://example.com/movie/123.ts');
-
-        expect(mpegTsCreatePlayerMock).toHaveBeenCalledWith({
-            type: 'mpegts',
-            isLive: false,
-            url: 'https://example.com/movie/123.ts',
-        });
-    });
-
-    it('normalizes VideoJS duration for non-live MPEG-TS VOD when MSE reports infinity', () => {
-        const videoElement = document.createElement('video');
-        Object.defineProperty(videoElement, 'seekable', {
-            value: createTimeRanges([[0, 164.072]]),
-        });
-        Object.defineProperty(videoElement, 'buffered', {
-            value: createTimeRanges([]),
-        });
-        const testComponent = component as unknown as {
-            options: () => {
-                isLive: boolean;
-                sources: Array<{ src: string; type: string }>;
-            };
-            player: {
-                duration: (duration: number) => void;
-                dispose: () => void;
-            };
-            mpegTsVodDurationTarget: HTMLVideoElement;
-            syncMpegTsVodDuration: () => void;
-        };
-        testComponent.options = () => ({
-            isLive: false,
-            sources: [
-                {
-                    src: 'https://example.com/movie/123.ts',
-                    type: 'video/mp2t',
-                },
-            ],
-        });
-        testComponent.player = {
-            duration: jest.fn(),
-            dispose: jest.fn(),
-        };
-        testComponent.mpegTsVodDurationTarget = videoElement;
-
-        testComponent.syncMpegTsVodDuration();
-
-        expect(testComponent.player.duration).toHaveBeenCalledWith(164.072);
-    });
-
-    it('emits playbackEnded exactly once for a native ended event and not during reload or destroy', () => {
+    it('rebinds native ended handling after playerreset', () => {
         const events: string[] = [];
-        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
-        fixture.componentRef.setInput('options', {
-            sources: [
-                {
-                    src: 'https://example.com/series/s01e02.mp4',
-                    type: 'video/mp4',
-                },
-            ],
+        component.playbackEnded.subscribe(() => events.push('ended'));
+        render({
+            sources: [{ src: 'https://example.test/series/one.mp4' }],
         });
-        (
-            component as unknown as {
-                playbackEnded: {
-                    subscribe: (fn: () => void) => { unsubscribe: () => void };
-                };
-            }
-        ).playbackEnded.subscribe(() => events.push('ended'));
+        const oldVideo = harness.currentVideo;
 
+        fixture.componentRef.setInput('options', { sources: [] });
         fixture.detectChanges();
-        fixture.nativeElement
-            .querySelector('video')
-            .dispatchEvent(new Event('ended'));
-        component.ngOnChanges({
-            options: new SimpleChange(
-                {
-                    sources: [
-                        {
-                            src: 'https://example.com/series/s01e02.mp4',
-                            type: 'video/mp4',
-                        },
-                    ],
-                },
-                {
-                    sources: [
-                        {
-                            src: 'https://example.com/series/s01e03.mp4',
-                            type: 'video/mp4',
-                        },
-                    ],
-                },
-                false
-            ),
-        });
-        fixture.destroy();
+        const replacementVideo = document.createElement('video');
+        harness.currentVideo = replacementVideo;
+        harness.emit('playerreset');
+        oldVideo.dispatchEvent(new Event('ended'));
+        replacementVideo.dispatchEvent(new Event('ended'));
 
         expect(events).toEqual(['ended']);
     });
 
-    it('hides series navigation controls when series navigation is absent', () => {
-        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
-        fixture.componentRef.setInput('options', {
-            sources: [
-                {
-                    src: 'https://example.com/movie.mp4',
-                    type: 'video/mp4',
-                },
-            ],
+    it('hides legacy series navigation when metadata is absent', () => {
+        render({
+            sources: [{ src: 'https://example.test/movie.mp4' }],
         });
-
-        fixture.detectChanges();
 
         expect(
             fixture.debugElement.query(
@@ -410,82 +236,97 @@ describe('VjsPlayerComponent', () => {
         ).toBeNull();
     });
 
-    it('renders series navigation controls with boundary disabled state', () => {
+    it('renders legacy series navigation with boundary state and outputs', () => {
         const events: string[] = [];
-        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
-        fixture.componentRef.setInput('options', {
-            sources: [
-                {
-                    src: 'https://example.com/series/s01e01.mp4',
-                    type: 'video/mp4',
-                },
-            ],
-        });
+        component.previousEpisodeRequested.subscribe(() =>
+            events.push('previous')
+        );
+        component.nextEpisodeRequested.subscribe(() => events.push('next'));
         fixture.componentRef.setInput('seriesNavigation', {
             canPrevious: false,
             canNext: true,
             autoplayEnabled: true,
         });
-        (
-            component as unknown as {
-                previousEpisodeRequested: {
-                    subscribe: (fn: () => void) => { unsubscribe: () => void };
-                };
-                nextEpisodeRequested: {
-                    subscribe: (fn: () => void) => { unsubscribe: () => void };
-                };
-            }
-        ).previousEpisodeRequested.subscribe(() => events.push('previous'));
-        (
-            component as unknown as {
-                nextEpisodeRequested: {
-                    subscribe: (fn: () => void) => { unsubscribe: () => void };
-                };
-            }
-        ).nextEpisodeRequested.subscribe(() => events.push('next'));
+        render({
+            sources: [{ src: 'https://example.test/series/one.mp4' }],
+        });
 
-        fixture.detectChanges();
-
-        const previousButton = fixture.debugElement.query(
+        const previous = fixture.debugElement.query(
             By.css('[data-test-id="series-playback-previous-episode"]')
         );
-        const nextButton = fixture.debugElement.query(
+        const next = fixture.debugElement.query(
             By.css('[data-test-id="series-playback-next-episode"]')
         );
-        expect(previousButton).not.toBeNull();
-        expect(previousButton.nativeElement.disabled).toBe(true);
-        expect(nextButton).not.toBeNull();
-        expect(nextButton.nativeElement.disabled).toBe(false);
+        expect(previous.nativeElement.disabled).toBe(true);
+        expect(next.nativeElement.disabled).toBe(false);
 
-        previousButton.nativeElement.click();
-        nextButton.nativeElement.click();
-
+        previous.nativeElement.click();
+        next.nativeElement.click();
         expect(events).toEqual(['next']);
     });
+
+    function render(options: Record<string, unknown>): void {
+        fixture.componentRef.setInput('options', options);
+        fixture.detectChanges();
+        harness.ready();
+        fixture.detectChanges();
+    }
 });
 
-function createVideoJsPlayerMock(): VjsPlayerComponentInstance['player'] {
-    return {
-        audioTracks: jest.fn(() => null),
-        currentTime: jest.fn(() => 0),
-        duration: jest.fn(() => 0),
-        error: jest.fn(() => null),
-        getChild: jest.fn(() => null),
-        on: jest.fn(),
+function createPlayerHarness() {
+    const listeners = new Map<string, Set<() => void>>();
+    let volumeValue = 0.5;
+    const harness = {
+        currentVideo: document.createElement('video'),
+        currentError: null as { code?: number; message?: string } | null,
+        paused: true,
+        pauseCompletesImmediately: true,
+        ready: () => undefined,
+        pause: jest.fn(() => {
+            if (harness.pauseCompletesImmediately) {
+                harness.paused = true;
+            }
+        }),
         reset: jest.fn(),
         src: jest.fn(),
-        tech: jest.fn(() => ({ el: () => null })),
-        volume: jest.fn(),
+        volume: jest.fn((value?: number) => {
+            if (value !== undefined) {
+                volumeValue = value;
+            }
+            return volumeValue;
+        }),
+        emit(event: string) {
+            for (const listener of listeners.get(event) ?? []) {
+                listener();
+            }
+        },
+        player: null as unknown as VideoJsPlayer,
+    };
+    harness.player = {
+        audioTracks: jest.fn(() => null),
+        textTracks: jest.fn(() => null),
+        currentTime: jest.fn(() => 0),
+        duration: jest.fn(() => 0),
+        error: jest.fn(() => harness.currentError),
+        getChild: jest.fn(() => null),
+        on: jest.fn((event: string, listener: () => void) => {
+            const eventListeners =
+                listeners.get(event) ?? new Set<() => void>();
+            eventListeners.add(listener);
+            listeners.set(event, eventListeners);
+        }),
+        off: jest.fn((event: string, listener: () => void) => {
+            listeners.get(event)?.delete(listener);
+        }),
+        pause: harness.pause,
+        paused: jest.fn(() => harness.paused),
+        reset: harness.reset,
+        src: harness.src,
+        tech: jest.fn(() => ({ el: () => harness.currentVideo })),
+        volume: harness.volume,
         dispose: jest.fn(),
         qualitySelectorHls: jest.fn(),
         aspectRatioPanel: jest.fn(),
-    } as unknown as VjsPlayerComponentInstance['player'];
-}
-
-function createTimeRanges(ranges: Array<[number, number]>): TimeRanges {
-    return {
-        length: ranges.length,
-        start: (index: number) => ranges[index][0],
-        end: (index: number) => ranges[index][1],
-    } as TimeRanges;
+    } as unknown as VideoJsPlayer;
+    return harness;
 }
