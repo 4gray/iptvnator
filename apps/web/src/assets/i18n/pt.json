@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "Voltar 10 segundos",
             "FORWARD_10_SECONDS": "Avançar 10 segundos",
             "LIVE_STREAM": "Transmissão ao vivo",
+            "PLAYBACK_POSITION": "Posição de reprodução",
             "MUTE": "Silenciar",
             "UNMUTE": "Ativar som",
             "MUTED": "Silenciado",

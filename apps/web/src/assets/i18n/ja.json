@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "10秒戻る",
             "FORWARD_10_SECONDS": "10秒進む",
             "LIVE_STREAM": "ライブストリーム",
+            "PLAYBACK_POSITION": "再生位置",
             "MUTE": "ミュート",
             "UNMUTE": "ミュート解除",
             "MUTED": "ミュート中",

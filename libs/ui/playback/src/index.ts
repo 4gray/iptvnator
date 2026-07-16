@@ -6,6 +6,7 @@ export * from './lib/embedded-mpv-player/embedded-mpv-session-controller';
 export * from './lib/external-player-info-dialog/external-player-info-dialog.component';
 export * from './lib/html-video-player/html-video-player.component';
 export * from './lib/playback-diagnostics/playback-diagnostics.util';
+export * from './lib/player-controls';
 export * from './lib/portal-inline-player/portal-inline-player.component';
 export * from './lib/portal-inline-player/series-playback-navigation';
 export * from './lib/vjs-player/vjs-player.component';

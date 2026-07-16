@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "10초 뒤로",
             "FORWARD_10_SECONDS": "10초 앞으로",
             "LIVE_STREAM": "라이브 스트림",
+            "PLAYBACK_POSITION": "재생 위치",
             "MUTE": "음소거",
             "UNMUTE": "음소거 해제",
             "MUTED": "음소거됨",

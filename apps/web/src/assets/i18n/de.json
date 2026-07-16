@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "10 Sekunden zurück",
             "FORWARD_10_SECONDS": "10 Sekunden vor",
             "LIVE_STREAM": "Live-Stream",
+            "PLAYBACK_POSITION": "Wiedergabeposition",
             "MUTE": "Stummschalten",
             "UNMUTE": "Stummschaltung aufheben",
             "MUTED": "Stummgeschaltet",
