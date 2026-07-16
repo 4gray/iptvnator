@@ -283,23 +283,41 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(component.menus.audioOpen()).toBe(true);
     });
 
-    it('uses only the adapter recording interval for frame-copy', () => {
-        const { fixture, controller } = render();
-        const setInterval = jest.spyOn(window, 'setInterval');
+    it.each(['frame-copy', 'native'] as const)(
+        'uses exactly one recording interval for the %s engine',
+        (engine) => {
+            const { fixture, controller } = render(engine);
+            const setInterval = jest.spyOn(window, 'setInterval');
 
-        controller.session.update((session) =>
-            session
-                ? {
-                      ...session,
-                      recording: {
-                          active: true,
-                          startedAt: new Date().toISOString(),
-                      },
-                  }
-                : session
-        );
+            controller.session.update((session) =>
+                session
+                    ? {
+                          ...session,
+                          recording: {
+                              active: true,
+                              startedAt: new Date().toISOString(),
+                          },
+                      }
+                    : session
+            );
+            fixture.detectChanges();
+
+            expect(setInterval).toHaveBeenCalledTimes(1);
+        }
+    );
+
+    it('keeps the component-scoped recording adapter inert for native', () => {
+        const { fixture, component, controller } = render('native');
+        fixture.componentRef.setInput('playback', {
+            streamUrl: 'https://example.test/live.ts',
+            title: 'Live news',
+            isLive: true,
+        });
         fixture.detectChanges();
+        const startRecording = jest.spyOn(controller, 'startRecording');
 
-        expect(setInterval).toHaveBeenCalledTimes(1);
+        component.sharedControls.commands.toggleRecording();
+
+        expect(startRecording).not.toHaveBeenCalled();
     });
 });

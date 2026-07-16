@@ -75,7 +75,9 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         () => this.playbackIdentity()
     );
     private readonly recordingActive = computed(
-        () => this.controller.session()?.recording?.active === true
+        () =>
+            this.controller.support()?.engine === 'frame-copy' &&
+            this.controller.session()?.recording?.active === true
     );
     private readonly activeSessionId = computed(
         () => this.controller.session()?.id ?? null
@@ -313,6 +315,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             !session ||
             !playbackIdentity ||
             !support?.supported ||
+            support.engine !== 'frame-copy' ||
             support.capabilities?.recording !== true ||
             !this.isLivePlayback(context.playback()) ||
             session?.status === 'error'
