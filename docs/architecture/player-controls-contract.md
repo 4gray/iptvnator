@@ -7,7 +7,7 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
-The shared-controls foundation from PR #1148 now has two runtime consumers:
+The shared-controls foundation from PR #1148 now has three runtime consumers:
 
 - the `PlayerController` contract, default state, and capability presets;
 - the standalone `app-player-controls` presentation component and its
@@ -17,7 +17,9 @@ The shared-controls foundation from PR #1148 now has two runtime consumers:
 - the component-scoped `EmbeddedMpvControlsAdapter`;
 - an `EmbeddedMpvPlayerComponent` host integration for the frame-copy engine;
 - a feature-flagged `HtmlVideoPlayerComponent` integration backed by
-  `WebVideoControlsAdapter` and a player-local engine bridge; and
+  `WebVideoControlsAdapter` and a player-local engine bridge;
+- a feature-flagged `VjsPlayerComponent` integration backed by a
+  component-scoped `WebVideoControlsAdapter` and Video.js bridge; and
 - focused unit/component tests.
 
 When Embedded MPV reports `engine: 'frame-copy'`, the component mounts
@@ -33,10 +35,15 @@ MPEG-TS VOD duration, and authoritative live/VOD metadata to the generic web
 adapter. When the flag is disabled, the native controls and legacy series
 navigation remain unchanged and the adapter is not attached.
 
-Video.js and ArtPlayer do not consume the shared layer yet. Their existing
-skins remain active, and `WEB_PLAYER_SHARED_CONTROLS_ENABLED` remains
-default-off, so the guarded HTML5 integration does not change normal runtime
-behavior.
+Video.js consumes the same token and shared presentation atomically. Its bridge
+binds the adapter to the current Video.js Tech `<video>` and rebinds after
+`playerreset`, while focused collaborators expose Video.js audio/text tracks
+and manage raw MPEG-TS playback. With the flag disabled, Video.js keeps its
+existing skin and legacy series navigation.
+
+ArtPlayer does not consume the shared layer yet. Its existing skin remains
+active, and `WEB_PLAYER_SHARED_CONTROLS_ENABLED` remains default-off, so neither
+guarded web integration changes normal runtime behavior.
 
 This rollout is intentionally engine-selective: frame-copy can use normal DOM
 layering, while the native platform view cannot. The integration also includes
@@ -87,16 +94,18 @@ contract does not make a native video surface behave like DOM content.
                │                                    │
                ▼                                    ▼
 ┌──────────────────────────────┐     ┌──────────────────────────────┐
-│ HtmlVideoPlayerComponent     │     │ EmbeddedMpvPlayerComponent   │
-│ flag on: shared controls     │     │ frame-copy: shared controls  │
-│ flag off: native controls    │     │ native-view: legacy dock     │
-└──────────────────────────────┘     └──────────────────────────────┘
+│ Flag-guarded web hosts       │     │ EmbeddedMpvPlayerComponent   │
+│ HTML5 + Video.js             │     │ frame-copy: shared controls  │
+│ flag on: shared controls     │     │ native-view: legacy dock     │
+│ flag off: existing controls  │     └──────────────────────────────┘
+└──────────────────────────────┘
 ```
 
 The embedded host selects controls from the reported engine before rendering
 them. It never mounts the shared overlay and legacy dock together.
-The HTML5 host likewise selects native or shared controls before rendering and
-never attaches the web adapter while the native path is active.
+The HTML5 and Video.js hosts likewise select their existing or shared controls
+before rendering and never attach the web adapter while the flag-off path is
+active.
 
 ## The contract
 
@@ -170,7 +179,8 @@ size follows the fullscreen DOM surface.
 
 `PlayerControlsComponent` is a standalone presentation component. The
 frame-copy Embedded MPV host mounts it over its DOM canvas, and the guarded
-HTML5 host mounts it over `.html-video-player-shell`.
+HTML5 and Video.js hosts mount it over `.html-video-player-shell` and
+`.vjs-player-shell`, respectively.
 
 It owns only transient presentation behavior:
 
@@ -227,14 +237,15 @@ a modal/backdrop overlay is active, so transport, seek, volume, and fullscreen
 actions cannot leak through it. Escape keeps the shared component's generic
 popover-dismissal behavior.
 
-The HTML5 host applies the same ownership rule while its playback diagnostic is
-visible: `WebPlayerViewComponent` passes
-`interactionEnabled = visiblePlaybackDiagnostic() === null`, and the HTML5
-component binds that value to both `showControls` and `shortcutsEnabled`.
-If that shell owns DOM fullscreen, the host exits fullscreen before hiding the
-controls so the sibling diagnostic banner and its retry/fallback actions remain
-visible; fullscreen owned by another element is left untouched. Retrying
-playback or clearing the diagnostic restores both interaction paths.
+The HTML5 and Video.js hosts apply the same ownership rule while a playback
+diagnostic is visible: `WebPlayerViewComponent` passes
+`interactionEnabled = visiblePlaybackDiagnostic() === null`, and both
+components bind that value to `showControls` and
+`shortcutsEnabled`. If the active player shell owns DOM fullscreen, its host
+exits fullscreen before hiding the controls so the sibling diagnostic banner
+and its retry/fallback actions remain visible; fullscreen owned by another
+element is left untouched. Retrying playback or clearing the diagnostic
+restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
 their `transitionKey`. Session disposal, retry, channel changes, and engine
@@ -263,7 +274,7 @@ capability, initialization runs again for the new capability epoch. The volume
 slider intentionally remains continuous: each volume `input` applies the
 optimistic volume immediately.
 
-## Web adapter and HTML5 engine bridge
+## Web adapter and web-engine bridges
 
 `WebVideoControlsAdapter` can translate an `HTMLVideoElement` into the shared
 contract. It uses DOM/media events and accepts optional engine-specific track
@@ -308,15 +319,51 @@ the bridge uses the first finite positive value from `video.duration`, the last
 valid seekable end, or the last valid buffered end. Without a known duration it
 keeps the source classified as VOD while seeking remains unavailable.
 
+`VjsPlayerControlsBridge` attaches the component-scoped adapter to the current
+Video.js Tech `<video>`. Video.js can replace that element during `reset()`, so
+the component reacquires it after `playerreset`, rebinds native media events,
+and attaches the bridge to the replacement before activating the new source.
+Audio and subtitle helpers assign source-lifetime IDs through `WeakMap`s, so
+track reordering or list refreshes do not change the IDs exposed to shared
+controls.
+
+Video.js subtitle selection preserves an explicit shared-controls override,
+including the `-1` off selection. Without an override, disabling the global
+caption preference suppresses the currently showing track and restores that
+same track when the preference returns, if it still belongs to the active
+source. Source changes reset both stable-ID maps and per-source subtitle state.
+The bridge reads duration through `player.duration()` because Video.js may
+correct or project a value that differs from the current Tech element.
+
+For reset-driven source changes, raw MPEG-TS activation is deferred until
+`playerreset`. Video.js can otherwise defer `reset()` behind a pending
+`play()`, so a dedicated coordinator pauses first and calls `reset()` only
+after `player.paused()` is true. Multiple reset-required changes coalesce, and
+every `playerreset` rebinds the current Tech before applying only the latest
+desired source. The coordinator snapshots actual Video.js volume, suppresses
+the reset-generated volume=1 event, restores the snapshot, and tracks whether a
+pre-ready reset already applied the source. An authoritative live/VOD metadata
+change restarts active raw MPEG-TS with the corrected mode. For MPEG-TS VOD,
+the session projects the last finite seekable or buffered end through
+`player.duration()`.
+
 `web-video-controls.host.ts` still contains small generic
-attachment/projection helpers. Video.js and ArtPlayer do not call them yet.
+attachment/projection helpers. The Video.js integration uses its dedicated
+bridge directly, and ArtPlayer does not call them yet.
 
 The rollout symbols are:
 
-| Symbol                               |       Default | Current effect                                                                                                       |
-| ------------------------------------ | ------------: | -------------------------------------------------------------------------------------------------------------------- |
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Keeps existing web-player skins active in normal runtime builds.                                                     |
-| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view consumed by the HTML5 host to switch atomically between native and shared controls. |
+| Symbol                               |       Default | Current effect                                                                                                                   |
+| ------------------------------------ | ------------: | -------------------------------------------------------------------------------------------------------------------------------- |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Keeps existing web-player skins active in normal runtime builds.                                                                 |
+| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view consumed by HTML5 and Video.js to switch atomically between their existing and shared controls. |
+
+With the token enabled, Video.js also disables native controls, Video.js
+single-click and double-click actions, Video.js hotkeys, and spatial navigation.
+This leaves surface clicks, double-click fullscreen, and playback shortcuts
+owned exclusively by `app-player-controls`. With the token disabled, existing
+Video.js options, plugins, skin, audio-track menu, and series navigation remain
+unchanged.
 
 ## Embedded MPV rendering constraints
 
@@ -367,9 +414,8 @@ renderer, bounds, and platform details.
 
 The remaining design seams are:
 
-1. **Video.js and ArtPlayer** — add engine-specific adapters/bridges, consume
-   the rollout token, and remove each engine skin only when shared controls are
-   active.
+1. **ArtPlayer** — add an engine-specific adapter/bridge, consume the rollout
+   token, and remove its skin only when shared controls are active.
 2. **Native-view UI** — retain the compositor-safe dock unless the native
    engine's compositing architecture changes independently. A native-view
    migration is not part of the frame-copy rollout.
@@ -439,5 +485,34 @@ libs/ui/playback/src/lib/html-video-player/
 because HLS/native track identity, caption preference, and cleanup are tied to
 one active source. `HtmlVideoElementSession` separately owns native video-event
 attachment, persisted volume, start-time/time/ended propagation, and the
-flag-off post-play caption behavior. Video.js/ArtPlayer skin removal and
-persistent/background player ownership have not landed.
+flag-off post-play caption behavior.
+
+The guarded Video.js integration lives in:
+
+```text
+libs/ui/playback/src/lib/vjs-player/
+├── vjs-audio-tracks.ts
+├── vjs-mpegts-session.ts
+├── vjs-player-controls.bridge.ts
+├── vjs-player-reset-coordinator.ts
+├── vjs-player-setup.ts
+├── vjs-player.component.ts
+├── vjs-player.component.html
+├── vjs-text-tracks.ts
+└── vjs-video-element-session.ts
+```
+
+`VjsPlayerComponent` provides a component-scoped `WebVideoControlsAdapter`.
+Its bridge and track helpers own current-Tech attachment, source-lifetime track
+identity, caption preference/override projection, and exact listener cleanup.
+`VjsMpegTsSession` owns raw MPEG-TS attachment and VOD duration correction,
+`VjsPlayerResetCoordinator` owns pause/coalesced-reset ordering and volume
+preservation, while `VjsVideoElementSession` owns native Tech-element
+playback/ended events.
+
+Focused specs cover the Video.js flag-off compatibility path, shared-controls
+rendering and interaction gating, Tech replacement, track-list lifecycle and
+stable IDs, subtitle preference/explicit-off behavior, pause/coalesced-reset
+ordering and volume preservation for MPEG-TS, duration projection, and
+collaborator teardown. ArtPlayer skin removal and persistent/background player
+ownership have not landed.
