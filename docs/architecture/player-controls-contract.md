@@ -7,8 +7,7 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
-The shared-controls foundation from PR #1148 now has its first runtime
-consumer:
+The shared-controls foundation from PR #1148 now has two runtime consumers:
 
 - the `PlayerController` contract, default state, and capability presets;
 - the standalone `app-player-controls` presentation component and its
@@ -17,7 +16,8 @@ consumer:
 - a default-off web rollout token;
 - the component-scoped `EmbeddedMpvControlsAdapter`;
 - an `EmbeddedMpvPlayerComponent` host integration for the frame-copy engine;
-  and
+- a feature-flagged `HtmlVideoPlayerComponent` integration backed by
+  `WebVideoControlsAdapter` and a player-local engine bridge; and
 - focused unit/component tests.
 
 When Embedded MPV reports `engine: 'frame-copy'`, the component mounts
@@ -26,10 +26,17 @@ When Embedded MPV reports `engine: 'frame-copy'`, the component mounts
 component keeps the existing compositor-safe controls dock. Exactly one of
 those control systems is active at a time.
 
-Video.js, html5+hls.js, and ArtPlayer do not consume the shared layer yet. Their
-existing skins remain active, and `WEB_PLAYER_SHARED_CONTROLS_ENABLED` remains
-default-off with no runtime web host consuming it. Changing that token alone
-does not switch any web player UI.
+When `WEB_PLAYER_SHARED_CONTROLS` is enabled, the built-in HTML5 player mounts
+the same presentation component over its real player shell and disables the
+native video controls. Its local bridge supplies HLS/native tracks, corrected
+MPEG-TS VOD duration, and authoritative live/VOD metadata to the generic web
+adapter. When the flag is disabled, the native controls and legacy series
+navigation remain unchanged and the adapter is not attached.
+
+Video.js and ArtPlayer do not consume the shared layer yet. Their existing
+skins remain active, and `WEB_PLAYER_SHARED_CONTROLS_ENABLED` remains
+default-off, so the guarded HTML5 integration does not change normal runtime
+behavior.
 
 This rollout is intentionally engine-selective: frame-copy can use normal DOM
 layering, while the native platform view cannot. The integration also includes
@@ -75,19 +82,21 @@ contract does not make a native video surface behave like DOM content.
              ▼                                     ▼
 ┌──────────────────────────────┐     ┌──────────────────────────────┐
 │ WebVideoControlsAdapter      │     │ EmbeddedMpvControlsAdapter   │
-│ Landed, generic, not wired   │     │ Landed, component-scoped     │
-└──────────────────────────────┘     └──────────────┬───────────────┘
-                                                   │
-                                                   ▼
-                                    ┌──────────────────────────────┐
-                                    │ EmbeddedMpvPlayerComponent   │
-                                    │ frame-copy: shared controls  │
-                                    │ native-view: legacy dock     │
-                                    └──────────────────────────────┘
+│ Generic, component-scoped    │     │ Component-scoped             │
+└──────────────┬───────────────┘     └──────────────┬───────────────┘
+               │                                    │
+               ▼                                    ▼
+┌──────────────────────────────┐     ┌──────────────────────────────┐
+│ HtmlVideoPlayerComponent     │     │ EmbeddedMpvPlayerComponent   │
+│ flag on: shared controls     │     │ frame-copy: shared controls  │
+│ flag off: native controls    │     │ native-view: legacy dock     │
+└──────────────────────────────┘     └──────────────────────────────┘
 ```
 
 The embedded host selects controls from the reported engine before rendering
 them. It never mounts the shared overlay and legacy dock together.
+The HTML5 host likewise selects native or shared controls before rendering and
+never attaches the web adapter while the native path is active.
 
 ## The contract
 
@@ -160,8 +169,8 @@ size follows the fullscreen DOM surface.
 ## Shared default controls
 
 `PlayerControlsComponent` is a standalone presentation component. The
-frame-copy Embedded MPV host mounts it over its DOM canvas; future web hosts can
-mount the same component over their playback surfaces.
+frame-copy Embedded MPV host mounts it over its DOM canvas, and the guarded
+HTML5 host mounts it over `.html-video-player-shell`.
 
 It owns only transient presentation behavior:
 
@@ -218,6 +227,12 @@ a modal/backdrop overlay is active, so transport, seek, volume, and fullscreen
 actions cannot leak through it. Escape keeps the shared component's generic
 popover-dismissal behavior.
 
+The HTML5 host applies the same ownership rule while its playback diagnostic is
+visible: `WebPlayerViewComponent` passes
+`interactionEnabled = visiblePlaybackDiagnostic() === null`, and the HTML5
+component binds that value to both `showControls` and `shortcutsEnabled`.
+Retrying playback or clearing the diagnostic restores both interaction paths.
+
 Frame-copy recording transitions use the adapter's playback/session identity as
 their `transitionKey`. Session disposal, retry, channel changes, and engine
 handoff therefore clear stale recording ownership without showing a false
@@ -245,15 +260,15 @@ capability, initialization runs again for the new capability epoch. The volume
 slider intentionally remains continuous: each volume `input` applies the
 optimistic volume immediately.
 
-## Web adapter (landed, not wired)
+## Web adapter and HTML5 engine bridge
 
 `WebVideoControlsAdapter` can translate an `HTMLVideoElement` into the shared
 contract. It uses DOM/media events and accepts optional engine-specific track
 accessors through `WebVideoControlsOptions`, so the adapter itself stays usable
 in the PWA and does not import a concrete web engine.
 
-Native media events refresh the adapter automatically. A future engine host
-must call the public `refresh()` hook after engine-specific getters change
+Native media events refresh the adapter automatically. An engine host must call
+the public `refresh()` hook after engine-specific getters change
 without a corresponding media event, including track lists, corrected duration,
 or live/VOD classification. Source, readiness, progress, seeking, and playback
 events that can invalidate the snapshot are observed directly.
@@ -271,20 +286,34 @@ temporarily mislabeled as live. An attached element with no resource maps to
 `idle`, paused preload/warm-up remains playable, and only actively playing media
 with insufficient data maps to `loading`.
 
-`web-video-controls.host.ts` contains small attachment/projection helpers for a
-future host integration. No Video.js, html5+hls.js, or ArtPlayer component calls
-those helpers.
+`HtmlVideoPlayerControlsBridge` attaches the adapter to the HTML5 video element
+and delegates engine-specific work to focused HLS and native-text-track
+collaborators. HLS track IDs remain the list indices accepted by hls.js. Native
+caption/subtitle IDs remain stable for the lifetime of a source through a
+`WeakMap`, even when the browser removes or reorders tracks. Source replacement
+removes track listeners before the old HLS instance is destroyed, resets any
+per-source subtitle override, and leaves exactly one engine source bound.
+
+Live/VOD classification comes from `WebPlayerViewComponent.resolvedIsLive`:
+explicit `ResolvedPortalPlayback.isLive` wins, otherwise content metadata means
+VOD and its absence means live. The same computed value configures Video.js,
+the HTML5 bridge, and mpegts.js; media duration is never used to infer the
+classification.
+
+Raw MPEG-TS VOD can expose `video.duration === Infinity`. For that source only,
+the bridge uses the first finite positive value from `video.duration`, the last
+valid seekable end, or the last valid buffered end. Without a known duration it
+keeps the source classified as VOD while seeking remains unavailable.
+
+`web-video-controls.host.ts` still contains small generic
+attachment/projection helpers. Video.js and ArtPlayer do not call them yet.
 
 The rollout symbols are:
 
-| Symbol                               |       Default | Current effect                                                                      |
-| ------------------------------------ | ------------: | ----------------------------------------------------------------------------------- |
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Documents the intended web rollout default.                                         |
-| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view of the default. No runtime web player consumes it. |
-
-A follow-up web integration must explicitly consume the token, attach the
-adapter to the active video element, mount `app-player-controls`, and only then
-disable the engine's existing skin.
+| Symbol                               |       Default | Current effect                                                                                                       |
+| ------------------------------------ | ------------: | -------------------------------------------------------------------------------------------------------------------- |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Keeps existing web-player skins active in normal runtime builds.                                                     |
+| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view consumed by the HTML5 host to switch atomically between native and shared controls. |
 
 ## Embedded MPV rendering constraints
 
@@ -335,9 +364,9 @@ renderer, bounds, and platform details.
 
 The remaining design seams are:
 
-1. **Web hosts** — mount the component, consume the rollout token, attach
-   `WebVideoControlsAdapter`, and remove an engine skin only when the shared
-   controls are active.
+1. **Video.js and ArtPlayer** — add engine-specific adapters/bridges, consume
+   the rollout token, and remove each engine skin only when shared controls are
+   active.
 2. **Native-view UI** — retain the compositor-safe dock unless the native
    engine's compositing architecture changes independently. A native-view
    migration is not part of the frame-copy rollout.
@@ -388,5 +417,21 @@ libs/ui/playback/src/lib/embedded-mpv-player/
 ```
 
 The adapter and recording helpers are component-scoped through
-`EmbeddedMpvPlayerComponent`. Web host wiring, removal of web engine skins, and
-persistent/background player ownership have not landed.
+`EmbeddedMpvPlayerComponent`.
+
+The guarded HTML5 integration lives in:
+
+```text
+libs/ui/playback/src/lib/html-video-player/
+├── html-video-player-controls.bridge.ts
+├── html-video-player-hls-controls.ts
+├── html-video-player-native-text-tracks.ts
+├── html-video-player.component.ts
+└── html-video-player.component.html
+```
+
+`HtmlVideoPlayerComponent` provides a component-scoped
+`WebVideoControlsAdapter`. The bridge and its collaborators are player-local
+because HLS/native track identity, caption preference, and cleanup are tied to
+one active source. Video.js/ArtPlayer skin removal and persistent/background
+player ownership have not landed.
