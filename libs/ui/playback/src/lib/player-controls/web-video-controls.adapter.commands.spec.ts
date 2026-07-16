@@ -1,5 +1,10 @@
+import { signal } from '@angular/core';
 import { WebVideoControlsAdapter } from './web-video-controls.adapter';
-import { DEFAULT_PLAYER_CAPABILITIES } from './player-controls-defaults';
+import {
+    createEmptyControlsState,
+    DEFAULT_PLAYER_CAPABILITIES,
+} from './player-controls-defaults';
+import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 
 /** jsdom `<video>` with overridable readonly media props (command-path spec). */
 function createVideo(
@@ -153,21 +158,31 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         ).toBeGreaterThanOrEqual(2);
     });
 
-    it('invalidates cached state and capabilities after detach', () => {
+    it('restores the canonical empty state and preserves series context', () => {
+        const seriesNavigation = signal<SeriesPlaybackNavigation | null>({
+            canPrevious: true,
+            canNext: false,
+            autoplayEnabled: true,
+        });
+        adapter.setContext({ seriesNavigation });
+        expect(adapter.state()).toEqual(createEmptyControlsState());
+
         adapter.attach(createVideo({ duration: 120, volume: 0.4 }), {
             isLive: () => false,
         });
         expect(adapter.state().status).toBe('playing');
         expect(adapter.capabilities().seek).toBe(true);
+        expect(adapter.capabilities().seriesNavigation).toBe(true);
 
         adapter.detach();
 
-        const state = adapter.state();
-        expect(state.status).toBe('idle');
-        expect(state.volume).toBe(1);
-        expect(state.positionSeconds).toBe(0);
-        expect(state.canSeek).toBe(false);
+        expect(adapter.state()).toEqual(createEmptyControlsState());
         expect(adapter.capabilities()).toEqual(DEFAULT_PLAYER_CAPABILITIES);
+
+        adapter.attach(createVideo({ duration: 120 }), {
+            isLive: () => false,
+        });
+        expect(adapter.capabilities().seriesNavigation).toBe(true);
     });
 
     it('clears engine callbacks on detach', () => {

@@ -1,5 +1,6 @@
 import { Injectable, type Signal, computed, signal } from '@angular/core';
 import {
+    createEmptyControlsState,
     DEFAULT_ASPECT_PRESETS,
     DEFAULT_PLAYER_CAPABILITIES,
     DEFAULT_SPEED_PRESETS,
@@ -107,6 +108,10 @@ export class WebVideoControlsAdapter implements PlayerController {
     readonly state = computed<PlayerControlsState>(() => {
         this.tick();
         const video = this.video;
+        if (!video) {
+            return createEmptyControlsState();
+        }
+
         const isLive = this.isLive();
         const duration = this.normalizedDuration(isLive);
         const seriesNav = this.seriesNavigation();
