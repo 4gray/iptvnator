@@ -23,7 +23,9 @@ class FakeHls {
     audioTracks: FakeHlsTrack[] = [];
     subtitleTracks: FakeHlsTrack[] = [];
     readonly assignments: string[] = [];
+    subtitleTrackSwitchEvents = 0;
     private readonly listeners = new Map<string, Set<FakeHlsListener>>();
+    private emitSubtitleTrackSwitchOnAssignment = false;
     private selectedAudioTrack = -1;
     private selectedSubtitleTrack = -1;
     private displaySubtitles = false;
@@ -55,6 +57,13 @@ class FakeHls {
     set subtitleTrack(value: number) {
         this.assignments.push(`subtitleTrack:${value}`);
         this.selectedSubtitleTrack = value;
+        if (this.emitSubtitleTrackSwitchOnAssignment) {
+            this.subtitleTrackSwitchEvents += 1;
+            if (this.subtitleTrackSwitchEvents > 10) {
+                throw new Error('recursive HLS subtitle track assignment');
+            }
+            this.emit(Hls.Events.SUBTITLE_TRACK_SWITCH);
+        }
     }
 
     get subtitleDisplay(): boolean {
@@ -70,6 +79,11 @@ class FakeHls {
         for (const listener of this.listeners.get(event) ?? []) {
             listener(event, {});
         }
+    }
+
+    enableSynchronousSubtitleTrackSwitch(): void {
+        this.subtitleTrackSwitchEvents = 0;
+        this.emitSubtitleTrackSwitchOnAssignment = true;
     }
 
     asHls(): Hls {
@@ -748,6 +762,71 @@ describe('HtmlVideoPlayerControlsBridge HLS caption preference', () => {
 
         expect(secondHls.subtitleTrack).toBe(0);
         expect(secondHls.subtitleDisplay).toBe(true);
+        bridge.destroy();
+    });
+});
+
+describe('HtmlVideoPlayerControlsBridge HLS subtitle event reentry', () => {
+    it('settles explicit valid selection after one synchronous switch event', () => {
+        const hls = new FakeHls();
+        hls.subtitleTracks = [{ name: 'English' }, { name: 'German' }];
+        const { adapter, bridge } = bindHls(hls);
+        hls.assignments.length = 0;
+        hls.enableSynchronousSubtitleTrackSwitch();
+
+        expect(() => adapter.commands.setSubtitleTrack(1)).not.toThrow();
+
+        expect(hls.assignments).toEqual([
+            'subtitleDisplay:true',
+            'subtitleTrack:1',
+        ]);
+        expect(hls.subtitleTrackSwitchEvents).toBe(1);
+        expect(hls.subtitleDisplay).toBe(true);
+        expect(hls.subtitleTrack).toBe(1);
+        bridge.destroy();
+    });
+
+    it('settles explicit off after one synchronous switch event', () => {
+        const hls = new FakeHls();
+        hls.subtitleTracks = [{ name: 'English' }];
+        hls.subtitleTrack = 0;
+        hls.subtitleDisplay = true;
+        const { adapter, bridge } = bindHls(hls);
+        hls.assignments.length = 0;
+        hls.enableSynchronousSubtitleTrackSwitch();
+
+        expect(() => adapter.commands.setSubtitleTrack(-1)).not.toThrow();
+
+        expect(hls.assignments).toEqual([
+            'subtitleTrack:-1',
+            'subtitleDisplay:false',
+        ]);
+        expect(hls.subtitleTrackSwitchEvents).toBe(1);
+        expect(hls.subtitleTrack).toBe(-1);
+        expect(hls.subtitleDisplay).toBe(false);
+        bridge.destroy();
+    });
+
+    it('restores retained preference after one synchronous switch event', () => {
+        const hls = new FakeHls();
+        hls.subtitleTracks = [{ name: 'English' }, { name: 'German' }];
+        hls.subtitleTrack = 1;
+        hls.subtitleDisplay = true;
+        const { bridge, captionPreference } = bindHls(hls, false);
+        hls.subtitleTrack = -1;
+        captionPreference.value = true;
+        hls.assignments.length = 0;
+        hls.enableSynchronousSubtitleTrackSwitch();
+
+        expect(() => bridge.refreshInputs()).not.toThrow();
+
+        expect(hls.assignments).toEqual([
+            'subtitleDisplay:true',
+            'subtitleTrack:1',
+        ]);
+        expect(hls.subtitleTrackSwitchEvents).toBe(1);
+        expect(hls.subtitleDisplay).toBe(true);
+        expect(hls.subtitleTrack).toBe(1);
         bridge.destroy();
     });
 });

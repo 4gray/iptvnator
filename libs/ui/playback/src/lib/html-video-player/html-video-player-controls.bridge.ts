@@ -178,8 +178,8 @@ export class HtmlVideoPlayerControlsBridge {
             if (id === -1) {
                 this.subtitleOverride = -1;
                 this.suppressedHlsSubtitleTrack = null;
-                hls.subtitleTrack = -1;
-                hls.subtitleDisplay = false;
+                this.setHlsSubtitleTrack(hls, -1);
+                this.setHlsSubtitleDisplay(hls, false);
                 return;
             }
             if (id < 0 || id >= hls.subtitleTracks.length) {
@@ -188,8 +188,8 @@ export class HtmlVideoPlayerControlsBridge {
 
             this.subtitleOverride = id;
             this.suppressedHlsSubtitleTrack = null;
-            hls.subtitleDisplay = true;
-            hls.subtitleTrack = id;
+            this.setHlsSubtitleDisplay(hls, true);
+            this.setHlsSubtitleTrack(hls, id);
             return;
         }
 
@@ -319,15 +319,15 @@ export class HtmlVideoPlayerControlsBridge {
         const hls = this.source.hls;
         if (this.subtitleOverride !== null) {
             if (this.subtitleOverride === -1) {
-                hls.subtitleTrack = -1;
-                hls.subtitleDisplay = false;
+                this.setHlsSubtitleTrack(hls, -1);
+                this.setHlsSubtitleDisplay(hls, false);
                 return;
             }
             if (this.subtitleOverride < hls.subtitleTracks.length) {
-                hls.subtitleDisplay = true;
-                hls.subtitleTrack = this.subtitleOverride;
+                this.setHlsSubtitleDisplay(hls, true);
+                this.setHlsSubtitleTrack(hls, this.subtitleOverride);
             } else {
-                hls.subtitleDisplay = false;
+                this.setHlsSubtitleDisplay(hls, false);
             }
             return;
         }
@@ -341,7 +341,7 @@ export class HtmlVideoPlayerControlsBridge {
                 ) {
                     this.suppressedHlsSubtitleTrack = hls.subtitleTrack;
                 }
-                hls.subtitleDisplay = false;
+                this.setHlsSubtitleDisplay(hls, false);
             }
             return;
         }
@@ -351,9 +351,21 @@ export class HtmlVideoPlayerControlsBridge {
             suppressedTrack !== null &&
             suppressedTrack < hls.subtitleTracks.length
         ) {
-            hls.subtitleDisplay = true;
-            hls.subtitleTrack = suppressedTrack;
             this.suppressedHlsSubtitleTrack = null;
+            this.setHlsSubtitleDisplay(hls, true);
+            this.setHlsSubtitleTrack(hls, suppressedTrack);
+        }
+    }
+
+    private setHlsSubtitleTrack(hls: Hls, id: number): void {
+        if (hls.subtitleTrack !== id) {
+            hls.subtitleTrack = id;
+        }
+    }
+
+    private setHlsSubtitleDisplay(hls: Hls, display: boolean): void {
+        if (hls.subtitleDisplay !== display) {
+            hls.subtitleDisplay = display;
         }
     }
 
