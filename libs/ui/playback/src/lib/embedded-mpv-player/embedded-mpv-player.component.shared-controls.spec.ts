@@ -233,6 +233,17 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(component.controlsVisible()).toBe(false);
     });
 
+    it('syncs fullscreen state when shared controls attach after entering fullscreen', () => {
+        const { fixture, controller } = render('native');
+        fullscreenElement = root(fixture);
+        document.dispatchEvent(new Event('fullscreenchange'));
+
+        controller.support.set(support('frame-copy'));
+        fixture.detectChanges();
+
+        expect(sharedControls(fixture)?.isFullscreen()).toBe(true);
+    });
+
     it('never renders both control systems across engine transitions', () => {
         const { fixture, controller } = render();
         jest.useFakeTimers();
@@ -261,6 +272,23 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         ).toBeNull();
         jest.advanceTimersByTime(1000);
         expect(togglePaused).not.toHaveBeenCalled();
+    });
+
+    it('clears a native volume-close timer during a frame-copy handoff', () => {
+        jest.useFakeTimers();
+        const { fixture, component, controller } = render('native');
+        component.onVolumeHoverEnter();
+        component.onVolumeHoverLeave();
+
+        controller.support.set(support('frame-copy'));
+        fixture.detectChanges();
+        controller.support.set(support('native'));
+        fixture.detectChanges();
+        component.menus.open('volume');
+
+        jest.advanceTimersByTime(220);
+
+        expect(component.menus.volumeOpen()).toBe(true);
     });
 
     it('leaves legacy pointer and popover state untouched on frame-copy', () => {

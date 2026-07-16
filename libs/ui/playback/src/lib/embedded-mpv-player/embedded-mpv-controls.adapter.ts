@@ -70,9 +70,14 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         const playback = this.configuredContext()?.playback();
         return playback ? JSON.stringify(playback) : null;
     });
+    private readonly recordingPlaybackIdentity = computed(() =>
+        this.controller.support()?.engine === 'frame-copy'
+            ? this.playbackIdentity()
+            : null
+    );
     private readonly recordingControls = new EmbeddedMpvControlsRecording(
         this.controller,
-        () => this.playbackIdentity()
+        () => this.recordingPlaybackIdentity()
     );
     private readonly recordingActive = computed(
         () =>
@@ -211,7 +216,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         });
 
         effect(() => {
-            const playbackIdentity = this.playbackIdentity();
+            const playbackIdentity = this.recordingPlaybackIdentity();
             const sessionId = this.activeSessionId();
             untracked(() =>
                 this.recordingControls.syncOwner(playbackIdentity, sessionId)
@@ -220,7 +225,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
         effect(() => {
             const session = this.controller.session();
-            const playbackIdentity = this.playbackIdentity();
+            const playbackIdentity = this.recordingPlaybackIdentity();
             untracked(() =>
                 this.recordingControls.reconcile(session, playbackIdentity)
             );
@@ -309,7 +314,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         const context = this.configuredContext();
         const support = this.controller.support();
         const session = this.controller.session();
-        const playbackIdentity = this.playbackIdentity();
+        const playbackIdentity = this.recordingPlaybackIdentity();
         if (
             !context ||
             !session ||

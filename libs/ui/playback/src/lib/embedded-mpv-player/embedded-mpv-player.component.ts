@@ -492,6 +492,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             }
             untracked(() => {
                 this.clearControlsHideTimer();
+                this.clearVolumeCloseTimer();
                 this.clearViewportClickTimer();
                 this.menus.closeAll();
             });
@@ -515,13 +516,17 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 this.onDocumentPointerMove
             );
         }
-        if (this.volumeCloseTimer !== null) {
-            clearTimeout(this.volumeCloseTimer);
-            this.volumeCloseTimer = null;
-        }
+        this.clearVolumeCloseTimer();
         this.clearRecordingMessageTimer();
         this.clearControlsHideTimer();
         this.clearViewportClickTimer();
+    }
+
+    private clearVolumeCloseTimer(): void {
+        if (this.volumeCloseTimer !== null) {
+            window.clearTimeout(this.volumeCloseTimer);
+            this.volumeCloseTimer = null;
+        }
     }
 
     private clearViewportClickTimer(): void {
@@ -651,17 +656,12 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     onVolumeHoverEnter(): void {
-        if (this.volumeCloseTimer !== null) {
-            clearTimeout(this.volumeCloseTimer);
-            this.volumeCloseTimer = null;
-        }
+        this.clearVolumeCloseTimer();
         this.menus.open('volume');
     }
 
     onVolumeHoverLeave(): void {
-        if (this.volumeCloseTimer !== null) {
-            clearTimeout(this.volumeCloseTimer);
-        }
+        this.clearVolumeCloseTimer();
         this.volumeCloseTimer = window.setTimeout(() => {
             this.menus.close('volume');
             this.volumeCloseTimer = null;
