@@ -24,7 +24,6 @@ export class VjsPlayerResetCoordinator {
         }
         this.requested = true;
 
-        this.captureVolume();
         try {
             this.config.player().pause();
         } catch {
@@ -99,6 +98,7 @@ export class VjsPlayerResetCoordinator {
             return;
         }
 
+        this.captureVolume();
         this.requested = false;
         this.inFlight = true;
         try {

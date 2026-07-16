@@ -80,7 +80,10 @@ export class VjsMpegTsSession {
         }
         engine.on(mpegts.Events.ERROR, this.errorListener);
         engine.load();
-        void engine.play();
+        const playResult = engine.play();
+        if (playResult) {
+            void playResult.catch(() => undefined);
+        }
     }
 
     syncDuration(): void {

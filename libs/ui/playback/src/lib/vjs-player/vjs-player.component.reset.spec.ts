@@ -32,6 +32,7 @@ describe('VjsPlayerComponent reset lifecycle', () => {
     });
 
     beforeEach(async () => {
+        localStorage.removeItem('volume');
         playerHarness = createVideoJsPlayerHarness();
         videoJsMock
             .mockReset()
@@ -150,6 +151,34 @@ describe('VjsPlayerComponent reset lifecycle', () => {
         expect(playerHarness.reset).toHaveBeenCalledTimes(1);
     });
 
+    it('restores a volume input that changes while reset waits for pause', () => {
+        localStorage.setItem('volume', '0.3');
+        fixture.componentRef.setInput('options', {
+            sources: [{ src: 'https://example.test/movie.mp4' }],
+        });
+        fixture.componentRef.setInput('volume', 0.3);
+        fixture.detectChanges();
+        playerHarness.ready();
+        playerHarness.paused = false;
+        playerHarness.pauseCompletesImmediately = false;
+
+        fixture.componentRef.setInput('options', { sources: [] });
+        fixture.detectChanges();
+        fixture.componentRef.setInput('volume', 0.8);
+        fixture.detectChanges();
+        playerHarness.emit('volumechange');
+
+        playerHarness.paused = true;
+        playerHarness.emit('pause');
+        playerHarness.volume(1);
+        playerHarness.emit('volumechange');
+        playerHarness.currentVideo = document.createElement('video');
+        playerHarness.emit('playerreset');
+
+        expect(localStorage.getItem('volume')).toBe('0.8');
+        expect(playerHarness.volume).toHaveBeenLastCalledWith(0.8);
+    });
+
     it('restores the latest normal source after an already-started reset', () => {
         fixture.componentRef.setInput('options', {
             sources: [{ src: 'https://example.test/movie.mp4' }],
@@ -259,6 +288,7 @@ describe('VjsPlayerComponent reset lifecycle', () => {
 
 function createVideoJsPlayerHarness() {
     const listeners = new Map<string, Set<() => void>>();
+    let volume = 0.5;
     const harness = {
         currentVideo: document.createElement('video'),
         paused: true,
@@ -272,6 +302,12 @@ function createVideoJsPlayerHarness() {
         }),
         reset: jest.fn(),
         src: jest.fn(),
+        volume: jest.fn((value?: number) => {
+            if (value !== undefined) {
+                volume = value;
+            }
+            return volume;
+        }),
         emit(event: string) {
             for (const listener of listeners.get(event) ?? []) {
                 listener();
@@ -300,7 +336,7 @@ function createVideoJsPlayerHarness() {
         reset: harness.reset,
         src: harness.src,
         tech: jest.fn(() => ({ el: () => harness.currentVideo })),
-        volume: jest.fn(() => 0.5),
+        volume: harness.volume,
         dispose: jest.fn(),
         qualitySelectorHls: jest.fn(),
         aspectRatioPanel: jest.fn(),

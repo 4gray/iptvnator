@@ -64,6 +64,24 @@ describe('VjsMpegTsSession', () => {
         expect(mpegTsPlayer.play).toHaveBeenCalledTimes(1);
     });
 
+    it('handles an asynchronous autoplay rejection', () => {
+        const catchRejection = jest.fn();
+        const mpegTsPlayer = createMpegTsPlayer();
+        mpegTsPlayer.play.mockReturnValue({
+            catch: catchRejection,
+        } as unknown as Promise<void>);
+        createPlayerMock.mockReturnValue(mpegTsPlayer);
+        const video = document.createElement('video');
+        const { session } = createSession();
+
+        session.start('https://example.test/live/stream.ts', video);
+
+        expect(catchRejection).toHaveBeenCalledWith(expect.any(Function));
+        expect(
+            catchRejection.mock.calls[0][0](new Error('autoplay blocked'))
+        ).toBeUndefined();
+    });
+
     it('normalizes VOD duration from seekable and then buffered ranges', async () => {
         const mpegTsPlayer = createMpegTsPlayer();
         createPlayerMock.mockReturnValue(mpegTsPlayer);

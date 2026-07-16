@@ -21,6 +21,18 @@ describe('VjsPlayerResetCoordinator', () => {
         expect(harness.reset).toHaveBeenCalledTimes(1);
     });
 
+    it('captures the latest engine volume after an asynchronous pause', () => {
+        const harness = createHarness(false, 0.3);
+        const coordinator = createCoordinator(harness);
+
+        coordinator.requestReset();
+        harness.player.volume(0.8);
+        harness.paused = true;
+        coordinator.handlePause();
+
+        expect(coordinator.handlePlayerReset()).toBe(0.8);
+    });
+
     it('snapshots actual engine volume and suppresses reset-generated changes', () => {
         const harness = createHarness(true, 0.3);
         const coordinator = createCoordinator(harness, 0.8);
