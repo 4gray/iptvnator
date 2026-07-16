@@ -311,7 +311,10 @@ adapter therefore treats snapshots as observations rather than acknowledgments
 by themselves: it accepts only fresh same-session transitions, permits only one
 pending toggle, waits for command settlement and the expected state, preserves
 addon error text, and cancels pending state/feedback when playback, session, or
-engine ownership changes.
+engine ownership changes. Command replies are reconciled by snapshot freshness:
+a same-session broadcast that arrived while IPC was pending wins over an older
+or same-timestamp reply, so a latched recording acknowledgement cannot be rolled
+back to the command's stale baseline.
 
 ### Native-view engine
 

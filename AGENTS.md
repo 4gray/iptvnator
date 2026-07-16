@@ -144,7 +144,9 @@ Key files:
   surface, modal overlays gate playback shortcuts, fullscreen still triggers
   bounds sync, and a playback/session transition key prevents engine or session
   handoff from presenting stale recording feedback while timers and pending
-  commands are cancelled.
+  commands are cancelled. Same-session IPC replies also yield to a broadcast
+  snapshot received while the command was pending, preventing a successful
+  recording acknowledgement from being rolled back by a stale reply.
 - HTML5/hls.js, Video.js, and ArtPlayer are not wired yet. Their existing skins
   remain active and the web rollout token remains default-off.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
