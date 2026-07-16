@@ -3,7 +3,7 @@ import { signal } from '@angular/core';
 export const HIDE_CONTROLS_DELAY_MS = 2500;
 
 export interface RevealOptions {
-    /** When false, only reveals without (re)scheduling the auto-hide. */
+    /** When false, reveals and clears any pending auto-hide without rescheduling. */
     scheduleHide?: boolean;
 }
 
@@ -26,8 +26,8 @@ export class ControlsVisibility {
     reveal(options: RevealOptions = {}): void {
         const scheduleHide = options.scheduleHide ?? true;
         this.visible.set(true);
+        this.clear();
         if (scheduleHide) {
-            this.clear();
             this.scheduleHide();
         }
     }

@@ -35,6 +35,26 @@ describe('ControlsVisibility', () => {
         expect(visibility.visible()).toBe(true);
     });
 
+    it('starts a full hide delay after leaving a pinned state', () => {
+        let canHide = true;
+        const visibility = new ControlsVisibility(() => canHide, 1000);
+
+        visibility.reveal();
+        jest.advanceTimersByTime(400);
+
+        canHide = false;
+        visibility.reveal({ scheduleHide: false });
+        jest.advanceTimersByTime(100);
+
+        canHide = true;
+        visibility.scheduleHide();
+        jest.advanceTimersByTime(999);
+        expect(visibility.visible()).toBe(true);
+
+        jest.advanceTimersByTime(1);
+        expect(visibility.visible()).toBe(false);
+    });
+
     it('clears a pending hide timer on dispose', () => {
         const visibility = new ControlsVisibility(() => true, 1000);
 

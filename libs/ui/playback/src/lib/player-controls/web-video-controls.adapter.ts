@@ -49,6 +49,8 @@ const VIDEO_EVENTS = [
     'volumechange',
     'ratechange',
     'loadedmetadata',
+    'loadeddata',
+    'canplay',
     'ended',
     'waiting',
     'playing',
