@@ -310,7 +310,7 @@ The Angular side of the embedded MPV player is intentionally split so the player
 - `embedded-mpv-session-factory.ts` — side-effect-free loading/error placeholder factories plus `waitForStartupPaint`.
 - `embedded-mpv-stalled-tracker.ts` — owns the 30-second loading timer and `stalled` signal.
 - `embedded-mpv-session-controller.ts` — component-scoped lifecycle coordinator. It exposes `support`, `session`, `sessionId`, `stalled`, and `retryToken`; subscribes to native updates; coordinates prepare/create/load/dispose, frame-copy attachment, and bounds sync; and delegates commands, placeholders, and stalled timing.
-- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and three `effect()`s.
+- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and effects for session lifecycle, overlay/menu-driven bounds sync, session fan-out, playback-ended emission, and recording elapsed-time ticks.
 
 ### Bounds compositing strategy
 
@@ -344,7 +344,7 @@ When adding a new effect, audit it the same way: list every tracked signal read 
 Renderer command IPC in `EmbeddedMpvCommandRunner` uses the canonical `sessionId()` signal as the gate, **not** `session()?.id`. The session payload during the loading window carries a placeholder id (`embedded-mpv-starting`) set by `createLoadingSession()`; pushing that placeholder to the addon would hit `getSessionOrThrow` for a session that does not exist. The native side throws `Napi::Error` rather than `std::runtime_error` so that misuse surfaces as a JS exception rather than a process abort, but the renderer should still gate properly so the addon never sees the placeholder.
 
 - **Playback-load teardown.** If teardown happens while `loadEmbeddedMpvPlayback` is in flight, the asynchronous startup task exits immediately after the load resolves, before frame attachment or bounds scheduling. The teardown path owns disposal of that session.
-- **Command identity.** Renderer commands capture the canonical `sessionId` before starting IPC.
+- **Command identity.** Renderer commands capture the canonical `sessionId` before starting IPC. Default recording-folder resolution is asynchronous preflight before the recording-command IPC. The runner revalidates the captured id immediately after that preflight and skips IPC when it no longer matches, preventing a late recording command from being issued against the superseded session.
 - **Reply reconciliation.** `EmbeddedMpvCommandRunner` applies a returned snapshot only when both the current canonical `sessionId` and the returned snapshot id match the captured command session id. Late or mismatched replies are ignored. Its `guardIpc` helper contains addon-side errors, and the next broadcast session update resynchronizes state.
 - **Frame-attachment teardown.** If teardown happens during asynchronous frame attachment, the asynchronous startup task exits immediately after the attachment await, before bounds scheduling. The preload detach/attachment epochs abort pending frame setup, so the teardown's detach is not followed by a second late global detach.
 
