@@ -68,8 +68,13 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
 
     private readonly configuredContext =
         signal<EmbeddedMpvControlsContext | null>(null);
+    private readonly playbackIdentity = computed(() => {
+        const playback = this.configuredContext()?.playback();
+        return playback ? JSON.stringify(playback) : null;
+    });
     private readonly recordingControls = new EmbeddedMpvControlsRecording(
-        this.controller
+        this.controller,
+        () => this.playbackIdentity()
     );
     private readonly recordingActive = computed(
         () => this.controller.session()?.recording?.active === true
@@ -77,10 +82,6 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     private readonly activeSessionId = computed(
         () => this.controller.session()?.id ?? null
     );
-    private readonly playbackIdentity = computed(() => {
-        const playback = this.configuredContext()?.playback();
-        return playback ? JSON.stringify(playback) : null;
-    });
     private readonly recordingTick = signal(Date.now());
 
     readonly capabilities = computed<PlayerControlsCapabilities>(() => {

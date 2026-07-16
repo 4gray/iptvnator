@@ -53,7 +53,7 @@ interface PendingRecordingOperation {
     readonly expectedActive: boolean;
     readonly initialError: string | null;
     readonly targetPath: string | null;
-    commandSnapshotIdentity: string | null;
+    readonly baselineSnapshotIdentity: string | null;
     commandSettled: boolean;
     sawErrorClear: boolean;
 }
@@ -76,7 +76,10 @@ export class EmbeddedMpvControlsRecording {
     private ownerIdentity: string | null | undefined;
     private destroyed = false;
 
-    constructor(private readonly controller: EmbeddedMpvSessionController) {}
+    constructor(
+        private readonly controller: EmbeddedMpvSessionController,
+        private readonly currentPlaybackIdentity: () => string | null
+    ) {}
 
     toggle(context: RecordingToggleContext): void {
         if (this.destroyed || this.pending) {
@@ -97,7 +100,9 @@ export class EmbeddedMpvControlsRecording {
             expectedActive: kind === RECORDING_OPERATION.START,
             initialError,
             targetPath: recording?.targetPath ?? null,
-            commandSnapshotIdentity: null,
+            baselineSnapshotIdentity: this.recordingSnapshotIdentity(
+                context.session
+            ),
             commandSettled: false,
             sawErrorClear: initialError === null,
         };
@@ -139,7 +144,7 @@ export class EmbeddedMpvControlsRecording {
         if (
             !pending.commandSettled ||
             this.recordingSnapshotIdentity(session) ===
-                pending.commandSnapshotIdentity
+                pending.baselineSnapshotIdentity
         ) {
             return;
         }
@@ -246,8 +251,9 @@ export class EmbeddedMpvControlsRecording {
             return;
         }
         pending.commandSettled = true;
-        pending.commandSnapshotIdentity = this.recordingSnapshotIdentity(
-            this.controller.session()
+        this.reconcile(
+            this.controller.session(),
+            this.currentPlaybackIdentity()
         );
     }
 

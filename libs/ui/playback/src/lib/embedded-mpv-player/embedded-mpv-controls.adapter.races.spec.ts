@@ -174,7 +174,6 @@ describe('EmbeddedMpvControlsAdapter recording acknowledgement races', () => {
         controller.startRecording.mockImplementation(async () => {
             const staleRecording = {
                 active: false,
-                error: 'stale error',
             };
             controller.session.set(session({ recording: staleRecording }));
             return staleRecording;
@@ -247,20 +246,15 @@ describe('EmbeddedMpvControlsAdapter recording acknowledgement races', () => {
         expect(adapter.state().recording.message).toBeNull();
     });
 
-    it('uses a later same-session recording error as raw failure feedback', async () => {
+    it('uses a same-session recording error present at command settlement', async () => {
         const addonError = '  Addon rejected stream-record  ';
+        controller.startRecording.mockImplementation(async () => {
+            const failedRecording = { active: false, error: addonError };
+            controller.session.set(session({ recording: failedRecording }));
+            return failedRecording;
+        });
         adapter.commands.toggleRecording();
         await flushPromises();
-        expect(adapter.state().recording.message).toBeNull();
-        controller.session.set(
-            session({
-                recording: {
-                    active: false,
-                    error: addonError,
-                },
-            })
-        );
-        TestBed.tick();
 
         expect(adapter.state().recording.message).toBe(addonError);
         translate.setTranslation('en', translations('Updated '));
