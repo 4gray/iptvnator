@@ -197,7 +197,9 @@ it to the HTML5 player. The HTML5 shared-controls instance binds both
 `showControls` and `shortcutsEnabled` to that input. This hides the bar,
 detaches click/double-click ownership, and disables shortcuts while the
 diagnostic banner is active. Retrying or clearing the diagnostic re-enables
-interactions.
+interactions. Because the diagnostic banner is outside the HTML5 fullscreen
+shell, disabling interactions also exits fullscreen when that shell is the
+current fullscreen owner; unrelated fullscreen elements are not affected.
 
 ## Error handling and cleanup
 
@@ -231,6 +233,7 @@ interactions.
 - flag off: native skin and legacy series controls, no adapter attachment;
 - the player shell is the interaction/fullscreen surface;
 - the interaction input gates both shared-controls inputs;
+- a diagnostic exits only the HTML5 player's own fullscreen shell;
 - series-navigation context remains reactive;
 - mpegts.js receives authoritative live/VOD metadata; and
 - source replacement does not retain old HLS tracks/listeners.

@@ -79,6 +79,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         signal<SeriesPlaybackNavigation | null>(null);
 
     /** Video player DOM element */
+    @ViewChild('playerRoot', { static: true })
+    playerRoot!: ElementRef<HTMLElement>;
+
     @ViewChild('videoPlayer', { static: true })
     videoPlayer!: ElementRef<HTMLVideoElement>;
 
@@ -192,6 +195,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (changes['isLive'] || changes['showCaptions']) {
             this.controlsBridge?.refreshInputs();
         }
+        if (changes['interactionEnabled']?.currentValue === false) {
+            this.exitOwnedFullscreen();
+        }
         if (changes['volume']?.currentValue !== undefined) {
             debugHtmlPlayer(
                 'Setting HTML5 player volume to:',
@@ -199,6 +205,29 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             );
             this.videoPlayer.nativeElement.volume =
                 changes['volume'].currentValue;
+        }
+    }
+
+    private exitOwnedFullscreen(): void {
+        if (
+            !this.sharedControls ||
+            document.fullscreenElement !== this.playerRoot?.nativeElement ||
+            typeof document.exitFullscreen !== 'function'
+        ) {
+            return;
+        }
+
+        try {
+            void Promise.resolve(document.exitFullscreen()).catch(
+                (error: unknown) => {
+                    debugHtmlPlayer(
+                        'Failed to exit HTML5 player fullscreen:',
+                        error
+                    );
+                }
+            );
+        } catch (error: unknown) {
+            debugHtmlPlayer('Failed to exit HTML5 player fullscreen:', error);
         }
     }
 

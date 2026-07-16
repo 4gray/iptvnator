@@ -231,7 +231,10 @@ The HTML5 host applies the same ownership rule while its playback diagnostic is
 visible: `WebPlayerViewComponent` passes
 `interactionEnabled = visiblePlaybackDiagnostic() === null`, and the HTML5
 component binds that value to both `showControls` and `shortcutsEnabled`.
-Retrying playback or clearing the diagnostic restores both interaction paths.
+If that shell owns DOM fullscreen, the host exits fullscreen before hiding the
+controls so the sibling diagnostic banner and its retry/fallback actions remain
+visible; fullscreen owned by another element is left untouched. Retrying
+playback or clearing the diagnostic restores both interaction paths.
 
 Frame-copy recording transitions use the adapter's playback/session identity as
 their `transitionKey`. Session disposal, retry, channel changes, and engine

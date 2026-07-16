@@ -463,7 +463,9 @@ expect(htmlPlayer.interactionEnabled()).toBe(false);
 
 Call `retryPlayback()` and assert it becomes true. Also call
 `handlePlaybackIssue(null)` after a new issue and assert interactions are
-re-enabled.
+re-enabled. When the HTML5 player shell owns DOM fullscreen, assert the
+diagnostic transition exits that shell; an unrelated fullscreen element must
+remain untouched.
 
 - [x] **Step 3: Verify web-player-view tests fail**
 
@@ -592,7 +594,7 @@ Record that:
 
 Recorded on 2026-07-16:
 
-- `ui-playback`: 51 suites and 491 tests passed;
+- `ui-playback`: 51 suites and 492 tests passed;
 - `ui-playback` lint, repository web/backend typecheck, i18n drift check,
   Prettier, and `git diff --check` passed;
 - no E2E suite was added because the compile-time rollout flag remains
@@ -600,7 +602,7 @@ Recorded on 2026-07-16:
 - visual/manual playback verification remains a prerequisite for changing the
   rollout default, not for merging this guarded consumer.
 
-- [ ] **Step 5: Commit docs and final validation fixes**
+- [x] **Step 5: Commit docs and final validation fixes**
 
 ```bash
 git add \
@@ -611,7 +613,7 @@ git add \
 git commit -m "docs(player-controls): describe HTML5 shared-controls bridge"
 ```
 
-- [ ] **Step 6: Review the complete branch**
+- [x] **Step 6: Review the complete branch**
 
 Run a spec-compliance review followed by a code-quality review against
 `origin/master...HEAD`. Resolve every important finding, rerun affected tests,

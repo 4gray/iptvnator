@@ -106,6 +106,56 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
         expect(controls?.shortcutsEnabled()).toBe(true);
     });
 
+    it('exits only its own fullscreen shell when interactions become unavailable', () => {
+        const { fixture } = renderSharedControls(
+            HtmlVideoPlayerComponent,
+            fixtures
+        );
+        const shell = fixture.debugElement.query(
+            By.css('.html-video-player-shell')
+        ).nativeElement as HTMLElement;
+        const unrelatedSurface = document.createElement('div');
+        const fullscreenElementDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'fullscreenElement'
+        );
+        const exitFullscreenDescriptor = Object.getOwnPropertyDescriptor(
+            document,
+            'exitFullscreen'
+        );
+        let fullscreenElement: Element | null = unrelatedSurface;
+        const exitFullscreen = jest.fn().mockResolvedValue(undefined);
+
+        Object.defineProperty(document, 'fullscreenElement', {
+            configurable: true,
+            get: () => fullscreenElement,
+        });
+        Object.defineProperty(document, 'exitFullscreen', {
+            configurable: true,
+            value: exitFullscreen,
+        });
+
+        try {
+            fixture.componentRef.setInput('interactionEnabled', false);
+            fixture.detectChanges();
+            expect(exitFullscreen).not.toHaveBeenCalled();
+
+            fixture.componentRef.setInput('interactionEnabled', true);
+            fixture.detectChanges();
+            fullscreenElement = shell;
+            fixture.componentRef.setInput('interactionEnabled', false);
+            fixture.detectChanges();
+
+            expect(exitFullscreen).toHaveBeenCalledTimes(1);
+        } finally {
+            restoreDocumentProperty(
+                'fullscreenElement',
+                fullscreenElementDescriptor
+            );
+            restoreDocumentProperty('exitFullscreen', exitFullscreenDescriptor);
+        }
+    });
+
     it('keeps series context reactive and forwards navigation outputs', () => {
         const setContext = jest.spyOn(
             WebVideoControlsAdapter.prototype,
@@ -155,3 +205,15 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
         expect(disableCaptions).not.toHaveBeenCalled();
     });
 });
+
+function restoreDocumentProperty(
+    property: 'exitFullscreen' | 'fullscreenElement',
+    descriptor: PropertyDescriptor | undefined
+): void {
+    if (descriptor) {
+        Object.defineProperty(document, property, descriptor);
+        return;
+    }
+
+    delete (document as unknown as Record<string, unknown>)[property];
+}

@@ -153,8 +153,9 @@ Key files:
   MPEG-TS VOD duration correction, caption preference, and source cleanup.
   `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
   metadata, while a visible playback diagnostic disables both shared surface
-  interaction and shortcuts. The flag-off path keeps native controls and
-  legacy series navigation unchanged.
+  interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
+  diagnostic actions remain visible. The flag-off path keeps native controls
+  and legacy series navigation unchanged.
 - Video.js and ArtPlayer are not wired yet. Their existing skins remain active,
   and the web rollout token remains default-off.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
