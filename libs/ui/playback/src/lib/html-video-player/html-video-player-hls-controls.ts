@@ -1,16 +1,6 @@
 import Hls from 'hls.js';
 import type { PlayerTrack } from '../player-controls/player-controls.model';
 
-const HLS_REFRESH_EVENTS = [
-    Hls.Events.AUDIO_TRACKS_UPDATED,
-    Hls.Events.AUDIO_TRACK_SWITCHING,
-    Hls.Events.AUDIO_TRACK_SWITCHED,
-    Hls.Events.SUBTITLE_TRACKS_UPDATED,
-    Hls.Events.SUBTITLE_TRACKS_CLEARED,
-    Hls.Events.SUBTITLE_TRACK_SWITCH,
-    Hls.Events.MANIFEST_LOADING,
-] as const;
-
 export interface HtmlVideoPlayerHlsControlsConfig {
     showCaptions: () => boolean;
     refresh: () => void;
@@ -32,7 +22,7 @@ export class HtmlVideoPlayerHlsControls {
             this.config.refresh();
         };
         this.refreshListener = refresh;
-        for (const event of HLS_REFRESH_EVENTS) {
+        for (const event of getHlsRefreshEvents()) {
             hls.on(event, refresh);
         }
         this.applyCaptionState();
@@ -40,7 +30,7 @@ export class HtmlVideoPlayerHlsControls {
 
     clear(): void {
         if (this.hls && this.refreshListener) {
-            for (const event of HLS_REFRESH_EVENTS) {
+            for (const event of getHlsRefreshEvents()) {
                 this.hls.off(event, this.refreshListener);
             }
         }
@@ -135,6 +125,8 @@ export class HtmlVideoPlayerHlsControls {
         }
 
         if (!this.config.showCaptions()) {
+            // HLS may choose its default track while display is suppressed.
+            // Explicit user-off remains owned by subtitleOverride === -1 above.
             if (
                 Number.isInteger(this.hls.subtitleTrack) &&
                 this.hls.subtitleTrack >= 0 &&
@@ -168,4 +160,16 @@ export class HtmlVideoPlayerHlsControls {
             this.hls.subtitleDisplay = display;
         }
     }
+}
+
+function getHlsRefreshEvents() {
+    return [
+        Hls.Events.AUDIO_TRACKS_UPDATED,
+        Hls.Events.AUDIO_TRACK_SWITCHING,
+        Hls.Events.AUDIO_TRACK_SWITCHED,
+        Hls.Events.SUBTITLE_TRACKS_UPDATED,
+        Hls.Events.SUBTITLE_TRACKS_CLEARED,
+        Hls.Events.SUBTITLE_TRACK_SWITCH,
+        Hls.Events.MANIFEST_LOADING,
+    ] as const;
 }
