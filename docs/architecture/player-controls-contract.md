@@ -39,8 +39,8 @@ the session, playback, engine, or component changes.
 
 ## Why this exists
 
-Each playback engine currently owns both media integration and controls UI.
-That makes behavior drift likely and makes a controls redesign depend on each
+Historically each playback engine owned both media integration and controls UI.
+That made behavior drift likely and made a controls redesign depend on each
 engine's implementation details.
 
 The shared contract separates:
@@ -291,7 +291,8 @@ first runtime consumer of `app-player-controls`, backed by a component-scoped
 `EmbeddedMpvControlsAdapter`.
 
 The shared controls receive the whole player root as their DOM surface. Turning
-`showControls` off detaches surface interaction and shortcut ownership.
+`showControls` off detaches surface interaction and playback-shortcut
+ownership; Escape remains available for generic popover dismissal.
 Backdrop-bearing overlays disable playback shortcuts. Fullscreen uses the DOM
 Fullscreen API on that root, while the Embedded MPV component continues bounds
 sync so the helper renders at the current viewport size.

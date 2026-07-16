@@ -487,10 +487,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect(() => {
-            if (!this.isFrameCopyEngine()) {
-                return;
-            }
+            const isFrameCopyEngine = this.isFrameCopyEngine();
             untracked(() => {
+                this.feedback.clear();
+                this.setRecordingMessage(null);
+                if (!isFrameCopyEngine) {
+                    return;
+                }
                 this.clearControlsHideTimer();
                 this.clearVolumeCloseTimer();
                 this.clearViewportClickTimer();

@@ -82,7 +82,7 @@
             </div>
         }
 
-        @if (feedback.current(); as feedback) {
+        @if (!isFrameCopyEngine() && feedback.current(); as feedback) {
             <div
                 class="embedded-mpv-player__feedback"
                 [attr.data-feedback-key]="feedback.key"

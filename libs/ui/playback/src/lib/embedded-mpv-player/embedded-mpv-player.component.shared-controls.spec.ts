@@ -291,6 +291,38 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
         expect(component.menus.volumeOpen()).toBe(true);
     });
 
+    it('does not render or revive legacy feedback across a frame-copy handoff', () => {
+        jest.useFakeTimers();
+        const { fixture, component, controller } = render('native');
+        component.feedback.flash('forward_10', '+10s', 5000);
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.embedded-mpv-player__feedback'))
+        ).not.toBeNull();
+
+        controller.support.set(support('frame-copy'));
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.embedded-mpv-player__feedback'))
+        ).toBeNull();
+
+        component.feedback.flash('error_outline', 'Late native failure', 5000);
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.embedded-mpv-player__feedback'))
+        ).toBeNull();
+
+        controller.support.set(support('native'));
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.query(By.css('.embedded-mpv-player__feedback'))
+        ).toBeNull();
+    });
+
     it('leaves legacy pointer and popover state untouched on frame-copy', () => {
         const { fixture, component } = render();
         component.controlsVisible.set(false);

@@ -434,9 +434,11 @@ the helper's render size.
   recording adapter is inert outside frame-copy.
 
 An engine handoff clears native controls-hide/click/volume timers and closes
-native menus when frame-copy takes ownership. It also changes the shared
-recording owner, which cancels pending operations and feedback. This prevents
-both systems from acting on the same session.
+native menus when frame-copy takes ownership. Legacy feedback is cleared on
+each engine transition and its overlay is never rendered for frame-copy, so a
+late native command completion cannot paint above shared controls. The handoff
+also changes the shared recording owner, which cancels pending operations and
+feedback. This prevents both systems from acting on the same session.
 
 Both engines keep the component's `fullscreenchange` listener because
 fullscreen changes require bounds sync. Frame-copy's shared
