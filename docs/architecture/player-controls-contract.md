@@ -140,7 +140,8 @@ It owns only transient presentation behavior:
 - `ControlsFeedback` — temporary action feedback;
 - `ControlsVisibility` — reveal and auto-hide state;
 - `ControlsFullscreen` — DOM fullscreen;
-- `ControlsVolume` — optimistic volume state reconciled from controller state;
+- `ControlsVolume` — persisted/optimistic volume state reconciled from
+  controller state;
 - `ControlsShortcuts` — document keyboard routing;
 - `ControlsSurface` — pointer/click/double-click surface interactions; and
 - `controls-view-model.ts` — derived display state.
@@ -170,7 +171,9 @@ controls instance.
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
 is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
 between controls does not restart hiding, and leaving the bar resumes the normal
-hide delay.
+hide delay. In fullscreen playback, hiding the controls also hides the pointer
+over both the controls host and the supplied player surface; revealing controls
+or destroying the component restores the surface's previous inline cursor.
 
 Open popovers are reconciled against the current capability and state snapshot.
 If controls are hidden, a capability is removed, or the corresponding track
@@ -195,8 +198,13 @@ seekable runtime state. When seek is unsupported, the slider is omitted while
 live and recording status remain visible. Volume shortcuts likewise require the
 `volume` capability.
 
-The volume slider intentionally remains continuous: each volume `input` applies
-the optimistic volume immediately.
+When a volume-capable controller first attaches, an existing `localStorage`
+volume preference is applied before the first controller snapshot can reconcile
+the optimistic value. With no saved preference, the controller snapshot remains
+authoritative. If the same controller loses and later regains the volume
+capability, initialization runs again for the new capability epoch. The volume
+slider intentionally remains continuous: each volume `input` applies the
+optimistic volume immediately.
 
 ## Web adapter (landed, not wired)
 

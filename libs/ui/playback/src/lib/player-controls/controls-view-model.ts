@@ -85,7 +85,11 @@ export function createControlsViewModel(deps: ControlsViewModelDeps) {
         );
     });
     const hideCursor = computed(
-        () => isFullscreen() && isPlaying() && !controlsAreVisible()
+        () =>
+            deps.showControls() &&
+            isFullscreen() &&
+            isPlaying() &&
+            !controlsAreVisible()
     );
 
     return {

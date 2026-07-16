@@ -23,6 +23,10 @@
     container-name: player-controls;
 }
 
+:host(.player-controls-host--cursor-hidden) {
+    cursor: none;
+}
+
 .player-controls__feedback {
     position: absolute;
     top: 50%;

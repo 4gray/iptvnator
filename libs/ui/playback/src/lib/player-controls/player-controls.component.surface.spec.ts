@@ -255,16 +255,13 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
 
         it('enters fullscreen on the surface and tracks the change event', async () => {
             await component.toggleFullscreen();
-
             expect(requestFullscreen).toHaveBeenCalledTimes(1);
             expect(component.isFullscreen()).toBe(true);
         });
 
         it('exits fullscreen when the surface is already fullscreen', async () => {
             fullscreenElement = surface;
-
             await component.toggleFullscreen();
-
             expect(exitFullscreen).toHaveBeenCalledTimes(1);
             expect(requestFullscreen).not.toHaveBeenCalled();
             expect(component.isFullscreen()).toBe(false);
@@ -276,6 +273,27 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
 
             await component.toggleFullscreen();
             expect(requestFullscreen).not.toHaveBeenCalled();
+        });
+
+        it('restores the fullscreen cursor when controls are disabled', () => {
+            jest.useFakeTimers();
+            surface.style.cursor = 'crosshair';
+            fullscreenElement = surface;
+            document.dispatchEvent(new Event('fullscreenchange'));
+            setState({ status: 'playing' });
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(component.hideCursor()).toBe(true);
+            const host = fixture.nativeElement as HTMLElement;
+            expect(
+                host.classList.contains('player-controls-host--cursor-hidden')
+            ).toBe(true);
+            expect(surface.style.cursor).toBe('none');
+            fixture.componentRef.setInput('showControls', false);
+            fixture.detectChanges();
+            expect(component.hideCursor()).toBe(false);
+            expect(surface.style.cursor).toBe('crosshair');
         });
     });
 

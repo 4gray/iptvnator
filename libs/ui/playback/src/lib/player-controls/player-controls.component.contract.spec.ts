@@ -132,6 +132,25 @@ describe('PlayerControlsComponent capability contract', () => {
         expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
     });
 
+    it('applies persisted volume before reconciling the first controller snapshot', () => {
+        localStorage.setItem('volume', '0.3');
+        const fake = createFakeController();
+        fake.capabilities.set({
+            ...DEFAULT_PLAYER_CAPABILITIES,
+            volume: true,
+        });
+        fake.state.set({
+            ...createEmptyControlsState(),
+            volume: 1,
+        });
+
+        const fixture = createControls(fake);
+
+        expect(fake.commands.setVolume).toHaveBeenCalledTimes(1);
+        expect(fake.commands.setVolume).toHaveBeenCalledWith(0.3);
+        expect(fixture.componentInstance.displayVolume()).toBe(0.3);
+    });
+
     it('requires both seek capability and seekable state for seek shortcuts', () => {
         const fake = createFakeController();
         const fixture = createControls(fake);

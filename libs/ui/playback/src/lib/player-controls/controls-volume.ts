@@ -4,6 +4,7 @@ import {
     readStoredVolume,
     volumeIcon,
 } from './controls-format.utils';
+import type { PlayerController } from './player-controls.model';
 
 const VOLUME_POPOVER_CLOSE_DELAY_MS = 220;
 
@@ -31,6 +32,11 @@ export class ControlsVolume {
 
     private mutedVolume = 0;
     private closeTimer: number | null = null;
+    private readonly initializedControllers = new WeakSet<PlayerController>();
+    private readonly pendingInitialSnapshots = new WeakMap<
+        PlayerController,
+        number
+    >();
 
     constructor(private readonly deps: ControlsVolumeDeps) {}
 
@@ -39,6 +45,51 @@ export class ControlsVolume {
         this.value.set(clamped);
         persistVolume(clamped);
         this.deps.apply(clamped);
+    }
+
+    hasInitializedController(controller: PlayerController): boolean {
+        return this.initializedControllers.has(controller);
+    }
+
+    beginCapabilityEpoch(
+        controller: PlayerController,
+        enabled: boolean
+    ): boolean {
+        if (!enabled) {
+            this.deactivateController(controller);
+            return false;
+        }
+        return !this.hasInitializedController(controller);
+    }
+
+    deactivateController(controller: PlayerController): void {
+        this.initializedControllers.delete(controller);
+        this.pendingInitialSnapshots.delete(controller);
+    }
+
+    initializeController(controller: PlayerController, snapshot: number): void {
+        if (this.initializedControllers.has(controller)) {
+            return;
+        }
+        this.initializedControllers.add(controller);
+        if (localStorage.getItem('volume') !== null) {
+            this.deps.apply(this.value());
+            this.pendingInitialSnapshots.set(controller, snapshot);
+        } else {
+            this.reconcile(snapshot);
+        }
+    }
+
+    reconcileController(controller: PlayerController, snapshot: number): void {
+        if (!this.initializedControllers.has(controller)) {
+            return;
+        }
+        if (this.pendingInitialSnapshots.get(controller) === snapshot) {
+            this.pendingInitialSnapshots.delete(controller);
+            return;
+        }
+        this.pendingInitialSnapshots.delete(controller);
+        this.reconcile(snapshot);
     }
 
     adjust(delta: number): void {

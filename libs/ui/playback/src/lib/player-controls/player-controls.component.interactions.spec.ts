@@ -181,11 +181,31 @@ describe('PlayerControlsComponent interactions', () => {
             expect(component.displayVolume()).toBe(0.95);
         });
 
+        it('reapplies persisted volume when the capability returns', () => {
+            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
+            fake.commands.setVolume.mockClear();
+
+            setCapabilities({ volume: false });
+            setState({ volume: 1 });
+            fixture.detectChanges();
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+
+            expect(fake.commands.setVolume).toHaveBeenCalledTimes(1);
+            expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
+            expect(component.displayVolume()).toBe(0.95);
+        });
+
         it('reconciles volume when the controller changes at the same value', () => {
             component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
             expect(component.displayVolume()).toBe(0.95);
+            localStorage.removeItem('volume');
 
             const replacement = createFakeController();
+            replacement.capabilities.set({
+                ...DEFAULT_PLAYER_CAPABILITIES,
+                volume: true,
+            });
             fixture.componentRef.setInput('controller', replacement.controller);
             fixture.detectChanges();
 

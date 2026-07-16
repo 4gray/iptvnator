@@ -33,7 +33,10 @@ import type { PlayerController } from './player-controls.model';
     styleUrl: './player-controls.component.scss',
     imports: [MatButtonModule, MatIconModule, MatTooltipModule, TranslatePipe],
     changeDetection: ChangeDetectionStrategy.OnPush,
-    host: { class: 'player-controls-host' },
+    host: {
+        class: 'player-controls-host',
+        '[class.player-controls-host--cursor-hidden]': 'hideCursor()',
+    },
 })
 export class PlayerControlsComponent implements OnDestroy {
     private readonly host = inject(ElementRef<HTMLElement>).nativeElement;
@@ -152,9 +155,39 @@ export class PlayerControlsComponent implements OnDestroy {
             onCleanup(this.surface.attachSurface(surface));
         });
         effect(() => {
-            void this.controller(); // Track equal-volume controller swaps.
+            const controller = this.controller();
+            if (
+                !this.volume.beginCapabilityEpoch(
+                    controller,
+                    this.capabilities().volume
+                )
+            ) {
+                return;
+            }
             const volume = this.controllerVolume();
-            untracked(() => this.volume.reconcile(volume));
+            untracked(() =>
+                this.volume.initializeController(controller, volume)
+            );
+        });
+        effect(() => {
+            const controller = this.controller();
+            const volume = this.controllerVolume();
+            untracked(() =>
+                this.volume.reconcileController(controller, volume)
+            );
+        });
+        effect((onCleanup) => {
+            const surface = this.playerSurface();
+            if (!surface || !this.hideCursor()) {
+                return;
+            }
+            const previousCursor = surface.style.cursor;
+            surface.style.cursor = 'none';
+            onCleanup(() => {
+                if (surface.style.cursor === 'none') {
+                    surface.style.cursor = previousCursor;
+                }
+            });
         });
         effect(() => {
             const state = this.state();

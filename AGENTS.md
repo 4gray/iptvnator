@@ -128,6 +128,19 @@ Key files:
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
 
+## Shared Player Controls
+
+- `libs/ui/playback/src/lib/player-controls/` contains the additive,
+  engine-neutral `PlayerController` contract, standalone
+  `app-player-controls`, generic web-video adapter/helper, and default-off web
+  rollout token.
+- No existing web or embedded-MPV engine consumes this layer yet. Current
+  player skins and embedded controls remain unchanged until the follow-up host
+  wiring lands.
+- Frame-copy video is DOM-overlay-friendly. The native-view embedded-MPV engine
+  must retain its compositor-safe controls dock.
+- Canonical contract: `docs/architecture/player-controls-contract.md`
+
 ## Repo Skills
 
 - `iptvnator-ui-design`

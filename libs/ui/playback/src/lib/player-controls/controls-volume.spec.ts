@@ -1,4 +1,5 @@
 import { ControlsVolume } from './controls-volume';
+import type { PlayerController } from './player-controls.model';
 
 describe('ControlsVolume', () => {
     let applied: number[];
@@ -71,6 +72,43 @@ describe('ControlsVolume', () => {
         expect(volume.value()).toBe(0.25);
         expect(applied).toEqual([]);
         expect(localStorage.getItem('volume')).toBeNull();
+    });
+
+    it('uses the first controller snapshot when no volume is persisted', () => {
+        const controller = {} as PlayerController;
+
+        volume.initializeController(controller, 0.4);
+
+        expect(volume.value()).toBe(0.4);
+        expect(applied).toEqual([]);
+    });
+
+    it('applies persisted volume before accepting a later controller snapshot', () => {
+        const controller = {} as PlayerController;
+        volume.set(0.3);
+        applied = [];
+
+        volume.initializeController(controller, 1);
+        volume.reconcileController(controller, 1);
+
+        expect(applied).toEqual([0.3]);
+        expect(volume.value()).toBe(0.3);
+
+        volume.reconcileController(controller, 0.5);
+        expect(volume.value()).toBe(0.5);
+    });
+
+    it('reapplies persisted volume after a controller capability epoch resets', () => {
+        const controller = {} as PlayerController;
+        volume.set(0.3);
+        applied = [];
+        volume.initializeController(controller, 1);
+        volume.deactivateController(controller);
+
+        volume.initializeController(controller, 1);
+
+        expect(applied).toEqual([0.3, 0.3]);
+        expect(volume.value()).toBe(0.3);
     });
 
     it('hoverEnter opens the popover and cancels any pending close', () => {
