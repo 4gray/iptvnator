@@ -98,6 +98,32 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         expect(adapter.capabilities()).toEqual(DEFAULT_PLAYER_CAPABILITIES);
     });
 
+    it('disables seek capability for an infinite-duration live stream', () => {
+        adapter.attach(createVideo({ duration: Infinity }));
+
+        expect(adapter.state().isLive).toBe(true);
+        expect(adapter.capabilities().seek).toBe(false);
+    });
+
+    it('disables seek capability for an explicitly classified live stream', () => {
+        adapter.attach(createVideo({ duration: 120, seekableLength: 1 }), {
+            isLive: () => true,
+        });
+
+        expect(adapter.state().isLive).toBe(true);
+        expect(adapter.capabilities().seek).toBe(false);
+    });
+
+    it('keeps seek capability for VOD while seekable ranges warm up', () => {
+        adapter.attach(createVideo({ duration: 120, seekableLength: 0 }), {
+            isLive: () => false,
+        });
+
+        expect(adapter.state().isLive).toBe(false);
+        expect(adapter.state().canSeek).toBe(false);
+        expect(adapter.capabilities().seek).toBe(true);
+    });
+
     it('ignores track selection when the engine exposes no accessors', () => {
         adapter.attach(createVideo());
         expect(() => {

@@ -92,9 +92,10 @@ export class WebVideoControlsAdapter implements PlayerController {
 
         const hasAudioTracks = (this.opts.getAudioTracks?.().length ?? 0) > 1;
         const hasSubtitles = (this.opts.getSubtitleTracks?.().length ?? 0) > 0;
+        const isLive = this.isLive();
         return {
             ...DEFAULT_PLAYER_CAPABILITIES,
-            seek: true,
+            seek: !isLive,
             volume: true,
             playbackSpeed: true,
             fullscreen: true,
@@ -102,8 +103,7 @@ export class WebVideoControlsAdapter implements PlayerController {
             subtitles: hasSubtitles,
             aspectRatio: false,
             recording: false,
-            seriesNavigation:
-                !this.isLive() && this.seriesNavigation() !== null,
+            seriesNavigation: !isLive && this.seriesNavigation() !== null,
         };
     });
 
