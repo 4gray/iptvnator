@@ -1,9 +1,25 @@
-<div class="art-player-shell">
+<div
+    #playerRoot
+    class="art-player-shell"
+    [class.art-player-shell--shared-controls]="sharedControls"
+>
     <div #artplayer class="artplayer-container"></div>
 
-    <app-series-playback-navigation-controls
-        [navigation]="seriesNavigation"
-        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-    />
+    @if (sharedControls) {
+        <div class="art-player-interaction-capture" aria-hidden="true"></div>
+        <app-player-controls
+            [controller]="controlsAdapter"
+            [playerSurface]="playerRoot"
+            [showControls]="interactionEnabled()"
+            [shortcutsEnabled]="interactionEnabled()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    } @else {
+        <app-series-playback-navigation-controls
+            [navigation]="seriesNavigation"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    }
 </div>
