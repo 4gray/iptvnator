@@ -81,8 +81,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         seekBy: (delta) => void this.controller.seekBy(delta),
         setVolume: (value) => void this.controller.applyVolume(value),
         setAudioTrack: (id) => void this.controller.setAudioTrack(id),
-        setSubtitleTrack: (id) =>
-            void this.controller.setSubtitleTrack(id),
+        setSubtitleTrack: (id) => void this.controller.setSubtitleTrack(id),
         setPlaybackSpeed: (speed) => void this.controller.setSpeed(speed),
         setAspectRatio: (value) => void this.controller.setAspect(value),
         toggleRecording: () => void this.toggleRecording(),
@@ -193,13 +192,13 @@ Render:
 
 ```html
 @if (isFrameCopyEngine() && isSupported()) {
-    <app-player-controls
-        [controller]="sharedControls"
-        [playerSurface]="playerSurface()"
-        [showControls]="showControls()"
-        (previousEpisodeRequested)="requestPreviousEpisode()"
-        (nextEpisodeRequested)="requestNextEpisode()"
-    />
+<app-player-controls
+    [controller]="sharedControls"
+    [playerSurface]="playerSurface()"
+    [showControls]="showControls()"
+    (previousEpisodeRequested)="requestPreviousEpisode()"
+    (nextEpisodeRequested)="requestNextEpisode()"
+/>
 }
 ```
 
@@ -352,3 +351,4 @@ reviews, address actionable findings with regression tests, and merge only when
 all exact-head CI checks pass, Greptile reports 5/5, Codex is clean, and no
 review thread remains unresolved.
 
+The replacement PR is complete only after this exact-head gate passes.

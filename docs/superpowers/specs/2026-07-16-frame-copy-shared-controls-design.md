@@ -159,4 +159,3 @@ Update the canonical controls and embedded-MPV architecture documents to state
 that frame-copy is the first shared-controls consumer while native-view remains
 on its dock. Update `AGENTS.md` and `CLAUDE.md` because both describe the
 embedded-MPV/player-controls ownership boundary.
-
