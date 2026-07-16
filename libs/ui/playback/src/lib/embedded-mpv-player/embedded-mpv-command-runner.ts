@@ -29,7 +29,7 @@ export class EmbeddedMpvCommandRunner {
         if (!id || !session || !electron?.setEmbeddedMpvPaused) {
             return;
         }
-        await this.run(() =>
+        await this.run(id, () =>
             electron.setEmbeddedMpvPaused(id, session.status !== 'paused')
         );
     }
@@ -42,7 +42,7 @@ export class EmbeddedMpvCommandRunner {
             return false;
         }
         const next = Math.max(0, session.positionSeconds + deltaSeconds);
-        await this.run(() => electron.seekEmbeddedMpv(id, next));
+        await this.run(id, () => electron.seekEmbeddedMpv(id, next));
         return true;
     }
 
@@ -52,7 +52,7 @@ export class EmbeddedMpvCommandRunner {
         if (!id || !electron?.seekEmbeddedMpv) {
             return;
         }
-        await this.run(() => electron.seekEmbeddedMpv(id, seconds));
+        await this.run(id, () => electron.seekEmbeddedMpv(id, seconds));
     }
 
     async applyVolume(value: number): Promise<void> {
@@ -61,7 +61,7 @@ export class EmbeddedMpvCommandRunner {
         if (!id || !electron?.setEmbeddedMpvVolume) {
             return;
         }
-        await this.run(() => electron.setEmbeddedMpvVolume(id, value));
+        await this.run(id, () => electron.setEmbeddedMpvVolume(id, value));
     }
 
     async setAudioTrack(trackId: number): Promise<void> {
@@ -70,7 +70,9 @@ export class EmbeddedMpvCommandRunner {
         if (!id || !electron?.setEmbeddedMpvAudioTrack) {
             return;
         }
-        await this.run(() => electron.setEmbeddedMpvAudioTrack(id, trackId));
+        await this.run(id, () =>
+            electron.setEmbeddedMpvAudioTrack(id, trackId)
+        );
     }
 
     async setSubtitleTrack(trackId: number): Promise<void> {
@@ -80,7 +82,7 @@ export class EmbeddedMpvCommandRunner {
             return;
         }
         const setSubtitleTrack = electron.setEmbeddedMpvSubtitleTrack;
-        await this.run(() => setSubtitleTrack(id, trackId));
+        await this.run(id, () => setSubtitleTrack(id, trackId));
     }
 
     async setSpeed(speed: number): Promise<void> {
@@ -90,7 +92,7 @@ export class EmbeddedMpvCommandRunner {
             return;
         }
         const setSpeed = electron.setEmbeddedMpvSpeed;
-        await this.run(() => setSpeed(id, speed));
+        await this.run(id, () => setSpeed(id, speed));
     }
 
     async setAspect(aspect: string): Promise<void> {
@@ -100,7 +102,7 @@ export class EmbeddedMpvCommandRunner {
             return;
         }
         const setAspect = electron.setEmbeddedMpvAspect;
-        await this.run(() => setAspect(id, aspect));
+        await this.run(id, () => setAspect(id, aspect));
     }
 
     async startRecording(
@@ -117,7 +119,7 @@ export class EmbeddedMpvCommandRunner {
         const resolvedDirectory =
             directory?.trim() ||
             (await electron.getEmbeddedMpvDefaultRecordingFolder?.());
-        const updated = await this.run(() =>
+        const updated = await this.run(id, () =>
             startEmbeddedMpvRecording(id, {
                 directory: resolvedDirectory,
                 title,
@@ -133,7 +135,7 @@ export class EmbeddedMpvCommandRunner {
             return null;
         }
         const stopEmbeddedMpvRecording = electron.stopEmbeddedMpvRecording;
-        const updated = await this.run(() => stopEmbeddedMpvRecording(id));
+        const updated = await this.run(id, () => stopEmbeddedMpvRecording(id));
         return updated?.recording ?? null;
     }
 
@@ -144,12 +146,18 @@ export class EmbeddedMpvCommandRunner {
      * have raced the IPC — the next snapshot resyncs state.
      */
     private async run(
+        expectedSessionId: string,
         call: () => Promise<EmbeddedMpvSession | null>
     ): Promise<EmbeddedMpvSession | null> {
         const updated = await this.guardIpc(call);
-        if (updated) {
-            this.ctx.session.set(updated);
+        if (
+            !updated ||
+            this.ctx.sessionId() !== expectedSessionId ||
+            updated.id !== expectedSessionId
+        ) {
+            return null;
         }
+        this.ctx.session.set(updated);
         return updated;
     }
 

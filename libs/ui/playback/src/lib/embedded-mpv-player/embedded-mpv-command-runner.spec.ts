@@ -174,11 +174,33 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(await runner.seekBy(10)).toBe(true);
         expect(session()).toBe(current);
 
-        electron.setEmbeddedMpvVolume.mockRejectedValueOnce(
-            new Error('gone')
-        );
+        electron.setEmbeddedMpvVolume.mockRejectedValueOnce(new Error('gone'));
         await expect(runner.applyVolume(0.2)).resolves.toBeUndefined();
         expect(session()).toBe(current);
+    });
+
+    it('ignores a command reply after the active session is replaced', async () => {
+        let resolveCommand:
+            | ((value: EmbeddedMpvSession | null) => void)
+            | null = null;
+        electron.seekEmbeddedMpv.mockImplementationOnce(
+            () =>
+                new Promise<EmbeddedMpvSession | null>((resolve) => {
+                    resolveCommand = resolve;
+                })
+        );
+
+        const pendingCommand = runner.seekTo(42);
+        const replacement = createSession({
+            id: 'mpv-2',
+            title: 'Replacement Movie',
+        });
+        sessionId.set('mpv-2');
+        session.set(replacement);
+        resolveCommand?.(createSession({ id: 'mpv-1', positionSeconds: 42 }));
+        await pendingCommand;
+
+        expect(session()).toBe(replacement);
     });
 
     it('startRecording resolves the default folder for blank directories', async () => {
@@ -212,11 +234,24 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(await runner.startRecording('/custom', 'Title')).toBeNull();
     });
 
+    it('ignores a recording reply whose session id does not match the request', async () => {
+        const current = session();
+        electron.startEmbeddedMpvRecording.mockResolvedValueOnce(
+            createSession({
+                id: 'mpv-mismatch',
+                recording: { active: true, targetPath: '/tmp/rec.ts' },
+            })
+        );
+
+        const recording = await runner.startRecording('/custom', 'Title');
+
+        expect(recording).toBeNull();
+        expect(session()).toBe(current);
+    });
+
     it('stopRecording returns the reconciled recording state', async () => {
         const recording = await runner.stopRecording();
-        expect(electron.stopEmbeddedMpvRecording).toHaveBeenCalledWith(
-            'mpv-1'
-        );
+        expect(electron.stopEmbeddedMpvRecording).toHaveBeenCalledWith('mpv-1');
         expect(recording).toEqual({ active: false, targetPath: '/tmp/rec.ts' });
         expect(session()?.recording).toEqual(recording);
     });

@@ -175,9 +175,6 @@ export class EmbeddedMpvSessionController {
                         'Embedded MPV is not available in this environment.'
                 );
             }
-            if (prepared?.supported) {
-                this.support.set(prepared);
-            }
 
             const created = await electron.createEmbeddedMpvSession(
                 measureBounds(host),
@@ -194,6 +191,9 @@ export class EmbeddedMpvSessionController {
             this.sessionId.set(created.id);
             this.session.set(created);
             await electron.loadEmbeddedMpvPlayback(created.id, playback);
+            if (disposed) {
+                return;
+            }
             if (untracked(() => this.isFrameCopyEngine())) {
                 // Frame-copy engine: start the preload frame pump that
                 // paints helper frames onto the component's canvas. A failed
@@ -203,6 +203,9 @@ export class EmbeddedMpvSessionController {
                 const attached = await electron
                     .attachEmbeddedMpvFrameView?.(created.id)
                     .catch(() => false);
+                if (disposed) {
+                    return;
+                }
                 if (attached === false && !disposed) {
                     await electron
                         .disposeEmbeddedMpvSession(created.id)

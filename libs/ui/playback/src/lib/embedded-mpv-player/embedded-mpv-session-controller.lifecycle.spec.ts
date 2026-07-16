@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import {
+    EmbeddedMpvEngine,
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
@@ -12,6 +13,8 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         prepareEmbeddedMpv: jest.Mock;
         createEmbeddedMpvSession: jest.Mock;
         loadEmbeddedMpvPlayback: jest.Mock;
+        attachEmbeddedMpvFrameView: jest.Mock;
+        detachEmbeddedMpvFrameView: jest.Mock;
         disposeEmbeddedMpvSession: jest.Mock;
         setEmbeddedMpvBounds: jest.Mock;
         onEmbeddedMpvSessionUpdate: jest.Mock;
@@ -36,6 +39,8 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
                 .fn()
                 .mockResolvedValue(createSession({ id: 'mpv-1' })),
             loadEmbeddedMpvPlayback: jest.fn().mockResolvedValue(undefined),
+            attachEmbeddedMpvFrameView: jest.fn().mockResolvedValue(true),
+            detachEmbeddedMpvFrameView: jest.fn(),
             disposeEmbeddedMpvSession: jest.fn().mockResolvedValue(undefined),
             setEmbeddedMpvBounds: jest.fn().mockResolvedValue(undefined),
             onEmbeddedMpvSessionUpdate: jest.fn(() => jest.fn()),
@@ -96,6 +101,37 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
             platform: 'darwin',
             reason: 'addon load failed',
         });
+    });
+
+    it('preserves the constructor support probe after preparing a session', async () => {
+        const probedSupport = createSupport('native');
+        const preparedSupport = createSupport('frame-copy');
+        electron.getEmbeddedMpvSupport.mockResolvedValueOnce(probedSupport);
+        electron.prepareEmbeddedMpv.mockResolvedValueOnce(preparedSupport);
+        const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+        await waitFor(
+            () => controller.support() === probedSupport,
+            'constructor support probe to resolve'
+        );
+        const teardown = controller.startSession(
+            createHost(),
+            createPlayback(),
+            0.5
+        );
+
+        try {
+            await waitFor(
+                () => electron.loadEmbeddedMpvPlayback.mock.calls.length > 0,
+                'playback load to start'
+            );
+
+            expect(controller.support()).toBe(probedSupport);
+            expect(electron.createEmbeddedMpvSession).toHaveBeenCalled();
+            expect(electron.loadEmbeddedMpvPlayback).toHaveBeenCalled();
+        } finally {
+            teardown();
+        }
     });
 
     it('sets an error session when prepare reports unsupported', async () => {
@@ -178,56 +214,90 @@ describe('EmbeddedMpvSessionController (lifecycle & support edges)', () => {
         expect(electron.loadEmbeddedMpvPlayback).not.toHaveBeenCalled();
     });
 
-    it('delegates track, speed, aspect, and recording commands to the runner', async () => {
-        const commandBridge = {
-            setEmbeddedMpvAudioTrack: jest.fn().mockResolvedValue(null),
-            setEmbeddedMpvSubtitleTrack: jest.fn().mockResolvedValue(null),
-            setEmbeddedMpvSpeed: jest.fn().mockResolvedValue(null),
-            setEmbeddedMpvAspect: jest.fn().mockResolvedValue(null),
-            seekEmbeddedMpv: jest.fn().mockResolvedValue(null),
-            startEmbeddedMpvRecording: jest.fn().mockResolvedValue(
-                createSession({
-                    recording: { active: true, targetPath: '/tmp/rec.ts' },
+    it('does not continue frame setup when teardown happens during playback load', async () => {
+        const frameCopySupport = createSupport('frame-copy');
+        let resolveLoad: (() => void) | null = null;
+        electron.getEmbeddedMpvSupport.mockResolvedValueOnce(frameCopySupport);
+        electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
+        electron.loadEmbeddedMpvPlayback.mockImplementationOnce(
+            () =>
+                new Promise<void>((resolve) => {
+                    resolveLoad = resolve;
                 })
-            ),
-            stopEmbeddedMpvRecording: jest
-                .fn()
-                .mockResolvedValue(
-                    createSession({ recording: { active: false } })
-                ),
-        };
-        Object.assign(electron, commandBridge);
+        );
         const controller = TestBed.inject(EmbeddedMpvSessionController);
-        controller.sessionId.set('mpv-1');
-        controller.session.set(createSession());
 
-        await controller.seekTo(75);
-        await controller.setAudioTrack(2);
-        await controller.setSubtitleTrack(-1);
-        await controller.setSpeed(1.5);
-        await controller.setAspect('16:9');
-        const started = await controller.startRecording('/rec', 'Show');
-        const stopped = await controller.stopRecording();
+        await waitFor(
+            () => controller.support() === frameCopySupport,
+            'frame-copy support probe to resolve'
+        );
+        const teardown = controller.startSession(
+            createHost(),
+            createPlayback(),
+            0.5
+        );
+        await waitFor(
+            () => electron.loadEmbeddedMpvPlayback.mock.calls.length > 0,
+            'playback load to start'
+        );
 
-        expect(commandBridge.seekEmbeddedMpv).toHaveBeenCalledWith('mpv-1', 75);
-        expect(commandBridge.setEmbeddedMpvAudioTrack).toHaveBeenCalledWith(
-            'mpv-1',
-            2
+        teardown();
+        resolveLoad?.();
+        await Promise.resolve();
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+        expect(electron.attachEmbeddedMpvFrameView).not.toHaveBeenCalled();
+        expect(controller.session()).toBeNull();
+        expect(controller.sessionId()).toBeNull();
+        expect(electron.disposeEmbeddedMpvSession).toHaveBeenCalledWith(
+            'mpv-1'
         );
-        expect(commandBridge.setEmbeddedMpvSubtitleTrack).toHaveBeenCalledWith(
-            'mpv-1',
-            -1
+        expect(electron.detachEmbeddedMpvFrameView).toHaveBeenCalled();
+    });
+
+    it('does not schedule bounds after teardown during frame view attachment', async () => {
+        const frameCopySupport = createSupport('frame-copy');
+        let resolveAttach: ((attached: boolean) => void) | null = null;
+        electron.getEmbeddedMpvSupport.mockResolvedValueOnce(frameCopySupport);
+        electron.prepareEmbeddedMpv.mockResolvedValueOnce(frameCopySupport);
+        electron.attachEmbeddedMpvFrameView.mockImplementationOnce(
+            () =>
+                new Promise<boolean>((resolve) => {
+                    resolveAttach = resolve;
+                })
         );
-        expect(commandBridge.setEmbeddedMpvSpeed).toHaveBeenCalledWith(
-            'mpv-1',
-            1.5
+        const controller = TestBed.inject(EmbeddedMpvSessionController);
+
+        await waitFor(
+            () => controller.support() === frameCopySupport,
+            'frame-copy support probe to resolve'
         );
-        expect(commandBridge.setEmbeddedMpvAspect).toHaveBeenCalledWith(
-            'mpv-1',
-            '16:9'
+        const teardown = controller.startSession(
+            createHost(),
+            createPlayback(),
+            0.5
         );
-        expect(started).toEqual({ active: true, targetPath: '/tmp/rec.ts' });
-        expect(stopped).toEqual({ active: false });
+        await waitFor(
+            () => electron.attachEmbeddedMpvFrameView.mock.calls.length > 0,
+            'frame view attachment to start'
+        );
+
+        teardown();
+        const requestAnimationFrame = jest.spyOn(
+            window,
+            'requestAnimationFrame'
+        );
+        resolveAttach?.(true);
+        await Promise.resolve();
+        await new Promise((resolve) => window.setTimeout(resolve, 0));
+
+        expect(requestAnimationFrame).not.toHaveBeenCalled();
+        expect(controller.session()).toBeNull();
+        expect(controller.sessionId()).toBeNull();
+        expect(electron.disposeEmbeddedMpvSession).toHaveBeenCalledWith(
+            'mpv-1'
+        );
+        expect(electron.detachEmbeddedMpvFrameView).toHaveBeenCalledTimes(1);
     });
 
     it('syncs bounds through a custom provider on triggerBoundsSync', async () => {
@@ -277,6 +347,10 @@ function createPlayback(): ResolvedPortalPlayback {
         streamUrl: 'https://example.com/movie.mp4',
         title: 'Example Movie',
     };
+}
+
+function createSupport(engine: EmbeddedMpvEngine) {
+    return { supported: true, platform: 'darwin', engine };
 }
 
 function createSession(
