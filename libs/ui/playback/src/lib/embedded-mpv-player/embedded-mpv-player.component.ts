@@ -23,7 +23,9 @@ import {
     EmbeddedMpvAudioTrack,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';
@@ -61,9 +63,10 @@ const VIEWPORT_CLICK_PAUSE_DELAY_MS = 250;
         MatIconModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        PlayerControlsComponent,
         TranslatePipe,
     ],
-    providers: [EmbeddedMpvSessionController],
+    providers: [EmbeddedMpvControlsAdapter, EmbeddedMpvSessionController],
     changeDetection: ChangeDetectionStrategy.OnPush,
     host: {
         class: 'embedded-mpv-player-host',
@@ -102,13 +105,20 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         ),
         { initialValue: null }
     );
-    private readonly controller = inject(EmbeddedMpvSessionController);
+    readonly controller = inject(EmbeddedMpvSessionController);
+    readonly sharedControls = inject(EmbeddedMpvControlsAdapter);
     private readonly shortcuts = new EmbeddedMpvShortcuts();
     readonly menus = new EmbeddedMpvMenuState();
     readonly feedback = new EmbeddedMpvFeedback();
 
     readonly viewport = viewChild<ElementRef<HTMLDivElement>>('viewport');
     readonly playerRoot = viewChild<ElementRef<HTMLDivElement>>('playerRoot');
+    readonly playerSurface = computed(
+        () => this.playerRoot()?.nativeElement ?? null
+    );
+    readonly sharedShortcutsEnabled = computed(
+        () => !this.overlayVisibility.overlayActive()
+    );
 
     readonly support = this.controller.support;
     readonly session = this.controller.session;
@@ -188,9 +198,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             );
         }
         if (!session || session.status === 'loading') {
-            return this.translate.instant(
-                'EMBEDDED_MPV.PLAYER.LOADING_STREAM'
-            );
+            return this.translate.instant('EMBEDDED_MPV.PLAYER.LOADING_STREAM');
         }
         return '';
     });
@@ -303,6 +311,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private readonly recordingMessage = signal<string | null>(null);
 
     private readonly onDocumentPointerDown = (event: PointerEvent) => {
+        if (this.isFrameCopyEngine()) {
+            return;
+        }
         const playerRoot = this.playerRoot()?.nativeElement;
         if (!playerRoot || event.composedPath().includes(playerRoot)) {
             return;
@@ -310,6 +321,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.closePopovers();
     };
     private readonly onDocumentPointerMove = (event: PointerEvent) => {
+        if (this.isFrameCopyEngine()) {
+            return;
+        }
         const playerRoot = this.playerRoot()?.nativeElement;
         if (
             playerRoot &&
@@ -324,11 +338,19 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.isFullscreen.set(
             Boolean(playerRoot && document.fullscreenElement === playerRoot)
         );
-        this.revealControls();
+        if (!this.isFrameCopyEngine()) {
+            this.revealControls();
+        }
         this.controller.triggerBoundsSync();
     };
 
     constructor() {
+        this.sharedControls.configure({
+            playback: this.playback,
+            seriesNavigation: this.seriesNavigation,
+            recordingFolder: this.recordingFolder,
+        });
+
         if (typeof document !== 'undefined') {
             document.addEventListener(
                 'fullscreenchange',
@@ -370,8 +392,14 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         this.shortcuts.attach({
-            isAvailable: () => !this.overlayVisibility.overlayActive(),
-            onEscape: () => this.closePopovers(),
+            isAvailable: () =>
+                !this.isFrameCopyEngine() &&
+                !this.overlayVisibility.overlayActive(),
+            onEscape: () => {
+                if (!this.isFrameCopyEngine()) {
+                    this.closePopovers();
+                }
+            },
             togglePaused: () => void this.togglePaused(),
             toggleFullscreen: () => void this.toggleFullscreen(),
             seekBy: (delta) => void this.seekBy(delta),
@@ -447,7 +475,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         });
 
         effect((onCleanup) => {
-            if (!this.isRecording()) {
+            if (this.isFrameCopyEngine() || !this.isRecording()) {
                 return;
             }
             this.recordingTick.set(Date.now());
@@ -456,6 +484,17 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 1000
             );
             onCleanup(() => window.clearInterval(intervalId));
+        });
+
+        effect(() => {
+            if (!this.isFrameCopyEngine()) {
+                return;
+            }
+            untracked(() => {
+                this.clearControlsHideTimer();
+                this.clearViewportClickTimer();
+                this.menus.closeAll();
+            });
         });
     }
 
@@ -493,10 +532,16 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     onPlayerInteraction(): void {
+        if (this.isFrameCopyEngine()) {
+            return;
+        }
         this.revealControls();
     }
 
     onViewportClick(event: MouseEvent): void {
+        if (this.isFrameCopyEngine()) {
+            return;
+        }
         const target = event.target as HTMLElement | null;
         if (target?.closest('button, input, [role="slider"]')) {
             return;
@@ -519,6 +564,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     onPlayerDblClick(event: MouseEvent): void {
+        if (this.isFrameCopyEngine()) {
+            return;
+        }
         const target = event.target as HTMLElement | null;
         if (target?.closest('button, input, [role="slider"]')) {
             return;
@@ -845,6 +893,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     private revealControls(scheduleHide = true): void {
+        if (this.isFrameCopyEngine()) {
+            this.clearControlsHideTimer();
+            return;
+        }
         this.controlsVisible.set(true);
         if (scheduleHide) {
             this.clearControlsHideTimer();
@@ -853,6 +905,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     private scheduleControlsHide(): void {
+        if (this.isFrameCopyEngine()) {
+            this.clearControlsHideTimer();
+            return;
+        }
         if (
             !this.isPlaying() ||
             this.menus.anyOpen() ||
