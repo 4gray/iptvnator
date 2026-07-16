@@ -333,16 +333,14 @@ export class HtmlVideoPlayerControlsBridge {
         }
 
         if (!this.config.showCaptions()) {
-            if (hls.subtitleDisplay) {
-                if (
-                    Number.isInteger(hls.subtitleTrack) &&
-                    hls.subtitleTrack >= 0 &&
-                    hls.subtitleTrack < hls.subtitleTracks.length
-                ) {
-                    this.suppressedHlsSubtitleTrack = hls.subtitleTrack;
-                }
-                this.setHlsSubtitleDisplay(hls, false);
+            if (
+                Number.isInteger(hls.subtitleTrack) &&
+                hls.subtitleTrack >= 0 &&
+                hls.subtitleTrack < hls.subtitleTracks.length
+            ) {
+                this.suppressedHlsSubtitleTrack = hls.subtitleTrack;
             }
+            this.setHlsSubtitleDisplay(hls, false);
             return;
         }
 

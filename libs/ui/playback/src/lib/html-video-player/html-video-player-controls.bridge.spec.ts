@@ -693,6 +693,23 @@ describe('HtmlVideoPlayerControlsBridge HLS caption preference', () => {
         bridge.destroy();
     });
 
+    it('restores an HLS default selected while display remains disabled', () => {
+        const hls = new FakeHls();
+        const { bridge, captionPreference } = bindHls(hls, false);
+        hls.subtitleTracks = [{ name: 'English' }];
+        hls.subtitleTrack = 0;
+        hls.emit(Hls.Events.SUBTITLE_TRACK_SWITCH);
+
+        expect(hls.subtitleDisplay).toBe(false);
+
+        captionPreference.value = true;
+        bridge.refreshInputs();
+
+        expect(hls.subtitleTrack).toBe(0);
+        expect(hls.subtitleDisplay).toBe(true);
+        bridge.destroy();
+    });
+
     it('restores the retained HLS subtitle when preference returns', () => {
         const hls = new FakeHls();
         hls.subtitleTracks = [{ name: 'English' }, { name: 'German' }];
