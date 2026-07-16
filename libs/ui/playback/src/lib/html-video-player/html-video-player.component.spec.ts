@@ -4,11 +4,17 @@ import { By } from '@angular/platform-browser';
 import { TranslateModule } from '@ngx-translate/core';
 import { DataService } from '@iptvnator/services';
 import { Channel } from '@iptvnator/shared/interfaces';
+import {
+    PlayerControlsComponent,
+    WebVideoControlsAdapter,
+} from '../player-controls';
+import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import { HtmlVideoPlayerComponent } from './html-video-player.component';
 
 describe('HtmlVideoPlayerComponent', () => {
     let component: HtmlVideoPlayerComponent;
     let fixture: ComponentFixture<HtmlVideoPlayerComponent>;
+    let adapterAttach: jest.SpiedFunction<WebVideoControlsAdapter['attach']>;
     const electronApi = {
         setUserAgent: jest.fn().mockResolvedValue(true),
     };
@@ -49,6 +55,7 @@ describe('HtmlVideoPlayerComponent', () => {
     }));
 
     beforeEach(() => {
+        adapterAttach = jest.spyOn(WebVideoControlsAdapter.prototype, 'attach');
         Object.defineProperty(window, 'electron', {
             configurable: true,
             value: electronApi,
@@ -62,10 +69,40 @@ describe('HtmlVideoPlayerComponent', () => {
 
     afterEach(() => {
         delete (window as unknown as { electron?: unknown }).electron;
+        jest.restoreAllMocks();
     });
 
     it('should create', () => {
         expect(component).toBeTruthy();
+    });
+
+    it('keeps native and legacy controls when shared controls are disabled', () => {
+        const video = component.videoPlayer.nativeElement;
+
+        expect(video.controls).toBe(true);
+        expect(
+            fixture.debugElement.query(By.directive(PlayerControlsComponent))
+        ).toBeNull();
+        expect(
+            fixture.debugElement.query(
+                By.directive(SeriesPlaybackNavigationControlsComponent)
+            )
+        ).not.toBeNull();
+        expect(adapterAttach).not.toHaveBeenCalled();
+    });
+
+    it('keeps legacy post-play caption suppression when shared controls are disabled', async () => {
+        const disableCaptions = jest.spyOn(component, 'disableCaptions');
+        jest.spyOn(
+            component.videoPlayer.nativeElement,
+            'play'
+        ).mockResolvedValue(undefined);
+        component.showCaptions = false;
+
+        component.handlePlayOperation();
+        await Promise.resolve();
+
+        expect(disableCaptions).toHaveBeenCalledTimes(1);
     });
 
     it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
@@ -181,9 +218,7 @@ describe('HtmlVideoPlayerComponent', () => {
         const sources = Array.from(video.querySelectorAll('source'));
         const [source] = sources;
         expect(sources).toHaveLength(1);
-        expect(source?.src).toBe(
-            'https://stream.example/series/s01e02.mp4'
-        );
+        expect(source?.src).toBe('https://stream.example/series/s01e02.mp4');
         expect(source?.type).toBe('video/mp4');
         expect(loadSpy).toHaveBeenCalledTimes(2);
         expect(playSpy).toHaveBeenCalledTimes(2);
