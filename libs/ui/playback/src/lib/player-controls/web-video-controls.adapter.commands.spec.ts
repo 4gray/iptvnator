@@ -11,6 +11,7 @@ function createVideo(
     overrides: Partial<{
         duration: number;
         readyState: number;
+        networkState: number;
         paused: boolean;
         ended: boolean;
         error: MediaError | null;
@@ -31,6 +32,7 @@ function createVideo(
         });
     define('duration', overrides.duration ?? NaN);
     define('readyState', overrides.readyState ?? 4);
+    define('networkState', overrides.networkState ?? 1);
     define('paused', overrides.paused ?? false);
     define('ended', overrides.ended ?? false);
     define('error', overrides.error ?? null);
@@ -291,10 +293,10 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         expect(adapter.state().canSeek).toBe(false);
     });
 
-    it('maps warming-up videos to loading (paused and playing variants)', () => {
+    it('keeps paused warmup playable but maps playing warmup to loading', () => {
         const pausedWarmup = createVideo({ paused: true, readyState: 1 });
         adapter.attach(pausedWarmup);
-        expect(adapter.state().status).toBe('loading');
+        expect(adapter.state().status).toBe('paused');
 
         const playingWarmup = createVideo({ paused: false, readyState: 2 });
         const other = new WebVideoControlsAdapter();

@@ -79,6 +79,7 @@ describe('PlayerControlsComponent interactions', () => {
 
         it('flashes seek feedback with a signed label', () => {
             jest.useFakeTimers();
+            setCapabilities({ seek: true });
             setState({ canSeek: true, durationSeconds: 600 });
             fixture.detectChanges();
 

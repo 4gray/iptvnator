@@ -51,8 +51,8 @@ describe('ControlsShortcuts', () => {
     it('always allows escape to close popovers even when playback is unavailable', () => {
         handlers.isAvailable.mockReturnValue(false);
 
-        expect(dispatchKey('Escape')).toBe(false);
         expect(dispatchKey('k')).toBe(false);
+        expect(dispatchKey('Escape')).toBe(false);
 
         expect(handlers.onEscape).toHaveBeenCalledTimes(1);
         expect(handlers.togglePaused).not.toHaveBeenCalled();
@@ -158,7 +158,7 @@ describe('ControlsShortcuts', () => {
         host.remove();
     });
 
-    it('does not double-execute a keypress already handled by another instance', () => {
+    it('routes shortcuts to the active instance and falls back after detach', () => {
         const other = new ControlsShortcuts();
         const otherHandlers = {
             isAvailable: jest.fn(() => true),
@@ -171,13 +171,42 @@ describe('ControlsShortcuts', () => {
         };
         other.attach(otherHandlers);
 
-        // A single keypress reaches both mounted instances via the document.
+        dispatchKey('k');
+        expect(handlers.togglePaused).toHaveBeenCalledTimes(1);
+        expect(otherHandlers.togglePaused).not.toHaveBeenCalled();
+
+        other.activate();
+        dispatchKey('k');
+        expect(handlers.togglePaused).toHaveBeenCalledTimes(1);
+        expect(otherHandlers.togglePaused).toHaveBeenCalledTimes(1);
+
+        dispatchKey('Escape');
+        expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+        expect(otherHandlers.onEscape).toHaveBeenCalledTimes(1);
+
+        other.detach();
+        dispatchKey('k');
+        expect(handlers.togglePaused).toHaveBeenCalledTimes(2);
+    });
+
+    it('falls back to an available instance when the active one is unavailable', () => {
+        const other = new ControlsShortcuts();
+        const otherHandlers = {
+            isAvailable: jest.fn(() => true),
+            onEscape: jest.fn(),
+            togglePaused: jest.fn(),
+            toggleFullscreen: jest.fn(),
+            seekBy: jest.fn(),
+            adjustVolume: jest.fn(),
+            toggleMute: jest.fn(),
+        };
+        other.attach(otherHandlers);
+        handlers.isAvailable.mockReturnValue(false);
+
         dispatchKey('k');
 
-        const first = handlers.togglePaused.mock.calls.length;
-        const second = otherHandlers.togglePaused.mock.calls.length;
-        // Exactly one instance handled it (the first to see it preventDefaults).
-        expect(first + second).toBe(1);
+        expect(handlers.togglePaused).not.toHaveBeenCalled();
+        expect(otherHandlers.togglePaused).toHaveBeenCalledTimes(1);
         other.detach();
     });
 

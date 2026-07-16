@@ -154,10 +154,23 @@ popovers even when a modifier is held or playback shortcuts are unavailable.
 Buttons, form controls, links, ARIA menu controls, and content-editable targets
 are also ignored anywhere in the event's composed path.
 
+When multiple shared-controls instances are mounted, the first attached
+instance owns shortcuts initially. Pointer, focus, or control interaction
+activates that instance through the normal reveal path. If the active instance
+becomes unavailable, playback shortcuts fall back to the most recently attached
+available instance; detaching the active instance also transfers ownership.
+Escape remains a global dismissal action and closes popovers on every mounted
+controls instance.
+
 Auto-hide pauses while the pointer is over the controls bar or keyboard focus
 is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
 between controls does not restart hiding, and leaving the bar resumes the normal
 hide delay.
+
+Open popovers are reconciled against the current capability and state snapshot.
+If controls are hidden, a capability is removed, or the corresponding track
+list becomes unavailable, the stale popover closes instead of pinning the
+controls visible or consuming the next surface click.
 
 ### Timeline scrubbing
 
@@ -167,6 +180,11 @@ preview. The component sends exactly one `seekTo` command on the committed
 `change` event, then clears the preview and returns to controller-reported
 state. Non-finite values are ignored and finite values are clamped to the
 available `[0, duration]` range.
+
+The scrub slider and seek shortcuts require both the `seek` capability and
+seekable runtime state. When seek is unsupported, the slider is omitted while
+live and recording status remain visible. Volume shortcuts likewise require the
+`volume` capability.
 
 The volume slider intentionally remains continuous: each volume `input` applies
 the optimistic volume immediately.
@@ -181,8 +199,21 @@ in the PWA and does not import a concrete web engine.
 Native media events refresh the adapter automatically. A future engine host
 must call the public `refresh()` hook after engine-specific getters change
 without a corresponding media event, including track lists, corrected duration,
-or live/VOD classification. Synchronous audio/subtitle selection commands
-refresh automatically after the injected setter returns.
+or live/VOD classification. Source, readiness, progress, seeking, and playback
+events that can invalidate the snapshot are observed directly.
+
+Audio and subtitle capabilities are advertised only when the injected getter
+returns a selectable list and the corresponding setter exists. Track setters
+may complete synchronously or asynchronously; the adapter refreshes after
+successful completion and contains synchronous throws or rejected promises
+while an engine is changing source.
+
+An injected non-`NaN` duration is authoritative, including positive infinity;
+`NaN` falls back to the video element. Without an explicit `isLive` accessor,
+only positive infinity implies live playback, so unknown duration is not
+temporarily mislabeled as live. An attached element with no resource maps to
+`idle`, paused preload/warm-up remains playable, and only actively playing media
+with insufficient data maps to `loading`.
 
 `web-video-controls.host.ts` contains small attachment/projection helpers for a
 future host integration. No Video.js, html5+hls.js, or ArtPlayer component calls

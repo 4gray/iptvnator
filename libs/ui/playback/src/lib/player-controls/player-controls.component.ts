@@ -27,7 +27,6 @@ import { ControlsVolume } from './controls-volume';
 import { formatTime, speedLabel } from './controls-format.utils';
 import type { PlayerController } from './player-controls.model';
 
-/** Engine-agnostic controls; engine integrations follow separately. */
 @Component({
     selector: 'app-player-controls',
     templateUrl: './player-controls.component.html',
@@ -42,18 +41,13 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly playerSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
     readonly shortcutsEnabled = input(true);
-
     readonly previousEpisodeRequested = output<void>();
     readonly nextEpisodeRequested = output<void>();
-
-    /** True while the pointer rests over the controls bar (pauses auto-hide). */
     readonly barHovered = signal(false);
     private readonly barFocused = signal(false);
     readonly menus = new ControlsMenuState();
     readonly feedback = new ControlsFeedback();
-    /** Exposed so a host (e.g. the MPV compositor) can react to open menus. */
     readonly anyMenuOpen = this.menus.anyOpen;
-
     private readonly shortcuts = new ControlsShortcuts();
     private readonly visibility = new ControlsVisibility(() => this.canHide());
     private readonly fullscreen = new ControlsFullscreen(
@@ -76,7 +70,6 @@ export class PlayerControlsComponent implements OnDestroy {
         },
         this.host
     );
-    /** Exposed for template menu-item bindings (track/speed/aspect select). */
     readonly menuSelection = new ControlsMenuSelection({
         commands: () => this.controller().commands,
         menus: this.menus,
@@ -86,7 +79,6 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
-    /** Local drag preview; the engine is only commanded on timeline change. */
     readonly scrubPosition = signal<number | null>(null);
     readonly timelineDuration = computed(() => {
         const duration = this.state().durationSeconds;
@@ -107,9 +99,7 @@ export class PlayerControlsComponent implements OnDestroy {
             : 0;
     });
 
-    get displayVolume() {
-        return this.volume.value;
-    }
+    readonly displayVolume = this.volume.value;
     readonly isFullscreen = this.fullscreen.isFullscreen;
 
     private readonly vm = createControlsViewModel({
@@ -133,9 +123,8 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly recordingStatusText = this.vm.recordingStatusText;
     readonly volumeIcon = this.vm.volumeIcon;
     readonly canFullscreen = this.vm.canFullscreen;
-    /** Integer volume percent, passed to the localized volume label. */
     readonly volumePercent = computed(() =>
-        Math.round(this.volume.value() * 100)
+        Math.round(this.displayVolume() * 100)
     );
     readonly controlsAreVisible = this.vm.controlsAreVisible;
     readonly hideCursor = this.vm.hideCursor;
@@ -150,25 +139,26 @@ export class PlayerControlsComponent implements OnDestroy {
             adjustVolume: (delta) => this.adjustVolume(delta),
             toggleMute: () => this.toggleMute(),
         });
-
-        // Bind reveal/auto-hide to the interaction surface whenever it changes.
         effect((onCleanup) => {
             onCleanup(this.surface.attachSurface(this.playerSurface()));
         });
-
-        // Reconcile optimistic volume + reschedule auto-hide when state moves.
         effect(() => {
             const state = this.state();
+            const showControls = this.showControls();
+            const capabilities = this.capabilities();
             untracked(() => {
+                if (!capabilities.seek || !state.canSeek) {
+                    this.scrubPosition.set(null);
+                }
                 this.volume.reconcile(state.volume);
+                this.menus.reconcileControllerAvailability(
+                    showControls,
+                    capabilities,
+                    state
+                );
                 this.visibility.scheduleHide();
+                this.feedback.flashRecordingTransition(state.recording.active);
             });
-        });
-
-        // Flash transient feedback on recording start/stop transitions.
-        effect(() => {
-            const active = this.state().recording.active;
-            untracked(() => this.feedback.flashRecordingTransition(active));
         });
     }
 
@@ -191,7 +181,7 @@ export class PlayerControlsComponent implements OnDestroy {
 
     seekBy(deltaSeconds: number): void {
         this.reveal();
-        if (!this.state().canSeek) {
+        if (!this.capabilities().seek || !this.state().canSeek) {
             return;
         }
         this.controller().commands.seekBy(deltaSeconds);
@@ -210,7 +200,11 @@ export class PlayerControlsComponent implements OnDestroy {
         this.reveal();
         const target = this.readTimelineValue(event);
         this.scrubPosition.set(null);
-        if (target === null || !this.state().canSeek) {
+        if (
+            target === null ||
+            !this.capabilities().seek ||
+            !this.state().canSeek
+        ) {
             return;
         }
         this.controller().commands.seekTo(target);
@@ -251,6 +245,9 @@ export class PlayerControlsComponent implements OnDestroy {
     }
 
     toggleMute(): void {
+        if (!this.capabilities().volume) {
+            return;
+        }
         this.volume.toggleMute();
         this.reveal();
     }
@@ -277,6 +274,9 @@ export class PlayerControlsComponent implements OnDestroy {
     }
 
     private adjustVolume(delta: number): void {
+        if (!this.capabilities().volume) {
+            return;
+        }
         this.volume.adjust(delta);
         this.reveal();
     }
@@ -308,8 +308,8 @@ export class PlayerControlsComponent implements OnDestroy {
         this.visibility.scheduleHide();
     }
 
-    /** Reveal the controls (and reschedule auto-hide unless suppressed). */
     reveal(options: { scheduleHide?: boolean } = {}): void {
+        this.shortcuts.activate();
         this.visibility.reveal(options);
     }
 

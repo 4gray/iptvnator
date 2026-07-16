@@ -13,6 +13,7 @@ import type {
 } from './player-controls.model';
 
 function createFakeController() {
+    const capabilities = signal({ ...DEFAULT_PLAYER_CAPABILITIES });
     const state: WritableSignal<PlayerControlsState> = signal(
         createEmptyControlsState()
     );
@@ -28,11 +29,11 @@ function createFakeController() {
         toggleRecording: jest.fn(),
     };
     const controller: PlayerController = {
-        capabilities: signal({ ...DEFAULT_PLAYER_CAPABILITIES }),
+        capabilities,
         state,
         commands,
     };
-    return { controller, state, commands };
+    return { controller, capabilities, state, commands };
 }
 
 describe('PlayerControlsComponent timeline scrubbing', () => {
@@ -83,6 +84,10 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
         fake = createFakeController();
         fixture = TestBed.createComponent(PlayerControlsComponent);
         fixture.componentRef.setInput('controller', fake.controller);
+        fake.capabilities.set({
+            ...DEFAULT_PLAYER_CAPABILITIES,
+            seek: true,
+        });
         setState({
             canSeek: true,
             durationSeconds: 600,
@@ -119,6 +124,43 @@ describe('PlayerControlsComponent timeline scrubbing', () => {
         expect(slider().value).toBe('60');
         expect(slider().getAttribute('aria-valuetext')).toBe('1:00');
         expect(currentTimeText()).toBe('1:00');
+    });
+
+    it('clears the local preview when controller state becomes non-seekable', () => {
+        dispatch('input', '120');
+
+        setState({
+            canSeek: false,
+            isLive: true,
+            positionSeconds: 5,
+        });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.scrubPosition()).toBeNull();
+        expect(currentTimeText()).toBe('0:05');
+    });
+
+    it('does not resurrect a preview after seek capability is restored', () => {
+        dispatch('input', '120');
+
+        fake.capabilities.set({ ...DEFAULT_PLAYER_CAPABILITIES });
+        fixture.detectChanges();
+        expect(fixture.componentInstance.scrubPosition()).toBeNull();
+        expect(slider()).toBeNull();
+
+        fake.capabilities.set({
+            ...DEFAULT_PLAYER_CAPABILITIES,
+            seek: true,
+        });
+        setState({
+            canSeek: true,
+            durationSeconds: 300,
+            positionSeconds: 15,
+        });
+        fixture.detectChanges();
+
+        expect(slider().value).toBe('15');
+        expect(currentTimeText()).toBe('0:15');
     });
 
     it('commits exactly one seek on change and clears the preview', () => {

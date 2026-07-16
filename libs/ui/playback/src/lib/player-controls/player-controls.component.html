@@ -119,21 +119,23 @@
         </div>
 
         <div class="player-controls__timeline">
-            <input
-                class="player-controls__slider"
-                [style.--slider-progress.%]="timelineProgress()"
-                type="range"
-                min="0"
-                [max]="timelineDuration()"
-                [value]="timelineValue()"
-                [disabled]="!state().canSeek"
-                [attr.aria-label]="
-                    'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
-                "
-                [attr.aria-valuetext]="formatTime(timelineValue())"
-                (input)="onTimelineInput($event)"
-                (change)="onTimelineCommit($event)"
-            />
+            @if (capabilities().seek) {
+                <input
+                    class="player-controls__slider"
+                    [style.--slider-progress.%]="timelineProgress()"
+                    type="range"
+                    min="0"
+                    [max]="timelineDuration()"
+                    [value]="timelineValue()"
+                    [disabled]="!state().canSeek"
+                    [attr.aria-label]="
+                        'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
+                    "
+                    [attr.aria-valuetext]="formatTime(timelineValue())"
+                    (input)="onTimelineInput($event)"
+                    (change)="onTimelineCommit($event)"
+                />
+            }
             <div class="player-controls__time">
                 <span>{{ formatTime(timelineValue()) }}</span>
                 @if (state().canSeek) {

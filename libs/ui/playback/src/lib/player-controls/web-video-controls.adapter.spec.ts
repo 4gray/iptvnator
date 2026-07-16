@@ -11,6 +11,7 @@ function createVideo(
     overrides: Partial<{
         duration: number;
         readyState: number;
+        networkState: number;
         paused: boolean;
         ended: boolean;
         error: MediaError | null;
@@ -30,6 +31,7 @@ function createVideo(
         });
     define('duration', overrides.duration ?? NaN);
     define('readyState', overrides.readyState ?? 4);
+    define('networkState', overrides.networkState ?? 1);
     define('paused', overrides.paused ?? false);
     define('ended', overrides.ended ?? false);
     define('error', overrides.error ?? null);
@@ -100,7 +102,7 @@ describe('WebVideoControlsAdapter', () => {
         expect(state.canSeek).toBe(true);
     });
 
-    it('falls back to the element duration when getDuration is not finite', () => {
+    it('falls back to the element duration when getDuration returns NaN', () => {
         const video = createVideo({ duration: 90, seekableLength: 1 });
         adapter.attach(video, { getDuration: () => NaN });
 
@@ -166,7 +168,9 @@ describe('WebVideoControlsAdapter', () => {
         const video = createVideo({ duration: 90, seekableLength: 1 });
         adapter.attach(video, {
             getAudioTracks: () => audioTracks,
+            setAudioTrack: jest.fn(),
             getSubtitleTracks: () => subtitleTracks,
+            setSubtitleTrack: jest.fn(),
             getDuration: () => duration,
             isLive: () => live,
         });
@@ -253,11 +257,17 @@ describe('WebVideoControlsAdapter', () => {
             { id: 1, label: 'DE', selected: false },
         ];
 
-        adapter.attach(createVideo(), { getAudioTracks: () => single });
+        adapter.attach(createVideo(), {
+            getAudioTracks: () => single,
+            setAudioTrack: jest.fn(),
+        });
         expect(adapter.capabilities().audioTracks).toBe(false);
 
         const multiAdapter = new WebVideoControlsAdapter();
-        multiAdapter.attach(createVideo(), { getAudioTracks: () => multi });
+        multiAdapter.attach(createVideo(), {
+            getAudioTracks: () => multi,
+            setAudioTrack: jest.fn(),
+        });
         expect(multiAdapter.capabilities().audioTracks).toBe(true);
         expect(multiAdapter.state().audioTracks).toEqual(multi);
         multiAdapter.detach();
@@ -269,6 +279,7 @@ describe('WebVideoControlsAdapter', () => {
         ];
         adapter.attach(createVideo(), {
             getSubtitleTracks: () => subtitles,
+            setSubtitleTrack: jest.fn(),
         });
         expect(adapter.capabilities().subtitles).toBe(true);
         expect(adapter.state().subtitlesEnabled).toBe(true);

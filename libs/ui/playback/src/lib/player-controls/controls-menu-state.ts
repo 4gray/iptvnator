@@ -1,6 +1,39 @@
 import { computed, signal } from '@angular/core';
+import type {
+    PlayerControlsCapabilities,
+    PlayerControlsState,
+} from './player-controls.model';
 
-export type ControlsMenu = 'volume' | 'audio' | 'subtitle' | 'speed' | 'aspect';
+const CONTROL_MENUS = [
+    'volume',
+    'audio',
+    'subtitle',
+    'speed',
+    'aspect',
+] as const;
+
+export type ControlsMenu = (typeof CONTROL_MENUS)[number];
+export type ControlsMenuAvailability = Readonly<Record<ControlsMenu, boolean>>;
+
+function getControlsMenuAvailability(
+    showControls: boolean,
+    capabilities: PlayerControlsCapabilities,
+    state: PlayerControlsState
+): ControlsMenuAvailability {
+    return {
+        volume: showControls && capabilities.volume,
+        audio:
+            showControls &&
+            capabilities.audioTracks &&
+            state.audioTracks.length > 1,
+        subtitle:
+            showControls &&
+            capabilities.subtitles &&
+            state.subtitleTracks.length > 0,
+        speed: showControls && capabilities.playbackSpeed,
+        aspect: showControls && capabilities.aspectRatio,
+    };
+}
 
 /**
  * Tracks which menu/popover is currently open and exposes individual signals
@@ -47,6 +80,28 @@ export class ControlsMenuState {
         this.subtitleOpen.set(false);
         this.speedOpen.set(false);
         this.aspectOpen.set(false);
+    }
+
+    reconcile(availability: ControlsMenuAvailability): boolean {
+        let changed = false;
+        for (const menu of CONTROL_MENUS) {
+            const open = this.signalFor(menu);
+            if (open() && !availability[menu]) {
+                open.set(false);
+                changed = true;
+            }
+        }
+        return changed;
+    }
+
+    reconcileControllerAvailability(
+        showControls: boolean,
+        capabilities: PlayerControlsCapabilities,
+        state: PlayerControlsState
+    ): boolean {
+        return this.reconcile(
+            getControlsMenuAvailability(showControls, capabilities, state)
+        );
     }
 
     private signalFor(menu: ControlsMenu) {

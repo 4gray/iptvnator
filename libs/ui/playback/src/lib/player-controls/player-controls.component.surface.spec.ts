@@ -248,6 +248,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         });
 
         it('arrow left/right seek by ±5 seconds', () => {
+            setCapabilities({ seek: true });
             setState({ canSeek: true, durationSeconds: 600 });
             fixture.detectChanges();
 
@@ -259,6 +260,8 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         });
 
         it('arrow down lowers the volume and flashes feedback', () => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
             pressKey('ArrowDown');
 
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
@@ -266,12 +269,15 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         });
 
         it('m mutes the player', () => {
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
             pressKey('m');
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
             expect(component.displayVolume()).toBe(0);
         });
 
         it('ignores playback shortcuts while shortcuts are disabled', () => {
+            setCapabilities({ volume: true });
             fixture.componentRef.setInput('shortcutsEnabled', false);
             fixture.detectChanges();
 

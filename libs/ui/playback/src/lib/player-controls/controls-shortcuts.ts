@@ -30,13 +30,24 @@ const INTERACTIVE_SELECTOR = [
 ].join(',');
 
 export class ControlsShortcuts {
+    private static readonly instances = new Set<ControlsShortcuts>();
+    private static active: ControlsShortcuts | null = null;
+
     private handlers: ControlsShortcutHandlers | null = null;
     private readonly listener = (event: KeyboardEvent) => this.handle(event);
 
     attach(handlers: ControlsShortcutHandlers): void {
         this.handlers = handlers;
+        ControlsShortcuts.instances.add(this);
+        ControlsShortcuts.active ??= this;
         if (typeof document !== 'undefined') {
             document.addEventListener('keydown', this.listener);
+        }
+    }
+
+    activate(): void {
+        if (this.handlers) {
+            ControlsShortcuts.active = this;
         }
     }
 
@@ -45,6 +56,10 @@ export class ControlsShortcuts {
             document.removeEventListener('keydown', this.listener);
         }
         this.handlers = null;
+        ControlsShortcuts.instances.delete(this);
+        if (ControlsShortcuts.active === this) {
+            ControlsShortcuts.active = ControlsShortcuts.lastAttachedInstance();
+        }
     }
 
     private handle(event: KeyboardEvent): void {
@@ -64,7 +79,10 @@ export class ControlsShortcuts {
             return;
         }
 
-        if (this.shouldIgnore(event) || !handlers.isAvailable()) {
+        if (
+            this.shouldIgnore(event) ||
+            ControlsShortcuts.resolvePlaybackOwner() !== this
+        ) {
             return;
         }
 
@@ -133,5 +151,28 @@ export class ControlsShortcuts {
             }
             return element.isContentEditable === true;
         });
+    }
+
+    private static resolvePlaybackOwner(): ControlsShortcuts | null {
+        if (this.active?.handlers?.isAvailable()) {
+            return this.active;
+        }
+
+        let fallback: ControlsShortcuts | null = null;
+        for (const instance of this.instances) {
+            if (instance.handlers?.isAvailable()) {
+                fallback = instance;
+            }
+        }
+        this.active = fallback;
+        return fallback;
+    }
+
+    private static lastAttachedInstance(): ControlsShortcuts | null {
+        let last: ControlsShortcuts | null = null;
+        for (const instance of this.instances) {
+            last = instance;
+        }
+        return last;
     }
 }

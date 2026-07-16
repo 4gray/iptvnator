@@ -194,6 +194,8 @@ describe('PlayerControlsComponent', () => {
         });
 
         it('disables the timeline when seeking is not possible', () => {
+            setCapabilities({ seek: true });
+            fixture.detectChanges();
             const slider = query(
                 '.player-controls__slider'
             ) as HTMLInputElement | null;
@@ -208,6 +210,8 @@ describe('PlayerControlsComponent', () => {
         });
 
         it('gives the timeline slider an accessible name', () => {
+            setCapabilities({ seek: true });
+            fixture.detectChanges();
             expect(query('[aria-label="Playback position"]')).not.toBeNull();
         });
     });

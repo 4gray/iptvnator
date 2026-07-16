@@ -21,27 +21,35 @@ import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-pl
  */
 export interface WebVideoControlsOptions {
     getAudioTracks?: () => PlayerTrack[];
-    setAudioTrack?: (id: number) => void;
+    setAudioTrack?: (id: number) => void | Promise<void>;
     getSubtitleTracks?: () => PlayerTrack[];
-    setSubtitleTrack?: (id: number) => void;
+    setSubtitleTrack?: (id: number) => void | Promise<void>;
     isLive?: () => boolean;
     /**
      * Optional corrected duration source. Some engines (e.g. Video.js mpegts
      * raw-TS VOD) report the real duration on the player, not on the `<video>`
      * element — whose `duration` stays `Infinity` and would be misread as live.
-     * When provided, the adapter prefers this over `video.duration`.
+     * Every returned value except `NaN` is authoritative; `NaN` falls back to
+     * `video.duration`.
      */
     getDuration?: () => number;
 }
 
 /** readyState below which an actively-playing video is still buffering. */
 const HAVE_FUTURE_DATA = 3;
+const NETWORK_EMPTY = 0;
 
 interface WebVideoControlsContext {
     seriesNavigation: Signal<SeriesPlaybackNavigation | null>;
 }
 
 const VIDEO_EVENTS = [
+    'loadstart',
+    'emptied',
+    'progress',
+    'stalled',
+    'seeking',
+    'seeked',
     'play',
     'pause',
     'timeupdate',
@@ -90,8 +98,12 @@ export class WebVideoControlsAdapter implements PlayerController {
             return DEFAULT_PLAYER_CAPABILITIES;
         }
 
-        const hasAudioTracks = (this.opts.getAudioTracks?.().length ?? 0) > 1;
-        const hasSubtitles = (this.opts.getSubtitleTracks?.().length ?? 0) > 0;
+        const hasAudioTracks =
+            typeof this.opts.setAudioTrack === 'function' &&
+            (this.opts.getAudioTracks?.().length ?? 0) > 1;
+        const hasSubtitles =
+            typeof this.opts.setSubtitleTrack === 'function' &&
+            (this.opts.getSubtitleTracks?.().length ?? 0) > 0;
         const isLive = this.isLive();
         return {
             ...DEFAULT_PLAYER_CAPABILITIES,
@@ -253,31 +265,44 @@ export class WebVideoControlsAdapter implements PlayerController {
     }
 
     private applyTrackSelection(
-        setter: ((id: number) => void) | undefined,
+        setter: ((id: number) => void | Promise<void>) | undefined,
         id: number
     ): void {
         if (!setter) {
             return;
         }
-        setter(id);
-        this.refresh();
+        try {
+            const result = setter(id);
+            if (result) {
+                void result.then(
+                    () => this.refresh(),
+                    () => undefined
+                );
+                return;
+            }
+            this.refresh();
+        } catch {
+            // Engine adapters may reject selection while changing source.
+        }
     }
 
     private isLive(): boolean {
         if (this.opts.isLive) {
             return this.opts.isLive();
         }
-        return !Number.isFinite(this.readDuration());
+        return this.readDuration() === Number.POSITIVE_INFINITY;
     }
 
     /**
      * Reads the corrected duration via {@link WebVideoControlsOptions.getDuration}
-     * when supplied, falling back to the `<video>` element's own `duration`.
+     * when supplied. `NaN` means "not known yet" and falls back to the
+     * `<video>` element's own `duration`; positive Infinity remains a live
+     * classification signal.
      */
     private readDuration(): number {
         if (this.opts.getDuration) {
             const duration = this.opts.getDuration();
-            if (Number.isFinite(duration)) {
+            if (!Number.isNaN(duration)) {
                 return duration;
             }
         }
@@ -330,9 +355,11 @@ export class WebVideoControlsAdapter implements PlayerController {
         if (video.ended) {
             return 'ended';
         }
+        if (video.networkState === NETWORK_EMPTY) {
+            return 'idle';
+        }
         if (video.paused) {
-            // readyState 0/1 before any data → still warming up.
-            return video.readyState < 2 ? 'loading' : 'paused';
+            return 'paused';
         }
         return video.readyState < 3 ? 'loading' : 'playing';
     }
