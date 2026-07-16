@@ -45,6 +45,10 @@ export class SettingsPlaybackSectionComponent {
     readonly players = input.required<SettingsPlayerOption[]>();
     readonly streamFormatEnum = input.required<typeof StreamFormat>();
     readonly isDesktop = input(false);
+    /** Frame-copy embedded MPV engine is possible on this machine */
+    readonly frameCopyAvailable = input(false);
+    /** Frame-copy engine is what the current app run actually uses */
+    readonly frameCopyActive = input(false);
     readonly supportsManagedExternalPlayers = input(false);
     readonly supportsExternalPlayerPathSettings = input(false);
     readonly selectRecordingFolder = output<void>();

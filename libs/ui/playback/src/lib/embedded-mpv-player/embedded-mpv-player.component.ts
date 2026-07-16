@@ -122,6 +122,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly aspectPresets = ASPECT_PRESETS;
 
     readonly isSupported = computed(() => this.support()?.supported ?? false);
+    readonly isFrameCopyEngine = computed(
+        () => this.support()?.engine === 'frame-copy'
+    );
     readonly capabilities = computed(
         () =>
             this.support()?.capabilities ?? {
@@ -343,6 +346,13 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         }
 
         this.controller.setBoundsProvider((host) => {
+            // The frame-copy engine paints into an ordinary DOM canvas:
+            // dialogs and popovers stack above it natively, so the
+            // hide-offscreen and popover-cutout compositor workarounds
+            // must not shrink its render size.
+            if (this.isFrameCopyEngine()) {
+                return measureBounds(host);
+            }
             if (this.overlayVisibility.overlayActive()) {
                 return HIDDEN_BOUNDS;
             }

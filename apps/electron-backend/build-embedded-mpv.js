@@ -7,6 +7,9 @@ const {
     patchAddonForBundledRuntime,
     validateNoForbiddenRuntimeLinks,
 } = require('../../tools/packaging/embedded-mpv-packaging.cjs');
+const {
+    removeStaleFrameCopyArtifacts,
+} = require('../../tools/packaging/embedded-mpv-frame-copy-files.cjs');
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(
@@ -59,6 +62,9 @@ function log(message) {
 function cleanOutput() {
     fs.rmSync(outputFile, { force: true });
     fs.rmSync(outputLibDir, { recursive: true, force: true });
+    // Do not let an optional/skipped rebuild leave frame-copy artifacts that
+    // could make startup treat an incomplete runtime as available.
+    removeStaleFrameCopyArtifacts(outputDir);
     for (const windowsDllName of [
         'mpv-2.dll',
         'libmpv-2.dll',
@@ -176,6 +182,23 @@ function findWindowsLibMpv(runtimeRoot) {
     return null;
 }
 
+/* Debian/Ubuntu install linker targets under the multiarch triple dir. The
+ * compiler's built-in search paths cover it for -l resolution either way;
+ * this keeps the -L flag and the helper's baked rpath pointing somewhere
+ * real. */
+function defaultLinuxSystemLibDir() {
+    const multiarchTriples = {
+        arm: 'arm-linux-gnueabihf',
+        arm64: 'aarch64-linux-gnu',
+        x64: 'x86_64-linux-gnu',
+    };
+    const triple = multiarchTriples[targetArch];
+    if (triple && fs.existsSync(`/usr/lib/${triple}`)) {
+        return `/usr/lib/${triple}`;
+    }
+    return '/usr/lib';
+}
+
 function findLinuxLibMpv(libDir) {
     for (const candidate of ['libmpv.so.2', 'libmpv.so.1', 'libmpv.so']) {
         const candidatePath = path.join(libDir, candidate);
@@ -215,6 +238,30 @@ function resolveRuntime() {
             manifest: readRuntimeManifest(vendoredRuntimeRoot),
             windowsImportLib,
         };
+    }
+
+    if (targetPlatform === 'linux') {
+        // Dev-first Linux flow (frame-copy helper links system libmpv): a
+        // distro libmpv-dev install is a full runtime — no staging needed.
+        // LIBMPV_INCLUDE_DIR / LINUX_NATIVE_LIBRARY_DIR override the system
+        // paths for machines with a local (non-root) libmpv prefix.
+        const systemIncludeDir =
+            process.env.LIBMPV_INCLUDE_DIR || '/usr/include';
+        if (fs.existsSync(path.join(systemIncludeDir, 'mpv', 'client.h'))) {
+            return {
+                origin: 'system-dev',
+                includeDir: systemIncludeDir,
+                libDir:
+                    process.env.LINUX_NATIVE_LIBRARY_DIR ||
+                    defaultLinuxSystemLibDir(),
+                binDir: undefined,
+                manifest: {
+                    warning:
+                        'Development-only system libmpv toolchain. Release packaging keeps the external-mpv-process contract.',
+                },
+                windowsImportLib: null,
+            };
+        }
     }
 
     if (targetPlatform === 'darwin' && homebrewFallbackEnabled) {
@@ -448,7 +495,10 @@ function main() {
         npm_config_update_binary: 'false',
         LIBMPV_INCLUDE_DIR: runtime.includeDir,
         ...(targetPlatform === 'linux'
-            ? { LINUX_NATIVE_LIBRARY_DIR: runtime.libDir }
+            ? {
+                  LINUX_NATIVE_LIBRARY_DIR:
+                      process.env.LINUX_NATIVE_LIBRARY_DIR || runtime.libDir,
+              }
             : { LIBMPV_LIBRARY_DIR: outputLibDir }),
         ...(runtime.windowsImportLib
             ? {
@@ -464,8 +514,25 @@ function main() {
         `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
     );
     cleanNativeBuildIntermediates();
-    runNodeGyp('configure', env);
-    runNodeGyp('build', env);
+    try {
+        runNodeGyp('configure', env);
+        runNodeGyp('build', env);
+    } catch (error) {
+        if (!embeddedMpvRequired && runtime.origin === 'system-dev') {
+            // The system-dev fallback triggers on any machine with
+            // libmpv-dev installed; keep the old graceful-skip contract
+            // when the rest of the toolchain (EGL/GL/gbm dev packages) is
+            // missing instead of failing the whole electron build.
+            log(
+                `Embedded MPV native build failed with the system-dev toolchain; continuing without embedded MPV. ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+            cleanOutput();
+            return;
+        }
+        throw error;
+    }
 
     if (!fs.existsSync(outputFile)) {
         throw new Error(`Build finished without producing ${outputFile}.`);
@@ -473,8 +540,16 @@ function main() {
 
     if (targetPlatform === 'darwin') {
         patchAddonForBundledRuntime(outputFile, outputLibDir);
+        // The frame-copy helper executable links libmpv too and sits next to
+        // the same lib/ directory, so it gets the identical dependency-path
+        // rewrite + ad-hoc re-sign.
+        const frameHelperFile = path.join(outputDir, 'iptvnator_mpv_helper');
+        if (fs.existsSync(frameHelperFile)) {
+            patchAddonForBundledRuntime(frameHelperFile, outputLibDir);
+        }
         const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
             outputFile,
+            ...(fs.existsSync(frameHelperFile) ? [frameHelperFile] : []),
             ...runtimeManifest.dylibs.map((dylib) =>
                 path.join(outputLibDir, dylib)
             ),

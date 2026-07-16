@@ -165,6 +165,12 @@ export class SettingsComponent implements OnInit, OnDestroy {
     readonly supportsEmbeddedMpv = computed(
         () => this.isDesktop && !!this.embeddedMpvSupport()?.supported
     );
+    readonly frameCopyAvailable = computed(
+        () => this.isDesktop && !!this.embeddedMpvSupport()?.frameCopyAvailable
+    );
+    readonly frameCopyActive = computed(
+        () => this.embeddedMpvSupport()?.engine === 'frame-copy'
+    );
 
     readonly isPwa = this.runtime.isPwa;
 

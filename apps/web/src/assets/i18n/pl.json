@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: silnik frame-copy (eksperymentalny)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Wideo jest rysowane na kanwie aplikacji, dzięki czemu menu i okna dialogowe wyświetlają się nad nim.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Zacznie działać po ponownym uruchomieniu aplikacji."
     },
     "THEMES": {
         "DARK_THEME": "Ciemny",
@@ -459,6 +462,7 @@
             "BACK_10_SECONDS": "Cofnij o 10 sekund",
             "FORWARD_10_SECONDS": "Do przodu o 10 sekund",
             "LIVE_STREAM": "Transmisja na żywo",
+            "PLAYBACK_POSITION": "Pozycja odtwarzania",
             "MUTE": "Wycisz",
             "UNMUTE": "Wyłącz wyciszenie",
             "MUTED": "Wyciszono",

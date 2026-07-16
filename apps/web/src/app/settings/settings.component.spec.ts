@@ -102,6 +102,7 @@ const DEFAULT_SETTINGS = {
     remoteControlPort: 8765,
     epgUrl: [],
     recordingFolder: '',
+    embeddedMpvFrameCopy: false,
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,

@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "내장 MPV: 프레임 복사 엔진(실험적)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "비디오를 앱 캔버스에 렌더링하여 메뉴와 대화 상자가 그 위에 표시됩니다.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "앱을 다시 시작한 후 적용됩니다."
     },
     "THEMES": {
         "DARK_THEME": "어둡게",
@@ -459,6 +462,7 @@
             "BACK_10_SECONDS": "10초 뒤로",
             "FORWARD_10_SECONDS": "10초 앞으로",
             "LIVE_STREAM": "라이브 스트림",
+            "PLAYBACK_POSITION": "재생 위치",
             "MUTE": "음소거",
             "UNMUTE": "음소거 해제",
             "MUTED": "음소거됨",

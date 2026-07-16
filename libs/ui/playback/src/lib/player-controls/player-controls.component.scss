@@ -1,0 +1,469 @@
+:host {
+    --pc-accent: #ffffff;
+    --pc-track: rgba(255, 255, 255, 0.3);
+    --pc-thumb-ring: rgba(255, 255, 255, 0.95);
+    --pc-panel-bg: rgba(18, 18, 20, 0.92);
+    --pc-panel-border: rgba(255, 255, 255, 0.16);
+    --pc-text: #ffffff;
+    --pc-text-dim: rgba(255, 255, 255, 0.82);
+
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    display: block;
+    // The control layer is transparent to the mouse so the video underneath
+    // stays interactive; only the bar/popovers opt back in to pointer events.
+    pointer-events: none;
+    color: var(--pc-text);
+    // Become a query container so popovers can size against the actual player
+    // box (the host fills the player via inset:0) instead of fixed pixels or
+    // the viewport — they grow to fit when there is room and shrink to scroll
+    // when the player is small, never spilling past its edges.
+    container-type: size;
+    container-name: player-controls;
+}
+
+:host(.player-controls-host--cursor-hidden) {
+    cursor: none;
+}
+
+.player-controls__feedback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 18px;
+    color: #ffffff;
+    background: rgba(0, 0, 0, 0.65);
+    border-radius: 999px;
+    font-size: 0.95rem;
+    font-variant-numeric: tabular-nums;
+    pointer-events: none;
+    z-index: 3;
+    animation: player-controls-feedback 700ms ease-out forwards;
+}
+
+.player-controls__feedback mat-icon {
+    font-size: 22px;
+    width: 22px;
+    height: 22px;
+    color: #ffffff;
+}
+
+@keyframes player-controls-feedback {
+    0% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(0.92);
+    }
+    18% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    70% {
+        opacity: 1;
+        transform: translate(-50%, -50%) scale(1);
+    }
+    100% {
+        opacity: 0;
+        transform: translate(-50%, -50%) scale(1);
+    }
+}
+
+.player-controls__bar {
+    position: absolute;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    z-index: 2;
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    gap: 16px;
+    align-items: center;
+    align-content: end;
+    min-height: 64px;
+    // Generous top padding lets the scrim rise above the controls and fade out.
+    padding: 48px 16px 12px;
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    // True-overlay scrim: opaque-ish black at the bottom fading to fully
+    // transparent at the top, so controls read clearly over full-bleed video.
+    background: linear-gradient(
+        to top,
+        rgba(0, 0, 0, 0.78) 0%,
+        rgba(0, 0, 0, 0.45) 45%,
+        transparent 100%
+    );
+    transition:
+        opacity 180ms ease-out,
+        transform 200ms ease-out;
+}
+
+.player-controls__bar--visible {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.player-controls__transport {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-controls__timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    min-width: 0;
+}
+
+.player-controls__time {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
+    color: var(--pc-text-dim);
+    font-size: 0.78rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-controls__recording-status {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0;
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 0.72rem;
+    font-variant-numeric: tabular-nums;
+}
+
+.player-controls__recording-status mat-icon {
+    flex: 0 0 auto;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: #ffffff;
+}
+
+.player-controls__recording-status span {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-controls__recording-status--active {
+    color: var(--mat-sys-error, #ff5252);
+    font-weight: 700;
+}
+
+.player-controls__recording-status--active mat-icon {
+    color: var(--mat-sys-error, #ff5252);
+}
+
+.player-controls__live-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 8px;
+    border-radius: 4px;
+    color: #ffffff;
+    background: var(--mat-sys-error, #e53935);
+    font-size: 0.66rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+}
+
+.player-controls__live-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: currentColor;
+    animation: player-controls-live-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes player-controls-live-pulse {
+    50% {
+        opacity: 0.35;
+    }
+}
+
+.player-controls__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.player-controls__popover-anchor {
+    position: relative;
+    display: flex;
+}
+
+.player-controls__record-button--active {
+    color: var(--mat-sys-error, #ff5252) !important;
+}
+
+// Scope to :host — the controls render directly under the component host
+// (`.player-controls-host`); there is no `.player-controls` wrapper element, so
+// selectors prefixed with `.player-controls ` never matched (which is why the
+// icons were only white on :hover, the one rule scoped to `.player-controls__bar`).
+:host :is(button[mat-icon-button]) {
+    // Material drives the icon colour through MDC tokens, not plain `color`,
+    // so force both — otherwise the icons render in the dim theme colour.
+    color: #ffffff;
+    --mdc-icon-button-icon-color: #ffffff;
+    --mat-icon-button-icon-color: #ffffff;
+}
+
+:host :is(button[mat-icon-button]) mat-icon {
+    color: #ffffff;
+}
+
+:host :is(button[mat-icon-button][disabled]) {
+    // Keep disabled affordances visibly muted.
+    --mdc-icon-button-icon-color: rgba(255, 255, 255, 0.38);
+    color: rgba(255, 255, 255, 0.38);
+}
+
+:host :is(button[mat-icon-button][disabled]) mat-icon {
+    color: rgba(255, 255, 255, 0.38);
+}
+
+:host .player-controls__bar :is(button[mat-icon-button]:hover) {
+    color: #ffffff;
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.player-controls__slider {
+    --slider-progress: 0%;
+    width: 100%;
+    height: 18px;
+    appearance: none;
+    -webkit-appearance: none;
+    background: transparent;
+    cursor: pointer;
+}
+
+.player-controls__slider:focus-visible {
+    outline: 2px solid var(--pc-accent);
+    outline-offset: 4px;
+    border-radius: 4px;
+}
+
+.player-controls__slider::-webkit-slider-runnable-track {
+    height: 4px;
+    border-radius: 999px;
+    background: linear-gradient(
+        to right,
+        var(--pc-accent) var(--slider-progress),
+        var(--pc-track) var(--slider-progress)
+    );
+}
+
+.player-controls__slider::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 14px;
+    height: 14px;
+    margin-top: -5px;
+    border: 2px solid var(--pc-thumb-ring);
+    border-radius: 50%;
+    background: var(--pc-accent);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    transition: transform 120ms ease-out;
+}
+
+.player-controls__slider:hover::-webkit-slider-thumb,
+.player-controls__slider:focus-visible::-webkit-slider-thumb {
+    transform: scale(1.18);
+}
+
+.player-controls__slider:disabled::-webkit-slider-runnable-track {
+    background: var(--pc-track);
+}
+
+.player-controls__slider:disabled::-webkit-slider-thumb {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: none;
+}
+
+.player-controls__slider::-moz-range-track {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--pc-track);
+}
+
+.player-controls__slider::-moz-range-progress {
+    height: 4px;
+    border-radius: 999px;
+    background: var(--pc-accent);
+}
+
+.player-controls__slider::-moz-range-thumb {
+    width: 14px;
+    height: 14px;
+    border: 2px solid var(--pc-thumb-ring);
+    border-radius: 50%;
+    background: var(--pc-accent);
+    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.55);
+    transition: transform 120ms ease-out;
+}
+
+.player-controls__slider:hover::-moz-range-thumb,
+.player-controls__slider:focus-visible::-moz-range-thumb {
+    transform: scale(1.18);
+}
+
+.player-controls__slider:disabled::-moz-range-thumb {
+    background: rgba(255, 255, 255, 0.45);
+    border-color: rgba(255, 255, 255, 0.6);
+    box-shadow: none;
+}
+
+.player-controls__panel {
+    min-width: 0;
+    color: var(--pc-text);
+    background: var(--pc-panel-bg);
+    border: 1px solid var(--pc-panel-border);
+    border-radius: 14px;
+    box-shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(18px);
+}
+
+.player-controls__volume-popover {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 4px;
+    // Comfortable fixed width for the slider; only clamp on players too narrow
+    // to fit it so the popover never spills past the player's edges.
+    width: 168px;
+    max-width: calc(100cqw - 24px);
+    padding: 12px 14px 10px;
+    z-index: 3;
+}
+
+.player-controls__volume-popover::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -8px;
+    height: 8px;
+}
+
+.player-controls__volume-popover .player-controls__slider--volume {
+    width: 100%;
+}
+
+.player-controls__volume-value {
+    color: var(--pc-text-dim);
+    font-size: 0.74rem;
+    font-variant-numeric: tabular-nums;
+    text-align: center;
+    white-space: nowrap;
+}
+
+.player-controls__track-popover {
+    position: absolute;
+    bottom: calc(100% + 6px);
+    right: 0;
+    display: flex;
+    flex-direction: column;
+    min-width: 220px;
+    // Cap to the player box (minus a small gutter) so the panel never spills
+    // past the player's edges on small windows; falls back to the viewport
+    // where container units are unavailable.
+    max-width: min(420px, calc(100cqw - 24px), 80vw);
+    // Height grows to fit the list; only when it would exceed the room above
+    // the controls bar does the inner list start scrolling. 96px ≈ the controls
+    // bar height plus the 6px gap and a little breathing room.
+    max-height: min(calc(100cqh - 96px), 70vh);
+    padding: 10px 12px;
+    z-index: 3;
+}
+
+.player-controls__menu-title {
+    flex: 0 0 auto;
+    padding: 0 2px 6px;
+    color: rgba(255, 255, 255, 0.7);
+    font-size: 0.7rem;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.player-controls__track-list {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    // No fixed cap: the panel's max-height bounds the popover, and the title
+    // above stays pinned while this list takes the remaining space and scrolls
+    // only when the content genuinely exceeds it.
+    flex: 0 1 auto;
+    min-height: 0;
+    overflow-y: auto;
+    scrollbar-width: thin;
+}
+
+.player-controls__track {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 8px 10px;
+    color: var(--pc-text);
+    background: transparent;
+    border: 0;
+    border-radius: 10px;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+}
+
+.player-controls__track span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.player-controls__track:hover,
+.player-controls__track:focus-visible,
+.player-controls__track--selected {
+    background: rgba(255, 255, 255, 0.16);
+}
+
+.player-controls__track mat-icon {
+    color: #ffffff;
+    font-size: 18px;
+    width: 18px;
+    height: 18px;
+}
+
+@media (max-width: 720px) {
+    // Keep the single-row layout when space is tight: the transport and action
+    // buttons hold their natural width while the middle timeline column
+    // (the seek slider) absorbs the shrink. Collapsing to a single column here
+    // is what used to push the transport buttons into a row above the slider.
+    .player-controls__bar {
+        gap: 8px;
+    }
+
+    .player-controls__actions {
+        min-width: 0;
+    }
+
+    .player-controls__volume-popover,
+    .player-controls__track-popover {
+        right: 0;
+        left: auto;
+    }
+}

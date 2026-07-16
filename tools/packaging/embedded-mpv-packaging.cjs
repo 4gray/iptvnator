@@ -4,6 +4,12 @@ const { spawnSync } = require('child_process');
 
 const forbiddenRuntimePathPrefixes = ['/opt/homebrew/', '/usr/local/'];
 const systemRuntimePathPrefixes = ['/System/Library/', '/usr/lib/'];
+const windowsMpvRuntimeNames = [
+    'mpv-2.dll',
+    'libmpv-2.dll',
+    'mpv.dll',
+    'libmpv.dll',
+];
 
 function run(command, args, options = {}) {
     const result = spawnSync(command, args, {
@@ -65,6 +71,177 @@ function listRuntimeFiles(directoryPath) {
         .filter((entry) => entry.isFile())
         .map((entry) => path.join(directoryPath, entry.name))
         .sort();
+}
+
+function assertPeRange(image, offset, size, label) {
+    if (
+        !Number.isSafeInteger(offset) ||
+        !Number.isSafeInteger(size) ||
+        offset < 0 ||
+        size < 0 ||
+        offset + size > image.length
+    ) {
+        throw new Error(`Invalid PE image: ${label} is out of range.`);
+    }
+}
+
+function readPeImportedDllNames(binaryPath) {
+    const image = fs.readFileSync(binaryPath);
+    assertPeRange(image, 0, 0x40, 'DOS header');
+    if (image.toString('ascii', 0, 2) !== 'MZ') {
+        throw new Error('Invalid PE image: missing DOS signature.');
+    }
+
+    const peOffset = image.readUInt32LE(0x3c);
+    assertPeRange(image, peOffset, 24, 'PE header');
+    if (image.toString('ascii', peOffset, peOffset + 4) !== 'PE\0\0') {
+        throw new Error('Invalid PE image: missing PE signature.');
+    }
+
+    const sectionCount = image.readUInt16LE(peOffset + 6);
+    const optionalHeaderSize = image.readUInt16LE(peOffset + 20);
+    const optionalHeaderOffset = peOffset + 24;
+    assertPeRange(
+        image,
+        optionalHeaderOffset,
+        optionalHeaderSize,
+        'optional header'
+    );
+
+    const optionalMagic = image.readUInt16LE(optionalHeaderOffset);
+    const dataDirectoryOffset =
+        optionalMagic === 0x20b
+            ? optionalHeaderOffset + 112
+            : optionalMagic === 0x10b
+              ? optionalHeaderOffset + 96
+              : null;
+    const directoryCountOffset =
+        optionalMagic === 0x20b
+            ? optionalHeaderOffset + 108
+            : optionalMagic === 0x10b
+              ? optionalHeaderOffset + 92
+              : null;
+    if (dataDirectoryOffset === null || directoryCountOffset === null) {
+        throw new Error(
+            `Invalid PE image: unsupported optional-header magic 0x${optionalMagic.toString(16)}.`
+        );
+    }
+    const optionalHeaderEnd = optionalHeaderOffset + optionalHeaderSize;
+    if (
+        directoryCountOffset + 4 > optionalHeaderEnd ||
+        dataDirectoryOffset + 16 > optionalHeaderEnd
+    ) {
+        throw new Error(
+            'Invalid PE image: data directories exceed the optional header.'
+        );
+    }
+    assertPeRange(image, directoryCountOffset, 4, 'data-directory count');
+    if (image.readUInt32LE(directoryCountOffset) < 2) {
+        return [];
+    }
+    assertPeRange(image, dataDirectoryOffset + 8, 8, 'import directory');
+
+    const importRva = image.readUInt32LE(dataDirectoryOffset + 8);
+    const importSize = image.readUInt32LE(dataDirectoryOffset + 12);
+    if (importRva === 0 && importSize === 0) {
+        return [];
+    }
+    if (importRva === 0 || importSize < 20) {
+        throw new Error('Invalid PE image: malformed import directory.');
+    }
+
+    const sectionTableOffset = optionalHeaderOffset + optionalHeaderSize;
+    assertPeRange(
+        image,
+        sectionTableOffset,
+        sectionCount * 40,
+        'section table'
+    );
+    const sections = Array.from({ length: sectionCount }, (_, index) => {
+        const offset = sectionTableOffset + index * 40;
+        return {
+            virtualSize: image.readUInt32LE(offset + 8),
+            virtualAddress: image.readUInt32LE(offset + 12),
+            rawSize: image.readUInt32LE(offset + 16),
+            rawOffset: image.readUInt32LE(offset + 20),
+        };
+    });
+
+    const rvaToLocation = (rva, label) => {
+        const section = sections.find(
+            (candidate) =>
+                rva >= candidate.virtualAddress &&
+                rva <
+                    candidate.virtualAddress +
+                        Math.max(candidate.virtualSize, candidate.rawSize)
+        );
+        if (!section) {
+            throw new Error(
+                `Invalid PE image: ${label} RVA 0x${rva.toString(16)} is not mapped.`
+            );
+        }
+
+        const sectionOffset = rva - section.virtualAddress;
+        if (sectionOffset >= section.rawSize) {
+            throw new Error(
+                `Invalid PE image: ${label} is outside section file data.`
+            );
+        }
+        const offset = section.rawOffset + sectionOffset;
+        assertPeRange(image, offset, 1, label);
+        return {
+            offset,
+            sectionEnd: section.rawOffset + section.rawSize,
+        };
+    };
+
+    const importedDllNames = [];
+    const descriptorCount = Math.floor(importSize / 20);
+    let foundTerminator = false;
+    for (let index = 0; index < descriptorCount; index += 1) {
+        const descriptorLocation = rvaToLocation(
+            importRva + index * 20,
+            'import descriptor'
+        );
+        const descriptorOffset = descriptorLocation.offset;
+        if (descriptorOffset + 20 > descriptorLocation.sectionEnd) {
+            throw new Error(
+                'Invalid PE image: import descriptor crosses section file data.'
+            );
+        }
+        assertPeRange(image, descriptorOffset, 20, 'import descriptor');
+        const descriptor = image.subarray(
+            descriptorOffset,
+            descriptorOffset + 20
+        );
+        if (descriptor.every((value) => value === 0)) {
+            foundTerminator = true;
+            break;
+        }
+
+        const nameRva = image.readUInt32LE(descriptorOffset + 12);
+        const nameLocation = rvaToLocation(nameRva, 'imported DLL name');
+        const nameOffset = nameLocation.offset;
+        const nameEnd = image.indexOf(0, nameOffset);
+        if (nameEnd < 0 || nameEnd >= nameLocation.sectionEnd) {
+            throw new Error(
+                'Invalid PE image: imported DLL name is not terminated.'
+            );
+        }
+        const name = image.toString('ascii', nameOffset, nameEnd);
+        if (!name) {
+            throw new Error('Invalid PE image: imported DLL name is empty.');
+        }
+        importedDllNames.push(name);
+    }
+
+    if (!foundTerminator) {
+        throw new Error(
+            'Invalid PE image: import descriptor table has no terminator.'
+        );
+    }
+
+    return [...new Set(importedDllNames)];
 }
 
 function parseOtoolDependencies(binaryPath) {
@@ -426,16 +603,12 @@ function getPackagedRuntimeCandidates(libDir, platform, nativeDir) {
                 path.join(libDir, 'libmpv.dylib'),
             ];
         case 'win32':
-            return [
-                nativeDir ? path.join(nativeDir, 'mpv-2.dll') : null,
-                nativeDir ? path.join(nativeDir, 'libmpv-2.dll') : null,
-                nativeDir ? path.join(nativeDir, 'mpv.dll') : null,
-                nativeDir ? path.join(nativeDir, 'libmpv.dll') : null,
-                path.join(libDir, 'mpv-2.dll'),
-                path.join(libDir, 'libmpv-2.dll'),
-                path.join(libDir, 'mpv.dll'),
-                path.join(libDir, 'libmpv.dll'),
-            ].filter(Boolean);
+            return windowsMpvRuntimeNames.flatMap((name) =>
+                [
+                    nativeDir ? path.join(nativeDir, name) : null,
+                    path.join(libDir, name),
+                ].filter(Boolean)
+            );
         case 'linux':
             return [];
         default:
@@ -480,7 +653,11 @@ function getEmbeddedMpvAddonArch(env = process.env) {
  * dist output. Those packages must not ship a foreign-architecture
  * `embedded_mpv.node` — it can never load and produces a cryptic error.
  */
-function isForeignLinuxEmbeddedMpvArch(platform, targetArch, env = process.env) {
+function isForeignLinuxEmbeddedMpvArch(
+    platform,
+    targetArch,
+    env = process.env
+) {
     if (normalizeEmbeddedMpvPlatform(platform) !== 'linux') {
         return false;
     }
@@ -540,6 +717,99 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
         return errors;
     }
 
+    if (platform === 'darwin' || platform === 'win32') {
+        // The frame-copy engine artifacts are built by the same binding.gyp
+        // run as the addon; a macOS/Windows package that ships the addon
+        // without them would silently lose the engine (support probe hides
+        // it). Linux packages intentionally strip the helper until the
+        // bundled-libmpv runtime lands (see electron-after-pack.cjs).
+        const missingFrameCopyArtifacts = [
+            platform === 'win32'
+                ? 'iptvnator_mpv_helper.exe'
+                : 'iptvnator_mpv_helper',
+            'embedded_mpv_frame_reader.node',
+        ]
+            .map((name) => path.join(unpackedNativeDir, name))
+            .filter((artifactPath) => !fs.existsSync(artifactPath));
+        errors.push(
+            ...missingFrameCopyArtifacts.map(
+                (artifactPath) =>
+                    `Missing embedded MPV frame-copy artifact: ${artifactPath}`
+            )
+        );
+
+        if (platform === 'win32') {
+            // The helper is a separate executable. Windows resolves its
+            // imported libmpv DLL from the executable directory, so a copy
+            // under native/lib may satisfy addon bookkeeping but cannot
+            // start iptvnator_mpv_helper.exe.
+            const helperPath = path.join(
+                unpackedNativeDir,
+                'iptvnator_mpv_helper.exe'
+            );
+            const helperRuntimeCandidates = windowsMpvRuntimeNames.map((name) =>
+                path.join(unpackedNativeDir, name)
+            );
+            if (
+                !helperRuntimeCandidates.some((candidate) =>
+                    fs.existsSync(candidate)
+                )
+            ) {
+                errors.push(
+                    [
+                        `Missing bundled MPV DLL beside the Windows frame-copy helper in ${unpackedNativeDir}.`,
+                        'Expected one of:',
+                        ...helperRuntimeCandidates.map(
+                            (candidate) => `- ${candidate}`
+                        ),
+                    ].join('\n')
+                );
+            }
+
+            if (fs.existsSync(helperPath)) {
+                try {
+                    const acceptedRuntimeNames = new Set(
+                        windowsMpvRuntimeNames.map((name) => name.toLowerCase())
+                    );
+                    const importedRuntimeNames = readPeImportedDllNames(
+                        helperPath
+                    ).filter((name) =>
+                        acceptedRuntimeNames.has(name.toLowerCase())
+                    );
+                    if (importedRuntimeNames.length === 0) {
+                        errors.push(
+                            `Windows frame-copy helper does not import a supported MPV DLL: ${helperPath}`
+                        );
+                    }
+
+                    const packagedRuntimeNames = new Set(
+                        fs
+                            .readdirSync(unpackedNativeDir, {
+                                withFileTypes: true,
+                            })
+                            .filter((entry) => entry.isFile())
+                            .map((entry) => entry.name.toLowerCase())
+                    );
+                    for (const importedRuntimeName of importedRuntimeNames) {
+                        if (
+                            !packagedRuntimeNames.has(
+                                importedRuntimeName.toLowerCase()
+                            )
+                        ) {
+                            errors.push(
+                                `Windows frame-copy helper imports ${importedRuntimeName}, but the matching DLL is missing beside it: ${path.join(unpackedNativeDir, importedRuntimeName)}`
+                            );
+                        }
+                    }
+                } catch (error) {
+                    errors.push(
+                        `Unable to inspect Windows frame-copy helper imports at ${helperPath}: ${error instanceof Error ? error.message : String(error)}`
+                    );
+                }
+            }
+        }
+    }
+
     if (!fs.existsSync(manifestPath)) {
         errors.push(`Missing embedded MPV runtime manifest: ${manifestPath}`);
     } else {
@@ -554,6 +824,22 @@ function validatePackagedEmbeddedMpv(resourceDir, options = {}) {
     }
 
     if (platform === 'linux') {
+        const packagedFrameCopyHelpers = [
+            path.join(unpackedNativeDir, 'iptvnator_mpv_helper'),
+            path.join(unpackedNativeDir, 'iptvnator_mpv_helper.exe'),
+        ].filter((candidate) => fs.existsSync(candidate));
+        if (packagedFrameCopyHelpers.length > 0) {
+            errors.push(
+                [
+                    'Linux packages must not ship frame-copy helpers linked against the build host system libmpv.',
+                    'Remove:',
+                    ...packagedFrameCopyHelpers.map(
+                        (candidate) => `- ${candidate}`
+                    ),
+                ].join('\n')
+            );
+        }
+
         const bundledLinuxRuntime = [
             path.join(libDir, 'libmpv.so.2'),
             path.join(libDir, 'libmpv.so.1'),

@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Обновить",
         "APP_UPDATE_INSTALL": "Перезагрузить приложение",
         "APP_UPDATE_OPEN_RELEASE": "Открыть GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "Что нового"
+        "APP_UPDATE_RELEASE_NOTES": "Что нового",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: движок frame-copy (экспериментально)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Видео рисуется на канвасе приложения, поэтому меню и диалоги отображаются поверх него.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Вступит в силу после перезапуска приложения."
     },
     "THEMES": {
         "DARK_THEME": "Тёмная",
@@ -459,6 +462,7 @@
             "BACK_10_SECONDS": "Назад на 10 секунд",
             "FORWARD_10_SECONDS": "Вперёд на 10 секунд",
             "LIVE_STREAM": "Прямой эфир",
+            "PLAYBACK_POSITION": "Позиция воспроизведения",
             "MUTE": "Отключить звук",
             "UNMUTE": "Включить звук",
             "MUTED": "Звук отключён",

@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: frame-copy engine (experimental)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Render video onto the app canvas so menus and dialogs stack above it.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Takes effect after restarting the app."
     },
     "THEMES": {
         "DARK_THEME": "Dark",
@@ -459,6 +462,7 @@
             "BACK_10_SECONDS": "Back 10 seconds",
             "FORWARD_10_SECONDS": "Forward 10 seconds",
             "LIVE_STREAM": "Live stream",
+            "PLAYBACK_POSITION": "Playback position",
             "MUTE": "Mute",
             "UNMUTE": "Unmute",
             "MUTED": "Muted",

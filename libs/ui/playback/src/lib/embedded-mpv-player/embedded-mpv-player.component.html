@@ -18,6 +18,15 @@
         class="embedded-mpv-player__viewport"
         (click)="onViewportClick($event)"
     >
+        @if (isFrameCopyEngine()) {
+            <!-- Frame-copy engine: the preload frame pump paints helper
+                 frames onto this canvas. It is ordinary DOM, so controls
+                 and dialogs stack above it without native-layer tricks. -->
+            <canvas
+                class="embedded-mpv-player__frame-canvas"
+                data-embedded-mpv-frame
+            ></canvas>
+        }
         @if (isErrored()) {
             <div
                 class="embedded-mpv-player__stalled"

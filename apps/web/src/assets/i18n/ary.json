@@ -428,7 +428,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "الفيديو كيترسم على لوحة التطبيق باش القوائم والحوارات يبانو فوقو.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "غادي يخدم من بعد ما تعاود تشغل التطبيق."
     },
     "THEMES": {
         "DARK_THEME": "داكن",
@@ -459,6 +462,7 @@
             "BACK_10_SECONDS": "رجع 10 ثواني",
             "FORWARD_10_SECONDS": "قدّم 10 ثواني",
             "LIVE_STREAM": "بث مباشر",
+            "PLAYBACK_POSITION": "موضع التشغيل",
             "MUTE": "كتم الصوت",
             "UNMUTE": "رجّع الصوت",
             "MUTED": "الصوت مكتوم",

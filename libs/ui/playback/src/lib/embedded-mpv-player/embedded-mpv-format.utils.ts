@@ -1,4 +1,7 @@
-import { EmbeddedMpvAudioTrack, EmbeddedMpvBounds } from '@iptvnator/shared/interfaces';
+import {
+    EmbeddedMpvAudioTrack,
+    EmbeddedMpvBounds,
+} from '@iptvnator/shared/interfaces';
 
 export const HIDDEN_BOUNDS: EmbeddedMpvBounds = Object.freeze({
     x: -100000,
