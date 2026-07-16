@@ -36,7 +36,7 @@ export class ArtPlayerSourceSession {
     readonly customType: NonNullable<Option['customType']> = {
         m3u8: (video, url, art) => this.startHls(video, url, art),
         ts: (video, url) => this.startMpegTs(video, url),
-        mkv: (video, url) => this.startNative(video, url),
+        'video/matroska': (video, url) => this.startNative(video, url),
     };
 
     private player: Artplayer | null = null;

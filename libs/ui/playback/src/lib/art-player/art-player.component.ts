@@ -1,14 +1,12 @@
 import {
     Component,
     ElementRef,
-    EventEmitter,
     inject,
     input,
-    Input,
     OnChanges,
     OnDestroy,
     OnInit,
-    Output,
+    output,
     signal,
     SimpleChanges,
     viewChild,
@@ -47,22 +45,22 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
     styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
-    @Input() channel!: Channel;
-    @Input() volume = 1;
-    @Input() showCaptions = false;
-    @Input() startTime = 0;
-    @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
+    readonly channel = input.required<Channel>();
+    readonly volume = input(1);
+    readonly showCaptions = input(false);
+    readonly startTime = input(0);
+    readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
 
-    @Output() timeUpdate = new EventEmitter<{
+    readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
-    @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
-    @Output() playbackEnded = new EventEmitter<void>();
-    @Output() previousEpisodeRequested = new EventEmitter<void>();
-    @Output() nextEpisodeRequested = new EventEmitter<void>();
+    readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 
     readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
     readonly controlsAdapter = inject(WebVideoControlsAdapter);
@@ -77,7 +75,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     private videoSession: ArtPlayerVideoSession | null = null;
 
     ngOnInit(): void {
-        this.seriesNavigationSignal.set(this.seriesNavigation);
+        this.seriesNavigationSignal.set(this.seriesNavigation());
         if (this.sharedControls) {
             this.controlsAdapter.setContext({
                 seriesNavigation: this.seriesNavigationSignal,
@@ -88,7 +86,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
 
     ngOnChanges(changes: SimpleChanges): void {
         if (changes['seriesNavigation']) {
-            this.seriesNavigationSignal.set(this.seriesNavigation);
+            this.seriesNavigationSignal.set(this.seriesNavigation());
         }
 
         const channelChanged =
@@ -128,12 +126,13 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
 
     private initPlayer(): void {
         this.playbackIssue.emit(null);
-        const sourceUrl = this.channel.url + (this.channel.epgParams ?? '');
+        const channel = this.channel();
+        const sourceUrl = channel.url + (channel.epgParams ?? '');
         const sourceSession = new ArtPlayerSourceSession({
             sharedControls: this.sharedControls,
             controlsAdapter: this.controlsAdapter,
             isLive: () => this.isLive(),
-            showCaptions: () => this.showCaptions,
+            showCaptions: () => this.showCaptions(),
             emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
         });
         this.sourceSession = sourceSession;
@@ -141,14 +140,14 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const player = new Artplayer({
             container: this.artplayerContainer().nativeElement,
             url: sourceUrl,
-            volume: this.clampVolume(this.volume),
+            volume: this.clampVolume(this.volume()),
             isLive: resolveArtPlayerIsLive(
                 this.sharedControls,
                 this.isLive(),
-                this.channel.url
+                channel.url
             ),
             autoplay: true,
-            type: getArtPlayerVideoType(this.channel.url),
+            type: getArtPlayerVideoType(channel.url),
             playsInline: true,
             backdrop: true,
             mutex: true,
@@ -161,8 +160,8 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
 
         const videoSession = new ArtPlayerVideoSession({
             player,
-            sourceUrl: this.channel.url,
-            getStartTime: () => this.startTime,
+            sourceUrl: channel.url,
+            getStartTime: () => this.startTime(),
             getDuration: () => sourceSession.resolveDuration(player.duration),
             persistSharedVolume: this.sharedControls,
             emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
@@ -176,7 +175,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         // applying the constructor option. Shared controls use the app-wide
         // volume as authoritative, so reapply it directly to the media element.
         if (this.sharedControls) {
-            this.applyVolume(this.volume);
+            this.applyVolume(this.volume());
         }
     }
 

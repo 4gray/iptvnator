@@ -75,7 +75,7 @@ describe('ArtPlayerComponent', () => {
             },
         });
 
-        getCustomType('mkv')(
+        getCustomType('video/matroska')(
             artPlayerInstances[0].video,
             'https://example.com/archive/movie.mkv'
         );

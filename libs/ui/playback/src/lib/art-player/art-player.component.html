@@ -17,7 +17,7 @@
         />
     } @else {
         <app-series-playback-navigation-controls
-            [navigation]="seriesNavigation"
+            [navigation]="seriesNavigation()"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"
             (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />
