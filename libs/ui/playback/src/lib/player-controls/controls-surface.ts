@@ -11,6 +11,8 @@ export interface ControlsSurfaceHandlers {
      * playback after a short delay so a double-click (fullscreen) can cancel it.
      */
     togglePlay?: () => void;
+    /** Whether a viewport click may currently queue a play/pause toggle. */
+    canTogglePlay?: () => boolean;
     /** Whether a popover/menu is currently open (guards click-to-pause). */
     isMenuOpen?: () => boolean;
 }
@@ -110,6 +112,9 @@ export class ControlsSurface {
         // A click while a menu is open dismisses it instead of toggling.
         if (this.handlers.isMenuOpen?.()) {
             this.handlers.closePopovers();
+            return;
+        }
+        if (this.handlers.canTogglePlay?.() === false) {
             return;
         }
         this.clearClickPauseTimer();

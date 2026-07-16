@@ -4,6 +4,7 @@ describe('ControlsShortcuts', () => {
     let shortcuts: ControlsShortcuts;
     let handlers: {
         isAvailable: jest.Mock<boolean, []>;
+        canTogglePaused: jest.Mock<boolean, []>;
         canSeek: jest.Mock<boolean, []>;
         canAdjustVolume: jest.Mock<boolean, []>;
         canToggleFullscreen: jest.Mock<boolean, []>;
@@ -19,6 +20,7 @@ describe('ControlsShortcuts', () => {
         shortcuts = new ControlsShortcuts();
         handlers = {
             isAvailable: jest.fn(() => true),
+            canTogglePaused: jest.fn(() => true),
             canSeek: jest.fn(() => true),
             canAdjustVolume: jest.fn(() => true),
             canToggleFullscreen: jest.fn(() => true),
@@ -55,15 +57,18 @@ describe('ControlsShortcuts', () => {
     });
 
     it('does not consume keys for unsupported actions', () => {
+        handlers.canTogglePaused.mockReturnValue(false);
         handlers.canSeek.mockReturnValue(false);
         handlers.canAdjustVolume.mockReturnValue(false);
         handlers.canToggleFullscreen.mockReturnValue(false);
 
+        expect(dispatchKey('k')).toBe(false);
         expect(dispatchKey('ArrowRight')).toBe(false);
         expect(dispatchKey('ArrowDown')).toBe(false);
         expect(dispatchKey('m')).toBe(false);
         expect(dispatchKey('f')).toBe(false);
 
+        expect(handlers.togglePaused).not.toHaveBeenCalled();
         expect(handlers.seekBy).not.toHaveBeenCalled();
         expect(handlers.adjustVolume).not.toHaveBeenCalled();
         expect(handlers.toggleMute).not.toHaveBeenCalled();
@@ -184,6 +189,7 @@ describe('ControlsShortcuts', () => {
         const other = new ControlsShortcuts();
         const otherHandlers = {
             isAvailable: jest.fn(() => true),
+            canTogglePaused: jest.fn(() => true),
             canSeek: jest.fn(() => true),
             canAdjustVolume: jest.fn(() => true),
             canToggleFullscreen: jest.fn(() => true),
@@ -218,6 +224,7 @@ describe('ControlsShortcuts', () => {
         const other = new ControlsShortcuts();
         const otherHandlers = {
             isAvailable: jest.fn(() => true),
+            canTogglePaused: jest.fn(() => true),
             canSeek: jest.fn(() => true),
             canAdjustVolume: jest.fn(() => true),
             canToggleFullscreen: jest.fn(() => true),

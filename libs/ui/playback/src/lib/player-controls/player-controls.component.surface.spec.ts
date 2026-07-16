@@ -123,6 +123,32 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             expect(fake.commands.togglePlay).toHaveBeenCalledTimes(1);
         });
 
+        it('does not toggle playback from the surface while loading', () => {
+            jest.useFakeTimers();
+            setState({ status: 'loading' });
+            fixture.detectChanges();
+
+            surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            setState({ status: 'playing' });
+            fixture.detectChanges();
+            jest.advanceTimersByTime(250);
+
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+        });
+
+        it('does not toggle playback if loading starts during the click delay', () => {
+            jest.useFakeTimers();
+            setState({ status: 'playing' });
+            fixture.detectChanges();
+
+            surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            setState({ status: 'loading' });
+            fixture.detectChanges();
+            jest.advanceTimersByTime(250);
+
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+        });
+
         it('detaches surface interactions while controls are disabled', () => {
             jest.useFakeTimers();
             setCapabilities({ fullscreen: true });
@@ -254,6 +280,15 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
     });
 
     describe('keyboard shortcuts', () => {
+        it('does not consume or toggle playback while loading', () => {
+            setState({ status: 'loading' });
+            fixture.detectChanges();
+
+            expect(pressKey(' ')).toBe(false);
+            expect(pressKey('k')).toBe(false);
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+        });
+
         it('Escape closes an open menu', () => {
             component.toggleMenu('subtitle');
             expect(component.anyMenuOpen()).toBe(true);

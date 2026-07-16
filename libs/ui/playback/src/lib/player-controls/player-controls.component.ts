@@ -14,7 +14,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { TranslatePipe } from '@ngx-translate/core';
+import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import { ControlsFeedback } from './controls-feedback';
 import { ControlsFullscreen } from './controls-fullscreen';
 import { ControlsMenuSelection } from './controls-menu-selection';
@@ -37,6 +37,7 @@ import type { PlayerController } from './player-controls.model';
 })
 export class PlayerControlsComponent implements OnDestroy {
     private readonly host = inject(ElementRef<HTMLElement>).nativeElement;
+    private readonly translate = inject(TranslateService);
     readonly controller = input.required<PlayerController>();
     readonly playerSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
@@ -57,6 +58,7 @@ export class PlayerControlsComponent implements OnDestroy {
     private readonly volume = new ControlsVolume({
         apply: (value) => this.controller().commands.setVolume(value),
         flash: (icon, label) => this.feedback.flash(icon, label),
+        mutedLabel: () => this.translate.instant('EMBEDDED_MPV.PLAYER.MUTED'),
         openPopover: () => this.menus.open('volume'),
         closePopover: () => this.menus.close('volume'),
     });
@@ -66,6 +68,7 @@ export class PlayerControlsComponent implements OnDestroy {
             toggleFullscreen: () => void this.toggleFullscreen(),
             closePopovers: () => this.closePopovers(),
             togglePlay: () => this.togglePlay(),
+            canTogglePlay: () => !this.isLoading(),
             isMenuOpen: () => this.menus.anyOpen(),
         },
         this.host
@@ -132,6 +135,7 @@ export class PlayerControlsComponent implements OnDestroy {
     constructor() {
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
+            canTogglePaused: () => !this.isLoading(),
             canSeek: () => this.capabilities().seek && this.state().canSeek,
             canAdjustVolume: () => this.capabilities().volume,
             canToggleFullscreen: () => this.canFullscreen(),
@@ -181,6 +185,9 @@ export class PlayerControlsComponent implements OnDestroy {
     speedLabel = speedLabel;
     togglePlay(): void {
         this.reveal();
+        if (this.isLoading()) {
+            return;
+        }
         this.controller().commands.togglePlay();
     }
     seekBy(deltaSeconds: number): void {

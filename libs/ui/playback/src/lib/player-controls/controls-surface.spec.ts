@@ -5,6 +5,7 @@ describe('ControlsSurface', () => {
     let toggleFullscreen: jest.Mock;
     let closePopovers: jest.Mock;
     let togglePlay: jest.Mock;
+    let canTogglePlay: boolean;
     let menuOpen: boolean;
     let surface: ControlsSurface;
     let element: HTMLElement;
@@ -14,6 +15,7 @@ describe('ControlsSurface', () => {
         toggleFullscreen = jest.fn();
         closePopovers = jest.fn();
         togglePlay = jest.fn();
+        canTogglePlay = true;
         menuOpen = false;
         element = document.createElement('div');
         document.body.appendChild(element);
@@ -22,6 +24,7 @@ describe('ControlsSurface', () => {
             toggleFullscreen,
             closePopovers,
             togglePlay,
+            canTogglePlay: () => canTogglePlay,
             isMenuOpen: () => menuOpen,
         });
     });
@@ -60,6 +63,18 @@ describe('ControlsSurface', () => {
         expect(togglePlay).not.toHaveBeenCalled();
         jest.advanceTimersByTime(300);
         expect(togglePlay).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not queue play while toggling is unavailable', () => {
+        jest.useFakeTimers();
+        canTogglePlay = false;
+        surface.attachSurface(element);
+        element.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+        canTogglePlay = true;
+        jest.advanceTimersByTime(300);
+
+        expect(togglePlay).not.toHaveBeenCalled();
     });
 
     it('does not toggle play on a double-click, only fullscreens', () => {

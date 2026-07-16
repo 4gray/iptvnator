@@ -1,5 +1,6 @@
 export interface ControlsShortcutHandlers {
     isAvailable: () => boolean;
+    canTogglePaused: () => boolean;
     canSeek: () => boolean;
     canAdjustVolume: () => boolean;
     canToggleFullscreen: () => boolean;
@@ -93,6 +94,9 @@ export class ControlsShortcuts {
             case ' ':
             case 'k':
             case 'K':
+                if (!handlers.canTogglePaused()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.togglePaused();
                 return;

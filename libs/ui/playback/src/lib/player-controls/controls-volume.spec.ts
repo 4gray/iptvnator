@@ -16,6 +16,7 @@ describe('ControlsVolume', () => {
         volume = new ControlsVolume({
             apply: (value) => applied.push(value),
             flash: (icon, label) => flashes.push({ icon, label }),
+            mutedLabel: () => 'Stumm',
             openPopover: () => (openCount += 1),
             closePopover: () => (closeCount += 1),
         });
@@ -52,7 +53,7 @@ describe('ControlsVolume', () => {
         volume.set(0.8);
         volume.toggleMute();
         expect(volume.value()).toBe(0);
-        expect(flashes.at(-1)).toEqual({ icon: 'volume_off', label: 'Muted' });
+        expect(flashes.at(-1)).toEqual({ icon: 'volume_off', label: 'Stumm' });
 
         volume.toggleMute();
         expect(volume.value()).toBe(0.8);

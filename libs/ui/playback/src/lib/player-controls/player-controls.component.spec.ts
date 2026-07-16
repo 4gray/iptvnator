@@ -76,6 +76,7 @@ describe('PlayerControlsComponent', () => {
                     UNMUTE: 'Unmute',
                     VOLUME: 'Volume',
                     VOLUME_LABEL: 'Volume {{percent}}%',
+                    MUTED: 'Muted',
                     AUDIO_TRACKS: 'Audio tracks',
                     SUBTITLES: 'Subtitles',
                     SUBTITLES_OFF: 'Off',
@@ -213,6 +214,22 @@ describe('PlayerControlsComponent', () => {
             setCapabilities({ seek: true });
             fixture.detectChanges();
             expect(query('[aria-label="Playback position"]')).not.toBeNull();
+        });
+
+        it('localizes mute feedback through the active locale', () => {
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation('de', {
+                EMBEDDED_MPV: { PLAYER: { MUTED: 'Stumm' } },
+            });
+            translate.use('de');
+            setCapabilities({ volume: true });
+            fixture.detectChanges();
+
+            fixture.componentInstance.toggleMute();
+
+            expect(fixture.componentInstance.feedback.current()?.label).toBe(
+                'Stumm'
+            );
         });
     });
 

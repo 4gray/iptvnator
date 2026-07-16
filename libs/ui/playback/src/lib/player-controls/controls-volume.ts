@@ -12,6 +12,8 @@ export interface ControlsVolumeDeps {
     apply: (value: number) => void;
     /** Flash transient feedback (icon + label). */
     flash: (icon: string, label: string) => void;
+    /** Resolve the translated label used when muting. */
+    mutedLabel: () => string;
     /** Open the hover popover. */
     openPopover: () => void;
     /** Close the hover popover. */
@@ -42,7 +44,10 @@ export class ControlsVolume {
     adjust(delta: number): void {
         const next = this.value() + delta;
         this.set(next);
-        this.deps.flash(volumeIcon(this.value()), `${Math.round(this.value() * 100)}%`);
+        this.deps.flash(
+            volumeIcon(this.value()),
+            `${Math.round(this.value() * 100)}%`
+        );
     }
 
     toggleMute(): void {
@@ -50,11 +55,14 @@ export class ControlsVolume {
         if (current > 0) {
             this.mutedVolume = current;
             this.set(0);
-            this.deps.flash('volume_off', 'Muted');
+            this.deps.flash('volume_off', this.deps.mutedLabel());
         } else {
             const restored = this.mutedVolume || 0.5;
             this.set(restored);
-            this.deps.flash(volumeIcon(restored), `${Math.round(restored * 100)}%`);
+            this.deps.flash(
+                volumeIcon(restored),
+                `${Math.round(restored * 100)}%`
+            );
         }
     }
 
