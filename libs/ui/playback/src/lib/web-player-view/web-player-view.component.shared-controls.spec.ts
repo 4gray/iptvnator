@@ -67,6 +67,8 @@ class StubArtPlayerComponent {
     readonly channel = input<unknown>();
     readonly volume = input(1);
     readonly showCaptions = input(false);
+    readonly isLive = input(true);
+    readonly interactionEnabled = input(true);
     readonly startTime = input(0);
     readonly seriesNavigation = input<unknown>(null);
     readonly timeUpdate = output<{ currentTime: number; duration: number }>();
@@ -179,6 +181,24 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
         );
         expect(vjsPlayer.showCaptions()).toBe(true);
         expect(vjsPlayer.interactionEnabled()).toBe(true);
+    });
+
+    it('passes resolved playback metadata and diagnostic interaction state to ArtPlayer', async () => {
+        fixture.componentRef.setInput('showCaptions', true);
+
+        const artPlayer = await renderArtPlayer({ isLive: false });
+
+        expect(artPlayer.isLive()).toBe(false);
+        expect(artPlayer.showCaptions()).toBe(true);
+        expect(artPlayer.interactionEnabled()).toBe(true);
+
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+        expect(artPlayer.interactionEnabled()).toBe(false);
+
+        component.handlePlaybackIssue(null);
+        fixture.detectChanges();
+        expect(artPlayer.interactionEnabled()).toBe(true);
     });
 
     it('disables HTML5 surface interaction while a diagnostic is visible', async () => {
@@ -297,6 +317,19 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
 
         return fixture.debugElement.query(By.directive(StubVjsPlayerComponent))
             .componentInstance as StubVjsPlayerComponent;
+    }
+
+    async function renderArtPlayer(
+        metadata: Partial<ResolvedPortalPlayback> = {}
+    ): Promise<StubArtPlayerComponent> {
+        fixture.componentRef.setInput('playerOverride', VideoPlayer.ArtPlayer);
+        setPlayback(metadata);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        return fixture.debugElement.query(By.directive(StubArtPlayerComponent))
+            .componentInstance as StubArtPlayerComponent;
     }
 });
 
