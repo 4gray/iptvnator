@@ -14,6 +14,7 @@ import { toSignal } from '@angular/core/rxjs-interop';
 import { ClipboardModule } from '@angular/cdk/clipboard';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { StorageMap } from '@ngx-pwa/local-storage';
 import { TranslatePipe } from '@ngx-translate/core';
@@ -23,6 +24,7 @@ import {
     Settings,
     STORE_KEY,
     VideoPlayer,
+    normalizeLocalTimeshiftSettings,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
 import { RuntimeCapabilitiesService } from '@iptvnator/services';
@@ -38,6 +40,15 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { VjsPlayerComponent } from '../vjs-player/vjs-player.component';
+import { LocalTimeshiftCoordinator } from '../timeshift/local-timeshift-coordinator';
+import {
+    diagnosticTranslationBase,
+    formatDiagnosticPlayer,
+    formatDiagnosticSource,
+    isInlinePlayer,
+    isLivePlayback,
+    toPlaybackChannel,
+} from './web-player-view.utils';
 
 type PlaybackDiagnosticDetail = {
     readonly labelKey: string;
@@ -58,15 +69,18 @@ type PlaybackDiagnosticDetail = {
         HtmlVideoPlayerComponent,
         MatButtonModule,
         MatIconModule,
+        MatProgressSpinnerModule,
         MatTooltipModule,
         TranslatePipe,
         VjsPlayerComponent,
     ],
+    providers: [LocalTimeshiftCoordinator],
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent {
     storage = inject(StorageMap);
     private readonly runtime = inject(RuntimeCapabilitiesService);
+    private readonly localTimeshift = inject(LocalTimeshiftCoordinator);
 
     streamUrl = input.required<string>();
     title = input('');
@@ -143,16 +157,39 @@ export class WebPlayerViewComponent {
     readonly recordingFolder = computed(
         () => this.settings()?.recordingFolder ?? ''
     );
+    readonly playerPlayback = this.localTimeshift.playback;
+    readonly timeshiftStarting = this.localTimeshift.isStarting;
+    readonly localTimeshiftActive = this.localTimeshift.isActive;
+    readonly localTimeshiftError = this.localTimeshift.error;
 
     constructor() {
+        effect(() => {
+            const playback = this.resolvedPlayback();
+            const selectedPlayer = this.selectedPlayer();
+            const settings = normalizeLocalTimeshiftSettings(
+                this.settings()?.localTimeshift
+            );
+
+            this.playbackDiagnostic.set(null);
+            this.localTimeshift.configure(
+                playback,
+                settings,
+                this.runtime.supportsLocalTimeshift &&
+                    isInlinePlayer(selectedPlayer)
+            );
+        });
+
         effect(() => {
             // Track player changes so stale browser diagnostics are cleared on switch.
             this.selectedPlayer();
 
-            const playback = this.resolvedPlayback();
+            const playback = this.playerPlayback();
+            if (!playback) {
+                return;
+            }
             this.playbackDiagnostic.set(null);
             this.setChannel(playback);
-            this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
+            this.setVjsOptions(playback.streamUrl, isLivePlayback(playback));
         });
     }
 
@@ -181,34 +218,7 @@ export class WebPlayerViewComponent {
                   }
                 : playbackOrUrl;
 
-        this.channel = {
-            id: playback.streamUrl,
-            url: playback.streamUrl,
-            name: playback.title || playback.streamUrl,
-            group: { title: '' },
-            tvg: {
-                id: '',
-                name: playback.title || playback.streamUrl,
-                url: '',
-                logo: playback.thumbnail ?? '',
-                rec: '',
-            },
-            http: {
-                referrer:
-                    playback.referer ??
-                    this.getHeaderValue(playback.headers, 'Referer') ??
-                    '',
-                'user-agent':
-                    playback.userAgent ??
-                    this.getHeaderValue(playback.headers, 'User-Agent') ??
-                    '',
-                origin:
-                    playback.origin ??
-                    this.getHeaderValue(playback.headers, 'Origin') ??
-                    '',
-            },
-            radio: 'false',
-        };
+        this.channel = toPlaybackChannel(playback);
     }
 
     handlePlaybackIssue(issue: PlaybackDiagnostic | null): void {
@@ -234,16 +244,16 @@ export class WebPlayerViewComponent {
     }
 
     retryPlayback(): void {
-        const playback = this.resolvedPlayback();
+        const playback = this.playerPlayback() ?? this.resolvedPlayback();
 
         this.playbackDiagnostic.set(null);
         this.reloadToken.update((value) => value + 1);
         this.setChannel(playback);
-        this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
+        this.setVjsOptions(playback.streamUrl, isLivePlayback(playback));
     }
 
     getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
-        return `${this.getDiagnosticTranslationBase(issue)}.TITLE`;
+        return `${diagnosticTranslationBase(issue)}.TITLE`;
     }
 
     getDiagnosticDescriptionKey(issue: PlaybackDiagnostic): string {
@@ -254,7 +264,7 @@ export class WebPlayerViewComponent {
             return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR.PWA_DESCRIPTION';
         }
 
-        return `${this.getDiagnosticTranslationBase(issue)}.DESCRIPTION`;
+        return `${diagnosticTranslationBase(issue)}.DESCRIPTION`;
     }
 
     getDiagnosticMeta(issue: PlaybackDiagnostic): string {
@@ -280,11 +290,11 @@ export class WebPlayerViewComponent {
             },
             {
                 labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_PLAYER',
-                value: this.formatPlayer(issue.player),
+                value: formatDiagnosticPlayer(issue.player),
             },
             {
                 labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_SOURCE',
-                value: this.formatDiagnosticSource(issue.source),
+                value: formatDiagnosticSource(issue.source),
             },
             {
                 labelKey: 'PLAYBACK_DIAGNOSTICS.DETAIL_CONTAINER',
@@ -315,69 +325,5 @@ export class WebPlayerViewComponent {
                 value: issue.details ?? '',
             },
         ].filter(({ value }) => value.trim().length > 0);
-    }
-
-    private getDiagnosticTranslationBase(issue: PlaybackDiagnostic): string {
-        switch (issue.code) {
-            case PlaybackDiagnosticCode.UnsupportedContainer:
-                return 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CONTAINER';
-            case PlaybackDiagnosticCode.UnsupportedCodec:
-                return 'PLAYBACK_DIAGNOSTICS.UNSUPPORTED_CODEC';
-            case PlaybackDiagnosticCode.MediaDecodeError:
-                return 'PLAYBACK_DIAGNOSTICS.MEDIA_DECODE_ERROR';
-            case PlaybackDiagnosticCode.NetworkError:
-                return 'PLAYBACK_DIAGNOSTICS.NETWORK_ERROR';
-            case PlaybackDiagnosticCode.BrowserAccessError:
-                return 'PLAYBACK_DIAGNOSTICS.BROWSER_ACCESS_ERROR';
-            case PlaybackDiagnosticCode.DrmOrEncryption:
-                return 'PLAYBACK_DIAGNOSTICS.DRM_OR_ENCRYPTION';
-            case PlaybackDiagnosticCode.UnknownPlaybackError:
-            default:
-                return 'PLAYBACK_DIAGNOSTICS.UNKNOWN_PLAYBACK_ERROR';
-        }
-    }
-
-    private getHeaderValue(
-        headers: ResolvedPortalPlayback['headers'] | undefined,
-        name: string
-    ): string | undefined {
-        if (!headers) {
-            return undefined;
-        }
-
-        const matchingKey = Object.keys(headers).find(
-            (key) => key.toLowerCase() === name.toLowerCase()
-        );
-        return matchingKey ? headers[matchingKey] : undefined;
-    }
-
-    private formatPlayer(player: PlaybackDiagnostic['player']): string {
-        switch (player) {
-            case 'videojs':
-                return 'Video.js';
-            case 'html5':
-                return 'HTML5';
-            case 'artplayer':
-                return 'ArtPlayer';
-            default:
-                return '';
-        }
-    }
-
-    private formatDiagnosticSource(
-        source: PlaybackDiagnostic['source']
-    ): string {
-        switch (source) {
-            case 'hls':
-                return 'HLS.js';
-            case 'mpegts':
-                return 'mpegts.js';
-            case 'native':
-                return 'Native media element';
-            case 'source':
-                return 'Stream metadata';
-            default:
-                return source;
-        }
     }
 }

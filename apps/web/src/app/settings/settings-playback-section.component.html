@@ -182,6 +182,151 @@
                 </mat-form-field>
             </div>
         </div>
+
+        @if (isBuiltInInlinePlayerSelected()) {
+            <ng-container formGroupName="localTimeshift">
+                <div
+                    class="setting-item"
+                    data-test-id="local-timeshift-enabled-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4>{{ 'SETTINGS.LOCAL_TIMESHIFT' | translate }}</h4>
+                        <p>
+                            {{
+                                'SETTINGS.LOCAL_TIMESHIFT_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control setting-item__toggle">
+                        <mat-checkbox
+                            formControlName="enabled"
+                            data-test-id="local-timeshift-enabled"
+                            [attr.aria-label]="
+                                'SETTINGS.LOCAL_TIMESHIFT' | translate
+                            "
+                        ></mat-checkbox>
+                    </div>
+                </div>
+
+                <div
+                    class="setting-item"
+                    data-test-id="local-timeshift-duration-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{
+                                'SETTINGS.LOCAL_TIMESHIFT_MAX_DURATION'
+                                    | translate
+                            }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>{{
+                                'SETTINGS.LOCAL_TIMESHIFT_MAX_DURATION'
+                                    | translate
+                            }}</mat-label>
+                            <input
+                                matInput
+                                type="number"
+                                min="5"
+                                max="180"
+                                step="1"
+                                formControlName="maxDurationMinutes"
+                                data-test-id="local-timeshift-max-duration"
+                            />
+                            @if (
+                                form()
+                                    .get('localTimeshift.maxDurationMinutes')
+                                    ?.hasError('required')
+                            ) {
+                                <mat-error>{{
+                                    'SETTINGS.LOCAL_TIMESHIFT_DURATION_RANGE'
+                                        | translate
+                                }}</mat-error>
+                            }
+                            @if (
+                                form()
+                                    .get('localTimeshift.maxDurationMinutes')
+                                    ?.hasError('min')
+                            ) {
+                                <mat-error>{{
+                                    'SETTINGS.LOCAL_TIMESHIFT_DURATION_RANGE'
+                                        | translate
+                                }}</mat-error>
+                            }
+                            @if (
+                                form()
+                                    .get('localTimeshift.maxDurationMinutes')
+                                    ?.hasError('max')
+                            ) {
+                                <mat-error>{{
+                                    'SETTINGS.LOCAL_TIMESHIFT_DURATION_RANGE'
+                                        | translate
+                                }}</mat-error>
+                            }
+                            @if (
+                                form()
+                                    .get('localTimeshift.maxDurationMinutes')
+                                    ?.hasError('pattern')
+                            ) {
+                                <mat-error>{{
+                                    'SETTINGS.LOCAL_TIMESHIFT_DURATION_RANGE'
+                                        | translate
+                                }}</mat-error>
+                            }
+                        </mat-form-field>
+                    </div>
+                </div>
+
+                <div
+                    class="setting-item"
+                    data-test-id="local-timeshift-buffer-directory-setting"
+                >
+                    <div class="setting-item__meta">
+                        <h4>
+                            {{
+                                'SETTINGS.LOCAL_TIMESHIFT_BUFFER_DIRECTORY'
+                                    | translate
+                            }}
+                        </h4>
+                        <p>
+                            {{
+                                'SETTINGS.LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION'
+                                    | translate
+                            }}
+                        </p>
+                    </div>
+                    <div class="setting-item__control">
+                        <mat-form-field
+                            appearance="outline"
+                            subscriptSizing="dynamic"
+                        >
+                            <mat-label>{{
+                                'SETTINGS.LOCAL_TIMESHIFT_BUFFER_DIRECTORY'
+                                    | translate
+                            }}</mat-label>
+                            <input
+                                matInput
+                                type="text"
+                                formControlName="bufferDirectory"
+                                data-test-id="local-timeshift-buffer-directory"
+                            />
+                        </mat-form-field>
+                    </div>
+                </div>
+            </ng-container>
+        }
     }
 
     @if (

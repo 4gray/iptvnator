@@ -1,6 +1,7 @@
 import { SimpleChange } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
+import { TranslateModule } from '@ngx-translate/core';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 
 const videoJsMock = jest.fn();
@@ -62,7 +63,7 @@ describe('VjsPlayerComponent', () => {
         });
         videoJsMock.mockReset();
         await TestBed.configureTestingModule({
-            imports: [VjsPlayerComponent],
+            imports: [VjsPlayerComponent, TranslateModule.forRoot()],
         }).compileComponents();
 
         fixture = TestBed.createComponent(VjsPlayerComponent);
@@ -89,6 +90,37 @@ describe('VjsPlayerComponent', () => {
         expect(signalComponent.startTime()).toBe(0);
         expect(typeof signalComponent.timeUpdate.emit).toBe('function');
         expect(typeof signalComponent.playbackIssue.emit).toBe('function');
+    });
+
+    it('shows the LIVE action only for local timeshift and seeks to the live edge', () => {
+        videoJsMock.mockReturnValue(createVideoJsPlayerMock());
+        fixture.componentRef.setInput('options', {
+            isLive: true,
+            sources: [
+                {
+                    src: 'http://127.0.0.1:43123/timeshift/session/index.m3u8',
+                    type: 'application/x-mpegURL',
+                },
+            ],
+        });
+        fixture.detectChanges();
+        expect(getLiveButton(fixture)).toBeNull();
+
+        const video = fixture.nativeElement.querySelector(
+            'video'
+        ) as HTMLVideoElement;
+        Object.defineProperty(video, 'seekable', {
+            configurable: true,
+            value: createTimeRanges([[0, 75]]),
+        });
+        const play = jest.spyOn(video, 'play').mockResolvedValue(undefined);
+
+        fixture.componentRef.setInput('localTimeshiftActive', true);
+        fixture.detectChanges();
+        getLiveButton(fixture)?.nativeElement.click();
+
+        expect(video.currentTime).toBe(74.75);
+        expect(play).toHaveBeenCalledTimes(1);
     });
 
     it('does not reset VideoJS when options change without changing the source', () => {
@@ -488,4 +520,10 @@ function createTimeRanges(ranges: Array<[number, number]>): TimeRanges {
         start: (index: number) => ranges[index][0],
         end: (index: number) => ranges[index][1],
     } as TimeRanges;
+}
+
+function getLiveButton(fixture: ComponentFixture<VjsPlayerComponentInstance>) {
+    return fixture.debugElement.query(
+        By.css('[data-test-id="local-timeshift-go-live"]')
+    );
 }

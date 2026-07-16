@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Папка для запісаў жывых патокаў з убудаванага MPV. Пакіньце пустым, каб выкарыстоўваць сістэмную папку спампаванняў.",
         "RECORDING_FOLDER": "Папка для запісаў",
         "RECORDING_FOLDER_SELECT": "Выбраць папку для запісаў",
+        "LOCAL_TIMESHIFT": "Лакальны таймшыфт",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Прыпыняйце і перамотвайце назад жывое ТБ з дапамогай часовага буфера на гэтай прыладзе.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Максімальная працягласць буфера",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Старыя даныя буфера выдаляюцца праз зададзеную колькасць хвілін.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Увядзіце цэлы лік ад 5 да 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Папка буфера",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Пакіньце пустым, каб выкарыстоўваць сістэмны кэш. Файлы буфера выдаляюцца аўтаматычна.",
         "VLC_PLAYER_PATH_LABEL": "Шлях да VLC прайгравальніка",
         "VLC_PLAYER_PATH_DESCRIPTION": "Укажыце шлях да VLC. На macOS можна выкарыстоўваць пакет праграмы VLC, напрыклад /Applications/VLC.app, або шлях да выканальнага файла.",
         "VLC_PLAYER_PATH": "Шлях да VLC прайгравальніка",
@@ -446,6 +453,9 @@
         "MUTE": "Адключыць гук",
         "UNMUTE": "Уключыць гук",
         "VOLUME": "Гучнасць"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Запуск лакальнага таймшыфту…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

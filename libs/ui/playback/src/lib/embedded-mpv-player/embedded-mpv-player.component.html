@@ -233,9 +233,14 @@
                 <div class="embedded-mpv-player__time">
                     <span>{{ formatTime(timelineValue()) }}</span>
                     @if (canSeek()) {
-                        <span>{{
-                            formatTime(session()?.durationSeconds)
-                        }}</span>
+                        <span class="embedded-mpv-player__time-end">
+                            <span>{{
+                                formatTime(session()?.durationSeconds)
+                            }}</span>
+                            @if (localTimeshiftActive()) {
+                                <app-live-edge-button (goLive)="goLive()" />
+                            }
+                        </span>
                     } @else if (isLivePlayback()) {
                         <span
                             class="embedded-mpv-player__live-badge"

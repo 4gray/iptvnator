@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Папка для записей live-потоков из встроенного MPV. Оставьте пустым, чтобы использовать системную папку Загрузки.",
         "RECORDING_FOLDER": "Папка для записей",
         "RECORDING_FOLDER_SELECT": "Выбрать папку для записей",
+        "LOCAL_TIMESHIFT": "Локальный таймшифт",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Ставьте прямой эфир на паузу и перематывайте назад с помощью временного буфера на этом устройстве.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Максимальная длительность буфера",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Старые данные удаляются из буфера по истечении указанного количества минут.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Введите целое число от 5 до 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Папка буфера",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Оставьте поле пустым, чтобы использовать системный кэш. Файлы буфера удаляются автоматически.",
         "VLC_PLAYER_PATH_LABEL": "Путь к VLC плееру",
         "VLC_PLAYER_PATH_DESCRIPTION": "Укажите путь к VLC. В macOS можно использовать пакет приложения VLC, например /Applications/VLC.app, или путь к исполняемому файлу.",
         "VLC_PLAYER_PATH": "Путь к VLC плееру",
@@ -446,6 +453,9 @@
         "MUTE": "Отключить звук",
         "UNMUTE": "Включить звук",
         "VOLUME": "Громкость"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Запуск локального таймшифта…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

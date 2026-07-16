@@ -27,12 +27,17 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
+import { seekMediaToLiveEdge } from '../timeshift/live-edge';
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
 @Component({
     selector: 'app-art-player',
-    imports: [SeriesPlaybackNavigationControlsComponent],
+    imports: [
+        LiveEdgeButtonComponent,
+        SeriesPlaybackNavigationControlsComponent,
+    ],
     templateUrl: './art-player.component.html',
     styleUrls: ['./art-player.component.scss'],
 })
@@ -41,6 +46,7 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     @Input() volume = 1;
     @Input() showCaptions = false;
     @Input() startTime = 0;
+    @Input() localTimeshiftActive = false;
     @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
@@ -85,12 +91,22 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     ngOnChanges(changes: SimpleChanges): void {
-        if (changes['channel'] && !changes['channel'].firstChange) {
+        const playbackModeChanged =
+            (changes['channel'] && !changes['channel'].firstChange) ||
+            (changes['localTimeshiftActive'] &&
+                !changes['localTimeshiftActive'].firstChange);
+        if (playbackModeChanged) {
             this.destroyPlayer();
             this.initPlayer();
         }
         if (changes['volume'] && this.player) {
             this.applyVolume(changes['volume'].currentValue);
+        }
+    }
+
+    goLive(): void {
+        if (this.player?.video) {
+            seekMediaToLiveEdge(this.player.video);
         }
     }
 
@@ -135,13 +151,17 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         const extension = getPlaybackMediaExtensionFromUrl(
             this.channel?.url ?? ''
         );
-        const isLive = extension === 'm3u8' || extension === 'ts' || !extension;
+        const sourceIsLive =
+            extension === 'm3u8' || extension === 'ts' || !extension;
 
         this.player = new Artplayer({
             container: el,
             url: this.channel.url + (this.channel.epgParams || ''),
             volume: this.clampVolume(this.volume),
-            isLive: isLive,
+            // ArtPlayer hides its progress and time controls in live mode. A
+            // local sliding playlist is still semantically live, but its
+            // buffered window must remain seekable in the player UI.
+            isLive: sourceIsLive && !this.localTimeshiftActive,
             autoplay: true,
             type: this.getVideoType(this.channel.url),
             pip: true,

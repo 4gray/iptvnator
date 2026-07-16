@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Dossier des enregistrements de flux en direct depuis MPV intégré. Laissez vide pour utiliser le dossier Téléchargements du système.",
         "RECORDING_FOLDER": "Dossier d’enregistrement",
         "RECORDING_FOLDER_SELECT": "Choisir le dossier d’enregistrement",
+        "LOCAL_TIMESHIFT": "Contrôle du direct local",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Mettez en pause et revenez en arrière dans le direct grâce à un tampon temporaire sur cet appareil.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "Durée maximale du tampon",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Le contenu le plus ancien est retiré du tampon après ce nombre de minutes.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "Saisissez un nombre entier compris entre 5 et 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Dossier du tampon",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Laissez ce champ vide pour utiliser le cache système. Les fichiers du tampon sont supprimés automatiquement.",
         "VLC_PLAYER_PATH_LABEL": "Chemin VLC",
         "VLC_PLAYER_PATH_DESCRIPTION": "Définissez le chemin vers VLC. Sur macOS, vous pouvez utiliser le bundle de l’app VLC, comme /Applications/VLC.app, ou le chemin de l’exécutable.",
         "VLC_PLAYER_PATH": "Chemin du lecteur VLC",
@@ -446,6 +453,9 @@
         "MUTE": "Muet",
         "UNMUTE": "Activer le son",
         "VOLUME": "Volume"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Démarrage du contrôle du direct local…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

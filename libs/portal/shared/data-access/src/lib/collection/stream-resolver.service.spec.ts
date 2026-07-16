@@ -6,10 +6,7 @@ import {
 } from '@iptvnator/portal/xtream/data-access';
 import { StalkerSessionService } from '@iptvnator/portal/stalker/data-access';
 import { EpgRuntimeBridgeService } from '@iptvnator/epg/data-access';
-import {
-    DataService,
-    PlaylistsService,
-} from '@iptvnator/services';
+import { DataService, PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { UnifiedCollectionItem } from '@iptvnator/portal/shared/util';
 import {
@@ -181,6 +178,7 @@ describe('StreamResolverService', () => {
         } satisfies UnifiedCollectionItem);
 
         expect(detail.playback.streamUrl).toBe('https://example.com/live.m3u8');
+        expect(detail.playback.isLive).toBe(true);
         expect(detail.epgPrograms).toEqual([]);
         expect(epgBridge.getChannelPrograms).not.toHaveBeenCalled();
     });
@@ -214,6 +212,32 @@ describe('StreamResolverService', () => {
             url: 'https://example.com/radio.m3u8',
             radio: 'true',
         });
+        expect(detail.playback.isLive).toBeUndefined();
+    });
+
+    it('does not mark non-live M3U collection playback as live', async () => {
+        playlistsService.getPlaylistById.mockReturnValue(
+            of({
+                _id: 'm3u-1',
+                playlist: {
+                    items: [],
+                },
+            } satisfies Partial<Playlist>)
+        );
+
+        const playback = await service.resolvePlayback({
+            uid: 'm3u::m3u-1::movie-1',
+            name: 'Movie',
+            contentType: 'movie',
+            sourceType: 'm3u',
+            playlistId: 'm3u-1',
+            playlistName: 'M3U List',
+            streamUrl: 'https://example.com/movie.mp4',
+            channelId: 'movie-1',
+            radio: 'false',
+        } satisfies UnifiedCollectionItem);
+
+        expect(playback.isLive).toBeUndefined();
     });
 
     it('returns Xtream live detail with shared EPG items', async () => {

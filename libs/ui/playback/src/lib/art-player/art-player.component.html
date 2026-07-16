@@ -1,6 +1,10 @@
 <div class="art-player-shell">
     <div #artplayer class="artplayer-container"></div>
 
+    @if (localTimeshiftActive) {
+        <app-live-edge-button (goLive)="goLive()" />
+    }
+
     <app-series-playback-navigation-controls
         [navigation]="seriesNavigation"
         (previousEpisodeRequested)="previousEpisodeRequested.emit()"

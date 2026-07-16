@@ -40,7 +40,8 @@ The application is a cross-platform, open-source project built with Electron and
 **Live TV & EPG**
 
 - EPG / XMLTV TV guide with a live timeline ribbon and multi-channel grid _(desktop)_
-- TV archive / catch-up / timeshift _(desktop)_
+- TV archive / catch-up plus an optional FFmpeg-backed local pause/rewind
+  buffer for M3U, Xtream, and Stalker live video _(desktop)_
 - Group-based channel list, channel-number selection, and search 🔍
 
 **Movies & series (VOD)**

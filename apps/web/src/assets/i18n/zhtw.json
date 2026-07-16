@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "用於儲存 Embedded MPV 直播錄製的資料夾。留空則使用系統下載資料夾。",
         "RECORDING_FOLDER": "錄製資料夾",
         "RECORDING_FOLDER_SELECT": "選擇錄製資料夾",
+        "LOCAL_TIMESHIFT": "本機時移",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "使用此裝置上的暫存緩衝區暫停及倒轉直播電視。",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "最長緩衝時間",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "超過此分鐘數的舊緩衝內容將被移除。",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "請輸入 5 到 180 之間的整數。",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "緩衝區資料夾",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "留空則使用系統快取。緩衝檔案會自動刪除。",
         "VLC_PLAYER_PATH_LABEL": "VLC 路徑",
         "VLC_PLAYER_PATH_DESCRIPTION": "設定 VLC 路徑。在 macOS 上可以使用 VLC App bundle，例如 /Applications/VLC.app，也可以使用可執行檔路徑。",
         "VLC_PLAYER_PATH": "VLC 播放器路徑",
@@ -446,6 +453,9 @@
         "MUTE": "靜音",
         "UNMUTE": "取消靜音",
         "VOLUME": "音量"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "正在啟動本機時移…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

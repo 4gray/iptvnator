@@ -9,6 +9,10 @@
         data-setup='{"liveui": true, "muted": false}'
     ></video>
 
+    @if (localTimeshiftActive()) {
+        <app-live-edge-button (goLive)="goLive()" />
+    }
+
     <app-series-playback-navigation-controls
         [navigation]="seriesNavigation()"
         (previousEpisodeRequested)="previousEpisodeRequested.emit()"

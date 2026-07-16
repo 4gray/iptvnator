@@ -49,8 +49,12 @@ test.describe('Electron Settings', () => {
         try {
             await openSettings(app.mainWindow);
 
-            await expect(app.mainWindow.getByTestId('app-update-status')).toBeVisible();
-            await expect(app.mainWindow.getByTestId('app-update-check')).toBeVisible();
+            await expect(
+                app.mainWindow.getByTestId('app-update-status')
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.getByTestId('app-update-check')
+            ).toBeVisible();
             await expect(
                 app.mainWindow.getByTestId('app-update-open-release')
             ).toBeVisible();
@@ -179,6 +183,16 @@ test.describe('Electron Settings', () => {
                     'mat-checkbox[formcontrolname="showExternalPlaybackBar"] input[type="checkbox"]'
                 )
                 .uncheck();
+            await firstLaunch.mainWindow
+                .getByTestId('local-timeshift-enabled')
+                .locator('input[type="checkbox"]')
+                .check();
+            await firstLaunch.mainWindow
+                .getByTestId('local-timeshift-max-duration')
+                .fill('45');
+            await firstLaunch.mainWindow
+                .getByTestId('local-timeshift-buffer-directory')
+                .fill('/tmp/iptvnator-e2e-timeshift');
             await enableRemoteControl(firstLaunch.mainWindow, 8877);
             await firstLaunch.mainWindow
                 .getByRole('button', { name: 'Add EPG source' })
@@ -214,6 +228,21 @@ test.describe('Electron Settings', () => {
                     'mat-checkbox[formcontrolname="showExternalPlaybackBar"] input[type="checkbox"]'
                 )
             ).not.toBeChecked();
+            await expect(
+                secondLaunch.mainWindow
+                    .getByTestId('local-timeshift-enabled')
+                    .locator('input[type="checkbox"]')
+            ).toBeChecked();
+            await expect(
+                secondLaunch.mainWindow.getByTestId(
+                    'local-timeshift-max-duration'
+                )
+            ).toHaveValue('45');
+            await expect(
+                secondLaunch.mainWindow.getByTestId(
+                    'local-timeshift-buffer-directory'
+                )
+            ).toHaveValue('/tmp/iptvnator-e2e-timeshift');
             await expect(
                 secondLaunch.mainWindow.locator(
                     'mat-checkbox[formcontrolname="remoteControl"] input[type="checkbox"]'
@@ -263,7 +292,9 @@ test.describe('Electron Settings', () => {
         }
     });
 
-    test('@settings @electron starts on sources when dashboard is disabled', async ({ dataDir }) => {
+    test('@settings @electron starts on sources when dashboard is disabled', async ({
+        dataDir,
+    }) => {
         const firstLaunch = await launchElectronApp(dataDir);
 
         try {
@@ -424,7 +455,9 @@ test.describe('Electron Settings', () => {
         }
 
         try {
-            await app.mainWindow.waitForURL(/\/workspace\/xtreams\/[^/]+\/vod$/);
+            await app.mainWindow.waitForURL(
+                /\/workspace\/xtreams\/[^/]+\/vod$/
+            );
         } finally {
             await closeElectronApp(app);
         }
@@ -446,8 +479,7 @@ type CapturedExternalPlayerLaunch = {
     url: string;
 };
 
-const externalPlayerLaunchCaptureKey =
-    '__iptvnatorE2eExternalPlayerLaunches';
+const externalPlayerLaunchCaptureKey = '__iptvnatorE2eExternalPlayerLaunches';
 
 async function installExternalPlayerLaunchCapture(
     app: LaunchedElectronApp

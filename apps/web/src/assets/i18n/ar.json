@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "مجلد تسجيلات البث المباشر من MPV المضمن. اتركه فارغًا لاستخدام مجلد التنزيلات في النظام.",
         "RECORDING_FOLDER": "مجلد التسجيلات",
         "RECORDING_FOLDER_SELECT": "اختر مجلد التسجيلات",
+        "LOCAL_TIMESHIFT": "الإزاحة الزمنية المحلية",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "أوقف البث التلفزيوني المباشر مؤقتًا وأعده إلى الخلف باستخدام مخزن مؤقت على هذا الجهاز.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "المدة القصوى للتخزين المؤقت",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "يُحذف المحتوى القديم من المخزن المؤقت بعد هذا العدد من الدقائق.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "أدخل عددًا صحيحًا من 5 إلى 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "مجلد التخزين المؤقت",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "اتركه فارغًا لاستخدام ذاكرة التخزين المؤقت للنظام. تُحذف ملفات التخزين المؤقت تلقائيًا.",
         "VLC_PLAYER_PATH_LABEL": "مسار VLC",
         "VLC_PLAYER_PATH_DESCRIPTION": "حدد مسار VLC. على macOS يمكنك استخدام حزمة تطبيق VLC مثل /Applications/VLC.app أو مسار الملف التنفيذي.",
         "VLC_PLAYER_PATH": "مسار مشغل VLC",
@@ -446,6 +453,9 @@
         "MUTE": "كتم الصوت",
         "UNMUTE": "إلغاء كتم الصوت",
         "VOLUME": "مستوى الصوت"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "جارٍ بدء الإزاحة الزمنية المحلية…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

@@ -18,3 +18,10 @@
     min-height: 0;
     overflow: hidden;
 }
+
+app-live-edge-button {
+    position: absolute;
+    right: 16px;
+    bottom: 64px;
+    z-index: 20;
+}

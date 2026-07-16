@@ -16,3 +16,10 @@
     width: 100%;
     height: 100%;
 }
+
+app-live-edge-button {
+    position: absolute;
+    right: 16px;
+    bottom: 64px;
+    z-index: 20;
+}

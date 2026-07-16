@@ -33,6 +33,8 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
+import { seekMediaToLiveEdge } from '../timeshift/live-edge';
 import { HtmlVideoElementSession } from './html-video-element-session';
 import {
     HtmlVideoPlayerControlsBridge,
@@ -49,6 +51,7 @@ const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
     templateUrl: './html-video-player.component.html',
     styleUrls: ['./html-video-player.component.scss'],
     imports: [
+        LiveEdgeButtonComponent,
         PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
     ],
@@ -60,6 +63,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Input() channel!: Channel;
     @Input() volume = 1;
     @Input() startTime = 0;
+    @Input() localTimeshiftActive = false;
     @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
@@ -101,7 +105,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.controlsBridge = new HtmlVideoPlayerControlsBridge({
                 video: this.videoPlayer.nativeElement,
                 adapter: this.controlsAdapter,
-                isLive: () => this.isLive(),
+                // A Timeshift playlist remains semantically live, but its
+                // sliding window must stay seekable in the shared controls.
+                isLive: () => this.isLive() && !this.localTimeshiftActive,
                 showCaptions: () => this.showCaptions(),
             });
             this.controlsBridge.attach();
@@ -123,7 +129,11 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         if (changes['channel'] && changes['channel'].currentValue) {
             this.playChannel(changes['channel'].currentValue);
         }
-        if (changes['isLive'] || changes['showCaptions']) {
+        if (
+            changes['isLive'] ||
+            changes['localTimeshiftActive'] ||
+            changes['showCaptions']
+        ) {
             this.controlsBridge?.refreshInputs();
         }
         if (changes['interactionEnabled']?.currentValue === false) {
@@ -137,6 +147,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.videoPlayer.nativeElement.volume =
                 changes['volume'].currentValue;
         }
+    }
+
+    goLive(): void {
+        seekMediaToLiveEdge(this.videoPlayer.nativeElement);
     }
 
     private exitOwnedFullscreen(): void {

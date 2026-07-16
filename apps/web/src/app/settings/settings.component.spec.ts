@@ -103,6 +103,11 @@ const DEFAULT_SETTINGS = {
     epgUrl: [],
     recordingFolder: '',
     embeddedMpvFrameCopy: false,
+    localTimeshift: {
+        enabled: false,
+        maxDurationMinutes: 30,
+        bufferDirectory: '',
+    },
     coverSize: 'medium',
     dashboardRails: DEFAULT_DASHBOARD_RAILS,
     preferUploadedEpgOverXtream: false,
@@ -1301,9 +1306,7 @@ describe('SettingsComponent', () => {
 
     it('updates the EPG view mode through the epg section output', () => {
         const mockStore = settingsStore as unknown as MockSettingsStore;
-        const listButton = (
-            fixture.nativeElement as HTMLElement
-        ).querySelector(
+        const listButton = (fixture.nativeElement as HTMLElement).querySelector(
             '[data-test-id="epg-view-mode-list"]'
         ) as HTMLButtonElement;
 

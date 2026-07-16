@@ -25,6 +25,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
@@ -61,6 +62,7 @@ const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
         MatIconModule,
         MatProgressSpinnerModule,
         MatTooltipModule,
+        LiveEdgeButtonComponent,
         PlayerControlsComponent,
         TranslatePipe,
     ],
@@ -74,6 +76,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     readonly playback = input.required<ResolvedPortalPlayback>();
     readonly showControls = input(true);
     readonly recordingFolder = input('');
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
 
     readonly timeUpdate = output<{
@@ -167,7 +170,8 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     });
     readonly canSeek = computed(
         () =>
-            !this.isLivePlayback() && (this.session()?.durationSeconds ?? 0) > 0
+            (!this.isLivePlayback() || this.localTimeshiftActive()) &&
+            (this.session()?.durationSeconds ?? 0) > 0
     );
     readonly canFullscreen = computed(
         () =>
@@ -529,6 +533,23 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 deltaSeconds >= 0 ? 'forward_10' : 'replay_10',
                 `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
             );
+        }
+    }
+
+    async goLive(): Promise<void> {
+        this.legacyInteractions.revealControls();
+        const durationSeconds = this.session()?.durationSeconds;
+        if (
+            typeof durationSeconds !== 'number' ||
+            !Number.isFinite(durationSeconds) ||
+            durationSeconds <= 0
+        ) {
+            return;
+        }
+
+        await this.controller.seekTo(Math.max(0, durationSeconds - 0.25));
+        if (this.isPaused()) {
+            await this.controller.togglePaused();
         }
     }
 

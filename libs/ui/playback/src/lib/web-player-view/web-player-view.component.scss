@@ -23,6 +23,17 @@ app-html-video-player {
     background: #000;
 }
 
+.web-player-timeshift-starting {
+    display: flex;
+    height: 100%;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    background: #000;
+    color: rgb(255 255 255 / 78%);
+    font-size: 0.9rem;
+}
+
 .web-player-diagnostic {
     position: absolute;
     inset: 0;

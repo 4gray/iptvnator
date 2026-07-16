@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "المجلد ديال تسجيلات البث المباشر من MPV المدمج. خليه خاوي باش تستعمل مجلد التنزيلات ديال النظام.",
         "RECORDING_FOLDER": "مجلد التسجيلات",
         "RECORDING_FOLDER_SELECT": "اختار مجلد التسجيلات",
+        "LOCAL_TIMESHIFT": "التايم شيفت المحلي",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "وقف البث المباشر ورجّعو للور باستعمال تخزين مؤقت فهاد الجهاز.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "أقصى مدة ديال التخزين المؤقت",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "المحتوى القديم كيتحيد من بعد هاد العدد ديال الدقائق.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "دخل عدد صحيح من 5 حتى 180.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "مجلد التخزين المؤقت",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "خليه خاوي باش تستعمل كاش ديال النظام. ملفات التخزين المؤقت كيتحيدو بوحدهم.",
         "VLC_PLAYER_PATH_LABEL": "مسار VLC",
         "VLC_PLAYER_PATH_DESCRIPTION": "حدد مسار VLC. فـ macOS تقدر تستعمل باقة تطبيق VLC بحال /Applications/VLC.app أو مسار الملف التنفيذي.",
         "VLC_PLAYER_PATH": "مسار مشغل VLC",
@@ -446,6 +453,9 @@
         "MUTE": "كتم الصوت",
         "UNMUTE": "رجّع الصوت",
         "VOLUME": "الصوت"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "جاري تشغيل التايم شيفت المحلي…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

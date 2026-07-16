@@ -26,6 +26,8 @@ import {
 } from '../playback-diagnostics/playback-diagnostics.util';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
+import { seekMediaToLiveEdge } from '../timeshift/live-edge';
 
 /**
  * This component contains the implementation of video player that is based on video.js library
@@ -100,7 +102,10 @@ const debugVjsPlayer = createDevLogger('VjsPlayer');
     templateUrl: './vjs-player.component.html',
     styleUrls: ['./vjs-player.component.scss'],
     encapsulation: ViewEncapsulation.None,
-    imports: [SeriesPlaybackNavigationControlsComponent],
+    imports: [
+        LiveEdgeButtonComponent,
+        SeriesPlaybackNavigationControlsComponent,
+    ],
     standalone: true,
 })
 export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
@@ -122,6 +127,7 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
     ] as const;
     readonly volume = input(1);
     readonly startTime = input(0);
+    readonly localTimeshiftActive = input(false);
     readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
     readonly timeUpdate = output<{
         currentTime: number;
@@ -142,6 +148,10 @@ export class VjsPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.syncMpegTsVodDuration();
         this.queueDurationSync(() => this.syncMpegTsVodDuration());
     };
+
+    goLive(): void {
+        seekMediaToLiveEdge(this.target().nativeElement as HTMLVideoElement);
+    }
 
     /**
      * Instantiate Video.js on component init

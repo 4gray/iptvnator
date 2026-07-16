@@ -243,7 +243,7 @@ This is an Nx monorepo with the following structure:
     - **shared/testing** - Shared test helpers
     - **ui/components** - Reusable UI components (incl. channel list)
     - **ui/epg** - EPG UI (timeline ribbon, multi-EPG, progress panel, program dialogs)
-    - **ui/playback** - Player UI (video/audio players)
+    - **ui/playback** - Player UI (video/audio players) and the Electron local-timeshift coordinator
     - **ui/pipes** - Angular pipes
     - **ui/remote-control** - Remote-control UI pieces
     - **ui/shared-portals** - Shared portal types (`LiveEpgPanelSummary`)
@@ -595,6 +595,7 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
     - `xtream.events.ts` - Xtream Codes API
     - `stalker.events.ts` - Stalker portal API
     - `player.events.ts` - External player IPC registration; MPV/VLC lifecycle logic lives in `mpv-session.service.ts`, `vlc-session.service.ts`, and shared `external-player-*` helpers
+    - `local-timeshift.events.ts` - Renderer-owned local-timeshift IPC; FFmpeg, bounded HLS, and loopback-server lifecycle live in `local-timeshift*.ts` services
     - `settings.events.ts` - App settings
     - `electron.events.ts` - App version, etc.
 
@@ -619,6 +620,15 @@ This project uses modern Angular signal-based APIs and patterns. **ALWAYS** use 
 - Embedded MPV (experimental, macOS/Windows/Linux): renders mpv video inside the Electron window through a native addon. macOS uses the libmpv render API in an `NSOpenGLView`; Windows uses in-process libmpv with `--wid` against an app-owned child `HWND`; Linux spawns an out-of-process `mpv --wid=<x11-window>` controlled over a JSON IPC socket (X11/XWayland only, requires system `mpv` on PATH; subtitles/speed/aspect/recording are not exported there). mpv's own screensaver inhibition does not apply to any of these paths, so `EmbeddedMpvNativeService` holds an Electron `powerSaveBlocker` (`prevent-display-sleep`) whenever any session's status is `playing`, and releases it on pause, dispose, or shutdown. Service: `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`; full architecture: `docs/architecture/embedded-mpv-native.md`.
 - Embedded MPV frame-copy engine (experimental, macOS Apple Silicon + Linux + Windows; enabled via `Settings > Playback > Embedded MPV: frame-copy engine` (restart required) or `IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1` on top of the embedded MPV experiment flag): a per-session helper renders mpv offscreen at viewport size (headless CGL on macOS, headless EGL on Linux, WGL against a hidden window on Windows) and publishes BGRA frames into a shm ring (POSIX shm; a `Local\` named file mapping on Windows); the preload frame pump uploads them onto a renderer `<canvas data-embedded-mpv-frame>`, so controls/dialogs are ordinary DOM above the video. Frame-copy is the first runtime consumer of shared `app-player-controls`: `PlayerControlsComponent` and its surface/shortcut/fullscreen collaborators own the DOM UI interactions, while the component-scoped `EmbeddedMpvControlsAdapter` maps session state and commands and coordinates correlated recording state; native-view retains the legacy fixed dock. Stored and explicit opt-ins relax the sandbox only while the base embedded-MPV feature is enabled and a platform-supported packaged runtime contains both the regular-file helper (`iptvnator_mpv_helper` / `.exe`) and readable regular frame-reader addon; packaged discovery is restricted to packaged resources. A disabled base experiment keeps embedded MPV unavailable with the sandbox intact, while a missing, mode-stripped, or incomplete frame-copy runtime falls back to the native engine without relaxing the sandbox. On Linux the engine is dev-build-only for now: the helper links system libmpv (build deps: `libmpv-dev`, `libegl-dev`, `libgl-dev`, `libopengl-dev`, `libgbm-dev`) and is stripped from packages until bundled-runtime staging lands. On Windows the helper links vendored libmpv and package validation requires the exact MPV DLL named in the helper's PE import table beside the executable. Backend process adapter: `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts`; shared-controls adapter: `libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-controls.adapter.ts`; helper: `apps/electron-backend/native/helper/`; details in `docs/architecture/embedded-mpv-native.md` ("Frame-Copy Engine").
 - Shared player-controls layer: `libs/ui/playback/src/lib/player-controls/` exports the engine-neutral `PlayerController` contract, standalone `app-player-controls`, a generic web-video adapter/helper, and a default-off web rollout token. Embedded MPV frame-copy consumes it through `EmbeddedMpvControlsAdapter`; the host selects exactly one UI, so native-view retains its compositor-safe dock. `showControls=false` detaches the shared surface, modal overlays gate frame-copy playback shortcuts, fullscreen remains DOM-based with Embedded MPV bounds sync, and a playback/session transition key prevents engine or session handoff from presenting stale recording feedback while timers and pending commands are cancelled. Same-session IPC replies yield to a broadcast snapshot received while the command was pending, so a successful recording acknowledgement cannot be rolled back by a stale reply. The built-in HTML5/hls.js player is the second guarded consumer: `HtmlVideoPlayerComponent` provides a component-scoped `WebVideoControlsAdapter`, while its local bridge owns HLS/native tracks, MPEG-TS VOD duration correction, caption preference, and source cleanup. `HtmlVideoElementSession` owns native video-event lifecycle, persisted volume, start-time/time/ended propagation, and legacy post-play caption suppression. `WebPlayerViewComponent.resolvedIsLive` supplies authoritative metadata; visible playback diagnostics disable shared pointer/keyboard ownership and exit the HTML5 shell's own fullscreen so retry/fallback actions remain visible. The default-off path retains native controls and legacy series navigation. Video.js and ArtPlayer remain unwired with their existing skins. Contract: `docs/architecture/player-controls-contract.md`.
+
+**Local Timeshift** (opt-in, Electron only):
+
+- FFmpeg remuxes explicit M3U, Xtream, and Stalker live-video playback into a bounded, four-second sliding HLS buffer served from a token-protected ephemeral `127.0.0.1` endpoint; radio, VOD/series, and catch-up remain ineligible
+- The same local playlist supports pause/rewind in Video.js, HTML5/HLS.js, ArtPlayer, and Embedded MPV; external MPV/VLC windows, radio, VOD/series, and provider catch-up are unchanged
+- Defaults: disabled, 30 minutes, system temp/cache; valid duration is 5–180 minutes and an optional parent buffer directory can be configured
+- Sessions are renderer-owned, pending starts are cancelable during rapid channel changes, and FFmpeg/server/files are cleaned up on playback replacement, renderer destruction, and app shutdown
+- FFmpeg is detected through `FFMPEG_PATH`, `PATH`, or known platform locations; unavailable/failed startup falls back to the original stream
+- Architecture and security contract: `docs/architecture/local-timeshift.md`
 
 **VOD/Series Detail Pages (two-state layout)**:
 
@@ -693,6 +703,7 @@ IPTVnator supports both Electron (desktop app) and PWA (web browser) to provide 
     - Electron → SQLite/Drizzle ORM → `~/.iptvnator/databases/iptvnator.db`
     - PWA → IndexedDB → Browser storage
 - External player support (MPV/VLC) only available in Electron
+- Local timeshift is Electron-only and requires a detectable FFmpeg executable; it applies only to built-in inline live-TV playback
 - File system operations only available in Electron (uploading playlists from disk)
 
 **Base Href Configuration**:

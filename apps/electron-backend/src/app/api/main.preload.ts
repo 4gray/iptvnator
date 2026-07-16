@@ -6,6 +6,10 @@ import {
     APP_UPDATE_GET_STATUS,
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
+    LOCAL_TIMESHIFT_GET_SUPPORT,
+    LOCAL_TIMESHIFT_SESSION_UPDATE,
+    LOCAL_TIMESHIFT_START,
+    LOCAL_TIMESHIFT_STOP,
 } from '@iptvnator/shared/interfaces/ipc-commands';
 import {
     attachEmbeddedMpvFrameView,
@@ -34,6 +38,7 @@ import type {
     ExternalPlayerSession,
     GlobalSearchPaginationOptions,
     GlobalSearchResultSource,
+    LocalTimeshiftSession,
     PlaybackPositionData,
     PlayerContentInfo,
     Playlist,
@@ -41,6 +46,7 @@ import type {
     PlaylistRefreshPayload,
     PortalDebugEvent,
     ResolvedPortalPlayback,
+    StartLocalTimeshiftRequest,
     Settings,
     TmdbCacheEntry,
     TmdbCacheMediaType,
@@ -827,6 +833,22 @@ const electronApi: ElectronBridgeApi = {
             contentType
         ),
     getLocalIpAddresses: () => ipcRenderer.invoke('get-local-ip-addresses'),
+    getLocalTimeshiftSupport: () =>
+        ipcRenderer.invoke(LOCAL_TIMESHIFT_GET_SUPPORT),
+    startLocalTimeshift: (request: StartLocalTimeshiftRequest) =>
+        ipcRenderer.invoke(LOCAL_TIMESHIFT_START, request),
+    stopLocalTimeshift: (sessionId?: string) =>
+        ipcRenderer.invoke(LOCAL_TIMESHIFT_STOP, sessionId),
+    onLocalTimeshiftSessionUpdate: (
+        callback: (session: LocalTimeshiftSession) => void
+    ) => {
+        const handler = (
+            _event: Electron.IpcRendererEvent,
+            session: LocalTimeshiftSession
+        ) => callback(session);
+        ipcRenderer.on(LOCAL_TIMESHIFT_SESSION_UPDATE, handler);
+        return () => ipcRenderer.off(LOCAL_TIMESHIFT_SESSION_UPDATE, handler);
+    },
     // Downloads
     downloadsStart: (data: ElectronBridgeDownloadStartPayload) =>
         ipcRenderer.invoke('DOWNLOADS_START', data),

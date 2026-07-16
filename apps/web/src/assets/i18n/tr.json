@@ -367,6 +367,13 @@
         "RECORDING_FOLDER_DESCRIPTION": "Yerleşik MPV'den canlı yayın kayıtlarının kaydedileceği klasör. Sistem İndirilenler klasörünü kullanmak için boş bırakın.",
         "RECORDING_FOLDER": "Kayıt klasörü",
         "RECORDING_FOLDER_SELECT": "Kayıt klasörü seç",
+        "LOCAL_TIMESHIFT": "Yerel zaman kaydırma",
+        "LOCAL_TIMESHIFT_DESCRIPTION": "Bu cihazdaki geçici arabelleği kullanarak canlı TV'yi duraklatın ve geri sarın.",
+        "LOCAL_TIMESHIFT_MAX_DURATION": "En uzun arabellek süresi",
+        "LOCAL_TIMESHIFT_MAX_DURATION_DESCRIPTION": "Eski arabellek içeriği bu dakika sayısından sonra silinir.",
+        "LOCAL_TIMESHIFT_DURATION_RANGE": "5 ile 180 arasında bir tam sayı girin.",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY": "Arabellek klasörü",
+        "LOCAL_TIMESHIFT_BUFFER_DIRECTORY_DESCRIPTION": "Sistem önbelleğini kullanmak için boş bırakın. Arabellek dosyaları otomatik olarak silinir.",
         "VLC_PLAYER_PATH_LABEL": "VLC yolu",
         "VLC_PLAYER_PATH_DESCRIPTION": "VLC yolunu ayarlayın. macOS’ta /Applications/VLC.app gibi VLC uygulama paketini veya yürütülebilir dosya yolunu kullanabilirsiniz.",
         "VLC_PLAYER_PATH": "VLC oynatıcı yolu",
@@ -446,6 +453,9 @@
         "MUTE": "Sesi kapat",
         "UNMUTE": "Sesi aç",
         "VOLUME": "Ses seviyesi"
+    },
+    "LOCAL_TIMESHIFT": {
+        "STARTING": "Yerel zaman kaydırma başlatılıyor…"
     },
     "EMBEDDED_MPV": {
         "PLAYER": {

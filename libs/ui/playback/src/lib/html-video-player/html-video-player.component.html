@@ -6,6 +6,10 @@
         [controls]="!sharedControls"
     ></video>
 
+    @if (localTimeshiftActive) {
+        <app-live-edge-button (goLive)="goLive()" />
+    }
+
     @if (sharedControls) {
         <app-player-controls
             [controller]="controlsAdapter"

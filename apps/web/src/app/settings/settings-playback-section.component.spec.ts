@@ -396,5 +396,10 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         vlcPlayerArguments: new FormControl(''),
         vlcReuseInstance: new FormControl(false),
         recordingFolder: new FormControl(''),
+        localTimeshift: new FormGroup({
+            enabled: new FormControl(false),
+            maxDurationMinutes: new FormControl(30),
+            bufferDirectory: new FormControl(''),
+        }),
     });
 }

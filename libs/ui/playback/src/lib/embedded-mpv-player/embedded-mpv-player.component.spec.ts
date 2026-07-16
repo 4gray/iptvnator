@@ -15,6 +15,7 @@ import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller'
     template: `
         <app-embedded-mpv-player
             [playback]="playback"
+            [localTimeshiftActive]="localTimeshiftActive"
             [seriesNavigation]="seriesNavigation"
             (playbackEnded)="endedCount = endedCount + 1"
             (previousEpisodeRequested)="previousCount = previousCount + 1"
@@ -32,6 +33,8 @@ class EmbeddedMpvPlayerHostComponent {
             contentType: 'episode',
         },
     };
+
+    localTimeshiftActive = false;
 
     seriesNavigation = {
         canPrevious: true,
@@ -215,6 +218,34 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
             fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
                 .nativeElement.disabled
         ).toBe(true);
+    });
+
+    it('enables seeking and a LIVE action for local timeshift', async () => {
+        fixture.destroy();
+        fixture = TestBed.createComponent(EmbeddedMpvPlayerHostComponent);
+        fixture.componentInstance.playback = {
+            streamUrl: 'http://127.0.0.1:43123/timeshift/session/index.m3u8',
+            title: 'ZDF HD',
+            isLive: true,
+        };
+        fixture.componentInstance.localTimeshiftActive = true;
+        fixture.detectChanges();
+        bindPlayer();
+        configureReadyController({
+            durationSeconds: 120,
+        });
+
+        expect(player.canSeek()).toBe(true);
+        expect(
+            fixture.nativeElement.querySelector(
+                '[data-test-id="local-timeshift-go-live"]'
+            )
+        ).not.toBeNull();
+        const seekTo = jest.spyOn(controller, 'seekTo');
+
+        await player.goLive();
+
+        expect(seekTo).toHaveBeenCalledWith(119.75);
     });
 
     it('re-evaluates instant()-based labels when the language changes', () => {

@@ -187,6 +187,15 @@ export class RuntimeCapabilitiesService {
         ].every((methodName) => this.hasElectronMethod(methodName));
     }
 
+    get supportsLocalTimeshift(): boolean {
+        return [
+            'getLocalTimeshiftSupport',
+            'startLocalTimeshift',
+            'stopLocalTimeshift',
+            'onLocalTimeshiftSessionUpdate',
+        ].every((methodName) => this.hasElectronMethod(methodName));
+    }
+
     get supportsPortalActivityStorage(): boolean {
         return [
             'dbGetRecentlyViewed',

@@ -108,6 +108,23 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(tracks[0].mode).toBe('hidden');
     });
 
+    it('shows the LIVE action only for local timeshift and seeks to the live edge', () => {
+        expect(getLiveButton(fixture)).toBeNull();
+        const video = component.videoPlayer.nativeElement;
+        Object.defineProperty(video, 'seekable', {
+            configurable: true,
+            value: createTimeRanges([[0, 45]]),
+        });
+        const play = jest.spyOn(video, 'play').mockResolvedValue(undefined);
+
+        fixture.componentRef.setInput('localTimeshiftActive', true);
+        fixture.detectChanges();
+        getLiveButton(fixture)?.nativeElement.click();
+
+        expect(video.currentTime).toBe(44.75);
+        expect(play).toHaveBeenCalledTimes(1);
+    });
+
     it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
         const el = component.videoPlayer.nativeElement;
         const removeSpy = jest.spyOn(el, 'removeEventListener');
@@ -394,3 +411,17 @@ describe('HtmlVideoPlayerComponent', () => {
         expect(events).toEqual(['previous']);
     });
 });
+
+function createTimeRanges(ranges: Array<[number, number]>): TimeRanges {
+    return {
+        length: ranges.length,
+        start: (index: number) => ranges[index][0],
+        end: (index: number) => ranges[index][1],
+    } as TimeRanges;
+}
+
+function getLiveButton(fixture: ComponentFixture<HtmlVideoPlayerComponent>) {
+    return fixture.debugElement.query(
+        By.css('[data-test-id="local-timeshift-go-live"]')
+    );
+}
