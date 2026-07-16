@@ -26,6 +26,7 @@ import {
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
+import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
 import { EmbeddedMpvOverlayVisibilityService } from './embedded-mpv-overlay-visibility.service';
 import { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
 import { EmbeddedMpvShortcuts } from './embedded-mpv-shortcuts';
@@ -49,10 +50,7 @@ import {
     volumeIcon,
 } from './embedded-mpv-format.utils';
 
-const HIDE_CONTROLS_DELAY_MS = 2500;
 const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
-const VOLUME_POPOVER_CLOSE_DELAY_MS = 220;
-const VIEWPORT_CLICK_PAUSE_DELAY_MS = 250;
 
 @Component({
     selector: 'app-embedded-mpv-player',
@@ -302,49 +300,38 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     });
 
     private mutedVolume = 0;
-    private controlsHideTimer: number | null = null;
-    private volumeCloseTimer: number | null = null;
     private recordingMessageTimer: number | null = null;
-    private viewportClickTimer: number | null = null;
     private lastEndedSessionId: string | null = null;
     private readonly recordingTick = signal(Date.now());
     private readonly recordingMessage = signal<string | null>(null);
+    private readonly legacyInteractions: EmbeddedMpvLegacyInteractions;
 
-    private readonly onDocumentPointerDown = (event: PointerEvent) => {
-        if (this.isFrameCopyEngine()) {
-            return;
-        }
-        const playerRoot = this.playerRoot()?.nativeElement;
-        if (!playerRoot || event.composedPath().includes(playerRoot)) {
-            return;
-        }
-        this.closePopovers();
-    };
-    private readonly onDocumentPointerMove = (event: PointerEvent) => {
-        if (this.isFrameCopyEngine()) {
-            return;
-        }
-        const playerRoot = this.playerRoot()?.nativeElement;
-        if (
-            playerRoot &&
-            !event.composedPath().includes(playerRoot) &&
-            this.isPointerInsidePlayer(event)
-        ) {
-            this.revealControls();
-        }
-    };
     private readonly onFullscreenChange = () => {
         const playerRoot = this.playerRoot()?.nativeElement;
         this.isFullscreen.set(
             Boolean(playerRoot && document.fullscreenElement === playerRoot)
         );
-        if (!this.isFrameCopyEngine()) {
-            this.revealControls();
-        }
+        this.legacyInteractions.revealControls();
         this.controller.triggerBoundsSync();
     };
 
     constructor() {
+        this.legacyInteractions = new EmbeddedMpvLegacyInteractions({
+            isAvailable: () => !this.isFrameCopyEngine(),
+            playerRoot: () => this.playerRoot()?.nativeElement ?? null,
+            menus: this.menus,
+            controlsVisible: this.controlsVisible,
+            isLoading: this.isLoading,
+            isErrored: this.isErrored,
+            isStalled: this.stalled,
+            isPlaying: this.isPlaying,
+            statusLabel: this.statusLabel,
+            togglePaused: () => this.togglePaused(),
+            toggleFullscreen: () => this.toggleFullscreen(),
+            triggerBoundsSync: () => this.controller.triggerBoundsSync(),
+        });
+        this.legacyInteractions.attach();
+
         this.sharedControls.configure({
             playback: this.playback,
             seriesNavigation: this.seriesNavigation,
@@ -355,15 +342,6 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             document.addEventListener(
                 'fullscreenchange',
                 this.onFullscreenChange
-            );
-            document.addEventListener(
-                'pointerdown',
-                this.onDocumentPointerDown
-            );
-            document.addEventListener(
-                'pointermove',
-                this.onDocumentPointerMove,
-                { passive: true }
             );
         }
 
@@ -393,13 +371,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
 
         this.shortcuts.attach({
             isAvailable: () =>
-                !this.isFrameCopyEngine() &&
+                this.legacyInteractions.isAvailable() &&
                 !this.overlayVisibility.overlayActive(),
-            onEscape: () => {
-                if (!this.isFrameCopyEngine()) {
-                    this.closePopovers();
-                }
-            },
+            onEscape: () => this.legacyInteractions.closePopovers(),
             togglePaused: () => void this.togglePaused(),
             toggleFullscreen: () => void this.toggleFullscreen(),
             seekBy: (delta) => void this.seekBy(delta),
@@ -457,7 +431,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                     currentTime: session.positionSeconds,
                     duration: session.durationSeconds ?? 0,
                 });
-                this.scheduleControlsHide();
+                this.legacyInteractions.scheduleControlsHide();
             });
         });
 
@@ -491,13 +465,9 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             untracked(() => {
                 this.feedback.clear();
                 this.setRecordingMessage(null);
-                if (!isFrameCopyEngine) {
-                    return;
-                }
-                this.clearControlsHideTimer();
-                this.clearVolumeCloseTimer();
-                this.clearViewportClickTimer();
-                this.menus.closeAll();
+                this.legacyInteractions.handleEngineTransition(
+                    isFrameCopyEngine
+                );
             });
         });
     }
@@ -510,86 +480,30 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 'fullscreenchange',
                 this.onFullscreenChange
             );
-            document.removeEventListener(
-                'pointerdown',
-                this.onDocumentPointerDown
-            );
-            document.removeEventListener(
-                'pointermove',
-                this.onDocumentPointerMove
-            );
         }
-        this.clearVolumeCloseTimer();
+        this.legacyInteractions.dispose();
         this.clearRecordingMessageTimer();
-        this.clearControlsHideTimer();
-        this.clearViewportClickTimer();
-    }
-
-    private clearVolumeCloseTimer(): void {
-        if (this.volumeCloseTimer !== null) {
-            window.clearTimeout(this.volumeCloseTimer);
-            this.volumeCloseTimer = null;
-        }
-    }
-
-    private clearViewportClickTimer(): void {
-        if (this.viewportClickTimer !== null) {
-            window.clearTimeout(this.viewportClickTimer);
-            this.viewportClickTimer = null;
-        }
     }
 
     onPlayerInteraction(): void {
-        if (this.isFrameCopyEngine()) {
-            return;
-        }
-        this.revealControls();
+        this.legacyInteractions.onPlayerInteraction();
     }
 
     onViewportClick(event: MouseEvent): void {
-        if (this.isFrameCopyEngine()) {
-            return;
-        }
-        const target = event.target as HTMLElement | null;
-        if (target?.closest('button, input, [role="slider"]')) {
-            return;
-        }
-        if (this.menus.anyOpen()) {
-            this.menus.closeAll();
-            return;
-        }
-        if (this.isLoading() || this.isErrored() || this.stalled()) {
-            return;
-        }
-        // The pause is deferred so a double-click (fullscreen) can cancel it;
-        // pause feedback is the transport icon in the dock — the native video
-        // surface paints over any DOM overlay we could flash here.
-        this.clearViewportClickTimer();
-        this.viewportClickTimer = window.setTimeout(() => {
-            this.viewportClickTimer = null;
-            void this.togglePaused();
-        }, VIEWPORT_CLICK_PAUSE_DELAY_MS);
+        this.legacyInteractions.onViewportClick(event);
     }
 
     onPlayerDblClick(event: MouseEvent): void {
-        if (this.isFrameCopyEngine()) {
-            return;
-        }
-        const target = event.target as HTMLElement | null;
-        if (target?.closest('button, input, [role="slider"]')) {
-            return;
-        }
-        this.clearViewportClickTimer();
-        void this.toggleFullscreen();
+        this.legacyInteractions.onPlayerDblClick(event);
     }
 
     async togglePaused(): Promise<void> {
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         await this.controller.togglePaused();
     }
 
     async toggleFullscreen(): Promise<void> {
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         const playerRoot = this.playerRoot()?.nativeElement;
         if (!playerRoot || !this.canFullscreen()) {
             return;
@@ -608,7 +522,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     async seekBy(deltaSeconds: number): Promise<void> {
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         const ok = await this.controller.seekBy(deltaSeconds);
         if (ok) {
             this.feedback.flash(
@@ -619,7 +533,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     requestPreviousEpisode(): void {
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         if (!this.canPreviousEpisode()) {
             return;
         }
@@ -627,7 +541,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     requestNextEpisode(): void {
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         if (!this.canNextEpisode()) {
             return;
         }
@@ -635,7 +549,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     onTimelineInput(event: Event): void {
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         this.scrubPosition.set(
             Number((event.target as HTMLInputElement).value)
         );
@@ -650,7 +564,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     onVolumeInput(event: Event): void {
         const next = Number((event.target as HTMLInputElement).value);
         this.applyVolume(next);
-        this.revealControls(false);
+        this.legacyInteractions.revealControls(false);
     }
 
     onVolumeWheel(event: WheelEvent): void {
@@ -659,16 +573,11 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     }
 
     onVolumeHoverEnter(): void {
-        this.clearVolumeCloseTimer();
-        this.menus.open('volume');
+        this.legacyInteractions.onVolumeHoverEnter();
     }
 
     onVolumeHoverLeave(): void {
-        this.clearVolumeCloseTimer();
-        this.volumeCloseTimer = window.setTimeout(() => {
-            this.menus.close('volume');
-            this.volumeCloseTimer = null;
-        }, VOLUME_POPOVER_CLOSE_DELAY_MS);
+        this.legacyInteractions.onVolumeHoverLeave();
     }
 
     toggleMute(): void {
@@ -688,52 +597,52 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 `${Math.round(restored * 100)}%`
             );
         }
-        this.revealControls();
+        this.legacyInteractions.revealControls();
     }
 
     toggleAudioMenu(): void {
         this.menus.toggle('audio');
-        this.revealControls();
+        this.legacyInteractions.revealControls();
     }
     toggleSubtitleMenu(): void {
         this.menus.toggle('subtitle');
-        this.revealControls();
+        this.legacyInteractions.revealControls();
     }
     toggleSpeedMenu(): void {
         this.menus.toggle('speed');
-        this.revealControls();
+        this.legacyInteractions.revealControls();
     }
     toggleAspectMenu(): void {
         this.menus.toggle('aspect');
-        this.revealControls();
+        this.legacyInteractions.revealControls();
     }
 
     async selectAudioTrack(trackId: number): Promise<void> {
-        this.revealControls(false);
+        this.legacyInteractions.revealControls(false);
         await this.controller.setAudioTrack(trackId);
         this.menus.close('audio');
-        this.scheduleControlsHide();
+        this.legacyInteractions.scheduleControlsHide();
     }
 
     async selectSubtitleTrack(trackId: number): Promise<void> {
-        this.revealControls(false);
+        this.legacyInteractions.revealControls(false);
         await this.controller.setSubtitleTrack(trackId);
         this.menus.close('subtitle');
-        this.scheduleControlsHide();
+        this.legacyInteractions.scheduleControlsHide();
     }
 
     async selectSpeed(speed: number): Promise<void> {
-        this.revealControls(false);
+        this.legacyInteractions.revealControls(false);
         await this.controller.setSpeed(speed);
         this.menus.close('speed');
-        this.scheduleControlsHide();
+        this.legacyInteractions.scheduleControlsHide();
     }
 
     async selectAspect(aspect: string): Promise<void> {
-        this.revealControls(false);
+        this.legacyInteractions.revealControls(false);
         await this.controller.setAspect(aspect);
         this.menus.close('aspect');
-        this.scheduleControlsHide();
+        this.legacyInteractions.scheduleControlsHide();
     }
 
     async toggleRecording(): Promise<void> {
@@ -741,7 +650,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             return;
         }
 
-        this.revealControls(false);
+        this.legacyInteractions.revealControls(false);
         if (this.isRecording()) {
             const recording = await this.controller.stopRecording();
             if (recording?.targetPath) {
@@ -771,7 +680,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
                 );
                 this.flashRecordingFailed();
             }
-            this.scheduleControlsHide();
+            this.legacyInteractions.scheduleControlsHide();
             return;
         }
 
@@ -876,7 +785,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
     private adjustVolume(delta: number): void {
         const next = Math.max(0, Math.min(1, this.volume() + delta));
         this.applyVolume(next);
-        this.revealControls();
+        this.legacyInteractions.revealControls();
         this.feedback.flash(volumeIcon(next), `${Math.round(next * 100)}%`);
     }
 
@@ -884,76 +793,6 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         this.volume.set(value);
         persistVolume(value);
         void this.controller.applyVolume(value);
-    }
-
-    private closePopovers(): void {
-        if (!this.menus.anyOpen()) {
-            return;
-        }
-        this.menus.closeAll();
-        this.controller.triggerBoundsSync();
-        this.scheduleControlsHide();
-    }
-
-    private revealControls(scheduleHide = true): void {
-        if (this.isFrameCopyEngine()) {
-            this.clearControlsHideTimer();
-            return;
-        }
-        this.controlsVisible.set(true);
-        if (scheduleHide) {
-            this.clearControlsHideTimer();
-            this.scheduleControlsHide();
-        }
-    }
-
-    private scheduleControlsHide(): void {
-        if (this.isFrameCopyEngine()) {
-            this.clearControlsHideTimer();
-            return;
-        }
-        if (
-            !this.isPlaying() ||
-            this.menus.anyOpen() ||
-            Boolean(this.statusLabel())
-        ) {
-            this.clearControlsHideTimer();
-            return;
-        }
-        if (!this.controlsVisible() || this.controlsHideTimer !== null) {
-            return;
-        }
-        this.controlsHideTimer = window.setTimeout(() => {
-            if (
-                this.isPlaying() &&
-                !this.menus.anyOpen() &&
-                !this.statusLabel()
-            ) {
-                this.controlsVisible.set(false);
-            }
-        }, HIDE_CONTROLS_DELAY_MS);
-    }
-
-    private clearControlsHideTimer(): void {
-        if (this.controlsHideTimer === null) {
-            return;
-        }
-        window.clearTimeout(this.controlsHideTimer);
-        this.controlsHideTimer = null;
-    }
-
-    private isPointerInsidePlayer(event: PointerEvent): boolean {
-        const playerRoot = this.playerRoot()?.nativeElement;
-        if (!playerRoot) {
-            return false;
-        }
-        const rect = playerRoot.getBoundingClientRect();
-        return (
-            event.clientX >= rect.left &&
-            event.clientX <= rect.right &&
-            event.clientY >= rect.top &&
-            event.clientY <= rect.bottom
-        );
     }
 }
 

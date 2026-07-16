@@ -369,10 +369,17 @@ controls host. The renderer files live under
   `EmbeddedMpvSessionController`, and projects series navigation and recording.
 - `embedded-mpv-controls-recording.ts` — frame-copy shared-controls recording
   coordinator. Serializes toggles, correlates command settlement with fresh
-  same-owner snapshots, owns acknowledgement/message timers, and cancels on
-  ownership or engine changes.
+  same-owner snapshots, and cancels pending state on ownership or engine
+  changes.
 - `embedded-mpv-controls-recording-feedback.ts` — semantic raw/translated
   recording feedback values and late translation resolution.
+- `embedded-mpv-controls-recording-timers.ts` — frame-copy recording feedback
+  signal plus acknowledgement and message-dismiss timer ownership. Keeps
+  transient timing lifecycle out of the recording correlation state machine.
+- `embedded-mpv-legacy-interactions.ts` — native-view-only pointer listeners,
+  click/double-click arbitration, popover closing, controls auto-hide, and
+  volume-close timers. An engine handoff cancels its pending legacy
+  interactions before frame-copy takes ownership.
 - `embedded-mpv-shortcuts.ts` — native-view-only `EmbeddedMpvShortcuts` class
   with `attach(handlers)` / `detach()`. Owns the legacy document keydown
   listener and routes through a callback interface; the component supplies
@@ -394,8 +401,9 @@ controls host. The renderer files live under
 - `embedded-mpv-player.component.ts` — view shell and engine-specific controls
   host. It mounts shared controls only for frame-copy and the legacy dock only
   for native-view; holds view children, derived `computed` signals, DOM event
-  listeners, and effects for session lifecycle, bounds sync, session fan-out,
-  playback-ended emission, engine handoff, and native-only recording ticks.
+  handling for fullscreen, and effects for session lifecycle, bounds sync,
+  session fan-out, playback-ended emission, engine handoff, and native-only
+  recording ticks.
 
 ### Bounds compositing strategy
 
@@ -433,11 +441,12 @@ the helper's render size.
   feedback, and recording elapsed timer stay authoritative. The shared
   recording adapter is inert outside frame-copy.
 
-An engine handoff clears native controls-hide/click/volume timers and closes
-native menus when frame-copy takes ownership. Legacy feedback is cleared on
-each engine transition and its overlay is never rendered for frame-copy, so a
-late native command completion cannot paint above shared controls. The handoff
-also changes the shared recording owner, which cancels pending operations and
+An engine handoff asks `EmbeddedMpvLegacyInteractions` to clear native
+controls-hide/click/volume timers and close native menus when frame-copy takes
+ownership. Legacy feedback is cleared on each engine transition and its overlay
+is never rendered for frame-copy, so a late native command completion cannot
+paint above shared controls. The handoff also changes the shared recording
+owner, which cancels pending operations, acknowledgement/message timers, and
 feedback. This prevents both systems from acting on the same session.
 
 Both engines keep the component's `fullscreenchange` listener because

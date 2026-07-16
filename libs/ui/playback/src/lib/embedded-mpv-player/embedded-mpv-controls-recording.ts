@@ -1,4 +1,3 @@
-import { signal } from '@angular/core';
 import type {
     EmbeddedMpvSession,
     ResolvedPortalPlayback,
@@ -8,10 +7,8 @@ import {
     RECORDING_TRANSLATION,
     type RecordingFeedback,
 } from './embedded-mpv-controls-recording-feedback';
+import { EmbeddedMpvControlsRecordingTimers } from './embedded-mpv-controls-recording-timers';
 import type { EmbeddedMpvSessionController } from './embedded-mpv-session-controller';
-
-const RECORDING_ACK_TIMEOUT_MS = 5000;
-const RECORDING_MESSAGE_DISMISS_DELAY_MS = 5000;
 
 const RECORDING_OPERATION = {
     START: 'start',
@@ -50,13 +47,11 @@ export interface RecordingToggleContext {
 }
 
 export class EmbeddedMpvControlsRecording {
-    private readonly feedbackState = signal<RecordingFeedback | null>(null);
-    readonly feedback = this.feedbackState.asReadonly();
+    private readonly timers = new EmbeddedMpvControlsRecordingTimers();
+    readonly feedback = this.timers.feedback;
 
     private pending: PendingRecordingOperation | null = null;
     private operationGeneration = 0;
-    private acknowledgementTimer: number | null = null;
-    private messageTimer: number | null = null;
     private ownerIdentity: string | null | undefined;
     private destroyed = false;
 
@@ -92,7 +87,9 @@ export class EmbeddedMpvControlsRecording {
             sawErrorClear: initialError === null,
         };
         this.setFeedback(null);
-        this.scheduleAcknowledgementTimeout(generation);
+        this.timers.scheduleAcknowledgement(() =>
+            this.handleAcknowledgementTimeout(generation)
+        );
         const command =
             kind === RECORDING_OPERATION.START
                 ? this.controller.startRecording(
@@ -207,9 +204,9 @@ export class EmbeddedMpvControlsRecording {
     }
 
     destroy(): void {
-        this.setFeedback(null);
         this.destroyed = true;
         this.cancelPending();
+        this.timers.destroy();
     }
 
     private handleAcknowledgementTimeout(generation: number): void {
@@ -217,7 +214,6 @@ export class EmbeddedMpvControlsRecording {
         if (!pending || pending.generation !== generation) {
             return;
         }
-        this.acknowledgementTimer = null;
         this.reconcile(
             this.controller.session(),
             this.currentPlaybackIdentity()
@@ -280,7 +276,9 @@ export class EmbeddedMpvControlsRecording {
         }
         if (outcome) {
             this.setFeedback(outcome.feedback);
-            this.scheduleAcknowledgementTimeout(generation);
+            this.timers.scheduleAcknowledgement(() =>
+                this.handleAcknowledgementTimeout(generation)
+            );
             return;
         }
         if (reconciledPending.timeoutFeedback) {
@@ -296,7 +294,7 @@ export class EmbeddedMpvControlsRecording {
             return;
         }
         pending.observedOutcome = outcome;
-        this.clearAcknowledgementTimer();
+        this.timers.clearAcknowledgement();
         if (pending.commandSettled) {
             this.completePending(outcome.feedback, outcome.autoDismiss);
         } else if (
@@ -332,7 +330,7 @@ export class EmbeddedMpvControlsRecording {
         feedback: RecordingFeedback | null,
         autoDismiss = false
     ): void {
-        this.clearAcknowledgementTimer();
+        this.timers.clearAcknowledgement();
         this.pending = null;
         this.setFeedback(feedback, autoDismiss);
     }
@@ -340,51 +338,13 @@ export class EmbeddedMpvControlsRecording {
     private cancelPending(): void {
         this.operationGeneration += 1;
         this.pending = null;
-        this.clearAcknowledgementTimer();
+        this.timers.clearAcknowledgement();
     }
 
     private setFeedback(
         feedback: RecordingFeedback | null,
         autoDismiss = false
     ): void {
-        if (this.destroyed) {
-            return;
-        }
-        this.clearMessageTimer();
-        this.feedbackState.set(feedback);
-        if (!feedback || !autoDismiss) {
-            return;
-        }
-        const timerId = window.setTimeout(() => {
-            if (!this.destroyed && this.feedbackState() === feedback) {
-                this.feedbackState.set(null);
-            }
-            if (this.messageTimer === timerId) {
-                this.messageTimer = null;
-            }
-        }, RECORDING_MESSAGE_DISMISS_DELAY_MS);
-        this.messageTimer = timerId;
-    }
-
-    private clearAcknowledgementTimer(): void {
-        if (this.acknowledgementTimer !== null) {
-            window.clearTimeout(this.acknowledgementTimer);
-            this.acknowledgementTimer = null;
-        }
-    }
-
-    private scheduleAcknowledgementTimeout(generation: number): void {
-        this.clearAcknowledgementTimer();
-        this.acknowledgementTimer = window.setTimeout(
-            () => this.handleAcknowledgementTimeout(generation),
-            RECORDING_ACK_TIMEOUT_MS
-        );
-    }
-
-    private clearMessageTimer(): void {
-        if (this.messageTimer !== null) {
-            window.clearTimeout(this.messageTimer);
-            this.messageTimer = null;
-        }
+        this.timers.setFeedback(feedback, autoDismiss);
     }
 }
