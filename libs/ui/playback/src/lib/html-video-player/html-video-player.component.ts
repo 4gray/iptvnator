@@ -3,25 +3,25 @@ import {
     ElementRef,
     EventEmitter,
     inject,
+    input,
     Input,
     OnChanges,
     OnDestroy,
     OnInit,
     Output,
     SimpleChanges,
+    viewChild,
     ViewChild,
     signal,
 } from '@angular/core';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
-import { DataService } from '@iptvnator/services';
 import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
     classifyHlsPlaybackIssue,
     classifyMpegTsPlaybackIssue,
-    classifyNativePlaybackIssue,
     classifyUnsupportedHlsManifestCodecs,
     createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
@@ -33,6 +33,7 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { HtmlVideoElementSession } from './html-video-element-session';
 import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
@@ -60,9 +61,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Input() volume = 1;
     @Input() startTime = 0;
     @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
-    @Input() isLive = true;
-    @Input() interactionEnabled = true;
-    @Input() showCaptions = false;
+    readonly isLive = input(true);
+    readonly interactionEnabled = input(true);
+    readonly showCaptions = input(false);
     @Output() timeUpdate = new EventEmitter<{
         currentTime: number;
         duration: number;
@@ -72,15 +73,13 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Output() previousEpisodeRequested = new EventEmitter<void>();
     @Output() nextEpisodeRequested = new EventEmitter<void>();
 
-    private readonly dataService = inject(DataService);
     readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
     readonly controlsAdapter = inject(WebVideoControlsAdapter);
     private readonly seriesNavigationSignal =
         signal<SeriesPlaybackNavigation | null>(null);
 
     /** Video player DOM element */
-    @ViewChild('playerRoot', { static: true })
-    playerRoot!: ElementRef<HTMLElement>;
+    readonly playerRoot = viewChild<ElementRef<HTMLElement>>('playerRoot');
 
     @ViewChild('videoPlayer', { static: true })
     videoPlayer!: ElementRef<HTMLVideoElement>;
@@ -91,44 +90,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private mpegtsPlayer: mpegts.Player | null = null;
     private controlsSource: HtmlVideoControlsSource | null = null;
     private controlsBridge: HtmlVideoPlayerControlsBridge | null = null;
-
-    private readonly handleNativePlaybackError = () => {
-        const metadata = this.createSourceMetadata(
-            this.channel?.url ?? this.videoPlayer.nativeElement.currentSrc
-        );
-
-        this.playbackIssue.emit(
-            classifyNativePlaybackIssue(
-                this.videoPlayer.nativeElement.error,
-                metadata
-            )
-        );
-    };
-
-    private readonly clearPlaybackIssue = () => {
-        this.playbackIssue.emit(null);
-    };
-
-    private readonly handleVolumeChange = (): void => {
-        this.onVolumeChange();
-    };
-
-    private readonly handleLoadedMetadata = (): void => {
-        if (this.startTime > 0) {
-            this.videoPlayer.nativeElement.currentTime = this.startTime;
-        }
-    };
-
-    private readonly handleTimeUpdate = (): void => {
-        this.timeUpdate.emit({
-            currentTime: this.videoPlayer.nativeElement.currentTime,
-            duration: this.videoPlayer.nativeElement.duration,
-        });
-    };
-
-    private readonly handlePlaybackEnded = (): void => {
-        this.playbackEnded.emit();
-    };
+    private videoSession: HtmlVideoElementSession | null = null;
 
     ngOnInit() {
         if (this.sharedControls) {
@@ -139,46 +101,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.controlsBridge = new HtmlVideoPlayerControlsBridge({
                 video: this.videoPlayer.nativeElement,
                 adapter: this.controlsAdapter,
-                isLive: () => this.isLive,
-                showCaptions: () => this.showCaptions,
+                isLive: () => this.isLive(),
+                showCaptions: () => this.showCaptions(),
             });
             this.controlsBridge.attach();
             if (this.controlsSource) {
                 this.controlsBridge.setSource(this.controlsSource);
             }
         }
-
-        this.videoPlayer.nativeElement.addEventListener(
-            'volumechange',
-            this.handleVolumeChange
-        );
-
-        this.videoPlayer.nativeElement.addEventListener(
-            'loadedmetadata',
-            this.handleLoadedMetadata
-        );
-
-        this.videoPlayer.nativeElement.addEventListener(
-            'timeupdate',
-            this.handleTimeUpdate
-        );
-
-        this.videoPlayer.nativeElement.addEventListener(
-            'error',
-            this.handleNativePlaybackError
-        );
-        this.videoPlayer.nativeElement.addEventListener(
-            'loadeddata',
-            this.clearPlaybackIssue
-        );
-        this.videoPlayer.nativeElement.addEventListener(
-            'playing',
-            this.clearPlaybackIssue
-        );
-        this.videoPlayer.nativeElement.addEventListener(
-            'ended',
-            this.handlePlaybackEnded
-        );
+        this.getVideoSession().attach();
     }
 
     /**
@@ -211,7 +142,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     private exitOwnedFullscreen(): void {
         if (
             !this.sharedControls ||
-            document.fullscreenElement !== this.playerRoot?.nativeElement ||
+            document.fullscreenElement !== this.playerRoot()?.nativeElement ||
             typeof document.exitFullscreen !== 'function'
         ) {
             return;
@@ -266,7 +197,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 );
                 this.mpegtsPlayer = mpegts.createPlayer({
                     type: 'mpegts',
-                    isLive: this.isLive,
+                    isLive: this.isLive(),
                     url: url,
                 });
                 this.mpegtsPlayer.attachMediaElement(
@@ -372,33 +303,14 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Disables text based captions based on the global settings
      */
     disableCaptions(): void {
-        for (
-            let i = 0;
-            i < this.videoPlayer.nativeElement.textTracks.length;
-            i++
-        ) {
-            this.videoPlayer.nativeElement.textTracks[i].mode = 'hidden';
-        }
+        this.getVideoSession().disableCaptions();
     }
 
     /**
      * Handles promise based play operation
      */
     handlePlayOperation(): void {
-        const playPromise = this.videoPlayer.nativeElement.play();
-
-        if (playPromise !== undefined) {
-            playPromise
-                .then(() => {
-                    // Automatic playback started!
-                    if (!this.sharedControls && !this.showCaptions) {
-                        this.disableCaptions();
-                    }
-                })
-                .catch(() => {
-                    // Do nothing
-                });
-        }
+        this.getVideoSession().play();
     }
 
     private handleHlsManifestParsed(
@@ -456,51 +368,29 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     /**
-     * Save volume when user changes it
-     */
-    onVolumeChange(): void {
-        const currentVolume = this.videoPlayer.nativeElement.volume;
-        debugHtmlPlayer('Volume changed to:', currentVolume);
-        localStorage.setItem('volume', currentVolume.toString());
-    }
-
-    /**
      * Destroy hls instance on component destroy and clean up event listener
      */
     ngOnDestroy(): void {
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
         this.controlsSource = null;
-
-        this.videoPlayer.nativeElement.removeEventListener(
-            'volumechange',
-            this.handleVolumeChange
-        );
-        this.videoPlayer.nativeElement.removeEventListener(
-            'loadedmetadata',
-            this.handleLoadedMetadata
-        );
-        this.videoPlayer.nativeElement.removeEventListener(
-            'timeupdate',
-            this.handleTimeUpdate
-        );
-        this.videoPlayer.nativeElement.removeEventListener(
-            'error',
-            this.handleNativePlaybackError
-        );
-        this.videoPlayer.nativeElement.removeEventListener(
-            'loadeddata',
-            this.clearPlaybackIssue
-        );
-        this.videoPlayer.nativeElement.removeEventListener(
-            'playing',
-            this.clearPlaybackIssue
-        );
-        this.videoPlayer.nativeElement.removeEventListener(
-            'ended',
-            this.handlePlaybackEnded
-        );
+        this.videoSession?.destroy();
+        this.videoSession = null;
         this.destroyMpegtsPlayer();
         this.destroyHls();
+    }
+
+    private getVideoSession(): HtmlVideoElementSession {
+        this.videoSession ??= new HtmlVideoElementSession({
+            video: this.videoPlayer.nativeElement,
+            getChannelUrl: () => this.channel?.url,
+            getStartTime: () => this.startTime,
+            showCaptions: () => this.showCaptions(),
+            sharedControls: () => this.sharedControls,
+            emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
+            emitTimeUpdate: (value) => this.timeUpdate.emit(value),
+            emitPlaybackEnded: () => this.playbackEnded.emit(),
+        });
+        return this.videoSession;
     }
 }

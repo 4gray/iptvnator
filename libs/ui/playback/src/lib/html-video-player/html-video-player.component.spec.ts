@@ -92,41 +92,38 @@ describe('HtmlVideoPlayerComponent', () => {
     });
 
     it('keeps legacy post-play caption suppression when shared controls are disabled', async () => {
-        const disableCaptions = jest.spyOn(component, 'disableCaptions');
-        jest.spyOn(
-            component.videoPlayer.nativeElement,
-            'play'
-        ).mockResolvedValue(undefined);
-        component.showCaptions = false;
+        const video = component.videoPlayer.nativeElement;
+        const tracks = [{ mode: 'showing' as TextTrackMode }];
+        Object.defineProperty(video, 'textTracks', {
+            configurable: true,
+            value: tracks,
+        });
+        jest.spyOn(video, 'play').mockResolvedValue(undefined);
+        fixture.componentRef.setInput('showCaptions', false);
+        fixture.detectChanges();
 
         component.handlePlayOperation();
         await Promise.resolve();
 
-        expect(disableCaptions).toHaveBeenCalledTimes(1);
+        expect(tracks[0].mode).toBe('hidden');
     });
 
     it('detaches volume/metadata/timeupdate listeners on destroy (no leak)', () => {
         const el = component.videoPlayer.nativeElement;
         const removeSpy = jest.spyOn(el, 'removeEventListener');
-        const handlers = component as unknown as {
-            handleVolumeChange: EventListener;
-            handleLoadedMetadata: EventListener;
-            handleTimeUpdate: EventListener;
-        };
-
         fixture.destroy();
 
         expect(removeSpy).toHaveBeenCalledWith(
             'volumechange',
-            handlers.handleVolumeChange
+            expect.any(Function)
         );
         expect(removeSpy).toHaveBeenCalledWith(
             'loadedmetadata',
-            handlers.handleLoadedMetadata
+            expect.any(Function)
         );
         expect(removeSpy).toHaveBeenCalledWith(
             'timeupdate',
-            handlers.handleTimeUpdate
+            expect.any(Function)
         );
     });
 

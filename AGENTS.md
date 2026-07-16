@@ -151,6 +151,9 @@ Key files:
   `HtmlVideoPlayerComponent` provides a component-scoped
   `WebVideoControlsAdapter`; its player-local bridge owns HLS/native tracks,
   MPEG-TS VOD duration correction, caption preference, and source cleanup.
+  `HtmlVideoElementSession` owns native video-event lifecycle, persisted
+  volume, start-time/time/ended propagation, and legacy post-play caption
+  suppression.
   `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
   metadata, while a visible playback diagnostic disables both shared surface
   interaction and shortcuts and exits the HTML5 shell's own fullscreen so the

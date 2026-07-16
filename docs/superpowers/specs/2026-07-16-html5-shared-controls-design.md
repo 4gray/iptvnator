@@ -98,6 +98,11 @@ native, HLS, and mpegts.js playback engines. Before replacing a source it asks
 the bridge to clear the current source, then tears down the old engine. Once
 the new engine exists it binds the corresponding source to the bridge.
 
+`HtmlVideoElementSession` owns the native video-element listeners, persisted
+volume, start-time/time/ended propagation, and the legacy post-play caption
+behavior. It initializes lazily because initial `ngOnChanges` may start
+playback before `ngOnInit` attaches the native event listeners.
+
 Angular calls the initial `ngOnChanges` before `ngOnInit`, so the component
 retains the current controls source even when playback starts before the bridge
 is created. `ngOnInit` creates the bridge, attaches the adapter, and binds that

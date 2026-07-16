@@ -36,9 +36,9 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
             fixtures
         );
 
-        expect(component.isLive).toBe(true);
-        expect(component.interactionEnabled).toBe(true);
-        expect(component.showCaptions).toBe(false);
+        expect(component.isLive()).toBe(true);
+        expect(component.interactionEnabled()).toBe(true);
+        expect(component.showCaptions()).toBe(false);
         expect(controls?.showControls()).toBe(true);
         expect(controls?.shortcutsEnabled()).toBe(true);
     });

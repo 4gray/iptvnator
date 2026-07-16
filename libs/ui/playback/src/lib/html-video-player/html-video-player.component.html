@@ -10,8 +10,8 @@
         <app-player-controls
             [controller]="controlsAdapter"
             [playerSurface]="playerRoot"
-            [showControls]="interactionEnabled"
-            [shortcutsEnabled]="interactionEnabled"
+            [showControls]="interactionEnabled()"
+            [shortcutsEnabled]="interactionEnabled()"
             (previousEpisodeRequested)="previousEpisodeRequested.emit()"
             (nextEpisodeRequested)="nextEpisodeRequested.emit()"
         />

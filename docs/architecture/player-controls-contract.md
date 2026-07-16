@@ -426,6 +426,7 @@ The guarded HTML5 integration lives in:
 
 ```text
 libs/ui/playback/src/lib/html-video-player/
+├── html-video-element-session.ts
 ├── html-video-player-controls.bridge.ts
 ├── html-video-player-hls-controls.ts
 ├── html-video-player-native-text-tracks.ts
@@ -436,5 +437,7 @@ libs/ui/playback/src/lib/html-video-player/
 `HtmlVideoPlayerComponent` provides a component-scoped
 `WebVideoControlsAdapter`. The bridge and its collaborators are player-local
 because HLS/native track identity, caption preference, and cleanup are tied to
-one active source. Video.js/ArtPlayer skin removal and persistent/background
-player ownership have not landed.
+one active source. `HtmlVideoElementSession` separately owns native video-event
+attachment, persisted volume, start-time/time/ended propagation, and the
+flag-off post-play caption behavior. Video.js/ArtPlayer skin removal and
+persistent/background player ownership have not landed.
