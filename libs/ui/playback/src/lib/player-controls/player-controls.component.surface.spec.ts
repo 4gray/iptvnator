@@ -50,10 +50,14 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
     const setState = (overrides: Partial<PlayerControlsState>) =>
         fake.state.set({ ...createEmptyControlsState(), ...overrides });
 
-    const pressKey = (key: string) =>
-        document.dispatchEvent(
-            new KeyboardEvent('keydown', { key, cancelable: true })
-        );
+    const pressKey = (key: string) => {
+        const event = new KeyboardEvent('keydown', {
+            key,
+            cancelable: true,
+        });
+        document.dispatchEvent(event);
+        return event.defaultPrevented;
+    };
 
     beforeEach(async () => {
         localStorage.removeItem('volume');
@@ -117,6 +121,25 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
 
             jest.advanceTimersByTime(250);
             expect(fake.commands.togglePlay).toHaveBeenCalledTimes(1);
+        });
+
+        it('detaches surface interactions while controls are disabled', () => {
+            jest.useFakeTimers();
+            setCapabilities({ fullscreen: true });
+            const reveal = jest.spyOn(component, 'reveal');
+            fixture.componentRef.setInput('showControls', false);
+            fixture.detectChanges();
+
+            surface.dispatchEvent(new MouseEvent('pointermove'));
+            surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            surface.dispatchEvent(
+                new MouseEvent('dblclick', { bubbles: true })
+            );
+            jest.advanceTimersByTime(1000);
+
+            expect(reveal).not.toHaveBeenCalled();
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+            expect(requestFullscreen).not.toHaveBeenCalled();
         });
 
         it('a double-click cancels the pending pause and toggles fullscreen', () => {
@@ -240,10 +263,13 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         });
 
         it('f toggles fullscreen', () => {
+            expect(pressKey('f')).toBe(false);
+            expect(requestFullscreen).not.toHaveBeenCalled();
+
             setCapabilities({ fullscreen: true });
             fixture.detectChanges();
 
-            pressKey('f');
+            expect(pressKey('f')).toBe(true);
             expect(requestFullscreen).toHaveBeenCalledTimes(1);
         });
 
@@ -252,17 +278,17 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             setState({ canSeek: true, durationSeconds: 600 });
             fixture.detectChanges();
 
-            pressKey('ArrowRight');
+            expect(pressKey('ArrowRight')).toBe(true);
             expect(fake.commands.seekBy).toHaveBeenCalledWith(5);
 
-            pressKey('ArrowLeft');
+            expect(pressKey('ArrowLeft')).toBe(true);
             expect(fake.commands.seekBy).toHaveBeenCalledWith(-5);
         });
 
         it('arrow down lowers the volume and flashes feedback', () => {
             setCapabilities({ volume: true });
             fixture.detectChanges();
-            pressKey('ArrowDown');
+            expect(pressKey('ArrowDown')).toBe(true);
 
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
             expect(component.feedback.current()?.label).toBe('95%');
@@ -271,7 +297,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
         it('m mutes the player', () => {
             setCapabilities({ volume: true });
             fixture.detectChanges();
-            pressKey('m');
+            expect(pressKey('m')).toBe(true);
             expect(fake.commands.setVolume).toHaveBeenCalledWith(0);
             expect(component.displayVolume()).toBe(0);
         });

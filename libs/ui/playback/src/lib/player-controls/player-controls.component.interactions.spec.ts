@@ -163,6 +163,34 @@ describe('PlayerControlsComponent interactions', () => {
             expect(component.displayVolume()).toBe(0.25);
             expect(component.volumePercent()).toBe(25);
         });
+
+        it('keeps optimistic volume across capability and visibility changes', () => {
+            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
+            expect(component.displayVolume()).toBe(0.95);
+
+            setState({ positionSeconds: 15, volume: 1 });
+            fixture.detectChanges();
+            expect(component.displayVolume()).toBe(0.95);
+
+            setCapabilities({ volume: true, playbackSpeed: true });
+            fixture.detectChanges();
+            expect(component.displayVolume()).toBe(0.95);
+
+            fixture.componentRef.setInput('showControls', false);
+            fixture.detectChanges();
+            expect(component.displayVolume()).toBe(0.95);
+        });
+
+        it('reconciles volume when the controller changes at the same value', () => {
+            component.onVolumeWheel(new WheelEvent('wheel', { deltaY: 100 }));
+            expect(component.displayVolume()).toBe(0.95);
+
+            const replacement = createFakeController();
+            fixture.componentRef.setInput('controller', replacement.controller);
+            fixture.detectChanges();
+
+            expect(component.displayVolume()).toBe(1);
+        });
     });
 
     describe('menu selections', () => {

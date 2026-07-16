@@ -79,6 +79,7 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
+    private readonly controllerVolume = computed(() => this.state().volume);
     readonly scrubPosition = signal<number | null>(null);
     readonly timelineDuration = computed(() => {
         const duration = this.state().durationSeconds;
@@ -128,10 +129,12 @@ export class PlayerControlsComponent implements OnDestroy {
     );
     readonly controlsAreVisible = this.vm.controlsAreVisible;
     readonly hideCursor = this.vm.hideCursor;
-
     constructor() {
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
+            canSeek: () => this.capabilities().seek && this.state().canSeek,
+            canAdjustVolume: () => this.capabilities().volume,
+            canToggleFullscreen: () => this.canFullscreen(),
             onEscape: () => this.closePopovers(),
             togglePaused: () => this.togglePlay(),
             toggleFullscreen: () => void this.toggleFullscreen(),
@@ -140,7 +143,13 @@ export class PlayerControlsComponent implements OnDestroy {
             toggleMute: () => this.toggleMute(),
         });
         effect((onCleanup) => {
-            onCleanup(this.surface.attachSurface(this.playerSurface()));
+            const surface = this.showControls() ? this.playerSurface() : null;
+            onCleanup(this.surface.attachSurface(surface));
+        });
+        effect(() => {
+            void this.controller(); // Track equal-volume controller swaps.
+            const volume = this.controllerVolume();
+            untracked(() => this.volume.reconcile(volume));
         });
         effect(() => {
             const state = this.state();
@@ -150,7 +159,6 @@ export class PlayerControlsComponent implements OnDestroy {
                 if (!capabilities.seek || !state.canSeek) {
                     this.scrubPosition.set(null);
                 }
-                this.volume.reconcile(state.volume);
                 this.menus.reconcileControllerAvailability(
                     showControls,
                     capabilities,
@@ -161,7 +169,6 @@ export class PlayerControlsComponent implements OnDestroy {
             });
         });
     }
-
     ngOnDestroy(): void {
         this.shortcuts.detach();
         this.feedback.dispose();
@@ -170,15 +177,12 @@ export class PlayerControlsComponent implements OnDestroy {
         this.volume.dispose();
         this.surface.dispose();
     }
-
     formatTime = formatTime;
     speedLabel = speedLabel;
-
     togglePlay(): void {
         this.reveal();
         this.controller().commands.togglePlay();
     }
-
     seekBy(deltaSeconds: number): void {
         this.reveal();
         if (!this.capabilities().seek || !this.state().canSeek) {
@@ -190,12 +194,10 @@ export class PlayerControlsComponent implements OnDestroy {
             `${deltaSeconds >= 0 ? '+' : ''}${Math.round(deltaSeconds)}s`
         );
     }
-
     onTimelineInput(event: Event): void {
         this.reveal();
         this.scrubPosition.set(this.readTimelineValue(event));
     }
-
     onTimelineCommit(event: Event): void {
         this.reveal();
         const target = this.readTimelineValue(event);
@@ -209,7 +211,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         this.controller().commands.seekTo(target);
     }
-
     requestPreviousEpisode(): void {
         this.reveal();
         if (!this.state().canPreviousEpisode) {
@@ -217,7 +218,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         this.previousEpisodeRequested.emit();
     }
-
     requestNextEpisode(): void {
         this.reveal();
         if (!this.state().canNextEpisode) {
@@ -225,7 +225,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         this.nextEpisodeRequested.emit();
     }
-
     onVolumeInput(event: Event): void {
         this.volume.set(Number((event.target as HTMLInputElement).value));
         this.reveal({ scheduleHide: false });

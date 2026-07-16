@@ -83,14 +83,14 @@ describe('PlayerControlsComponent capability contract', () => {
         return surface;
     }
 
-    function pressKey(key: string): void {
-        document.dispatchEvent(
-            new KeyboardEvent('keydown', {
-                key,
-                bubbles: true,
-                cancelable: true,
-            })
-        );
+    function pressKey(key: string): boolean {
+        const event = new KeyboardEvent('keydown', {
+            key,
+            bubbles: true,
+            cancelable: true,
+        });
+        document.dispatchEvent(event);
+        return event.defaultPrevented;
     }
 
     it('routes shortcuts to the player the user interacted with most recently', () => {
@@ -119,8 +119,8 @@ describe('PlayerControlsComponent capability contract', () => {
         const fake = createFakeController();
         const fixture = createControls(fake);
 
-        pressKey('ArrowDown');
-        pressKey('m');
+        expect(pressKey('ArrowDown')).toBe(false);
+        expect(pressKey('m')).toBe(false);
         expect(fake.commands.setVolume).not.toHaveBeenCalled();
 
         fake.capabilities.set({
@@ -128,7 +128,7 @@ describe('PlayerControlsComponent capability contract', () => {
             volume: true,
         });
         fixture.detectChanges();
-        pressKey('ArrowDown');
+        expect(pressKey('ArrowDown')).toBe(true);
         expect(fake.commands.setVolume).toHaveBeenCalledWith(0.95);
     });
 
@@ -142,7 +142,7 @@ describe('PlayerControlsComponent capability contract', () => {
         });
         fixture.detectChanges();
 
-        pressKey('ArrowRight');
+        expect(pressKey('ArrowRight')).toBe(false);
         expect(fake.commands.seekBy).not.toHaveBeenCalled();
 
         fake.capabilities.set({
@@ -155,7 +155,7 @@ describe('PlayerControlsComponent capability contract', () => {
             durationSeconds: 600,
         });
         fixture.detectChanges();
-        pressKey('ArrowRight');
+        expect(pressKey('ArrowRight')).toBe(false);
         expect(fake.commands.seekBy).not.toHaveBeenCalled();
 
         fake.state.set({
@@ -164,7 +164,7 @@ describe('PlayerControlsComponent capability contract', () => {
             durationSeconds: 600,
         });
         fixture.detectChanges();
-        pressKey('ArrowRight');
+        expect(pressKey('ArrowRight')).toBe(true);
         expect(fake.commands.seekBy).toHaveBeenCalledWith(5);
     });
 

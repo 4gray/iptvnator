@@ -154,6 +154,11 @@ popovers even when a modifier is held or playback shortcuts are unavailable.
 Buttons, form controls, links, ARIA menu controls, and content-editable targets
 are also ignored anywhere in the event's composed path.
 
+Action-specific keys are prevented only when the active controller can handle
+them: seek requires both capability and current seekability, volume/mute
+requires volume capability, and fullscreen requires an available DOM
+fullscreen path. Unsupported keys retain their browser or application default.
+
 When multiple shared-controls instances are mounted, the first attached
 instance owns shortcuts initially. Pointer, focus, or control interaction
 activates that instance through the normal reveal path. If the active instance
@@ -171,6 +176,10 @@ Open popovers are reconciled against the current capability and state snapshot.
 If controls are hidden, a capability is removed, or the corresponding track
 list becomes unavailable, the stale popover closes instead of pinning the
 controls visible or consuming the next surface click.
+
+Setting `showControls` to false also detaches playback-surface pointer, click,
+and double-click handling. A hidden shared-controls instance therefore cannot
+reveal, pause, or fullscreen the player underneath another UI layer.
 
 ### Timeline scrubbing
 

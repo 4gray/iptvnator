@@ -4,6 +4,9 @@ describe('ControlsShortcuts', () => {
     let shortcuts: ControlsShortcuts;
     let handlers: {
         isAvailable: jest.Mock<boolean, []>;
+        canSeek: jest.Mock<boolean, []>;
+        canAdjustVolume: jest.Mock<boolean, []>;
+        canToggleFullscreen: jest.Mock<boolean, []>;
         onEscape: jest.Mock;
         togglePaused: jest.Mock;
         toggleFullscreen: jest.Mock;
@@ -16,6 +19,9 @@ describe('ControlsShortcuts', () => {
         shortcuts = new ControlsShortcuts();
         handlers = {
             isAvailable: jest.fn(() => true),
+            canSeek: jest.fn(() => true),
+            canAdjustVolume: jest.fn(() => true),
+            canToggleFullscreen: jest.fn(() => true),
             onEscape: jest.fn(),
             togglePaused: jest.fn(),
             toggleFullscreen: jest.fn(),
@@ -46,6 +52,22 @@ describe('ControlsShortcuts', () => {
         expect(handlers.adjustVolume).toHaveBeenCalledWith(-0.05);
         expect(handlers.toggleFullscreen).toHaveBeenCalledTimes(1);
         expect(handlers.toggleMute).toHaveBeenCalledTimes(1);
+    });
+
+    it('does not consume keys for unsupported actions', () => {
+        handlers.canSeek.mockReturnValue(false);
+        handlers.canAdjustVolume.mockReturnValue(false);
+        handlers.canToggleFullscreen.mockReturnValue(false);
+
+        expect(dispatchKey('ArrowRight')).toBe(false);
+        expect(dispatchKey('ArrowDown')).toBe(false);
+        expect(dispatchKey('m')).toBe(false);
+        expect(dispatchKey('f')).toBe(false);
+
+        expect(handlers.seekBy).not.toHaveBeenCalled();
+        expect(handlers.adjustVolume).not.toHaveBeenCalled();
+        expect(handlers.toggleMute).not.toHaveBeenCalled();
+        expect(handlers.toggleFullscreen).not.toHaveBeenCalled();
     });
 
     it('always allows escape to close popovers even when playback is unavailable', () => {
@@ -162,6 +184,9 @@ describe('ControlsShortcuts', () => {
         const other = new ControlsShortcuts();
         const otherHandlers = {
             isAvailable: jest.fn(() => true),
+            canSeek: jest.fn(() => true),
+            canAdjustVolume: jest.fn(() => true),
+            canToggleFullscreen: jest.fn(() => true),
             onEscape: jest.fn(),
             togglePaused: jest.fn(),
             toggleFullscreen: jest.fn(),
@@ -193,6 +218,9 @@ describe('ControlsShortcuts', () => {
         const other = new ControlsShortcuts();
         const otherHandlers = {
             isAvailable: jest.fn(() => true),
+            canSeek: jest.fn(() => true),
+            canAdjustVolume: jest.fn(() => true),
+            canToggleFullscreen: jest.fn(() => true),
             onEscape: jest.fn(),
             togglePaused: jest.fn(),
             toggleFullscreen: jest.fn(),

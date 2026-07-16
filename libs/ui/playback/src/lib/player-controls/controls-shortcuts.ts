@@ -1,5 +1,8 @@
 export interface ControlsShortcutHandlers {
     isAvailable: () => boolean;
+    canSeek: () => boolean;
+    canAdjustVolume: () => boolean;
+    canToggleFullscreen: () => boolean;
     onEscape: () => void;
     togglePaused: () => void;
     toggleFullscreen: () => void;
@@ -95,27 +98,45 @@ export class ControlsShortcuts {
                 return;
             case 'f':
             case 'F':
+                if (!handlers.canToggleFullscreen()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.toggleFullscreen();
                 return;
             case 'ArrowLeft':
+                if (!handlers.canSeek()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.seekBy(-5);
                 return;
             case 'ArrowRight':
+                if (!handlers.canSeek()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.seekBy(5);
                 return;
             case 'ArrowUp':
+                if (!handlers.canAdjustVolume()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.adjustVolume(0.05);
                 return;
             case 'ArrowDown':
+                if (!handlers.canAdjustVolume()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.adjustVolume(-0.05);
                 return;
             case 'm':
             case 'M':
+                if (!handlers.canAdjustVolume()) {
+                    return;
+                }
                 event.preventDefault();
                 handlers.toggleMute();
                 return;
