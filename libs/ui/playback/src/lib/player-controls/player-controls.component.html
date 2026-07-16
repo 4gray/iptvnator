@@ -70,7 +70,9 @@
                     [attr.aria-label]="
                         'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
                     "
-                    [matTooltip]="'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate"
+                    [matTooltip]="
+                        'EMBEDDED_MPV.PLAYER.NEXT_EPISODE' | translate
+                    "
                     matTooltipPosition="above"
                 >
                     <mat-icon>skip_next</mat-icon>
@@ -117,25 +119,20 @@
         <div class="player-controls__timeline">
             <input
                 class="player-controls__slider"
-                [style.--slider-progress.%]="
-                    state().canSeek
-                        ? (state().positionSeconds /
-                              ((state().durationSeconds ?? 0) || 1)) *
-                          100
-                        : 0
-                "
+                [style.--slider-progress.%]="timelineProgress()"
                 type="range"
                 min="0"
-                [max]="state().durationSeconds ?? 0"
-                [value]="state().positionSeconds"
+                [max]="timelineDuration()"
+                [value]="timelineValue()"
                 [disabled]="!state().canSeek"
-                [attr.aria-valuetext]="formatTime(state().positionSeconds)"
+                [attr.aria-valuetext]="formatTime(timelineValue())"
                 (input)="onTimelineInput($event)"
+                (change)="onTimelineCommit($event)"
             />
             <div class="player-controls__time">
-                <span>{{ formatTime(state().positionSeconds) }}</span>
+                <span>{{ formatTime(timelineValue()) }}</span>
                 @if (state().canSeek) {
-                    <span>{{ formatTime(state().durationSeconds) }}</span>
+                    <span>{{ formatTime(timelineDuration()) }}</span>
                 } @else if (state().isLive) {
                     <span
                         class="player-controls__live-badge"
@@ -210,7 +207,9 @@
                         >
                             <input
                                 class="player-controls__slider player-controls__slider--volume"
-                                [style.--slider-progress.%]="displayVolume() * 100"
+                                [style.--slider-progress.%]="
+                                    displayVolume() * 100
+                                "
                                 type="range"
                                 min="0"
                                 max="1"
@@ -218,18 +217,21 @@
                                 [value]="displayVolume()"
                                 [attr.aria-label]="
                                     'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
-                                        | translate: { percent: volumePercent() }
+                                        | translate
+                                            : { percent: volumePercent() }
                                 "
                                 [attr.aria-valuetext]="
                                     'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
-                                        | translate: { percent: volumePercent() }
+                                        | translate
+                                            : { percent: volumePercent() }
                                 "
                                 (input)="onVolumeInput($event)"
                             />
                             <span class="player-controls__volume-value">
                                 {{
                                     'EMBEDDED_MPV.PLAYER.VOLUME_LABEL'
-                                        | translate: { percent: volumePercent() }
+                                        | translate
+                                            : { percent: volumePercent() }
                                 }}
                             </span>
                         </div>
@@ -264,7 +266,10 @@
                             "
                         >
                             <div class="player-controls__menu-title">
-                                {{ 'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS' | translate }}
+                                {{
+                                    'EMBEDDED_MPV.PLAYER.AUDIO_TRACKS'
+                                        | translate
+                                }}
                             </div>
                             <div class="player-controls__track-list">
                                 @for (
@@ -279,7 +284,9 @@
                                         [class.player-controls__track--selected]="
                                             track.selected
                                         "
-                                        (click)="menuSelection.audioTrack(track.id)"
+                                        (click)="
+                                            menuSelection.audioTrack(track.id)
+                                        "
                                     >
                                         <span>{{ track.label }}</span>
                                         @if (track.selected) {
@@ -304,7 +311,9 @@
                         [attr.aria-label]="
                             'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
                         "
-                        [matTooltip]="'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate"
+                        [matTooltip]="
+                            'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
+                        "
                         matTooltipPosition="above"
                     >
                         <mat-icon>{{
@@ -322,7 +331,9 @@
                             "
                         >
                             <div class="player-controls__menu-title">
-                                {{ 'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate }}
+                                {{
+                                    'EMBEDDED_MPV.PLAYER.SUBTITLES' | translate
+                                }}
                             </div>
                             <div class="player-controls__track-list">
                                 <button
@@ -357,7 +368,11 @@
                                         [class.player-controls__track--selected]="
                                             track.selected
                                         "
-                                        (click)="menuSelection.subtitleTrack(track.id)"
+                                        (click)="
+                                            menuSelection.subtitleTrack(
+                                                track.id
+                                            )
+                                        "
                                     >
                                         <span>{{ track.label }}</span>
                                         @if (track.selected) {
@@ -385,7 +400,11 @@
                         [matTooltip]="
                             'EMBEDDED_MPV.PLAYER.SPEED_TOOLTIP'
                                 | translate
-                                    : { speed: speedLabel(state().playbackSpeed) }
+                                    : {
+                                          speed: speedLabel(
+                                              state().playbackSpeed
+                                          ),
+                                      }
                         "
                         matTooltipPosition="above"
                     >
@@ -414,17 +433,22 @@
                                         type="button"
                                         role="menuitemradio"
                                         [attr.aria-checked]="
-                                            preset.value === state().playbackSpeed
+                                            preset.value ===
+                                            state().playbackSpeed
                                         "
                                         class="player-controls__track"
                                         [class.player-controls__track--selected]="
-                                            preset.value === state().playbackSpeed
+                                            preset.value ===
+                                            state().playbackSpeed
                                         "
-                                        (click)="menuSelection.speed(preset.value)"
+                                        (click)="
+                                            menuSelection.speed(preset.value)
+                                        "
                                     >
                                         <span>{{ preset.label }}</span>
                                         @if (
-                                            preset.value === state().playbackSpeed
+                                            preset.value ===
+                                            state().playbackSpeed
                                         ) {
                                             <mat-icon>check</mat-icon>
                                         }
@@ -463,7 +487,10 @@
                             "
                         >
                             <div class="player-controls__menu-title">
-                                {{ 'EMBEDDED_MPV.PLAYER.ASPECT_RATIO' | translate }}
+                                {{
+                                    'EMBEDDED_MPV.PLAYER.ASPECT_RATIO'
+                                        | translate
+                                }}
                             </div>
                             <div class="player-controls__track-list">
                                 @for (
@@ -480,7 +507,9 @@
                                         [class.player-controls__track--selected]="
                                             preset.value === state().aspectRatio
                                         "
-                                        (click)="menuSelection.aspect(preset.value)"
+                                        (click)="
+                                            menuSelection.aspect(preset.value)
+                                        "
                                     >
                                         <span>{{
                                             preset.value === 'no'
@@ -506,7 +535,9 @@
                     mat-icon-button
                     type="button"
                     class="player-controls__button player-controls__record-button"
-                    [class.player-controls__record-button--active]="isRecording()"
+                    [class.player-controls__record-button--active]="
+                        isRecording()
+                    "
                     [disabled]="isLoading()"
                     (click)="toggleRecording()"
                     [attr.aria-pressed]="isRecording()"

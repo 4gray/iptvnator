@@ -68,19 +68,6 @@ describe('PlayerControlsComponent interactions', () => {
     });
 
     describe('timeline', () => {
-        it('seeks to the slider value on input', () => {
-            setState({ canSeek: true, durationSeconds: 600 });
-            fixture.detectChanges();
-
-            const slider = query(
-                '.player-controls__slider'
-            ) as HTMLInputElement;
-            slider.value = '120';
-            slider.dispatchEvent(new Event('input'));
-
-            expect(fake.commands.seekTo).toHaveBeenCalledWith(120);
-        });
-
         it('ignores seekBy while the stream cannot seek', () => {
             setState({ canSeek: false });
             fixture.detectChanges();

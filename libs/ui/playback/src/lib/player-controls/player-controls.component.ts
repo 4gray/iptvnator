@@ -26,10 +26,11 @@ import { formatTime, speedLabel } from './controls-format.utils';
 import type { PlayerController } from './player-controls.model';
 
 /**
- * Default, engine-agnostic player controls. Binds purely to a
+ * Default, engine-agnostic player controls designed to bind purely to a
  * {@link PlayerController} (capabilities + reactive state + commands) and owns
  * only transient presentation state (menus, feedback, auto-hide, fullscreen,
- * keyboard shortcuts). The same component drives embedded MPV and web players.
+ * keyboard shortcuts). No existing engine mounts this component in #1148;
+ * engine hosts are follow-up integrations.
  */
 @Component({
     selector: 'app-player-controls',
@@ -85,6 +86,26 @@ export class PlayerControlsComponent implements OnDestroy {
 
     readonly state = computed(() => this.controller().state());
     readonly capabilities = computed(() => this.controller().capabilities());
+    /** Local drag preview; the engine is only commanded on timeline change. */
+    readonly scrubPosition = signal<number | null>(null);
+    readonly timelineDuration = computed(() => {
+        const duration = this.state().durationSeconds;
+        return typeof duration === 'number' && Number.isFinite(duration)
+            ? Math.max(0, duration)
+            : 0;
+    });
+    readonly timelineValue = computed(
+        () =>
+            this.normalizeTimelineValue(
+                this.scrubPosition() ?? this.state().positionSeconds
+            ) ?? 0
+    );
+    readonly timelineProgress = computed(() => {
+        const duration = this.timelineDuration();
+        return this.state().canSeek && duration > 0
+            ? (this.timelineValue() / duration) * 100
+            : 0;
+    });
 
     get displayVolume() {
         return this.volume.value;
@@ -182,7 +203,16 @@ export class PlayerControlsComponent implements OnDestroy {
 
     onTimelineInput(event: Event): void {
         this.reveal();
-        const target = Number((event.target as HTMLInputElement).value);
+        this.scrubPosition.set(this.readTimelineValue(event));
+    }
+
+    onTimelineCommit(event: Event): void {
+        this.reveal();
+        const target = this.readTimelineValue(event);
+        this.scrubPosition.set(null);
+        if (target === null || !this.state().canSeek) {
+            return;
+        }
         this.controller().commands.seekTo(target);
     }
 
@@ -249,6 +279,25 @@ export class PlayerControlsComponent implements OnDestroy {
     private adjustVolume(delta: number): void {
         this.volume.adjust(delta);
         this.reveal();
+    }
+
+    private readTimelineValue(event: Event): number | null {
+        return this.normalizeTimelineValue(
+            Number((event.target as HTMLInputElement).value)
+        );
+    }
+
+    private normalizeTimelineValue(value: number): number | null {
+        if (!Number.isFinite(value)) {
+            return null;
+        }
+
+        const duration = this.state().durationSeconds;
+        const upperBound =
+            typeof duration === 'number' && Number.isFinite(duration)
+                ? Math.max(0, duration)
+                : Number.POSITIVE_INFINITY;
+        return Math.min(Math.max(0, value), upperBound);
     }
 
     private closePopovers(): void {

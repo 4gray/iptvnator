@@ -1,4 +1,5 @@
 import { WebVideoControlsAdapter } from './web-video-controls.adapter';
+import { DEFAULT_PLAYER_CAPABILITIES } from './player-controls-defaults';
 
 /** jsdom `<video>` with overridable readonly media props (command-path spec). */
 function createVideo(
@@ -88,6 +89,10 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         }).not.toThrow();
     });
 
+    it('reports no capabilities before a video is attached', () => {
+        expect(adapter.capabilities()).toEqual(DEFAULT_PLAYER_CAPABILITIES);
+    });
+
     it('ignores track selection when the engine exposes no accessors', () => {
         adapter.attach(createVideo());
         expect(() => {
@@ -148,8 +153,13 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         ).toBeGreaterThanOrEqual(2);
     });
 
-    it('reports idle state with default volume after detach', () => {
-        adapter.attach(createVideo({ volume: 0.4 }));
+    it('invalidates cached state and capabilities after detach', () => {
+        adapter.attach(createVideo({ duration: 120, volume: 0.4 }), {
+            isLive: () => false,
+        });
+        expect(adapter.state().status).toBe('playing');
+        expect(adapter.capabilities().seek).toBe(true);
+
         adapter.detach();
 
         const state = adapter.state();
@@ -157,6 +167,17 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         expect(state.volume).toBe(1);
         expect(state.positionSeconds).toBe(0);
         expect(state.canSeek).toBe(false);
+        expect(adapter.capabilities()).toEqual(DEFAULT_PLAYER_CAPABILITIES);
+    });
+
+    it('clears engine callbacks on detach', () => {
+        const setAudioTrack = jest.fn();
+        adapter.attach(createVideo(), { setAudioTrack });
+        adapter.detach();
+
+        adapter.commands.setAudioTrack(1);
+
+        expect(setAudioTrack).not.toHaveBeenCalled();
     });
 
     it('treats a throwing seekable getter as not seekable', () => {

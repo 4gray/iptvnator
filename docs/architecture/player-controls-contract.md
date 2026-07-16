@@ -1,75 +1,77 @@
 # Player-Controls Contract
 
-This document is the canonical reference for IPTVnator's player-controls
-architecture: the engine-agnostic **contract** every player implements, the
-shared **default controls** component, the per-engine **adapters**, the embedded
-MPV **immersive overlay** compositing path, the feature
-**flags**, and the **background-playback readiness** of the design.
+This document is the canonical reference for IPTVnator's additive,
+engine-agnostic player-controls contract and shared default controls.
+Embedded MPV rendering and native-view bounds behavior remain documented in
+[embedded-mpv-native.md](./embedded-mpv-native.md).
 
-It is the deliverable for the epic "A Clean, Extensible Player-Controls
-Architecture", whose Definition of Done requires "a documented, tested
-player-controls contract". The embedded MPV native/compositing internals are documented
-separately in [embedded-mpv-native.md](./embedded-mpv-native.md); this file owns
-the cross-engine controls layer.
+## Current status
+
+PR #1148 lands a shared-controls foundation only:
+
+- the `PlayerController` contract, default state, and capability presets;
+- the standalone `app-player-controls` presentation component and its
+  transient-state collaborators;
+- a generic `WebVideoControlsAdapter` plus small host helpers;
+- a default-off web rollout token; and
+- focused unit/component tests.
+
+No existing player consumes this layer yet. Video.js, html5+hls.js, ArtPlayer,
+and embedded MPV keep their existing controls. The rollout token has no runtime
+consumer in #1148, so changing it alone does not switch any player UI.
+Engine-host wiring and an embedded-MPV adapter are follow-up work.
+
+This distinction is intentional: the contract can be reviewed and hardened
+without changing shipped playback behavior.
 
 ## Why this exists
 
-Originally the embedded MPV player fused five concerns in one ~743-line
-component: native-surface lifecycle, bounds/compositing, the controls UI,
-transient UI state, and recording display. Three coupled problems followed from
-that: controls could not float over the video (a native-surface "airspace" limit
-forces a shrink-and-dock approach), the controls UI could not be reused across
-engines, and "video stops when you switch views" (background playback) was
-blocked because the player was owned by a routed leaf that Angular destroys on
-navigation.
+Each playback engine currently owns both media integration and controls UI.
+That makes behavior drift likely and makes a controls redesign depend on each
+engine's implementation details.
 
-The fix is a clean **contract** that separates *what controls exist and what
-they command* from *how a given engine renders and composites*. Each engine
-implements the contract its own way; the same default controls component drives
-all of them; and the controls are presentation-only with no lifecycle
-assumptions, so they can later be hosted above the router.
+The shared contract separates:
 
-## Layered architecture
+- **presentation** — what the controls render and which interactions they own;
+- **state and capabilities** — the engine-neutral snapshot the UI reads; and
+- **commands** — the small imperative surface an engine adapter implements.
 
+Rendering and compositing remain engine responsibilities. In particular, the
+contract does not make a native video surface behave like DOM content.
+
+## Landed architecture
+
+```text
+┌──────────────────────────────────────────────────────────────────────┐
+│ app-player-controls                                                  │
+│ Standalone shared presentation component                            │
+│ Menus · feedback · auto-hide · DOM fullscreen · shortcuts · scrub UI│
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │ input.required<PlayerController>()
+                                ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│ PlayerController                                                     │
+│ capabilities: Signal<PlayerControlsCapabilities>                    │
+│ state:        Signal<PlayerControlsState>                           │
+│ commands:     PlayerControlsCommands                                │
+└───────────────────────────────┬──────────────────────────────────────┘
+                                │
+                   adapters implement this boundary
+                                │
+             ┌──────────────────┴──────────────────┐
+             ▼                                     ▼
+┌──────────────────────────────┐     ┌──────────────────────────────┐
+│ WebVideoControlsAdapter      │     │ Embedded-MPV adapter         │
+│ Landed, generic, not wired   │     │ FOLLOW-UP: not implemented   │
+└──────────────────────────────┘     └──────────────────────────────┘
 ```
-┌──────────────────────────────────────────────────────────────────────┐
-│                          PRESENTATION LAYER                            │
-│   app-player-controls  (default, engine-agnostic controls component)  │
-│   white controls · transparent-black → transparent gradient scrim     │
-│   owns ONLY transient UI: menus, feedback, auto-hide, fullscreen,     │
-│   keyboard shortcuts. Binds purely to a PlayerController.             │
-└──────────────────────────────────────────────────────────────────────┘
-                                  │ input.required<PlayerController>()
-                                  ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                          CONTRACT LAYER                                │
-│   PlayerController  =  capabilities (Signal) + state (Signal)         │
-│                        + commands (imperative, fire-and-forget)        │
-│   Lifecycle-agnostic by design (see Background-playback readiness).   │
-└──────────────────────────────────────────────────────────────────────┘
-              ▲                                   ▲
-   ┌──────────┘                       ┌───────────┘
-   │ EmbeddedMpvControlsAdapter       │ WebVideoControlsAdapter
-   │ (libmpv session → contract)      │ (<video> DOM/events → contract)
-   ▼                                   ▼
-┌────────────────────────────┐   ┌────────────────────────────────────┐
-│  ENGINE / SESSION LAYER     │   │  ENGINE / SESSION LAYER             │
-│  EmbeddedMpvSessionController│   │  HTMLVideoElement driven by         │
-│  → IPC → Electron main      │   │  Video.js / html5+hls.js / ArtPlayer│
-│  process libmpv session     │   │  (route-scoped DOM)                 │
-└────────────────────────────┘   └────────────────────────────────────┘
-              │
-              ▼
-┌──────────────────────────────────────────────────────────────────────┐
-│                       COMPOSITING LAYER (MPV only)                     │
-│   immersive: native surface composited BELOW WebContents, full-bleed; │
-│   a transparent hole in a global backdrop reveals it; controls float  │
-└──────────────────────────────────────────────────────────────────────┘
-```
+
+The diagram shows the reusable boundary, not current runtime ownership. There
+is no `app-player-controls` host in an existing engine component in #1148.
 
 ## The contract
 
-Defined in
+The contract is defined in
 `libs/ui/playback/src/lib/player-controls/player-controls.model.ts`.
 
 ```ts
@@ -80,239 +82,190 @@ interface PlayerController {
 }
 ```
 
-- **Capabilities** (`PlayerControlsCapabilities`) — booleans gating which
-  controls render: `seek`, `volume`, `audioTracks`, `subtitles`,
-  `playbackSpeed`, `aspectRatio`, `recording`, `fullscreen`,
-  `seriesNavigation`. A control is only shown when its flag is true, so an
-  engine exposes exactly what it supports. Defaults are all-`false`
-  (`DEFAULT_PLAYER_CAPABILITIES`); each adapter turns on what it can do.
-- **State** (`PlayerControlsState`) — a single reactive snapshot:
-  `status` (`idle | loading | playing | paused | ended | error`),
-  `statusMessage`, `stalled`, `positionSeconds`, `durationSeconds`, `isLive`,
-  `canSeek`, `volume` (0..1), `audioTracks` / `subtitleTracks` (pre-labelled
-  `PlayerTrack[]`), `subtitlesEnabled`, `playbackSpeed` + `speedPresets`,
-  `aspectRatio` + `aspectPresets`, `recording` (`{ active, elapsedSeconds,
-  message }`), `canPreviousEpisode`, `canNextEpisode`. The adapter pre-computes
-  display labels and presets so the component never imports an engine type.
-- **Commands** (`PlayerControlsCommands`) — imperative, fire-and-forget
-  (`void`): `togglePlay`, `seekTo`, `seekBy`, `setVolume`, `setAudioTrack`,
-  `setSubtitleTrack`, `setPlaybackSpeed`, `setAspectRatio`, `toggleRecording`.
+### Capabilities
 
-Deliberately **not** on the contract: episode navigation and fullscreen.
-Episode prev/next are `app-player-controls` **outputs**
-(`previousEpisodeRequested` / `nextEpisodeRequested`) the host wires to its
-playlist logic; fullscreen is a DOM affordance the controls component owns
-against the player surface element. The contract has **no component-lifecycle
-assumptions** — a controller may live above the router (see
-[Background-playback readiness](#background-playback-readiness)).
+`PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
+`audioTracks`, `subtitles`, `playbackSpeed`, `aspectRatio`, `recording`,
+`fullscreen`, and `seriesNavigation`.
 
-### Fullscreen (`ControlsFullscreen` + optional delegate)
+The default is all-false. An adapter enables only features that its engine and
+current runtime support. Capability flags primarily control whether optional UI
+is rendered; state such as `canSeek`, `canPreviousEpisode`, and
+`canNextEpisode` guards the corresponding action at runtime.
 
-By default the controls run fullscreen against their own player-surface element
-via the built-in `ControlsFullscreen` helper — DOM `requestFullscreen()` — which
-is what the web engines use:
+### State
 
-- `isFullscreen()` — the icon/label and cursor-hide read this.
-- `canFullscreen()` — gates the fullscreen button's `disabled` state.
-- `toggle()` — DOM `requestFullscreen()` / `exitFullscreen()` on the surface.
+`PlayerControlsState` is one reactive engine-neutral snapshot:
 
-A host may instead supply an optional **`PlayerFullscreenController`** delegate
-(the `fullscreenController` input; resolved in `controls-fullscreen-binding.ts`).
-When present it replaces the built-in DOM path. The embedded-MPV player supplies
-one that drives **real macOS native fullscreen** of the Electron window
-(`setMainWindowFullScreen` → `win.setFullScreen`), because DOM `requestFullscreen`
-on its transparent, native-below surface ghosts/blacks out. Web/PWA players omit
-the delegate and keep the built-in helper. See
-[MPV compositing](#mpv-compositing-immersive-overlay) and `player-controls-refactor.md`.
+- playback status, loading/error message, and stalled state;
+- current position, optional duration, live/VOD classification, and seekability;
+- volume;
+- pre-labelled audio/subtitle tracks and subtitle-enabled state;
+- playback speed and aspect-ratio selections/presets;
+- recording state; and
+- previous/next episode availability.
 
-Shared defaults live in
-`libs/ui/playback/src/lib/player-controls/player-controls-defaults.ts`
-(`DEFAULT_PLAYER_CAPABILITIES`, `DEFAULT_SPEED_PRESETS`,
-`DEFAULT_ASPECT_PRESETS`, `createEmptyControlsState`).
+Adapters translate engine types into this model. The controls component must not
+import Video.js, hls.js, ArtPlayer, libmpv, Electron IPC, or native-view types.
 
-## The default controls component (`app-player-controls`)
+### Commands
 
-`libs/ui/playback/src/lib/player-controls/player-controls.component.ts`.
+`PlayerControlsCommands` is an imperative, fire-and-forget surface:
 
-- Binds purely to `controller = input.required<PlayerController>()`. Reads
-  `controller().capabilities()` / `controller().state()` and calls
-  `controller().commands.*`. It has **no knowledge of any specific engine**, so
-  the same component drives embedded MPV and the web players.
-- Owns only **transient presentation state**, extracted into small collaborator
-  classes (each independently unit-tested):
-  `ControlsMenuState` (single-open popover machine),
-  `ControlsFeedback` (transient flash overlay),
-  `ControlsVisibility` (auto-hide), `ControlsFullscreen`,
-  `ControlsVolume` (optimistic slider reconciled from state),
-  `ControlsShortcuts` (Space/K, F, arrows, M, Escape),
-  `ControlsSurface` (reveal/hover wiring), and `controls-view-model.ts`
-  (derived display signals).
-- **Look:** white controls over a **scrim** — a
-  `linear-gradient(to top, rgba(0,0,0,0.78) 0%, rgba(0,0,0,0.45) 45%,
-  transparent 100%)` so controls read clearly over video and fade to
-  fully transparent at the top
-  (`player-controls.component.scss`, `.player-controls__bar`).
-- **Reveal hook:** `reveal()` is public so a host can re-show controls after
-  auto-hide. `anyMenuOpen` is exposed so a compositor can react to open menus.
+- `togglePlay`
+- `seekTo` / `seekBy`
+- `setVolume`
+- `setAudioTrack` / `setSubtitleTrack`
+- `setPlaybackSpeed`
+- `setAspectRatio`
+- `toggleRecording`
 
-## Per-engine adapters
+Episode navigation is deliberately exposed as component outputs
+(`previousEpisodeRequested` and `nextEpisodeRequested`) because the owning
+playlist/portal feature decides which item to play.
 
-### EmbeddedMpvControlsAdapter
+Fullscreen is also outside the engine command contract. The landed component
+uses `ControlsFullscreen`, which operates on the supplied DOM player surface
+through `requestFullscreen()` / `document.exitFullscreen()`. There is no
+fullscreen delegate or native-fullscreen IPC path in #1148.
 
-`libs/ui/playback/src/lib/embedded-mpv-player/embedded-mpv-controls.adapter.ts`.
-Bridges the engine-specific `EmbeddedMpvSessionController` (libmpv session via
-IPC) onto the contract. Computes capabilities from
-`EmbeddedMpvSupport.capabilities` (so older addon binaries hide unsupported
-controls), derives `state` from the session snapshot, maps session status to
-`PlayerStatus`, and owns the recording-message lifecycle. The host component
-pushes reactive context (`playback`, `seriesNavigation`, `recordingFolder`)
-into the adapter's writable signals.
+## Shared default controls
 
-### WebVideoControlsAdapter
+`PlayerControlsComponent` is a standalone presentation component designed for a
+future engine host to mount over or beside its playback surface.
 
-`libs/ui/playback/src/lib/player-controls/web-video-controls.adapter.ts`.
-Bridges any `<video>`-backed web engine onto the contract by binding purely to
-DOM/media APIs (works in the PWA — no `window.electron`), so one adapter drives
-Video.js, html5+hls.js, and ArtPlayer. Track access is injected via
-`WebVideoControlsOptions` so the adapter never imports hls.js/videojs/artplayer.
-A `tick` signal bumped on every media event recomputes the reactive state.
-Wired through `web-video-controls.host.ts`.
+It owns only transient presentation behavior:
 
-## MPV compositing: immersive overlay
+- `ControlsMenuState` — single-open popovers;
+- `ControlsFeedback` — temporary action feedback;
+- `ControlsVisibility` — reveal and auto-hide state;
+- `ControlsFullscreen` — DOM fullscreen;
+- `ControlsVolume` — optimistic volume state reconciled from controller state;
+- `ControlsShortcuts` — document keyboard routing;
+- `ControlsSurface` — pointer/click/double-click surface interactions; and
+- `controls-view-model.ts` — derived display state.
 
-The native MPV video surface paints outside the DOM stacking model, so DOM
-controls cannot reliably z-index above it. The shipped approach inverts the
-problem: the native surface is composited **below** the WebContents
-(`NSWindowBelow`) and is **always full-bleed**. While a frame is on screen the
-web layer is made transparent and a single global backdrop paints an opaque field
-with one transparent **hole** at the measured video rect
-(`EmbeddedMpvImmersiveService` + `embedded-mpv-immersive-backdrop`); the inline
-`<app-player-controls>` float over the hole as ordinary DOM, and modals/popovers
-paint normally on top. The pure bounds provider (`embedded-mpv-compositor.ts`,
-`measureBounds`) keeps the surface aligned with the viewport. See
-[embedded-mpv-native.md → Shipped path: immersive overlay](./embedded-mpv-native.md#shipped-path-immersive-overlay)
-for the native/IPC and cross-platform detail.
+### Keyboard ownership
 
-The earlier **docked strip** (`NSWindowAbove`, with `HIDDEN_BOUNDS`/cutout bound
-shapes) and **child-window overlay** approaches were prototyped and rejected;
-this immersive overlay (a variant of the transparent-window option) is the
-shipped path. See `player-controls-refactor.md` for the full rationale.
+Unmodified Space/K, F, arrow keys, and M are playback shortcuts. Playback keys
+with Meta/Cmd, Control, or Alt are ignored and are not prevented, so app and OS
+accelerators retain ownership. Escape remains available to close controls
+popovers even when a modifier is held or playback shortcuts are unavailable.
+Editable controls and content-editable targets are also ignored.
 
-## Feature flags
+### Timeline scrubbing
 
-| Flag | File | Default | Effect |
-|---|---|---|---|
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` / `WEB_PLAYER_SHARED_CONTROLS` (token) | `player-controls/web-player-controls.flag.ts` | `false` | Rollout switch for the shared `app-player-controls` chrome on the web engines (Video.js / html5+hls.js / ArtPlayer). Default OFF: each keeps its built-in skin. The injectable token lets specs override per-test. |
+Timeline input is previewed locally while the user drags. The slider value,
+played progress, accessible value text, and current-time label all render the
+preview. The component sends exactly one `seekTo` command on the committed
+`change` event, then clears the preview and returns to controller-reported
+state. Non-finite values are ignored and finite values are clamped to the
+available `[0, duration]` range.
+
+The volume slider intentionally remains continuous: each volume `input` applies
+the optimistic volume immediately.
+
+## Web adapter (landed, not wired)
+
+`WebVideoControlsAdapter` can translate an `HTMLVideoElement` into the shared
+contract. It uses DOM/media events and accepts optional engine-specific track
+accessors through `WebVideoControlsOptions`, so the adapter itself stays usable
+in the PWA and does not import a concrete web engine.
+
+`web-video-controls.host.ts` contains small attachment/projection helpers for a
+future host integration. No Video.js, html5+hls.js, or ArtPlayer component calls
+those helpers in #1148.
+
+The rollout symbols are:
+
+| Symbol                               |       Default | Current effect                                                                      |
+| ------------------------------------ | ------------: | ----------------------------------------------------------------------------------- |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Documents the intended rollout default.                                             |
+| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view of the default. No runtime player consumes it yet. |
+
+A follow-up web integration must explicitly consume the token, attach the
+adapter to the active video element, mount `app-player-controls`, and only then
+disable the engine's existing skin.
+
+## Embedded MPV rendering constraints
+
+The shared contract does not replace the existing embedded-MPV renderer or
+controls in #1148. Any follow-up embedded adapter must preserve the two current
+rendering paths.
+
+### Frame-copy engine
+
+The experimental frame-copy engine uploads helper-produced frames to
+`<canvas data-embedded-mpv-frame>`. The canvas is ordinary DOM, so controls,
+dialogs, and other DOM layers can stack above it normally. This makes the
+frame-copy path overlay-friendly, although the current embedded player still
+uses its existing controls until follow-up shared-controls wiring lands.
+
+### Native-view engine
+
+The native MPV surface paints outside Chromium's DOM stacking model. It keeps
+the compositor-safe fixed controls dock below the viewport. Modal overlays hide
+the native surface with `HIDDEN_BOUNDS`, and control popovers reserve a bottom
+cutout so their DOM region remains interactive.
+
+The transparent BrowserWindow / `NSWindowBelow` tunnel-and-backdrop approach is
+not the shipped architecture. #1148 does not add transparency changes, backdrop
+holes, native fullscreen IPC, native-view attachment APIs, or bounds-tick
+machinery.
+
+See [embedded-mpv-native.md](./embedded-mpv-native.md) for the authoritative
+renderer, bounds, and platform details.
+
+## Follow-up integrations
+
+The following are design seams, not shipped #1148 behavior:
+
+1. **Web hosts** — mount the component, consume the rollout token, attach
+   `WebVideoControlsAdapter`, and remove an engine skin only when the shared
+   controls are active.
+2. **Embedded-MPV adapter** — implement `PlayerController` over
+   `EmbeddedMpvSessionController` without changing session ownership or native
+   rendering behavior.
+3. **Embedded-MPV layout** — use normal DOM layering for frame-copy; retain a
+   compositor-safe dock for the native-view engine unless that engine's
+   compositing architecture changes independently.
+4. **Background playback** — introduce a persistent player/session host above
+   route-scoped views. The contract is lifecycle-agnostic, but #1148 does not
+   add that host or change current teardown behavior.
 
 ## File map
 
-Files marked (follow-up PR) land in the subsequent PRs of this series.
+Landed in #1148:
 
-```
+```text
 libs/ui/playback/src/lib/player-controls/
-├── player-controls.model.ts          # the contract (capabilities/state/commands)
-├── player-controls-defaults.ts       # default caps + speed/aspect presets
-├── player-controls.component.ts      # app-player-controls (default controls)
-├── player-controls.component.html/scss
-├── controls-menu-state.ts            # transient UI collaborators (each *.spec.ts)
+├── player-controls.model.ts
+├── player-controls-defaults.ts
+├── player-controls.component.ts
+├── player-controls.component.html
+├── player-controls.component.scss
 ├── controls-feedback.ts
-├── controls-visibility.ts
-├── controls-fullscreen.ts            # built-in DOM fullscreen
-├── controls-volume.ts
+├── controls-format.utils.ts
+├── controls-fullscreen.ts
+├── controls-menu-selection.ts
+├── controls-menu-state.ts
 ├── controls-shortcuts.ts
 ├── controls-surface.ts
 ├── controls-view-model.ts
-├── controls-format.utils.ts          # formatTime intentionally duplicates embedded-mpv-player/embedded-mpv-format.utils.ts until the embedded-MPV PR consolidates consumption
-├── web-video-controls.adapter.ts     # web <video> → contract
-├── web-video-controls.host.ts        # wires web players to the adapter
-├── web-player-controls.flag.ts       # WEB_PLAYER_SHARED_CONTROLS flag/token
-└── index.ts                          # barrel
-
-libs/ui/playback/src/lib/embedded-mpv-player/
-├── embedded-mpv-controls.adapter.ts        # (follow-up PR) libmpv session → contract
-├── embedded-mpv-session-controller.ts      # session lifecycle + IPC + bounds sync
-├── embedded-mpv-command-runner.ts          # (follow-up PR) imperative IPC command surface
-├── embedded-mpv-session-factory.ts         # (follow-up PR) pure session-snapshot constructors
-├── embedded-mpv-immersive.service.ts       # (follow-up PR) transparency-tunnel owner (active/fullscreen/rect)
-├── embedded-mpv-immersive-backdrop.component.ts  # (follow-up PR) opaque field + transparent hole at video rect
-├── embedded-mpv-compositor.ts              # (follow-up PR) pure full-bleed bounds provider (measureBounds)
-├── embedded-mpv-stalled-tracker.ts         # (follow-up PR) "taking longer than expected" state
-├── embedded-mpv-labels.ts                  # (follow-up PR) label/format helpers + presets
-└── embedded-mpv-player.component.ts        # view shell: native surface + immersive overlay
+├── controls-visibility.ts
+├── controls-volume.ts
+├── web-player-controls.flag.ts
+├── web-video-controls.adapter.ts
+├── web-video-controls.host.ts
+└── index.ts
 ```
 
-## Background-playback readiness
+Focused specs live beside these files. The subtree is exported from
+`libs/ui/playback/src/index.ts`.
 
-> Subissue 04 (background playback) is **architecture-ready and documented but
-> intentionally not built** in the current iteration. This section is the
-> reference for what is already true and exactly what 04 must change. The
-> persistent host is **not** present today: playback still stops on navigation.
+Not landed in #1148:
 
-### Current ownership (today)
-
-- The controls component and both adapters are **presentation/translation only**
-  and **component-scoped**. The MPV controller (`EmbeddedMpvSessionController`)
-  and adapter are provided on `EmbeddedMpvPlayerComponent`, so Angular destroys
-  them when the routed leaf is destroyed.
-- The MPV **session itself lives in the Electron main process** and survives the
-  renderer component — *unless it is explicitly disposed*. It **is** disposed
-  today: `EmbeddedMpvSessionController.startSession(...)` returns a teardown
-  closure that the component registers via `effect((onCleanup) => …)`. On route
-  teardown that cleanup runs and calls
-  `window.electron.disposeEmbeddedMpvSession(id)`. This single teardown closure
-  is the only place the session is torn down on navigation — the contained seam
-  04 must change.
-- The **native surface** is decoupled from disposal: the bounds provider only
-  positions the (full-bleed, below-WebContents) native view and **never disposes
-  the session**. So "occlude while away, reveal on return" comes largely for free
-  — only the bounds need re-attaching on return.
-
-### Why 04 is contained (the seam)
-
-1. **Contract is lifecycle-agnostic.** `PlayerController` has no
-   component-lifecycle assumptions; the default controls component can be hosted
-   by a persistent host above the router with no change.
-2. **Controls are presentation-only.** They hold no playback session; moving
-   their host does not move any session state.
-3. **Compositing is isolated.** The pure bounds provider means re-attaching
-   native bounds on return is a localized concern.
-4. **Native surface already decoupled.** Hide ≠ dispose; the native view can be
-   repositioned/hidden and re-shown without recreating the session.
-5. **Session lives in the main process.** It keeps playing if the renderer
-   simply stops disposing it.
-
-### Concrete 04 change-list (when picked up)
-
-- Introduce a **persistent player host** above the router that survives
-  navigation.
-- Provide the controller/adapter at **app/root scope** (not component scope) so
-  they outlive the routed leaf.
-- **Stop disposing the session on component teardown.** The disposal decision
-  must move out of the route-scoped `onCleanup` teardown so the session is
-  disposed only on **genuine stop / app quit** (and on playback replacement).
-  The current single teardown closure in `startSession` is where this behavior
-  is owned today.
-- On **return** to the player view, re-attach native bounds via the bounds
-  provider (no session recreation needed).
-- Keep leak-safety: sessions are still disposed on genuine stop / app quit.
-
-### Web-player limitation
-
-DOM-based web players (`<video>` driven by Video.js / hls.js / ArtPlayer) are
-**route-scoped**: Angular destroys the `<video>` element on navigation, so they
-cannot keep playing in the background unless their host element is never
-destroyed. Background playback is therefore **MPV-only** in practice; the web
-engines would need a persistent host element or **picture-in-picture**, which is
-out of scope for 04.
-
-### Why no runtime change was made for 04 readiness
-
-The disposal decision is already concentrated in exactly one isolated, clearly
-commented teardown closure (`startSession`'s return) plus the explicitly
-documented "hide ≠ dispose" rule for the native surface. Encapsulating it further would require
-introducing the root-scoped host / ownership change that 04 explicitly defers,
-which would add risk without behavioral benefit now. The seam is therefore left
-exactly as-is and documented here. See also
-[embedded-mpv-native.md → Power management](./embedded-mpv-native.md#power-management):
-a persistent host must keep the `prevent-display-sleep` blocker semantics tied
-to a *playing* session, not to the routed component.
+- an embedded-MPV `PlayerController` adapter;
+- a shared-controls host inside an existing web or embedded player;
+- removal/replacement of any current engine skin; and
+- persistent/background player ownership.

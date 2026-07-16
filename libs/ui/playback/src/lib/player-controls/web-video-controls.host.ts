@@ -5,10 +5,9 @@ import type {
 } from './web-video-controls.adapter';
 
 /**
- * Minimal glue each web player calls to wire its `<video>` element + engine
- * track accessors onto a {@link WebVideoControlsAdapter}. Keeps the already-large
- * player components from growing: they only describe their engine, not the
- * attach/build-opts boilerplate.
+ * Minimal glue a follow-up web-player integration can call to wire its `<video>`
+ * element and engine track accessors onto a {@link WebVideoControlsAdapter}.
+ * No existing player calls this helper in #1148.
  */
 export interface WebVideoControlsHostConfig {
     /** The `<video>` element the active engine is rendering into. */
@@ -19,7 +18,9 @@ export interface WebVideoControlsHostConfig {
 }
 
 /** Attaches the adapter to the video element with the supplied accessors. */
-export function attachWebVideoControls(config: WebVideoControlsHostConfig): void {
+export function attachWebVideoControls(
+    config: WebVideoControlsHostConfig
+): void {
     config.adapter.attach(config.video, config.options ?? {});
 }
 

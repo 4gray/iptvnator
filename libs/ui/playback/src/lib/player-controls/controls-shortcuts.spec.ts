@@ -84,6 +84,29 @@ describe('ControlsShortcuts', () => {
         select.remove();
     });
 
+    it('ignores modified playback shortcuts without preventing their defaults', () => {
+        expect(dispatchKey('k', { metaKey: true })).toBe(false);
+        expect(dispatchKey('f', { ctrlKey: true })).toBe(false);
+        expect(dispatchKey('f', { metaKey: true })).toBe(false);
+        expect(dispatchKey('ArrowRight', { altKey: true })).toBe(false);
+
+        expect(handlers.togglePaused).not.toHaveBeenCalled();
+        expect(handlers.toggleFullscreen).not.toHaveBeenCalled();
+        expect(handlers.seekBy).not.toHaveBeenCalled();
+    });
+
+    it('still forwards Escape when modifier keys are held', () => {
+        expect(
+            dispatchKey('Escape', {
+                altKey: true,
+                ctrlKey: true,
+                metaKey: true,
+            })
+        ).toBe(false);
+
+        expect(handlers.onEscape).toHaveBeenCalledTimes(1);
+    });
+
     it('ignores shortcuts when a text control is anywhere in the composed path', () => {
         // Simulate a shadow-DOM retargeted event: target is a host element,
         // but the real input is exposed via composedPath().
@@ -138,11 +161,12 @@ describe('ControlsShortcuts', () => {
     });
 });
 
-function dispatchKey(key: string): boolean {
+function dispatchKey(key: string, init: KeyboardEventInit = {}): boolean {
     const event = new KeyboardEvent('keydown', {
         key,
         bubbles: true,
         cancelable: true,
+        ...init,
     });
     document.dispatchEvent(event);
     return event.defaultPrevented;

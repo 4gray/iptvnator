@@ -55,11 +55,11 @@ const VIDEO_EVENTS = [
 ] as const;
 
 /**
- * Bridges any `<video>`-backed web engine onto the generic
+ * Can bridge any `<video>`-backed web engine onto the generic
  * {@link PlayerController} contract consumed by `app-player-controls`. It binds
- * purely to DOM/video APIs (works in PWA — no window.electron), so the same
- * adapter drives Video.js, html5+hls.js and ArtPlayer. Track access is injected
- * via {@link WebVideoControlsOptions} to keep it engine-agnostic.
+ * purely to DOM/video APIs (works in PWA — no window.electron). Track access is
+ * injected via {@link WebVideoControlsOptions} to keep it engine-agnostic.
+ * Existing web players do not attach this adapter in #1148.
  */
 @Injectable()
 export class WebVideoControlsAdapter implements PlayerController {
@@ -83,6 +83,10 @@ export class WebVideoControlsAdapter implements PlayerController {
 
     readonly capabilities = computed<PlayerControlsCapabilities>(() => {
         this.tick();
+        if (!this.video) {
+            return DEFAULT_PLAYER_CAPABILITIES;
+        }
+
         const hasAudioTracks = (this.opts.getAudioTracks?.().length ?? 0) > 1;
         const hasSubtitles = (this.opts.getSubtitleTracks?.().length ?? 0) > 0;
         return {
@@ -171,6 +175,8 @@ export class WebVideoControlsAdapter implements PlayerController {
         this.detachFn?.();
         this.detachFn = null;
         this.video = null;
+        this.opts = {};
+        this.tick.update((value) => value + 1);
     }
 
     /** Pushes reactive context (series navigation) used for capability gating. */

@@ -84,12 +84,16 @@ export class ControlsShortcuts {
     }
 
     /**
-     * Ignore shortcuts originating from a text-entry control anywhere in the
-     * event's composed path. Using {@link Event.composedPath} (rather than only
-     * `event.target`) keeps this correct across shadow-DOM boundaries, where the
-     * retargeted `target` would be the host element, not the real input.
+     * Ignore modified playback keys so app/native shortcuts retain ownership,
+     * and ignore events originating from a text-entry control anywhere in the
+     * composed path. Escape is handled before this check so it can still close
+     * controls popovers while a modifier key is held.
      */
     private shouldIgnore(event: KeyboardEvent): boolean {
+        if (event.metaKey || event.ctrlKey || event.altKey) {
+            return true;
+        }
+
         const path =
             typeof event.composedPath === 'function'
                 ? event.composedPath()

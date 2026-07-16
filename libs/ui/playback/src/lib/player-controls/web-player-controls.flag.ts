@@ -1,14 +1,12 @@
 import { InjectionToken } from '@angular/core';
 
 /**
- * Master rollout switch for the shared `app-player-controls` chrome on the web
+ * Reserved rollout switch for shared `app-player-controls` chrome on the web
  * video engines (Video.js, html5+hls.js, ArtPlayer).
  *
- * DEFAULT OFF: each web player keeps its original built-in skin and behaves
- * exactly as before. Flip to `true` to disable the per-engine skins and render
- * the shared controls over the `<video>` element instead. Kept as a const so the
- * default is statically obvious; consumers read it through the injectable
- * {@link WEB_PLAYER_SHARED_CONTROLS} token so tests can override it.
+ * DEFAULT OFF. #1148 adds no runtime consumer, so changing this constant alone
+ * has no effect until a follow-up engine host reads the injectable
+ * {@link WEB_PLAYER_SHARED_CONTROLS} token and performs the actual UI switch.
  */
 export const WEB_PLAYER_SHARED_CONTROLS_ENABLED = false;
 
