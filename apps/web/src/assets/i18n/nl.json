@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "10 seconden terug",
             "FORWARD_10_SECONDS": "10 seconden vooruit",
             "LIVE_STREAM": "Live stream",
+            "PLAYBACK_POSITION": "Afspeelpositie",
             "MUTE": "Dempen",
             "UNMUTE": "Dempen opheffen",
             "MUTED": "Gedempt",

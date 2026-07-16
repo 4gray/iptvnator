@@ -115,6 +115,18 @@ describe('ControlsSurface', () => {
         expect(reveal).not.toHaveBeenCalled();
     });
 
+    it('cancels a pending click-to-play action when rebinding', () => {
+        jest.useFakeTimers();
+        const first = document.createElement('div');
+        surface.attachSurface(first);
+        first.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+
+        surface.attachSurface(element);
+        jest.advanceTimersByTime(300);
+
+        expect(togglePlay).not.toHaveBeenCalled();
+    });
+
     it('stops reacting after dispose', () => {
         surface.attachSurface(element);
         surface.dispose();

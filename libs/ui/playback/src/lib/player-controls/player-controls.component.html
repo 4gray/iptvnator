@@ -16,6 +16,8 @@
         [class.player-controls__bar--visible]="controlsAreVisible()"
         (pointerenter)="onBarPointerEnter()"
         (pointerleave)="onBarPointerLeave()"
+        (focusin)="onBarFocusIn()"
+        (focusout)="onBarFocusOut($event)"
     >
         <div class="player-controls__transport">
             <button
@@ -125,6 +127,9 @@
                 [max]="timelineDuration()"
                 [value]="timelineValue()"
                 [disabled]="!state().canSeek"
+                [attr.aria-label]="
+                    'EMBEDDED_MPV.PLAYER.PLAYBACK_POSITION' | translate
+                "
                 [attr.aria-valuetext]="formatTime(timelineValue())"
                 (input)="onTimelineInput($event)"
                 (change)="onTimelineCommit($event)"

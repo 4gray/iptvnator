@@ -111,12 +111,70 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         adapter.attach(video);
 
         adapter.commands.setPlaybackSpeed(NaN);
+        adapter.commands.setPlaybackSpeed(Infinity);
         adapter.commands.setPlaybackSpeed(0);
         adapter.commands.setPlaybackSpeed(-1);
         expect(video.playbackRate).toBe(1);
 
         adapter.commands.setPlaybackSpeed(1.25);
         expect(video.playbackRate).toBe(1.25);
+    });
+
+    it('rejects non-finite seek and volume values', () => {
+        const video = createVideo({
+            duration: 100,
+            currentTime: 20,
+            volume: 0.5,
+        });
+        adapter.attach(video);
+
+        adapter.commands.seekTo(NaN);
+        adapter.commands.seekTo(Infinity);
+        adapter.commands.seekBy(NaN);
+        adapter.commands.setVolume(NaN);
+        adapter.commands.setVolume(Infinity);
+
+        expect(video.currentTime).toBe(20);
+        expect(video.volume).toBe(0.5);
+    });
+
+    it('swallows native media setter exceptions', () => {
+        const seekVideo = createVideo({ duration: 100, currentTime: 20 });
+        Object.defineProperty(seekVideo, 'currentTime', {
+            configurable: true,
+            get: () => 20,
+            set: () => {
+                throw new Error('seek blocked');
+            },
+        });
+        adapter.attach(seekVideo);
+        expect(() => adapter.commands.seekTo(30)).not.toThrow();
+
+        const volumeVideo = createVideo({ volume: 0.5 });
+        Object.defineProperty(volumeVideo, 'volume', {
+            configurable: true,
+            get: () => 0.5,
+            set: () => {
+                throw new Error('volume blocked');
+            },
+        });
+        const volumeAdapter = new WebVideoControlsAdapter();
+        volumeAdapter.attach(volumeVideo);
+        expect(() => volumeAdapter.commands.setVolume(0.25)).not.toThrow();
+        volumeAdapter.detach();
+
+        const speedVideo = createVideo({ playbackRate: 1 });
+        Object.defineProperty(speedVideo, 'playbackRate', {
+            configurable: true,
+            get: () => 1,
+            set: () => {
+                throw new Error('speed blocked');
+            },
+        });
+        const speedAdapter = new WebVideoControlsAdapter();
+        speedAdapter.attach(speedVideo);
+        expect(() => speedAdapter.commands.setPlaybackSpeed(1.5)).not.toThrow();
+        speedAdapter.detach();
     });
 
     it('does not clamp seekTo when the duration is not finite', () => {

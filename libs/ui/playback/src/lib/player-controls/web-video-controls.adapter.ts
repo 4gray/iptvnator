@@ -68,7 +68,7 @@ export class WebVideoControlsAdapter implements PlayerController {
     private opts: WebVideoControlsOptions = {};
     private detachFn: (() => void) | null = null;
 
-    /** Bumped on every media event to recompute the reactive state. */
+    /** Bumped whenever DOM or engine-specific state must be re-read. */
     private readonly tick = signal(0);
     /**
      * Holds the host-supplied series-navigation signal reactively. Storing the
@@ -149,8 +149,10 @@ export class WebVideoControlsAdapter implements PlayerController {
         seekBy: (delta) =>
             this.applyCurrentTime((this.video?.currentTime ?? 0) + delta),
         setVolume: (value) => this.applyVolume(value),
-        setAudioTrack: (id) => this.opts.setAudioTrack?.(id),
-        setSubtitleTrack: (id) => this.opts.setSubtitleTrack?.(id),
+        setAudioTrack: (id) =>
+            this.applyTrackSelection(this.opts.setAudioTrack, id),
+        setSubtitleTrack: (id) =>
+            this.applyTrackSelection(this.opts.setSubtitleTrack, id),
         setPlaybackSpeed: (speed) => this.applySpeed(speed),
         setAspectRatio: () => undefined,
         toggleRecording: () => undefined,
@@ -162,7 +164,7 @@ export class WebVideoControlsAdapter implements PlayerController {
         this.video = video;
         this.opts = opts;
 
-        const onEvent = () => this.tick.update((value) => value + 1);
+        const onEvent = () => this.refresh();
         for (const eventName of VIDEO_EVENTS) {
             video.addEventListener(eventName, onEvent);
         }
@@ -175,13 +177,22 @@ export class WebVideoControlsAdapter implements PlayerController {
         onEvent();
     }
 
+    /**
+     * Invalidates cached state/capabilities after an engine-specific getter
+     * changes without emitting a native media event (for example tracks,
+     * corrected duration, or live/VOD classification).
+     */
+    refresh(): void {
+        this.tick.update((value) => value + 1);
+    }
+
     /** Removes listeners and clears the bound element. Idempotent. */
     detach(): void {
         this.detachFn?.();
         this.detachFn = null;
         this.video = null;
         this.opts = {};
-        this.tick.update((value) => value + 1);
+        this.refresh();
     }
 
     /** Pushes reactive context (series navigation) used for capability gating. */
@@ -203,28 +214,51 @@ export class WebVideoControlsAdapter implements PlayerController {
 
     private applyCurrentTime(seconds: number): void {
         const video = this.video;
-        if (!video) {
+        if (!video || !Number.isFinite(seconds)) {
             return;
         }
         const duration = this.readDuration();
         const upperBound = Number.isFinite(duration) ? duration : seconds;
-        video.currentTime = Math.max(0, Math.min(seconds, upperBound));
+        try {
+            video.currentTime = Math.max(0, Math.min(seconds, upperBound));
+        } catch {
+            // Some media implementations reject writes while changing source.
+        }
     }
 
     private applyVolume(value: number): void {
         const video = this.video;
-        if (!video) {
+        if (!video || !Number.isFinite(value)) {
             return;
         }
         const clamped = Math.max(0, Math.min(1, value));
-        video.volume = clamped;
-        video.muted = clamped <= 0;
+        try {
+            video.volume = clamped;
+            video.muted = clamped <= 0;
+        } catch {
+            // Ignore transient native media setter failures.
+        }
     }
 
     private applySpeed(speed: number): void {
         if (this.video && Number.isFinite(speed) && speed > 0) {
-            this.video.playbackRate = speed;
+            try {
+                this.video.playbackRate = speed;
+            } catch {
+                // Ignore transient native media setter failures.
+            }
         }
+    }
+
+    private applyTrackSelection(
+        setter: ((id: number) => void) | undefined,
+        id: number
+    ): void {
+        if (!setter) {
+            return;
+        }
+        setter(id);
+        this.refresh();
     }
 
     private isLive(): boolean {

@@ -51,7 +51,7 @@ export class PlayerControlsComponent implements OnDestroy {
 
     /** True while the pointer rests over the controls bar (pauses auto-hide). */
     readonly barHovered = signal(false);
-
+    private readonly barFocused = signal(false);
     readonly menus = new ControlsMenuState();
     readonly feedback = new ControlsFeedback();
     /** Exposed so a host (e.g. the MPV compositor) can react to open menus. */
@@ -323,10 +323,26 @@ export class PlayerControlsComponent implements OnDestroy {
         this.visibility.scheduleHide();
     }
 
+    onBarFocusIn(): void {
+        this.barFocused.set(true);
+        this.reveal({ scheduleHide: false });
+    }
+
+    onBarFocusOut(event: FocusEvent): void {
+        const bar = event.currentTarget as HTMLElement | null;
+        const next = event.relatedTarget;
+        if (bar && next instanceof Node && bar.contains(next)) {
+            return;
+        }
+        this.barFocused.set(false);
+        this.visibility.scheduleHide();
+    }
+
     private canHide(): boolean {
         return (
             this.isPlaying() &&
             !this.barHovered() &&
+            !this.barFocused() &&
             !this.menus.anyOpen() &&
             !this.state().statusMessage
         );

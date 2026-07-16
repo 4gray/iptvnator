@@ -44,12 +44,16 @@ export class ControlsSurface {
 
     constructor(private readonly handlers: ControlsSurfaceHandlers) {
         if (typeof document !== 'undefined') {
-            document.addEventListener('pointerdown', this.onDocumentPointerDown);
+            document.addEventListener(
+                'pointerdown',
+                this.onDocumentPointerDown
+            );
         }
     }
 
     /** Rebind the per-surface listeners; returns a cleanup for the effect. */
     attachSurface(surface: HTMLElement | null): () => void {
+        this.clearClickPauseTimer();
         this.surfaceCleanup?.();
         this.surfaceCleanup = null;
         this.surface = surface;

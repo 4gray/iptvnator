@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "快退 10 秒",
             "FORWARD_10_SECONDS": "快进 10 秒",
             "LIVE_STREAM": "直播",
+            "PLAYBACK_POSITION": "播放位置",
             "MUTE": "静音",
             "UNMUTE": "取消静音",
             "MUTED": "已静音",

@@ -8,6 +8,27 @@ export interface ControlsShortcutHandlers {
     toggleMute: () => void;
 }
 
+const INTERACTIVE_SELECTOR = [
+    'a[href]',
+    'button',
+    'input',
+    'select',
+    'summary',
+    'textarea',
+    '[contenteditable]:not([contenteditable="false"])',
+    '[role="button"]',
+    '[role="checkbox"]',
+    '[role="combobox"]',
+    '[role="link"]',
+    '[role="listbox"]',
+    '[role^="menuitem"]',
+    '[role="option"]',
+    '[role="radio"]',
+    '[role="slider"]',
+    '[role="switch"]',
+    '[role="textbox"]',
+].join(',');
+
 export class ControlsShortcuts {
     private handlers: ControlsShortcutHandlers | null = null;
     private readonly listener = (event: KeyboardEvent) => this.handle(event);
@@ -85,9 +106,9 @@ export class ControlsShortcuts {
 
     /**
      * Ignore modified playback keys so app/native shortcuts retain ownership,
-     * and ignore events originating from a text-entry control anywhere in the
-     * composed path. Escape is handled before this check so it can still close
-     * controls popovers while a modifier key is held.
+     * and ignore events originating from an interactive control anywhere in
+     * the composed path. Escape is handled before this check so it can still
+     * close controls popovers while a modifier key is held.
      */
     private shouldIgnore(event: KeyboardEvent): boolean {
         if (event.metaKey || event.ctrlKey || event.altKey) {
@@ -104,8 +125,10 @@ export class ControlsShortcuts {
             if (!element || typeof element.tagName !== 'string') {
                 return false;
             }
-            const tag = element.tagName;
-            if (tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT') {
+            if (
+                typeof element.matches === 'function' &&
+                element.matches(INTERACTIVE_SELECTOR)
+            ) {
                 return true;
             }
             return element.isContentEditable === true;

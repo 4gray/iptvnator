@@ -71,6 +71,7 @@ describe('PlayerControlsComponent', () => {
                     BACK_10_SECONDS: 'Back 10 seconds',
                     FORWARD_10_SECONDS: 'Forward 10 seconds',
                     LIVE_STREAM: 'Live stream',
+                    PLAYBACK_POSITION: 'Playback position',
                     MUTE: 'Mute',
                     UNMUTE: 'Unmute',
                     VOLUME: 'Volume',
@@ -205,11 +206,14 @@ describe('PlayerControlsComponent', () => {
             ) as HTMLInputElement | null;
             expect(seekable?.disabled).toBe(false);
         });
+
+        it('gives the timeline slider an accessible name', () => {
+            expect(query('[aria-label="Playback position"]')).not.toBeNull();
+        });
     });
 
     describe('auto-hide', () => {
-        const bar = () =>
-            query('.player-controls__bar') as HTMLElement | null;
+        const bar = () => query('.player-controls__bar') as HTMLElement | null;
 
         beforeEach(() => {
             jest.useFakeTimers();
@@ -242,11 +246,45 @@ describe('PlayerControlsComponent', () => {
             // Now it auto-hides.
             expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
         });
+
+        it('reveals on focus, stays visible within the bar, and hides after focus leaves', () => {
+            setCapabilities({ seek: true });
+            setState({
+                status: 'playing',
+                canSeek: true,
+                durationSeconds: 600,
+            });
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+
+            const buttons = Array.from(
+                bar()?.querySelectorAll('button') ?? []
+            ) as HTMLButtonElement[];
+            buttons[0].focus();
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            jest.advanceTimersByTime(10000);
+            buttons[1].focus();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(true);
+
+            const outside = document.createElement('button');
+            document.body.appendChild(outside);
+            outside.focus();
+            fixture.detectChanges();
+            jest.advanceTimersByTime(10000);
+            fixture.detectChanges();
+            expect(fixture.componentInstance.controlsAreVisible()).toBe(false);
+            outside.remove();
+        });
     });
 
     describe('bar-hover state', () => {
-        const bar = () =>
-            query('.player-controls__bar') as HTMLElement | null;
+        const bar = () => query('.player-controls__bar') as HTMLElement | null;
 
         it('tracks barHovered on bar pointerenter / pointerleave', () => {
             expect(fixture.componentInstance.barHovered()).toBe(false);
@@ -296,9 +334,7 @@ describe('PlayerControlsComponent', () => {
             setState({ canPreviousEpisode: true, canNextEpisode: true });
             fixture.detectChanges();
 
-            query(
-                '[data-test-id="player-controls-previous-episode"]'
-            )?.click();
+            query('[data-test-id="player-controls-previous-episode"]')?.click();
             query('[data-test-id="player-controls-next-episode"]')?.click();
 
             expect(previous).toHaveBeenCalledTimes(1);

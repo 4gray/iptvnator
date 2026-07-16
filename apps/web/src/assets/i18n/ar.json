@@ -462,6 +462,7 @@
             "BACK_10_SECONDS": "رجوع 10 ثوانٍ",
             "FORWARD_10_SECONDS": "تقديم 10 ثوانٍ",
             "LIVE_STREAM": "بث مباشر",
+            "PLAYBACK_POSITION": "موضع التشغيل",
             "MUTE": "كتم الصوت",
             "UNMUTE": "إلغاء كتم الصوت",
             "MUTED": "الصوت مكتوم",

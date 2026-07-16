@@ -156,6 +156,49 @@ describe('WebVideoControlsAdapter', () => {
         expect(adapter.state().status).toBe('playing');
     });
 
+    it('refreshes cached engine getter state only when explicitly invalidated', () => {
+        let audioTracks: PlayerTrack[] = [
+            { id: 0, label: 'English', selected: true },
+        ];
+        let subtitleTracks: PlayerTrack[] = [];
+        let duration = 90;
+        let live = false;
+        const video = createVideo({ duration: 90, seekableLength: 1 });
+        adapter.attach(video, {
+            getAudioTracks: () => audioTracks,
+            getSubtitleTracks: () => subtitleTracks,
+            getDuration: () => duration,
+            isLive: () => live,
+        });
+
+        expect(adapter.capabilities().audioTracks).toBe(false);
+        expect(adapter.capabilities().subtitles).toBe(false);
+        expect(adapter.state().durationSeconds).toBe(90);
+        expect(adapter.state().isLive).toBe(false);
+
+        audioTracks = [
+            { id: 0, label: 'English', selected: true },
+            { id: 1, label: 'German', selected: false },
+        ];
+        subtitleTracks = [{ id: 2, label: 'English', selected: true }];
+        duration = 180;
+        live = true;
+
+        expect(adapter.capabilities().audioTracks).toBe(false);
+        expect(adapter.capabilities().subtitles).toBe(false);
+        expect(adapter.state().durationSeconds).toBe(90);
+        expect(adapter.state().isLive).toBe(false);
+
+        adapter.refresh();
+
+        expect(adapter.capabilities().audioTracks).toBe(true);
+        expect(adapter.capabilities().subtitles).toBe(true);
+        expect(adapter.state().durationSeconds).toBeNull();
+        expect(adapter.state().isLive).toBe(true);
+        expect(adapter.state().audioTracks).toEqual(audioTracks);
+        expect(adapter.state().subtitleTracks).toEqual(subtitleTracks);
+    });
+
     it('delegates play/pause/seek/volume/speed commands to the element', () => {
         const video = createVideo({ duration: 100, paused: true });
         adapter.attach(video, { isLive: () => false });
@@ -204,9 +247,7 @@ describe('WebVideoControlsAdapter', () => {
     });
 
     it('enables audioTracks only when more than one track is exposed', () => {
-        const single: PlayerTrack[] = [
-            { id: 0, label: 'EN', selected: true },
-        ];
+        const single: PlayerTrack[] = [{ id: 0, label: 'EN', selected: true }];
         const multi: PlayerTrack[] = [
             { id: 0, label: 'EN', selected: true },
             { id: 1, label: 'DE', selected: false },
@@ -233,15 +274,42 @@ describe('WebVideoControlsAdapter', () => {
         expect(adapter.state().subtitlesEnabled).toBe(true);
     });
 
-    it('routes track selection commands to the injected accessors', () => {
-        const setAudioTrack = jest.fn();
-        const setSubtitleTrack = jest.fn();
-        adapter.attach(createVideo(), { setAudioTrack, setSubtitleTrack });
+    it('refreshes track state after synchronous selection commands', () => {
+        let audioTracks: PlayerTrack[] = [
+            { id: 1, label: 'English', selected: true },
+            { id: 2, label: 'German', selected: false },
+        ];
+        let subtitleTracks: PlayerTrack[] = [
+            { id: 3, label: 'English', selected: false },
+        ];
+        const setAudioTrack = jest.fn((id: number) => {
+            audioTracks = audioTracks.map((track) => ({
+                ...track,
+                selected: track.id === id,
+            }));
+        });
+        const setSubtitleTrack = jest.fn((id: number) => {
+            subtitleTracks = subtitleTracks.map((track) => ({
+                ...track,
+                selected: track.id === id,
+            }));
+        });
+        adapter.attach(createVideo(), {
+            getAudioTracks: () => audioTracks,
+            setAudioTrack,
+            getSubtitleTracks: () => subtitleTracks,
+            setSubtitleTrack,
+        });
+        expect(adapter.state().audioTracks[0].selected).toBe(true);
+        expect(adapter.state().subtitlesEnabled).toBe(false);
 
         adapter.commands.setAudioTrack(2);
-        adapter.commands.setSubtitleTrack(-1);
+        adapter.commands.setSubtitleTrack(3);
+
         expect(setAudioTrack).toHaveBeenCalledWith(2);
-        expect(setSubtitleTrack).toHaveBeenCalledWith(-1);
+        expect(setSubtitleTrack).toHaveBeenCalledWith(3);
+        expect(adapter.state().audioTracks[1].selected).toBe(true);
+        expect(adapter.state().subtitlesEnabled).toBe(true);
     });
 
     it('gates series navigation on context + VOD', () => {

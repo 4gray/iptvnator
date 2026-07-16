@@ -84,6 +84,35 @@ describe('ControlsShortcuts', () => {
         select.remove();
     });
 
+    it('ignores shortcuts from buttons and ARIA menu controls', () => {
+        const button = document.createElement('button');
+        const menuItem = document.createElement('div');
+        menuItem.setAttribute('role', 'menuitemradio');
+        document.body.append(button, menuItem);
+
+        button.focus();
+        button.dispatchEvent(
+            new KeyboardEvent('keydown', {
+                key: ' ',
+                bubbles: true,
+                cancelable: true,
+            })
+        );
+        const menuEvent = new KeyboardEvent('keydown', {
+            key: 'k',
+            bubbles: true,
+            cancelable: true,
+        });
+        Object.defineProperty(menuEvent, 'composedPath', {
+            value: () => [menuItem, document.body, document],
+        });
+        document.dispatchEvent(menuEvent);
+
+        expect(handlers.togglePaused).not.toHaveBeenCalled();
+        button.remove();
+        menuItem.remove();
+    });
+
     it('ignores modified playback shortcuts without preventing their defaults', () => {
         expect(dispatchKey('k', { metaKey: true })).toBe(false);
         expect(dispatchKey('f', { ctrlKey: true })).toBe(false);

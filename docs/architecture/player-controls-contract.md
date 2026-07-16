@@ -151,7 +151,13 @@ Unmodified Space/K, F, arrow keys, and M are playback shortcuts. Playback keys
 with Meta/Cmd, Control, or Alt are ignored and are not prevented, so app and OS
 accelerators retain ownership. Escape remains available to close controls
 popovers even when a modifier is held or playback shortcuts are unavailable.
-Editable controls and content-editable targets are also ignored.
+Buttons, form controls, links, ARIA menu controls, and content-editable targets
+are also ignored anywhere in the event's composed path.
+
+Auto-hide pauses while the pointer is over the controls bar or keyboard focus
+is anywhere inside it. Focus entering a hidden bar reveals it; moving focus
+between controls does not restart hiding, and leaving the bar resumes the normal
+hide delay.
 
 ### Timeline scrubbing
 
@@ -171,6 +177,12 @@ the optimistic volume immediately.
 contract. It uses DOM/media events and accepts optional engine-specific track
 accessors through `WebVideoControlsOptions`, so the adapter itself stays usable
 in the PWA and does not import a concrete web engine.
+
+Native media events refresh the adapter automatically. A future engine host
+must call the public `refresh()` hook after engine-specific getters change
+without a corresponding media event, including track lists, corrected duration,
+or live/VOD classification. Synchronous audio/subtitle selection commands
+refresh automatically after the injected setter returns.
 
 `web-video-controls.host.ts` contains small attachment/projection helpers for a
 future host integration. No Video.js, html5+hls.js, or ArtPlayer component calls
