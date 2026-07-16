@@ -1,6 +1,6 @@
 import { WritableSignal, signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
-import { TranslateModule } from '@ngx-translate/core';
+import { TranslateModule, TranslateService } from '@ngx-translate/core';
 import {
     DEFAULT_PLAYER_CAPABILITIES,
     createEmptyControlsState,
@@ -273,17 +273,28 @@ describe('PlayerControlsComponent interactions', () => {
         });
 
         it('flashes feedback on recording start and stop transitions', () => {
+            const translate = TestBed.inject(TranslateService);
+            translate.setTranslation('de', {
+                EMBEDDED_MPV: {
+                    PLAYER: {
+                        RECORDING: 'Aufnahme',
+                        RECORDING_SAVED: 'Aufnahme gespeichert',
+                    },
+                },
+            });
+            translate.use('de');
+
             setState({
                 isLive: true,
                 recording: { active: true, elapsedSeconds: 0, message: null },
             });
             fixture.detectChanges();
-            expect(component.feedback.current()?.label).toBe('Recording');
+            expect(component.feedback.current()?.label).toBe('Aufnahme');
 
             setState({ isLive: true });
             fixture.detectChanges();
             expect(component.feedback.current()?.label).toBe(
-                'Recording stopped'
+                'Aufnahme gespeichert'
             );
         });
     });

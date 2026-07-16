@@ -30,9 +30,18 @@ export function createControlsViewModel(deps: ControlsViewModelDeps) {
     const isLoading = computed(() => state().status === 'loading');
     const isPaused = computed(() => {
         const status = state().status;
-        return status === 'paused' || status === 'idle' || status === 'ended';
+        return (
+            status === 'paused' ||
+            status === 'idle' ||
+            status === 'ended' ||
+            status === 'error'
+        );
     });
     const isPlaying = computed(() => state().status === 'playing');
+    const canTogglePlay = computed(() => {
+        const status = state().status;
+        return status !== 'loading' && status !== 'error';
+    });
 
     const hasAudioTracks = computed(
         () => capabilities().audioTracks && state().audioTracks.length > 1
@@ -83,6 +92,7 @@ export function createControlsViewModel(deps: ControlsViewModelDeps) {
         isLoading,
         isPaused,
         isPlaying,
+        canTogglePlay,
         hasAudioTracks,
         hasSubtitleTracks,
         canRecord,

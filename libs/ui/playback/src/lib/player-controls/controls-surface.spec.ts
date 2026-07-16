@@ -97,6 +97,34 @@ describe('ControlsSurface', () => {
         expect(togglePlay).not.toHaveBeenCalled();
     });
 
+    it('ignores clicks and double-clicks from the controls root', () => {
+        jest.useFakeTimers();
+        surface.dispose();
+        const controlsRoot = document.createElement('div');
+        const timeLabel = document.createElement('span');
+        controlsRoot.appendChild(timeLabel);
+        element.appendChild(controlsRoot);
+        surface = new ControlsSurface(
+            {
+                reveal,
+                toggleFullscreen,
+                closePopovers,
+                togglePlay,
+                canTogglePlay: () => canTogglePlay,
+                isMenuOpen: () => menuOpen,
+            },
+            controlsRoot
+        );
+        surface.attachSurface(element);
+
+        timeLabel.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+        jest.advanceTimersByTime(300);
+        expect(togglePlay).not.toHaveBeenCalled();
+
+        timeLabel.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+        expect(toggleFullscreen).not.toHaveBeenCalled();
+    });
+
     it('closes an open menu on click instead of toggling play', () => {
         jest.useFakeTimers();
         menuOpen = true;

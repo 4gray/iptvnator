@@ -289,6 +289,15 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             expect(fake.commands.togglePlay).not.toHaveBeenCalled();
         });
 
+        it('does not consume or toggle playback after an error', () => {
+            setState({ status: 'error' });
+            fixture.detectChanges();
+
+            expect(pressKey(' ')).toBe(false);
+            expect(pressKey('k')).toBe(false);
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+        });
+
         it('Escape closes an open menu', () => {
             component.toggleMenu('subtitle');
             expect(component.anyMenuOpen()).toBe(true);

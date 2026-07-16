@@ -24,7 +24,7 @@
                 mat-icon-button
                 type="button"
                 class="player-controls__button"
-                [disabled]="isLoading()"
+                [disabled]="!canTogglePlay()"
                 (click)="togglePlay()"
                 [attr.aria-label]="
                     (isPaused()

@@ -68,7 +68,7 @@ export class PlayerControlsComponent implements OnDestroy {
             toggleFullscreen: () => void this.toggleFullscreen(),
             closePopovers: () => this.closePopovers(),
             togglePlay: () => this.togglePlay(),
-            canTogglePlay: () => !this.isLoading(),
+            canTogglePlay: () => this.canTogglePlay(),
             isMenuOpen: () => this.menus.anyOpen(),
         },
         this.host
@@ -120,6 +120,7 @@ export class PlayerControlsComponent implements OnDestroy {
     readonly isLoading = this.vm.isLoading;
     readonly isPaused = this.vm.isPaused;
     readonly isPlaying = this.vm.isPlaying;
+    readonly canTogglePlay = this.vm.canTogglePlay;
     readonly hasAudioTracks = this.vm.hasAudioTracks;
     readonly hasSubtitleTracks = this.vm.hasSubtitleTracks;
     readonly canRecord = this.vm.canRecord;
@@ -135,7 +136,7 @@ export class PlayerControlsComponent implements OnDestroy {
     constructor() {
         this.shortcuts.attach({
             isAvailable: () => this.shortcutsEnabled() && this.showControls(),
-            canTogglePaused: () => !this.isLoading(),
+            canTogglePaused: () => this.canTogglePlay(),
             canSeek: () => this.capabilities().seek && this.state().canSeek,
             canAdjustVolume: () => this.capabilities().volume,
             canToggleFullscreen: () => this.canFullscreen(),
@@ -169,7 +170,16 @@ export class PlayerControlsComponent implements OnDestroy {
                     state
                 );
                 this.visibility.scheduleHide();
-                this.feedback.flashRecordingTransition(state.recording.active);
+                this.feedback.flashRecordingTransition(state.recording.active, {
+                    active: this.translate.instant(
+                        'EMBEDDED_MPV.PLAYER.RECORDING'
+                    ),
+                    inactive:
+                        state.recording.message ||
+                        this.translate.instant(
+                            'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
+                        ),
+                });
             });
         });
     }
@@ -185,7 +195,7 @@ export class PlayerControlsComponent implements OnDestroy {
     speedLabel = speedLabel;
     togglePlay(): void {
         this.reveal();
-        if (this.isLoading()) {
+        if (!this.canTogglePlay()) {
             return;
         }
         this.controller().commands.togglePlay();

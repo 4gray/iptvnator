@@ -42,4 +42,18 @@ describe('ControlsFeedback', () => {
 
         expect(feedback.current()?.label).toBe('Muted');
     });
+
+    it('uses caller-provided recording transition labels', () => {
+        const feedback = new ControlsFeedback();
+        const labels = {
+            active: 'Aufnahme',
+            inactive: 'Aufnahme gespeichert',
+        };
+
+        feedback.flashRecordingTransition(true, labels);
+        expect(feedback.current()?.label).toBe('Aufnahme');
+
+        feedback.flashRecordingTransition(false, labels);
+        expect(feedback.current()?.label).toBe('Aufnahme gespeichert');
+    });
 });

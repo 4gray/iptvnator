@@ -164,6 +164,17 @@ describe('PlayerControlsComponent', () => {
             expect(fake.commands.togglePlay).toHaveBeenCalledTimes(1);
         });
 
+        it('presents errors as non-playing and disables playback toggles', () => {
+            setState({ status: 'error' });
+            fixture.detectChanges();
+
+            const play = query('[aria-label="Play"]') as HTMLButtonElement;
+            expect(play.disabled).toBe(true);
+
+            fixture.componentInstance.togglePlay();
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+        });
+
         it('seeks via the ±10s buttons when seeking is possible', () => {
             setCapabilities({ seek: true });
             setState({ canSeek: true, durationSeconds: 600 });

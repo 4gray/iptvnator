@@ -102,6 +102,9 @@ export class ControlsSurface {
     private onClick(event: MouseEvent): void {
         // Always reveal the controls on a click on the surface.
         this.handlers.reveal();
+        if (this.isInsideRoot(event)) {
+            return;
+        }
         if (!this.handlers.togglePlay) {
             return;
         }
@@ -127,11 +130,26 @@ export class ControlsSurface {
     private onDblClick(event: MouseEvent): void {
         // Cancel a pending single-click pause so a dblclick only fullscreens.
         this.clearClickPauseTimer();
+        if (this.isInsideRoot(event)) {
+            return;
+        }
         const target = event.target as HTMLElement | null;
         if (target?.closest(INTERACTIVE_SELECTOR)) {
             return;
         }
         this.handlers.toggleFullscreen();
+    }
+
+    private isInsideRoot(event: MouseEvent): boolean {
+        if (!this.insideRoot) {
+            return false;
+        }
+        const path = event.composedPath();
+        const target = event.target as Node | null;
+        return (
+            path.includes(this.insideRoot) ||
+            (target !== null && this.insideRoot.contains(target))
+        );
     }
 
     private clearClickPauseTimer(): void {

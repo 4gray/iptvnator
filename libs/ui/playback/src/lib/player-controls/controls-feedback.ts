@@ -1,5 +1,10 @@
 import { signal } from '@angular/core';
 
+export interface RecordingFeedbackLabels {
+    active: string;
+    inactive: string;
+}
+
 /**
  * Transient feedback overlay shown when the user adjusts volume/seek/mute via
  * keyboard. Caller calls flash() with an icon + label; auto-clears after the
@@ -32,15 +37,18 @@ export class ControlsFeedback {
      * Flash a transient overlay on recording start/stop transitions, ignoring
      * repeated states. Tracks the last known active state internally.
      */
-    flashRecordingTransition(active: boolean): void {
+    flashRecordingTransition(
+        active: boolean,
+        labels: RecordingFeedbackLabels
+    ): void {
         if (active === this.lastRecordingActive) {
             return;
         }
         this.lastRecordingActive = active;
         if (active) {
-            this.flash('fiber_manual_record', 'Recording', 900);
+            this.flash('fiber_manual_record', labels.active, 900);
         } else {
-            this.flash('stop_circle', 'Recording stopped', 900);
+            this.flash('stop_circle', labels.inactive, 900);
         }
     }
 
