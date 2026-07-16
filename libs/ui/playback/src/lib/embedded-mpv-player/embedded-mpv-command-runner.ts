@@ -119,6 +119,9 @@ export class EmbeddedMpvCommandRunner {
         const resolvedDirectory =
             directory?.trim() ||
             (await electron.getEmbeddedMpvDefaultRecordingFolder?.());
+        if (this.ctx.sessionId() !== id) {
+            return null;
+        }
         const updated = await this.run(id, () =>
             startEmbeddedMpvRecording(id, {
                 directory: resolvedDirectory,

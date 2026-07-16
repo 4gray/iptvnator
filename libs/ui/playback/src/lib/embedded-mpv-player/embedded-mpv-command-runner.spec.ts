@@ -216,6 +216,34 @@ describe('EmbeddedMpvCommandRunner', () => {
         expect(session()?.recording?.active).toBe(true);
     });
 
+    it('does not start recording after the session changes during folder lookup', async () => {
+        let resolveFolder: ((folder: string) => void) | null = null;
+        electron.getEmbeddedMpvDefaultRecordingFolder.mockImplementationOnce(
+            () =>
+                new Promise<string>((resolve) => {
+                    resolveFolder = resolve;
+                })
+        );
+
+        const pendingRecording = runner.startRecording('   ', 'My Show');
+        expect(
+            electron.getEmbeddedMpvDefaultRecordingFolder
+        ).toHaveBeenCalled();
+        const replacement = createSession({
+            id: 'mpv-2',
+            title: 'Replacement Movie',
+        });
+        sessionId.set('mpv-2');
+        session.set(replacement);
+        resolveFolder?.('/movies/recordings');
+
+        const recording = await pendingRecording;
+
+        expect(electron.startEmbeddedMpvRecording).not.toHaveBeenCalled();
+        expect(recording).toBeNull();
+        expect(session()).toBe(replacement);
+    });
+
     it('startRecording uses the explicit directory when provided', async () => {
         await runner.startRecording('/custom/dir', 'My Show');
         expect(
