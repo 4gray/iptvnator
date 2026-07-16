@@ -1,0 +1,276 @@
+import { ClipboardModule } from '@angular/cdk/clipboard';
+import { Component, input, output } from '@angular/core';
+import {
+    ComponentFixture,
+    DeferBlockBehavior,
+    TestBed,
+} from '@angular/core/testing';
+import { MatButtonModule } from '@angular/material/button';
+import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
+import { By } from '@angular/platform-browser';
+import { StorageMap } from '@ngx-pwa/local-storage';
+import { TranslateModule } from '@ngx-translate/core';
+import { of } from 'rxjs';
+import {
+    type ResolvedPortalPlayback,
+    VideoPlayer,
+} from '@iptvnator/shared/interfaces';
+import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
+import {
+    type PlaybackDiagnostic,
+    PlaybackDiagnosticCode,
+    PlaybackDiagnosticSource,
+} from '../playback-diagnostics/playback-diagnostics.util';
+
+jest.unstable_mockModule('video.js', () => ({
+    default: jest.fn(),
+}));
+jest.unstable_mockModule('@yangkghjh/videojs-aspect-ratio-panel', () => ({}));
+jest.unstable_mockModule('videojs-contrib-quality-levels', () => ({}));
+jest.unstable_mockModule('videojs-quality-selector-hls', () => ({}));
+
+@Component({ selector: 'app-vjs-player', template: '' })
+class StubVjsPlayerComponent {
+    readonly options = input<unknown>();
+    readonly volume = input(1);
+    readonly startTime = input(0);
+    readonly seriesNavigation = input<unknown>(null);
+    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
+}
+
+@Component({ selector: 'app-html-video-player', template: '' })
+class StubHtmlVideoPlayerComponent {
+    readonly channel = input<unknown>();
+    readonly volume = input(1);
+    readonly showCaptions = input(false);
+    readonly isLive = input(true);
+    readonly interactionEnabled = input(true);
+    readonly startTime = input(0);
+    readonly seriesNavigation = input<unknown>(null);
+    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
+}
+
+@Component({ selector: 'app-art-player', template: '' })
+class StubArtPlayerComponent {
+    readonly channel = input<unknown>();
+    readonly volume = input(1);
+    readonly showCaptions = input(false);
+    readonly startTime = input(0);
+    readonly seriesNavigation = input<unknown>(null);
+    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
+}
+
+@Component({ selector: 'app-embedded-mpv-player', template: '' })
+class StubEmbeddedMpvPlayerComponent {
+    readonly playback = input.required<unknown>();
+    readonly recordingFolder = input('');
+    readonly seriesNavigation = input<unknown>(null);
+    readonly timeUpdate = output<{ currentTime: number; duration: number }>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
+}
+
+describe('WebPlayerViewComponent shared HTML5 controls metadata', () => {
+    let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
+    let fixture: ComponentFixture<WebPlayerViewComponentInstance>;
+    let component: WebPlayerViewComponentInstance;
+
+    beforeAll(async () => {
+        ({ WebPlayerViewComponent } =
+            await import('./web-player-view.component'));
+    });
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            deferBlockBehavior: DeferBlockBehavior.Playthrough,
+            imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
+            providers: [
+                {
+                    provide: StorageMap,
+                    useValue: {
+                        get: jest.fn(() => of({ player: VideoPlayer.VideoJs })),
+                    },
+                },
+                {
+                    provide: RuntimeCapabilitiesService,
+                    useValue: { supportsManagedExternalPlayers: false },
+                },
+            ],
+        })
+            .overrideComponent(WebPlayerViewComponent, {
+                set: {
+                    imports: [
+                        StubArtPlayerComponent,
+                        StubEmbeddedMpvPlayerComponent,
+                        StubHtmlVideoPlayerComponent,
+                        StubVjsPlayerComponent,
+                        ClipboardModule,
+                        MatButtonModule,
+                        MatIconModule,
+                        MatTooltipModule,
+                        TranslateModule,
+                    ],
+                },
+            })
+            .compileComponents();
+
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/default.ts'
+        );
+        fixture.componentRef.setInput('title', 'Default stream');
+    });
+
+    afterEach(() => {
+        fixture.destroy();
+    });
+
+    it.each([
+        ['an explicit VOD value', { isLive: false }, false],
+        [
+            'an explicit live value with VOD content metadata',
+            { isLive: true, contentInfo: createVodContentInfo() },
+            true,
+        ],
+        [
+            'VOD content metadata without an explicit value',
+            { contentInfo: createVodContentInfo() },
+            false,
+        ],
+        ['missing content metadata and explicit value', {}, true],
+    ])('resolves %s', (_label, metadata, expected) => {
+        setPlayback(metadata);
+
+        expect(component.resolvedIsLive()).toBe(expected);
+    });
+
+    it('passes the resolved live value to the HTML5 player', async () => {
+        const htmlPlayer = await renderHtmlPlayer({ isLive: false });
+
+        expect(htmlPlayer.isLive()).toBe(false);
+    });
+
+    it('disables HTML5 surface interaction while a diagnostic is visible', async () => {
+        const htmlPlayer = await renderHtmlPlayer();
+
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+
+        expect(component.playbackInteractionEnabled()).toBe(false);
+        expect(htmlPlayer.interactionEnabled()).toBe(false);
+    });
+
+    it('re-enables HTML5 interaction after retrying or clearing the issue', async () => {
+        const htmlPlayer = await renderHtmlPlayer();
+
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+        expect(htmlPlayer.interactionEnabled()).toBe(false);
+
+        component.retryPlayback();
+        fixture.detectChanges();
+        expect(component.playbackInteractionEnabled()).toBe(true);
+        expect(htmlPlayer.interactionEnabled()).toBe(true);
+
+        component.handlePlaybackIssue(createNetworkDiagnostic());
+        fixture.detectChanges();
+        expect(htmlPlayer.interactionEnabled()).toBe(false);
+
+        component.handlePlaybackIssue(null);
+        fixture.detectChanges();
+        expect(component.playbackInteractionEnabled()).toBe(true);
+        expect(htmlPlayer.interactionEnabled()).toBe(true);
+    });
+
+    it.each([
+        ['inferred VOD', { contentInfo: createVodContentInfo() }, false],
+        [
+            'explicit live VOD content',
+            { isLive: true, contentInfo: createVodContentInfo() },
+            true,
+        ],
+    ])(
+        'uses the resolved value for Video.js effect and retry: %s',
+        (_label, metadata, expected) => {
+            const streamUrl = 'https://example.com/video.ts';
+            const setVjsOptions = jest.spyOn(component, 'setVjsOptions');
+            setPlayback(metadata, streamUrl);
+
+            fixture.detectChanges();
+
+            expect(setVjsOptions).toHaveBeenCalledWith(streamUrl, expected);
+
+            setVjsOptions.mockClear();
+            component.retryPlayback();
+
+            expect(setVjsOptions).toHaveBeenCalledWith(streamUrl, expected);
+        }
+    );
+
+    function setPlayback(
+        metadata: Partial<ResolvedPortalPlayback>,
+        streamUrl = 'https://example.com/playback.ts'
+    ): void {
+        fixture.componentRef.setInput('playback', {
+            streamUrl,
+            title: 'Playback',
+            ...metadata,
+        });
+    }
+
+    async function renderHtmlPlayer(
+        metadata: Partial<ResolvedPortalPlayback> = {}
+    ): Promise<StubHtmlVideoPlayerComponent> {
+        fixture.componentRef.setInput(
+            'playerOverride',
+            VideoPlayer.Html5Player
+        );
+        setPlayback(metadata);
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        return fixture.debugElement.query(
+            By.directive(StubHtmlVideoPlayerComponent)
+        ).componentInstance as StubHtmlVideoPlayerComponent;
+    }
+});
+
+function createVodContentInfo() {
+    return {
+        playlistId: 'playlist-1',
+        contentXtreamId: 123,
+        contentType: 'vod' as const,
+    };
+}
+
+function createNetworkDiagnostic(): PlaybackDiagnostic {
+    return {
+        code: PlaybackDiagnosticCode.NetworkError,
+        source: PlaybackDiagnosticSource.MpegTs,
+        sourceUrl: 'https://example.com/playback.ts',
+        container: 'ts',
+        mimeType: 'video/mp2t',
+        player: 'html5',
+        audioCodecs: [],
+        videoCodecs: [],
+        externalFallbackRecommended: false,
+    };
+}

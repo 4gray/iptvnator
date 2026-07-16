@@ -147,8 +147,20 @@ Key files:
   commands are cancelled. Same-session IPC replies also yield to a broadcast
   snapshot received while the command was pending, preventing a successful
   recording acknowledgement from being rolled back by a stale reply.
-- HTML5/hls.js, Video.js, and ArtPlayer are not wired yet. Their existing skins
-  remain active and the web rollout token remains default-off.
+- The built-in HTML5/hls.js player is the second guarded consumer.
+  `HtmlVideoPlayerComponent` provides a component-scoped
+  `WebVideoControlsAdapter`; its player-local bridge owns HLS/native tracks,
+  MPEG-TS VOD duration correction, caption preference, and source cleanup.
+  `HtmlVideoElementSession` owns native video-event lifecycle, persisted
+  volume, start-time/time/ended propagation, and legacy post-play caption
+  suppression.
+  `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
+  metadata, while a visible playback diagnostic disables both shared surface
+  interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
+  diagnostic actions remain visible. The flag-off path keeps native controls
+  and legacy series navigation unchanged.
+- Video.js and ArtPlayer are not wired yet. Their existing skins remain active,
+  and the web rollout token remains default-off.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 

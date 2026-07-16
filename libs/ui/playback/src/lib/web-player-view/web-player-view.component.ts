@@ -102,6 +102,9 @@ export class WebPlayerViewComponent {
             ? null
             : this.playbackDiagnostic()
     );
+    readonly playbackInteractionEnabled = computed(
+        () => this.visiblePlaybackDiagnostic() === null
+    );
     readonly canShowExternalFallbackActions = computed(
         () =>
             this.runtime.supportsManagedExternalPlayers &&
@@ -125,6 +128,12 @@ export class WebPlayerViewComponent {
             startTime: this.startTime(),
         };
     });
+    readonly resolvedIsLive = computed(() => {
+        const playback = this.resolvedPlayback();
+        return typeof playback.isLive === 'boolean'
+            ? playback.isLive
+            : !playback.contentInfo;
+    });
     readonly selectedPlayer = computed(
         () =>
             this.playerOverride() ??
@@ -143,10 +152,7 @@ export class WebPlayerViewComponent {
             const playback = this.resolvedPlayback();
             this.playbackDiagnostic.set(null);
             this.setChannel(playback);
-            this.setVjsOptions(
-                playback.streamUrl,
-                this.isLivePlayback(playback)
-            );
+            this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
         });
     }
 
@@ -233,7 +239,7 @@ export class WebPlayerViewComponent {
         this.playbackDiagnostic.set(null);
         this.reloadToken.update((value) => value + 1);
         this.setChannel(playback);
-        this.setVjsOptions(playback.streamUrl, this.isLivePlayback(playback));
+        this.setVjsOptions(playback.streamUrl, this.resolvedIsLive());
     }
 
     getDiagnosticTitleKey(issue: PlaybackDiagnostic): string {
@@ -329,14 +335,6 @@ export class WebPlayerViewComponent {
             default:
                 return 'PLAYBACK_DIAGNOSTICS.UNKNOWN_PLAYBACK_ERROR';
         }
-    }
-
-    private isLivePlayback(playback: ResolvedPortalPlayback): boolean {
-        if (typeof playback.isLive === 'boolean') {
-            return playback.isLive;
-        }
-
-        return !playback.contentInfo;
     }
 
     private getHeaderValue(
