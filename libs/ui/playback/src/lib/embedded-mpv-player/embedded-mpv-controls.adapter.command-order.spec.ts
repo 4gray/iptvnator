@@ -221,20 +221,161 @@ describe('EmbeddedMpvControlsAdapter command/session ordering', () => {
         expect(adapter.state().recording.message).toBeNull();
     });
 
-    it('waits for a post-settlement acknowledgement when a stale response restores the baseline', async () => {
+    it.each(['start', 'stop'] as const)(
+        'serializes a delayed %s command and finalizes its stored acknowledgement',
+        async (operation) => {
+            const targetPath = '/recordings/live.ts';
+            const baselineRecording =
+                operation === 'start'
+                    ? { active: false }
+                    : {
+                          active: true,
+                          startedAt: '2026-07-16T10:00:02.000Z',
+                      };
+            const acknowledgedRecording =
+                operation === 'start'
+                    ? {
+                          active: true,
+                          targetPath,
+                          startedAt: '2026-07-16T10:00:03.000Z',
+                      }
+                    : { active: false, targetPath };
+            const command = deferred<EmbeddedMpvSession['recording'] | null>();
+            const lateCommand = deferred<
+                EmbeddedMpvSession['recording'] | null
+            >();
+            controller.session.set(session({ recording: baselineRecording }));
+            if (operation === 'start') {
+                controller.startRecording
+                    .mockReturnValueOnce(command.promise)
+                    .mockReturnValueOnce(lateCommand.promise);
+            } else {
+                controller.stopRecording
+                    .mockReturnValueOnce(command.promise)
+                    .mockReturnValueOnce(lateCommand.promise);
+            }
+            adapter.commands.toggleRecording();
+            controller.session.set(
+                session({ recording: acknowledgedRecording })
+            );
+            jest.advanceTimersByTime(ACK_TIMEOUT_MS + 1);
+            expect(adapter.state().recording.message).toBeNull();
+            adapter.commands.toggleRecording();
+            expect(controller.startRecording).toHaveBeenCalledTimes(
+                operation === 'start' ? 1 : 0
+            );
+            expect(controller.stopRecording).toHaveBeenCalledTimes(
+                operation === 'stop' ? 1 : 0
+            );
+            controller.session.set(session({ recording: baselineRecording }));
+            command.resolve(baselineRecording);
+            await flushPromises();
+            expect(adapter.state().recording.message).toBe(
+                operation === 'stop' ? `Saved to ${targetPath}` : null
+            );
+            adapter.commands.toggleRecording();
+            jest.advanceTimersByTime(ACK_TIMEOUT_MS);
+            expect(adapter.state().recording.message).toBe(
+                operation === 'start'
+                    ? 'Failed to start recording'
+                    : 'Failed to stop recording'
+            );
+            controller.session.set(
+                session({ recording: acknowledgedRecording })
+            );
+            TestBed.tick();
+            expect(adapter.state().recording.message).toBe(
+                operation === 'stop' ? `Saved to ${targetPath}` : null
+            );
+            adapter.commands.toggleRecording();
+            expect(controller.startRecording).toHaveBeenCalledTimes(
+                operation === 'start' ? 2 : 0
+            );
+            expect(controller.stopRecording).toHaveBeenCalledTimes(
+                operation === 'stop' ? 2 : 0
+            );
+            controller.session.set(session({ recording: baselineRecording }));
+            lateCommand.resolve(baselineRecording);
+            await flushPromises();
+        }
+    );
+
+    it('discards a stored acknowledgement when the session changes before settlement', async () => {
+        const targetPath = '/recordings/live.ts';
+        const command = deferred<EmbeddedMpvSession['recording'] | null>();
+        controller.session.set(session({ recording: { active: true } }));
+        controller.stopRecording.mockReturnValue(command.promise);
+
+        adapter.commands.toggleRecording();
+        controller.session.set(
+            session({ recording: { active: false, targetPath } })
+        );
+        TestBed.tick();
+        controller.session.set(
+            session({ id: 'session-2', recording: { active: false } })
+        );
+        command.resolve({ active: true });
+        await flushPromises();
+
+        expect(adapter.state().recording.message).toBeNull();
+    });
+
+    it('shows a pre-settlement recording error without unlocking the command', async () => {
+        const addonError = '  Addon rejected stream-record  ';
         const command = deferred<EmbeddedMpvSession['recording'] | null>();
         controller.startRecording.mockReturnValue(command.promise);
 
         adapter.commands.toggleRecording();
         controller.session.set(
             session({
-                recording: {
-                    active: true,
-                    startedAt: '2026-07-16T10:00:02.000Z',
-                },
+                recording: { active: false, error: addonError },
             })
         );
         TestBed.tick();
+
+        expect(adapter.state().recording.message).toBe(addonError);
+        jest.advanceTimersByTime(ACK_TIMEOUT_MS + 1);
+        expect(adapter.state().recording.message).toBe(addonError);
+        adapter.commands.toggleRecording();
+        expect(controller.startRecording).toHaveBeenCalledTimes(1);
+
+        controller.session.set(session({ recording: { active: false } }));
+        command.resolve({ active: false });
+        await flushPromises();
+
+        expect(adapter.state().recording.message).toBe(addonError);
+        adapter.commands.toggleRecording();
+        expect(controller.startRecording).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps an unacknowledged timed-out command serialized until its promise settles', async () => {
+        const command = deferred<EmbeddedMpvSession['recording'] | null>();
+        controller.startRecording.mockReturnValue(command.promise);
+
+        adapter.commands.toggleRecording();
+        jest.advanceTimersByTime(ACK_TIMEOUT_MS);
+
+        expect(adapter.state().recording.message).toBe(
+            'Failed to start recording'
+        );
+        adapter.commands.toggleRecording();
+        expect(controller.startRecording).toHaveBeenCalledTimes(1);
+
+        command.resolve({ active: false });
+        await flushPromises();
+
+        expect(adapter.state().recording.message).toBe(
+            'Failed to start recording'
+        );
+        adapter.commands.toggleRecording();
+        expect(controller.startRecording).toHaveBeenCalledTimes(2);
+    });
+
+    it('waits for a post-settlement acknowledgement when only baseline snapshots arrive', async () => {
+        const command = deferred<EmbeddedMpvSession['recording'] | null>();
+        controller.startRecording.mockReturnValue(command.promise);
+
+        adapter.commands.toggleRecording();
         controller.session.set(session({ recording: { active: false } }));
         command.resolve({ active: false });
         await flushPromises();

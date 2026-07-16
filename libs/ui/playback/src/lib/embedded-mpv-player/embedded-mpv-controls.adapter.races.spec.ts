@@ -378,6 +378,12 @@ describe('EmbeddedMpvControlsAdapter recording acknowledgement races', () => {
             }
             adapter.commands.toggleRecording();
             const state = adapter.state;
+            const bufferedRecording =
+                operation === 'start'
+                    ? { active: false, error: 'Buffered failure' }
+                    : { active: false, targetPath: '/recordings/live.ts' };
+            controller.session.set(session({ recording: bufferedRecording }));
+            TestBed.tick();
 
             TestBed.resetTestingModule();
             command.resolve(null);

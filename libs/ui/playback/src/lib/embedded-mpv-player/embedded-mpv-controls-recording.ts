@@ -45,6 +45,11 @@ export type RecordingFeedback =
     | RawRecordingFeedback
     | TranslatedRecordingFeedback;
 
+interface RecordingOutcome {
+    readonly feedback: RecordingFeedback | null;
+    readonly autoDismiss?: boolean;
+}
+
 interface PendingRecordingOperation {
     readonly generation: number;
     readonly kind: RecordingOperation;
@@ -54,6 +59,8 @@ interface PendingRecordingOperation {
     readonly initialError: string | null;
     readonly targetPath: string | null;
     readonly baselineSnapshotIdentity: string | null;
+    observedOutcome: RecordingOutcome | null;
+    timeoutFeedback: RecordingFeedback | null;
     commandSettled: boolean;
     sawErrorClear: boolean;
 }
@@ -85,7 +92,6 @@ export class EmbeddedMpvControlsRecording {
         if (this.destroyed || this.pending) {
             return;
         }
-
         const recording = context.session.recording;
         const initialError = this.recordingError(context.session);
         const kind = recording?.active
@@ -103,6 +109,8 @@ export class EmbeddedMpvControlsRecording {
             baselineSnapshotIdentity: this.recordingSnapshotIdentity(
                 context.session
             ),
+            observedOutcome: null,
+            timeoutFeedback: null,
             commandSettled: false,
             sawErrorClear: initialError === null,
         };
@@ -111,7 +119,6 @@ export class EmbeddedMpvControlsRecording {
             () => this.handleAcknowledgementTimeout(generation),
             RECORDING_ACK_TIMEOUT_MS
         );
-
         const command =
             kind === RECORDING_OPERATION.START
                 ? this.controller.startRecording(
@@ -139,16 +146,15 @@ export class EmbeddedMpvControlsRecording {
             playbackIdentity !== pending.playbackIdentity
         ) {
             this.cancelPending();
+            this.setFeedback(null);
             return;
         }
         if (
-            !pending.commandSettled ||
             this.recordingSnapshotIdentity(session) ===
-                pending.baselineSnapshotIdentity
+            pending.baselineSnapshotIdentity
         ) {
             return;
         }
-
         const recording = session.recording;
         if (!recording) {
             return;
@@ -156,9 +162,11 @@ export class EmbeddedMpvControlsRecording {
         const error = this.recordingError(session);
         if (error) {
             if (pending.sawErrorClear || error !== pending.initialError) {
-                this.completePending({
-                    kind: RECORDING_FEEDBACK.RAW,
-                    text: error,
+                this.observeOutcome(pending, {
+                    feedback: {
+                        kind: RECORDING_FEEDBACK.RAW,
+                        text: error,
+                    },
                 });
             }
             return;
@@ -167,23 +175,21 @@ export class EmbeddedMpvControlsRecording {
         if (recording.active !== pending.expectedActive) {
             return;
         }
-
         if (pending.kind === RECORDING_OPERATION.START) {
-            this.completePending(null);
+            this.observeOutcome(pending, { feedback: null });
             return;
         }
-
         const targetPath = recording.targetPath ?? pending.targetPath;
-        this.completePending(
-            targetPath
+        this.observeOutcome(pending, {
+            feedback: targetPath
                 ? {
                       kind: RECORDING_FEEDBACK.TRANSLATED,
                       key: RECORDING_TRANSLATION.SAVED_TO,
                       params: { path: targetPath },
                   }
                 : null,
-            Boolean(targetPath)
-        );
+            autoDismiss: Boolean(targetPath),
+        });
     }
 
     syncOwner(playbackIdentity: string | null, sessionId: string | null): void {
@@ -198,7 +204,6 @@ export class EmbeddedMpvControlsRecording {
         if (this.ownerIdentity === nextIdentity) {
             return;
         }
-
         this.ownerIdentity = nextIdentity;
         this.setFeedback(null);
         if (
@@ -211,17 +216,29 @@ export class EmbeddedMpvControlsRecording {
     }
 
     destroy(): void {
+        this.setFeedback(null);
         this.destroyed = true;
         this.cancelPending();
-        this.clearMessageTimer();
     }
 
     private handleAcknowledgementTimeout(generation: number): void {
-        const pending = this.pending;
+        let pending = this.pending;
         if (!pending || pending.generation !== generation) {
             return;
         }
-
+        this.acknowledgementTimer = null;
+        this.reconcile(
+            this.controller.session(),
+            this.currentPlaybackIdentity()
+        );
+        pending = this.pending;
+        if (
+            !pending ||
+            pending.generation !== generation ||
+            pending.observedOutcome
+        ) {
+            return;
+        }
         const currentSession = this.controller.session();
         const currentOwnerIdentity = JSON.stringify([
             pending.playbackIdentity,
@@ -232,7 +249,7 @@ export class EmbeddedMpvControlsRecording {
             this.ownerIdentity === currentOwnerIdentity
                 ? this.recordingError(currentSession)
                 : null;
-        this.completePending({
+        const feedback: RecordingFeedback = {
             ...(error
                 ? { kind: RECORDING_FEEDBACK.RAW, text: error }
                 : {
@@ -242,7 +259,13 @@ export class EmbeddedMpvControlsRecording {
                               ? RECORDING_TRANSLATION.START_FAILED
                               : RECORDING_TRANSLATION.STOP_FAILED,
                   }),
-        });
+        };
+        pending.timeoutFeedback = feedback;
+        if (pending.commandSettled) {
+            this.completePending(feedback);
+            return;
+        }
+        this.setFeedback(feedback);
     }
 
     private markCommandSettled(generation: number): void {
@@ -255,6 +278,39 @@ export class EmbeddedMpvControlsRecording {
             this.controller.session(),
             this.currentPlaybackIdentity()
         );
+        const reconciledPending = this.pending;
+        if (!reconciledPending || reconciledPending.generation !== generation) {
+            return;
+        }
+        if (reconciledPending.observedOutcome) {
+            this.completePending(
+                reconciledPending.observedOutcome.feedback,
+                reconciledPending.observedOutcome.autoDismiss
+            );
+            return;
+        }
+        if (reconciledPending.timeoutFeedback) {
+            this.completePending(reconciledPending.timeoutFeedback);
+        }
+    }
+
+    private observeOutcome(
+        pending: PendingRecordingOperation,
+        outcome: RecordingOutcome
+    ): void {
+        if (this.pending !== pending || pending.observedOutcome) {
+            return;
+        }
+        pending.observedOutcome = outcome;
+        this.clearAcknowledgementTimer();
+        if (pending.commandSettled) {
+            this.completePending(outcome.feedback, outcome.autoDismiss);
+        } else if (
+            pending.timeoutFeedback ||
+            outcome.feedback?.kind === RECORDING_FEEDBACK.RAW
+        ) {
+            this.setFeedback(outcome.feedback, outcome.autoDismiss);
+        }
     }
 
     private recordingSnapshotIdentity(
@@ -305,7 +361,6 @@ export class EmbeddedMpvControlsRecording {
         if (!feedback || !autoDismiss) {
             return;
         }
-
         const timerId = window.setTimeout(() => {
             if (!this.destroyed && this.feedbackState() === feedback) {
                 this.feedbackState.set(null);
@@ -331,7 +386,6 @@ export class EmbeddedMpvControlsRecording {
         }
     }
 }
-
 export function resolveRecordingFeedback(
     feedback: RecordingFeedback | null,
     translate: TranslateService
