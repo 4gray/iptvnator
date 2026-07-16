@@ -35,7 +35,14 @@ The build directory contains files such as `Makefile`, `binding.Makefile`, `conf
 
 ## How It Is Embedded
 
-The embedded player renders MPV frames into an app-owned native video surface. macOS uses the libmpv render API in an `NSOpenGLView` because the mpv `wid` path produced a black video surface inside Electron. Windows loads `libmpv` through the native Node addon and uses mpv's `wid` option against an IPTVnator-owned child `HWND`. Linux creates an IPTVnator-owned X11/Xwayland child `Window` and starts an out-of-process `mpv --wid=<window>` instance for that child window.
+Embedded MPV has two rendering paths. The native-view engine renders into an
+app-owned platform video surface: macOS uses the libmpv render API in an
+`NSOpenGLView` because the mpv `wid` path produced a black video surface inside
+Electron; Windows loads `libmpv` through the native Node addon and uses mpv's
+`wid` option against an IPTVnator-owned child `HWND`; Linux creates an
+IPTVnator-owned X11/Xwayland child `Window` and starts an out-of-process
+`mpv --wid=<window>` instance for that child window. The frame-copy engine
+instead uploads helper-produced frames to a Chromium-owned DOM canvas.
 
 Windows packaged runtimes must preserve the MPV DLL basename referenced by the
 import library used at native-addon link time. For example, an archive that
@@ -76,10 +83,24 @@ The flow is:
 4. The component asks the preload API to create an embedded MPV session with the current viewport bounds and initial volume.
 5. The Electron preload forwards calls through IPC to the main process.
 6. `EmbeddedMpvNativeService` owns sessions, polls snapshots, and emits session updates to the renderer.
-7. The native addon creates an app-owned platform video host inside the Electron window.
-8. On macOS the addon configures `vo=libmpv`, creates a `mpv_render_context`, and draws into the OpenGL surface. On Windows it creates an `mpv_handle`, disables MPV's own OSC/input handling, and passes the child-window id through `wid`. On Linux it starts `mpv --wid=<x11-window>` in a separate process with a private JSON IPC socket and tracks that process until playback replacement or dispose.
-9. Resize, scroll, and fullscreen changes are measured in Angular and sent back to the addon as native bounds so the platform video host stays aligned with the Angular layout.
-10. Playback controls remain IPTVnator-owned Angular UI. MPV receives commands only through the controlled IPC surface.
+7. For the native-view engine, the addon creates an app-owned platform video
+   host inside the Electron window. For frame-copy, the preload frame pump
+   attaches the session's shared-memory reader to
+   `<canvas data-embedded-mpv-frame>`.
+8. On macOS native-view, the addon configures `vo=libmpv`, creates a
+   `mpv_render_context`, and draws into the OpenGL surface. On Windows
+   native-view, it creates an `mpv_handle`, disables MPV's own OSC/input
+   handling, and passes the child-window id through `wid`. On Linux
+   native-view, it starts `mpv --wid=<x11-window>` in a separate process with a
+   private JSON IPC socket. Frame-copy instead uses the per-session helper
+   described below.
+9. Resize, scroll, and fullscreen changes are measured in Angular and sent
+   through bounds sync. Native-view uses them to align the platform host;
+   frame-copy uses them to resize helper rendering and the canvas frame source.
+10. Playback controls remain IPTVnator-owned Angular UI. Frame-copy uses the
+    shared `app-player-controls` overlay through
+    `EmbeddedMpvControlsAdapter`; native-view keeps its compositor-safe fixed
+    dock. MPV receives commands only through the controlled IPC surface.
 
 The renderer never gets direct native-module access. It can only call the preload contract:
 
@@ -100,9 +121,21 @@ Settings uses the preload support API as an availability and capability check. U
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
-The MPV video surface is a native platform view/window, not a normal DOM element. Do not place critical Angular overlays on top of the video viewport and expect CSS `z-index` to win. The embedded MPV controls use a compositor-safe control dock below the native viewport instead of a true overlay on top of the native video surface.
+For the native-view engine, the MPV video surface is a platform view/window,
+not a normal DOM element. Do not place critical Angular overlays on top of that
+video viewport and expect CSS `z-index` to win. Native-view controls use a
+compositor-safe dock below the viewport instead of a true overlay.
 
-The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
+The native-view dock has a stable reserved height while embedded controls are
+enabled. Controls fade in and out inside that fixed dock, so normal show/hide
+behavior does not resize the native MPV viewport or make the video jump. Volume
+and audio-track panels replace the default transport controls inside the same
+dock and provide a back button to return to the default controls. Popovers and
+menus must stay inside that dock unless the native layering strategy changes.
+The native MPV view deliberately ignores hit testing so mouse movement passes
+through to Chromium and can reveal Angular controls even when the pointer moves
+quickly across the video area. None of these compositor restrictions applies to
+the frame-copy canvas.
 
 ## Frame-Copy Engine (Experimental, Apple Silicon, Linux and Windows)
 
@@ -148,10 +181,16 @@ service and the adapter):
 - Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
   `support.engine === 'frame-copy'` and skips the compositor workarounds —
   no `HIDDEN_BOUNDS` when dialogs open, no popover bottom cutout; dialogs
-  and controls stack above the canvas as ordinary DOM. Bounds sync still
-  runs: the helper re-renders at the new viewport size (device pixels via
-  the display scale factor), including a forced current-frame render when a
-  paused resize creates a fresh shared-memory generation.
+  and the shared `app-player-controls` overlay stack above the canvas as
+  ordinary DOM. The canvas fills the player root; the native dock's reserved
+  controls height is not applied. Legacy embedded-MPV pointer/click,
+  double-click, shortcut, cursor, menu, and recording-feedback ownership is
+  disabled for this engine. Bounds sync still runs: the helper re-renders at
+  the new viewport size (device pixels via the display scale factor), including
+  a forced current-frame render when a paused resize creates a fresh
+  shared-memory generation. Shared fullscreen uses the DOM Fullscreen API on
+  the player root, and the component's fullscreen listener still requests
+  bounds sync.
 
 Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
 checkbox (shown only when support reports `frameCopyAvailable`) persists to
@@ -278,7 +317,14 @@ Async command/property replies are reconciled against pending request IDs on all
 
 The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
 
-Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only for non-live series playback. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
+Series episode navigation is owned by the portal feature components and passed
+through the shared inline player to `EmbeddedMpvPlayerComponent`. Frame-copy
+projects that state through `EmbeddedMpvControlsAdapter` and emits the shared
+controls' previous/next outputs; native-view keeps the equivalent buttons in
+its legacy dock. Both paths show navigation only for non-live series playback.
+The navigation payload contains `canPrevious`, `canNext`, and
+`autoplayEnabled`; the component guards the output handlers as well as the
+button disabled state at current-season boundaries.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
@@ -294,33 +340,121 @@ Recording is session-scoped:
 - Loading a replacement stream or disposing the embedded session stops any active recording before the MPV handle is reused or destroyed.
 - `EmbeddedMpvSession.recording` carries `{ active, targetPath, startedAt, error }` so the renderer can show active elapsed time, final save path, or a failure.
 
+For frame-copy shared controls, recording command completion and session
+snapshot delivery are independent asynchronous signals. The component-scoped
+recording coordinator permits one pending toggle, ignores the pre-command
+baseline snapshot, and correlates only fresh observations from the same
+playback identity and session. It waits for command settlement and the expected
+active state before completing a successful transition, preserves addon error
+text, and uses a bounded failure timeout. Playback replacement, session
+replacement, engine handoff, or component destruction cancels pending
+ownership, timers, and stale feedback. Native-view retains its existing
+recording UI and timer path.
+
 The default recording folder is `app.getPath('downloads')`, matching the desktop download manager's fallback. Users can override it in Settings through `Settings.recordingFolder`; an empty setting means system Downloads. Recordings are intentionally not inserted into the Downloads database or queue in v1 because MPV writes from the active playback session while the download manager owns independent backend download jobs.
 
 mpv's own caveats apply: the output container is inferred from the target extension, and seeking or switching streams while recording can produce broken output. IPTVnator limits the UI to live streams and stops recording on playback replacement to avoid the most obvious corruption path, but the feature should still be treated as an experimental embedded MPV capability.
 
 ## Renderer Architecture And Reactivity
 
-The Angular side of the embedded MPV player is intentionally split so the player component stays a view-only orchestrator. The renderer files live under `libs/ui/playback/src/lib/embedded-mpv-player/`:
+The Angular side of the embedded MPV player is intentionally split so the
+player component stays a view-oriented orchestrator and engine-specific
+controls host. The renderer files live under
+`libs/ui/playback/src/lib/embedded-mpv-player/`:
 
 - `embedded-mpv-format.utils.ts` — pure helpers (`formatTime`, `audioTrackLabel`, `subtitleTrackLabel`, `speedLabel`, `aspectLabel`, `volumeIcon`, `volumeLabel`, `readStoredVolume`, `persistVolume`, `measureBounds`) and preset constants (`SPEED_PRESETS`, `ASPECT_PRESETS`, `HIDDEN_BOUNDS`, `MENU_OPEN_BOTTOM_CUTOUT_PX`).
-- `embedded-mpv-shortcuts.ts` — `EmbeddedMpvShortcuts` class with `attach(handlers)` / `detach()`. Owns the document keydown listener and routes through a callback interface; the component supplies the callbacks. Listens for Space/K (toggle), F (fullscreen), arrow keys (seek/volume), M (mute), Escape (close popovers).
-- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/`afterAllClosed` for dialog-shaped overlays and falls back to a `MutationObserver` on the CDK overlay container for any remaining backdrop-bearing CDK overlays. The native MPV video host is hidden off-screen while a modal is open so DOM dialogs can paint above it.
-- `embedded-mpv-ui-state.ts` — `EmbeddedMpvMenuState` (single-open popover state machine with `volumeOpen`, `audioOpen`, `subtitleOpen`, `speedOpen`, `aspectOpen` signals plus `anyOpen` computed; `toggle`/`open`/`close`/`closeAll` helpers) and `EmbeddedMpvFeedback` (transient overlay that auto-clears after a configurable delay; used for keypress feedback).
+- `embedded-mpv-controls.adapter.ts` — component-scoped `PlayerController`
+  adapter for frame-copy. Maps session/support/playback signals to shared
+  controls state and capabilities, delegates commands to
+  `EmbeddedMpvSessionController`, and projects series navigation and recording.
+- `embedded-mpv-controls-recording.ts` — frame-copy shared-controls recording
+  coordinator. Serializes toggles, correlates command settlement with fresh
+  same-owner snapshots, and cancels pending state on ownership or engine
+  changes.
+- `embedded-mpv-controls-recording-feedback.ts` — semantic raw/translated
+  recording feedback values and late translation resolution.
+- `embedded-mpv-controls-recording-timers.ts` — frame-copy recording feedback
+  signal plus acknowledgement and message-dismiss timer ownership. Keeps
+  transient timing lifecycle out of the recording correlation state machine.
+- `embedded-mpv-legacy-interactions.ts` — native-view-only pointer listeners,
+  click/double-click arbitration, popover closing, controls auto-hide, and
+  volume-close timers. An engine handoff cancels its pending legacy
+  interactions before frame-copy takes ownership.
+- `embedded-mpv-shortcuts.ts` — native-view-only `EmbeddedMpvShortcuts` class
+  with `attach(handlers)` / `detach()`. Owns the legacy document keydown
+  listener and routes through a callback interface; the component supplies
+  callbacks for Space/K, F, arrow keys, M, and Escape.
+- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes
+  `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/
+  `afterAllClosed` for dialog-shaped overlays and falls back to a
+  `MutationObserver` on the CDK overlay container for remaining
+  backdrop-bearing CDK overlays. Native-view uses it to move the platform host
+  off-screen; frame-copy uses it to gate shared playback shortcuts.
+- `embedded-mpv-ui-state.ts` — legacy native-view
+  `EmbeddedMpvMenuState` (single-open popover state machine) and
+  `EmbeddedMpvFeedback` (transient keypress feedback). They are not the
+  frame-copy shared-controls state.
 - `embedded-mpv-command-runner.ts` — transport/track/recording IPC delegation; contains addon-side throws; reconciles a returned snapshot only when the current canonical session id and returned snapshot id both match the captured command session id.
 - `embedded-mpv-session-factory.ts` — side-effect-free loading/error placeholder factories plus `waitForStartupPaint`.
 - `embedded-mpv-stalled-tracker.ts` — owns the 30-second loading timer and `stalled` signal.
 - `embedded-mpv-session-controller.ts` — component-scoped lifecycle coordinator. It exposes `support`, `session`, `sessionId`, `stalled`, and `retryToken`; subscribes to native updates; coordinates prepare/create/load/dispose, frame-copy attachment, and bounds sync; and delegates commands, placeholders, and stalled timing.
-- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and effects for session lifecycle, overlay/menu-driven bounds sync, session fan-out, playback-ended emission, and recording elapsed-time ticks.
+- `embedded-mpv-player.component.ts` — view shell and engine-specific controls
+  host. It mounts shared controls only for frame-copy and the legacy dock only
+  for native-view; holds view children, derived `computed` signals, DOM event
+  handling for fullscreen, and effects for session lifecycle, bounds sync,
+  session fan-out, playback-ended emission, engine handoff, and native-only
+  recording ticks.
 
 ### Bounds compositing strategy
 
-The native video host paints outside the normal DOM stacking model, so any DOM region it covers cannot reliably receive pointer events and any CSS `z-index` competition is unwinnable. The component compensates with a single `boundsProvider(host)` closure on the controller that returns one of three bound shapes, evaluated each time the active bounds-sync runs:
+The following cutout strategy applies only to the native-view engine. Its video
+host paints outside the normal DOM stacking model, so any DOM region it covers
+cannot reliably receive pointer events and any CSS `z-index` competition is
+unwinnable. The component compensates with a single `boundsProvider(host)`
+closure on the controller that returns one of three bound shapes, evaluated
+each time the active bounds-sync runs:
 
 - **Modal overlay open** (any MatDialog, including the command palette) → `HIDDEN_BOUNDS`. The MPV video host moves off-screen so the dialog has the full window.
 - **Control popover open** (any of the menu states above) → host bounds with `MENU_OPEN_BOTTOM_CUTOUT_PX` (300 px) removed from the bottom. The popover region becomes DOM-receiving while video keeps playing in the upper region.
 - **Idle** → full host bounds.
 
 The viewport DOM element also reserves `--embedded-mpv-controls-height` (64 px) at the bottom when controls are enabled, so the controls strip itself is always DOM and always reachable for hover-to-reveal even before the popover-cutout takes effect.
+
+For frame-copy, `boundsProvider` always returns the measured full host bounds:
+there is no `HIDDEN_BOUNDS`, popover cutout, or reserved dock height. Dialogs
+and controls layer naturally over the canvas, while bounds sync still updates
+the helper's render size.
+
+### Controls ownership by engine
+
+`EmbeddedMpvPlayerComponent` selects one control owner from
+`support.engine`:
+
+- **Frame-copy** mounts `app-player-controls` with the component-scoped
+  `EmbeddedMpvControlsAdapter`. The shared layer owns surface pointer/click/
+  double-click behavior, document playback shortcuts, cursor hiding, menus,
+  recording feedback, and DOM fullscreen. Setting `showControls` to false
+  detaches the shared surface and playback shortcuts. A modal/backdrop overlay
+  disables shared playback shortcuts.
+- **Native-view** mounts the legacy fixed dock. Its existing component
+  handlers, `EmbeddedMpvShortcuts`, menu state, cursor logic, recording
+  feedback, and recording elapsed timer stay authoritative. The shared
+  recording adapter is inert outside frame-copy.
+
+An engine handoff asks `EmbeddedMpvLegacyInteractions` to clear native
+controls-hide/click/volume timers and close native menus when frame-copy takes
+ownership. Legacy feedback is cleared on each engine transition and its overlay
+is never rendered for frame-copy, so a late native command completion cannot
+paint above shared controls. The handoff also changes the shared recording
+owner, which cancels pending operations, acknowledgement/message timers, and
+feedback. This prevents both systems from acting on the same session.
+
+Both engines keep the component's `fullscreenchange` listener because
+fullscreen changes require bounds sync. Frame-copy's shared
+`ControlsFullscreen` additionally synchronizes when its DOM surface attaches or
+changes, including when the root is already fullscreen. Native-view does not
+gain a transparent-window, native-fullscreen, or native-surface overlay path
+from this integration.
 
 ### Reactivity rules (signals and effects)
 

@@ -134,12 +134,23 @@ Key files:
   engine-neutral `PlayerController` contract, standalone
   `app-player-controls`, generic web-video adapter/helper, and default-off web
   rollout token.
-- No existing web or embedded-MPV engine consumes this layer yet. Current
-  player skins and embedded controls remain unchanged until the follow-up host
-  wiring lands.
-- Frame-copy video is DOM-overlay-friendly. The native-view embedded-MPV engine
-  must retain its compositor-safe controls dock.
-- Canonical contract: `docs/architecture/player-controls-contract.md`
+- Embedded MPV frame-copy is the first runtime consumer. Its component-scoped
+  `EmbeddedMpvControlsAdapter` maps the active session into
+  `app-player-controls`; the native-view engine retains the legacy
+  compositor-safe dock. The host must render exactly one controls system for
+  the reported engine.
+- Frame-copy shared controls own DOM surface interactions, shortcuts,
+  fullscreen, and recording feedback. `showControls=false` detaches the shared
+  surface, modal overlays gate playback shortcuts, fullscreen still triggers
+  bounds sync, and a playback/session transition key prevents engine or session
+  handoff from presenting stale recording feedback while timers and pending
+  commands are cancelled. Same-session IPC replies also yield to a broadcast
+  snapshot received while the command was pending, preventing a successful
+  recording acknowledgement from being rolled back by a stale reply.
+- HTML5/hls.js, Video.js, and ArtPlayer are not wired yet. Their existing skins
+  remain active and the web rollout token remains default-off.
+- Canonical docs: `docs/architecture/player-controls-contract.md` and
+  `docs/architecture/embedded-mpv-native.md`
 
 ## Repo Skills
 

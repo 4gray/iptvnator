@@ -7,27 +7,40 @@ Embedded MPV rendering and native-view bounds behavior remain documented in
 
 ## Current status
 
-PR #1148 lands a shared-controls foundation only:
+The shared-controls foundation from PR #1148 now has its first runtime
+consumer:
 
 - the `PlayerController` contract, default state, and capability presets;
 - the standalone `app-player-controls` presentation component and its
   transient-state collaborators;
 - a generic `WebVideoControlsAdapter` plus small host helpers;
-- a default-off web rollout token; and
+- a default-off web rollout token;
+- the component-scoped `EmbeddedMpvControlsAdapter`;
+- an `EmbeddedMpvPlayerComponent` host integration for the frame-copy engine;
+  and
 - focused unit/component tests.
 
-No existing player consumes this layer yet. Video.js, html5+hls.js, ArtPlayer,
-and embedded MPV keep their existing controls. The rollout token has no runtime
-consumer in #1148, so changing it alone does not switch any player UI.
-Engine-host wiring and an embedded-MPV adapter are follow-up work.
+When Embedded MPV reports `engine: 'frame-copy'`, the component mounts
+`app-player-controls` over the DOM canvas and routes state and commands through
+`EmbeddedMpvControlsAdapter`. When it reports the native-view engine, the
+component keeps the existing compositor-safe controls dock. Exactly one of
+those control systems is active at a time.
 
-This distinction is intentional: the contract can be reviewed and hardened
-without changing shipped playback behavior.
+Video.js, html5+hls.js, and ArtPlayer do not consume the shared layer yet. Their
+existing skins remain active, and `WEB_PLAYER_SHARED_CONTROLS_ENABLED` remains
+default-off with no runtime web host consuming it. Changing that token alone
+does not switch any web player UI.
+
+This rollout is intentionally engine-selective: frame-copy can use normal DOM
+layering, while the native platform view cannot. The integration also includes
+a recording coordinator that correlates asynchronous snapshots with the active
+playback/session owner, serializes toggles, and cancels pending ownership when
+the session, playback, engine, or component changes.
 
 ## Why this exists
 
-Each playback engine currently owns both media integration and controls UI.
-That makes behavior drift likely and makes a controls redesign depend on each
+Historically each playback engine owned both media integration and controls UI.
+That made behavior drift likely and made a controls redesign depend on each
 engine's implementation details.
 
 The shared contract separates:
@@ -61,13 +74,20 @@ contract does not make a native video surface behave like DOM content.
              ┌──────────────────┴──────────────────┐
              ▼                                     ▼
 ┌──────────────────────────────┐     ┌──────────────────────────────┐
-│ WebVideoControlsAdapter      │     │ Embedded-MPV adapter         │
-│ Landed, generic, not wired   │     │ FOLLOW-UP: not implemented   │
-└──────────────────────────────┘     └──────────────────────────────┘
+│ WebVideoControlsAdapter      │     │ EmbeddedMpvControlsAdapter   │
+│ Landed, generic, not wired   │     │ Landed, component-scoped     │
+└──────────────────────────────┘     └──────────────┬───────────────┘
+                                                   │
+                                                   ▼
+                                    ┌──────────────────────────────┐
+                                    │ EmbeddedMpvPlayerComponent   │
+                                    │ frame-copy: shared controls  │
+                                    │ native-view: legacy dock     │
+                                    └──────────────────────────────┘
 ```
 
-The diagram shows the reusable boundary, not current runtime ownership. There
-is no `app-player-controls` host in an existing engine component in #1148.
+The embedded host selects controls from the reported engine before rendering
+them. It never mounts the shared overlay and legacy dock together.
 
 ## The contract
 
@@ -107,6 +127,10 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 
 Adapters translate engine types into this model. The controls component must not
 import Video.js, hls.js, ArtPlayer, libmpv, Electron IPC, or native-view types.
+Recording state may expose a `transitionKey` that identifies its current
+playback/session owner. When that key changes, shared feedback adopts the new
+active baseline without flashing a start or saved transition from the previous
+owner.
 
 ### Commands
 
@@ -127,12 +151,17 @@ playlist/portal feature decides which item to play.
 Fullscreen is also outside the engine command contract. The landed component
 uses `ControlsFullscreen`, which operates on the supplied DOM player surface
 through `requestFullscreen()` / `document.exitFullscreen()`. There is no
-fullscreen delegate or native-fullscreen IPC path in #1148.
+fullscreen delegate or native-fullscreen IPC path. `ControlsFullscreen.sync()`
+reconciles state when a surface attaches or changes, including when that
+surface is already fullscreen. The Embedded MPV host's existing
+`fullscreenchange` listener still triggers bounds sync so frame-copy render
+size follows the fullscreen DOM surface.
 
 ## Shared default controls
 
-`PlayerControlsComponent` is a standalone presentation component designed for a
-future engine host to mount over or beside its playback surface.
+`PlayerControlsComponent` is a standalone presentation component. The
+frame-copy Embedded MPV host mounts it over its DOM canvas; future web hosts can
+mount the same component over their playback surfaces.
 
 It owns only transient presentation behavior:
 
@@ -184,6 +213,16 @@ Setting `showControls` to false also detaches playback-surface pointer, click,
 and double-click handling. A hidden shared-controls instance therefore cannot
 reveal, pause, or fullscreen the player underneath another UI layer.
 
+The frame-copy Embedded MPV host also disables shared playback shortcuts while
+a modal/backdrop overlay is active, so transport, seek, volume, and fullscreen
+actions cannot leak through it. Escape keeps the shared component's generic
+popover-dismissal behavior.
+
+Frame-copy recording transitions use the adapter's playback/session identity as
+their `transitionKey`. Session disposal, retry, channel changes, and engine
+handoff therefore clear stale recording ownership without showing a false
+`RECORDING_SAVED` confirmation.
+
 ### Timeline scrubbing
 
 Timeline input is previewed locally while the user drags. The slider value,
@@ -234,14 +273,14 @@ with insufficient data maps to `loading`.
 
 `web-video-controls.host.ts` contains small attachment/projection helpers for a
 future host integration. No Video.js, html5+hls.js, or ArtPlayer component calls
-those helpers in #1148.
+those helpers.
 
 The rollout symbols are:
 
 | Symbol                               |       Default | Current effect                                                                      |
 | ------------------------------------ | ------------: | ----------------------------------------------------------------------------------- |
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Documents the intended rollout default.                                             |
-| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view of the default. No runtime player consumes it yet. |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Documents the intended web rollout default.                                         |
+| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view of the default. No runtime web player consumes it. |
 
 A follow-up web integration must explicitly consume the token, attach the
 adapter to the active video element, mount `app-player-controls`, and only then
@@ -249,17 +288,33 @@ disable the engine's existing skin.
 
 ## Embedded MPV rendering constraints
 
-The shared contract does not replace the existing embedded-MPV renderer or
-controls in #1148. Any follow-up embedded adapter must preserve the two current
-rendering paths.
+The shared contract does not replace either Embedded MPV renderer. The host
+uses the renderer's reported engine to choose the compatible controls UI.
 
 ### Frame-copy engine
 
 The experimental frame-copy engine uploads helper-produced frames to
 `<canvas data-embedded-mpv-frame>`. The canvas is ordinary DOM, so controls,
-dialogs, and other DOM layers can stack above it normally. This makes the
-frame-copy path overlay-friendly, although the current embedded player still
-uses its existing controls until follow-up shared-controls wiring lands.
+dialogs, and other DOM layers can stack above it normally. This path is the
+first runtime consumer of `app-player-controls`, backed by a component-scoped
+`EmbeddedMpvControlsAdapter`.
+
+The shared controls receive the whole player root as their DOM surface. Turning
+`showControls` off detaches surface interaction and playback-shortcut
+ownership; Escape remains available for generic popover dismissal.
+Backdrop-bearing overlays disable playback shortcuts. Fullscreen uses the DOM
+Fullscreen API on that root, while the Embedded MPV component continues bounds
+sync so the helper renders at the current viewport size.
+
+Recording snapshots arrive independently from command promise settlement. The
+adapter therefore treats snapshots as observations rather than acknowledgments
+by themselves: it accepts only fresh same-session transitions, permits only one
+pending toggle, waits for command settlement and the expected state, preserves
+addon error text, and cancels pending state/feedback when playback, session, or
+engine ownership changes. Command replies are reconciled by snapshot freshness:
+a same-session broadcast that arrived while IPC was pending wins over an older
+or same-timestamp reply, so a latched recording acknowledgement cannot be rolled
+back to the command's stale baseline.
 
 ### Native-view engine
 
@@ -269,29 +324,26 @@ the native surface with `HIDDEN_BOUNDS`, and control popovers reserve a bottom
 cutout so their DOM region remains interactive.
 
 The transparent BrowserWindow / `NSWindowBelow` tunnel-and-backdrop approach is
-not the shipped architecture. #1148 does not add transparency changes, backdrop
-holes, native fullscreen IPC, native-view attachment APIs, or bounds-tick
-machinery.
+not the shipped architecture. The shared-controls integration does not add
+transparency changes, backdrop holes, native fullscreen IPC, native-view
+attachment APIs, or bounds-tick machinery.
 
 See [embedded-mpv-native.md](./embedded-mpv-native.md) for the authoritative
 renderer, bounds, and platform details.
 
 ## Follow-up integrations
 
-The following are design seams, not shipped #1148 behavior:
+The remaining design seams are:
 
 1. **Web hosts** — mount the component, consume the rollout token, attach
    `WebVideoControlsAdapter`, and remove an engine skin only when the shared
    controls are active.
-2. **Embedded-MPV adapter** — implement `PlayerController` over
-   `EmbeddedMpvSessionController` without changing session ownership or native
-   rendering behavior.
-3. **Embedded-MPV layout** — use normal DOM layering for frame-copy; retain a
-   compositor-safe dock for the native-view engine unless that engine's
-   compositing architecture changes independently.
-4. **Background playback** — introduce a persistent player/session host above
-   route-scoped views. The contract is lifecycle-agnostic, but #1148 does not
-   add that host or change current teardown behavior.
+2. **Native-view UI** — retain the compositor-safe dock unless the native
+   engine's compositing architecture changes independently. A native-view
+   migration is not part of the frame-copy rollout.
+3. **Background playback** — introduce a persistent player/session host above
+   route-scoped views. The contract is lifecycle-agnostic; this integration
+   does not add that host or change current teardown behavior.
 
 ## File map
 
@@ -323,9 +375,18 @@ libs/ui/playback/src/lib/player-controls/
 Focused specs live beside these files. The subtree is exported from
 `libs/ui/playback/src/index.ts`.
 
-Not landed in #1148:
+The Embedded MPV integration lives in:
 
-- an embedded-MPV `PlayerController` adapter;
-- a shared-controls host inside an existing web or embedded player;
-- removal/replacement of any current engine skin; and
-- persistent/background player ownership.
+```text
+libs/ui/playback/src/lib/embedded-mpv-player/
+├── embedded-mpv-controls.adapter.ts
+├── embedded-mpv-controls-recording.ts
+├── embedded-mpv-controls-recording-feedback.ts
+├── embedded-mpv-player.component.ts
+├── embedded-mpv-player.component.html
+└── embedded-mpv-session-controller.ts
+```
+
+The adapter and recording helpers are component-scoped through
+`EmbeddedMpvPlayerComponent`. Web host wiring, removal of web engine skins, and
+persistent/background player ownership have not landed.

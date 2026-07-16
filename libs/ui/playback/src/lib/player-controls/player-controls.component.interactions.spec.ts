@@ -357,6 +357,18 @@ describe('PlayerControlsComponent interactions', () => {
             expect(component.controlsAreVisible()).toBe(true);
         });
 
+        it('does not toggle playback from the surface while stalled', () => {
+            const surface = document.createElement('div');
+            fixture.componentRef.setInput('playerSurface', surface);
+            setState({ status: 'playing', stalled: true });
+            fixture.detectChanges();
+
+            surface.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+            jest.advanceTimersByTime(250);
+
+            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+        });
+
         it('re-reveals hidden controls on reveal()', () => {
             jest.advanceTimersByTime(10000);
             fixture.detectChanges();

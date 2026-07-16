@@ -10,10 +10,7 @@ export class ControlsFullscreen {
     readonly isFullscreen = signal(false);
 
     private readonly onFullscreenChange = () => {
-        const target = this.target();
-        this.isFullscreen.set(
-            Boolean(target && document.fullscreenElement === target)
-        );
+        this.sync();
         this.onChange?.();
     };
 
@@ -27,6 +24,17 @@ export class ControlsFullscreen {
                 this.onFullscreenChange
             );
         }
+    }
+
+    sync(): void {
+        const target = this.target();
+        this.isFullscreen.set(
+            Boolean(
+                target &&
+                typeof document !== 'undefined' &&
+                document.fullscreenElement === target
+            )
+        );
     }
 
     canFullscreen(): boolean {

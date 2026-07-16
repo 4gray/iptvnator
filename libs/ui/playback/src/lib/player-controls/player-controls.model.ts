@@ -38,6 +38,8 @@ export interface PlayerRecordingState {
     elapsedSeconds: number;
     /** Persistent status text (e.g. "Saved to …" / error). null when none. */
     message: string | null;
+    /** Changes when recording ownership moves to another playback/session. */
+    transitionKey?: string | null;
 }
 
 export interface PlayerControlsState {

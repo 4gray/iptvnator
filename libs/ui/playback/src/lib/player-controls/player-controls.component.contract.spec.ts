@@ -269,4 +269,48 @@ describe('PlayerControlsComponent capability contract', () => {
                 ?.textContent
         ).toContain('REC 0:12');
     });
+
+    it('does not flash a saved recording across owner handoff', () => {
+        const fake = createFakeController();
+        const fixture = createControls(fake);
+        fake.capabilities.set({
+            ...DEFAULT_PLAYER_CAPABILITIES,
+            recording: true,
+        });
+        fake.state.set({
+            ...createEmptyControlsState(),
+            recording: {
+                active: false,
+                elapsedSeconds: 0,
+                message: null,
+                transitionKey: 'session-1',
+            },
+        });
+        fixture.detectChanges();
+        fake.state.update((state) => ({
+            ...state,
+            recording: {
+                ...state.recording,
+                active: true,
+                elapsedSeconds: 12,
+            },
+        }));
+        fixture.detectChanges();
+        expect(fixture.componentInstance.feedback.current()?.label).toBe(
+            'EMBEDDED_MPV.PLAYER.RECORDING'
+        );
+
+        fake.state.set({
+            ...createEmptyControlsState(),
+            recording: {
+                active: false,
+                elapsedSeconds: 0,
+                message: null,
+                transitionKey: 'session-2',
+            },
+        });
+        fixture.detectChanges();
+
+        expect(fixture.componentInstance.feedback.current()).toBeNull();
+    });
 });

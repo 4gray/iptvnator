@@ -17,8 +17,9 @@ describe('ControlsFullscreen', () => {
         target = document.createElement('div');
         requestFullscreen = jest.fn().mockResolvedValue(undefined);
         exitFullscreen = jest.fn().mockResolvedValue(undefined);
-        (target as HTMLElement & { requestFullscreen: jest.Mock }).requestFullscreen =
-            requestFullscreen;
+        (
+            target as HTMLElement & { requestFullscreen: jest.Mock }
+        ).requestFullscreen = requestFullscreen;
         originalExit = document.exitFullscreen;
         document.exitFullscreen = exitFullscreen;
         setFullscreenElement(null);
@@ -68,6 +69,18 @@ describe('ControlsFullscreen', () => {
         setFullscreenElement(null);
         document.dispatchEvent(new Event('fullscreenchange'));
         expect(fs.isFullscreen()).toBe(false);
+        fs.dispose();
+    });
+
+    it('synchronizes an existing fullscreen target without invoking onChange', () => {
+        const onChange = jest.fn();
+        const fs = new ControlsFullscreen(() => target, onChange);
+        setFullscreenElement(target);
+
+        fs.sync();
+
+        expect(fs.isFullscreen()).toBe(true);
+        expect(onChange).not.toHaveBeenCalled();
         fs.dispose();
     });
 

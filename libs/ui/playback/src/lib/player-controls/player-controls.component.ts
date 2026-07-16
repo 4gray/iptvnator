@@ -151,7 +151,9 @@ export class PlayerControlsComponent implements OnDestroy {
             toggleMute: () => this.toggleMute(),
         });
         effect((onCleanup) => {
-            const surface = this.showControls() ? this.playerSurface() : null;
+            const playerSurface = this.playerSurface();
+            const surface = this.showControls() ? playerSurface : null;
+            this.fullscreen.sync();
             onCleanup(this.surface.attachSurface(surface));
         });
         effect(() => {
@@ -203,15 +205,13 @@ export class PlayerControlsComponent implements OnDestroy {
                     state
                 );
                 this.visibility.scheduleHide();
-                this.feedback.flashRecordingTransition(state.recording.active, {
+                this.feedback.flashRecordingState(state.recording, {
                     active: this.translate.instant(
                         'EMBEDDED_MPV.PLAYER.RECORDING'
                     ),
-                    inactive:
-                        state.recording.message ||
-                        this.translate.instant(
-                            'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
-                        ),
+                    inactive: this.translate.instant(
+                        'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
+                    ),
                 });
             });
         });
@@ -279,7 +279,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.volume.set(Number((event.target as HTMLInputElement).value));
         this.reveal({ scheduleHide: false });
     }
-
     onVolumeWheel(event: WheelEvent): void {
         event.preventDefault();
         this.adjustVolume(event.deltaY > 0 ? -0.05 : 0.05);
