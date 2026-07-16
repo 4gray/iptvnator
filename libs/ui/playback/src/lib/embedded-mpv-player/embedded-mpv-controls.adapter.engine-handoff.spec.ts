@@ -155,4 +155,45 @@ describe('EmbeddedMpvControlsAdapter engine handoff', () => {
 
         expect(controller.startRecording).toHaveBeenCalledTimes(2);
     });
+
+    it('changes the recording transition key across session handoff', () => {
+        const controller = createController();
+        TestBed.configureTestingModule({
+            imports: [TranslateModule.forRoot()],
+            providers: [
+                EmbeddedMpvControlsAdapter,
+                {
+                    provide: EmbeddedMpvSessionController,
+                    useValue: controller,
+                },
+            ],
+        });
+        const adapter = TestBed.inject(EmbeddedMpvControlsAdapter);
+        adapter.configure({
+            playback: signal(PLAYBACK),
+            seriesNavigation: signal(null),
+            recordingFolder: signal('/recordings'),
+        });
+        controller.session.set(
+            session({
+                recording: {
+                    active: true,
+                    startedAt: '2026-07-16T10:00:00.000Z',
+                },
+            })
+        );
+        TestBed.tick();
+        const activeKey = adapter.state().recording.transitionKey;
+
+        controller.session.set(null);
+        TestBed.tick();
+        expect(adapter.state().recording).toMatchObject({
+            active: false,
+            transitionKey: null,
+        });
+
+        controller.session.set(session({ id: 'session-2' }));
+        TestBed.tick();
+        expect(adapter.state().recording.transitionKey).not.toBe(activeKey);
+    });
 });

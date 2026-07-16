@@ -205,15 +205,13 @@ export class PlayerControlsComponent implements OnDestroy {
                     state
                 );
                 this.visibility.scheduleHide();
-                this.feedback.flashRecordingTransition(state.recording.active, {
+                this.feedback.flashRecordingState(state.recording, {
                     active: this.translate.instant(
                         'EMBEDDED_MPV.PLAYER.RECORDING'
                     ),
-                    inactive:
-                        state.recording.message ||
-                        this.translate.instant(
-                            'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
-                        ),
+                    inactive: this.translate.instant(
+                        'EMBEDDED_MPV.PLAYER.RECORDING_SAVED'
+                    ),
                 });
             });
         });

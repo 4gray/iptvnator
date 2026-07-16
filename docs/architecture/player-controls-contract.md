@@ -127,6 +127,10 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 
 Adapters translate engine types into this model. The controls component must not
 import Video.js, hls.js, ArtPlayer, libmpv, Electron IPC, or native-view types.
+Recording state may expose a `transitionKey` that identifies its current
+playback/session owner. When that key changes, shared feedback adopts the new
+active baseline without flashing a start or saved transition from the previous
+owner.
 
 ### Commands
 
@@ -213,6 +217,11 @@ The frame-copy Embedded MPV host also disables shared playback shortcuts while
 a modal/backdrop overlay is active, so transport, seek, volume, and fullscreen
 actions cannot leak through it. Escape keeps the shared component's generic
 popover-dismissal behavior.
+
+Frame-copy recording transitions use the adapter's playback/session identity as
+their `transitionKey`. Session disposal, retry, channel changes, and engine
+handoff therefore clear stale recording ownership without showing a false
+`RECORDING_SAVED` confirmation.
 
 ### Timeline scrubbing
 

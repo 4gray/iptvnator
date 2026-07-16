@@ -87,6 +87,13 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
     private readonly activeSessionId = computed(
         () => this.controller.session()?.id ?? null
     );
+    private readonly recordingTransitionKey = computed(() => {
+        const playbackIdentity = this.recordingPlaybackIdentity();
+        const sessionId = this.activeSessionId();
+        return playbackIdentity === null || sessionId === null
+            ? null
+            : JSON.stringify([playbackIdentity, sessionId]);
+    });
     private readonly recordingTick = signal(Date.now());
 
     readonly capabilities = computed<PlayerControlsCapabilities>(() => {
@@ -181,6 +188,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                     this.recordingControls.feedback(),
                     this.translate
                 ),
+                transitionKey: this.recordingTransitionKey(),
             },
             canPreviousEpisode:
                 hasSeriesNavigation && seriesNavigation?.canPrevious === true,

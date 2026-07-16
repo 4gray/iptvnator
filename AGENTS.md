@@ -142,8 +142,9 @@ Key files:
 - Frame-copy shared controls own DOM surface interactions, shortcuts,
   fullscreen, and recording feedback. `showControls=false` detaches the shared
   surface, modal overlays gate playback shortcuts, fullscreen still triggers
-  bounds sync, and engine/session handoff cancels stale recording/timer
-  ownership.
+  bounds sync, and a playback/session transition key prevents engine or session
+  handoff from presenting stale recording feedback while timers and pending
+  commands are cancelled.
 - HTML5/hls.js, Video.js, and ArtPlayer are not wired yet. Their existing skins
   remain active and the web rollout token remains default-off.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and

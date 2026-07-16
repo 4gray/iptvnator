@@ -56,4 +56,20 @@ describe('ControlsFeedback', () => {
         feedback.flashRecordingTransition(false, labels);
         expect(feedback.current()?.label).toBe('Aufnahme gespeichert');
     });
+
+    it('clears only recording-owned feedback across owner handoff', () => {
+        const feedback = new ControlsFeedback();
+        const labels = {
+            active: 'Recording',
+            inactive: 'Recording saved',
+        };
+
+        feedback.flashRecordingTransition(true, labels, 'session-1');
+        feedback.flashRecordingTransition(false, labels, 'session-2');
+        expect(feedback.current()).toBeNull();
+
+        feedback.flash('volume_up', '60%');
+        feedback.flashRecordingTransition(false, labels, 'session-3');
+        expect(feedback.current()?.label).toBe('60%');
+    });
 });
