@@ -142,9 +142,7 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
             surface.appendChild(button);
 
             button.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-            button.dispatchEvent(
-                new MouseEvent('dblclick', { bubbles: true })
-            );
+            button.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
             jest.advanceTimersByTime(1000);
 
             expect(fake.commands.togglePlay).not.toHaveBeenCalled();
@@ -165,6 +163,24 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
 
         it('an outside pointerdown closes open menus', () => {
             component.toggleMenu('audio');
+            expect(component.anyMenuOpen()).toBe(true);
+
+            document.body.dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
+            expect(component.anyMenuOpen()).toBe(false);
+        });
+
+        it('keeps menus open for pointerdown inside the sibling controls root', () => {
+            const controlsRoot = fixture.nativeElement as HTMLElement;
+            const popoverChild = document.createElement('button');
+            controlsRoot.appendChild(popoverChild);
+            document.body.appendChild(controlsRoot);
+            component.toggleMenu('audio');
+
+            popoverChild.dispatchEvent(
+                new MouseEvent('pointerdown', { bubbles: true })
+            );
             expect(component.anyMenuOpen()).toBe(true);
 
             document.body.dispatchEvent(

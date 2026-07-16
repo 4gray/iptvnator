@@ -1,9 +1,11 @@
 import {
     ChangeDetectionStrategy,
     Component,
+    ElementRef,
     OnDestroy,
     computed,
     effect,
+    inject,
     input,
     output,
     signal,
@@ -25,13 +27,7 @@ import { ControlsVolume } from './controls-volume';
 import { formatTime, speedLabel } from './controls-format.utils';
 import type { PlayerController } from './player-controls.model';
 
-/**
- * Default, engine-agnostic player controls designed to bind purely to a
- * {@link PlayerController} (capabilities + reactive state + commands) and owns
- * only transient presentation state (menus, feedback, auto-hide, fullscreen,
- * keyboard shortcuts). No existing engine mounts this component in #1148;
- * engine hosts are follow-up integrations.
- */
+/** Engine-agnostic controls; engine integrations follow separately. */
 @Component({
     selector: 'app-player-controls',
     templateUrl: './player-controls.component.html',
@@ -41,6 +37,7 @@ import type { PlayerController } from './player-controls.model';
     host: { class: 'player-controls-host' },
 })
 export class PlayerControlsComponent implements OnDestroy {
+    private readonly host = inject(ElementRef<HTMLElement>).nativeElement;
     readonly controller = input.required<PlayerController>();
     readonly playerSurface = input<HTMLElement | null>(null);
     readonly showControls = input(true);
@@ -69,13 +66,16 @@ export class PlayerControlsComponent implements OnDestroy {
         openPopover: () => this.menus.open('volume'),
         closePopover: () => this.menus.close('volume'),
     });
-    private readonly surface = new ControlsSurface({
-        reveal: () => this.reveal(),
-        toggleFullscreen: () => void this.toggleFullscreen(),
-        closePopovers: () => this.closePopovers(),
-        togglePlay: () => this.togglePlay(),
-        isMenuOpen: () => this.menus.anyOpen(),
-    });
+    private readonly surface = new ControlsSurface(
+        {
+            reveal: () => this.reveal(),
+            toggleFullscreen: () => void this.toggleFullscreen(),
+            closePopovers: () => this.closePopovers(),
+            togglePlay: () => this.togglePlay(),
+            isMenuOpen: () => this.menus.anyOpen(),
+        },
+        this.host
+    );
     /** Exposed for template menu-item bindings (track/speed/aspect select). */
     readonly menuSelection = new ControlsMenuSelection({
         commands: () => this.controller().commands,

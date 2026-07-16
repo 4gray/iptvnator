@@ -27,8 +27,8 @@ const INTERACTIVE_SELECTOR = 'button, input, [role="slider"]';
  * Owns the surface + document interaction wiring for the controls: reveal on
  * pointer activity, click-to-pause on the viewport, fullscreen on double-click,
  * and popover dismissal on an outside pointer-down. The component binds
- * {@link attachSurface} from an effect (so it re-binds when the surface changes)
- * and provides the current surface to the document handler via {@link setSurface}.
+ * {@link attachSurface} from an effect and can provide a separate inside root
+ * for controls rendered as a sibling of the playback surface.
  */
 export class ControlsSurface {
     private surface: HTMLElement | null = null;
@@ -36,13 +36,22 @@ export class ControlsSurface {
     private clickPauseTimer: ReturnType<typeof setTimeout> | null = null;
 
     private readonly onDocumentPointerDown = (event: PointerEvent) => {
-        if (!this.surface || event.composedPath().includes(this.surface)) {
+        const path = event.composedPath();
+        if (
+            !this.surface ||
+            path.includes(this.surface) ||
+            (this.insideRoot !== null && path.includes(this.insideRoot))
+        ) {
             return;
         }
         this.handlers.closePopovers();
     };
 
-    constructor(private readonly handlers: ControlsSurfaceHandlers) {
+    constructor(
+        private readonly handlers: ControlsSurfaceHandlers,
+        /** Additional root whose descendants count as inside for dismissal. */
+        private readonly insideRoot: HTMLElement | null = null
+    ) {
         if (typeof document !== 'undefined') {
             document.addEventListener(
                 'pointerdown',
