@@ -640,6 +640,35 @@ describe('embedded-mpv-frame-copy-runtime', () => {
         expect(fileSystem?.readFileSync).toHaveBeenCalled();
     });
 
+    it('invalidates a cached result when helper or manifest bytes change under identical stats', () => {
+        const fixture = createFixture(rootDir);
+        const fixedStats = new Map([
+            [fixture.helperPath, lstatSync(fixture.helperPath)],
+            [fixture.manifestPath, lstatSync(fixture.manifestPath)],
+        ]);
+        fileSystem = {
+            ...fileSystem,
+            lstatSync: jest.fn(
+                (filePath: string) =>
+                    fixedStats.get(filePath) ?? lstatSync(filePath)
+            ),
+        };
+        const probeRuntime = createProbe();
+
+        expect(probeRuntime(fixture.helperPath).usable).toBe(true);
+
+        const changedHelper = readFileSync(fixture.helperPath);
+        changedHelper[0] ^= 0xff;
+        writeFileSync(fixture.helperPath, changedHelper);
+        expect(probeRuntime(fixture.helperPath).usable).toBe(true);
+
+        fixture.manifest.generatedAt = '2026-07-18T00:00:00.000Z';
+        writeManifest(fixture.manifestPath, fixture.manifest);
+        expect(probeRuntime(fixture.helperPath).usable).toBe(true);
+
+        expect(spawnRuntimeProbe).toHaveBeenCalledTimes(3);
+    });
+
     it.each(['portable', 'flatpak'] as const)(
         'validates the exact %s bundled closure and uses only its private library directory',
         (profile) => {

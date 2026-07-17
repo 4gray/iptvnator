@@ -438,7 +438,11 @@ function isMissingFileError(error: unknown): boolean {
     );
 }
 
-function fileIdentity(filePath: string, stat: nodeFileSystem.Stats): string {
+function fileIdentity(
+    filePath: string,
+    stat: nodeFileSystem.Stats,
+    contents: Buffer
+): string {
     return [
         path.resolve(filePath),
         stat.dev,
@@ -447,6 +451,7 @@ function fileIdentity(filePath: string, stat: nodeFileSystem.Stats): string {
         stat.size,
         stat.mtimeMs,
         stat.ctimeMs,
+        createHash('sha256').update(contents).digest('hex'),
     ].join(':');
 }
 
@@ -1546,10 +1551,25 @@ export function createEmbeddedMpvFrameCopyRuntimeProbe(
             );
         }
 
+        let helperContents: Buffer;
+        let manifestContents: Buffer;
+        try {
+            helperContents = dependencies.fileSystem.readFileSync(helperPath);
+        } catch {
+            return failure('runtime-artifact-invalid');
+        }
+        try {
+            manifestContents =
+                dependencies.fileSystem.readFileSync(manifestPath);
+        } catch {
+            return failure('runtime-manifest-invalid');
+        }
+
         const cacheKey = `${manifestContract}\0${fileIdentity(
             helperPath,
-            helperStat
-        )}\0${fileIdentity(manifestPath, manifestStat)}`;
+            helperStat,
+            helperContents
+        )}\0${fileIdentity(manifestPath, manifestStat, manifestContents)}`;
         const cached = resultCache.get(cacheKey);
         if (cached) {
             return cached;
