@@ -490,7 +490,7 @@ export async function importM3uPlaylistFromNativeDialog(
     const fileInput = dialog.locator('input[type="file"][name="playlist"]');
 
     await fileInput.evaluate((element, selectedFilePath) => {
-        (element as HTMLInputElement).dataset.filePathOverride =
+        (element as HTMLInputElement).dataset['filePathOverride'] =
             selectedFilePath;
     }, filePath);
     await fileInput.setInputFiles(filePath);
