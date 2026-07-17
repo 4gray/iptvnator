@@ -242,6 +242,14 @@ export function getPackagedLinuxNativeDir(executablePath: string): string {
     );
 }
 
+export function resolvePackagedElectronLaunchArgs(
+    getuid: (() => number) | undefined
+): string[] {
+    return typeof getuid === 'function' && getuid() === 0
+        ? ['--no-sandbox']
+        : [];
+}
+
 /**
  * Launch a real packaged Linux executable. Unlike the regular source E2E
  * launcher, this deliberately keeps Chromium's GPU path enabled: the
@@ -273,17 +281,9 @@ export async function launchPackagedElectronApp(
         );
     }
 
-    const args: string[] = [];
-    if (
-        process.env['CI'] ||
-        (typeof process.getuid === 'function' && process.getuid() === 0)
-    ) {
-        args.push('--no-sandbox');
-    }
-
     const electronApp = await electron.launch({
         executablePath: resolvedExecutablePath,
-        args,
+        args: resolvePackagedElectronLaunchArgs(process.getuid),
         env: {
             ...process.env,
             IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS:

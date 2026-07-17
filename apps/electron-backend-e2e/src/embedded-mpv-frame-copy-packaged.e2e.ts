@@ -1,6 +1,5 @@
 import {
     expect,
-    getPackagedLinuxNativeDir,
     launchPackagedElectronApp,
     resolvePackagedLinuxExecutable,
     test,
@@ -11,13 +10,21 @@ import {
     cleanupPackagedFrameCopySmoke,
     closeAndWaitForExit,
     createLocalMediaServer,
-    createRuntimeManifestGuard,
     getEmbeddedMpvSupport,
     getLatestSession,
+    installEmbeddedMpvSessionCapture,
     installFrameCanvasAndSessionCapture,
-    readPackagedRuntimeIdentity,
+    isMeaningfulNativePlaybackSnapshot,
     renderedFrameSignal,
+    type LocalMediaServer,
 } from './embedded-mpv-frame-copy-packaged-fixtures';
+import {
+    createDisposablePackagedLinuxApp,
+    createRuntimeManifestGuard,
+    readPackagedRuntimeIdentity,
+    type DisposablePackagedLinuxApp,
+    type RuntimeManifestGuard,
+} from './embedded-mpv-frame-copy-packaged-filesystem';
 
 const PACKAGED_FRAME_COPY_REQUIRED_ENV =
     'IPTVNATOR_E2E_REQUIRE_PACKAGED_FRAME_COPY';
@@ -58,16 +65,24 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             `The dedicated packaged-runtime job must provide a real unpacked x64 executable with IPTVNATOR_E2E_PACKAGED_EXECUTABLE when ${PACKAGED_FRAME_COPY_REQUIRED_ENV}=1.`
         ).toBeTruthy();
 
-        const executablePath = packagedExecutable as string;
+        const sourceExecutablePath = packagedExecutable as string;
         assertNativeFallbackPrerequisites();
-        const nativeDir = getPackagedLinuxNativeDir(executablePath);
-        const runtimeIdentity = readPackagedRuntimeIdentity(nativeDir);
-        const runtimeManifest = createRuntimeManifestGuard(nativeDir);
-        const media = await createLocalMediaServer();
+        let packageClone: DisposablePackagedLinuxApp | undefined;
+        let runtimeManifest: RuntimeManifestGuard | undefined;
+        let media: LocalMediaServer | undefined;
         let frameCopyApp: LaunchedElectronApp | undefined;
         let fallbackApp: LaunchedElectronApp | undefined;
 
         try {
+            packageClone =
+                createDisposablePackagedLinuxApp(sourceExecutablePath);
+            const executablePath = packageClone.executablePath;
+            const nativeDir = packageClone.nativeDir;
+            const runtimeIdentity = readPackagedRuntimeIdentity(nativeDir);
+            runtimeManifest = createRuntimeManifestGuard(nativeDir);
+            const mediaServer = await createLocalMediaServer();
+            media = mediaServer;
+
             expect(runtimeIdentity).toMatchObject({
                 arch: 'x64',
                 platform: 'linux',
@@ -116,7 +131,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                         isLive: false,
                     });
                 },
-                { sessionId: created.id, streamUrl: media.url }
+                { sessionId: created.id, streamUrl: mediaServer.url }
             );
 
             await expect
@@ -128,7 +143,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 )
                 .toMatchObject({
                     status: 'paused',
-                    streamUrl: media.url,
+                    streamUrl: mediaServer.url,
                     videoHeight: 36,
                     videoWidth: 64,
                 });
@@ -229,6 +244,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 supported: true,
             });
 
+            await installEmbeddedMpvSessionCapture(launchedFallbackApp);
             const nativeSession = await launchedFallbackApp.mainWindow.evaluate(
                 async () => {
                     return window.electron.createEmbeddedMpvSession(
@@ -240,23 +256,46 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             );
             expect(nativeSession.id).toMatch(/^embedded-mpv-/);
             await launchedFallbackApp.mainWindow.evaluate(
-                (sessionId) =>
-                    window.electron.disposeEmbeddedMpvSession(sessionId),
-                nativeSession.id
+                async ({ sessionId, streamUrl }) => {
+                    await window.electron.loadEmbeddedMpvPlayback(sessionId, {
+                        streamUrl,
+                        title: 'Native-view generated Y4M fixture',
+                        isLive: false,
+                    });
+                },
+                { sessionId: nativeSession.id, streamUrl: mediaServer.url }
             );
             await expect
-                .poll(() => launchedFallbackApp.mainWindow.title())
-                .toContain('IPTVnator');
+                .poll(
+                    async () =>
+                        isMeaningfulNativePlaybackSnapshot(
+                            await getLatestSession(
+                                launchedFallbackApp,
+                                nativeSession.id
+                            ),
+                            mediaServer.url
+                        ),
+                    { timeout: 15000 }
+                )
+                .toBe(true);
             expect(
                 launchedFallbackApp.electronApp.process().exitCode
             ).toBeNull();
             expect(
                 launchedFallbackApp.electronApp.process().signalCode
             ).toBeNull();
+            await launchedFallbackApp.mainWindow.evaluate(async (sessionId) => {
+                await window.electron.disposeEmbeddedMpvSession(sessionId);
+                window.__packagedEmbeddedMpvUnsubscribe?.();
+            }, nativeSession.id);
+            await expect
+                .poll(() => launchedFallbackApp.mainWindow.title())
+                .toContain('IPTVnator');
         } finally {
             await cleanupPackagedFrameCopySmoke({
                 apps: [frameCopyApp, fallbackApp],
                 media,
+                packageClone,
                 runtimeManifest,
             });
         }

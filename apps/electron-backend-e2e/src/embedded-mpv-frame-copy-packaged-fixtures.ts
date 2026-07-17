@@ -4,14 +4,16 @@ import type {
 } from '@iptvnator/shared/interfaces';
 import { spawnSync } from 'child_process';
 import { createServer, type Server } from 'http';
-import { existsSync, readFileSync, renameSync, statSync } from 'fs';
-import { join } from 'path';
 import sharp = require('sharp');
 import {
     closeElectronApp,
     expect,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
+import type {
+    DisposablePackagedLinuxApp,
+    RuntimeManifestGuard,
+} from './embedded-mpv-frame-copy-packaged-filesystem';
 
 declare global {
     interface Window {
@@ -23,18 +25,6 @@ declare global {
 export type LocalMediaServer = {
     close: () => Promise<void>;
     url: string;
-};
-
-export type RuntimeManifestGuard = {
-    hide: () => void;
-    restore: () => void;
-};
-
-export type PackagedRuntimeIdentity = {
-    arch: string;
-    platform: string;
-    profile: string;
-    runtimeMode: string;
 };
 
 function createTwoSecondY4mFixture(): Buffer {
@@ -157,72 +147,6 @@ export async function createLocalMediaServer(): Promise<LocalMediaServer> {
     };
 }
 
-export function createRuntimeManifestGuard(
-    nativeDir: string
-): RuntimeManifestGuard {
-    const runtimeManifestPath = join(nativeDir, 'embedded-mpv-runtime.json');
-    const hiddenRuntimeManifestPath = `${runtimeManifestPath}.e2e-hidden-${process.pid}`;
-    let hidden = false;
-
-    return {
-        hide() {
-            if (!statSync(runtimeManifestPath).isFile()) {
-                throw new Error(
-                    `Packaged runtime manifest is not a regular file: ${runtimeManifestPath}`
-                );
-            }
-            if (existsSync(hiddenRuntimeManifestPath)) {
-                throw new Error(
-                    `Stale hidden runtime manifest exists: ${hiddenRuntimeManifestPath}`
-                );
-            }
-            renameSync(runtimeManifestPath, hiddenRuntimeManifestPath);
-            hidden = true;
-        },
-        restore() {
-            if (!hidden) {
-                return;
-            }
-            if (!existsSync(hiddenRuntimeManifestPath)) {
-                throw new Error(
-                    `Hidden runtime manifest disappeared before restore: ${hiddenRuntimeManifestPath}`
-                );
-            }
-            if (existsSync(runtimeManifestPath)) {
-                throw new Error(
-                    `Refusing to overwrite runtime manifest during restore: ${runtimeManifestPath}`
-                );
-            }
-            renameSync(hiddenRuntimeManifestPath, runtimeManifestPath);
-            hidden = false;
-        },
-    };
-}
-
-export function readPackagedRuntimeIdentity(
-    nativeDir: string
-): PackagedRuntimeIdentity {
-    const runtimeManifestPath = join(nativeDir, 'embedded-mpv-runtime.json');
-    const parsed = JSON.parse(
-        readFileSync(runtimeManifestPath, 'utf8')
-    ) as Partial<PackagedRuntimeIdentity>;
-
-    for (const field of [
-        'arch',
-        'platform',
-        'profile',
-        'runtimeMode',
-    ] as const) {
-        if (typeof parsed[field] !== 'string' || !parsed[field]) {
-            throw new Error(
-                `Packaged runtime manifest ${field} is invalid at ${runtimeManifestPath}.`
-            );
-        }
-    }
-
-    return parsed as PackagedRuntimeIdentity;
-}
-
 export function assertNativeFallbackPrerequisites(): void {
     if (!process.env['DISPLAY']) {
         throw new Error(
@@ -241,7 +165,7 @@ export function assertNativeFallbackPrerequisites(): void {
     }
 }
 
-export async function installFrameCanvasAndSessionCapture(
+export async function installEmbeddedMpvSessionCapture(
     app: LaunchedElectronApp
 ): Promise<void> {
     await app.mainWindow.evaluate(() => {
@@ -251,7 +175,14 @@ export async function installFrameCanvasAndSessionCapture(
             window.electron.onEmbeddedMpvSessionUpdate?.((session) => {
                 window.__packagedEmbeddedMpvSessions?.push(session);
             });
+    });
+}
 
+export async function installFrameCanvasAndSessionCapture(
+    app: LaunchedElectronApp
+): Promise<void> {
+    await installEmbeddedMpvSessionCapture(app);
+    await app.mainWindow.evaluate(() => {
         document.querySelector('canvas[data-embedded-mpv-frame]')?.remove();
         const canvas = document.createElement('canvas');
         canvas.dataset['embeddedMpvFrame'] = '';
@@ -288,6 +219,39 @@ export async function getLatestSession(
             ) ?? [];
         return sessions.at(-1) ?? null;
     }, sessionId);
+}
+
+export function isMeaningfulNativePlaybackSnapshot(
+    snapshot: {
+        durationSeconds: number | null;
+        error?: string;
+        status: string;
+        streamUrl: string;
+    } | null,
+    expectedUrl: string
+): boolean {
+    if (
+        !snapshot ||
+        snapshot.error ||
+        !['paused', 'playing'].includes(snapshot.status) ||
+        typeof snapshot.durationSeconds !== 'number' ||
+        !Number.isFinite(snapshot.durationSeconds) ||
+        snapshot.durationSeconds <= 0
+    ) {
+        return false;
+    }
+
+    const normalizeUrl = (value: string): string => {
+        try {
+            const url = new URL(value);
+            url.hash = '';
+            return url.href;
+        } catch {
+            return value.trim();
+        }
+    };
+
+    return normalizeUrl(snapshot.streamUrl) === normalizeUrl(expectedUrl);
 }
 
 export async function renderedFrameSignal(
@@ -327,8 +291,9 @@ export async function closeAndWaitForExit(
 
 export async function cleanupPackagedFrameCopySmoke(options: {
     apps: Array<LaunchedElectronApp | undefined>;
-    media: LocalMediaServer;
-    runtimeManifest: RuntimeManifestGuard;
+    media?: LocalMediaServer;
+    packageClone?: DisposablePackagedLinuxApp;
+    runtimeManifest?: RuntimeManifestGuard;
 }): Promise<void> {
     const errors: unknown[] = [];
 
@@ -343,16 +308,28 @@ export async function cleanupPackagedFrameCopySmoke(options: {
         }
     }
 
-    try {
-        options.runtimeManifest.restore();
-    } catch (error) {
-        errors.push(error);
+    if (options.runtimeManifest) {
+        try {
+            options.runtimeManifest.restore();
+        } catch (error) {
+            errors.push(error);
+        }
     }
 
-    try {
-        await options.media.close();
-    } catch (error) {
-        errors.push(error);
+    if (options.media) {
+        try {
+            await options.media.close();
+        } catch (error) {
+            errors.push(error);
+        }
+    }
+
+    if (options.packageClone) {
+        try {
+            options.packageClone.cleanup();
+        } catch (error) {
+            errors.push(error);
+        }
     }
 
     if (errors.length > 0) {

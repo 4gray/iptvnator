@@ -12,6 +12,25 @@
         "e2e": {
             "dependsOn": ["electron-backend:build-e2e"]
         },
+        "packaged-frame-copy-smoke": {
+            "executor": "nx:run-commands",
+            "cache": false,
+            "outputs": [
+                "{workspaceRoot}/dist/playwright-report/electron-backend-e2e/packaged-frame-copy-smoke",
+                "{workspaceRoot}/dist/test-results/electron-backend-e2e/packaged-frame-copy-smoke"
+            ],
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "pnpm exec playwright test --config=playwright.packaged.config.ts src/embedded-mpv-frame-copy-packaged.e2e.ts"
+            }
+        },
+        "test-packaged-frame-copy-fixtures": {
+            "executor": "nx:run-commands",
+            "options": {
+                "cwd": "apps/electron-backend-e2e",
+                "command": "pnpm exec tsx --test src/embedded-mpv-frame-copy-packaged-fixtures.spec.ts"
+            }
+        },
         "lint": {
             "executor": "@nx/eslint:lint"
         }
