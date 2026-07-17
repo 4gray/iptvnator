@@ -43,7 +43,7 @@ jobs:
                       echo 'meson=1.7.2'
                   } > "${RUNNER_TEMP}/linux-runtime-toolchain.txt"
                   TOOLCHAIN_SHA256="$(sha256sum "${RUNNER_TEMP}/linux-runtime-toolchain.txt" | cut -d ' ' -f 1)"
-                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/stage-runtime.mjs') }}"
+                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/stage-runtime.mjs', 'tools/packaging/prepare-linux-runtime-source-snapshot.cjs') }}"
                   echo "toolchain-sha256=${TOOLCHAIN_SHA256}" >> "${GITHUB_OUTPUT}"
                   echo "key=linux-frame-copy-runtime-v5-ubuntu-22.04-${TOOLCHAIN_SHA256}-${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
 
@@ -126,6 +126,7 @@ jobs:
                   export RUNTIME_ROOT="${GITHUB_WORKSPACE}/vendor/embedded-mpv/linux-x64"
                   export SOURCE_INPUT_ROOT="${GITHUB_WORKSPACE}/dist/linux-frame-copy-runtime-source-inputs"
                   export SOURCE_BUNDLE_ROOT="${RUNNER_TEMP}/linux-frame-copy-runtime-sources"
+                  export LIBPLACEBO_SOURCE_RECORD="${RUNNER_TEMP}/libplacebo-source-record.json"
 
                   test -f "${RUNTIME_ROOT}/runtime-manifest.json"
                   test -d "${SOURCE_INPUT_ROOT}/archives"
@@ -147,23 +148,27 @@ jobs:
                       "${SOURCE_BUNDLE_ROOT}/tooling"
 
                   cp -a "${SOURCE_INPUT_ROOT}/archives/." "${SOURCE_BUNDLE_ROOT}/archives/"
-                  cp -a "${SOURCE_INPUT_ROOT}/git/." "${SOURCE_BUNDLE_ROOT}/git/"
                   cp -a "${SOURCE_INPUT_ROOT}/license-inputs/." "${SOURCE_BUNDLE_ROOT}/license-inputs/"
                   cp -a "${RUNTIME_ROOT}/notices/." "${SOURCE_BUNDLE_ROOT}/notices/"
                   cp "${RUNTIME_ROOT}/runtime-manifest.json" "${SOURCE_BUNDLE_ROOT}/metadata/runtime-manifest.json"
+                  node tools/packaging/prepare-linux-runtime-source-snapshot.cjs prepare \
+                      --runtime-manifest "${RUNTIME_ROOT}/runtime-manifest.json" \
+                      --checkout "${SOURCE_INPUT_ROOT}/git/libplacebo" \
+                      --output "${SOURCE_BUNDLE_ROOT}/git/libplacebo" \
+                      --record-output "${LIBPLACEBO_SOURCE_RECORD}"
                   cp \
                       tools/embedded-mpv/build-linux-runtime.cjs \
                       tools/embedded-mpv/build-linux-runtime.mjs \
                       tools/embedded-mpv/generate-linux-runtime-notices.cjs \
                       tools/embedded-mpv/linux-runtime-manifest.cjs \
                       tools/embedded-mpv/stage-runtime.mjs \
+                      tools/packaging/prepare-linux-runtime-source-snapshot.cjs \
                       "${SOURCE_BUNDLE_ROOT}/tooling/"
                   test -f "${SOURCE_BUNDLE_ROOT}/notices/THIRD_PARTY_NOTICES.txt"
                   test -f "${SOURCE_BUNDLE_ROOT}/notices/embedded-mpv-notices.json"
                   git rev-parse HEAD > "${SOURCE_BUNDLE_ROOT}/metadata/iptvnator-git-revision.txt"
                   git diff --binary HEAD > "${SOURCE_BUNDLE_ROOT}/metadata/local-changes.patch"
                   node <<'NODE'
-                  const childProcess = require('node:child_process');
                   const crypto = require('node:crypto');
                   const fs = require('node:fs');
                   const path = require('node:path');
@@ -195,56 +200,15 @@ jobs:
                     );
                   }
 
-                  const libplaceboCheckout = path.join(
-                    process.env.SOURCE_BUNDLE_ROOT,
-                    'git',
-                    'libplacebo'
+                  const libplacebo = JSON.parse(
+                    fs.readFileSync(process.env.LIBPLACEBO_SOURCE_RECORD, 'utf8')
                   );
-                  const gitOutput = (...args) =>
-                    childProcess.execFileSync('git', ['-C', libplaceboCheckout, ...args], {
-                      encoding: 'utf8',
-                    }).trim();
-                  const sourceGitCommit = gitOutput('rev-parse', 'HEAD');
-                  if (sourceGitCommit !== manifest.packages.libplacebo.sourceGitCommit) {
-                    throw new Error('Bundled libplacebo checkout commit does not match the runtime manifest.');
-                  }
-                  const sourceSubmodules = gitOutput('submodule', 'status', '--recursive')
-                    .split(/\r?\n/)
-                    .map((line) => line.trim())
-                    .filter(Boolean);
                   if (
-                    JSON.stringify(sourceSubmodules) !==
+                    libplacebo.sourceGitCommit !== manifest.packages.libplacebo.sourceGitCommit ||
+                    JSON.stringify(libplacebo.sourceSubmodules) !==
                     JSON.stringify(manifest.packages.libplacebo.sourceSubmodules)
                   ) {
-                    throw new Error('Bundled libplacebo submodules do not match the runtime manifest.');
-                  }
-                  const assertCleanCheckout = (checkoutPath, label) => {
-                    const status = childProcess.execFileSync(
-                      'git',
-                      [
-                        '-C',
-                        checkoutPath,
-                        'status',
-                        '--porcelain=v1',
-                        '--untracked-files=all',
-                        '--ignore-submodules=none',
-                      ],
-                      { encoding: 'utf8' }
-                    );
-                    if (status.trim()) {
-                      throw new Error(`${label} checkout contains dirty or untracked files.`);
-                    }
-                  };
-                  assertCleanCheckout(libplaceboCheckout, 'libplacebo');
-                  for (const submoduleRecord of sourceSubmodules) {
-                    const match = submoduleRecord.match(/^[+-U]?[a-f0-9]{40,64}\s+([^\s]+)/);
-                    if (!match) {
-                      throw new Error(`Invalid libplacebo submodule record: ${submoduleRecord}`);
-                    }
-                    assertCleanCheckout(
-                      path.join(libplaceboCheckout, match[1]),
-                      `libplacebo submodule ${match[1]}`
-                    );
+                    throw new Error('Prepared libplacebo source identity does not match the runtime manifest.');
                   }
 
                   const notices = JSON.parse(
@@ -271,10 +235,7 @@ jobs:
                         repositoryRevision,
                         sourcePackages: manifest.packages,
                         archives,
-                        libplacebo: {
-                          sourceGitCommit,
-                          sourceSubmodules,
-                        },
+                        libplacebo,
                         legal: {
                           manifest: 'notices/embedded-mpv-notices.json',
                           noticeFile: notices.noticeFile,
@@ -290,6 +251,8 @@ jobs:
                       cd "${SOURCE_BUNDLE_ROOT}/archives"
                       sha256sum * > "../metadata/archive-sha256.txt"
                   )
+                  node tools/packaging/prepare-linux-runtime-source-snapshot.cjs assert-vcs-free \
+                      --directory "${SOURCE_BUNDLE_ROOT}"
 
                   mkdir -p dist/compliance
                   rm -f dist/compliance/linux-frame-copy-runtime-sources.tar.xz

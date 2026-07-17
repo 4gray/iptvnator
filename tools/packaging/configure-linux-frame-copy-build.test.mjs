@@ -214,13 +214,36 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
         complianceStep,
         /new Set\(expectedArchiveHashes\)\.size[\s\S]*archives\.length !== expectedArchiveHashes\.length/
     );
-    assert.match(
+    assert.match(complianceStep, /prepare-linux-runtime-source-snapshot\.cjs/);
+    assert.doesNotMatch(
         complianceStep,
-        /status[\s\S]*--porcelain=v1[\s\S]*--untracked-files=all[\s\S]*--ignore-submodules=none/
+        /cp -a "\$\{SOURCE_INPUT_ROOT\}\/git\/\."/
+    );
+    assert.ok(
+        complianceStep.indexOf('prepare-linux-runtime-source-snapshot.cjs') <
+            complianceStep.indexOf(
+                '--file dist/compliance/linux-frame-copy-runtime-sources.tar.xz'
+            )
     );
     assert.match(
         complianceStep,
-        /for \(const submoduleRecord of sourceSubmodules\)/
+        /libplacebo-source-record\.json[\s\S]*sourceGitCommit[\s\S]*sourceSubmodules/
+    );
+    assert.match(
+        complianceStep,
+        /prepare-linux-runtime-source-snapshot\.cjs assert-vcs-free/
+    );
+    assert.ok(
+        complianceStep.indexOf(
+            'prepare-linux-runtime-source-snapshot.cjs assert-vcs-free'
+        ) <
+            complianceStep.indexOf(
+                '--file dist/compliance/linux-frame-copy-runtime-sources.tar.xz'
+            )
+    );
+    assert.match(
+        buildWorkflow,
+        /hashFiles\([^\n]*prepare-linux-runtime-source-snapshot\.cjs/
     );
 
     const buildStep = workflowStep('Build and stage pinned LGPL Linux runtime');
