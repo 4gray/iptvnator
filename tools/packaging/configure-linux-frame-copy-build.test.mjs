@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import test from 'node:test';
+import { parse as parseYaml } from 'yaml';
 
 import { configureLinuxFrameCopyBuild } from './configure-linux-frame-copy-build.mjs';
 
@@ -17,6 +18,7 @@ const buildWorkflow = fs.readFileSync(
     path.join(workspaceRoot, '.github', 'workflows', 'build-and-make.yaml'),
     'utf8'
 );
+const buildWorkflowConfig = parseYaml(buildWorkflow);
 
 function workflowStep(name) {
     const marker = `            - name: ${name}\n`;
@@ -270,6 +272,54 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
     assert.match(buildWorkflow, /linux-frame-copy-runtime-sources\.tar\.xz/);
     assert.match(buildWorkflow, /name: linux-frame-copy-runtime-sources/);
     assert.match(buildWorkflow, /sourceSha256[\s\S]*source-index\.json/);
+});
+
+test('keeps non-Linux builds independent from the Linux runtime prerequisite', () => {
+    const crossPlatformJob = buildWorkflowConfig.jobs?.['build-cross-platform'];
+    const linuxJob = buildWorkflowConfig.jobs?.['build-linux'];
+
+    assert.ok(crossPlatformJob);
+    assert.ok(linuxJob);
+    assert.equal(crossPlatformJob.needs, undefined);
+    assert.deepEqual(
+        crossPlatformJob.strategy.matrix.include.map(({ os, arch }) => ({
+            os,
+            arch,
+        })),
+        [
+            { os: 'macos', arch: 'x64' },
+            { os: 'macos', arch: 'arm64' },
+            { os: 'windows', arch: 'x64' },
+        ]
+    );
+    assert.equal(crossPlatformJob.strategy['fail-fast'], false);
+    assert.equal(linuxJob.needs, 'linux-embedded-mpv-runtime');
+    assert.deepEqual(
+        linuxJob.strategy.matrix.include.map(
+            ({ os, arch, linux_profile: profile }) => ({
+                os,
+                arch,
+                profile,
+            })
+        ),
+        [
+            { os: 'linux', arch: 'x64', profile: 'system' },
+            { os: 'linux', arch: 'x64', profile: 'portable' },
+            { os: 'linux', arch: 'x64', profile: 'flatpak' },
+        ]
+    );
+    assert.equal(
+        linuxJob.name,
+        'Build on ${{ matrix.os }} ${{ matrix.arch }} (${{ matrix.linux_profile }})'
+    );
+    assert.equal(linuxJob.strategy['fail-fast'], false);
+    assert.deepEqual(linuxJob.steps, crossPlatformJob.steps);
+    assert.deepEqual(buildWorkflowConfig.jobs['create-release'].needs, [
+        'build-cross-platform',
+        'build-linux',
+    ]);
+    assert.match(buildWorkflow, /steps:\s+&electron-build-steps/);
+    assert.match(buildWorkflow, /steps:\s+\*electron-build-steps/);
 });
 
 test('Linux runtime toolchain installs fontconfig generators without network wraps', () => {

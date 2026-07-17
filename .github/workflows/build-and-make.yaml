@@ -285,12 +285,12 @@ jobs:
                   if-no-files-found: error
                   retention-days: 7
 
-    build:
+    build-cross-platform:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
-        needs: linux-embedded-mpv-runtime
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         strategy:
+            fail-fast: false
             matrix:
                 include:
                     # macOS builds - separate runners to avoid native module conflicts
@@ -306,32 +306,14 @@ jobs:
                       embedded_mpv_platform: darwin
                       embedded_mpv_arch: arm64
                       embedded_mpv_build_runtime: true
-                    # Linux frame-copy profiles and Windows
-                    - os: linux
-                      runner: ubuntu-22.04
-                      linux_profile: system
-                      embedded_mpv_platform: linux
-                      embedded_mpv_arch: x64
-                      embedded_mpv_build_runtime: false
-                    - os: linux
-                      runner: ubuntu-22.04
-                      linux_profile: portable
-                      embedded_mpv_platform: linux
-                      embedded_mpv_arch: x64
-                      embedded_mpv_build_runtime: false
-                    - os: linux
-                      runner: ubuntu-24.04
-                      linux_profile: flatpak
-                      embedded_mpv_platform: linux
-                      embedded_mpv_arch: x64
-                      embedded_mpv_build_runtime: false
                     - os: windows
                       runner: windows-2022
+                      arch: x64
                       embedded_mpv_platform: win32
                       embedded_mpv_arch: x64
                       embedded_mpv_build_runtime: false
 
-        steps:
+        steps: &electron-build-steps
             - name: Checkout code
               uses: actions/checkout@v4
 
@@ -1112,9 +1094,44 @@ jobs:
                       dist/executables/**/*.blockmap
                   retention-days: 7
 
+    build-linux:
+        name: Build on ${{ matrix.os }} ${{ matrix.arch }} (${{ matrix.linux_profile }})
+        needs: linux-embedded-mpv-runtime
+        runs-on: ${{ matrix.runner }}
+        timeout-minutes: 120
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - os: linux
+                      runner: ubuntu-22.04
+                      arch: x64
+                      linux_profile: system
+                      embedded_mpv_platform: linux
+                      embedded_mpv_arch: x64
+                      embedded_mpv_build_runtime: false
+                    - os: linux
+                      runner: ubuntu-22.04
+                      arch: x64
+                      linux_profile: portable
+                      embedded_mpv_platform: linux
+                      embedded_mpv_arch: x64
+                      embedded_mpv_build_runtime: false
+                    - os: linux
+                      runner: ubuntu-24.04
+                      arch: x64
+                      linux_profile: flatpak
+                      embedded_mpv_platform: linux
+                      embedded_mpv_arch: x64
+                      embedded_mpv_build_runtime: false
+
+        steps: *electron-build-steps
+
     create-release:
         name: Create Draft Release
-        needs: build
+        needs:
+            - build-cross-platform
+            - build-linux
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         runs-on: ubuntu-latest
         permissions:

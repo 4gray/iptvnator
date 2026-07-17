@@ -681,6 +681,12 @@ commit/submodule record, and creates
 `linux-frame-copy-runtime-sources.tar.xz` for the current repository revision
 and binary diff with normalized tar metadata.
 
+The workflow keeps the macOS/Windows package matrix independent from the Linux
+runtime prerequisite. Only the three Linux profile jobs depend on the runtime
+builder; both matrices reuse one YAML-anchored step list to prevent packaging
+logic drift. Draft release assembly still requires both matrices, so a public
+release cannot silently omit a promised platform.
+
 Windows CI uses a checksum-pinned `win32-x64` runtime archive configured
 through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and
 `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256`. Non-tag artifact builds have

@@ -186,6 +186,9 @@ verifies `system`, `portable`, and `flatpak` independently. Every artifact is
 extracted for manifest, mode, package-metadata, ELF-isolation, and helper-probe
 checks. System formats are probed after their declared dependency is installed;
 Snap and Flatpak also require a sandboxed probe where the runner supports it.
+The Linux packaging matrix alone depends on the runtime-builder job. macOS and
+Windows use an independent matrix, while both matrices share the same anchored
+step list; draft release assembly remains atomic and requires both matrices.
 
 The Linux runtime cache contains only staged headers/libraries/manifest plus
 immutable source inputs: exact downloaded archives (including hwdata), a clean
