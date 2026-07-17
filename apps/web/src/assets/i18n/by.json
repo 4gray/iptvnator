@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Не ўдалося пачаць запіс.",
             "RECORDING_FAILED_TO_STOP": "Не ўдалося спыніць запіс.",
             "SAVED_TO": "Захавана ў {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Уключыць рэжым «выява ў выяве»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйсці з рэжыму «выява ў выяве»",
             "ENTER_FULLSCREEN": "Увайсці ў поўнаэкранны рэжым",
             "EXIT_FULLSCREEN": "Выйсці з поўнаэкраннага рэжыму"
         }

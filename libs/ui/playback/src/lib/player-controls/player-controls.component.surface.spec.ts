@@ -30,6 +30,7 @@ function createFakeController() {
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
+        togglePictureInPicture: jest.fn(),
     };
     const controller: PlayerController = { capabilities, state, commands };
     return { controller, capabilities, state, commands };
@@ -298,23 +299,17 @@ describe('PlayerControlsComponent surface, fullscreen and shortcuts', () => {
     });
 
     describe('keyboard shortcuts', () => {
-        it('does not consume or toggle playback while loading', () => {
-            setState({ status: 'loading' });
-            fixture.detectChanges();
+        it.each(['loading', 'error'] as const)(
+            'does not consume or toggle playback while status is %s',
+            (status) => {
+                setState({ status });
+                fixture.detectChanges();
 
-            expect(pressKey(' ')).toBe(false);
-            expect(pressKey('k')).toBe(false);
-            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
-        });
-
-        it('does not consume or toggle playback after an error', () => {
-            setState({ status: 'error' });
-            fixture.detectChanges();
-
-            expect(pressKey(' ')).toBe(false);
-            expect(pressKey('k')).toBe(false);
-            expect(fake.commands.togglePlay).not.toHaveBeenCalled();
-        });
+                expect(pressKey(' ')).toBe(false);
+                expect(pressKey('k')).toBe(false);
+                expect(fake.commands.togglePlay).not.toHaveBeenCalled();
+            }
+        );
 
         it('Escape closes an open menu', () => {
             component.toggleMenu('subtitle');

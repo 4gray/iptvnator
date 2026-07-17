@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "録画を開始できませんでした。",
             "RECORDING_FAILED_TO_STOP": "録画を停止できませんでした。",
             "SAVED_TO": "{{path}}に保存しました",
+            "ENTER_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを開始",
+            "EXIT_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを終了",
             "ENTER_FULLSCREEN": "全画面表示",
             "EXIT_FULLSCREEN": "全画面表示を終了"
         }

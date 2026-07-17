@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Opname kon niet worden gestart.",
             "RECORDING_FAILED_TO_STOP": "Opname kon niet worden gestopt.",
             "SAVED_TO": "Opgeslagen in {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Beeld-in-beeld starten",
+            "EXIT_PICTURE_IN_PICTURE": "Beeld-in-beeld sluiten",
             "ENTER_FULLSCREEN": "Volledig scherm openen",
             "EXIT_FULLSCREEN": "Volledig scherm sluiten"
         }

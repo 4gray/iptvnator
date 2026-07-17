@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Recording failed to start.",
             "RECORDING_FAILED_TO_STOP": "Recording failed to stop.",
             "SAVED_TO": "Saved to {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Enter picture-in-picture",
+            "EXIT_PICTURE_IN_PICTURE": "Exit picture-in-picture",
             "ENTER_FULLSCREEN": "Enter fullscreen",
             "EXIT_FULLSCREEN": "Exit fullscreen"
         }

@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { TranslateModule } from '@ngx-translate/core';
+import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-picture.spec-helpers';
 import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls/web-player-controls.flag';
 import type { VjsPlayerComponent as VjsPlayerComponentInstance } from './vjs-player.component';
 import type { VideoJsPlayer } from './vjs-player.types';
@@ -120,6 +121,37 @@ describe('VjsPlayerComponent reset lifecycle', () => {
         expect(
             playerHarness.mpegTsPlayers[1].attachMediaElement
         ).toHaveBeenCalledWith(latestVideo);
+    });
+
+    it('exits owned PiP when playerreset replaces the Tech video', () => {
+        const environment = new PictureInPictureTestEnvironment();
+        try {
+            const initialVideo = playerHarness.currentVideo;
+            environment.installVideo(initialVideo);
+            fixture.componentRef.setInput('options', {
+                sources: [{ src: 'https://example.test/movie.mp4' }],
+            });
+            fixture.detectChanges();
+            playerHarness.ready();
+            environment.setActive(initialVideo);
+
+            const replacementVideo = document.createElement('video');
+            environment.installVideo(replacementVideo);
+            playerHarness.currentVideo = replacementVideo;
+            playerHarness.emit('playerreset');
+
+            expect(environment.exit).toHaveBeenCalledTimes(1);
+            expect(
+                fixture.componentInstance.controlsAdapter.state()
+                    .pictureInPictureActive
+            ).toBe(false);
+            expect(
+                fixture.componentInstance.controlsAdapter.capabilities()
+                    .pictureInPicture
+            ).toBe(true);
+        } finally {
+            environment.restore();
+        }
     });
 
     it('never calls Video.js reset until active playback has paused', () => {

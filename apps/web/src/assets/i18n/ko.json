@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "녹화를 시작하지 못했습니다.",
             "RECORDING_FAILED_TO_STOP": "녹화를 중지하지 못했습니다.",
             "SAVED_TO": "{{path}}에 저장되었습니다",
+            "ENTER_PICTURE_IN_PICTURE": "PIP 모드 시작",
+            "EXIT_PICTURE_IN_PICTURE": "PIP 모드 종료",
             "ENTER_FULLSCREEN": "전체 화면",
             "EXIT_FULLSCREEN": "전체 화면 종료"
         }

@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Falha ao iniciar a gravação.",
             "RECORDING_FAILED_TO_STOP": "Falha ao parar a gravação.",
             "SAVED_TO": "Salvo em {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Ativar imagem em imagem",
+            "EXIT_PICTURE_IN_PICTURE": "Sair de imagem em imagem",
             "ENTER_FULLSCREEN": "Entrar em tela cheia",
             "EXIT_FULLSCREEN": "Sair da tela cheia"
         }

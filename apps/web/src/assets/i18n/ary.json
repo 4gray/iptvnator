@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "التسجيل ما قدرش يبدا.",
             "RECORDING_FAILED_TO_STOP": "التسجيل ما قدرش يتوقف.",
             "SAVED_TO": "تحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "شغّل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "خرج من صورة داخل صورة",
             "ENTER_FULLSCREEN": "دخل لملء الشاشة",
             "EXIT_FULLSCREEN": "خرج من ملء الشاشة"
         }

@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Kayıt başlatılamadı.",
             "RECORDING_FAILED_TO_STOP": "Kayıt durdurulamadı.",
             "SAVED_TO": "{{path}} konumuna kaydedildi",
+            "ENTER_PICTURE_IN_PICTURE": "Resim içinde resim modunu aç",
+            "EXIT_PICTURE_IN_PICTURE": "Resim içinde resim modundan çık",
             "ENTER_FULLSCREEN": "Tam ekrana geç",
             "EXIT_FULLSCREEN": "Tam ekrandan çık"
         }

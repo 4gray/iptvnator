@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Aufnahme konnte nicht gestartet werden.",
             "RECORDING_FAILED_TO_STOP": "Aufnahme konnte nicht gestoppt werden.",
             "SAVED_TO": "Gespeichert unter {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Bild-in-Bild starten",
+            "EXIT_PICTURE_IN_PICTURE": "Bild-in-Bild beenden",
             "ENTER_FULLSCREEN": "Vollbild aktivieren",
             "EXIT_FULLSCREEN": "Vollbild beenden"
         }

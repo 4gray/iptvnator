@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Nie udało się rozpocząć nagrywania.",
             "RECORDING_FAILED_TO_STOP": "Nie udało się zatrzymać nagrywania.",
             "SAVED_TO": "Zapisano w {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Włącz obraz w obrazie",
+            "EXIT_PICTURE_IN_PICTURE": "Wyłącz obraz w obrazie",
             "ENTER_FULLSCREEN": "Włącz pełny ekran",
             "EXIT_FULLSCREEN": "Wyłącz pełny ekran"
         }
