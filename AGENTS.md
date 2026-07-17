@@ -201,13 +201,15 @@ Key files:
   semantics; entry is disabled until metadata, and the action is disabled while
   an operation is pending. Embedded MPV reports capability/state false with a
   no-op command and has no popup/mini-window.
-- `WebVideoControlsAdapter` reads the attached video and its `ownerDocument`;
-  browser enter/leave events are authoritative, and exact-owner exit remains
-  available if request support changes. Request/exit invocation stays
-  synchronous for user activation, one operation is serialized, and binding
-  generation plus exact video identity protects replacement and teardown from
-  stale completion. Video.js Tech reset and ArtPlayer rebuild rebind with
-  exact-owner cleanup; HTML5 source changes on a retained target preserve PiP.
+- `WebVideoControlsAdapter` supplies its current video and binding generation to
+  `WebVideoPictureInPictureController`; the controller reads the video's
+  `ownerDocument`, while browser enter/leave events remain authoritative.
+  Exact-owner exit stays available if request support changes. Request/exit
+  invocation remains synchronous for user activation, one operation is
+  serialized, and binding generation plus exact video identity protects
+  replacement and teardown from stale completion. Video.js Tech reset and
+  ArtPlayer rebuild rebind with exact-owner cleanup; HTML5 source changes on a
+  retained target preserve PiP.
   Standard PiP shows the browser/OS video surface without Angular control
   chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
   keyboard shortcut, and Embedded MPV popup/native support are out of scope.

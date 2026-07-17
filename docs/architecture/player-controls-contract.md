@@ -337,13 +337,14 @@ semantics. When inactive, entry requires
 remains available regardless of entry readiness or request support, provided
 the exit API exists. Any pending PiP operation disables the action.
 
-`WebVideoControlsAdapter` reads standard PiP APIs from the actual attached
-`HTMLVideoElement` and its `ownerDocument`. Browser
+`WebVideoControlsAdapter` delegates standard PiP API access and operation
+lifecycle to `WebVideoPictureInPictureController`, which reads the adapter's
+current binding and the attached `HTMLVideoElement`'s `ownerDocument`. Browser
 `enterpictureinpicture`/`leavepictureinpicture` events and the document's exact
 `pictureInPictureElement` remain authoritative; command completion never
 optimistically changes the active state.
 
-The adapter invokes `requestPictureInPicture()` or `exitPictureInPicture()`
+The controller invokes `requestPictureInPicture()` or `exitPictureInPicture()`
 synchronously from `togglePictureInPicture()` so browser user activation is
 preserved, then contains asynchronous settlement. Only one enter/exit operation
 may be pending. A binding generation plus exact video identity prevents a stale
@@ -552,6 +553,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── web-video-controls.adapter.ts
 ├── web-video-controls.host.ts
 ├── web-video-controls.media-helpers.ts
+├── web-video-picture-in-picture.controller.ts
 └── index.ts
 ```
 

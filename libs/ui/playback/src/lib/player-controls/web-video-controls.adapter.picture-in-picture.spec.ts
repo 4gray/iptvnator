@@ -78,6 +78,7 @@ describe('WebVideoControlsAdapter Picture-in-Picture', () => {
         adapter.commands.togglePictureInPicture();
 
         expect(request).toHaveBeenCalledTimes(1);
+        expect(request.mock.contexts[0]).toBe(video);
         expect(adapter.state().canPictureInPicture).toBe(false);
 
         pending.resolve(PICTURE_IN_PICTURE_WINDOW);
@@ -130,6 +131,7 @@ describe('WebVideoControlsAdapter Picture-in-Picture', () => {
         adapter.commands.togglePictureInPicture();
 
         expect(environment.exit).toHaveBeenCalledTimes(1);
+        expect(environment.exit.mock.contexts[0]).toBe(video.ownerDocument);
         expect(adapter.state().canPictureInPicture).toBe(false);
 
         pending.resolve(undefined);
@@ -345,6 +347,15 @@ describe('WebVideoControlsAdapter Picture-in-Picture', () => {
         try {
             adapter.attach(video);
             expectPiP(true, true);
+            foreignEnvironment.setActive(video);
+
+            adapter.commands.togglePictureInPicture();
+
+            expect(foreignEnvironment.exit).toHaveBeenCalledTimes(1);
+            expect(foreignEnvironment.exit.mock.contexts[0]).toBe(
+                foreignDocument
+            );
+            expect(environment.exit).not.toHaveBeenCalled();
         } finally {
             adapter.detach();
             foreignEnvironment.restore();

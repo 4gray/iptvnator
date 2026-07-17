@@ -29,6 +29,7 @@ import {
     type WebVideoMetadataOptions,
     WEB_VIDEO_EVENTS,
 } from './web-video-controls.media-helpers';
+import { WebVideoPictureInPictureController } from './web-video-picture-in-picture.controller';
 
 /**
  * Engine-agnostic accessors a web engine injects so the adapter can read/select
@@ -39,29 +40,6 @@ export interface WebVideoControlsOptions extends WebVideoMetadataOptions {
     setAudioTrack?: (id: number) => void | Promise<void>;
     getSubtitleTracks?: () => PlayerTrack[];
     setSubtitleTrack?: (id: number) => void | Promise<void>;
-}
-
-const HAVE_METADATA = 1;
-const PICTURE_IN_PICTURE_ACTION = {
-    ENTER: 'enter',
-    EXIT: 'exit',
-} as const;
-
-type PictureInPictureAction =
-    (typeof PICTURE_IN_PICTURE_ACTION)[keyof typeof PICTURE_IN_PICTURE_ACTION];
-
-interface PictureInPictureOperation {
-    readonly action: PictureInPictureAction;
-    readonly generation: number;
-    readonly video: HTMLVideoElement;
-}
-
-interface PictureInPictureSnapshot {
-    readonly active: boolean;
-    readonly canExit: boolean;
-    readonly canRequest: boolean;
-    readonly canToggle: boolean;
-    readonly supported: boolean;
 }
 
 interface WebVideoControlsContext {
@@ -78,10 +56,16 @@ export class WebVideoControlsAdapter implements PlayerController {
     private opts: WebVideoControlsOptions = {};
     private detachFn: (() => void) | null = null;
     private bindingGeneration = 0;
-    private pictureInPictureOperation: PictureInPictureOperation | null = null;
 
     /** Bumped whenever DOM or engine-specific state must be re-read. */
     private readonly tick = signal(0);
+    private readonly pictureInPicture = new WebVideoPictureInPictureController(
+        () => ({
+            generation: this.bindingGeneration,
+            video: this.video,
+        }),
+        () => this.refresh()
+    );
     /**
      * Holds the host-supplied series-navigation signal reactively. Storing the
      * signal itself (rather than a one-time snapshot of its value) means updates
@@ -107,7 +91,7 @@ export class WebVideoControlsAdapter implements PlayerController {
             typeof this.opts.setSubtitleTrack === 'function' &&
             (this.opts.getSubtitleTracks?.().length ?? 0) > 0;
         const isLive = readVideoIsLive(this.video, this.opts);
-        const pictureInPicture = this.readPictureInPicture(this.video);
+        const pictureInPicture = this.pictureInPicture.snapshot();
         return {
             ...DEFAULT_PLAYER_CAPABILITIES,
             seek: !isLive,
@@ -140,7 +124,7 @@ export class WebVideoControlsAdapter implements PlayerController {
 
         const audioTracks = this.opts.getAudioTracks?.() ?? [];
         const subtitleTracks = this.opts.getSubtitleTracks?.() ?? [];
-        const pictureInPicture = this.readPictureInPicture(video);
+        const pictureInPicture = this.pictureInPicture.snapshot();
 
         return {
             status: mapVideoStatus(video),
@@ -191,7 +175,7 @@ export class WebVideoControlsAdapter implements PlayerController {
         setPlaybackSpeed: (speed) => applyVideoSpeed(this.video, speed),
         setAspectRatio: () => undefined,
         toggleRecording: () => undefined,
-        togglePictureInPicture: () => this.togglePictureInPicture(),
+        togglePictureInPicture: () => this.pictureInPicture.toggle(),
     };
 
     /** Binds to a `<video>` element and starts maintaining the state signal. */
@@ -235,139 +219,12 @@ export class WebVideoControlsAdapter implements PlayerController {
         this.detachFn = null;
         this.video = null;
         this.opts = {};
-        this.pictureInPictureOperation = null;
-        if (previousVideo) {
-            this.exitPictureInPictureIfOwned(previousVideo);
-        }
+        this.pictureInPicture.release(previousVideo);
         this.refresh();
     }
 
     /** Pushes reactive context (series navigation) used for capability gating. */
     setContext(context: WebVideoControlsContext): void {
         this.seriesNavigationSource.set(context.seriesNavigation);
-    }
-
-    private togglePictureInPicture(): void {
-        const video = this.video;
-        if (!video || this.pictureInPictureOperation) {
-            return;
-        }
-
-        const snapshot = this.readPictureInPicture(video);
-        if (!snapshot.canToggle) {
-            return;
-        }
-        if (snapshot.active && snapshot.canExit) {
-            this.startPictureInPictureOperation(
-                PICTURE_IN_PICTURE_ACTION.EXIT,
-                video,
-                () => video.ownerDocument.exitPictureInPicture()
-            );
-            return;
-        }
-        if (snapshot.canRequest) {
-            this.startPictureInPictureOperation(
-                PICTURE_IN_PICTURE_ACTION.ENTER,
-                video,
-                () => video.requestPictureInPicture()
-            );
-        }
-    }
-
-    private startPictureInPictureOperation(
-        action: PictureInPictureAction,
-        video: HTMLVideoElement,
-        invoke: () => Promise<unknown>
-    ): void {
-        const operation: PictureInPictureOperation = {
-            action,
-            generation: this.bindingGeneration,
-            video,
-        };
-        this.pictureInPictureOperation = operation;
-        this.refresh();
-
-        let result: Promise<unknown>;
-        try {
-            result = invoke();
-        } catch {
-            this.settlePictureInPictureOperation(operation, false);
-            return;
-        }
-        void Promise.resolve(result).then(
-            () => this.settlePictureInPictureOperation(operation, true),
-            () => this.settlePictureInPictureOperation(operation, false)
-        );
-    }
-
-    private settlePictureInPictureOperation(
-        operation: PictureInPictureOperation,
-        succeeded: boolean
-    ): void {
-        const isCurrent =
-            this.pictureInPictureOperation === operation &&
-            this.bindingGeneration === operation.generation &&
-            this.video === operation.video;
-        if (isCurrent) {
-            this.pictureInPictureOperation = null;
-            this.refresh();
-            return;
-        }
-        if (succeeded && operation.action === PICTURE_IN_PICTURE_ACTION.ENTER) {
-            this.exitPictureInPictureIfOwned(operation.video);
-        }
-    }
-
-    private exitPictureInPictureIfOwned(video: HTMLVideoElement): void {
-        try {
-            const ownerDocument = video.ownerDocument;
-            if (
-                ownerDocument.pictureInPictureElement !== video ||
-                typeof ownerDocument.exitPictureInPicture !== 'function'
-            ) {
-                return;
-            }
-            const result = ownerDocument.exitPictureInPicture();
-            void Promise.resolve(result).then(
-                () => undefined,
-                () => undefined
-            );
-        } catch {
-            // PiP teardown is best-effort during target replacement.
-        }
-    }
-
-    private readPictureInPicture(
-        video: HTMLVideoElement
-    ): PictureInPictureSnapshot {
-        try {
-            const ownerDocument = video.ownerDocument;
-            const active = ownerDocument.pictureInPictureElement === video;
-            const canExit =
-                typeof ownerDocument.exitPictureInPicture === 'function';
-            const canRequest =
-                ownerDocument.pictureInPictureEnabled === true &&
-                typeof video.requestPictureInPicture === 'function' &&
-                canExit &&
-                video.disablePictureInPicture !== true;
-            return {
-                active,
-                canExit,
-                canRequest,
-                canToggle:
-                    this.pictureInPictureOperation === null &&
-                    ((active && canExit) ||
-                        (canRequest && video.readyState >= HAVE_METADATA)),
-                supported: canRequest || (active && canExit),
-            };
-        } catch {
-            return {
-                active: false,
-                canExit: false,
-                canRequest: false,
-                canToggle: false,
-                supported: false,
-            };
-        }
     }
 }
