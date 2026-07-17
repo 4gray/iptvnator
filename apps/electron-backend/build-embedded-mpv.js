@@ -16,11 +16,15 @@ const {
     validateLinuxRuntimeManifest,
     validateLinuxSystemBuildInputManifest,
 } = require('../../tools/embedded-mpv/linux-runtime-manifest.cjs');
+const {
+    resolveVerifiedLinuxLibMpvSoname,
+    runWithCleanup,
+    validateLinuxFrameCopyLinkage,
+} = require('./embedded-mpv-linux-linkage.cjs');
 
 const LINUX_PACKAGE_RUNTIME_MODES = Object.freeze(['system', 'bundled']);
 const LINUX_STAGED_RUNTIME_ORIGIN = 'vendored-lgpl';
 const LINUX_SOURCE_RUNTIME_ORIGIN = 'vendored-lgpl-source-build';
-const VERSIONED_LINUX_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(
@@ -452,35 +456,6 @@ function assertRequiredLinuxFrameCopyRuntime(runtime) {
     }
 }
 
-function deriveLinuxLibMpvSoname(runtime) {
-    if (
-        runtime.buildInputMode !== 'bundled-runtime' ||
-        runtime.sourceRuntimeValidated !== true ||
-        !Array.isArray(runtime.sourceRuntimeManifest?.runtimeFiles)
-    ) {
-        return null;
-    }
-
-    const candidates = runtime.sourceRuntimeManifest.runtimeFiles
-        .map((runtimeFile) => runtimeFile.name)
-        .filter((fileName) => VERSIONED_LINUX_LIBMPV_PATTERN.test(fileName))
-        .sort((left, right) => {
-            const leftVersionParts = left
-                .slice('libmpv.so.'.length)
-                .split('.').length;
-            const rightVersionParts = right
-                .slice('libmpv.so.'.length)
-                .split('.').length;
-            return (
-                leftVersionParts - rightVersionParts ||
-                left.length - right.length ||
-                left.localeCompare(right)
-            );
-        });
-
-    return candidates[0] ?? null;
-}
-
 function copyLinuxRuntimeClosureToNativeBuild(runtime) {
     fs.rmSync(outputLibDir, { recursive: true, force: true });
 
@@ -540,7 +515,18 @@ function copyLinuxRuntimeClosureToNativeBuild(runtime) {
 
 function writeLinuxFrameCopyBuildManifest(runtime) {
     const copiedRuntimeFiles = copyLinuxRuntimeClosureToNativeBuild(runtime);
-    const libmpvSoname = deriveLinuxLibMpvSoname(runtime);
+    const libmpvSoname =
+        runtime.sourceRuntimeValidated === true &&
+        runtime.buildInputMode === 'bundled-runtime' &&
+        copiedRuntimeFiles.length > 0
+            ? resolveVerifiedLinuxLibMpvSoname({
+                  outputLibDir,
+                  runtimeFiles: copiedRuntimeFiles,
+                  runtimeDependencyClosure:
+                      runtime.sourceRuntimeManifest.runtimeDependencyClosure,
+                  readDynamicSection: readLinuxDynamicSection,
+              })
+            : null;
     const packageRuntimeAvailable =
         runtime.sourceRuntimeValidated === true &&
         runtime.buildInputMode === 'bundled-runtime' &&
@@ -704,12 +690,33 @@ function runNodeGyp(command, env) {
     }
 }
 
+function readLinuxDynamicSection(filePath) {
+    const result = spawnSync('readelf', ['-d', filePath], {
+        cwd: workspaceRoot,
+        encoding: 'utf8',
+        stdio: ['ignore', 'pipe', 'pipe'],
+    });
+    if (result.error) {
+        throw new Error(
+            `Unable to run readelf for ${filePath}: ${result.error.message}`
+        );
+    }
+    if (result.status !== 0) {
+        throw new Error(
+            `readelf -d failed for ${filePath} with status ${
+                result.status ?? 1
+            }: ${(result.stderr ?? '').trim()}`
+        );
+    }
+    return result.stdout;
+}
+
 function main() {
     fs.mkdirSync(outputDir, { recursive: true });
     cleanDistNativeOutput();
+    cleanOutput();
 
     if (targetPlatform !== process.platform) {
-        cleanOutput();
         if (embeddedMpvRequired) {
             throw new Error(
                 `Embedded MPV is required for ${targetPlatform}-${targetArch}, but this host is ${process.platform}-${process.arch}.`
@@ -743,57 +750,101 @@ function main() {
 
     assertRequiredLinuxFrameCopyRuntime(runtime);
 
-    const runtimeManifest =
-        targetPlatform === 'darwin'
-            ? copyRuntimeToNativeBuild({
-                  runtimeLibDir: runtime.libDir,
-                  outputLibDir,
-                  runtimeOrigin: runtime.origin,
-                  runtimeManifest: {
-                      targetArch,
-                      ...runtime.manifest,
-                  },
-              })
-            : targetPlatform === 'linux'
-              ? writeLinuxFrameCopyBuildManifest(runtime)
-              : copyGenericRuntimeToNativeBuild(runtime);
-    fs.rmSync(unavailableMarkerFile, { force: true });
-
-    const electronPackageJson = require(
-        path.join(workspaceRoot, 'node_modules', 'electron', 'package.json')
-    );
-    const electronVersion = electronPackageJson.version;
-    const env = {
-        ...process.env,
-        npm_config_runtime: 'electron',
-        npm_config_target: electronVersion,
-        npm_config_arch: targetArch,
-        npm_config_disturl: 'https://electronjs.org/headers',
-        npm_config_build_from_source: 'true',
-        npm_config_update_binary: 'false',
-        LIBMPV_INCLUDE_DIR: runtime.includeDir,
-        ...(targetPlatform === 'linux'
-            ? {
-                  LINUX_NATIVE_LIBRARY_DIR: runtime.libDir,
-              }
-            : { LIBMPV_LIBRARY_DIR: outputLibDir }),
-        ...(runtime.windowsImportLib
-            ? {
-                  LIBMPV_IMPORT_LIB: path.join(
+    const buildNativeArtifacts = () => {
+        const runtimeManifest =
+            targetPlatform === 'darwin'
+                ? copyRuntimeToNativeBuild({
+                      runtimeLibDir: runtime.libDir,
                       outputLibDir,
-                      path.basename(runtime.windowsImportLib)
-                  ),
-              }
-            : {}),
-    };
+                      runtimeOrigin: runtime.origin,
+                      runtimeManifest: {
+                          targetArch,
+                          ...runtime.manifest,
+                      },
+                  })
+                : targetPlatform === 'linux'
+                  ? writeLinuxFrameCopyBuildManifest(runtime)
+                  : copyGenericRuntimeToNativeBuild(runtime);
 
-    log(
-        `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
-    );
-    cleanNativeBuildIntermediates();
-    try {
+        const electronPackageJson = require(
+            path.join(workspaceRoot, 'node_modules', 'electron', 'package.json')
+        );
+        const electronVersion = electronPackageJson.version;
+        const env = {
+            ...process.env,
+            npm_config_runtime: 'electron',
+            npm_config_target: electronVersion,
+            npm_config_arch: targetArch,
+            npm_config_disturl: 'https://electronjs.org/headers',
+            npm_config_build_from_source: 'true',
+            npm_config_update_binary: 'false',
+            LIBMPV_INCLUDE_DIR: runtime.includeDir,
+            ...(targetPlatform === 'linux'
+                ? {
+                      LINUX_VERIFIED_RUNTIME_LIBRARY_DIR: outputLibDir,
+                  }
+                : { LIBMPV_LIBRARY_DIR: outputLibDir }),
+            ...(runtime.windowsImportLib
+                ? {
+                      LIBMPV_IMPORT_LIB: path.join(
+                          outputLibDir,
+                          path.basename(runtime.windowsImportLib)
+                      ),
+                  }
+                : {}),
+        };
+
+        log(
+            `Building native addon against Electron ${electronVersion} using ${runtime.origin} runtime for ${targetPlatform}-${targetArch}...`
+        );
+        cleanNativeBuildIntermediates();
         runNodeGyp('configure', env);
         runNodeGyp('build', env);
+
+        if (!fs.existsSync(outputFile)) {
+            throw new Error(`Build finished without producing ${outputFile}.`);
+        }
+
+        if (targetPlatform === 'linux') {
+            validateLinuxFrameCopyLinkage({
+                expectedLibmpvSoname: runtimeManifest.libmpvSoname,
+                outputDir,
+                readDynamicSection: readLinuxDynamicSection,
+            });
+        }
+
+        if (targetPlatform === 'darwin') {
+            patchAddonForBundledRuntime(outputFile, outputLibDir);
+            // The frame-copy helper executable links libmpv too and sits next
+            // to the same lib/ directory, so it gets the identical
+            // dependency-path rewrite + ad-hoc re-sign.
+            const frameHelperFile = path.join(
+                outputDir,
+                'iptvnator_mpv_helper'
+            );
+            if (fs.existsSync(frameHelperFile)) {
+                patchAddonForBundledRuntime(frameHelperFile, outputLibDir);
+            }
+            const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
+                outputFile,
+                ...(fs.existsSync(frameHelperFile) ? [frameHelperFile] : []),
+                ...runtimeManifest.dylibs.map((dylib) =>
+                    path.join(outputLibDir, dylib)
+                ),
+            ]);
+            if (
+                runtime.origin === 'vendored-lgpl' &&
+                forbiddenLinkErrors.length > 0
+            ) {
+                throw new Error(forbiddenLinkErrors.join('\n'));
+            }
+        }
+
+        fs.rmSync(unavailableMarkerFile, { force: true });
+    };
+
+    try {
+        runWithCleanup(buildNativeArtifacts, cleanOutput);
     } catch (error) {
         if (!embeddedMpvRequired && runtime.origin === 'system-dev') {
             // The system-dev fallback triggers on any machine with
@@ -805,38 +856,9 @@ function main() {
                     error instanceof Error ? error.message : String(error)
                 }`
             );
-            cleanOutput();
             return;
         }
         throw error;
-    }
-
-    if (!fs.existsSync(outputFile)) {
-        throw new Error(`Build finished without producing ${outputFile}.`);
-    }
-
-    if (targetPlatform === 'darwin') {
-        patchAddonForBundledRuntime(outputFile, outputLibDir);
-        // The frame-copy helper executable links libmpv too and sits next to
-        // the same lib/ directory, so it gets the identical dependency-path
-        // rewrite + ad-hoc re-sign.
-        const frameHelperFile = path.join(outputDir, 'iptvnator_mpv_helper');
-        if (fs.existsSync(frameHelperFile)) {
-            patchAddonForBundledRuntime(frameHelperFile, outputLibDir);
-        }
-        const forbiddenLinkErrors = validateNoForbiddenRuntimeLinks([
-            outputFile,
-            ...(fs.existsSync(frameHelperFile) ? [frameHelperFile] : []),
-            ...runtimeManifest.dylibs.map((dylib) =>
-                path.join(outputLibDir, dylib)
-            ),
-        ]);
-        if (
-            runtime.origin === 'vendored-lgpl' &&
-            forbiddenLinkErrors.length > 0
-        ) {
-            throw new Error(forbiddenLinkErrors.join('\n'));
-        }
     }
 
     log(`Built ${path.relative(workspaceRoot, outputFile)}.`);

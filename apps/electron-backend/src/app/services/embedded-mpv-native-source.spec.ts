@@ -590,10 +590,13 @@ describe('Embedded MPV native source recording invariants', () => {
             'SHA-256 mismatch for staged Linux runtime file'
         );
         expect(buildScriptSource).toContain(
-            'LINUX_NATIVE_LIBRARY_DIR: runtime.libDir'
+            'LINUX_VERIFIED_RUNTIME_LIBRARY_DIR: outputLibDir'
         );
         expect(buildScriptSource).not.toContain(
             'process.env.LINUX_NATIVE_LIBRARY_DIR || runtime.libDir'
+        );
+        expect(buildScriptSource).not.toContain(
+            'LINUX_NATIVE_LIBRARY_DIR: runtime.libDir'
         );
     });
 
@@ -636,15 +639,15 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
-    it('derives packaged Linux libmpv identity from the validated runtime', () => {
+    it('derives packaged Linux libmpv identity from validated closure SONAME metadata', () => {
+        expect(buildScriptSource).toContain('resolveVerifiedLinuxLibMpvSoname');
         expect(buildScriptSource).toContain(
-            'function deriveLinuxLibMpvSoname(runtime)'
+            'runtime.sourceRuntimeManifest.runtimeDependencyClosure'
         );
-        expect(buildScriptSource).toContain(
-            'runtime.sourceRuntimeManifest.runtimeFiles'
-        );
-        expect(buildScriptSource).toContain('VERSIONED_LINUX_LIBMPV_PATTERN');
         expect(buildScriptSource).toContain('libmpvSoname,');
+        expect(buildScriptSource).not.toContain(
+            'VERSIONED_LINUX_LIBMPV_PATTERN'
+        );
         expect(buildScriptSource).not.toContain("libmpvSoname: 'libmpv.so.2'");
     });
 
@@ -657,6 +660,24 @@ describe('Embedded MPV native source recording invariants', () => {
         );
         expect(buildScriptSource).toContain('system: packageRuntimeAvailable');
         expect(buildScriptSource).toContain('bundled: packageRuntimeAvailable');
+    });
+
+    it('validates Linux post-link isolation before marking the build available', () => {
+        const postLinkValidation = buildScriptSource.indexOf(
+            'validateLinuxFrameCopyLinkage({'
+        );
+        const availabilityMarkerRemoval = buildScriptSource.lastIndexOf(
+            'fs.rmSync(unavailableMarkerFile'
+        );
+
+        expect(buildScriptSource).toContain(
+            "spawnSync('readelf', ['-d', filePath]"
+        );
+        expect(postLinkValidation).toBeGreaterThanOrEqual(0);
+        expect(availabilityMarkerRemoval).toBeGreaterThan(postLinkValidation);
+        expect(buildScriptSource).toContain(
+            'runWithCleanup(buildNativeArtifacts, cleanOutput)'
+        );
     });
 
     it('uses platform-specific embedded MPV runtime cache key inputs in CI', () => {
@@ -907,7 +928,13 @@ describe('Embedded MPV native build configuration', () => {
             linuxHelperConfig?.libraries.find((library: string) =>
                 library.includes("path.join(dir, 'libmpv.so')")
             )
-        ).toContain('LINUX_NATIVE_LIBRARY_DIR');
+        ).toContain('LINUX_VERIFIED_RUNTIME_LIBRARY_DIR');
+        expect(JSON.stringify(linuxHelperConfig)).not.toContain(
+            "LINUX_VERIFIED_RUNTIME_LIBRARY_DIR || '/usr/lib'"
+        );
+        expect(JSON.stringify(linuxHelperConfig)).toContain(
+            'Missing LINUX_VERIFIED_RUNTIME_LIBRARY_DIR'
+        );
 
         const runtimeLinkerFlags = linuxHelperConfig?.ldflags.filter(
             (flag: string) => flag.startsWith('-Wl,')

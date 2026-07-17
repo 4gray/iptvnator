@@ -162,8 +162,8 @@
               "-Wl,-rpath,'$$ORIGIN/lib'"
             ],
             "libraries": [
-              "-L<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")",
-              "<!(node -e \"const path = require('path'); const dir = process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'; process.stdout.write(path.join(dir, 'libmpv.so'))\")",
+              "-L<!(node -e \"const dir = process.env.LINUX_VERIFIED_RUNTIME_LIBRARY_DIR; if (!dir) { throw new Error('Missing LINUX_VERIFIED_RUNTIME_LIBRARY_DIR'); } process.stdout.write(dir)\")",
+              "<!(node -e \"const path = require('path'); const dir = process.env.LINUX_VERIFIED_RUNTIME_LIBRARY_DIR; if (!dir) { throw new Error('Missing LINUX_VERIFIED_RUNTIME_LIBRARY_DIR'); } process.stdout.write(path.join(dir, 'libmpv.so'))\")",
               "-lEGL",
               "-lOpenGL",
               "-lgbm",
