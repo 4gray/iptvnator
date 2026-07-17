@@ -33,6 +33,7 @@ The application is a cross-platform, open-source project built with Electron and
 **Playback**
 
 - Built-in HTML5 player (HLS.js or Video.js) with a resizable, resumable inline view
+- Optional unified IPTVnator controls for HTML5, Video.js, and ArtPlayer, enabled in **Settings → Playback** _(experimental)_
 - External players — MPV, VLC, and IINA on macOS (`mpv.app` / `VLC.app` bundle paths supported) _(desktop)_
 - Embedded MPV — native mpv rendered inside the app window on macOS, Windows & Linux 🖥️ _(experimental · desktop)_
 - Dedicated radio player for `radio="true"` streams 📻

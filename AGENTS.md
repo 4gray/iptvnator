@@ -132,13 +132,19 @@ Key files:
 
 - `libs/ui/playback/src/lib/player-controls/` contains the additive,
   engine-neutral `PlayerController` contract, standalone
-  `app-player-controls`, generic web-video adapter/helper, and default-off web
-  rollout token.
-- Embedded MPV frame-copy is the first runtime consumer. Its component-scoped
-  `EmbeddedMpvControlsAdapter` maps the active session into
-  `app-player-controls`; the native-view engine retains the legacy
-  compositor-safe dock. The host must render exactly one controls system for
-  the reported engine.
+  `app-player-controls`, generic web-video adapter/helper, and component-scoped
+  `WEB_PLAYER_SHARED_CONTROLS` rollout token.
+- Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
+  appears only when HTML5, Video.js, or ArtPlayer is selected.
+  `WebPlayerViewComponent` snapshots the preference into
+  `WEB_PLAYER_SHARED_CONTROLS` for each new player host. Saving applies to the
+  next host without an application restart; an existing session never changes
+  controls mode in place.
+- Embedded MPV ignores the web-player preference. Frame-copy always uses shared
+  DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
+  native-view retains the legacy compositor-safe dock and external MPV/VLC
+  retain their own UI. The host must render exactly one controls system for the
+  reported Embedded MPV engine.
 - Frame-copy shared controls own DOM surface interactions, shortcuts,
   fullscreen, and recording feedback. `showControls=false` detaches the shared
   surface, modal overlays gate playback shortcuts, fullscreen still triggers
@@ -158,8 +164,8 @@ Key files:
   `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
   metadata, while a visible playback diagnostic disables both shared surface
   interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
-  diagnostic actions remain visible. The flag-off path keeps native controls
-  and legacy series navigation unchanged.
+  diagnostic actions remain visible. The preference-off path keeps native
+  controls and legacy series navigation unchanged.
 - Video.js is the third guarded consumer. `VjsPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; its bridge binds the current Tech
   video, rebinds after `playerreset`, exposes source-stable audio/subtitle IDs,
@@ -167,10 +173,10 @@ Key files:
   duration from Video.js. Reset-driven raw MPEG-TS changes pause first,
   coalesce to the latest desired source, preserve actual volume across
   Video.js's reset, and restart when authoritative live/VOD metadata changes.
-  The flag-on path disables native controls, Video.js
+  The shared-controls path disables native controls, Video.js
   click/double-click/hotkey actions, and spatial navigation;
-  diagnostic gating and owned-fullscreen exit match HTML5. The flag-off path
-  keeps the existing Video.js skin and legacy series navigation unchanged.
+  diagnostic gating and owned-fullscreen exit match HTML5. The preference-off
+  path keeps the existing Video.js skin and legacy series navigation unchanged.
 - ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
   component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
   HLS/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
@@ -181,7 +187,7 @@ Key files:
   ArtPlayer restores its own stored volume. Vendor chrome/hotkeys are disabled,
   and a transparent capture layer gives shared controls exclusive click and
   double-click ownership. Diagnostic interaction gating and owned-fullscreen
-  exit match the other web players. The default-off flag keeps the legacy
+  exit match the other web players. The preference-off path keeps the legacy
   ArtPlayer skin, source behavior, and series navigation unchanged.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`

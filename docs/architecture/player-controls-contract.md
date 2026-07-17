@@ -14,14 +14,15 @@ consumers and includes:
 - the standalone `app-player-controls` presentation component and its
   transient-state collaborators;
 - a generic `WebVideoControlsAdapter` plus small host helpers;
-- a default-off web rollout token;
+- a persisted, default-off web-player preference resolved through an immutable
+  per-host rollout token;
 - the component-scoped `EmbeddedMpvControlsAdapter`;
 - an `EmbeddedMpvPlayerComponent` host integration for the frame-copy engine;
-- a feature-flagged `HtmlVideoPlayerComponent` integration backed by
+- a preference-guarded `HtmlVideoPlayerComponent` integration backed by
   `WebVideoControlsAdapter` and a player-local engine bridge;
-- a feature-flagged `VjsPlayerComponent` integration backed by a
+- a preference-guarded `VjsPlayerComponent` integration backed by a
   component-scoped `WebVideoControlsAdapter` and Video.js bridge;
-- a feature-flagged `ArtPlayerComponent` integration backed by a
+- a preference-guarded `ArtPlayerComponent` integration backed by a
   component-scoped `WebVideoControlsAdapter`, neutral web-video source bridge,
   and player-local source/video sessions; and
 - focused unit/component tests.
@@ -36,14 +37,14 @@ When `WEB_PLAYER_SHARED_CONTROLS` is enabled, the built-in HTML5 player mounts
 the same presentation component over its real player shell and disables the
 native video controls. Its neutral source bridge supplies HLS/native tracks,
 corrected MPEG-TS VOD duration, and authoritative live/VOD metadata to the
-generic web adapter. When the flag is disabled, the native controls and legacy
-series navigation remain unchanged and the adapter is not attached.
+generic web adapter. When the host token resolves to false, the native controls
+and legacy series navigation remain unchanged and the adapter is not attached.
 
 Video.js consumes the same token and shared presentation atomically. Its bridge
 binds the adapter to the current Video.js Tech `<video>` and rebinds after
 `playerreset`, while focused collaborators expose Video.js audio/text tracks
-and manage raw MPEG-TS playback. With the flag disabled, Video.js keeps its
-existing skin and legacy series navigation.
+and manage raw MPEG-TS playback. When the host token resolves to false, Video.js
+keeps its existing skin and legacy series navigation.
 
 ArtPlayer is the fourth consumer. Its source session owns HLS, MPEG-TS, native
 source selection, and delayed `customType` callbacks, while the neutral
@@ -56,17 +57,19 @@ event-capture layer over ArtPlayer so shared controls exclusively own surface
 clicks and double-clicks. Playback diagnostics gate shared interaction and exit
 only the ArtPlayer shell's own fullscreen. Source replacement and teardown
 remove exact listeners and engines, and destroyed sessions ignore stale delayed
-`customType` callbacks. With the flag disabled, the existing ArtPlayer skin,
-source behavior, and legacy series navigation remain unchanged.
+`customType` callbacks. When the host token resolves to false, the existing
+ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
 
-`WEB_PLAYER_SHARED_CONTROLS_ENABLED` remains default-off, so none of the three
-guarded web integrations changes normal runtime behavior.
+`Settings.webPlayerSharedControls` remains default-off. `WebPlayerViewComponent`
+snapshots it into `WEB_PLAYER_SHARED_CONTROLS` when a new player host is
+created, so HTML5, Video.js, and ArtPlayer switch atomically without an
+application restart. Existing sessions never change controls mode in place.
 
-This rollout is intentionally engine-selective: frame-copy can use normal DOM
-layering, while the native platform view cannot. The integration also includes
-a recording coordinator that correlates asynchronous snapshots with the active
-playback/session owner, serializes toggles, and cancels pending ownership when
-the session, playback, engine, or component changes.
+The shared-controls architecture remains engine-selective: frame-copy can use
+normal DOM layering, while the native platform view cannot. The integration
+also includes a recording coordinator that correlates asynchronous snapshots
+with the active playback/session owner, serializes toggles, and cancels pending
+ownership when the session, playback, engine, or component changes.
 
 ## Why this exists
 
@@ -111,10 +114,10 @@ contract does not make a native video surface behave like DOM content.
                │                                    │
                ▼                                    ▼
 ┌──────────────────────────────┐     ┌──────────────────────────────┐
-│ Flag-guarded web hosts       │     │ EmbeddedMpvPlayerComponent   │
+│ Per-host preference snapshot │     │ EmbeddedMpvPlayerComponent   │
 │ HTML5 + Video.js + ArtPlayer │     │ frame-copy: shared controls  │
-│ flag on: shared controls     │     │ native-view: legacy dock     │
-│ flag off: existing controls  │     └──────────────────────────────┘
+│ true: shared controls        │     │ native-view: legacy dock     │
+│ false: existing controls     │     └──────────────────────────────┘
 └──────────────────────────────┘
 ```
 
@@ -122,7 +125,7 @@ The embedded host selects controls from the reported engine before rendering
 them. It never mounts the shared overlay and legacy dock together.
 The HTML5, Video.js, and ArtPlayer hosts likewise select their existing or
 shared controls before rendering and never attach the web adapter while the
-flag-off path is active.
+preference-off path is active.
 
 ## The contract
 
@@ -375,12 +378,13 @@ attachment/projection helpers. Video.js uses its dedicated bridge directly.
 HTML5 and ArtPlayer share the neutral source bridge and HLS/native-track
 collaborators under `web-video-support/`.
 
-The rollout symbols are:
+The rollout symbols and setting are:
 
-| Symbol                               |       Default | Current effect                                                                                                                   |
-| ------------------------------------ | ------------: | -------------------------------------------------------------------------------------------------------------------------------- |
-| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |       `false` | Keeps existing web-player skins active in normal runtime builds.                                                                 |
-| `WEB_PLAYER_SHARED_CONTROLS`         | default above | Injectable/test-overridable view consumed by HTML5, Video.js, and ArtPlayer to switch atomically between existing and shared UI. |
+| Symbol / setting                     |          Default | Current effect                                                          |
+| ------------------------------------ | ---------------: | ----------------------------------------------------------------------- |
+| `Settings.webPlayerSharedControls`   |          `false` | Persisted experimental opt-in shown for HTML5, Video.js, and ArtPlayer. |
+| `WEB_PLAYER_SHARED_CONTROLS_ENABLED` |          `false` | Default-off fallback for direct component use and focused tests.        |
+| `WEB_PLAYER_SHARED_CONTROLS`         | session snapshot | Component-scoped immutable value consumed by the three web engines.     |
 
 With the token enabled, Video.js also disables native controls, Video.js
 single-click and double-click actions, Video.js hotkeys, and spatial navigation.
@@ -402,6 +406,10 @@ semantics, stored volume behavior, and series navigation remain unchanged.
 
 The shared contract does not replace either Embedded MPV renderer. The host
 uses the renderer's reported engine to choose the compatible controls UI.
+
+The web-player preference does not affect Embedded MPV. Frame-copy always uses
+the shared DOM controls, while native-view keeps its compositor-safe legacy
+dock.
 
 ### Frame-copy engine
 
@@ -528,8 +536,8 @@ libs/ui/playback/src/lib/html-video-player/
 `WebVideoControlsAdapter`. Its bridge/helper filenames re-export the neutral
 web-video support so existing imports and focused specs remain stable.
 `HtmlVideoElementSession` separately owns native video-event attachment,
-persisted volume, start-time/time/ended propagation, and the flag-off post-play
-caption behavior.
+persisted volume, start-time/time/ended propagation, and the preference-off
+post-play caption behavior.
 
 The guarded Video.js integration lives in:
 
@@ -571,11 +579,12 @@ libs/ui/playback/src/lib/art-player/
 bridge, exact engine/listener cleanup, and a destroyed-session guard for
 ArtPlayer's delayed `customType` dispatch. `ArtPlayerVideoSession` owns native
 media errors, readiness, volume persistence, ended/time updates, and exact
-event cleanup. The setup helper preserves the legacy option set when the flag
-is off and disables vendor interaction owners when it is on; the component's
-transparent capture layer blocks ArtPlayer's core surface handlers.
+event cleanup. The setup helper preserves the legacy option set when the host
+token resolves to false and disables vendor interaction owners when it resolves
+to true; the component's transparent capture layer blocks ArtPlayer's core
+surface handlers.
 
-Focused specs cover each web engine's flag-off compatibility path,
+Focused specs cover each web engine's preference-off compatibility path,
 shared-controls rendering and diagnostic interaction gating, source/element
 replacement, track-list lifecycle and stable IDs, caption preference and
 explicit-off behavior, MPEG-TS live/VOD handling and duration projection,
