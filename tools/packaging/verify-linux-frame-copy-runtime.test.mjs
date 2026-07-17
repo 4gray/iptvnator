@@ -601,8 +601,7 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
                 /private: true/,
             ],
             [
-                (contents) =>
-                    contents.replace('      - shared-memory\n', ''),
+                (contents) => contents.replace('      - shared-memory\n', ''),
                 /app.*shared-memory plug/i,
             ],
             [
@@ -745,6 +744,71 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
         fs.rmSync(root, { recursive: true, force: true });
     }
 });
+
+const SNAP_METADATA_WITH_LITERAL_HASHES = [
+    'name: iptvnator',
+    'summary: "quoted # is scalar data"',
+    'description: | # block scalar header comment',
+    '  Block scalar # stays literal.',
+    'apps:',
+    '  iptvnator:',
+    '    command: iptvnator',
+    '    plugs:',
+    '      - shared-memory',
+    'plugs:',
+    '  shared-memory:',
+    '    interface: shared-memory',
+    '    private: true',
+    '',
+].join('\n');
+
+for (const [kind, mutate, expected] of [
+    [
+        'plug',
+        (contents) =>
+            contents.replace(
+                '\nplugs:\n',
+                [
+                    '',
+                    'plugs:',
+                    '  hidden-extra-plug:',
+                    '    interface: shared-memory # trailing comment',
+                    '',
+                ].join('\n')
+            ),
+        /exactly one plug.*shared-memory interface/i,
+    ],
+    [
+        'slot',
+        (contents) =>
+            `${contents}slots:\n  hidden-slot:\n    interface: shared-memory # trailing comment\n`,
+        /must not declare.*shared-memory slot/i,
+    ],
+]) {
+    test(`rejects an extra Snap shared-memory ${kind} with a trailing comment`, () => {
+        const root = fs.mkdtempSync(
+            path.join(os.tmpdir(), 'iptvnator-verifier-snap-comments-')
+        );
+        const snapYamlPath = path.join(root, 'meta', 'snap.yaml');
+        fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+
+        try {
+            fs.writeFileSync(snapYamlPath, SNAP_METADATA_WITH_LITERAL_HASHES);
+            assert.deepEqual(validateExtractedSnapMetadata(root), []);
+
+            fs.writeFileSync(
+                snapYamlPath,
+                mutate(SNAP_METADATA_WITH_LITERAL_HASHES)
+            );
+            assert.match(
+                validateExtractedSnapMetadata(root).join('\n'),
+                expected
+            );
+        } finally {
+            fs.rmSync(root, { recursive: true, force: true });
+        }
+    });
+}
 
 test('artifact verification rejects Snap metadata before accepting its payload', () => {
     const fixture = createSystemPayload();

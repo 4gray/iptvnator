@@ -324,6 +324,40 @@ export function findExtractedResourceDir(extractionRoot) {
     return candidates[0];
 }
 
+function stripYamlTrailingComment(value) {
+    let quote = null;
+    for (let index = 0; index < value.length; index += 1) {
+        const character = value[index];
+        if (quote === "'") {
+            if (character === "'" && value[index + 1] === "'") {
+                index += 1;
+            } else if (character === "'") {
+                quote = null;
+            }
+            continue;
+        }
+        if (quote === '"') {
+            if (character === '\\') {
+                index += 1;
+            } else if (character === '"') {
+                quote = null;
+            }
+            continue;
+        }
+        if (character === "'" || character === '"') {
+            quote = character;
+            continue;
+        }
+        if (
+            character === '#' &&
+            (index === 0 || /[ \t]/.test(value[index - 1]))
+        ) {
+            return value.slice(0, index).trimEnd();
+        }
+    }
+    return value;
+}
+
 function yamlMappingEntries(lines, key, indent, start = 0, end = lines.length) {
     const prefix = `${' '.repeat(indent)}${key}:`;
     return lines
@@ -344,7 +378,10 @@ function yamlMappingEntries(lines, key, indent, start = 0, end = lines.length) {
                 candidateIndex += 1
             ) {
                 const candidate = lines[candidateIndex];
-                if (!candidate.trim() || candidate.trimStart().startsWith('#')) {
+                if (
+                    !candidate.trim() ||
+                    candidate.trimStart().startsWith('#')
+                ) {
                     continue;
                 }
                 const candidateIndent =
@@ -357,7 +394,9 @@ function yamlMappingEntries(lines, key, indent, start = 0, end = lines.length) {
             return {
                 index,
                 end: blockEnd,
-                value: line.slice(prefix.length).trim(),
+                value: stripYamlTrailingComment(
+                    line.slice(prefix.length).trim()
+                ),
             };
         });
 }
@@ -369,11 +408,7 @@ function singleYamlMappingEntry(lines, key, indent, start, end) {
 
 function directYamlMappingEntries(lines, parent, indent) {
     const entries = [];
-    for (
-        let index = parent.index + 1;
-        index < parent.end;
-        index += 1
-    ) {
+    for (let index = parent.index + 1; index < parent.end; index += 1) {
         const line = lines[index];
         if (!line.trim() || line.trimStart().startsWith('#')) {
             continue;
@@ -407,7 +442,7 @@ function directYamlMappingEntries(lines, parent, indent) {
         }
         entries.push({
             key: match[1],
-            value: match[2] ?? '',
+            value: stripYamlTrailingComment(match[2] ?? ''),
             index,
             end: blockEnd,
         });
@@ -445,9 +480,7 @@ function yamlSequenceIncludes(lines, entry, expected) {
     }
     const sequenceLines = lines
         .slice(entry.index + 1, entry.end)
-        .filter(
-            (line) => line.trim() && !line.trimStart().startsWith('#')
-        );
+        .filter((line) => line.trim() && !line.trimStart().startsWith('#'));
     const itemIndent = 6;
     const values = sequenceLines.map((line) => {
         const lineIndent = line.length - line.trimStart().length;
@@ -455,7 +488,7 @@ function yamlSequenceIncludes(lines, entry, expected) {
             return null;
         }
         const match = line.trim().match(/^-\s+([^:[\]{}&*]+)$/);
-        return match?.[1].trim() ?? null;
+        return match ? stripYamlTrailingComment(match[1].trim()) : null;
     });
     return (
         values.length > 0 &&
@@ -543,7 +576,9 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         return [`Missing extracted Snap metadata: ${snapYamlPath}`];
     }
     if (!stat.isFile() || stat.isSymbolicLink()) {
-        return [`Extracted Snap metadata must be a regular file: ${snapYamlPath}`];
+        return [
+            `Extracted Snap metadata must be a regular file: ${snapYamlPath}`,
+        ];
     }
 
     let contents;
@@ -568,13 +603,7 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         ];
     }
     const errors = [];
-    const plugs = singleYamlMappingEntry(
-        lines,
-        'plugs',
-        0,
-        0,
-        lines.length
-    );
+    const plugs = singleYamlMappingEntry(lines, 'plugs', 0, 0, lines.length);
     const sharedMemory =
         plugs &&
         singleYamlMappingEntry(
@@ -621,10 +650,7 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         }
 
         const plugEntries = directYamlMappingEntries(lines, plugs, 2);
-        if (
-            !plugEntries ||
-            plugEntries.some(({ value }) => value.length > 0)
-        ) {
+        if (!plugEntries || plugEntries.some(({ value }) => value.length > 0)) {
             errors.push(
                 'Extracted Snap plug declarations must use block mappings.'
             );
@@ -647,10 +673,7 @@ export function validateExtractedSnapMetadata(extractionRoot) {
                     plugFields?.filter(({ key }) => key === 'interface') ?? [];
                 return (
                     interfaceFields.length === 1 &&
-                    yamlScalarEquals(
-                        interfaceFields[0].value,
-                        'shared-memory'
-                    )
+                    yamlScalarEquals(interfaceFields[0].value, 'shared-memory')
                 );
             }) ?? [];
         if (
@@ -664,26 +687,16 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         }
     }
 
-    const slotsEntries = yamlMappingEntries(
-        lines,
-        'slots',
-        0,
-        0,
-        lines.length
-    );
+    const slotsEntries = yamlMappingEntries(lines, 'slots', 0, 0, lines.length);
     let hasSharedMemorySlot = slotsEntries.length > 1;
-    let invalidSlotsShape = slotsEntries.some(
-        ({ value }) => value.length > 0
-    );
+    let invalidSlotsShape = slotsEntries.some(({ value }) => value.length > 0);
     for (const slots of slotsEntries) {
         const slotEntries = directYamlMappingEntries(lines, slots, 2);
         if (!slotEntries) {
             invalidSlotsShape = true;
             continue;
         }
-        invalidSlotsShape ||= slotEntries.some(
-            ({ value }) => value.length > 0
-        );
+        invalidSlotsShape ||= slotEntries.some(({ value }) => value.length > 0);
         hasSharedMemorySlot ||= slotEntries.some((slotEntry) => {
             if (slotEntry.key === 'shared-memory') {
                 return true;
@@ -712,22 +725,10 @@ export function validateExtractedSnapMetadata(extractionRoot) {
     const apps = singleYamlMappingEntry(lines, 'apps', 0, 0, lines.length);
     const app =
         apps &&
-        singleYamlMappingEntry(
-            lines,
-            'iptvnator',
-            2,
-            apps.index + 1,
-            apps.end
-        );
+        singleYamlMappingEntry(lines, 'iptvnator', 2, apps.index + 1, apps.end);
     const appPlugs =
         app &&
-        singleYamlMappingEntry(
-            lines,
-            'plugs',
-            4,
-            app.index + 1,
-            app.end
-        );
+        singleYamlMappingEntry(lines, 'plugs', 4, app.index + 1, app.end);
     if (
         !apps ||
         apps.value ||
