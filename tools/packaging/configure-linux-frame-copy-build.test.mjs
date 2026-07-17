@@ -310,7 +310,7 @@ test('dedicated packaged x64 smoke cannot silently skip', () => {
     assert.doesNotMatch(hardwareDiagnostic, /LIBGL_ALWAYS_SOFTWARE/);
 });
 
-test('release and Snap publication consume split Linux artifacts and source compliance', () => {
+test('draft release consumes split Linux artifacts and source compliance', () => {
     for (const artifactName of [
         'linux-system-artifacts',
         'linux-portable-artifacts',
@@ -357,8 +357,5 @@ test('release and Snap publication consume split Linux artifacts and source comp
     ]) {
         assert.ok(release.includes(releasePath));
     }
-    assert.match(
-        workflowStep('Download snap artifact'),
-        /name: linux-portable-artifacts/
-    );
+    assert.doesNotMatch(buildWorkflow, /^ {4}publish-snap:/m);
 });

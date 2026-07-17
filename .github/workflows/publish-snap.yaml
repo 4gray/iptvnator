@@ -1,0 +1,84 @@
+name: Publish Snap after public release
+
+on:
+    release:
+        types:
+            - published
+
+permissions:
+    contents: read
+
+jobs:
+    publish-snap:
+        name: Publish public-release Snap to edge
+        if: ${{ startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}
+        runs-on: ubuntu-latest
+        env:
+            GH_TOKEN: ${{ github.token }}
+            SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.snapcraft_token }}
+            SOURCE_ARCHIVE_NAME: linux-frame-copy-runtime-sources.tar.xz
+
+        steps:
+            - name: Checkout released tooling
+              uses: actions/checkout@v4
+              with:
+                  ref: ${{ github.event.release.tag_name }}
+
+            - name: Select exact public release assets
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  gh api \
+                      --paginate \
+                      --slurp \
+                      "repos/${GITHUB_REPOSITORY}/releases/${{ github.event.release.id }}/assets?per_page=100" \
+                      > "${RUNNER_TEMP}/snap-release-assets.json"
+                  node tools/packaging/release-snap-assets.cjs select \
+                      --assets-json "${RUNNER_TEMP}/snap-release-assets.json" \
+                      --output-json "${RUNNER_TEMP}/selected-snap-release-assets.json"
+
+            - name: Download exact public release assets
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  ASSET_DIRECTORY="${RUNNER_TEMP}/snap-release-downloads"
+                  rm -rf "${ASSET_DIRECTORY}"
+                  mkdir -p "${ASSET_DIRECTORY}"
+                  node -e \
+                      "const fs=require('node:fs'); const selected=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); for (const asset of [...selected.snapAssets, selected.sourceAsset]) console.log([asset.id, asset.name].join('\\t'));" \
+                      "${RUNNER_TEMP}/selected-snap-release-assets.json" |
+                      while IFS=$'\t' read -r ASSET_ID ASSET_NAME; do
+                          gh api \
+                              --header "Accept: application/octet-stream" \
+                              "repos/${GITHUB_REPOSITORY}/releases/assets/${ASSET_ID}" \
+                              > "${ASSET_DIRECTORY}/${ASSET_NAME}"
+                      done
+
+            - name: Verify downloaded public release assets
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  test -s "${RUNNER_TEMP}/snap-release-downloads/${SOURCE_ARCHIVE_NAME}"
+                  node tools/packaging/release-snap-assets.cjs verify \
+                      --manifest "${RUNNER_TEMP}/selected-snap-release-assets.json" \
+                      --directory "${RUNNER_TEMP}/snap-release-downloads"
+
+            - name: Setup Snapcraft
+              uses: samuelmeuli/action-snapcraft@v3
+
+            - name: Publish all public-release snaps to edge
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  node -e \
+                      "const fs=require('node:fs'); const selected=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); for (const asset of selected.snapAssets) console.log(asset.name);" \
+                      "${RUNNER_TEMP}/selected-snap-release-assets.json" |
+                      while IFS= read -r SNAP_NAME; do
+                          SNAP_FILE="${RUNNER_TEMP}/snap-release-downloads/${SNAP_NAME}"
+                          echo "Publishing public release asset: ${SNAP_NAME}"
+                          snapcraft upload --release=edge "${SNAP_FILE}"
+                      done
