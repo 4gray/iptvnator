@@ -64,6 +64,52 @@ describe('SettingsStore dashboard rail settings', () => {
         );
     });
 
+    it('defaults shared web controls to false when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+    });
+
+    it('restores a persisted true shared web controls preference', async () => {
+        storedSettings = {
+            webPlayerSharedControls: true,
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
+    });
+
+    it('normalizes a persisted string "true" shared web controls preference to false', async () => {
+        storedSettings = {
+            webPlayerSharedControls: 'true' as unknown as boolean,
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+    });
+
+    it('persists an updated true shared web controls preference', async () => {
+        const store = injector.get(SettingsStore);
+
+        await store.updateSettings({
+            webPlayerSharedControls: true,
+        });
+
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                webPlayerSharedControls: true,
+            })
+        );
+    });
+
     it('deep-merges partial stored dashboard rail settings with enabled defaults', async () => {
         storedSettings = {
             player: VideoPlayer.VideoJs,

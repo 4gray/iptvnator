@@ -26,6 +26,7 @@ import {
 
 const DEFAULT_SETTINGS: Settings = {
     player: VideoPlayer.VideoJs,
+    webPlayerSharedControls: false,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -118,6 +119,8 @@ export const SettingsStore = signalStore(
                     patchState(store, {
                         ...DEFAULT_SETTINGS,
                         ...storedSettings,
+                        webPlayerSharedControls:
+                            storedSettings.webPlayerSharedControls === true,
                         dashboardRails: normalizeDashboardRailsSettings(
                             storedSettings.dashboardRails
                         ),
@@ -164,6 +167,8 @@ export const SettingsStore = signalStore(
         getSettings() {
             return {
                 player: store.player(),
+                webPlayerSharedControls:
+                    store.webPlayerSharedControls?.() === true,
                 streamFormat: store.streamFormat(),
                 openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
                 language: store.language(),
