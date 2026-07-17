@@ -110,6 +110,10 @@ Set one exact `IPTVNATOR_LINUX_FRAME_COPY_PROFILE` per packaging pass:
 | `portable` | AppImage, Snap   | Retain the pinned LGPL closure under `native/lib`            |
 | `flatpak`  | Flatpak          | Retain the same pinned LGPL closure under `native/lib`       |
 
+The DEB metadata requires `libmpv2` and is release-tested on Ubuntu 24.04
+(Noble). Ubuntu 22.04 (Jammy) only provides `libmpv1`; use the x64 AppImage on
+that distribution rather than relaxing the runtime contract.
+
 Profiles cannot share one Electron Builder pass because its targets reuse the
 same unpacked application directory. A missing or unsupported profile, or a
 target from another profile, fails packaging.

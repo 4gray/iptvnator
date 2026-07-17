@@ -227,6 +227,9 @@ Key files:
       dependencies `libmpv2`/`mpv-libs`/`mpv`
     - `portable`: AppImage/Snap with the pinned LGPL-compatible closure
     - `flatpak`: Flatpak with the same pinned closure
+- The DEB system-runtime contract is Ubuntu 24.04+ (`libmpv2`). Ubuntu 22.04
+  provides `libmpv1`, so use the x64 AppImage on Jammy instead of weakening the
+  package dependency or advertising frame-copy without a compatible runtime.
 - Only `iptvnator_mpv_helper` may link libmpv. The Electron executable,
   Electron libraries, `embedded_mpv.node`, and
   `embedded_mpv_frame_reader.node` must not load or link it. Preserve this

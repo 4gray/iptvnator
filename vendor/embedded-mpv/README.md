@@ -26,6 +26,9 @@ Linux package profiles consume that one staged x64 source runtime differently:
 - Non-x64 Linux packages retain no native artifacts and ship only the
   unavailable marker.
 
+The DEB dependency is specifically `libmpv2` (verified on Ubuntu 24.04+).
+Ubuntu 22.04 provides `libmpv1`; use the x64 AppImage there.
+
 Only `iptvnator_mpv_helper` may link libmpv. Electron,
 `embedded_mpv.node`, and `embedded_mpv_frame_reader.node` must remain free of
 direct libmpv dependencies. See `tools/embedded-mpv/README.md` and

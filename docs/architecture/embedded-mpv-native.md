@@ -83,6 +83,11 @@ one unpacked application layout per pass:
 | `portable` | AppImage, Snap   | Bundled pinned LGPL-compatible runtime under `native/lib`                                     |
 | `flatpak`  | Flatpak          | The same bundled pinned LGPL-compatible runtime under `native/lib`                            |
 
+The DEB contract deliberately names `libmpv2`, not a loose `libmpv`
+alternative. Release CI verifies that contract on Ubuntu 24.04 (Noble).
+Ubuntu 22.04 (Jammy) provides `libmpv1`, so its DEB cannot enable this
+system-runtime frame-copy path; use the x64 AppImage there instead.
+
 Every x64 layout contains the addon, frame reader, helper, and a normalized
 `embedded-mpv-runtime.json`. The Electron executable, Electron libraries,
 `embedded_mpv.node`, and the frame reader must not link libmpv; only the helper
@@ -549,7 +554,9 @@ Linux release profiles:
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=system` builds DEB, RPM, and Pacman.
   `afterPack` removes the private `lib` directory, writes a
   `system-libmpv-frame-copy` manifest, and package metadata requires
-  `libmpv2`, `mpv-libs`, or `mpv`.
+  `libmpv2`, `mpv-libs`, or `mpv`. The DEB path is verified on Ubuntu 24.04+;
+  Ubuntu 22.04 users need the x64 AppImage because Jammy only provides
+  `libmpv1`.
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=portable` builds AppImage and Snap with
   the pinned source-built closure and a `bundled-lgpl-frame-copy` manifest.
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=flatpak` builds Flatpak with the same

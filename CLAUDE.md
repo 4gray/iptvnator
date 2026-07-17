@@ -629,7 +629,9 @@ engine` (restart required) or
   `iptvnator_mpv_helper` may link libmpv; Electron, its shipped libraries, the
   addon, and frame reader must not. Official x64 packages use three separate
   profiles: DEB/RPM/Pacman depend on system libmpv, AppImage/Snap bundle the
-  pinned LGPL closure, and Flatpak bundles the same closure. ARM packages are
+  pinned LGPL closure, and Flatpak bundles the same closure. The DEB contract
+  requires `libmpv2` and is verified on Ubuntu 24.04+; Ubuntu 22.04 users need
+  the x64 AppImage because Jammy provides `libmpv1`. ARM packages are
   marker-only. Stored or explicit opt-ins cannot bypass the fail-closed
   packaged manifest/file/hash gate and bounded `--runtime-probe`; any failure
   keeps the sandbox enabled, records a stable reason, and falls back to
