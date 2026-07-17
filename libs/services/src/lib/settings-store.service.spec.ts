@@ -92,6 +92,7 @@ describe('SettingsStore dashboard rail settings', () => {
 
         await store.loadSettings();
 
+        expect(store.webPlayerSharedControls?.()).toBe(false);
         expect(store.getSettings().webPlayerSharedControls).toBe(false);
     });
 
@@ -106,6 +107,21 @@ describe('SettingsStore dashboard rail settings', () => {
             STORE_KEY.Settings,
             expect.objectContaining({
                 webPlayerSharedControls: true,
+            })
+        );
+    });
+
+    it('serializes a malformed string "true" shared web controls update as false', async () => {
+        const store = injector.get(SettingsStore);
+
+        await store.updateSettings({
+            webPlayerSharedControls: 'true' as unknown as boolean,
+        });
+
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                webPlayerSharedControls: false,
             })
         );
     });
