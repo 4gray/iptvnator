@@ -642,6 +642,27 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
             [
                 (contents) =>
                     contents.replace(
+                        '\nplugs:\n',
+                        '\nplugs:\n  other: { interface: shared-memory }\n'
+                    ),
+                /plug declarations.*block mappings/i,
+            ],
+            [
+                (contents) =>
+                    `${contents}slots: { leak: { interface: shared-memory } }\n`,
+                /slots.*block mappings/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '\nplugs:\n',
+                        '\nplugs:\n  network:\n    interface: network\n  network:\n    interface: network\n'
+                    ),
+                /plug keys.*unique/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
                         [
                             '    plugs:',
                             '      - desktop',

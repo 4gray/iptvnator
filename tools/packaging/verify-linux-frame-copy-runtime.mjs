@@ -546,6 +546,21 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         }
 
         const plugEntries = directYamlMappingEntries(lines, plugs, 2);
+        if (
+            !plugEntries ||
+            plugEntries.some(({ value }) => value.length > 0)
+        ) {
+            errors.push(
+                'Extracted Snap plug declarations must use block mappings.'
+            );
+        }
+        if (
+            plugEntries &&
+            new Set(plugEntries.map(({ key }) => key)).size !==
+                plugEntries.length
+        ) {
+            errors.push('Extracted Snap direct plug keys must be unique.');
+        }
         const sharedMemoryInterfaces =
             plugEntries?.filter((plugEntry) => {
                 const plugFields = directYamlMappingEntries(
@@ -582,12 +597,18 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         lines.length
     );
     let hasSharedMemorySlot = slotsEntries.length > 1;
+    let invalidSlotsShape = slotsEntries.some(
+        ({ value }) => value.length > 0
+    );
     for (const slots of slotsEntries) {
         const slotEntries = directYamlMappingEntries(lines, slots, 2);
         if (!slotEntries) {
-            hasSharedMemorySlot = true;
+            invalidSlotsShape = true;
             continue;
         }
+        invalidSlotsShape ||= slotEntries.some(
+            ({ value }) => value.length > 0
+        );
         hasSharedMemorySlot ||= slotEntries.some((slotEntry) => {
             if (slotEntry.key === 'shared-memory') {
                 return true;
@@ -601,6 +622,11 @@ export function validateExtractedSnapMetadata(extractionRoot) {
                 ) ?? false
             );
         });
+    }
+    if (invalidSlotsShape) {
+        errors.push(
+            'Extracted Snap slots must use block mappings with scalar fields.'
+        );
     }
     if (hasSharedMemorySlot) {
         errors.push(
