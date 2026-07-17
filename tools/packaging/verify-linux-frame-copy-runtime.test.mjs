@@ -575,6 +575,8 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
 
     const validSnapYaml = [
         'name: iptvnator',
+        'summary: "*literal &anchor !tag <<: is quoted"',
+        '# *commented-alias &commented-anchor !commented-tag',
         'apps:',
         '  iptvnator:',
         '    command: iptvnator',
@@ -659,6 +661,45 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
                         '\nplugs:\n  network:\n    interface: network\n  network:\n    interface: network\n'
                     ),
                 /plug keys.*unique/i,
+            ],
+            [
+                (contents) =>
+                    [
+                        'shared-interface: &sharedInterface shared-memory',
+                        contents.replace(
+                            '\nplugs:\n',
+                            '\nplugs:\n  alias-plug:\n    interface: *sharedInterface\n'
+                        ),
+                    ].join('\n'),
+                /anchors, aliases, merge keys, or custom tags/i,
+            ],
+            [
+                (contents) =>
+                    [
+                        'shared-interface: &sharedInterface shared-memory',
+                        `${contents}slots:\n  alias-slot:\n    interface: *sharedInterface\n`,
+                    ].join('\n'),
+                /anchors, aliases, merge keys, or custom tags/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '\nplugs:\n',
+                        '\nplugs:\n  tagged:\n    interface: !shared-memory shared-memory\n'
+                    ),
+                /anchors, aliases, merge keys, or custom tags/i,
+            ],
+            [
+                (contents) =>
+                    [
+                        'shared-plug: &sharedPlug',
+                        '  interface: network',
+                        contents.replace(
+                            '\nplugs:\n',
+                            '\nplugs:\n  merged:\n    <<: *sharedPlug\n'
+                        ),
+                    ].join('\n'),
+                /anchors, aliases, merge keys, or custom tags/i,
             ],
             [
                 (contents) =>

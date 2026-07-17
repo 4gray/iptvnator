@@ -464,6 +464,76 @@ function yamlSequenceIncludes(lines, entry, expected) {
     );
 }
 
+function yamlSyntaxOutsideQuotedScalars(line) {
+    let result = '';
+    let quote = null;
+    for (let index = 0; index < line.length; index += 1) {
+        const character = line[index];
+        if (quote === "'") {
+            if (character === "'" && line[index + 1] === "'") {
+                result += '  ';
+                index += 1;
+            } else {
+                result += ' ';
+                if (character === "'") {
+                    quote = null;
+                }
+            }
+            continue;
+        }
+        if (quote === '"') {
+            result += ' ';
+            if (character === '\\') {
+                result += ' ';
+                index += 1;
+            } else if (character === '"') {
+                quote = null;
+            }
+            continue;
+        }
+        if (character === '#') {
+            break;
+        }
+        if (character === "'" || character === '"') {
+            quote = character;
+            result += ' ';
+            continue;
+        }
+        result += character;
+    }
+    return result;
+}
+
+function containsUnsupportedYamlSemantics(lines) {
+    let blockScalarParentIndent = null;
+    for (const line of lines) {
+        if (!line.trim()) {
+            continue;
+        }
+        const lineIndent = line.length - line.trimStart().length;
+        if (
+            blockScalarParentIndent !== null &&
+            lineIndent > blockScalarParentIndent
+        ) {
+            continue;
+        }
+        blockScalarParentIndent = null;
+        const syntax = yamlSyntaxOutsideQuotedScalars(line);
+        if (
+            /(?:^|[\s:[\]{},])(?:[&*][A-Za-z0-9_-]+|![^\s,[\]{}]+)(?=$|[\s,\]}])/.test(
+                syntax
+            ) ||
+            /(?:^|\s)<<\s*:/.test(syntax)
+        ) {
+            return true;
+        }
+        if (/:\s*[>|][+-]?\d?\s*$/.test(syntax)) {
+            blockScalarParentIndent = lineIndent;
+        }
+    }
+    return false;
+}
+
 export function validateExtractedSnapMetadata(extractionRoot) {
     const snapYamlPath = path.join(extractionRoot, 'meta', 'snap.yaml');
     let stat;
@@ -492,6 +562,11 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         ];
     }
     const lines = contents.split(/\r?\n/);
+    if (containsUnsupportedYamlSemantics(lines)) {
+        return [
+            'Extracted Snap metadata must not use YAML anchors, aliases, merge keys, or custom tags.',
+        ];
+    }
     const errors = [];
     const plugs = singleYamlMappingEntry(
         lines,
