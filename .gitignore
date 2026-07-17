@@ -84,4 +84,5 @@ apps/electron-backend/src/app/options/electron-builder.metadata.generated.json
 vendor/embedded-mpv/*/bin/
 vendor/embedded-mpv/*/include/
 vendor/embedded-mpv/*/lib/
+vendor/embedded-mpv/*/notices/
 vendor/embedded-mpv/*/runtime-manifest.json

@@ -43,17 +43,19 @@ jobs:
                       echo 'meson=1.7.2'
                   } > "${RUNNER_TEMP}/linux-runtime-toolchain.txt"
                   TOOLCHAIN_SHA256="$(sha256sum "${RUNNER_TEMP}/linux-runtime-toolchain.txt" | cut -d ' ' -f 1)"
-                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/stage-runtime.mjs') }}"
+                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/stage-runtime.mjs') }}"
                   echo "toolchain-sha256=${TOOLCHAIN_SHA256}" >> "${GITHUB_OUTPUT}"
-                  echo "key=linux-frame-copy-runtime-v4-ubuntu-22.04-${TOOLCHAIN_SHA256}-${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
+                  echo "key=linux-frame-copy-runtime-v5-ubuntu-22.04-${TOOLCHAIN_SHA256}-${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
 
-            - name: Restore pinned Linux runtime and source compliance bundle
+            - name: Restore pinned Linux runtime and immutable source inputs
               id: linux-runtime-cache
               uses: actions/cache@v4
               with:
                   path: |
-                      vendor/embedded-mpv/linux-x64
-                      dist/compliance/linux-frame-copy-runtime-sources.tar.xz
+                      vendor/embedded-mpv/linux-x64/include
+                      vendor/embedded-mpv/linux-x64/lib
+                      vendor/embedded-mpv/linux-x64/runtime-manifest.json
+                      dist/linux-frame-copy-runtime-source-inputs
                   key: ${{ steps.linux-runtime-cache-key.outputs.key }}
 
             - name: Install pinned Linux runtime build dependencies
@@ -99,30 +101,67 @@ jobs:
                   node tools/embedded-mpv/build-linux-runtime.mjs "${RUNTIME_PREFIX}"
                   node tools/embedded-mpv/stage-runtime.mjs linux x64 "${RUNTIME_PREFIX}"
 
+                  export SOURCE_INPUT_ROOT="${GITHUB_WORKSPACE}/dist/linux-frame-copy-runtime-source-inputs"
+                  rm -rf "${SOURCE_INPUT_ROOT}"
+                  mkdir -p \
+                      "${SOURCE_INPUT_ROOT}/archives" \
+                      "${SOURCE_INPUT_ROOT}/git"
+
+                  git -C "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/libplacebo" \
+                      submodule foreach --recursive git clean -ffdqx
+                  git -C "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/libplacebo" \
+                      clean -ffdqx
+                  cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/archives/." "${SOURCE_INPUT_ROOT}/archives/"
+                  cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/libplacebo" "${SOURCE_INPUT_ROOT}/git/libplacebo"
+                  node tools/embedded-mpv/generate-linux-runtime-notices.cjs collect \
+                      --runtime-manifest "${RUNTIME_PREFIX}/runtime-manifest.json" \
+                      --source-root "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources" \
+                      --output-root "${SOURCE_INPUT_ROOT}/license-inputs"
+
+            - name: Generate Linux runtime notices and assemble source compliance
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  export RUNTIME_ROOT="${GITHUB_WORKSPACE}/vendor/embedded-mpv/linux-x64"
+                  export SOURCE_INPUT_ROOT="${GITHUB_WORKSPACE}/dist/linux-frame-copy-runtime-source-inputs"
                   export SOURCE_BUNDLE_ROOT="${RUNNER_TEMP}/linux-frame-copy-runtime-sources"
-                  rm -rf "${SOURCE_BUNDLE_ROOT}"
+
+                  test -f "${RUNTIME_ROOT}/runtime-manifest.json"
+                  test -d "${SOURCE_INPUT_ROOT}/archives"
+                  test -d "${SOURCE_INPUT_ROOT}/git/libplacebo"
+                  test -f "${SOURCE_INPUT_ROOT}/license-inputs/linux-runtime-license-inputs.json"
+
+                  rm -rf "${RUNTIME_ROOT}/notices" "${SOURCE_BUNDLE_ROOT}"
+                  node tools/embedded-mpv/generate-linux-runtime-notices.cjs generate \
+                      --runtime-manifest "${RUNTIME_ROOT}/runtime-manifest.json" \
+                      --license-input-root "${SOURCE_INPUT_ROOT}/license-inputs" \
+                      --output-root "${RUNTIME_ROOT}/notices"
+
                   mkdir -p \
                       "${SOURCE_BUNDLE_ROOT}/archives" \
                       "${SOURCE_BUNDLE_ROOT}/git" \
+                      "${SOURCE_BUNDLE_ROOT}/license-inputs" \
                       "${SOURCE_BUNDLE_ROOT}/metadata" \
                       "${SOURCE_BUNDLE_ROOT}/notices" \
                       "${SOURCE_BUNDLE_ROOT}/tooling"
 
-                  cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/archives/." "${SOURCE_BUNDLE_ROOT}/archives/"
-                  cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/libplacebo" "${SOURCE_BUNDLE_ROOT}/git/libplacebo"
-                  cp "${RUNTIME_PREFIX}/runtime-manifest.json" "${SOURCE_BUNDLE_ROOT}/metadata/runtime-manifest.json"
+                  cp -a "${SOURCE_INPUT_ROOT}/archives/." "${SOURCE_BUNDLE_ROOT}/archives/"
+                  cp -a "${SOURCE_INPUT_ROOT}/git/." "${SOURCE_BUNDLE_ROOT}/git/"
+                  cp -a "${SOURCE_INPUT_ROOT}/license-inputs/." "${SOURCE_BUNDLE_ROOT}/license-inputs/"
+                  cp -a "${RUNTIME_ROOT}/notices/." "${SOURCE_BUNDLE_ROOT}/notices/"
+                  cp "${RUNTIME_ROOT}/runtime-manifest.json" "${SOURCE_BUNDLE_ROOT}/metadata/runtime-manifest.json"
                   cp \
                       tools/embedded-mpv/build-linux-runtime.cjs \
                       tools/embedded-mpv/build-linux-runtime.mjs \
+                      tools/embedded-mpv/generate-linux-runtime-notices.cjs \
                       tools/embedded-mpv/linux-runtime-manifest.cjs \
                       tools/embedded-mpv/stage-runtime.mjs \
                       "${SOURCE_BUNDLE_ROOT}/tooling/"
-                  find "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/hwdata" \
-                      -maxdepth 1 -type f -iname 'license*' \
-                      -exec cp '{}' "${SOURCE_BUNDLE_ROOT}/notices/hwdata-LICENSE" ';'
-                  test -f "${SOURCE_BUNDLE_ROOT}/notices/hwdata-LICENSE"
+                  test -f "${SOURCE_BUNDLE_ROOT}/notices/THIRD_PARTY_NOTICES.txt"
+                  test -f "${SOURCE_BUNDLE_ROOT}/notices/embedded-mpv-notices.json"
                   git rev-parse HEAD > "${SOURCE_BUNDLE_ROOT}/metadata/iptvnator-git-revision.txt"
-                  git diff --binary HEAD -- tools/embedded-mpv > "${SOURCE_BUNDLE_ROOT}/metadata/local-embedded-mpv-changes.patch"
+                  git diff --binary HEAD > "${SOURCE_BUNDLE_ROOT}/metadata/local-changes.patch"
                   node <<'NODE'
                   const childProcess = require('node:child_process');
                   const crypto = require('node:crypto');
@@ -130,7 +169,7 @@ jobs:
                   const path = require('node:path');
 
                   const manifest = JSON.parse(
-                    fs.readFileSync(path.join(process.env.RUNTIME_PREFIX, 'runtime-manifest.json'), 'utf8')
+                    fs.readFileSync(path.join(process.env.RUNTIME_ROOT, 'runtime-manifest.json'), 'utf8')
                   );
                   const archivesDirectory = path.join(process.env.SOURCE_BUNDLE_ROOT, 'archives');
                   const archives = fs.readdirSync(archivesDirectory).sort().map((name) => {
@@ -140,13 +179,20 @@ jobs:
                       sha256: crypto.createHash('sha256').update(contents).digest('hex'),
                     };
                   });
-                  const archiveHashes = new Set(archives.map(({ sha256 }) => sha256));
-                  for (const [packageName, source] of Object.entries(manifest.packages)) {
-                    if (source.sourceSha256 && !archiveHashes.has(source.sourceSha256)) {
-                      throw new Error(
-                        `Source bundle is missing ${packageName} archive ${source.sourceSha256}.`
-                      );
-                    }
+                  const expectedArchiveHashes = Object.values(manifest.packages)
+                    .map(({ sourceSha256 }) => sourceSha256)
+                    .filter(Boolean)
+                    .sort();
+                  const actualArchiveHashes = archives.map(({ sha256 }) => sha256).sort();
+                  if (
+                    new Set(expectedArchiveHashes).size !== expectedArchiveHashes.length ||
+                    new Set(actualArchiveHashes).size !== actualArchiveHashes.length ||
+                    archives.length !== expectedArchiveHashes.length ||
+                    JSON.stringify(actualArchiveHashes) !== JSON.stringify(expectedArchiveHashes)
+                  ) {
+                    throw new Error(
+                      'Source bundle archives must match the exact unique pinned archive hash set.'
+                    );
                   }
 
                   const libplaceboCheckout = path.join(
@@ -172,17 +218,67 @@ jobs:
                   ) {
                     throw new Error('Bundled libplacebo submodules do not match the runtime manifest.');
                   }
+                  const assertCleanCheckout = (checkoutPath, label) => {
+                    const status = childProcess.execFileSync(
+                      'git',
+                      [
+                        '-C',
+                        checkoutPath,
+                        'status',
+                        '--porcelain=v1',
+                        '--untracked-files=all',
+                        '--ignore-submodules=none',
+                      ],
+                      { encoding: 'utf8' }
+                    );
+                    if (status.trim()) {
+                      throw new Error(`${label} checkout contains dirty or untracked files.`);
+                    }
+                  };
+                  assertCleanCheckout(libplaceboCheckout, 'libplacebo');
+                  for (const submoduleRecord of sourceSubmodules) {
+                    const match = submoduleRecord.match(/^[+-U]?[a-f0-9]{40,64}\s+([^\s]+)/);
+                    if (!match) {
+                      throw new Error(`Invalid libplacebo submodule record: ${submoduleRecord}`);
+                    }
+                    assertCleanCheckout(
+                      path.join(libplaceboCheckout, match[1]),
+                      `libplacebo submodule ${match[1]}`
+                    );
+                  }
 
+                  const notices = JSON.parse(
+                    fs.readFileSync(
+                      path.join(process.env.SOURCE_BUNDLE_ROOT, 'notices', 'embedded-mpv-notices.json'),
+                      'utf8'
+                    )
+                  );
+                  const repositoryRevision = fs
+                    .readFileSync(
+                      path.join(
+                        process.env.SOURCE_BUNDLE_ROOT,
+                        'metadata',
+                        'iptvnator-git-revision.txt'
+                      ),
+                      'utf8'
+                    )
+                    .trim();
                   fs.writeFileSync(
                     path.join(process.env.SOURCE_BUNDLE_ROOT, 'metadata', 'source-index.json'),
                     `${JSON.stringify(
                       {
-                        schemaVersion: 1,
+                        schemaVersion: 2,
+                        repositoryRevision,
                         sourcePackages: manifest.packages,
                         archives,
                         libplacebo: {
                           sourceGitCommit,
                           sourceSubmodules,
+                        },
+                        legal: {
+                          manifest: 'notices/embedded-mpv-notices.json',
+                          noticeFile: notices.noticeFile,
+                          packages: notices.packages,
                         },
                       },
                       null,
@@ -196,9 +292,15 @@ jobs:
                   )
 
                   mkdir -p dist/compliance
+                  rm -f dist/compliance/linux-frame-copy-runtime-sources.tar.xz
                   tar \
                       --create \
                       --xz \
+                      --sort=name \
+                      --mtime='UTC 1970-01-01' \
+                      --owner=0 \
+                      --group=0 \
+                      --numeric-owner \
                       --file dist/compliance/linux-frame-copy-runtime-sources.tar.xz \
                       --directory "${SOURCE_BUNDLE_ROOT}" \
                       .

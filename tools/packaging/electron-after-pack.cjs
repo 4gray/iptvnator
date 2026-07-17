@@ -54,10 +54,23 @@ function copyEmbeddedMpvNativeOutput(
     fs.rmSync(destinationDir, { recursive: true, force: true });
     fs.cpSync(sourceDir, destinationDir, { recursive: true });
 
+    const resolvedPreparationOptions =
+        platform === 'linux' && preparationOptions
+            ? {
+                  ...preparationOptions,
+                  noticeSourceDir: path.join(
+                      projectDir,
+                      'vendor',
+                      'embedded-mpv',
+                      'linux-x64',
+                      'notices'
+                  ),
+              }
+            : preparationOptions;
     return preparePackagedFrameCopyArtifacts(
         destinationDir,
         platform,
-        preparationOptions
+        resolvedPreparationOptions
     );
 }
 

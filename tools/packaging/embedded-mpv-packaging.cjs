@@ -13,6 +13,11 @@ const {
     validateLinuxRuntimeManifest,
 } = require('../embedded-mpv/linux-runtime-manifest.cjs');
 const {
+    NOTICE_MANIFEST,
+    THIRD_PARTY_NOTICES,
+    validateLinuxRuntimeNotices,
+} = require('../embedded-mpv/generate-linux-runtime-notices.cjs');
+const {
     LINUX_SYSTEM_PACKAGE_DEPENDENCIES,
     resolveLinuxFrameCopyProfile,
     validateLinuxProfileTargets,
@@ -54,6 +59,11 @@ const linuxFrameCopyProcessIsolation = Object.freeze({
 const linuxNativeViewFallback = 'process-isolated mpv --wid';
 const versionedLinuxLibmpvPattern = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 const anyLinuxLibmpvPattern = /^libmpv\.so(?:\.|$)/;
+const linuxRuntimeLegalPaths = Object.freeze([
+    NOTICE_MANIFEST,
+    THIRD_PARTY_NOTICES,
+    'licenses',
+]);
 
 function run(command, args, options = {}) {
     const result = spawnSync(command, args, {
@@ -887,6 +897,14 @@ function validateNativeViewOnlyLinuxPackage(
     manifestPath,
     errors
 ) {
+    for (const legalPath of linuxRuntimeLegalPaths) {
+        const packagedLegalPath = path.join(nativeDir, legalPath);
+        if (pathExistsByLstat(packagedLegalPath)) {
+            errors.push(
+                `Linux native-view-only packages must not ship bundled runtime legal files: ${packagedLegalPath}`
+            );
+        }
+    }
     for (const artifactName of [
         'iptvnator_mpv_helper',
         'iptvnator_mpv_helper.exe',
@@ -1037,6 +1055,14 @@ function validatePackagedManifestContract(
 }
 
 function validateSystemLinuxRuntime(nativeDir, manifest, errors) {
+    for (const legalPath of linuxRuntimeLegalPaths) {
+        const packagedLegalPath = path.join(nativeDir, legalPath);
+        if (pathExistsByLstat(packagedLegalPath)) {
+            errors.push(
+                `Linux system frame-copy packages must not ship bundled runtime legal files: ${packagedLegalPath}`
+            );
+        }
+    }
     if (
         !isDeepStrictEqual(
             manifest.packageDependencies,
@@ -1100,6 +1126,11 @@ function validateBundledLinuxRuntime(nativeDir, manifest, errors) {
         ...sourceRuntimeErrors.map(
             (error) => `Invalid packaged Linux source runtime: ${error}`
         )
+    );
+    errors.push(
+        ...validateLinuxRuntimeNotices(nativeDir, manifest.sourceRuntime, {
+            allowUnrelatedFiles: true,
+        }).map((error) => `Invalid packaged Linux runtime notices: ${error}`)
     );
     if (
         !isDeepStrictEqual(

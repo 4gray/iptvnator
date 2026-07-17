@@ -66,6 +66,15 @@ test('configures portable and flatpak passes without mixing targets', () => {
     assert.deepEqual(configuredTargets(flatpak), [
         { target: 'flatpak', arch: ['x64'] },
     ]);
+    assert.deepEqual(portable.snap.plugs, [
+        'default',
+        {
+            'shared-memory': {
+                interface: 'shared-memory',
+                private: true,
+            },
+        },
+    ]);
 });
 
 test('configures a separate marker-only foreign DEB pass without libmpv metadata', () => {
@@ -173,6 +182,60 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
         buildWorkflow,
         /key: \$\{\{ steps\.linux-runtime-cache-key\.outputs\.key \}\}/
     );
+    const cacheStep = workflowStep(
+        'Restore pinned Linux runtime and immutable source inputs'
+    );
+    assert.match(cacheStep, /dist\/linux-frame-copy-runtime-source-inputs/);
+    assert.doesNotMatch(cacheStep, /linux-frame-copy-runtime-sources\.tar\.xz/);
+    assert.doesNotMatch(cacheStep, /THIRD_PARTY_NOTICES/);
+
+    const complianceStep = workflowStep(
+        'Generate Linux runtime notices and assemble source compliance'
+    );
+    assert.doesNotMatch(complianceStep, /^\s+if:/m);
+    assert.match(
+        complianceStep,
+        /generate-linux-runtime-notices\.cjs generate/
+    );
+    assert.match(complianceStep, /git rev-parse HEAD/);
+    assert.match(complianceStep, /git diff --binary HEAD/);
+    assert.match(
+        complianceStep,
+        /tar[\s\S]*linux-frame-copy-runtime-sources\.tar\.xz/
+    );
+    assert.match(complianceStep, /source-index\.json/);
+    assert.match(complianceStep, /THIRD_PARTY_NOTICES\.txt/);
+    assert.match(complianceStep, /embedded-mpv-notices\.json/);
+    assert.match(
+        complianceStep,
+        /SOURCE_INPUT_ROOT.*license-inputs[\s\S]*SOURCE_BUNDLE_ROOT.*license-inputs/
+    );
+    assert.match(
+        complianceStep,
+        /new Set\(expectedArchiveHashes\)\.size[\s\S]*archives\.length !== expectedArchiveHashes\.length/
+    );
+    assert.match(
+        complianceStep,
+        /status[\s\S]*--porcelain=v1[\s\S]*--untracked-files=all[\s\S]*--ignore-submodules=none/
+    );
+    assert.match(
+        complianceStep,
+        /for \(const submoduleRecord of sourceSubmodules\)/
+    );
+
+    const buildStep = workflowStep('Build and stage pinned LGPL Linux runtime');
+    assert.match(buildStep, /generate-linux-runtime-notices\.cjs collect/);
+    assert.match(
+        buildStep,
+        /linux-frame-copy-runtime-source-inputs[\s\S]*archives[\s\S]*git\/libplacebo/
+    );
+    assert.ok(
+        buildStep.indexOf('git clean -ffdqx') <
+            buildStep.indexOf(
+                'cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/libplacebo"'
+            )
+    );
+    assert.doesNotMatch(buildStep, /linux-frame-copy-runtime-sources\.tar\.xz/);
     assert.match(
         buildWorkflow,
         /IPTVNATOR_LINUX_FRAME_COPY_PROFILE: \$\{\{ matrix\.linux_profile/

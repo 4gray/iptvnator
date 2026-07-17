@@ -30,18 +30,20 @@
                 "{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.test.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/generate-linux-runtime-notices.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/generate-linux-runtime-notices.test.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-runtime-manifest.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-runtime-manifest.test.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/stage-runtime.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs"
             ],
             "options": {
-                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/configure-linux-frame-copy-build.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs tools/packaging/verify-linux-frame-copy-runtime.test.mjs tools/embedded-mpv/build-linux-runtime.test.mjs tools/embedded-mpv/linux-runtime-manifest.test.mjs",
+                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/configure-linux-frame-copy-build.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs tools/packaging/verify-linux-frame-copy-runtime.test.mjs tools/embedded-mpv/build-linux-runtime.test.mjs tools/embedded-mpv/generate-linux-runtime-notices.test.mjs tools/embedded-mpv/linux-runtime-manifest.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
         "lint": {
-            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\""
+            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\" \"tools/embedded-mpv/generate-linux-runtime-notices.{cjs,test.mjs}\""
         }
     },
     "tags": ["scope:tools", "domain:packaging", "type:tool"]

@@ -8,6 +8,11 @@ const {
     validateLinuxRuntimeManifest,
 } = require('../embedded-mpv/linux-runtime-manifest.cjs');
 const {
+    NOTICE_MANIFEST,
+    THIRD_PARTY_NOTICES,
+    validateLinuxRuntimeNotices,
+} = require('../embedded-mpv/generate-linux-runtime-notices.cjs');
+const {
     LINUX_SYSTEM_PACKAGE_DEPENDENCIES,
     resolveLinuxFrameCopyProfile,
     validateLinuxProfileTargets,
@@ -19,6 +24,7 @@ const FRAME_COPY_READER = 'embedded_mpv_frame_reader.node';
 const EMBEDDED_MPV_ADDON = 'embedded_mpv.node';
 const RUNTIME_MANIFEST = 'embedded-mpv-runtime.json';
 const UNAVAILABLE_MARKER = 'embedded-mpv-unavailable.txt';
+const LICENSES_DIRECTORY = 'licenses';
 const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 const EXPECTED_ARTIFACTS = Object.freeze({
     addon: EMBEDDED_MPV_ADDON,
@@ -302,6 +308,70 @@ function writeManifest(nativeDir, manifest) {
     return manifest;
 }
 
+function removeLinuxRuntimeNotices(nativeDir) {
+    for (const relativePath of [
+        NOTICE_MANIFEST,
+        THIRD_PARTY_NOTICES,
+        LICENSES_DIRECTORY,
+        'notices',
+    ]) {
+        fs.rmSync(path.join(nativeDir, relativePath), {
+            recursive: true,
+            force: true,
+        });
+    }
+}
+
+function prepareBundledLinuxRuntimeNotices(
+    nativeDir,
+    sourceRuntime,
+    noticeSourceDir
+) {
+    if (noticeSourceDir) {
+        const sourceErrors = validateLinuxRuntimeNotices(
+            noticeSourceDir,
+            sourceRuntime
+        );
+        if (sourceErrors.length > 0) {
+            throw new Error(
+                [
+                    `Invalid Linux runtime notice source at ${noticeSourceDir}.`,
+                    ...sourceErrors.map((error) => `- ${error}`),
+                ].join('\n')
+            );
+        }
+        removeLinuxRuntimeNotices(nativeDir);
+        for (const relativePath of [
+            NOTICE_MANIFEST,
+            THIRD_PARTY_NOTICES,
+            LICENSES_DIRECTORY,
+        ]) {
+            fs.cpSync(
+                path.join(noticeSourceDir, relativePath),
+                path.join(nativeDir, relativePath),
+                {
+                    recursive: true,
+                    force: true,
+                }
+            );
+        }
+    }
+
+    const packagedErrors = validateLinuxRuntimeNotices(
+        nativeDir,
+        sourceRuntime,
+        { allowUnrelatedFiles: true }
+    );
+    if (packagedErrors.length > 0) {
+        throw new Error(
+            [
+                `Invalid packaged Linux runtime notices at ${nativeDir}.`,
+                ...packagedErrors.map((error) => `- ${error}`),
+            ].join('\n')
+        );
+    }
+}
+
 function createPackagedManifest(buildManifest, profile, targetNames) {
     const bundled = profile.runtimeMode === 'bundled';
     const runtimeFiles = bundled
@@ -390,6 +460,7 @@ function prepareNativeViewOnlyLinuxArtifacts(nativeDir) {
         fs.rmSync(path.join(nativeDir, fileName), { force: true });
     }
     fs.rmSync(path.join(nativeDir, 'lib'), { recursive: true, force: true });
+    removeLinuxRuntimeNotices(nativeDir);
 
     return writeManifest(nativeDir, {
         schemaVersion: 1,
@@ -448,6 +519,13 @@ function prepareLinuxFrameCopyArtifacts(nativeDir, options = {}) {
             recursive: true,
             force: true,
         });
+        removeLinuxRuntimeNotices(nativeDir);
+    } else {
+        prepareBundledLinuxRuntimeNotices(
+            nativeDir,
+            buildManifest.sourceRuntime,
+            options.noticeSourceDir
+        );
     }
 
     return writeManifest(
@@ -481,6 +559,7 @@ function removeStaleFrameCopyArtifacts(nativeDir) {
     ]) {
         fs.rmSync(path.join(nativeDir, fileName), { force: true });
     }
+    removeLinuxRuntimeNotices(nativeDir);
 }
 
 module.exports = {

@@ -26,6 +26,11 @@ const {
     preparePackagedFrameCopyArtifacts,
 } = require('./embedded-mpv-frame-copy-files.cjs');
 const {
+    LICENSE_PATHS_BY_PACKAGE,
+    collectLinuxRuntimeLicenseInputs,
+    generateLinuxRuntimeNotices,
+} = require('../embedded-mpv/generate-linux-runtime-notices.cjs');
+const {
     resolveLinuxFrameCopyPackagingContext,
 } = require('./electron-after-pack.cjs');
 
@@ -170,6 +175,33 @@ function createBuildManifest(runtimeContents) {
     };
 }
 
+function createNoticeFixture(fixtureRoot, sourceRuntime) {
+    const sourceRoot = join(fixtureRoot, 'upstream-license-sources');
+    for (const sourcePackage of SOURCE_PACKAGES) {
+        for (const relativePath of LICENSE_PATHS_BY_PACKAGE[sourcePackage.id]) {
+            const sourcePath = join(sourceRoot, sourcePackage.id, relativePath);
+            fs.mkdirSync(dirname(sourcePath), { recursive: true });
+            fs.writeFileSync(
+                sourcePath,
+                `verbatim ${sourcePackage.id} ${relativePath}\n`
+            );
+        }
+    }
+    const licenseInputRoot = join(fixtureRoot, 'license-inputs');
+    const noticeSourceDir = join(fixtureRoot, 'generated-notices');
+    collectLinuxRuntimeLicenseInputs({
+        sourceRoot,
+        outputRoot: licenseInputRoot,
+        runtimeManifest: sourceRuntime,
+    });
+    generateLinuxRuntimeNotices({
+        licenseInputRoot,
+        outputRoot: noticeSourceDir,
+        runtimeManifest: sourceRuntime,
+    });
+    return noticeSourceDir;
+}
+
 function createNativeFixture({
     runtimeContents = {
         'libavcodec.so.61': 'libavcodec-runtime',
@@ -205,8 +237,19 @@ function createNativeFixture({
     for (const [name, contents] of Object.entries(runtimeContents)) {
         fs.writeFileSync(join(nativeDir, 'lib', name), contents);
     }
+    const noticeSourceDir = createNoticeFixture(
+        fixtureRoot,
+        buildManifest.sourceRuntime
+    );
+    fs.cpSync(noticeSourceDir, nativeDir, { recursive: true });
     fs.writeFileSync(join(appOutDir, 'iptvnator.bin'), 'electron');
-    return { fixtureRoot, resourceDir, appOutDir, nativeDir };
+    return {
+        fixtureRoot,
+        resourceDir,
+        appOutDir,
+        nativeDir,
+        noticeSourceDir,
+    };
 }
 
 function readManifest(nativeDir) {
@@ -462,6 +505,13 @@ test('prepares a normalized system profile with no private runtime', (t) => {
         fs.existsSync(join(fixture.nativeDir, 'embedded-mpv-unavailable.txt')),
         false
     );
+    for (const legalPath of [
+        'embedded-mpv-notices.json',
+        'THIRD_PARTY_NOTICES.txt',
+        'licenses',
+    ]) {
+        assert.equal(fs.existsSync(join(fixture.nativeDir, legalPath)), false);
+    }
     assert.deepEqual(
         validatePackagedEmbeddedMpv(
             fixture.resourceDir,
@@ -482,6 +532,16 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
             fs.rmSync(fixture.fixtureRoot, { recursive: true, force: true });
         }
     });
+    for (const legalPath of [
+        'embedded-mpv-notices.json',
+        'THIRD_PARTY_NOTICES.txt',
+        'licenses',
+    ]) {
+        fs.rmSync(join(portable.nativeDir, legalPath), {
+            recursive: true,
+            force: true,
+        });
+    }
 
     const portableManifest = preparePackagedFrameCopyArtifacts(
         portable.nativeDir,
@@ -489,6 +549,7 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
         {
             profile: 'portable',
             targetNames: ['AppImage', 'SNAP'],
+            noticeSourceDir: portable.noticeSourceDir,
         }
     );
     const flatpakManifest = preparePackagedFrameCopyArtifacts(
@@ -526,6 +587,20 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
             '--disable-gpl'
         )
     );
+    const notices = JSON.parse(
+        fs.readFileSync(
+            join(portable.nativeDir, 'embedded-mpv-notices.json'),
+            'utf8'
+        )
+    );
+    assert.equal(notices.schemaVersion, 1);
+    assert.equal(notices.origin, 'pinned-linux-runtime-upstream-licenses');
+    assert.equal(notices.noticeFile.path, 'THIRD_PARTY_NOTICES.txt');
+    assert.deepEqual(
+        notices.packages.map(({ id }) => id),
+        SOURCE_PACKAGES.map(({ id }) => id).sort()
+    );
+    assert.ok(notices.packages.every(({ files }) => files.length >= 1));
     assert.equal(flatpakManifest.profile, 'flatpak');
     assert.equal(flatpakManifest.runtimeMode, 'bundled');
     assert.equal(flatpakManifest.origin, 'bundled-lgpl-frame-copy');
@@ -548,6 +623,70 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
             })
         ),
         []
+    );
+});
+
+test('rejects missing, tampered, undeclared, and symlinked bundled legal files', (t) => {
+    const fixture = createNativeFixture();
+    t.after(() =>
+        fs.rmSync(fixture.fixtureRoot, { recursive: true, force: true })
+    );
+    const manifest = preparePackagedFrameCopyArtifacts(
+        fixture.nativeDir,
+        'linux',
+        {
+            profile: 'portable',
+            targetNames: ['appimage'],
+        }
+    );
+    const options = pureValidationOptions({
+        profile: 'portable',
+        targetNames: ['appimage'],
+        hostPlatform: 'linux',
+        elfInspector: validElfInspector(fixture.nativeDir, manifest),
+    });
+    const notices = JSON.parse(
+        fs.readFileSync(
+            join(fixture.nativeDir, 'embedded-mpv-notices.json'),
+            'utf8'
+        )
+    );
+    const licensePath = join(
+        fixture.nativeDir,
+        notices.packages[0].files[0].path
+    );
+    const originalContents = fs.readFileSync(licensePath);
+
+    fs.appendFileSync(licensePath, 'tampered\n');
+    assert.match(
+        validatePackagedEmbeddedMpv(fixture.resourceDir, options).join('\n'),
+        /(?:Size|SHA-256) mismatch.*packaged license/i
+    );
+
+    fs.writeFileSync(licensePath, originalContents);
+    fs.rmSync(licensePath);
+    assert.match(
+        validatePackagedEmbeddedMpv(fixture.resourceDir, options).join('\n'),
+        /Missing .*packaged license/i
+    );
+
+    fs.writeFileSync(licensePath, originalContents);
+    const undeclaredPath = join(fixture.nativeDir, 'licenses', 'stale.txt');
+    fs.writeFileSync(undeclaredPath, 'stale\n');
+    assert.match(
+        validatePackagedEmbeddedMpv(fixture.resourceDir, options).join('\n'),
+        /undeclared packaged legal file.*stale\.txt/i
+    );
+
+    fs.rmSync(undeclaredPath);
+    fs.rmSync(licensePath);
+    fs.symlinkSync(
+        join(fixture.nativeDir, 'THIRD_PARTY_NOTICES.txt'),
+        licensePath
+    );
+    assert.match(
+        validatePackagedEmbeddedMpv(fixture.resourceDir, options).join('\n'),
+        /packaged license.*symbolic link/i
     );
 });
 
