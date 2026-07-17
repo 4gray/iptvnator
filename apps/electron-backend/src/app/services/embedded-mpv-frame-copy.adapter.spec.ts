@@ -133,7 +133,7 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             });
         });
 
-        it('uses only the bundled runtime and trusted Snap GL roots for the real helper session', () => {
+        it('keeps trusted Snap GL roots ahead of generic Snap libraries for playback', () => {
             const snapRoot = '/snap/iptvnator/42';
             const nativeDir = path.join(
                 snapRoot,
@@ -163,11 +163,11 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
                     SNAP_LIBRARY_PATH: '/var/lib/snapd/lib/gl:/tmp/hostile-gl',
                     LD_LIBRARY_PATH: [
                         path.join(nativeDir, 'lib'),
+                        '/var/lib/snapd/lib/gl',
                         path.join(snapRoot, 'lib'),
                         path.join(snapRoot, 'usr', 'lib'),
                         path.join(snapRoot, 'lib', 'x86_64-linux-gnu'),
                         path.join(snapRoot, 'usr', 'lib', 'x86_64-linux-gnu'),
-                        '/var/lib/snapd/lib/gl',
                     ].join(':'),
                 },
             });

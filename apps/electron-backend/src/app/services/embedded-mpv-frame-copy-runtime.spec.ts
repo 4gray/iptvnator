@@ -497,7 +497,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
         });
     });
 
-    it('reconstructs only trusted Snap loader roots for a bundled package inside the Snap mount', () => {
+    it('keeps trusted Snap GL roots ahead of generic Snap libraries', () => {
         const snapRoot = '/snap/iptvnator/42';
         const nativeDir = path.join(
             snapRoot,
@@ -535,12 +535,12 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
             ].join(':'),
             LD_LIBRARY_PATH: [
                 path.join(nativeDir, 'lib'),
+                '/var/lib/snapd/lib/gl',
+                '/var/lib/snapd/lib/gl/nvidia',
                 path.join(snapRoot, 'lib'),
                 path.join(snapRoot, 'usr', 'lib'),
                 path.join(snapRoot, 'lib', 'x86_64-linux-gnu'),
                 path.join(snapRoot, 'usr', 'lib', 'x86_64-linux-gnu'),
-                '/var/lib/snapd/lib/gl',
-                '/var/lib/snapd/lib/gl/nvidia',
             ].join(':'),
         });
     });

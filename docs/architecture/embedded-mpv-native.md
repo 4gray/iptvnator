@@ -247,9 +247,20 @@ named `/impv-fc-runtime-probe-<pid>`. It never opens media or enters the media
 or command loops. Shared-memory creation/mapping and header-initialization
 failures emit the stable helper reasons `shared-memory-create-failed` and
 `shared-memory-initialize-failed`. The probe must emit exactly one protocol-v1
-JSON line and return zero. Bundled profiles prepend only their packaged
-`native/lib` to `LD_LIBRARY_PATH`; the system profile never injects a private
-loader path.
+JSON line and return zero.
+
+The startup probe and every playback helper session use the same sanitized
+loader environment selected by the validated manifest's cached `runtimeMode`.
+Both remove ambient `LD_PRELOAD` and `LD_LIBRARY_PATH`; the system profile then
+uses the default system loader without a private path. Bundled profiles put the
+validated packaged `native/lib` first. AppImage and Flatpak resolve the declared
+external graphics/audio interfaces through their normal host or sandbox loader.
+Inside a genuine Snap mount, filtered absolute `SNAP_LIBRARY_PATH` entries below
+`/var/lib/snapd/lib/gl` follow `native/lib` and precede the generic
+`$SNAP/lib`, `$SNAP/usr/lib`, and x64 multiarch roots. This preserves the pinned
+runtime closure while ensuring the host GL/NVIDIA dispatch libraries win over
+generic GL libraries staged in the snap. Out-of-root entries are discarded, and
+the adapter refuses to start a Linux helper without the validated cached mode.
 
 The strict Snap keeps Electron Builder's default plugs and adds an
 auto-connected private `shared-memory` plug. Private shared memory gives the

@@ -1403,11 +1403,11 @@ function getTrustedSnapLibraryPaths(
         );
 
     return [
+        ...snapLibraryPaths,
         path.join(snapRoot, 'lib'),
         path.join(snapRoot, 'usr', 'lib'),
         path.join(snapRoot, 'lib', 'x86_64-linux-gnu'),
         path.join(snapRoot, 'usr', 'lib', 'x86_64-linux-gnu'),
-        ...snapLibraryPaths,
     ];
 }
 
