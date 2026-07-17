@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Clearing…",
         "EPG_URL_ERROR": "The value is not a valid URL",
         "VIDEO_PLAYER_DESCRIPTION": "Select default video player",
+        "WEB_PLAYER_SHARED_CONTROLS": "Unified controls for web players (experimental)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Select default stream format (xtream)",
         "LANGUAGE_DESCRIPTION": "Select language of the application",
         "THEME_DESCRIPTION": "Select visual theme of the application",

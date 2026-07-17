@@ -69,6 +69,31 @@
         </div>
     </div>
 
+    @if (isWebPlayerSelected()) {
+        <div
+            class="setting-item"
+            data-test-id="web-player-shared-controls-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.WEB_PLAYER_SHARED_CONTROLS' | translate }}
+                </h4>
+                <p>
+                    {{
+                        'SETTINGS.WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    formControlName="webPlayerSharedControls"
+                    data-test-id="web-player-shared-controls-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    }
+
     @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {
         <div
             class="setting-item"

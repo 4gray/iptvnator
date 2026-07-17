@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "クリア中…",
         "EPG_URL_ERROR": "有効なURLではありません",
         "VIDEO_PLAYER_DESCRIPTION": "デフォルトのビデオプレーヤーを選択",
+        "WEB_PLAYER_SHARED_CONTROLS": "Webプレーヤーの統一コントロール（試験的）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5、Video.js、ArtPlayerでIPTVnator共通のコントロールを使用します。",
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",
         "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
         "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
