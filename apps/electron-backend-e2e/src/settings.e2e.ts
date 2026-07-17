@@ -278,16 +278,11 @@ test.describe('Electron Settings', () => {
 
             await expect(firstChannel).toBeVisible({ timeout: 20000 });
             await firstChannel.click();
-            await app.mainWindow.evaluate(() => {
-                const video = document.querySelector<HTMLVideoElement>(
-                    'app-html-video-player video'
-                );
-                if (!video) {
-                    throw new Error(
-                        'Expected app-html-video-player video after the HTML5 player mounted'
-                    );
-                }
-
+            const video = app.mainWindow.locator(
+                'app-html-video-player video'
+            );
+            await expect(video).toBeAttached();
+            await video.evaluate<void, HTMLVideoElement>((video) => {
                 const ownerDocument = video.ownerDocument;
                 let activePictureInPictureElement: Element | null = null;
                 video.dataset['pictureInPictureRequestCount'] = '0';
@@ -364,7 +359,6 @@ test.describe('Electron Settings', () => {
             await expect(
                 app.mainWindow.locator('app-html-video-player video[controls]')
             ).toHaveCount(0);
-            const video = app.mainWindow.locator('app-html-video-player video');
             const enterPictureInPicture = playerControls.getByRole('button', {
                 name: 'Enter picture-in-picture',
             });
