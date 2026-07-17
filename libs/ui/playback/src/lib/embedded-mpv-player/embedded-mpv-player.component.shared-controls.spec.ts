@@ -159,10 +159,9 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
             .nativeElement;
     }
 
-    it('renders the frame-copy canvas with shared controls and no legacy dock', () => {
-        const { fixture } = render();
+    it('renders frame-copy shared controls and makes Timeshift seekable', async () => {
+        const { fixture, controller } = render();
         const playerRoot = root(fixture);
-
         expect(canvas(fixture)).toBeTruthy();
         expect(sharedControls(fixture)).not.toBeNull();
         expect(
@@ -178,11 +177,29 @@ describe('EmbeddedMpvPlayerComponent shared controls host', () => {
                 'embedded-mpv-player--controls-visible'
             )
         ).toBe(false);
+        fixture.componentRef.setInput('playback', {
+            ...PLAYBACK,
+            isLive: true,
+        });
+        fixture.componentRef.setInput('localTimeshiftActive', true);
+        fixture.detectChanges();
+        const seekTo = jest
+            .spyOn(controller, 'seekTo')
+            .mockResolvedValue(undefined);
+        const controls = sharedControls(fixture);
+        const liveButton = fixture.debugElement.query(
+            By.css('[data-test-id="local-timeshift-go-live"]')
+        );
+        expect(controls?.capabilities().seek).toBe(true);
+        expect(controls?.state().canSeek).toBe(true);
+        expect(liveButton).not.toBeNull();
+        liveButton.nativeElement.click();
+        await fixture.whenStable();
+        expect(seekTo).toHaveBeenCalledWith(119.75);
     });
 
     it('keeps native playback on the legacy dock without shared controls', () => {
         const { fixture } = render('native');
-
         expect(sharedControls(fixture)).toBeNull();
         expect(
             fixture.debugElement.query(By.css('.embedded-mpv-player__controls'))

@@ -174,11 +174,12 @@ describe('EmbeddedMpvControlsAdapter', () => {
         localStorage.clear();
     });
 
-    function configure(): void {
+    function configure(localTimeshiftActive = signal(false)): void {
         adapter.configure({
             playback,
             seriesNavigation,
             recordingFolder: signal('/recordings'),
+            localTimeshiftActive,
         });
     }
 
@@ -227,7 +228,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
         });
     });
 
-    it('uses semantic live detection and disables seek and series navigation for live playback', () => {
+    it('uses semantic live detection and only enables live seeking for Timeshift', () => {
         configure();
         expect(adapter.state().isLive).toBe(false);
 
@@ -243,6 +244,10 @@ describe('EmbeddedMpvControlsAdapter', () => {
         expect(adapter.state().canSeek).toBe(false);
         expect(adapter.state().canPreviousEpisode).toBe(false);
         expect(adapter.state().canNextEpisode).toBe(false);
+        configure(signal(true));
+        expect(adapter.capabilities().seek).toBe(true);
+        expect(adapter.capabilities().seriesNavigation).toBe(false);
+        expect(adapter.state().canSeek).toBe(true);
     });
 
     it('maps session state, presets, seekability, stalled state, and reactive series navigation', () => {

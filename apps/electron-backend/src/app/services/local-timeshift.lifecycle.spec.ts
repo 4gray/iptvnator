@@ -137,6 +137,30 @@ describe('LocalTimeshiftService lifecycle', () => {
         expect(readdirSync(root)).toEqual([]);
     });
 
+    it('lets a replacement start proceed while the previous teardown is in flight', async () => {
+        const service = createService();
+        const first = await service.start(request('owner-zap'));
+        const slowChild = processes[0];
+        // Simulate an FFmpeg process that survives SIGTERM and SIGKILL for a
+        // while; the fake's default kill() would exit immediately.
+        (slowChild.kill as jest.Mock).mockImplementation(() => true);
+
+        await service.stopForOwner('owner-zap');
+        const second = await service.start(request('owner-zap'));
+
+        expect(second.id).not.toBe(first.id);
+        expect(slowChild.kill).toHaveBeenCalledWith('SIGTERM');
+        expect(slowChild.exitCode).toBeNull();
+
+        slowChild.emitUnexpectedExit(0);
+        const firstDirectory = dirname(
+            spawnProcess.mock.calls[0][1].at(-1) as string
+        );
+        await waitUntil(() => !existsSync(firstDirectory));
+        await service.shutdown();
+        expect(readdirSync(root)).toEqual([]);
+    });
+
     it('kills and removes every active session during shutdown', async () => {
         const service = createService();
         await service.start(request('owner-a'));

@@ -203,7 +203,15 @@ export class LocalTimeshiftService {
         }
         const sessionId = this.sessionIdsByOwner.get(ownerId);
         const session = sessionId ? this.sessions.get(sessionId) : undefined;
-        if (session) await this.cleanupSession(session, true);
+        if (session) {
+            // Do not serialize channel zapping behind the previous session's
+            // teardown: cleanupSession releases the owner slot synchronously,
+            // so a replacement start can proceed while FFmpeg, the HTTP
+            // server, and the buffer directory are removed in the background.
+            this.cleanupSession(session, true).catch((error) => {
+                console.error('Local timeshift teardown failed:', error);
+            });
+        }
     }
 
     async shutdown(): Promise<void> {
@@ -254,6 +262,11 @@ export class LocalTimeshiftService {
     ): Promise<void> {
         if (session.cleanupPromise) return session.cleanupPromise;
         session.stopping = true;
+        // Free the owner slot before the asynchronous teardown so a
+        // replacement session for the same owner is not blocked on it.
+        if (this.sessionIdsByOwner.get(session.ownerId) === session.id) {
+            this.sessionIdsByOwner.delete(session.ownerId);
+        }
         session.cleanupPromise = this.performCleanup(
             session,
             terminateProcess,

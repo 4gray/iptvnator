@@ -64,6 +64,10 @@ ipcMain.handle(
 ipcMain.handle(LOCAL_TIMESHIFT_STOP, async (event, sessionId?: string) => {
     const ownerId = String(event.sender.id);
     if (!sessionId) {
+        // The renderer is abandoning everything it owns, so drop its public
+        // session entries as well; otherwise every channel change without a
+        // public id leaks one entry until the renderer is destroyed.
+        purgeOwnerSessions(ownerId);
         await service.stopForOwner(ownerId);
         return null;
     }
@@ -90,14 +94,18 @@ function registerOwnerCleanup(sender: WebContents): void {
     ownersWithCleanup.add(sender);
     sender.once('destroyed', () => {
         const ownerId = String(sender.id);
-        for (const [sessionId, sessionOwnerId] of publicSessionOwners) {
-            if (sessionOwnerId === ownerId) {
-                publicSessions.delete(sessionId);
-                publicSessionOwners.delete(sessionId);
-            }
-        }
+        purgeOwnerSessions(ownerId);
         void service.stopForOwner(ownerId);
     });
+}
+
+function purgeOwnerSessions(ownerId: string): void {
+    for (const [sessionId, sessionOwnerId] of publicSessionOwners) {
+        if (sessionOwnerId === ownerId) {
+            publicSessions.delete(sessionId);
+            publicSessionOwners.delete(sessionId);
+        }
+    }
 }
 
 function validateStartRequest(request: StartLocalTimeshiftRequest): void {

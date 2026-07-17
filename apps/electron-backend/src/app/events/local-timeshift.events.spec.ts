@@ -32,6 +32,14 @@ import {
 } from '@iptvnator/shared/interfaces';
 import './local-timeshift.events';
 
+// Captured before the beforeEach mock resets; registered once at module load.
+const failureHandler = mockService.setFailureHandler.mock
+    .calls[0][0] as (failure: {
+    sessionId: string;
+    ownerId: string;
+    error: Error;
+}) => void;
+
 const sender = {
     id: 42,
     once: jest.fn(),
@@ -160,6 +168,42 @@ describe('local Timeshift IPC', () => {
 
         expect(mockService.stopForOwner).toHaveBeenCalledWith('42');
         expect(mockService.stop).not.toHaveBeenCalled();
+    });
+
+    it('purges public sessions when the renderer stops without a session id', async () => {
+        mockService.start.mockResolvedValue({
+            id: 'timeshift-zap',
+            playbackUrl: 'http://127.0.0.1:43100/token/index.m3u8',
+            status: 'ready',
+        });
+        mockService.stopForOwner.mockResolvedValue(undefined);
+        await handler(LOCAL_TIMESHIFT_START)(
+            { sender },
+            {
+                playback: {
+                    streamUrl: 'https://provider.example/live.ts',
+                    title: 'Live news',
+                    isLive: true,
+                },
+                maxDurationMinutes: 30,
+            }
+        );
+
+        await handler(LOCAL_TIMESHIFT_STOP)({ sender }, undefined);
+
+        // A leaked public-session entry would make a later failure for the
+        // abandoned session look like an error of the current playback.
+        const send = jest.fn();
+        mockWebContentsFromId.mockReturnValue({
+            isDestroyed: () => false,
+            send,
+        });
+        failureHandler({
+            sessionId: 'timeshift-zap',
+            ownerId: '42',
+            error: new Error('FFmpeg timeshift process exited unexpectedly'),
+        });
+        expect(send).not.toHaveBeenCalled();
     });
 
     it('treats stopping an already-finished session as idempotent', async () => {

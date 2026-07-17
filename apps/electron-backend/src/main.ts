@@ -233,11 +233,12 @@ app.on('before-quit', (event) => {
         } catch (error) {
             console.error('Failed to stop native player sessions:', error);
         }
-        try {
-            await databaseWorkerClient.shutdown();
-        } catch (error) {
+        // Preserve the upstream non-blocking database-worker shutdown. Waiting
+        // for it here can keep Electron's before-quit event open indefinitely,
+        // which prevents restarts and automated close flows from completing.
+        void databaseWorkerClient.shutdown().catch((error) => {
             console.error('Failed to stop the database worker:', error);
-        }
+        });
     })().finally(() => {
         shutdownComplete = true;
         app.quit();

@@ -48,7 +48,10 @@ playback continue to use their existing paths without a local buffer.
    seconds. On stop, the graceful SIGTERM window is short (500 ms default)
    because the discarded buffer does not need a clean FFmpeg flush.
    Superseded starts skip that grace window entirely so rapid channel changes
-   do not queue behind an incomplete buffer.
+   do not queue behind an incomplete buffer. When a renderer stops its own
+   session during a channel change, the owner slot is released immediately and
+   FFmpeg/server/directory teardown continues in the background, so the
+   replacement session's start is not serialized behind it.
 4. A token-protected HTTP server bound to `127.0.0.1` serves the sliding HLS
    playlist and segments to the selected inline player.
 5. When playback changes, the view is destroyed, or the app quits, IPTVnator

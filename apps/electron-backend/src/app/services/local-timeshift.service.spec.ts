@@ -8,6 +8,7 @@ import {
     fakeFfmpegProcess,
     fakeTimeshiftHttpServer,
     type FakeFfmpegProcess,
+    waitUntil,
 } from './local-timeshift.test-helpers';
 
 describe('LocalTimeshiftService', () => {
@@ -103,7 +104,9 @@ describe('LocalTimeshiftService', () => {
         ).toBeUndefined();
 
         await service.stopForOwner('owner-1');
-        expect(readdirSync(root)).toEqual([]);
+        // stopForOwner tears the session down in the background so channel
+        // zapping is not serialized behind it.
+        await waitUntil(() => readdirSync(root).length === 0);
     });
 
     function createService(): LocalTimeshiftService {

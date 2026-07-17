@@ -103,6 +103,12 @@
             (previousEpisodeRequested)="requestPreviousEpisode()"
             (nextEpisodeRequested)="requestNextEpisode()"
         />
+        @if (showControls() && localTimeshiftActive()) {
+            <app-live-edge-button
+                class="embedded-mpv-player__frame-copy-live-edge"
+                (goLive)="goLive()"
+            />
+        }
     }
 
     @if (!isFrameCopyEngine() && showControls() && isSupported()) {

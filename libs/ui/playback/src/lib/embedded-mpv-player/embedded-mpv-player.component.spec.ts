@@ -99,6 +99,9 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         );
     };
 
+    const queryByCss = (selector: string) =>
+        fixture.debugElement.query(By.css(selector));
+
     beforeEach(async () => {
         await TestBed.configureTestingModule({
             imports: [
@@ -124,11 +127,11 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
     });
 
     it('renders previous and next episode controls with season boundary disabled state', () => {
-        const previousButton = fixture.debugElement.query(
-            By.css('[data-test-id="embedded-mpv-previous-episode"]')
+        const previousButton = queryByCss(
+            '[data-test-id="embedded-mpv-previous-episode"]'
         );
-        const nextButton = fixture.debugElement.query(
-            By.css('[data-test-id="embedded-mpv-next-episode"]')
+        const nextButton = queryByCss(
+            '[data-test-id="embedded-mpv-next-episode"]'
         );
 
         expect(previousButton).not.toBeNull();
@@ -186,37 +189,24 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         });
 
         expect(
-            fixture.debugElement.query(
-                By.css('[data-test-id="embedded-mpv-previous-episode"]')
-            )
+            queryByCss('[data-test-id="embedded-mpv-previous-episode"]')
         ).toBeNull();
         expect(
-            fixture.debugElement.query(
-                By.css('[data-test-id="embedded-mpv-next-episode"]')
-            )
+            queryByCss('[data-test-id="embedded-mpv-next-episode"]')
         ).toBeNull();
+        expect(queryByCss('.embedded-mpv-player__live-badge')).not.toBeNull();
         expect(
-            fixture.debugElement.query(
-                By.css('.embedded-mpv-player__live-badge')
-            )
-        ).not.toBeNull();
-        expect(
-            fixture.debugElement.query(
-                By.css(
-                    'button[aria-label="EMBEDDED_MPV.PLAYER.BACK_10_SECONDS"]'
-                )
+            queryByCss(
+                'button[aria-label="EMBEDDED_MPV.PLAYER.BACK_10_SECONDS"]'
             ).nativeElement.disabled
         ).toBe(true);
         expect(
-            fixture.debugElement.query(
-                By.css(
-                    'button[aria-label="EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS"]'
-                )
+            queryByCss(
+                'button[aria-label="EMBEDDED_MPV.PLAYER.FORWARD_10_SECONDS"]'
             ).nativeElement.disabled
         ).toBe(true);
         expect(
-            fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
-                .nativeElement.disabled
+            queryByCss('.embedded-mpv-player__slider').nativeElement.disabled
         ).toBe(true);
     });
 
@@ -268,7 +258,7 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
     describe('timeline scrubbing', () => {
         const slider = () =>
-            fixture.debugElement.query(By.css('.embedded-mpv-player__slider'))
+            queryByCss('.embedded-mpv-player__slider')
                 .nativeElement as HTMLInputElement;
 
         const dispatch = (type: string, value: string) => {
@@ -308,11 +298,11 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
 
     describe('viewport click-to-pause', () => {
         const clickViewport = () => {
-            fixture.debugElement
-                .query(By.css('.embedded-mpv-player__viewport'))
-                .nativeElement.dispatchEvent(
-                    new MouseEvent('click', { bubbles: true })
-                );
+            queryByCss(
+                '.embedded-mpv-player__viewport'
+            ).nativeElement.dispatchEvent(
+                new MouseEvent('click', { bubbles: true })
+            );
         };
 
         beforeEach(() => {
@@ -341,11 +331,11 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
                 .mockResolvedValue(undefined);
 
             clickViewport();
-            fixture.debugElement
-                .query(By.css('.embedded-mpv-player__viewport'))
-                .nativeElement.dispatchEvent(
-                    new MouseEvent('dblclick', { bubbles: true })
-                );
+            queryByCss(
+                '.embedded-mpv-player__viewport'
+            ).nativeElement.dispatchEvent(
+                new MouseEvent('dblclick', { bubbles: true })
+            );
 
             jest.advanceTimersByTime(300);
             expect(togglePaused).not.toHaveBeenCalled();
@@ -391,11 +381,7 @@ describe('EmbeddedMpvPlayerComponent series navigation', () => {
         );
         fixture.detectChanges();
 
-        expect(
-            fixture.debugElement.query(
-                By.css('.embedded-mpv-player__live-badge')
-            )
-        ).toBeNull();
+        expect(queryByCss('.embedded-mpv-player__live-badge')).toBeNull();
         expect(fixture.nativeElement.textContent).toContain('--:--');
     });
 });

@@ -40,6 +40,7 @@ import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
 } from './html-video-player-controls.bridge';
+import { exitOwnedPlayerFullscreen } from './html-video-player-fullscreen';
 
 const debugHtmlPlayer = createDevLogger('HtmlVideoPlayer');
 
@@ -154,26 +155,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     }
 
     private exitOwnedFullscreen(): void {
-        if (
-            !this.sharedControls ||
-            document.fullscreenElement !== this.playerRoot()?.nativeElement ||
-            typeof document.exitFullscreen !== 'function'
-        ) {
-            return;
-        }
-
-        try {
-            void Promise.resolve(document.exitFullscreen()).catch(
-                (error: unknown) => {
-                    debugHtmlPlayer(
-                        'Failed to exit HTML5 player fullscreen:',
-                        error
-                    );
-                }
-            );
-        } catch (error: unknown) {
-            debugHtmlPlayer('Failed to exit HTML5 player fullscreen:', error);
-        }
+        exitOwnedPlayerFullscreen(
+            this.sharedControls,
+            this.playerRoot()?.nativeElement,
+            (error) =>
+                debugHtmlPlayer(
+                    'Failed to exit HTML5 player fullscreen:',
+                    error
+                )
+        );
     }
 
     /**

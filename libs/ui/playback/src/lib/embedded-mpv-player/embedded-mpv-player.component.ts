@@ -340,6 +340,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             playback: this.playback,
             seriesNavigation: this.seriesNavigation,
             recordingFolder: this.recordingFolder,
+            localTimeshiftActive: this.localTimeshiftActive,
         });
 
         if (typeof document !== 'undefined') {
