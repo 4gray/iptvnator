@@ -12,6 +12,7 @@ const require = createRequire(import.meta.url);
 const {
     LINUX_RUNTIME_MANIFEST_SCHEMA_VERSION,
     validateLinuxRuntimeManifest,
+    validateLinuxSystemBuildInputManifest,
 } = require('./linux-runtime-manifest.cjs');
 
 const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url));
@@ -21,6 +22,7 @@ const stageRuntimeScript = path.join(
     'embedded-mpv',
     'stage-runtime.mjs'
 );
+const stageRuntimeSource = fs.readFileSync(stageRuntimeScript, 'utf8');
 
 function sha256(value) {
     return crypto.createHash('sha256').update(value).digest('hex');
@@ -83,6 +85,18 @@ function createValidManifest(
     };
 }
 
+function createSystemBuildInputManifest() {
+    return {
+        linuxBackend: 'process-isolated mpv --wid',
+        buildInputs: {
+            libmpvDevPackage: '2:0.40.0-3ubuntu2',
+            mpvPackage: '0.40.0-3ubuntu2',
+        },
+        sourceDistribution:
+            'Linux CI build inputs come from Ubuntu runner packages. Runtime playback uses the system mpv executable; IPTVnator does not bundle or load libmpv in the Electron process on Linux.',
+    };
+}
+
 function createFixture(t, options = {}) {
     const root = fs.mkdtempSync(
         path.join(os.tmpdir(), 'iptvnator-linux-runtime-test-')
@@ -108,11 +122,13 @@ function createFixture(t, options = {}) {
         fs.writeFileSync(path.join(libDir, name), contents);
     }
 
-    const manifest = createValidManifest(
-        [...contentsByName].map(([name, contents]) =>
-            runtimeFile(name, contents)
-        )
-    );
+    const manifest =
+        options.manifest ??
+        createValidManifest(
+            [...contentsByName].map(([name, contents]) =>
+                runtimeFile(name, contents)
+            )
+        );
     options.mutateManifest?.(manifest);
 
     if (options.removeRuntimeFile) {
@@ -131,6 +147,10 @@ function createFixture(t, options = {}) {
     }
 
     return { libDir, manifest, prefix, root };
+}
+
+function destinationRootFor(fixture) {
+    return path.join(fixture.root, 'vendor', 'embedded-mpv', 'linux-x64');
 }
 
 function runStage(fixture) {
@@ -158,6 +178,59 @@ test('exports the Linux runtime manifest schema version', () => {
 
 test('accepts a complete LGPL Linux x64 source-build manifest', () => {
     assert.deepEqual(validateLinuxRuntimeManifest(createValidManifest()), []);
+});
+
+test('accepts and stages the current Linux CI system build-input manifest', (t) => {
+    const systemManifest = createSystemBuildInputManifest();
+    assert.deepEqual(validateLinuxSystemBuildInputManifest(systemManifest), []);
+
+    const fixture = createFixture(t, { manifest: systemManifest });
+    const result = runStage(fixture);
+    assert.equal(result.status, 0, result.stderr);
+
+    const destinationRoot = destinationRootFor(fixture);
+    assert.equal(
+        fs.readFileSync(
+            path.join(destinationRoot, 'include', 'mpv', 'client.h'),
+            'utf8'
+        ),
+        '/* libmpv header */\n'
+    );
+    assert.equal(fs.existsSync(path.join(destinationRoot, 'lib')), false);
+
+    const stagedManifest = JSON.parse(
+        fs.readFileSync(
+            path.join(destinationRoot, 'runtime-manifest.json'),
+            'utf8'
+        )
+    );
+    assert.equal(stagedManifest.origin, 'vendored-lgpl');
+    assert.equal(stagedManifest.platform, 'linux');
+    assert.equal(stagedManifest.arch, 'x64');
+    assert.deepEqual(stagedManifest.runtimeFiles, []);
+    assert.deepEqual(stagedManifest.buildInputs, systemManifest.buildInputs);
+    assert.equal(stagedManifest.linuxBackend, systemManifest.linuxBackend);
+    assert.equal('sourceBuildOrigin' in stagedManifest, false);
+});
+
+test('rejects malformed system build-input manifests without falling through', (t) => {
+    const malformedSystemManifest = createSystemBuildInputManifest();
+    malformedSystemManifest.buildInputs.mpvPackage = '';
+    malformedSystemManifest.runtimeFiles = [];
+
+    assert.deepEqual(
+        validateLinuxSystemBuildInputManifest(malformedSystemManifest),
+        [
+            'Linux system build-input manifest buildInputs.mpvPackage must be a non-empty string.',
+            'Linux system build-input manifest must not include runtimeFiles.',
+        ]
+    );
+
+    const fixture = createFixture(t, { manifest: malformedSystemManifest });
+    const result = runStage(fixture);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(result.stderr, /buildInputs\.mpvPackage/);
+    assert.match(result.stderr, /must not include runtimeFiles/);
 });
 
 test('returns deterministic validation errors for untrusted input', () => {
@@ -300,6 +373,32 @@ test('requires libmpv and GPL-disabled mpv Meson flags', () => {
     assert.match(validateLinuxRuntimeManifest(manifest)[0], /-Dgpl=false/);
 });
 
+test('rejects duplicate or contradictory required mpv Meson assignments', () => {
+    const cases = [
+        {
+            flags: ['-Dlibmpv=true', '-Dlibmpv=false', '-Dgpl=false'],
+            expected: /must assign "-Dlibmpv" exactly once/,
+        },
+        {
+            flags: ['-Dlibmpv=true', '-Dgpl=false', '-Dgpl=true'],
+            expected: /must assign "-Dgpl" exactly once/,
+        },
+        {
+            flags: ['-Dlibmpv=true', '-Dlibmpv=true', '-Dgpl=false'],
+            expected: /must assign "-Dlibmpv" exactly once/,
+        },
+    ];
+
+    for (const { expected, flags } of cases) {
+        const manifest = createValidManifest();
+        manifest.mpv.mesonFlags = flags;
+        assert.match(
+            validateLinuxRuntimeManifest(manifest).join('\n'),
+            expected
+        );
+    }
+});
+
 test('validates safe, unique shared-library metadata', () => {
     const manifest = createValidManifest([
         {
@@ -357,12 +456,7 @@ test('stages only declared Linux libraries and materializes source symlinks', (t
     const result = runStage(fixture);
     assert.equal(result.status, 0, result.stderr);
 
-    const destinationRoot = path.join(
-        fixture.root,
-        'vendor',
-        'embedded-mpv',
-        'linux-x64'
-    );
+    const destinationRoot = destinationRootFor(fixture);
     const destinationLibDir = path.join(destinationRoot, 'lib');
     assert.deepEqual(fs.readdirSync(destinationLibDir).sort(), [
         'libavcodec.so.61',
@@ -405,6 +499,99 @@ test('stages only declared Linux libraries and materializes source symlinks', (t
         stagedManifest.runtimeFiles,
         fixture.manifest.runtimeFiles
     );
+});
+
+test('copies runtime libraries only from the verified byte snapshot', () => {
+    assert.match(
+        stageRuntimeSource,
+        /function readVerifiedLinuxRuntimeFiles\(manifest\)/
+    );
+    assert.match(
+        stageRuntimeSource,
+        /contents = fs\.readFileSync\(sourcePath\)/
+    );
+    assert.match(
+        stageRuntimeSource,
+        /fs\.writeFileSync\(destinationPath, verifiedRuntimeFile\.contents\)/
+    );
+    assert.doesNotMatch(
+        stageRuntimeSource,
+        /function copyLinuxRuntimeFiles\(manifest\)/
+    );
+});
+
+test('atomically replaces the complete Linux destination tree', (t) => {
+    const fixture = createFixture(t);
+    const destinationRoot = destinationRootFor(fixture);
+    fs.mkdirSync(destinationRoot, { recursive: true });
+    fs.writeFileSync(path.join(destinationRoot, 'stale-runtime.txt'), 'stale');
+
+    const result = runStage(fixture);
+    assert.equal(result.status, 0, result.stderr);
+    assert.equal(
+        fs.existsSync(path.join(destinationRoot, 'stale-runtime.txt')),
+        false
+    );
+    assert.deepEqual(
+        fs
+            .readdirSync(path.dirname(destinationRoot))
+            .filter((name) => name.startsWith('.linux-x64.')),
+        []
+    );
+});
+
+test('rejects a libmpv header symlink that escapes the source prefix', (t) => {
+    const fixture = createFixture(t);
+    const outsideHeader = path.join(fixture.root, 'outside-client.h');
+    const clientHeader = path.join(
+        fixture.prefix,
+        'include',
+        'mpv',
+        'client.h'
+    );
+    fs.writeFileSync(outsideHeader, '/* untrusted external header */\n');
+    fs.rmSync(clientHeader);
+    fs.symlinkSync(outsideHeader, clientHeader);
+
+    const result = runStage(fixture);
+    assert.notEqual(result.status, 0, result.stdout);
+    assert.match(
+        result.stderr,
+        /Linux header resolves outside prefix\/include/
+    );
+});
+
+test('rejects destination root and ancestor symlink redirection', (t) => {
+    for (const symlinkLocation of ['destination', 'ancestor']) {
+        const fixture = createFixture(t);
+        const destinationRoot = destinationRootFor(fixture);
+        const outsideRoot = path.join(
+            fixture.root,
+            `outside-${symlinkLocation}`
+        );
+        fs.mkdirSync(outsideRoot, { recursive: true });
+        fs.writeFileSync(path.join(outsideRoot, 'untouched.txt'), 'untouched');
+
+        if (symlinkLocation === 'destination') {
+            fs.mkdirSync(path.dirname(destinationRoot), { recursive: true });
+            fs.symlinkSync(outsideRoot, destinationRoot);
+        } else {
+            const embeddedMpvRoot = path.dirname(destinationRoot);
+            fs.mkdirSync(path.dirname(embeddedMpvRoot), { recursive: true });
+            fs.symlinkSync(outsideRoot, embeddedMpvRoot);
+        }
+
+        const result = runStage(fixture);
+        assert.notEqual(result.status, 0, result.stdout);
+        assert.match(
+            result.stderr,
+            /Linux runtime destination path contains a symbolic link/
+        );
+        assert.equal(
+            fs.readFileSync(path.join(outsideRoot, 'untouched.txt'), 'utf8'),
+            'untouched'
+        );
+    }
 });
 
 test('rejects missing Linux headers or manifests', (t) => {
@@ -488,6 +675,16 @@ test('rejects forbidden build flags and a missing versioned libmpv entry', (t) =
                 manifest.mpv.mesonFlags = ['-Dgpl=false'];
             },
             expected: /must include "-Dlibmpv=true"/,
+        },
+        {
+            mutateManifest(manifest) {
+                manifest.mpv.mesonFlags = [
+                    '-Dlibmpv=true',
+                    '-Dlibmpv=false',
+                    '-Dgpl=false',
+                ];
+            },
+            expected: /must assign "-Dlibmpv" exactly once/,
         },
         {
             mutateManifest(manifest) {

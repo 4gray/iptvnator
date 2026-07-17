@@ -9,6 +9,7 @@ const SAFE_BASENAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;
 const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 const REQUIRED_SOURCE_PACKAGES = ['ffmpeg', 'mpv'];
+const LINUX_SYSTEM_BACKEND = 'process-isolated mpv --wid';
 
 function isObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -176,22 +177,31 @@ function validateMpv(errors, mpv) {
     }
 
     validateFlags(errors, mpv.mesonFlags, 'mpv.mesonFlags', {
-        forbidden: ['-Dgpl=true'],
+        forbidden: [],
         required: ['-Dgpl=false', '-Dlibmpv=true'],
         requiredFirst: true,
     });
 
     if (Array.isArray(mpv.mesonFlags)) {
-        for (const flag of mpv.mesonFlags) {
-            if (
-                typeof flag === 'string' &&
-                flag.startsWith('-Dgpl=') &&
-                flag !== '-Dgpl=false' &&
-                flag !== '-Dgpl=true'
-            ) {
+        for (const [option, requiredFlag] of [
+            ['-Dgpl', '-Dgpl=false'],
+            ['-Dlibmpv', '-Dlibmpv=true'],
+        ]) {
+            const assignments = mpv.mesonFlags.filter(
+                (flag) =>
+                    typeof flag === 'string' && flag.startsWith(`${option}=`)
+            );
+            if (assignments.length > 1) {
                 errors.push(
-                    `Linux runtime manifest mpv.mesonFlags must not include "${flag}".`
+                    `Linux runtime manifest mpv.mesonFlags must assign "${option}" exactly once.`
                 );
+            }
+            for (const flag of assignments) {
+                if (flag !== requiredFlag) {
+                    errors.push(
+                        `Linux runtime manifest mpv.mesonFlags must not include "${flag}".`
+                    );
+                }
             }
         }
     }
@@ -300,7 +310,59 @@ function validateLinuxRuntimeManifest(manifest) {
     return errors;
 }
 
+function isLinuxSystemBuildInputManifest(manifest) {
+    return isObject(manifest) && manifest.linuxBackend === LINUX_SYSTEM_BACKEND;
+}
+
+function validateLinuxSystemBuildInputManifest(manifest) {
+    if (!isObject(manifest)) {
+        return ['Linux system build-input manifest must be an object.'];
+    }
+
+    const errors = [];
+    if (manifest.linuxBackend !== LINUX_SYSTEM_BACKEND) {
+        errors.push(
+            `Linux system build-input manifest linuxBackend must be "${LINUX_SYSTEM_BACKEND}".`
+        );
+    }
+
+    if (!isObject(manifest.buildInputs)) {
+        errors.push(
+            'Linux system build-input manifest buildInputs must be an object.'
+        );
+    } else {
+        for (const packageName of ['libmpvDevPackage', 'mpvPackage']) {
+            if (!isNonEmptyString(manifest.buildInputs[packageName])) {
+                errors.push(
+                    `Linux system build-input manifest buildInputs.${packageName} must be a non-empty string.`
+                );
+            }
+        }
+    }
+
+    if (!isNonEmptyString(manifest.sourceDistribution)) {
+        errors.push(
+            'Linux system build-input manifest sourceDistribution must be a non-empty string.'
+        );
+    }
+    if (Object.prototype.hasOwnProperty.call(manifest, 'origin')) {
+        errors.push(
+            'Linux system build-input manifest must not include origin.'
+        );
+    }
+    if (Object.prototype.hasOwnProperty.call(manifest, 'runtimeFiles')) {
+        errors.push(
+            'Linux system build-input manifest must not include runtimeFiles.'
+        );
+    }
+
+    return errors;
+}
+
 module.exports = {
+    LINUX_SYSTEM_BACKEND,
     LINUX_RUNTIME_MANIFEST_SCHEMA_VERSION,
+    isLinuxSystemBuildInputManifest,
     validateLinuxRuntimeManifest,
+    validateLinuxSystemBuildInputManifest,
 };
