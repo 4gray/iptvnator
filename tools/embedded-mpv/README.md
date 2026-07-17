@@ -49,12 +49,17 @@ vendor/embedded-mpv/
     lib/libmpv.so
     lib/libmpv.so.2
     lib/<declared closure>
+    notices/embedded-mpv-notices.json
+    notices/THIRD_PARTY_NOTICES.txt
+    notices/licenses/<package>/<upstream path>
     runtime-manifest.json
 ```
 
 These directories are generated release inputs and are ignored by git.
 `runtime-manifest.json` is the profile-neutral source/build manifest. Packaging
 writes a normalized `embedded-mpv-runtime.json` beside the native artifacts.
+Bundled Linux profiles flatten the three notice entries from `notices/` into
+that same native directory; system and marker-only profiles remove them.
 
 ## Building And Staging
 
@@ -150,9 +155,12 @@ with `readelf` that:
 
 The package hook copies native artifacts into
 `app.asar.unpacked/electron-backend/native/`, selects the system or bundled
-layout, restores exact file modes, and writes the packaged manifest. Package
-validation also scans the Electron executable and all shipped Electron
-libraries for a direct libmpv dependency.
+layout, restores exact file modes, writes the packaged manifest, and validates
+the bundled legal payload. AppImage, Snap, and Flatpak receive
+`embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and
+`licenses/<package>/**`; DEB, RPM, Pacman, and marker-only packages must not
+retain them. Package validation also scans the Electron executable and all
+shipped Electron libraries for a direct libmpv dependency.
 
 At startup, Linux x64 frame-copy is advertised only after the main process
 validates that manifest/files and successfully executes:
@@ -178,10 +186,20 @@ extracted for manifest, mode, package-metadata, ELF-isolation, and helper-probe
 checks. System formats are probed after their declared dependency is installed;
 Snap and Flatpak also require a sandboxed probe where the runner supports it.
 
-The binary release must include a source-compliance bundle containing the exact
-downloaded archives (including hwdata), the recorded libplacebo checkout or git
-bundle and submodules, builder/stager/manifest code, generated runtime manifest,
-and local patches. A cache hit does not remove this obligation.
+The Linux runtime cache contains only staged headers/libraries/manifest plus
+immutable source inputs: exact downloaded archives (including hwdata), a clean
+recursive libplacebo checkout, and collected license files. It never caches
+finished notices or the compliance tarball. After either a build or cache hit,
+CI revalidates those inputs, regenerates `vendor/embedded-mpv/linux-x64/notices`
+for the current runtime manifest, and creates
+`linux-frame-copy-runtime-sources.tar.xz` for the current repository
+revision/diff.
+
+That deterministic source-compliance archive contains the exact unique archive
+hash set, clean libplacebo checkout and recursive submodules, license inputs,
+generated notices, runtime/source index metadata, and the builder, stager,
+manifest, and notice-generator code. The notice generator rejects missing,
+undeclared, symlinked, size-mismatched, or hash-mismatched license files.
 
 Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
 in its import library is preserved and must be present beside

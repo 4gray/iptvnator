@@ -14,15 +14,20 @@ Each generated folder must contain `include/mpv/client.h` and
 `runtime-manifest.json`. Platform runtime/build inputs live under `lib/` or
 `bin/`. In particular, `linux-x64/lib/` contains the pinned, dynamically linked
 LGPL-compatible libmpv closure used to link the out-of-process frame-copy
-helper. The binary runtime directories are ignored by git; generate, stage, or
-restore them before building the Electron backend.
+helper. `linux-x64/notices/` contains the generated
+`embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and exact
+`licenses/<package>/**` tree. The generated runtime directories are ignored by
+git; generate, stage, or restore them before building the Electron backend.
 
 Linux package profiles consume that one staged x64 source runtime differently:
 
 - DEB/RPM/Pacman remove the private closure and declare the system libmpv
   dependency.
 - AppImage/Snap/Flatpak retain the manifest-declared closure under
-  `app.asar.unpacked/electron-backend/native/lib/`.
+  `app.asar.unpacked/electron-backend/native/lib/` and flatten the validated
+  notice manifest, aggregate notice, and `licenses/**` tree beside it.
+- DEB/RPM/Pacman and marker-only packages do not retain bundled-runtime
+  notices or license files.
 - Non-x64 Linux packages retain no native artifacts and ship only the
   unavailable marker.
 

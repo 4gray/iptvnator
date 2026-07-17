@@ -92,8 +92,11 @@ Every x64 layout contains the addon, frame reader, helper, and a normalized
 `embedded-mpv-runtime.json`. The Electron executable, Electron libraries,
 `embedded_mpv.node`, and the frame reader must not link libmpv; only the helper
 may do so. AppImage, Snap, and Flatpak retain dynamically linked, replaceable
-runtime libraries and ship the corresponding source/build metadata. DEB, RPM,
-and Pacman intentionally contain no private `native/lib` directory.
+runtime libraries and ship the corresponding source/build metadata. Their
+native directory also contains hash-validated `embedded-mpv-notices.json`,
+`THIRD_PARTY_NOTICES.txt`, and `licenses/<package>/**`. DEB, RPM, Pacman, and
+marker-only packages intentionally contain neither a private `native/lib`
+directory nor the bundled-runtime legal payload.
 
 ARM Linux packages remain marker-only. They never borrow x64 native artifacts,
 even when build environment variables claim a matching staged architecture.
@@ -664,12 +667,17 @@ library to an `$ORIGIN` RUNPATH, and enforces the portable ABI ceilings
 complete dependency closure, and absence of build-prefix paths.
 
 CI may restore exact-keyed caches for staged
-`vendor/embedded-mpv/<platform>-<arch>/` runtimes. The cache includes only
-generated headers, libraries, and manifests; it never contains
-`embedded_mpv.node`. Runtime cache entries are saved only from trusted
-repository refs. The Linux cache key covers the builder/stager and pinned
-source inputs, and its accompanying source-compliance artifact remains a
-release requirement, not a cache side effect.
+`vendor/embedded-mpv/<platform>-<arch>/` runtimes. The Linux cache contains
+only generated headers, libraries, the runtime manifest, and immutable source
+inputs: exact archives, a clean recursive libplacebo checkout, and collected
+license inputs. It never contains `embedded_mpv.node`, generated notices, or
+the finished source-compliance archive. Runtime cache entries are saved only
+from trusted repository refs. The Linux cache key covers the builder/stager,
+notice generator, pinned sources, and toolchain. On every run, including a
+cache hit, CI validates the cached hashes and clean checkout, regenerates the
+notices for the current runtime manifest, and creates the deterministic
+`linux-frame-copy-runtime-sources.tar.xz` for the current repository revision
+and binary diff.
 
 Windows CI uses a checksum-pinned `win32-x64` runtime archive configured
 through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and
@@ -691,6 +699,14 @@ The generated manifest records source URLs/checksums or git commits,
 submodules, licenses, exact flags, build-host/toolchain data, runtime hashes,
 and the dynamic closure. FFmpeg/mpv remain LGPL-compatible and dynamically
 linked; codecs outside that build configuration are not implied.
+
+`generate-linux-runtime-notices.cjs` collects the exact upstream license files
+for every pinned package and all recursive libplacebo submodules. Generation
+is fail-closed for a missing, undeclared, symlinked, size-mismatched, or
+hash-mismatched file. Portable and Flatpak package hooks copy only the
+validated notice manifest, aggregate notice, and per-package license tree;
+package-layout verification revalidates that legal payload against the
+embedded source-runtime manifest.
 
 The Electron backend build consumes the staged runtime/build inputs. On Linux
 it links the helper against the verified staged `libmpv.so.2`, never against a
@@ -749,9 +765,13 @@ packaging passes with `IPTVNATOR_EMBEDDED_MPV_PLATFORM=linux`,
 `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1`, and one exact
 `IPTVNATOR_LINUX_FRAME_COPY_PROFILE`. Each produced artifact is extracted and
 verified, and the x64 helper probe runs in the intended runtime environment.
-The source-compliance bundle is uploaded with the binary artifacts. ARM
-artifacts are independently verified as marker-only and never run the x64
-helper.
+Bundled package layouts must include the generated notices and exact license
+tree. The separately uploaded
+`linux-frame-copy-runtime-sources.tar.xz` contains the exact archive set,
+clean recursive libplacebo checkout, notice/license inputs, runtime metadata,
+current revision/diff, and build tooling. Its tar metadata is normalized for
+deterministic output. ARM artifacts are independently verified as marker-only
+and never run the x64 helper.
 
 During temporary artifact tests, CI may also set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for PR and `master` push jobs where a runtime is known to exist. After the artifacts are manually validated, remove temporary conditions so ordinary development builds leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. This keeps the native feature in-tree without making every non-release build depend on runtime artifacts.
 

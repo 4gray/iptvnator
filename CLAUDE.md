@@ -635,8 +635,16 @@ engine` (restart required) or
   marker-only. Stored or explicit opt-ins cannot bypass the fail-closed
   packaged manifest/file/hash gate and bounded `--runtime-probe`; any failure
   keeps the sandbox enabled, records a stable reason, and falls back to
-  native-view without crashing. On Windows, package validation requires the
-  exact MPV DLL named by the helper's PE import table beside the executable.
+  native-view without crashing. Snap uses an exact private `shared-memory`
+  plug; probe and playback share a sanitized loader environment in which the
+  validated private closure and trusted Snap GL roots have explicit
+  precedence. Bundled Linux packages carry hash-validated
+  `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and `licenses/**`.
+  CI caches the staged runtime plus immutable source inputs, never finished
+  notices or the compliance tarball; it regenerates those notices and the
+  deterministic `linux-frame-copy-runtime-sources.tar.xz` for the current
+  checkout. On Windows, package validation requires the exact MPV DLL named by
+  the helper's PE import table beside the executable.
   Backend adapter:
   `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts`;
   shared-controls adapter:

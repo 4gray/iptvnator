@@ -239,9 +239,17 @@ Key files:
   `--runtime-probe` must all succeed before frame-copy can relax the renderer
   sandbox. Any failure reports a stable reason and falls back to native-view
   without crashing; an environment flag never bypasses this gate.
+- Snap uses an exact private `shared-memory` plug. The probe and playback
+  helper share one sanitized loader environment: ambient preload/library
+  paths are removed, the validated private closure wins, and trusted Snap GL
+  roots precede generic in-snap library roots.
 - Bundled Linux releases must publish the exact source archives/git records,
   checksums, licenses, flags, patches, build scripts, and the pinned hwdata
-  `pnp.ids` input. Canonical maintenance docs:
+  `pnp.ids` input. Each bundled package carries
+  `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and the exact
+  `licenses/**` files. CI may cache immutable source inputs, but regenerates
+  notices and `linux-frame-copy-runtime-sources.tar.xz` for the current
+  checkout on every run. Canonical maintenance docs:
   `docs/architecture/embedded-mpv-native.md` and
   `tools/embedded-mpv/README.md`.
 
