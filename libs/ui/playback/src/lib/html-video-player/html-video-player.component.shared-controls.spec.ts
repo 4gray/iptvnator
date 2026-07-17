@@ -3,6 +3,7 @@ import {
     PlayerControlsComponent,
     WebVideoControlsAdapter,
 } from '../player-controls';
+import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-picture.spec-helpers';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { HtmlVideoPlayerComponent as HtmlVideoPlayerComponentInstance } from './html-video-player.component';
 import {
@@ -87,6 +88,27 @@ describe('HtmlVideoPlayerComponent shared controls host', () => {
             )
         ).toBeNull();
         expect(controls?.playerSurface()).toBe(shell);
+    });
+
+    it('attaches PiP support to the actual video after metadata', () => {
+        const environment = new PictureInPictureTestEnvironment();
+        try {
+            const { fixture, adapter } = renderSharedControls(
+                HtmlVideoPlayerComponent,
+                fixtures
+            );
+            const video = fixture.debugElement.query(By.css('video'))
+                .nativeElement as HTMLVideoElement;
+            environment.installVideo(video, { readyState: 0 });
+
+            environment.setReadyState(video, 1);
+            video.dispatchEvent(new Event('loadedmetadata'));
+
+            expect(adapter.capabilities().pictureInPicture).toBe(true);
+            expect(adapter.state().canPictureInPicture).toBe(true);
+        } finally {
+            environment.restore();
+        }
     });
 
     it('gates the shared surface and shortcuts with interaction availability', () => {

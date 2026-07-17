@@ -6,6 +6,7 @@ import {
     PlayerControlsComponent,
     WEB_PLAYER_SHARED_CONTROLS,
 } from '../player-controls';
+import { PictureInPictureTestEnvironment } from '../player-controls/picture-in-picture.spec-helpers';
 import type { ArtPlayerComponent as ArtPlayerComponentInstance } from './art-player.component';
 
 const artPlayerInstances: MockArtplayer[] = [];
@@ -125,6 +126,7 @@ describe('ArtPlayerComponent with shared controls', () => {
         expect(options).toEqual(
             expect.objectContaining({
                 controls: [],
+                pip: false,
                 autoPlayback: false,
                 autoSize: false,
                 autoMini: false,
@@ -239,6 +241,40 @@ describe('ArtPlayerComponent with shared controls', () => {
         expect(artPlayerInstances).toHaveLength(2);
         expect(artPlayerInstances[1].options['isLive']).toBe(false);
         expect(artPlayerInstances[0].destroy).toHaveBeenCalledTimes(1);
+    });
+
+    it('exits owned PiP when a channel change rebuilds ArtPlayer', () => {
+        const environment = new PictureInPictureTestEnvironment();
+        try {
+            createComponent({
+                url: 'https://example.test/movie-one.mp4',
+                name: 'Movie one',
+            });
+            const firstVideo = artPlayerInstances[0].video;
+            environment.installVideo(firstVideo);
+            firstVideo.dispatchEvent(new Event('loadedmetadata'));
+            environment.setActive(firstVideo);
+
+            fixture.componentRef.setInput('channel', {
+                url: 'https://example.test/movie-two.mp4',
+                name: 'Movie two',
+            });
+            fixture.detectChanges();
+
+            const replacementVideo = artPlayerInstances[1].video;
+            environment.installVideo(replacementVideo);
+            replacementVideo.dispatchEvent(new Event('loadedmetadata'));
+
+            expect(environment.exit).toHaveBeenCalledTimes(1);
+            expect(
+                component.controlsAdapter.state().pictureInPictureActive
+            ).toBe(false);
+            expect(
+                component.controlsAdapter.capabilities().pictureInPicture
+            ).toBe(true);
+        } finally {
+            environment.restore();
+        }
     });
 
     it('exits only the ArtPlayer shell fullscreen when interaction is disabled', () => {
