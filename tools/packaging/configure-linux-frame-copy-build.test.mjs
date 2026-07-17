@@ -139,10 +139,9 @@ test('rejects duplicate profile targets even when target count looks complete', 
 
 test('preserves unrelated fpm dependencies and normalizes only frame-copy dependencies', () => {
     const customized = structuredClone(electronBuilderConfig);
-    customized.deb.fpm = [
-        '--depends=unrelated-runtime',
-        '--depends=libmpv2 >= 2',
-    ];
+    customized.deb = {
+        fpm: ['--depends=unrelated-runtime', '--depends=libmpv2 >= 2'],
+    };
     const system = configureLinuxFrameCopyBuild(customized, {
         profileName: 'system',
     });

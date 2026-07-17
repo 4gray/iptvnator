@@ -217,7 +217,11 @@ missing-runtime fallback smoke; GitHub Actions never promotes automatically.
 Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
 in its import library is preserved and must be present beside
 `iptvnator_mpv_helper.exe`. Tagged releases require explicit repository
-configuration; the public fallback is for non-tag artifacts only.
+configuration; the public fallback is for non-tag artifacts only. The upstream
+keeps only its latest 30 daily builds, so the fallback URL and checksum plus any
+matching repository variables must be refreshed as one pair before they age
+out. A permanent mirror must publish the corresponding source/build records and
+license notices with the binary.
 
 ## Local Development
 

@@ -685,10 +685,13 @@ Windows CI uses a checksum-pinned `win32-x64` runtime archive configured
 through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and
 `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256`. Non-tag artifact builds have
 a pinned `zhongfly/mpv-winbuild` `mpv-dev-lgpl-x86_64` fallback; tagged
-releases require explicit repository configuration. The archive helper accepts
-normal `lib/` + `bin/` prefixes and common flat archives, preserves the DLL
-basename encoded by the import library, and generates minimal build metadata
-only when the archive lacks it.
+releases require explicit repository configuration. Upstream retains only its
+latest 30 daily builds, so the fallback and any repository-variable copy must
+be refreshed as one URL/checksum pair before expiry. A long-lived mirror must
+publish the matching source/build records and license notices with the binary.
+The archive helper accepts normal `lib/` + `bin/` prefixes and common flat
+archives, preserves the DLL basename encoded by the import library, and
+generates minimal build metadata only when the archive lacks it.
 
 The Linux builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`,
 libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, HarfBuzz `8.5.0`,

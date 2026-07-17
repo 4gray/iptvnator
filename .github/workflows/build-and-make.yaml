@@ -410,7 +410,7 @@ jobs:
               shell: bash
               env:
                   IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || '' }}
-                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: a26e28fa55c15ac5b6209d8a9f9c3c8cb39649631a53d3c4774beeae559a078c
+                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: 6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0
               run: |
                   set -euo pipefail
 
@@ -521,8 +521,8 @@ jobs:
               env:
                   IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL || '' }}
                   IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: ${{ vars.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || secrets.IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256 || '' }}
-                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https://github.com/zhongfly/mpv-winbuild/releases/download/2026-06-14-7d245fd100/mpv-dev-lgpl-x86_64-20260614-git-7d245fd100.7z
-                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: a26e28fa55c15ac5b6209d8a9f9c3c8cb39649631a53d3c4774beeae559a078c
+                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https://github.com/zhongfly/mpv-winbuild/releases/download/2026-07-17-94335ab87a/mpv-dev-lgpl-x86_64-20260717-git-94335ab87a.7z
+                  IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256: 6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0
               run: |
                   set -euo pipefail
 

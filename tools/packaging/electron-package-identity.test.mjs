@@ -732,6 +732,16 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     const requireEmbeddedMpvLines = buildAndMakeWorkflow
         .split(/\r?\n/)
         .filter((line) => line.includes('IPTVNATOR_REQUIRE_EMBEDDED_MPV:'));
+    const defaultRuntimeUrls = [
+        ...buildAndMakeWorkflow.matchAll(
+            /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL:\s+(\S+)/g
+        ),
+    ].map((match) => match[1]);
+    const defaultRuntimeSha256s = [
+        ...buildAndMakeWorkflow.matchAll(
+            /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256:\s+([a-f0-9]{64})/g
+        ),
+    ].map((match) => match[1]);
 
     assert.equal(
         packageMetadata.scripts?.['embedded-mpv:stage-runtime:windows-archive'],
@@ -753,6 +763,16 @@ test('Windows CI packages embedded MPV from a staged x64 runtime', () => {
     assert.match(
         buildAndMakeWorkflow,
         /IPTVNATOR_DEFAULT_WINDOWS_EMBEDDED_MPV_RUNTIME_URL: https:\/\/github\.com\/zhongfly\/mpv-winbuild\/releases\/download\//
+    );
+    assert.deepEqual(
+        [...new Set(defaultRuntimeUrls)],
+        [
+            'https://github.com/zhongfly/mpv-winbuild/releases/download/2026-07-17-94335ab87a/mpv-dev-lgpl-x86_64-20260717-git-94335ab87a.7z',
+        ]
+    );
+    assert.deepEqual(
+        [...new Set(defaultRuntimeSha256s)],
+        ['6014aa0e6d8e98cdba90f5288295a7105d7d14ab0ca906f51465eeb478d5fea0']
     );
     assert.match(buildAndMakeWorkflow, /refs\/tags\/v\*/);
     assert.match(

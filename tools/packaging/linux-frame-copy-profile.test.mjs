@@ -5,6 +5,8 @@ import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
+import { configureLinuxFrameCopyBuild } from './configure-linux-frame-copy-build.mjs';
+
 const currentDir = dirname(fileURLToPath(import.meta.url));
 const require = createRequire(import.meta.url);
 const {
@@ -19,6 +21,14 @@ const electronBuilderConfig = JSON.parse(
         'utf8'
     )
 );
+
+function hasSystemFrameCopyDependency(config, format, dependency) {
+    return (config[format]?.fpm ?? []).some((option) =>
+        new RegExp(`^--depends(?:=|\\s+)${dependency}(?:$|\\s|[<>=])`).test(
+            option
+        )
+    );
+}
 
 test('defines the exact immutable Linux frame-copy profile matrix', () => {
     assert.deepEqual(LINUX_FRAME_COPY_PROFILES, {
@@ -147,7 +157,7 @@ test('rejects a non-array profile target list', () => {
     );
 });
 
-test('adds only libmpv-specific package dependencies without replacing electron-builder defaults', () => {
+test('keeps frame-copy package dependencies out of the base Electron Builder config', () => {
     for (const [target, dependency] of Object.entries(
         LINUX_SYSTEM_PACKAGE_DEPENDENCIES
     )) {
@@ -156,8 +166,38 @@ test('adds only libmpv-specific package dependencies without replacing electron-
             undefined,
             `${target}.depends must remain unset so electron-builder keeps its defaults`
         );
-        assert.deepEqual(electronBuilderConfig[target]?.fpm, [
-            `--depends=${dependency}`,
-        ]);
+        assert.equal(
+            hasSystemFrameCopyDependency(
+                electronBuilderConfig,
+                target,
+                dependency
+            ),
+            false
+        );
+    }
+});
+
+test('keeps frame-copy package dependencies out of non-system passes', () => {
+    const configs = [
+        configureLinuxFrameCopyBuild(electronBuilderConfig, {
+            profileName: 'portable',
+        }),
+        configureLinuxFrameCopyBuild(electronBuilderConfig, {
+            profileName: 'flatpak',
+        }),
+        configureLinuxFrameCopyBuild(electronBuilderConfig, {
+            foreignDeb: true,
+        }),
+    ];
+
+    for (const config of configs) {
+        for (const [format, dependency] of Object.entries(
+            LINUX_SYSTEM_PACKAGE_DEPENDENCIES
+        )) {
+            assert.equal(
+                hasSystemFrameCopyDependency(config, format, dependency),
+                false
+            );
+        }
     }
 });

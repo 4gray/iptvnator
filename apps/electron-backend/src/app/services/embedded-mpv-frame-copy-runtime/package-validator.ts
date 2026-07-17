@@ -44,7 +44,7 @@ function validateRegularArtifact(
     if (
         stat.isSymbolicLink() ||
         !stat.isFile() ||
-        (expectedMode !== null && (stat.mode & 0o777) !== expectedMode)
+        (expectedMode !== null && (stat.mode & 0o7777) !== expectedMode)
     ) {
         return validationFailure('runtime-artifact-invalid');
     }

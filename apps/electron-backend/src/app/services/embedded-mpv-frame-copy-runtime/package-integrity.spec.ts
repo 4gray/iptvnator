@@ -56,6 +56,27 @@ describe('embedded-mpv frame-copy package integrity', () => {
             reason: 'runtime-artifact-invalid',
         },
         {
+            label: 'setuid helper',
+            mutate(fixture: RuntimeFixture) {
+                chmodSync(fixture.helperPath, 0o4755);
+            },
+            reason: 'runtime-artifact-invalid',
+        },
+        {
+            label: 'setgid helper',
+            mutate(fixture: RuntimeFixture) {
+                chmodSync(fixture.helperPath, 0o2755);
+            },
+            reason: 'runtime-artifact-invalid',
+        },
+        {
+            label: 'sticky helper',
+            mutate(fixture: RuntimeFixture) {
+                chmodSync(fixture.helperPath, 0o1755);
+            },
+            reason: 'runtime-artifact-invalid',
+        },
+        {
             label: 'wrong reader mode',
             mutate(fixture: RuntimeFixture) {
                 chmodSync(
