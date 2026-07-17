@@ -665,10 +665,10 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
             [
                 (contents) =>
                     [
-                        'shared-interface: &sharedInterface shared-memory',
+                        'shared-interface: &shared.interface shared-memory',
                         contents.replace(
                             '\nplugs:\n',
-                            '\nplugs:\n  alias-plug:\n    interface: *sharedInterface\n'
+                            '\nplugs:\n  alias-plug:\n    interface: *shared.interface\n'
                         ),
                     ].join('\n'),
                 /anchors, aliases, merge keys, or custom tags/i,

@@ -520,7 +520,7 @@ function containsUnsupportedYamlSemantics(lines) {
         blockScalarParentIndent = null;
         const syntax = yamlSyntaxOutsideQuotedScalars(line);
         if (
-            /(?:^|[\s:[\]{},])(?:[&*][A-Za-z0-9_-]+|![^\s,[\]{}]+)(?=$|[\s,\]}])/.test(
+            /(?:^|[\s:[\]{},])(?:[&*][^\s,[\]{}]+|![^\s,[\]{}]+)(?=$|[\s,\]}])/.test(
                 syntax
             ) ||
             /(?:^|\s)<<\s*:/.test(syntax)
