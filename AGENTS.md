@@ -191,6 +191,26 @@ Key files:
   double-click ownership. Diagnostic interaction gating and owned-fullscreen
   exit match the other web players. The preference-off path keeps the legacy
   ArtPlayer skin, source behavior, and series navigation unchanged.
+- Shared web picture-in-picture stays inside that default-off rollout.
+  `PlayerController` exposes capability `pictureInPicture`, state
+  `pictureInPictureActive`/`canPictureInPicture`, and command
+  `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard
+  element PiP from the adapter's attached video; shared ArtPlayer keeps vendor
+  `pip: false`, while preference-off native/vendor paths remain unchanged. The
+  capability-gated button sits before fullscreen and uses active enter/exit
+  semantics; entry is disabled until metadata, and the action is disabled while
+  an operation is pending. Embedded MPV reports capability/state false with a
+  no-op command and has no popup/mini-window.
+- `WebVideoControlsAdapter` reads the attached video and its `ownerDocument`;
+  browser enter/leave events are authoritative, and exact-owner exit remains
+  available if request support changes. Request/exit invocation stays
+  synchronous for user activation, one operation is serialized, and binding
+  generation plus exact video identity protects replacement and teardown from
+  stale completion. Video.js Tech reset and ArtPlayer rebuild rebind with
+  exact-owner cleanup; HTML5 source changes on a retained target preserve PiP.
+  Standard PiP shows the browser/OS video surface without Angular control
+  chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
+  keyboard shortcut, and Embedded MPV popup/native support are out of scope.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 

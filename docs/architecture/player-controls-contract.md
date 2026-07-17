@@ -14,6 +14,8 @@ consumers and includes:
 - the standalone `app-player-controls` presentation component and its
   transient-state collaborators;
 - a generic `WebVideoControlsAdapter` plus small host helpers;
+- standard element picture-in-picture through that adapter for the guarded web
+  consumers;
 - a persisted, default-off web-player preference resolved through an immutable
   per-host rollout token;
 - the component-scoped `EmbeddedMpvControlsAdapter`;
@@ -59,6 +61,12 @@ only the ArtPlayer shell's own fullscreen. Source replacement and teardown
 remove exact listeners and engines, and destroyed sessions ignore stale delayed
 `customType` callbacks. When the host token resolves to false, the existing
 ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
+
+With shared controls enabled, HTML5, Video.js, and ArtPlayer expose standard
+element picture-in-picture through the adapter's attached `<video>`. Shared
+ArtPlayer keeps its vendor `pip` option disabled so the shared button is the
+only PiP owner. The preference-off native/vendor paths remain unchanged.
+Embedded MPV advertises no PiP capability and its command is a no-op.
 
 `Settings.webPlayerSharedControls` remains default-off. `WebPlayerViewComponent`
 snapshots it into `WEB_PLAYER_SHARED_CONTROLS` when a new player host is
@@ -147,7 +155,7 @@ interface PlayerController {
 
 `PlayerControlsCapabilities` contains booleans for `seek`, `volume`,
 `audioTracks`, `subtitles`, `playbackSpeed`, `aspectRatio`, `recording`,
-`fullscreen`, and `seriesNavigation`.
+`pictureInPicture`, `fullscreen`, and `seriesNavigation`.
 
 The default is all-false. An adapter enables only features that its engine and
 current runtime support. Capability flags primarily control whether optional UI
@@ -163,7 +171,8 @@ is rendered; state such as `canSeek`, `canPreviousEpisode`, and
 - volume;
 - pre-labelled audio/subtitle tracks and subtitle-enabled state;
 - playback speed and aspect-ratio selections/presets;
-- recording state; and
+- recording state;
+- picture-in-picture active state and runtime availability; and
 - previous/next episode availability.
 
 Adapters translate engine types into this model. The controls component must not
@@ -184,6 +193,7 @@ owner.
 - `setPlaybackSpeed`
 - `setAspectRatio`
 - `toggleRecording`
+- `togglePictureInPicture`
 
 Episode navigation is deliberately exposed as component outputs
 (`previousEpisodeRequested` and `nextEpisodeRequested`) because the owning
@@ -305,6 +315,53 @@ contract. It uses DOM/media events and accepts optional engine-specific track
 accessors through `WebVideoControlsOptions`, so the adapter itself stays usable
 in the PWA and does not import a concrete web engine.
 
+### Standard element picture-in-picture
+
+Picture-in-picture is part of the existing default-off shared web-controls
+rollout. It is available through standard element PiP for HTML5, Video.js, and
+ArtPlayer only when their host snapshot enables `WEB_PLAYER_SHARED_CONTROLS`.
+The preference-off HTML5 native controls, Video.js skin, and ArtPlayer vendor
+controls keep their previous behavior. Shared ArtPlayer explicitly keeps vendor
+`pip: false`, leaving the shared action as the single PiP owner.
+
+The contract exposes:
+
+- capability `pictureInPicture`;
+- state `pictureInPictureActive` and `canPictureInPicture`; and
+- command `togglePictureInPicture()`.
+
+The shared button renders only when the capability is present, immediately
+before fullscreen. It uses the active state for pressed, icon, and enter/exit
+semantics. When inactive, entry requires
+`readyState >= HTMLMediaElement.HAVE_METADATA`; when active, exact-owner exit
+remains available regardless of entry readiness or request support, provided
+the exit API exists. Any pending PiP operation disables the action.
+
+`WebVideoControlsAdapter` reads standard PiP APIs from the actual attached
+`HTMLVideoElement` and its `ownerDocument`. Browser
+`enterpictureinpicture`/`leavepictureinpicture` events and the document's exact
+`pictureInPictureElement` remain authoritative; command completion never
+optimistically changes the active state.
+
+The adapter invokes `requestPictureInPicture()` or `exitPictureInPicture()`
+synchronously from `togglePictureInPicture()` so browser user activation is
+preserved, then contains asynchronous settlement. Only one enter/exit operation
+may be pending. A binding generation plus exact video identity prevents a stale
+completion from clearing or changing the new binding. Replacement or teardown
+exits PiP only when the old video is the document's exact owner; a stale
+successful entry receives the same exact-owner cleanup and never exits an
+unrelated PiP element.
+
+Video.js Tech reset and ArtPlayer video rebuild paths detach the old binding,
+perform exact-owner cleanup, and bind the replacement video. HTML5 source
+changes on a retained video target, along with ordinary same-element
+source/media events, preserve active PiP.
+
+Standard element PiP displays the browser/OS video surface, not Angular shared
+control chrome. Subtitle rendering in that surface is browser-dependent.
+AirPlay, Cast, Document Picture-in-Picture, a PiP keyboard shortcut, and an
+Embedded MPV popup or native mini-window are out of scope.
+
 Native media events refresh the adapter automatically. An engine host must call
 the public `refresh()` hook after engine-specific getters change
 without a corresponding media event, including track lists, corrected duration,
@@ -414,6 +471,11 @@ The web-player preference does not affect Embedded MPV. Frame-copy always uses
 the shared DOM controls, while native-view keeps its compositor-safe legacy
 dock.
 
+`EmbeddedMpvControlsAdapter` reports `pictureInPicture: false`,
+`pictureInPictureActive: false`, and `canPictureInPicture: false`;
+`togglePictureInPicture()` is a no-op. Neither renderer opens an MPV
+popup/mini-window.
+
 ### Frame-copy engine
 
 The experimental frame-copy engine uploads helper-produced frames to
@@ -489,6 +551,7 @@ libs/ui/playback/src/lib/player-controls/
 ├── web-player-controls.flag.ts
 ├── web-video-controls.adapter.ts
 ├── web-video-controls.host.ts
+├── web-video-controls.media-helpers.ts
 └── index.ts
 ```
 
