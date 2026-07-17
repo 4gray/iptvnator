@@ -12,8 +12,216 @@ on:
     workflow_dispatch:
 
 jobs:
+    linux-embedded-mpv-runtime:
+        name: Build pinned Linux Embedded MPV runtime
+        runs-on: ubuntu-22.04
+        timeout-minutes: 120
+
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                  node-version: '22'
+
+            - name: Resolve Linux runtime toolchain cache key
+              id: linux-runtime-cache-key
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  sudo apt-get update
+                  {
+                      apt-cache policy \
+                          binutils build-essential cmake curl git \
+                          libasound2-dev libdrm-dev libegl-dev libgbm-dev \
+                          libgl-dev libpulse-dev libva-dev make nasm \
+                          ninja-build patchelf perl pkg-config python3-pip \
+                          tar xz-utils
+                      echo 'meson=1.7.2'
+                  } > "${RUNNER_TEMP}/linux-runtime-toolchain.txt"
+                  TOOLCHAIN_SHA256="$(sha256sum "${RUNNER_TEMP}/linux-runtime-toolchain.txt" | cut -d ' ' -f 1)"
+                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/stage-runtime.mjs') }}"
+                  echo "toolchain-sha256=${TOOLCHAIN_SHA256}" >> "${GITHUB_OUTPUT}"
+                  echo "key=linux-frame-copy-runtime-v4-ubuntu-22.04-${TOOLCHAIN_SHA256}-${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
+
+            - name: Restore pinned Linux runtime and source compliance bundle
+              id: linux-runtime-cache
+              uses: actions/cache@v4
+              with:
+                  path: |
+                      vendor/embedded-mpv/linux-x64
+                      dist/compliance/linux-frame-copy-runtime-sources.tar.xz
+                  key: ${{ steps.linux-runtime-cache-key.outputs.key }}
+
+            - name: Install pinned Linux runtime build dependencies
+              if: steps.linux-runtime-cache.outputs.cache-hit != 'true'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  sudo apt-get install --no-install-recommends -y \
+                      binutils \
+                      build-essential \
+                      cmake \
+                      curl \
+                      git \
+                      libasound2-dev \
+                      libdrm-dev \
+                      libegl-dev \
+                      libgbm-dev \
+                      libgl-dev \
+                      libpulse-dev \
+                      libva-dev \
+                      make \
+                      nasm \
+                      ninja-build \
+                      patchelf \
+                      perl \
+                      pkg-config \
+                      python3-pip \
+                      tar \
+                      xz-utils
+                  python3 -m pip install --user 'meson==1.7.2'
+
+            - name: Build and stage pinned LGPL Linux runtime
+              if: steps.linux-runtime-cache.outputs.cache-hit != 'true'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  export PATH="${HOME}/.local/bin:${PATH}"
+                  export IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT="${RUNNER_TEMP}/linux-frame-copy-runtime-build"
+                  export RUNTIME_PREFIX="${RUNNER_TEMP}/linux-frame-copy-runtime-prefix"
+
+                  node tools/embedded-mpv/build-linux-runtime.mjs "${RUNTIME_PREFIX}"
+                  node tools/embedded-mpv/stage-runtime.mjs linux x64 "${RUNTIME_PREFIX}"
+
+                  export SOURCE_BUNDLE_ROOT="${RUNNER_TEMP}/linux-frame-copy-runtime-sources"
+                  rm -rf "${SOURCE_BUNDLE_ROOT}"
+                  mkdir -p \
+                      "${SOURCE_BUNDLE_ROOT}/archives" \
+                      "${SOURCE_BUNDLE_ROOT}/git" \
+                      "${SOURCE_BUNDLE_ROOT}/metadata" \
+                      "${SOURCE_BUNDLE_ROOT}/notices" \
+                      "${SOURCE_BUNDLE_ROOT}/tooling"
+
+                  cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/archives/." "${SOURCE_BUNDLE_ROOT}/archives/"
+                  cp -a "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/libplacebo" "${SOURCE_BUNDLE_ROOT}/git/libplacebo"
+                  cp "${RUNTIME_PREFIX}/runtime-manifest.json" "${SOURCE_BUNDLE_ROOT}/metadata/runtime-manifest.json"
+                  cp \
+                      tools/embedded-mpv/build-linux-runtime.cjs \
+                      tools/embedded-mpv/build-linux-runtime.mjs \
+                      tools/embedded-mpv/linux-runtime-manifest.cjs \
+                      tools/embedded-mpv/stage-runtime.mjs \
+                      "${SOURCE_BUNDLE_ROOT}/tooling/"
+                  find "${IPTVNATOR_EMBEDDED_MPV_LINUX_BUILD_ROOT}/sources/hwdata" \
+                      -maxdepth 1 -type f -iname 'license*' \
+                      -exec cp '{}' "${SOURCE_BUNDLE_ROOT}/notices/hwdata-LICENSE" ';'
+                  test -f "${SOURCE_BUNDLE_ROOT}/notices/hwdata-LICENSE"
+                  git rev-parse HEAD > "${SOURCE_BUNDLE_ROOT}/metadata/iptvnator-git-revision.txt"
+                  git diff --binary HEAD -- tools/embedded-mpv > "${SOURCE_BUNDLE_ROOT}/metadata/local-embedded-mpv-changes.patch"
+                  node <<'NODE'
+                  const childProcess = require('node:child_process');
+                  const crypto = require('node:crypto');
+                  const fs = require('node:fs');
+                  const path = require('node:path');
+
+                  const manifest = JSON.parse(
+                    fs.readFileSync(path.join(process.env.RUNTIME_PREFIX, 'runtime-manifest.json'), 'utf8')
+                  );
+                  const archivesDirectory = path.join(process.env.SOURCE_BUNDLE_ROOT, 'archives');
+                  const archives = fs.readdirSync(archivesDirectory).sort().map((name) => {
+                    const contents = fs.readFileSync(path.join(archivesDirectory, name));
+                    return {
+                      name,
+                      sha256: crypto.createHash('sha256').update(contents).digest('hex'),
+                    };
+                  });
+                  const archiveHashes = new Set(archives.map(({ sha256 }) => sha256));
+                  for (const [packageName, source] of Object.entries(manifest.packages)) {
+                    if (source.sourceSha256 && !archiveHashes.has(source.sourceSha256)) {
+                      throw new Error(
+                        `Source bundle is missing ${packageName} archive ${source.sourceSha256}.`
+                      );
+                    }
+                  }
+
+                  const libplaceboCheckout = path.join(
+                    process.env.SOURCE_BUNDLE_ROOT,
+                    'git',
+                    'libplacebo'
+                  );
+                  const gitOutput = (...args) =>
+                    childProcess.execFileSync('git', ['-C', libplaceboCheckout, ...args], {
+                      encoding: 'utf8',
+                    }).trim();
+                  const sourceGitCommit = gitOutput('rev-parse', 'HEAD');
+                  if (sourceGitCommit !== manifest.packages.libplacebo.sourceGitCommit) {
+                    throw new Error('Bundled libplacebo checkout commit does not match the runtime manifest.');
+                  }
+                  const sourceSubmodules = gitOutput('submodule', 'status', '--recursive')
+                    .split(/\r?\n/)
+                    .map((line) => line.trim())
+                    .filter(Boolean);
+                  if (
+                    JSON.stringify(sourceSubmodules) !==
+                    JSON.stringify(manifest.packages.libplacebo.sourceSubmodules)
+                  ) {
+                    throw new Error('Bundled libplacebo submodules do not match the runtime manifest.');
+                  }
+
+                  fs.writeFileSync(
+                    path.join(process.env.SOURCE_BUNDLE_ROOT, 'metadata', 'source-index.json'),
+                    `${JSON.stringify(
+                      {
+                        schemaVersion: 1,
+                        sourcePackages: manifest.packages,
+                        archives,
+                        libplacebo: {
+                          sourceGitCommit,
+                          sourceSubmodules,
+                        },
+                      },
+                      null,
+                      2
+                    )}\n`
+                  );
+                  NODE
+                  (
+                      cd "${SOURCE_BUNDLE_ROOT}/archives"
+                      sha256sum * > "../metadata/archive-sha256.txt"
+                  )
+
+                  mkdir -p dist/compliance
+                  tar \
+                      --create \
+                      --xz \
+                      --file dist/compliance/linux-frame-copy-runtime-sources.tar.xz \
+                      --directory "${SOURCE_BUNDLE_ROOT}" \
+                      .
+
+            - name: Upload staged Linux runtime
+              uses: actions/upload-artifact@v4
+              with:
+                  name: linux-embedded-mpv-runtime
+                  path: vendor/embedded-mpv/linux-x64
+                  if-no-files-found: error
+                  retention-days: 7
+
+            - name: Upload Linux runtime source compliance
+              uses: actions/upload-artifact@v4
+              with:
+                  name: linux-frame-copy-runtime-sources
+                  path: dist/compliance/linux-frame-copy-runtime-sources.tar.xz
+                  if-no-files-found: error
+                  retention-days: 7
+
     build:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
+        needs: linux-embedded-mpv-runtime
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
         strategy:
@@ -32,10 +240,16 @@ jobs:
                       embedded_mpv_platform: darwin
                       embedded_mpv_arch: arm64
                       embedded_mpv_build_runtime: true
-                    # Linux and Windows
+                    # Linux frame-copy profiles and Windows
                     - os: linux
                       runner: ubuntu-22.04
-                      linux_profile: standard
+                      linux_profile: system
+                      embedded_mpv_platform: linux
+                      embedded_mpv_arch: x64
+                      embedded_mpv_build_runtime: false
+                    - os: linux
+                      runner: ubuntu-22.04
+                      linux_profile: portable
                       embedded_mpv_platform: linux
                       embedded_mpv_arch: x64
                       embedded_mpv_build_runtime: false
@@ -68,37 +282,49 @@ jobs:
               if: matrix.os == 'linux'
               run: |
                   sudo apt-get update
-                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev libmpv-dev mpv pkg-config libegl-dev libgl-dev libopengl-dev libgbm-dev
+                  sudo apt-get install --no-install-recommends -y \
+                      appstream \
+                      binutils \
+                      flatpak \
+                      flatpak-builder \
+                      libarchive-tools \
+                      libegl-dev \
+                      libgbm-dev \
+                      libgl-dev \
+                      libopengl-dev \
+                      libx11-dev \
+                      libxext-dev \
+                      mpv \
+                      pkg-config \
+                      rpm \
+                      snapd \
+                      squashfs-tools \
+                      xauth \
+                      xvfb
 
-                  # Configure Flatpak
-                  # 1. Add the Flathub repository (source of runtimes)
+            - name: Configure Flatpak build runtime
+              if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
+              run: |
+                  set -euo pipefail
+
                   flatpak remote-add --if-not-exists --user flathub https://flathub.org/repo/flathub.flatpakrepo
-
-                  # 2. Install the standard Freedesktop Platform and SDK (required by electron-builder)
-                  # We install version 24.08 as a safe default, electron-builder might pick what it needs
                   flatpak install --user -y flathub org.freedesktop.Platform//24.08 org.freedesktop.Sdk//24.08
 
             - name: Select Linux packaging targets for CI profile
               if: matrix.os == 'linux'
               run: |
-                  node -e "
-                    const fs = require('fs');
-                    const path = 'electron-builder.json';
-                    const config = JSON.parse(fs.readFileSync(path, 'utf8'));
-                    const targets = Array.isArray(config.linux?.target) ? config.linux.target : [];
-                    const profile = '${{ matrix.linux_profile }}';
-
-                    if (profile === 'standard') {
-                      config.linux.target = targets.filter((entry) => String(entry.target).toLowerCase() !== 'flatpak');
-                    } else if (profile === 'flatpak') {
-                      config.linux.target = targets.filter((entry) => String(entry.target).toLowerCase() === 'flatpak');
-                    }
-
-                    fs.writeFileSync(path, JSON.stringify(config, null, 4) + '\n');
-                  "
+                  cp electron-builder.json "${RUNNER_TEMP}/electron-builder.base.json"
+                  node tools/packaging/configure-linux-frame-copy-build.mjs --profile "${{ matrix.linux_profile }}"
 
             - name: Install dependencies
               run: pnpm install --frozen-lockfile
+
+            - name: Download pinned Linux Embedded MPV runtime
+              if: matrix.os == 'linux'
+              uses: actions/download-artifact@v4
+              with:
+                  name: linux-embedded-mpv-runtime
+                  path: vendor/embedded-mpv/linux-x64
 
             - name: Inject TMDB API key
               # No-op when the secret is unavailable (e.g. fork PRs) — the
@@ -113,7 +339,7 @@ jobs:
             - name: Resolve embedded MPV runtime cache key
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: matrix.embedded_mpv_platform && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
+              if: matrix.embedded_mpv_platform && matrix.os != 'linux' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
               id: embedded-mpv-runtime-cache-key
               shell: bash
               env:
@@ -186,7 +412,7 @@ jobs:
             - name: Restore embedded MPV runtime cache
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: matrix.embedded_mpv_platform && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
+              if: matrix.embedded_mpv_platform && matrix.os != 'linux' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master')
               id: embedded-mpv-runtime-cache
               uses: actions/cache/restore@v4
               with:
@@ -199,7 +425,7 @@ jobs:
             - name: Clear stale embedded MPV runtime files
               # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
               # after the macOS Embedded MPV artifacts are built and manually tested.
-              if: matrix.embedded_mpv_platform && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
+              if: matrix.embedded_mpv_platform && matrix.os != 'linux' && !startsWith(github.ref, 'refs/tags/v') && (github.event_name == 'pull_request' || github.ref == 'refs/heads/master') && steps.embedded-mpv-runtime-cache.outputs.cache-hit != 'true'
               shell: bash
               run: |
                   set -euo pipefail
@@ -254,47 +480,11 @@ jobs:
 
                   pnpm embedded-mpv:stage-runtime:windows-archive -- "${WINDOWS_RUNTIME_URL}" "${WINDOWS_RUNTIME_SHA256}"
 
-            - name: Stage Linux embedded MPV build inputs
-              if: matrix.os == 'linux'
-              shell: bash
-              run: |
-                  set -euo pipefail
-
-                  RUNTIME_PREFIX="${RUNNER_TEMP}/embedded-mpv-runtime/linux-x64/prefix"
-                  rm -rf "${RUNTIME_PREFIX}"
-                  mkdir -p "${RUNTIME_PREFIX}/include"
-
-                  cp -a /usr/include/mpv "${RUNTIME_PREFIX}/include/"
-
-                  LIBMPV_DEV_VERSION="$(dpkg-query -W -f='${Version}' libmpv-dev)"
-                  MPV_VERSION="$(dpkg-query -W -f='${Version}' mpv)"
-                  export RUNTIME_PREFIX LIBMPV_DEV_VERSION MPV_VERSION
-                  node <<'NODE'
-                  const fs = require('fs');
-                  const path = require('path');
-
-                  const manifest = {
-                    linuxBackend: 'process-isolated mpv --wid',
-                    buildInputs: {
-                      libmpvDevPackage: process.env.LIBMPV_DEV_VERSION,
-                      mpvPackage: process.env.MPV_VERSION,
-                    },
-                    sourceDistribution:
-                      'Linux CI build inputs come from Ubuntu runner packages. Runtime playback uses the system mpv executable; IPTVnator does not bundle or load libmpv in the Electron process on Linux.',
-                  };
-
-                  fs.writeFileSync(
-                    path.join(process.env.RUNTIME_PREFIX, 'runtime-manifest.json'),
-                    `${JSON.stringify(manifest, null, 2)}\n`
-                  );
-                  NODE
-
-                  pnpm embedded-mpv:stage-runtime -- linux x64 "${RUNTIME_PREFIX}"
-
             - name: Build backend
               env:
                   IPTVNATOR_EMBEDDED_MPV_PLATFORM: ${{ matrix.embedded_mpv_platform || '' }}
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
+                  IPTVNATOR_LINUX_FRAME_COPY_PROFILE: ${{ matrix.linux_profile || '' }}
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master'))) && '1' || '0' }}
               run: pnpm run build:backend
 
@@ -331,27 +521,29 @@ jobs:
                       find dist/apps/electron-backend/native -maxdepth 1 \( -name 'mpv-2.dll' -o -name 'libmpv-2.dll' -o -name 'mpv.dll' -o -name 'libmpv.dll' \) -print -quit | grep -q .
                       ;;
                     linux)
-                      node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'external-mpv-process') { throw new Error('Linux embedded MPV manifest must use external-mpv-process origin.'); }"
-                      if find dist/apps/electron-backend/native/lib -name 'libmpv.so*' -print -quit 2>/dev/null | grep -q .; then
-                          echo "::error::Linux embedded MPV packages must not bundle libmpv"
-                          find dist/apps/electron-backend/native/lib -name 'libmpv.so*' -print
-                          exit 1
-                      fi
-                      if ldd dist/apps/electron-backend/native/embedded_mpv.node | grep -q 'libmpv'; then
-                          echo "::error::Linux embedded MPV addon must not link directly to libmpv"
-                          ldd dist/apps/electron-backend/native/embedded_mpv.node
-                          exit 1
-                      fi
-                      # The frame-copy helper is the inverse: a separate process
-                      # that MUST link libmpv (dev-mode engine; stripped from
-                      # packages until the bundled-runtime staging lands).
-                      # test -f, not -x: the webpack dist asset copy drops file
-                      # modes; consumers restore the bit (after-pack) or require
-                      # it via the X_OK support probe.
+                      node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'linux-frame-copy-build' || manifest.sourceRuntimeValidated !== true) { throw new Error('Linux embedded MPV build manifest must describe the validated source runtime.'); }"
+                      test -f dist/apps/electron-backend/native/lib/libmpv.so.2
                       test -f dist/apps/electron-backend/native/iptvnator_mpv_helper
-                      if ! ldd dist/apps/electron-backend/native/iptvnator_mpv_helper | grep -q 'libmpv'; then
-                          echo "::error::Linux frame-copy helper must link libmpv"
-                          ldd dist/apps/electron-backend/native/iptvnator_mpv_helper
+                      test -f dist/apps/electron-backend/native/embedded_mpv_frame_reader.node
+                      if readelf -d dist/apps/electron-backend/native/embedded_mpv.node | grep -Eq 'Shared library:.*libmpv\.so'; then
+                          echo "::error::Linux embedded MPV addon must not link directly to libmpv"
+                          readelf -d dist/apps/electron-backend/native/embedded_mpv.node
+                          exit 1
+                      fi
+                      if readelf -d dist/apps/electron-backend/native/embedded_mpv_frame_reader.node | grep -Eq 'Shared library:.*libmpv\.so'; then
+                          echo "::error::Linux frame reader must not link directly to libmpv"
+                          readelf -d dist/apps/electron-backend/native/embedded_mpv_frame_reader.node
+                          exit 1
+                      fi
+                      HELPER_DYNAMIC="$(readelf -d dist/apps/electron-backend/native/iptvnator_mpv_helper)"
+                      if ! printf '%s\n' "${HELPER_DYNAMIC}" | grep -Eq 'Shared library: \[libmpv\.so\.2\]'; then
+                          echo "::error::Linux frame-copy helper must need libmpv.so.2"
+                          printf '%s\n' "${HELPER_DYNAMIC}"
+                          exit 1
+                      fi
+                      if ! printf '%s\n' "${HELPER_DYNAMIC}" | grep -Fq 'Library runpath: [$ORIGIN/lib]'; then
+                          echo "::error::Linux frame-copy helper must keep only the relative runtime path"
+                          printf '%s\n' "${HELPER_DYNAMIC}"
                           exit 1
                       fi
                       ;;
@@ -557,6 +749,7 @@ jobs:
               env:
                   IPTVNATOR_EMBEDDED_MPV_PLATFORM: ${{ matrix.embedded_mpv_platform || '' }}
                   IPTVNATOR_EMBEDDED_MPV_ARCH: ${{ matrix.embedded_mpv_arch || matrix.arch || '' }}
+                  IPTVNATOR_LINUX_FRAME_COPY_PROFILE: ${{ matrix.linux_profile || '' }}
                   # TEMPORARY PR TEST: change this back to '0' after manually
                   # testing the macOS PR artifact with Embedded MPV included.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && github.event_name == 'pull_request')) && '1' || '0' }}
@@ -567,10 +760,188 @@ jobs:
               env:
                   PACKAGE_OS: ${{ matrix.os }}
                   PACKAGE_ARCH: ${{ matrix.arch || matrix.embedded_mpv_arch || '' }}
+                  IPTVNATOR_LINUX_FRAME_COPY_PROFILE: ${{ matrix.linux_profile || '' }}
                   # TEMPORARY ARTIFACT TEST: remove `|| github.event_name == 'pull_request' || github.ref == 'refs/heads/master'`
                   # after the macOS Embedded MPV artifacts are built and manually tested.
                   IPTVNATOR_REQUIRE_EMBEDDED_MPV: ${{ (matrix.os == 'linux' || matrix.os == 'windows' || (matrix.os == 'macos' && (startsWith(github.ref, 'refs/tags/v') || github.event_name == 'pull_request' || github.ref == 'refs/heads/master'))) && '1' || '0' }}
               run: pnpm run verify:package-layout -- "$PACKAGE_OS" "$PACKAGE_ARCH"
+
+            - name: Make marker-only foreign-architecture DEB packages
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              shell: bash
+              env:
+                  IPTVNATOR_EMBEDDED_MPV_PLATFORM: linux
+                  IPTVNATOR_EMBEDDED_MPV_ARCH: x64
+                  IPTVNATOR_LINUX_FRAME_COPY_PROFILE: ''
+                  IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'
+              run: |
+                  set -euo pipefail
+
+                  cp "${RUNNER_TEMP}/electron-builder.base.json" electron-builder.json
+                  node tools/packaging/configure-linux-frame-copy-build.mjs --foreign-deb
+                  pnpm nx run electron-backend:make \
+                      --outputPath=dist/executables-linux-foreign \
+                      --publishPolicy=never
+                  find dist/executables-linux-foreign -maxdepth 1 -type f -name '*.deb' \
+                      -exec mv '{}' dist/executables/ ';'
+
+            - name: Verify DEB payloads and x64 system runtime
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  found=false
+                  for artifact in dist/executables/*.deb; do
+                      test -f "${artifact}" || continue
+                      found=true
+                      case "$(dpkg-deb --field "${artifact}" Architecture)" in
+                          amd64)
+                              docker run --rm \
+                                  --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
+                                  --volume "$(realpath "${artifact}"):/artifact.deb:ro" \
+                                  --workdir /workspace \
+                                  ubuntu:24.04 \
+                                  bash -euo pipefail -c '
+                                      apt-get update
+                                      DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
+                                          binutils libegl1 libgl1-mesa-dri libmpv2 nodejs squashfs-tools xauth xvfb
+                                      xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                                          node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                                              --artifact /artifact.deb --profile system
+                                  '
+                              ;;
+                          arm64|armhf)
+                              node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                                  --artifact "${artifact}" --profile system
+                              ;;
+                          *)
+                              echo "::error::Unexpected DEB architecture in ${artifact}"
+                              exit 1
+                              ;;
+                      esac
+                  done
+                  test "${found}" = true
+
+            - name: Verify RPM payload and x64 system runtime
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  artifact="$(find dist/executables -maxdepth 1 -type f -name '*.rpm' -print -quit)"
+                  test -n "${artifact}"
+                  docker run --rm \
+                      --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
+                      --volume "$(realpath "${artifact}"):/artifact.rpm:ro" \
+                      --workdir /workspace \
+                      fedora:latest \
+                      bash -euo pipefail -c '
+                          dnf install -y \
+                              binutils bsdtar mesa-dri-drivers mpv-libs nodejs rpm \
+                              xorg-x11-server-Xvfb xorg-x11-xauth
+                          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                              node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                                  --artifact /artifact.rpm --profile system
+                      '
+
+            - name: Verify Pacman payload and x64 system runtime
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  artifact="$(find dist/executables -maxdepth 1 -type f \( -name '*.pacman' -o -name '*.pkg.tar.*' \) -print -quit)"
+                  test -n "${artifact}"
+                  docker run --rm \
+                      --volume "${GITHUB_WORKSPACE}:/workspace:ro" \
+                      --volume "$(realpath "${artifact}"):/artifact.pacman:ro" \
+                      --workdir /workspace \
+                      archlinux:latest \
+                      bash -euo pipefail -c '
+                          pacman -Syu --noconfirm \
+                              binutils libarchive mesa mpv nodejs xorg-server-xvfb xorg-xauth
+                          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                              node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                                  --artifact /artifact.pacman --profile system
+                      '
+
+            - name: Verify AppImage payloads and bundled runtime
+              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  found=false
+                  for artifact in dist/executables/*.AppImage; do
+                      test -f "${artifact}" || continue
+                      found=true
+                      xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                          node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                              --artifact "${artifact}" --profile portable
+                  done
+                  test "${found}" = true
+
+            - name: Verify Snap payloads and strict-confinement runtime
+              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  found=false
+                  installed_x64=false
+                  for artifact in dist/executables/*.snap; do
+                      test -f "${artifact}" || continue
+                      found=true
+                      verification="$(
+                          xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                              node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                                  --artifact "${artifact}" --profile portable
+                      )"
+                      printf '%s\n' "${verification}"
+                      if printf '%s\n' "${verification}" | grep -Fq 'Verified snap x64 Linux'; then
+                          sudo snap install --dangerous "${artifact}"
+                          installed_x64=true
+                      fi
+                  done
+                  test "${found}" = true
+                  test "${installed_x64}" = true
+                  xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                      snap run --shell iptvnator -c '
+                          set -euo pipefail
+                          helper="$(find "${SNAP}" -type f -path "*/app.asar.unpacked/electron-backend/native/iptvnator_mpv_helper" -print -quit)"
+                          test -n "${helper}"
+                          "${helper}" --runtime-probe
+                      '
+
+            - name: Run packaged x64 frame-copy and fallback smoke
+              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              env:
+                  IPTVNATOR_E2E_REQUIRE_PACKAGED_FRAME_COPY: '1'
+                  IPTVNATOR_E2E_PACKAGED_EXECUTABLE: ${{ github.workspace }}/dist/executables/linux-unpacked/iptvnator
+                  LIBGL_ALWAYS_SOFTWARE: '1'
+              run: |
+                  xvfb-run -a pnpm nx run \
+                      electron-backend-e2e:packaged-frame-copy-smoke \
+                      --skip-nx-cache
+
+            - name: Diagnose packaged x64 frame-copy hardware path
+              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              continue-on-error: true
+              env:
+                  IPTVNATOR_E2E_REQUIRE_PACKAGED_FRAME_COPY: '1'
+                  IPTVNATOR_E2E_PACKAGED_EXECUTABLE: ${{ github.workspace }}/dist/executables/linux-unpacked/iptvnator
+              run: |
+                  set -euo pipefail
+
+                  if [ ! -e /dev/dri/renderD128 ]; then
+                      echo "::notice::No /dev/dri/renderD128 is available; skipping the non-blocking hardware-path diagnostic."
+                      exit 0
+                  fi
+                  ls -la /dev/dri
+                  xvfb-run -a pnpm nx run \
+                      electron-backend-e2e:packaged-frame-copy-smoke \
+                      --skip-nx-cache
 
             - name: Save embedded MPV runtime cache
               # TEMPORARY ARTIFACT TEST: remove `|| github.ref == 'refs/heads/master'`
@@ -584,7 +955,7 @@ jobs:
                       vendor/embedded-mpv/${{ matrix.embedded_mpv_platform }}-${{ matrix.embedded_mpv_arch }}/runtime-manifest.json
                   key: ${{ steps.embedded-mpv-runtime-cache-key.outputs.key }}
 
-            - name: Smoke test packaged Flatpak launcher
+            - name: Verify Flatpak payload, launcher, and sandboxed runtime
               if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
               shell: bash
               run: |
@@ -596,8 +967,12 @@ jobs:
                       exit 1
                   fi
 
+                  xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                      node tools/packaging/verify-linux-frame-copy-runtime.mjs \
+                          --artifact "${FLATPAK_BUNDLE}" --profile flatpak
                   flatpak install --user --noninteractive -y "${FLATPAK_BUNDLE}"
-                  flatpak run --command=sh com.fourgray.iptvnator -c '
+                  xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                      flatpak run --command=sh com.fourgray.iptvnator -c '
                       set -euo pipefail
 
                       test -f /app/share/metainfo/com.fourgray.iptvnator.metainfo.xml
@@ -608,6 +983,9 @@ jobs:
                       test -f "${LAUNCHER_PATH}.bin"
                       grep -q '\''readlink -f "$SCRIPT_PATH"'\'' "${LAUNCHER_PATH}"
                       grep -q '\''exec "$SCRIPT_DIR/iptvnator.bin"'\'' "${LAUNCHER_PATH}"
+                      HELPER_PATH="$(find /app -type f -path '\''*/app.asar.unpacked/electron-backend/native/iptvnator_mpv_helper'\'' -print -quit)"
+                      test -n "${HELPER_PATH}"
+                      "${HELPER_PATH}" --runtime-probe
                   '
 
             - name: Upload artifacts (macOS)
@@ -622,23 +1000,31 @@ jobs:
                       dist/executables/**/*.blockmap
                   retention-days: 7
 
-            - name: Upload artifacts (Linux)
-              if: matrix.os == 'linux' && matrix.linux_profile == 'standard'
+            - name: Upload system-runtime Linux artifacts
+              if: matrix.os == 'linux' && matrix.linux_profile == 'system'
               uses: actions/upload-artifact@v4
               with:
-                  name: linux-artifacts
+                  name: linux-system-artifacts
                   path: |
-                      dist/executables/**/*.deb
-                      dist/executables/**/*.rpm
-                      dist/executables/**/*.snap
-                      dist/executables/**/*.AppImage
-                      dist/executables/**/*.tar.gz
-                      dist/executables/**/*.pacman
+                      dist/executables/*.deb
+                      dist/executables/*.rpm
+                      dist/executables/*.pacman
+                      dist/executables/*.pkg.tar.*
+                  retention-days: 7
+
+            - name: Upload portable-runtime Linux artifacts
+              if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
+              uses: actions/upload-artifact@v4
+              with:
+                  name: linux-portable-artifacts
+                  path: |
+                      dist/executables/*.AppImage
+                      dist/executables/*.snap
                       dist/executables/**/latest-linux*.yml
                       dist/executables/**/*.blockmap
                   retention-days: 7
 
-            - name: Upload artifacts (Flatpak)
+            - name: Upload Flatpak-runtime Linux artifacts
               if: matrix.os == 'linux' && matrix.linux_profile == 'flatpak'
               uses: actions/upload-artifact@v4
               with:
@@ -813,15 +1199,16 @@ jobs:
                       artifacts/macos-arm64-artifacts/*-arm64.zip
                       artifacts/macos-arm64-artifacts/*.blockmap
                       artifacts/latest-mac.yml
-                      artifacts/linux-artifacts/*.AppImage
-                      artifacts/linux-artifacts/*.deb
-                      artifacts/linux-artifacts/*.rpm
-                      artifacts/linux-artifacts/*.snap
-                      artifacts/linux-artifacts/*.tar.gz
-                      artifacts/linux-artifacts/*.pacman
-                      artifacts/linux-artifacts/latest-linux*.yml
-                      artifacts/linux-artifacts/*.blockmap
+                      artifacts/linux-system-artifacts/*.deb
+                      artifacts/linux-system-artifacts/*.rpm
+                      artifacts/linux-system-artifacts/*.pacman
+                      artifacts/linux-system-artifacts/*.pkg.tar.*
+                      artifacts/linux-portable-artifacts/*.AppImage
+                      artifacts/linux-portable-artifacts/*.snap
+                      artifacts/linux-portable-artifacts/latest-linux*.yml
+                      artifacts/linux-portable-artifacts/*.blockmap
                       artifacts/linux-flatpak-artifacts/*.flatpak
+                      artifacts/linux-frame-copy-runtime-sources/linux-frame-copy-runtime-sources.tar.xz
                       artifacts/windows-artifacts/*-setup.exe
                       artifacts/windows-artifacts/*.msi
                       artifacts/windows-artifacts/*.zip
@@ -842,7 +1229,7 @@ jobs:
             - name: Download snap artifact
               uses: actions/download-artifact@v4
               with:
-                  name: linux-artifacts
+                  name: linux-portable-artifacts
                   path: artifacts
 
             - name: Setup Snapcraft

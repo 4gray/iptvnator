@@ -196,7 +196,7 @@ test('GitHub Releases auto-update metadata is generated and uploaded', () => {
     );
     assert.match(
         buildAndMakeWorkflow,
-        /artifacts\/linux-artifacts\/latest-linux\*\.yml/
+        /artifacts\/linux-portable-artifacts\/latest-linux\*\.yml/
     );
     assert.match(
         buildAndMakeWorkflow,
