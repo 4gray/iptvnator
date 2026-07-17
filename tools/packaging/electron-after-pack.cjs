@@ -1,9 +1,14 @@
 const linuxAfterPack = require('./linux-after-pack.cjs');
 const {
+    getEmbeddedMpvAddonArch,
     isForeignLinuxEmbeddedMpvArch,
     resolveElectronBuilderArchName,
     validatePackagedEmbeddedMpv,
 } = require('./embedded-mpv-packaging.cjs');
+const {
+    resolveLinuxFrameCopyProfile,
+    validateLinuxProfileTargets,
+} = require('./linux-frame-copy-profile.cjs');
 const fs = require('fs');
 const path = require('path');
 const {
@@ -22,7 +27,12 @@ function isTruthy(value) {
     );
 }
 
-function copyEmbeddedMpvNativeOutput(resourceDir, projectDir, platform) {
+function copyEmbeddedMpvNativeOutput(
+    resourceDir,
+    projectDir,
+    platform,
+    preparationOptions
+) {
     const sourceDir = path.join(
         projectDir,
         'dist',
@@ -45,7 +55,11 @@ function copyEmbeddedMpvNativeOutput(resourceDir, projectDir, platform) {
     fs.rmSync(destinationDir, { recursive: true, force: true });
     fs.cpSync(sourceDir, destinationDir, { recursive: true });
 
-    preparePackagedFrameCopyArtifacts(destinationDir, platform);
+    return preparePackagedFrameCopyArtifacts(
+        destinationDir,
+        platform,
+        preparationOptions
+    );
 }
 
 function writeEmbeddedMpvUnavailableMarker(resourceDir, targetArch) {
@@ -64,12 +78,89 @@ function writeEmbeddedMpvUnavailableMarker(resourceDir, targetArch) {
     );
 }
 
-async function afterPackHook(params) {
-    await linuxAfterPack(params);
+function resolveLinuxFrameCopyPackagingContext(
+    params,
+    {
+        required = isTruthy(process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV),
+        environment = process.env,
+    } = {}
+) {
+    if (params.electronPlatformName !== 'linux') {
+        return null;
+    }
 
+    const targetArch = resolveElectronBuilderArchName(params.arch);
+    if (!targetArch) {
+        throw new Error(
+            `Unknown Electron Builder architecture: ${String(params.arch)}.`
+        );
+    }
+    const targetNames = [];
+    for (const target of params.targets ?? []) {
+        const targetName = String(target?.name ?? '')
+            .trim()
+            .toLowerCase();
+        if (!targetName) {
+            throw new Error(
+                'Linux Electron Builder targets must expose a non-empty name.'
+            );
+        }
+        if (targetNames.includes(targetName)) {
+            throw new Error(
+                `Linux Electron Builder target "${targetName}" is duplicated.`
+            );
+        }
+        targetNames.push(targetName);
+    }
+    if (targetNames.length === 0) {
+        throw new Error(
+            'Linux Electron Builder must provide at least one packaging target.'
+        );
+    }
+
+    const addonArch = getEmbeddedMpvAddonArch(environment);
+    const foreignArch = targetArch !== addonArch;
+    const profileValue =
+        environment.IPTVNATOR_LINUX_FRAME_COPY_PROFILE?.trim() ?? '';
+    if (!profileValue) {
+        if (required && targetArch === 'x64') {
+            resolveLinuxFrameCopyProfile(profileValue);
+        }
+        return {
+            targetArch,
+            foreignArch,
+            targetNames,
+            profile: null,
+        };
+    }
+
+    const profile = resolveLinuxFrameCopyProfile(profileValue);
+    const targetErrors = validateLinuxProfileTargets(profile.name, targetNames);
+    if (targetErrors.length > 0) {
+        throw new Error(targetErrors.join('\n'));
+    }
+    return {
+        targetArch,
+        foreignArch,
+        targetNames,
+        profile,
+    };
+}
+
+async function afterPackHook(params) {
     const requireEmbeddedMpv = isTruthy(
         process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV
     );
+    const linuxPackagingContext = resolveLinuxFrameCopyPackagingContext(
+        params,
+        {
+            required: requireEmbeddedMpv,
+            environment: process.env,
+        }
+    );
+
+    await linuxAfterPack(params);
+
     log(
         requireEmbeddedMpv
             ? `validating required embedded MPV ${params.electronPlatformName} runtime`
@@ -77,12 +168,11 @@ async function afterPackHook(params) {
     );
     const resourceDir = getResourceDir(params);
 
-    const foreignArch = isForeignLinuxEmbeddedMpvArch(
-        params.electronPlatformName,
-        params.arch
-    );
+    const foreignArch =
+        linuxPackagingContext?.foreignArch ??
+        isForeignLinuxEmbeddedMpvArch(params.electronPlatformName, params.arch);
     if (foreignArch) {
-        const targetArch = resolveElectronBuilderArchName(params.arch);
+        const targetArch = linuxPackagingContext.targetArch;
         log(
             `embedded MPV addon is not built for ${targetArch}; packaging an unavailable marker instead`
         );
@@ -91,7 +181,13 @@ async function afterPackHook(params) {
         copyEmbeddedMpvNativeOutput(
             resourceDir,
             params.packager.projectDir ?? process.cwd(),
-            params.electronPlatformName
+            params.electronPlatformName,
+            linuxPackagingContext
+                ? {
+                      profile: linuxPackagingContext.profile?.name,
+                      targetNames: linuxPackagingContext.targetNames,
+                  }
+                : undefined
         );
     }
 
@@ -99,6 +195,10 @@ async function afterPackHook(params) {
         platform: params.electronPlatformName,
         required: requireEmbeddedMpv,
         foreignArch,
+        targetArch: linuxPackagingContext?.targetArch,
+        profile: linuxPackagingContext?.profile?.name,
+        targetNames: linuxPackagingContext?.targetNames,
+        executableName: params.packager.executableName,
     });
 
     if (errors.length > 0) {
@@ -136,3 +236,7 @@ function getResourceDir(params) {
 }
 
 module.exports = afterPackHook;
+module.exports.resolveLinuxFrameCopyPackagingContext =
+    resolveLinuxFrameCopyPackagingContext;
+module.exports.writeEmbeddedMpvUnavailableMarker =
+    writeEmbeddedMpvUnavailableMarker;

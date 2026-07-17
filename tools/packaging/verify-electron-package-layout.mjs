@@ -10,8 +10,12 @@ const { extractFile, listPackage } = require('@electron/asar');
 const {
     getEmbeddedMpvAddonArch,
     linuxUnpackedDirArch,
+    resolveConfiguredLinuxTargetNames,
     validatePackagedEmbeddedMpv,
 } = require('./embedded-mpv-packaging.cjs');
+const {
+    validateLinuxProfileTargets,
+} = require('./linux-frame-copy-profile.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -53,6 +57,8 @@ const snapConfigInspection = loadSnapConfigInspection();
 const embeddedMpvRequired = isTruthy(
     process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV
 );
+const linuxFrameCopyProfile =
+    process.env.IPTVNATOR_LINUX_FRAME_COPY_PROFILE?.trim() || undefined;
 const workerRelativeDir = path.join(
     'dist',
     'apps',
@@ -601,7 +607,9 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
     }
 
     const details = missing
-        .map((entry) => `- ${entry.dependency} (required by ${entry.requiredBy})`)
+        .map(
+            (entry) => `- ${entry.dependency} (required by ${entry.requiredBy})`
+        )
         .join('\n');
 
     errors.push(
@@ -642,6 +650,7 @@ function verifyResourceDir(resourceDir) {
     );
 
     const errors = [];
+    let linuxTargetNames;
 
     verifyPackagedPackageMetadata(resourceDir, errors);
     verifyPackagedDependencyClosure(resourceDir, errors);
@@ -663,6 +672,28 @@ function verifyResourceDir(resourceDir) {
     }
 
     if (platform === 'linux') {
+        const resourceArch =
+            linuxUnpackedDirArch(path.basename(path.dirname(resourceDir))) ||
+            arch;
+        try {
+            linuxTargetNames = resolveConfiguredLinuxTargetNames(
+                electronBuilderConfig.linux?.target,
+                resourceArch
+            );
+            if (linuxFrameCopyProfile) {
+                errors.push(
+                    ...validateLinuxProfileTargets(
+                        linuxFrameCopyProfile,
+                        linuxTargetNames
+                    )
+                );
+            }
+        } catch (error) {
+            errors.push(
+                `Unable to resolve selected Linux package targets: ${error.message}`
+            );
+            linuxTargetNames = [];
+        }
         if (!fileExists(flatpakMetainfoPath)) {
             errors.push(
                 `Missing Flatpak metainfo file: ${flatpakMetainfoPath}`
@@ -679,6 +710,9 @@ function verifyResourceDir(resourceDir) {
             platform,
             required: embeddedMpvRequired,
             foreignArch: isForeignArchLinuxResourceDir(resourceDir),
+            profile: linuxFrameCopyProfile,
+            targetNames: linuxTargetNames,
+            executableName: linuxExecutableName,
         })
     );
 

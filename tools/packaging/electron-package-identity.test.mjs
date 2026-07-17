@@ -298,6 +298,13 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
         packageLayoutVerifier,
         /builderEffectiveConfigPath && fileExists\(builderEffectiveConfigPath\)/
     );
+    assert.match(packageLayoutVerifier, /IPTVNATOR_LINUX_FRAME_COPY_PROFILE/);
+    assert.match(packageLayoutVerifier, /profile:\s*linuxFrameCopyProfile/);
+    assert.match(packageLayoutVerifier, /targetNames:\s*linuxTargetNames/);
+    assert.match(
+        packageLayoutVerifier,
+        /validateLinuxProfileTargets\(\s*linuxFrameCopyProfile,\s*linuxTargetNames\s*\)/s
+    );
 });
 
 test('nx-electron packaging does not copy duplicate root package metadata', () => {
@@ -458,13 +465,24 @@ test('embedded MPV package validation accepts Windows runtime files and Linux pr
         fs.writeFileSync(join(linuxNativeDir, 'embedded_mpv.node'), '');
         fs.writeFileSync(
             join(linuxNativeDir, 'embedded-mpv-runtime.json'),
-            JSON.stringify({ origin: 'external-mpv-process' })
+            JSON.stringify({
+                schemaVersion: 1,
+                origin: 'external-mpv-process',
+                platform: 'linux',
+                arch: 'x64',
+                runtimeMode: 'native-view-only',
+                frameCopyAvailable: false,
+                artifacts: {
+                    addon: 'embedded_mpv.node',
+                },
+                nativeViewFallback: 'process-isolated mpv --wid',
+            })
         );
 
         assert.deepEqual(
             validatePackagedEmbeddedMpv(linuxResourceDir, {
                 platform: 'linux',
-                required: true,
+                required: false,
             }),
             []
         );
