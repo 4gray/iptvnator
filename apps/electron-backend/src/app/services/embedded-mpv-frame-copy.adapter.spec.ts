@@ -7,6 +7,7 @@ jest.mock('child_process', () => ({
 }));
 
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
+import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
 
 class FakeHelperProcess extends EventEmitter {
     exitCode: number | null = null;
@@ -36,10 +37,21 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
     let frameSourceChanges: Array<{ sessionId: string; shmName: string }>;
     let adapter: EmbeddedMpvFrameCopyAdapter;
 
-    const createAdapter = (helperPath: string | null = '/native/helper') => {
+    const createAdapter = (
+        helperPath: string | null = '/native/helper',
+        {
+            runtimeMode = 'system',
+            environment,
+        }: {
+            runtimeMode?: EmbeddedMpvFrameCopyRuntimeMode | null;
+            environment?: NodeJS.ProcessEnv;
+        } = {}
+    ) => {
         frameSourceChanges = [];
         return new EmbeddedMpvFrameCopyAdapter({
             resolveHelperPath: () => helperPath,
+            resolveRuntimeMode: () => runtimeMode,
+            environment,
             getScaleFactor: () => 2,
             onFrameSourceChanged: (sessionId, source) =>
                 frameSourceChanges.push({ sessionId, shmName: source.shmName }),
@@ -81,6 +93,94 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             '--volume',
             '0.8',
         ]);
+    });
+
+    describe('Linux loader environment', () => {
+        const originalPlatform = process.platform;
+        const originalArch = process.arch;
+
+        beforeEach(() => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+        });
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', {
+                value: originalPlatform,
+            });
+            Object.defineProperty(process, 'arch', { value: originalArch });
+        });
+
+        it('uses a sanitized system environment for the real helper session', () => {
+            adapter = createAdapter('/opt/iptvnator/native/helper', {
+                runtimeMode: 'system',
+                environment: {
+                    PATH: '/usr/bin',
+                    HOME: '/home/user',
+                    LD_LIBRARY_PATH: '/tmp/hostile-libs',
+                    LD_PRELOAD: '/tmp/inject.so',
+                },
+            });
+
+            createSession();
+
+            expect(spawnMock.mock.calls[0][2]).toEqual({
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    PATH: '/usr/bin',
+                    HOME: '/home/user',
+                },
+            });
+        });
+
+        it('uses only the bundled runtime and trusted Snap GL roots for the real helper session', () => {
+            const snapRoot = '/snap/iptvnator/42';
+            const nativeDir = path.join(
+                snapRoot,
+                'resources',
+                'app.asar.unpacked',
+                'electron-backend',
+                'native'
+            );
+            adapter = createAdapter(path.join(nativeDir, 'helper'), {
+                runtimeMode: 'bundled',
+                environment: {
+                    PATH: '/snap/bin:/usr/bin',
+                    SNAP: snapRoot,
+                    SNAP_LIBRARY_PATH: '/var/lib/snapd/lib/gl:/tmp/hostile-gl',
+                    LD_LIBRARY_PATH: '/tmp/hostile-libs',
+                    LD_PRELOAD: '/tmp/inject.so',
+                },
+            });
+
+            createSession();
+
+            expect(spawnMock.mock.calls[0][2]).toEqual({
+                stdio: ['pipe', 'pipe', 'pipe'],
+                env: {
+                    PATH: '/snap/bin:/usr/bin',
+                    SNAP: snapRoot,
+                    SNAP_LIBRARY_PATH: '/var/lib/snapd/lib/gl:/tmp/hostile-gl',
+                    LD_LIBRARY_PATH: [
+                        path.join(nativeDir, 'lib'),
+                        path.join(snapRoot, 'lib'),
+                        path.join(snapRoot, 'usr', 'lib'),
+                        path.join(snapRoot, 'lib', 'x86_64-linux-gnu'),
+                        path.join(snapRoot, 'usr', 'lib', 'x86_64-linux-gnu'),
+                        '/var/lib/snapd/lib/gl',
+                    ].join(':'),
+                },
+            });
+        });
+
+        it('refuses a Linux session without a validated runtime mode', () => {
+            adapter = createAdapter('/native/helper', { runtimeMode: null });
+
+            expect(() => createSession()).toThrow(
+                'validated Linux frame-copy runtime'
+            );
+            expect(spawnMock).not.toHaveBeenCalled();
+        });
     });
 
     it('caches helper snapshot events for getSessionSnapshot', () => {

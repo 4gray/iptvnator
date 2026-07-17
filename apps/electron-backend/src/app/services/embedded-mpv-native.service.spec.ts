@@ -381,6 +381,25 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect(service.isFrameCopyAvailable()).toBe(true);
         });
 
+        it('supplies the adapter with the runtime mode from the validated Linux capability', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            mockGetFrameCopyRuntimeAvailability.mockReturnValue({
+                usable: true,
+                profile: 'portable',
+                runtimeMode: 'bundled',
+                libmpv: '2.3',
+                renderApi: 'egl',
+            });
+
+            expect(
+                (
+                    service as unknown as {
+                        resolveFrameCopyRuntimeMode(): string | null;
+                    }
+                ).resolveFrameCopyRuntimeMode()
+            ).toBe('bundled');
+        });
+
         it('keeps the frame-copy engine Apple-Silicon-only on macOS', () => {
             Object.defineProperty(process, 'arch', { value: 'x64' });
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';

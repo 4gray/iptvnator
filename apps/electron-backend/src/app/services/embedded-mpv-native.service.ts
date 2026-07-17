@@ -34,6 +34,7 @@ import {
     isFrameCopyRuntimeUsable,
     resolveFrameCopyHelperPath,
 } from './embedded-mpv-frame-copy-platform.util';
+import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
 import {
     EMBEDDED_MPV_EXPERIMENT_ENV,
     isEmbeddedMpvFeatureEnabled,
@@ -154,6 +155,16 @@ export class EmbeddedMpvNativeService {
         };
     }
 
+    private resolveFrameCopyRuntimeMode(): EmbeddedMpvFrameCopyRuntimeMode | null {
+        if (process.platform !== 'linux') {
+            return null;
+        }
+        const availability = getFrameCopyRuntimeAvailability();
+        return availability.usable && 'runtimeMode' in availability
+            ? availability.runtimeMode
+            : null;
+    }
+
     getFrameSource(sessionId: string): EmbeddedMpvFrameSource | null {
         return this.frameCopyAdapter?.getFrameSource(sessionId) ?? null;
     }
@@ -162,6 +173,7 @@ export class EmbeddedMpvNativeService {
         if (!this.frameCopyAdapter) {
             this.frameCopyAdapter = new EmbeddedMpvFrameCopyAdapter({
                 resolveHelperPath: resolveFrameCopyHelperPath,
+                resolveRuntimeMode: () => this.resolveFrameCopyRuntimeMode(),
                 getScaleFactor: () => this.getMainWindowScaleFactor(),
                 onFrameSourceChanged: (sessionId, source) => {
                     if (!App.mainWindow || App.mainWindow.isDestroyed()) {
