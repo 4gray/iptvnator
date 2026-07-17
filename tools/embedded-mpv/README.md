@@ -1,21 +1,33 @@
 # Embedded MPV Runtime
 
-This folder contains tooling for preparing MPV runtime/build inputs for IPTVnator's experimental embedded MPV player. macOS and Windows bundle `libmpv`; Linux uses staged MPV headers for compilation and launches the system `mpv` executable at runtime. On Linux, `apps/electron-backend/build-embedded-mpv.js` also falls back to system headers when nothing is staged (`libmpv-dev`; override with `LIBMPV_INCLUDE_DIR`/`LINUX_NATIVE_LIBRARY_DIR`), so a plain distro dev setup builds without staging. The frame-copy helper (`iptvnator_mpv_helper`) additionally needs `libegl-dev`, `libgl-dev`, `libopengl-dev` (for the unversioned glvnd `libOpenGL.so` the linker resolves `-lOpenGL` against), and `libgbm-dev`, and links the system `libmpv` — allowed because it is a separate process; the in-process-libmpv ban still binds the addon. On Windows the same binding.gyp run builds `iptvnator_mpv_helper.exe` against the staged vendored runtime (import library + DLL, resolved from the helper's own directory at runtime) plus `opengl32.lib`; no toolchain beyond the MSVC workload and Windows SDK that node-gyp already requires.
+This directory owns the source builders, staging, manifests, and archive
+helpers for IPTVnator's experimental Embedded MPV runtime.
+
+The Linux architecture has a strict process boundary:
+
+- Electron, `embedded_mpv.node`, and `embedded_mpv_frame_reader.node` must not
+  load or link libmpv.
+- Native-view starts a separate system `mpv --wid` process.
+- Frame-copy starts `iptvnator_mpv_helper`; only that helper may link libmpv.
+
+Do not weaken this boundary to simplify packaging. A missing helper/runtime
+must make frame-copy unavailable and leave native-view as the safe x64
+fallback.
 
 ## Runtime Policy
 
-Release builds must use an LGPL-compatible runtime:
+Release builds use an LGPL-compatible, dynamically linked runtime:
 
-- FFmpeg must be built without `--enable-gpl` and without `--enable-nonfree`.
-- mpv must be built with `-Dlibmpv=true` and `-Dgpl=false`.
-- The runtime must be dynamically linked so users can inspect and replace LGPL libraries.
-- The exact source URLs, versions, build flags, local patches, and checksums must be published with the release.
+- FFmpeg is built without `--enable-gpl` and `--enable-nonfree`.
+- mpv is built with `-Dlibmpv=true` and `-Dgpl=false`.
+- Bundled libraries remain individually replaceable under `native/lib`.
+- Exact source URLs, versions, checksums or git commits, submodules, licenses,
+  build flags, local patches, and build scripts are published with the release.
 
-Do not ship the Homebrew `mpv` runtime. It is acceptable only for local development when `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1` is set, and release packaging rejects it.
+Homebrew mpv is local-development-only. It requires
+`IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`, and release validation rejects it.
 
-## Expected Layout
-
-The native addon build consumes:
+## Generated Layout
 
 ```text
 vendor/embedded-mpv/
@@ -29,126 +41,145 @@ vendor/embedded-mpv/
     runtime-manifest.json
   win32-x64/
     include/mpv/client.h
-    lib/libmpv-2.dll # or mpv-2.dll/mpv.dll/libmpv.dll
-    lib/libmpv.dll.a # or mpv.lib/mpv-2.lib
+    lib/libmpv-2.dll        # accepted basename variants are preserved
+    lib/libmpv.dll.a        # or an MSVC import library
     runtime-manifest.json
   linux-x64/
     include/mpv/client.h
+    lib/libmpv.so
+    lib/libmpv.so.2
+    lib/<declared closure>
     runtime-manifest.json
 ```
 
-The generated `lib/` and `include/` directories are release inputs, not source files. They are ignored by git by default.
+These directories are generated release inputs and are ignored by git.
+`runtime-manifest.json` is the profile-neutral source/build manifest. Packaging
+writes a normalized `embedded-mpv-runtime.json` beside the native artifacts.
 
-## Staging A Built Runtime
+## Building And Staging
 
-After building an LGPL-compatible prefix for one platform/architecture, stage it with:
-
-```bash
-pnpm embedded-mpv:stage-runtime -- darwin arm64 /path/to/lgpl-prefix
-pnpm embedded-mpv:stage-runtime -- darwin x64 /path/to/lgpl-prefix
-pnpm embedded-mpv:stage-runtime -- win32 x64 /path/to/lgpl-prefix
-pnpm embedded-mpv:stage-runtime -- linux x64 /path/to/lgpl-prefix
-```
-
-For compatibility, the legacy macOS-only staging command is still available:
+Stage an existing compatible prefix with:
 
 ```bash
-pnpm embedded-mpv:stage-runtime:macos -- arm64 /path/to/lgpl-prefix
-pnpm embedded-mpv:stage-runtime:macos -- x64 /path/to/lgpl-prefix
+pnpm embedded-mpv:stage-runtime -- darwin arm64 /path/to/prefix
+pnpm embedded-mpv:stage-runtime -- darwin x64 /path/to/prefix
+pnpm embedded-mpv:stage-runtime -- win32 x64 /path/to/prefix
+pnpm embedded-mpv:stage-runtime -- linux x64 /path/to/prefix
 ```
 
-The prefix must contain `include/mpv/client.h` and the platform runtime/build files:
-
-- macOS: `lib/libmpv.2.dylib` or `lib/libmpv.dylib` plus all non-system dylib dependencies
-- Windows: `lib/mpv.lib`, `lib/mpv-2.lib`, or `libmpv.dll.a`, and `bin/` or `lib/` containing `mpv-2.dll`, `libmpv-2.dll`, `mpv.dll`, or `libmpv.dll`
-- Linux: `include/mpv/client.h`; CI also records the `libmpv-dev` and `mpv` package versions used as build inputs. Linux runtime playback uses the system `mpv` executable and does not bundle `libmpv.so`.
-
-If the prefix contains `runtime-manifest.json`, the staging script copies its build metadata into the vendored manifest. At minimum, record:
-
-- FFmpeg version, source URL, checksum, configure flags, and patches
-- mpv version, source URL, checksum, Meson flags, and patches
-- source-distribution URL for the corresponding release
-
-## Building The CI Runtime
-
-Tagged macOS release builds build the runtime from pinned source archives before `electron-backend:build`. The workflow can also enable this path temporarily for macOS PR artifact testing:
+Build the pinned macOS or Linux source runtime first when no prefix exists:
 
 ```bash
-pnpm embedded-mpv:build-runtime -- arm64 /tmp/embedded-mpv-prefix
-pnpm embedded-mpv:stage-runtime -- darwin arm64 /tmp/embedded-mpv-prefix
+pnpm embedded-mpv:build-runtime -- arm64 /tmp/macos-prefix
+pnpm embedded-mpv:stage-runtime -- darwin arm64 /tmp/macos-prefix
+
+pnpm embedded-mpv:build-runtime:linux -- /tmp/linux-prefix
+pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 ```
 
-Linux CI does not build libmpv from source. It installs Ubuntu runner packages
-(`libmpv-dev` and `mpv`), stages their headers and build metadata under
-`vendor/embedded-mpv/linux-x64/`, and requires the native addon/package layout
-to be present. Linux playback does not load or bundle `libmpv` in the Electron
-process; the addon creates an X11 child window and starts a system `mpv --wid`
-process at runtime.
+The Linux builder runs only on Linux x64. It requires the tool versions and
+system development interfaces declared in `build-linux-runtime.cjs`, including
+Meson 1.6 or newer, Ninja, CMake, NASM, pkg-config, patchelf, and `readelf`.
+It builds into an owned staging directory and publishes atomically, so it will
+not delete or overwrite an arbitrary destination.
 
-Windows CI does not build libmpv from source. It restores an exact-keyed cache
-for `vendor/embedded-mpv/win32-x64/`; on cache miss it stages a checksum-pinned
-LGPL-compatible archive from repository configuration:
+The pinned Linux source stack currently includes FFmpeg 8.1, mpv 0.41.0,
+libplacebo 7.360.1, libass 0.17.3, FreeType 2.13.3, FriBidi 1.0.16,
+HarfBuzz 8.5.0, Expat 2.8.2, Fontconfig 2.16.0, OpenSSL 3.5.7, hwdata
+0.409, and libdisplay-info 0.1.1. The builder stages a private pinned
+`pnp.ids`/`hwdata.pc`; libdisplay-info is not allowed to consume the build
+host's `/usr/share/hwdata`.
 
-```text
-IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL
-IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256
-```
+Before publication, the Linux builder verifies:
 
-The values can be repository variables or secrets. Prefer variables when PR
-artifact builds from same-repository branches should include Embedded MPV. For
-non-tag artifact builds only, the workflow falls back to a checksum-pinned
-`zhongfly/mpv-winbuild` `mpv-dev-lgpl-x86_64` archive when those variables are
-unset. Tagged release builds must provide the repository configuration
-explicitly.
+- every archive digest and git/submodule commit;
+- the exact FFmpeg/mpv flags and LGPL policy;
+- an exact `libmpv.so.2` SONAME and complete reachable shared-library closure;
+- `$ORIGIN` RUNPATHs with no build-prefix paths or undeclared host fallback;
+- the external system-library allowlist;
+- `GLIBC_2.35` and `GLIBCXX_3.4.30` ABI ceilings;
+- file hashes, byte sizes, build inputs, licenses, and source obligations.
 
-The Windows job is pinned to `windows-2022` while the current Electron
-`node-gyp` toolchain cannot identify Visual Studio 18 from `windows-latest`.
+## Linux Package Profiles
 
-The archive must contain a Windows x64 prefix with `include/mpv/client.h`, a
-libmpv import library, and `mpv-2.dll`/`mpv.dll` or
-`libmpv-2.dll`/`libmpv.dll`. The archive can use either the normal prefix layout
-(`lib/` and `bin/`) or the common `mpv-dev-lgpl` flat layout with the import
-library and DLL in the archive root. The staged runtime preserves the DLL
-basename from the archive because Windows import libraries encode the DLL name
-that native binaries must load at runtime. Package validation reads the
-frame-copy helper's PE imports and requires that exact DLL basename beside
-`iptvnator_mpv_helper.exe`; a different accepted MPV DLL name or a copy only
-under `native/lib/` is not sufficient. If
-`runtime-manifest.json` is missing, CI generates a minimal manifest from the
-archive URL/path and checksum; release-ready runtime archives should still
-provide full source/build metadata.
+Set one exact `IPTVNATOR_LINUX_FRAME_COPY_PROFILE` per packaging pass:
 
-During temporary PR and `master` artifact testing, CI restores an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/<platform>-<arch>/` runtime before falling back to the macOS source build or Windows runtime archive where available. The cache key includes the target platform, architecture, macOS deployment target, Xcode version when available, a hash of the Windows runtime checksum when applicable, and hashes of the runtime build/staging scripts. Cache entries are saved only from trusted repository refs and are treated strictly as a speed optimization; tagged macOS release builds continue to rebuild from pinned sources unless a future signed and attested runtime artifact flow is introduced.
+| Profile    | Formats          | Runtime handling                                             |
+| ---------- | ---------------- | ------------------------------------------------------------ |
+| `system`   | DEB, RPM, Pacman | Remove `native/lib`; require `libmpv2`, `mpv-libs`, or `mpv` |
+| `portable` | AppImage, Snap   | Retain the pinned LGPL closure under `native/lib`            |
+| `flatpak`  | Flatpak          | Retain the same pinned LGPL closure under `native/lib`       |
 
-The builder currently pins:
+Profiles cannot share one Electron Builder pass because its targets reuse the
+same unpacked application directory. A missing or unsupported profile, or a
+target from another profile, fails packaging.
 
-- FFmpeg `8.1`, configured without `--enable-gpl` or `--enable-nonfree`, and with autodetected external libraries disabled
-- mpv `0.41.0`, configured with `-Dlibmpv=true -Dgpl=false`
-- libplacebo `7.360.1`, checked out from git with the `glad`, Python template, `fast_float`, and `Vulkan-Headers` submodules required by its Meson build
-- libass `0.17.3` plus FreeType, FriBidi, and HarfBuzz
-
-The build manifest records source URLs, downloaded archive SHA-256 values where applicable, libplacebo git commit/submodule metadata, and the exact FFmpeg/mpv flags. The staged macOS/Windows manifest is normalized to `origin: vendored-lgpl`, which is the only embedded MPV runtime origin allowed in required macOS/Windows release packaging.
+Linux frame-copy release artifacts are x64-only. Non-x64 packages are always
+marker-only even if environment variables point at the x64 staged runtime.
 
 ## Build Integration
 
-`apps/electron-backend/build-embedded-mpv.js` builds the native addon against the staged runtime/build inputs, copies macOS/Windows runtime libraries into `apps/electron-backend/native/build/Release/lib/`, rewrites macOS Mach-O paths to `@loader_path`, and writes `embedded-mpv-runtime.json`. Linux builds use the staged (or system) MPV headers and system X11 development libraries, write an `external-mpv-process` manifest, and the addon must not copy or link directly to `libmpv`; CI validates this with package checks and `ldd`. The frame-copy helper executable built by the same run is the inverse: CI verifies it DOES link `libmpv` (separate process).
+`apps/electron-backend/build-embedded-mpv.js` builds the addon, frame reader,
+and helper against the staged inputs. On Linux it links the helper to the
+verified staged libmpv path rather than a generic host `-lmpv`, then checks
+with `readelf` that:
 
-For local macOS development with Homebrew `mpv`, use:
+- the helper has exactly the declared libmpv `DT_NEEDED`;
+- the helper RUNPATH is `$ORIGIN/lib`;
+- the addon and frame reader have no libmpv dependency;
+- no runtime dependency contains an absolute/build-prefix loader path.
+
+The package hook copies native artifacts into
+`app.asar.unpacked/electron-backend/native/`, selects the system or bundled
+layout, restores exact file modes, and writes the packaged manifest. Package
+validation also scans the Electron executable and all shipped Electron
+libraries for a direct libmpv dependency.
+
+At startup, Linux x64 frame-copy is advertised only after the main process
+validates that manifest/files and successfully executes:
+
+```bash
+iptvnator_mpv_helper --runtime-probe
+```
+
+The bounded probe initializes idle libmpv plus EGL/OpenGL and mpv render
+contexts without media or shared memory. A timeout, loader failure, malformed
+protocol, missing file, hash mismatch, or unusable graphics path returns a
+stable reason and keeps the BrowserWindow sandbox enabled.
+
+## CI And Source Distribution
+
+Linux CI builds or restores the pinned source runtime once, then packages and
+verifies `system`, `portable`, and `flatpak` independently. Every artifact is
+extracted for manifest, mode, package-metadata, ELF-isolation, and helper-probe
+checks. System formats are probed after their declared dependency is installed;
+Snap and Flatpak also require a sandboxed probe where the runner supports it.
+
+The binary release must include a source-compliance bundle containing the exact
+downloaded archives (including hwdata), the recorded libplacebo checkout or git
+bundle and submodules, builder/stager/manifest code, generated runtime manifest,
+and local patches. A cache hit does not remove this obligation.
+
+Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
+in its import library is preserved and must be present beside
+`iptvnator_mpv_helper.exe`. Tagged releases require explicit repository
+configuration; the public fallback is for non-tag artifacts only.
+
+## Local Development
+
+Linux can use distribution development packages for an unshipped local build
+(`libmpv-dev`, EGL/OpenGL/GBM development files, and X11 headers). Overrides:
+`LIBMPV_INCLUDE_DIR` and `LINUX_NATIVE_LIBRARY_DIR`. Required/release package
+builds must use the pinned staged runtime and manifest.
+
+On macOS:
 
 ```bash
 pnpm run serve:backend:embedded-mpv
 ```
 
-The script rebuilds the native addon with `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1` before starting Electron with the experimental player enabled. Use this only for local testing; release packaging rejects the resulting `homebrew-dev` runtime manifest.
+This explicitly permits Homebrew for the local native build and enables the
+experiment. It is not a release path.
 
-The `afterPack` hook copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` so the addon, runtime manifest, and runtime libraries are available as real files where needed. Linux packages include the addon and manifest, but no bundled `libmpv.so`, and the hook strips `iptvnator_mpv_helper` from Linux packages (it links the build host's system libmpv; the frame-copy engine stays dev-build-only on Linux until bundled-runtime staging lands).
-
-During release packaging, `tools/packaging/electron-after-pack.cjs` verifies that macOS/Windows packages use a `vendored-lgpl` runtime/build input set. macOS artifacts additionally verify that Mach-O dependencies have no `/opt/homebrew` or `/usr/local` dynamic links for embedded MPV. Linux artifacts verify that the addon and `external-mpv-process` manifest are present, that no bundled `libmpv.so` files are present, and the runtime support check verifies that `mpv` is available on `PATH`.
-
-Set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` when packaging a release artifact that must include Embedded MPV. The same variable is temporarily enabled for macOS PR and `master` push artifacts while the bundled runtime is being tested. Linux CI packaging requires Embedded MPV after staging the Ubuntu package build inputs. Windows CI packaging now requires Embedded MPV for x64 artifacts: the job restores the staged runtime cache or stages the checksum-pinned runtime archive, then fails backend build, package make, or package-layout verification if the addon/runtime is missing.
-
-## Platform Notes
-
-- macOS keeps the existing libmpv render-context backend because mpv `wid` stays black inside Electron on macOS.
-- Windows uses an embedded child `HWND` and passes it to mpv through `wid`. The experimental frame-copy engine instead renders offscreen through WGL into the app canvas (no child window) and shares frames over a session-local named file mapping.
-- Linux uses an X11 child window and starts a system `mpv --wid` process for that window. Native Wayland is not supported in v1; run under X11/Xwayland so `DISPLAY` is set and `mpv` can honor the X11 window id. The experimental frame-copy engine has no window embedding at all (offscreen EGL into a renderer canvas) and therefore works under native Wayland — dev builds only for now.
+See `docs/architecture/embedded-mpv-native.md` for the runtime capability,
+fallback, controls, and packaged-release contracts.

@@ -216,6 +216,32 @@ Key files:
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 
+## Linux Embedded MPV Packaging
+
+- Official Linux frame-copy artifacts are x64-only. AppImage, DEB, RPM,
+  Pacman, Snap, and Flatpak are supported; non-x64 Linux packages must remain
+  marker-only and must never inherit x64 native artifacts from environment
+  overrides.
+- Packaging runs three isolated profiles:
+    - `system`: DEB/RPM/Pacman, no private `native/lib`, with package
+      dependencies `libmpv2`/`mpv-libs`/`mpv`
+    - `portable`: AppImage/Snap with the pinned LGPL-compatible closure
+    - `flatpak`: Flatpak with the same pinned closure
+- Only `iptvnator_mpv_helper` may link libmpv. The Electron executable,
+  Electron libraries, `embedded_mpv.node`, and
+  `embedded_mpv_frame_reader.node` must not load or link it. Preserve this
+  process-isolation contract in build, package, and smoke checks.
+- Linux frame-copy availability is fail-closed. The packaged manifest,
+  artifact modes, declared bundled hashes/closure, and bounded
+  `--runtime-probe` must all succeed before frame-copy can relax the renderer
+  sandbox. Any failure reports a stable reason and falls back to native-view
+  without crashing; an environment flag never bypasses this gate.
+- Bundled Linux releases must publish the exact source archives/git records,
+  checksums, licenses, flags, patches, build scripts, and the pinned hwdata
+  `pnp.ids` input. Canonical maintenance docs:
+  `docs/architecture/embedded-mpv-native.md` and
+  `tools/embedded-mpv/README.md`.
+
 ## Repo Skills
 
 - `iptvnator-ui-design`

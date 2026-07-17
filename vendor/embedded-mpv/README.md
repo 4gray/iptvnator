@@ -11,10 +11,22 @@ Generated architecture folders are expected at:
 - `vendor/embedded-mpv/linux-x64/`
 
 Each generated folder must contain `include/mpv/client.h` and
-`runtime-manifest.json`. macOS and Windows folders also contain platform
-runtime/build inputs under `lib/` or `bin/`. The binary runtime directories are
-ignored by git by default; generate, stage, or restore them in release packaging
-jobs before building the Electron backend.
+`runtime-manifest.json`. Platform runtime/build inputs live under `lib/` or
+`bin/`. In particular, `linux-x64/lib/` contains the pinned, dynamically linked
+LGPL-compatible libmpv closure used to link the out-of-process frame-copy
+helper. The binary runtime directories are ignored by git; generate, stage, or
+restore them before building the Electron backend.
 
-Linux uses this directory for MPV headers and build metadata only. Linux
-packages launch the system `mpv` executable and must not bundle `libmpv.so`.
+Linux package profiles consume that one staged x64 source runtime differently:
+
+- DEB/RPM/Pacman remove the private closure and declare the system libmpv
+  dependency.
+- AppImage/Snap/Flatpak retain the manifest-declared closure under
+  `app.asar.unpacked/electron-backend/native/lib/`.
+- Non-x64 Linux packages retain no native artifacts and ship only the
+  unavailable marker.
+
+Only `iptvnator_mpv_helper` may link libmpv. Electron,
+`embedded_mpv.node`, and `embedded_mpv_frame_reader.node` must remain free of
+direct libmpv dependencies. See `tools/embedded-mpv/README.md` and
+`docs/architecture/embedded-mpv-native.md`.
