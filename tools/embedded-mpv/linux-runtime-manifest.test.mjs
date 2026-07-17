@@ -204,6 +204,38 @@ test('requires schema, provenance, target, package, and source metadata', () => 
     );
 });
 
+test('requires exact FFmpeg and mpv source package records', () => {
+    const missingFfmpeg = createValidManifest();
+    missingFfmpeg.packages.libavcodec = missingFfmpeg.packages.ffmpeg;
+    delete missingFfmpeg.packages.ffmpeg;
+    assert.match(
+        validateLinuxRuntimeManifest(missingFfmpeg).join('\n'),
+        /packages\.ffmpeg must be an object/
+    );
+
+    const missingMpv = createValidManifest();
+    missingMpv.packages.libmpv = missingMpv.packages.mpv;
+    delete missingMpv.packages.mpv;
+    assert.match(
+        validateLinuxRuntimeManifest(missingMpv).join('\n'),
+        /packages\.mpv must be an object/
+    );
+
+    const substitutedPackages = createValidManifest();
+    substitutedPackages.packages = {
+        multimediaRuntime: {
+            version: '1.0.0',
+            sourceUrl: 'https://example.test/multimedia-runtime.tar.xz',
+            sourceSha256: 'c'.repeat(64),
+            license: 'LGPL-2.1-or-later',
+        },
+    };
+    assert.deepEqual(validateLinuxRuntimeManifest(substitutedPackages), [
+        'Linux runtime manifest packages.ffmpeg must be an object.',
+        'Linux runtime manifest packages.mpv must be an object.',
+    ]);
+});
+
 test('rejects GPL and nonfree FFmpeg configurations', () => {
     const cases = [
         {

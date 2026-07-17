@@ -8,6 +8,7 @@ const GIT_COMMIT_PATTERN = /^[a-f0-9]{40,64}$/;
 const SAFE_BASENAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;
 const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
+const REQUIRED_SOURCE_PACKAGES = ['ffmpeg', 'mpv'];
 
 function isObject(value) {
     return value !== null && typeof value === 'object' && !Array.isArray(value);
@@ -70,18 +71,41 @@ function validateSourceMetadata(errors, value, label) {
 }
 
 function validatePackages(errors, packages) {
-    if (!isObject(packages) || Object.keys(packages).length === 0) {
+    if (!isObject(packages)) {
         errors.push(
             'Linux runtime manifest packages must contain source package metadata.'
         );
         return;
     }
 
+    if (Object.keys(packages).length === 0) {
+        errors.push(
+            'Linux runtime manifest packages must contain source package metadata.'
+        );
+    }
+
+    const invalidRequiredPackages = new Set();
+    for (const packageName of REQUIRED_SOURCE_PACKAGES) {
+        if (
+            !Object.prototype.hasOwnProperty.call(packages, packageName) ||
+            !isObject(packages[packageName])
+        ) {
+            errors.push(
+                `Linux runtime manifest packages.${packageName} must be an object.`
+            );
+            invalidRequiredPackages.add(packageName);
+        }
+    }
+
     for (const packageName of Object.keys(packages).sort()) {
         const packageMetadata = packages[packageName];
         const label = `packages.${packageName}`;
         if (!isObject(packageMetadata)) {
-            errors.push(`Linux runtime manifest ${label} must be an object.`);
+            if (!invalidRequiredPackages.has(packageName)) {
+                errors.push(
+                    `Linux runtime manifest ${label} must be an object.`
+                );
+            }
             continue;
         }
 
