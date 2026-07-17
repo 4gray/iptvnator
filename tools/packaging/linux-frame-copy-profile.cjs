@@ -51,13 +51,12 @@ function findLinuxFrameCopyProfile(value) {
     }
 
     const name = typeof value === 'string' ? value.trim() : String(value);
-    const profile = LINUX_FRAME_COPY_PROFILES[name];
-    if (!profile) {
+    if (!Object.hasOwn(LINUX_FRAME_COPY_PROFILES, name)) {
         throw new Error(
             `Unsupported Linux frame-copy profile "${name}". Expected one of: ${expectedProfileNames()}.`
         );
     }
-    return profile;
+    return LINUX_FRAME_COPY_PROFILES[name];
 }
 
 function resolveLinuxFrameCopyProfile(value) {

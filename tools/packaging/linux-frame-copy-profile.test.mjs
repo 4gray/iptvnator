@@ -109,6 +109,23 @@ test('rejects missing and unsupported profile names with clear errors', () => {
     );
 });
 
+test('rejects inherited object property names as unsupported profiles', () => {
+    for (const value of ['constructor', 'toString', '__proto__']) {
+        const unsupportedProfileError = new RegExp(
+            `Unsupported Linux frame-copy profile "${value}"`
+        );
+
+        assert.throws(
+            () => resolveLinuxFrameCopyProfile(value),
+            unsupportedProfileError
+        );
+        assert.throws(
+            () => validateLinuxProfileTargets(value, ['deb']),
+            unsupportedProfileError
+        );
+    }
+});
+
 test('validates profile targets case-insensitively with deterministic errors', () => {
     const targets = ['DEB', 'AppImage', 'RPM'];
 
