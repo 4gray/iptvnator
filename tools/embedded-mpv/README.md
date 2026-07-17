@@ -114,6 +114,10 @@ The DEB metadata requires `libmpv2` and is release-tested on Ubuntu 24.04
 (Noble). Ubuntu 22.04 (Jammy) only provides `libmpv1`; use the x64 AppImage on
 that distribution rather than relaxing the runtime contract.
 
+The strict Snap retains Electron Builder's default plugs and adds an
+auto-connected private `shared-memory` plug. This supplies a snap-specific
+POSIX shm namespace without granting global cross-snap shared-memory access.
+
 Profiles cannot share one Electron Builder pass because its targets reuse the
 same unpacked application directory. A missing or unsupported profile, or a
 target from another profile, fails packaging.
@@ -147,9 +151,13 @@ iptvnator_mpv_helper --runtime-probe
 ```
 
 The bounded probe initializes idle libmpv plus EGL/OpenGL and mpv render
-contexts without media or shared memory. A timeout, loader failure, malformed
-protocol, missing file, hash mismatch, or unusable graphics path returns a
-stable reason and keeps the BrowserWindow sandbox enabled.
+contexts, then creates, maps, validates, and destroys a minimal `16x16`
+shared-memory ring named `/impv-fc-runtime-probe-<pid>`. It does not open media
+or enter media/command loops. A timeout, loader failure, malformed protocol,
+missing file, hash mismatch, unusable graphics path, or shm lifecycle failure
+returns a stable reason and keeps the BrowserWindow sandbox enabled. The
+installed-Snap probe therefore tests the private shared-memory confinement
+needed by playback rather than only loader and graphics startup.
 
 ## CI And Source Distribution
 

@@ -139,6 +139,15 @@
         "grade": "stable",
         "summary": "IPTV application for M3U playlists, Xtream Codes API, and Stalker portals",
         "executableArgs": ["--ozone-platform=x11"],
+        "plugs": [
+            "default",
+            {
+                "shared-memory": {
+                    "interface": "shared-memory",
+                    "private": true
+                }
+            }
+        ],
         "environment": {
             "DISABLE_WAYLAND": "1"
         }

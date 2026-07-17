@@ -32,6 +32,16 @@ describe('Embedded MPV native source recording invariants', () => {
         ),
         'utf8'
     );
+    const electronBuilderConfig = JSON.parse(
+        readFileSync(
+            path.resolve(__dirname, '../../../../../electron-builder.json'),
+            'utf8'
+        )
+    ) as {
+        snap?: {
+            plugs?: unknown;
+        };
+    };
     const stageRuntimeSource = readFileSync(
         path.resolve(
             __dirname,
@@ -778,11 +788,28 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
-    it('runs the helper runtime probe without shared memory, media, or command loops', () => {
+    it('keeps Electron Builder defaults and requests private Snap shared memory', () => {
+        expect(electronBuilderConfig.snap?.plugs).toEqual([
+            'default',
+            {
+                'shared-memory': {
+                    interface: 'shared-memory',
+                    private: true,
+                },
+            },
+        ]);
+    });
+
+    it('runs the helper runtime probe through shared memory without media or command loops', () => {
         const runtimeProbe = sourceFunctionBody(
             frameHelperSource,
             'int runRuntimeProbe(',
             'runRuntimeProbe'
+        );
+        const runtimeProbeShmName = sourceFunctionBody(
+            frameHelperSource,
+            'std::string runtimeProbeShmName(',
+            'runtimeProbeShmName'
         );
         const main = sourceFunctionBody(frameHelperSource, 'int main(', 'main');
         const runtimeProbeFailure = sourceFunctionBody(
@@ -804,12 +831,30 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(runtimeProbe).toContain('mpv_render_context_free(');
         expect(runtimeProbe).toContain('gl.destroy()');
         expect(runtimeProbe).toContain('mpv_terminate_destroy(mpv)');
+        expect(runtimeProbe).toContain(
+            'frame_helper::ShmRing runtimeProbeRing;'
+        );
+        expect(runtimeProbe).toContain(
+            'const std::string shmName = runtimeProbeShmName();'
+        );
+        expect(runtimeProbe).toContain(
+            'runtimeProbeRing.create(shmName, 16, 16, 1)'
+        );
+        expect(runtimeProbe).toContain(
+            'runtimeProbeRing.header->magic == FRAME_SHM_MAGIC'
+        );
+        expect(runtimeProbe).toContain('runtimeProbeRing.destroy();');
+        expect(runtimeProbe).toContain('"shared-memory-create-failed"');
+        expect(runtimeProbe).toContain('"shared-memory-initialize-failed"');
+        expect(runtimeProbeShmName).toContain('"/impv-fc-runtime-probe-"');
+        expect(runtimeProbeShmName).toContain('getpid()');
+        expect(runtimeProbeShmName).toContain('GetCurrentProcessId()');
+        expect(runtimeProbeShmName).toContain('std::to_string(processId)');
         expect(runtimeProbe).toContain('.num("protocol", 1)');
         expect(runtimeProbe).toContain('.boolean("usable", true)');
         expect(runtimeProbe).toContain('.str("libmpv",');
         expect(runtimeProbe).toContain('.str("renderApi", gl.renderApiName())');
         expect(runtimeProbe).not.toContain('pipeline');
-        expect(runtimeProbe).not.toContain('shm');
         expect(runtimeProbe).not.toContain('runStdinLoop');
         expect(runtimeProbe).not.toContain('runMpvEventLoop');
         expect(runtimeProbe).not.toContain('loadfile');

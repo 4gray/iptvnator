@@ -241,10 +241,22 @@ has succeeded. On Linux x64 that decision validates the profile manifest,
 regular-file/access modes, the complete declared bundled closure and hashes,
 then runs `iptvnator_mpv_helper --runtime-probe` with a three-second timeout.
 The probe loads dependencies through the normal ELF loader, initializes an
-idle libmpv client, and creates EGL/OpenGL plus mpv render contexts without
-opening media or shared memory. It must emit exactly one protocol-v1 JSON line
-and return zero. Bundled profiles prepend only their packaged `native/lib` to
-`LD_LIBRARY_PATH`; the system profile never injects a private loader path.
+idle libmpv client, creates EGL/OpenGL plus mpv render contexts, then
+creates, maps, validates, and destroys a minimal `16x16` shared-memory ring
+named `/impv-fc-runtime-probe-<pid>`. It never opens media or enters the media
+or command loops. Shared-memory creation/mapping and header-initialization
+failures emit the stable helper reasons `shared-memory-create-failed` and
+`shared-memory-initialize-failed`. The probe must emit exactly one protocol-v1
+JSON line and return zero. Bundled profiles prepend only their packaged
+`native/lib` to `LD_LIBRARY_PATH`; the system profile never injects a private
+loader path.
+
+The strict Snap keeps Electron Builder's default plugs and adds an
+auto-connected private `shared-memory` plug. Private shared memory gives the
+app a confined, snap-specific POSIX shm namespace rather than global
+cross-snap access. Consequently the installed-Snap `--runtime-probe` validates
+the actual confinement and shm lifecycle required by frame-copy, not only the
+loader and graphics contexts.
 Packaged discovery is limited to packaged resource locations and never falls
 through to writable cwd/dist development paths. A disabled base experiment or
 any failed capability check keeps the renderer sandbox enabled and falls back

@@ -653,10 +653,20 @@ std::string libmpvClientApiVersion() {
            std::to_string(version & 0xffff);
 }
 
+std::string runtimeProbeShmName() {
+#if defined(_WIN32)
+    const uint64_t processId = (uint64_t)GetCurrentProcessId();
+#else
+    const uint64_t processId = (uint64_t)getpid();
+#endif
+    return "/impv-fc-runtime-probe-" + std::to_string(processId);
+}
+
 /*
  * Bounded startup capability probe: initialize an idle libmpv client and
- * create the platform GL + mpv OpenGL render contexts. It deliberately does
- * not create an FBO/shm ring, open media, or enter either command loop.
+ * create the platform GL + mpv OpenGL render contexts, then create, validate,
+ * and destroy a minimal shared-memory ring. It deliberately does not create
+ * an FBO, open media, or enter either command loop.
  */
 int runRuntimeProbe() {
     mpv_handle* mpv = mpv_create();
@@ -709,6 +719,31 @@ int runRuntimeProbe() {
         gl.destroy();
         mpv_terminate_destroy(mpv);
         return runtimeProbeFailure("mpv-render-context-failed", renderError);
+    }
+
+    frame_helper::ShmRing runtimeProbeRing;
+    const std::string shmName = runtimeProbeShmName();
+    if (!runtimeProbeRing.create(shmName, 16, 16, 1)) {
+        runtimeProbeRing.destroy();
+        mpv_render_context_free(renderContext);
+        gl.destroy();
+        mpv_terminate_destroy(mpv);
+        return runtimeProbeFailure("shared-memory-create-failed");
+    }
+    const bool sharedMemoryInitialized =
+        runtimeProbeRing.base != nullptr &&
+        runtimeProbeRing.header != nullptr &&
+        runtimeProbeRing.header->magic == FRAME_SHM_MAGIC &&
+        runtimeProbeRing.header->version == FRAME_SHM_VERSION &&
+        runtimeProbeRing.header->width == 16 &&
+        runtimeProbeRing.header->height == 16 &&
+        runtimeProbeRing.header->generation == 1;
+    runtimeProbeRing.destroy();
+    if (!sharedMemoryInitialized) {
+        mpv_render_context_free(renderContext);
+        gl.destroy();
+        mpv_terminate_destroy(mpv);
+        return runtimeProbeFailure("shared-memory-initialize-failed");
     }
 
     const std::string libmpvVersion = libmpvClientApiVersion();
