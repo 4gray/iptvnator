@@ -96,7 +96,6 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 {
                     env: {
                         [FRAME_COPY_OPT_IN_ENV]: '1',
-                        LIBGL_ALWAYS_SOFTWARE: '1',
                     },
                 }
             );
@@ -228,7 +227,6 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
                 {
                     env: {
                         [FRAME_COPY_OPT_IN_ENV]: '1',
-                        LIBGL_ALWAYS_SOFTWARE: '1',
                     },
                 }
             );

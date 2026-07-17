@@ -279,6 +279,15 @@ describe('native-view playback proof', () => {
 });
 
 describe('dedicated packaged smoke target', () => {
+    it('inherits the GL mode from the workflow environment', () => {
+        const source = readFileSync(
+            join(projectRoot, 'src', 'embedded-mpv-frame-copy-packaged.e2e.ts'),
+            'utf8'
+        );
+
+        assert.doesNotMatch(source, /LIBGL_ALWAYS_SOFTWARE\s*:/);
+    });
+
     it('does not build the backend or start portal mock servers', () => {
         const project = JSON.parse(
             readFileSync(join(projectRoot, 'project.json'), 'utf8')
