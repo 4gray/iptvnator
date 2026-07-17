@@ -35,7 +35,7 @@ jobs:
                   sudo apt-get update
                   {
                       apt-cache policy \
-                          binutils build-essential cmake curl git \
+                          binutils build-essential cmake curl git gperf \
                           libasound2-dev libdrm-dev libegl-dev libgbm-dev \
                           libgl-dev libpulse-dev libva-dev make nasm \
                           ninja-build patchelf perl pkg-config python3-pip \
@@ -70,6 +70,7 @@ jobs:
                       cmake \
                       curl \
                       git \
+                      gperf \
                       libasound2-dev \
                       libdrm-dev \
                       libegl-dev \

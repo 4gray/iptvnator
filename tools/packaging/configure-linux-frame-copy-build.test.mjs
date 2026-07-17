@@ -273,6 +273,18 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
     assert.match(buildWorkflow, /sourceSha256[\s\S]*source-index\.json/);
 });
 
+test('Linux runtime toolchain installs fontconfig generators without network wraps', () => {
+    const cacheKeyStep = workflowStep(
+        'Resolve Linux runtime toolchain cache key'
+    );
+    const installStep = workflowStep(
+        'Install pinned Linux runtime build dependencies'
+    );
+
+    assert.match(cacheKeyStep, /\bapt-cache policy[\s\S]*\bgperf\b/);
+    assert.match(installStep, /^\s+gperf\s+\\$/m);
+});
+
 test('Linux CI verifies every package family and exercises intended environments', () => {
     for (const suffix of [
         'AppImage',

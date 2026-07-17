@@ -699,6 +699,7 @@ function collectToolVersions(context) {
         cmake: ['--version'],
         curl: ['--version'],
         git: ['--version'],
+        gperf: ['--version'],
         make: ['--version'],
         meson: ['--version'],
         nasm: ['-v'],

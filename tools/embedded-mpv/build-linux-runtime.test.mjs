@@ -705,6 +705,7 @@ test('requires ELF patching and inspection tools in addition to the build toolch
         'cmake',
         'curl',
         'git',
+        'gperf',
         'make',
         'meson',
         'nasm',
@@ -725,6 +726,7 @@ test('preflights every required tool against a supported minimum version', () =>
     );
     assert.equal(MINIMUM_TOOL_VERSIONS.meson, '1.6.0');
     assert.equal(MINIMUM_TOOL_VERSIONS.nasm, '2.15.05');
+    assert.equal(MINIMUM_TOOL_VERSIONS.gperf, '3.1.0');
 
     const supportedVersions = Object.fromEntries(
         REQUIRED_TOOLS.map((tool) => [
@@ -742,6 +744,7 @@ test('preflights every required tool against a supported minimum version', () =>
     );
 
     for (const [tool, oldVersion] of [
+        ['gperf', 'GNU gperf 3.0.4'],
         ['meson', 'meson 1.5.9'],
         ['nasm', 'NASM version 2.15.04'],
     ]) {

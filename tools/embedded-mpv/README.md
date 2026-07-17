@@ -84,7 +84,8 @@ pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/linux-prefix
 
 The Linux builder runs only on Linux x64. It requires the tool versions and
 system development interfaces declared in `build-linux-runtime.cjs`, including
-Meson 1.6 or newer, Ninja, CMake, NASM, pkg-config, patchelf, and `readelf`.
+Meson 1.6 or newer, gperf 3.1 or newer, Ninja, CMake, NASM, pkg-config,
+patchelf, and `readelf`.
 It builds into an owned staging directory and publishes atomically, so it will
 not delete or overwrite an arbitrary destination.
 
