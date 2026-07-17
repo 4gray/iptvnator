@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "جارٍ المسح…",
         "EPG_URL_ERROR": "القيمة ليست رابطًا صالحًا",
         "VIDEO_PLAYER_DESCRIPTION": "اختر مشغل الفيديو الافتراضي",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحّدة لمشغلات الويب (تجريبي)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استخدم عناصر التحكم المشتركة في IPTVnator مع HTML5 وVideo.js وArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "اختر تنسيق البث الافتراضي (xtream)",
         "LANGUAGE_DESCRIPTION": "اختر لغة التطبيق",
         "THEME_DESCRIPTION": "اختر السمة البصرية للتطبيق",

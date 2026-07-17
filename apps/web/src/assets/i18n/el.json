@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Διαγραφή…",
         "EPG_URL_ERROR": "Η τιμή δεν είναι έγκυρη διεύθυνση URL",
         "VIDEO_PLAYER_DESCRIPTION": "Επιλογή προεπιλεγμένου προγράμματος αναπαραγωγής βίντεο",
+        "WEB_PLAYER_SHARED_CONTROLS": "Ενοποιημένα στοιχεία ελέγχου για web players (πειραματικό)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Χρησιμοποιήστε τα κοινά στοιχεία ελέγχου του IPTVnator σε HTML5, Video.js και ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Επιλογή προεπιλεγμένης μορφής ροής (xtream)",
         "LANGUAGE_DESCRIPTION": "Επιλέξτε τη γλώσσα της εφαρμογής",
         "THEME_DESCRIPTION": "Επιλέξτε οπτικό θέμα της εφαρμογής",

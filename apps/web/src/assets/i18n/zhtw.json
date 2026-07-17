@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "正在清除…",
         "EPG_URL_ERROR": "該值不是有效的網址",
         "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項（實驗性）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共用控制項。",
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",

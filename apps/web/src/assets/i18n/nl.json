@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Wissen…",
         "EPG_URL_ERROR": "De opgegeven waarde is geen geldige URL.",
         "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
+        "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers (experimenteel)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde IPTVnator-bediening in HTML5, Video.js en ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Selecteer het standaard streamformaat (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
         "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",

@@ -1,5 +1,5 @@
 import { ClipboardModule } from '@angular/cdk/clipboard';
-import { Component, input, output } from '@angular/core';
+import { Component, input, output, signal } from '@angular/core';
 import {
     ComponentFixture,
     DeferBlockBehavior,
@@ -16,8 +16,9 @@ import {
     type ResolvedPortalPlayback,
     VideoPlayer,
 } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import type { WebPlayerViewComponent as WebPlayerViewComponentInstance } from './web-player-view.component';
+import { WEB_PLAYER_SHARED_CONTROLS } from '../player-controls';
 import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
@@ -89,6 +90,8 @@ class StubEmbeddedMpvPlayerComponent {
     readonly nextEpisodeRequested = output<void>();
 }
 
+const webPlayerSharedControls = signal(false);
+
 describe('WebPlayerViewComponent shared web controls metadata', () => {
     let WebPlayerViewComponent: typeof import('./web-player-view.component').WebPlayerViewComponent;
     let fixture: ComponentFixture<WebPlayerViewComponentInstance>;
@@ -100,6 +103,8 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
     });
 
     beforeEach(async () => {
+        webPlayerSharedControls.set(false);
+
         await TestBed.configureTestingModule({
             deferBlockBehavior: DeferBlockBehavior.Playthrough,
             imports: [WebPlayerViewComponent, TranslateModule.forRoot()],
@@ -113,6 +118,10 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
                 {
                     provide: RuntimeCapabilitiesService,
                     useValue: { supportsManagedExternalPlayers: false },
+                },
+                {
+                    provide: SettingsStore,
+                    useValue: { webPlayerSharedControls },
                 },
             ],
         })
@@ -144,6 +153,34 @@ describe('WebPlayerViewComponent shared web controls metadata', () => {
 
     afterEach(() => {
         fixture.destroy();
+    });
+
+    it('snapshots the shared controls setting for each player host', () => {
+        webPlayerSharedControls.set(true);
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.injector.get(WEB_PLAYER_SHARED_CONTROLS)
+        ).toBe(true);
+
+        webPlayerSharedControls.set(false);
+
+        expect(
+            fixture.debugElement.injector.get(WEB_PLAYER_SHARED_CONTROLS)
+        ).toBe(true);
+
+        fixture.destroy();
+        fixture = TestBed.createComponent(WebPlayerViewComponent);
+        component = fixture.componentInstance;
+        fixture.componentRef.setInput(
+            'streamUrl',
+            'https://example.com/next.ts'
+        );
+        fixture.detectChanges();
+
+        expect(
+            fixture.debugElement.injector.get(WEB_PLAYER_SHARED_CONTROLS)
+        ).toBe(false);
     });
 
     it.each([
