@@ -1,5 +1,12 @@
+import crypto from 'crypto';
 import fs from 'fs';
 import path from 'path';
+import { createRequire } from 'module';
+
+const require = createRequire(import.meta.url);
+const {
+    validateLinuxRuntimeManifest,
+} = require('./linux-runtime-manifest.cjs');
 
 const rawArgs = process.argv.slice(2);
 const args = rawArgs[0] === '--' ? rawArgs.slice(1) : rawArgs;
@@ -161,11 +168,111 @@ function readJsonIfExists(filePath) {
     return JSON.parse(fs.readFileSync(filePath, 'utf8'));
 }
 
+function readLinuxRuntimeManifest() {
+    const manifestPath = path.join(normalizedPrefix, 'runtime-manifest.json');
+    if (!fs.existsSync(manifestPath)) {
+        throw new Error(`Missing Linux runtime manifest: ${manifestPath}`);
+    }
+
+    let manifest;
+    try {
+        manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
+    } catch (error) {
+        throw new Error(
+            `Invalid JSON in Linux runtime manifest ${manifestPath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+    }
+
+    const errors = validateLinuxRuntimeManifest(manifest);
+    if (errors.length > 0) {
+        throw new Error(
+            ['Invalid Linux runtime manifest.', ...errors].join('\n')
+        );
+    }
+
+    return manifest;
+}
+
+function sha256File(filePath) {
+    return crypto
+        .createHash('sha256')
+        .update(fs.readFileSync(filePath))
+        .digest('hex');
+}
+
+function assertPathInsideDirectory(filePath, directory) {
+    const relativePath = path.relative(
+        fs.realpathSync(directory),
+        fs.realpathSync(filePath)
+    );
+    if (
+        relativePath === '..' ||
+        relativePath.startsWith(`..${path.sep}`) ||
+        path.isAbsolute(relativePath)
+    ) {
+        throw new Error(
+            `Declared Linux runtime file resolves outside prefix/lib: ${filePath}`
+        );
+    }
+}
+
+function verifyLinuxRuntimeFiles(manifest) {
+    for (const runtimeFile of manifest.runtimeFiles) {
+        const sourcePath = path.join(sourceLibDir, runtimeFile.name);
+        if (!fs.existsSync(sourcePath)) {
+            throw new Error(
+                `Missing declared Linux runtime file: ${sourcePath}`
+            );
+        }
+
+        assertPathInsideDirectory(sourcePath, sourceLibDir);
+        const sourceStat = fs.statSync(sourcePath);
+        if (!sourceStat.isFile()) {
+            throw new Error(
+                `Declared Linux runtime path is not a regular file: ${sourcePath}`
+            );
+        }
+        if (sourceStat.size !== runtimeFile.size) {
+            throw new Error(
+                `Size mismatch for Linux runtime file ${sourcePath}: expected ${runtimeFile.size}, received ${sourceStat.size}`
+            );
+        }
+
+        const actualSha256 = sha256File(sourcePath);
+        if (actualSha256 !== runtimeFile.sha256) {
+            throw new Error(
+                `SHA-256 mismatch for Linux runtime file ${sourcePath}: expected ${runtimeFile.sha256}, received ${actualSha256}`
+            );
+        }
+    }
+}
+
+function copyLinuxRuntimeFiles(manifest) {
+    fs.mkdirSync(destinationLibDir, { recursive: true });
+    for (const runtimeFile of manifest.runtimeFiles) {
+        const sourcePath = path.join(sourceLibDir, runtimeFile.name);
+        const destinationPath = path.join(destinationLibDir, runtimeFile.name);
+        fs.copyFileSync(sourcePath, destinationPath);
+        fs.chmodSync(destinationPath, 0o755);
+    }
+}
+
 try {
     assertExists(
         path.join(sourceIncludeDir, 'mpv', 'client.h'),
         'Missing libmpv header'
     );
+    const externalManifest =
+        platform === 'linux'
+            ? readLinuxRuntimeManifest()
+            : (readJsonIfExists(
+                  path.join(normalizedPrefix, 'runtime-manifest.json')
+              ) ?? {});
+    if (platform === 'linux') {
+        verifyLinuxRuntimeFiles(externalManifest);
+    }
     if (platform !== 'linux' && !findRuntimeFile(sourceLibDir)) {
         throw new Error(
             `Missing libmpv runtime for ${platform} in ${sourceLibDir}`
@@ -187,22 +294,28 @@ try {
     );
     if (platform !== 'linux') {
         copyDirectory(sourceLibDir, destinationLibDir, runtimeFileFilter);
+    } else {
+        copyLinuxRuntimeFiles(externalManifest);
     }
     if (platform === 'win32') {
         copyDirectory(sourceBinDir, destinationLibDir, runtimeFileFilter);
     }
 
-    const externalManifest =
-        readJsonIfExists(
-            path.join(normalizedPrefix, 'runtime-manifest.json')
-        ) ?? {};
     const manifest = {
         ...externalManifest,
         origin: 'vendored-lgpl',
+        ...(platform === 'linux'
+            ? { sourceBuildOrigin: externalManifest.origin }
+            : {}),
         platform,
         arch,
         stagedAt: new Date().toISOString(),
-        runtimeFiles: listRuntimeFiles(destinationLibDir),
+        runtimeFiles:
+            platform === 'linux'
+                ? externalManifest.runtimeFiles.map((runtimeFile) => ({
+                      ...runtimeFile,
+                  }))
+                : listRuntimeFiles(destinationLibDir),
         ffmpeg: {
             licensePolicy:
                 'LGPL, built without --enable-gpl and --enable-nonfree',
