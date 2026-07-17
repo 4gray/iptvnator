@@ -5,6 +5,7 @@ import {
     test,
     type LaunchedElectronApp,
 } from './electron-test-fixtures';
+import { join } from 'path';
 import {
     assertNativeFallbackPrerequisites,
     cleanupPackagedFrameCopySmoke,
@@ -20,10 +21,10 @@ import {
 } from './embedded-mpv-frame-copy-packaged-fixtures';
 import {
     createDisposablePackagedLinuxApp,
-    createRuntimeManifestGuard,
+    createPackagedEntryGuard,
     readPackagedRuntimeIdentity,
     type DisposablePackagedLinuxApp,
-    type RuntimeManifestGuard,
+    type PackagedEntryGuard,
 } from './embedded-mpv-frame-copy-packaged-filesystem';
 
 const PACKAGED_FRAME_COPY_REQUIRED_ENV =
@@ -68,7 +69,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
         const sourceExecutablePath = packagedExecutable as string;
         assertNativeFallbackPrerequisites();
         let packageClone: DisposablePackagedLinuxApp | undefined;
-        let runtimeManifest: RuntimeManifestGuard | undefined;
+        let hiddenRuntimeEntry: PackagedEntryGuard | undefined;
         let media: LocalMediaServer | undefined;
         let frameCopyApp: LaunchedElectronApp | undefined;
         let fallbackApp: LaunchedElectronApp | undefined;
@@ -79,7 +80,13 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             const executablePath = packageClone.executablePath;
             const nativeDir = packageClone.nativeDir;
             const runtimeIdentity = readPackagedRuntimeIdentity(nativeDir);
-            runtimeManifest = createRuntimeManifestGuard(nativeDir);
+            hiddenRuntimeEntry = createPackagedEntryGuard(
+                join(nativeDir, 'lib', runtimeIdentity.libmpvSoname),
+                {
+                    expectedKind: 'regular-file',
+                    hiddenDirectory: packageClone.temporaryRoot,
+                }
+            );
             const mediaServer = await createLocalMediaServer();
             media = mediaServer;
 
@@ -219,7 +226,10 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             await closeAndWaitForExit(launchedFrameCopyApp);
             frameCopyApp = undefined;
 
-            runtimeManifest.hide();
+            hiddenRuntimeEntry.hide();
+            expect(readPackagedRuntimeIdentity(nativeDir)).toEqual(
+                runtimeIdentity
+            );
 
             const launchedFallbackApp = await launchPackagedElectronApp(
                 executablePath,
@@ -237,7 +247,7 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
             expect(fallbackSupport).toMatchObject({
                 engine: 'native',
                 frameCopyAvailable: false,
-                frameCopyUnavailableReason: 'runtime-manifest-missing',
+                frameCopyUnavailableReason: 'runtime-library-missing',
                 platform: 'linux',
                 supported: true,
             });
@@ -292,9 +302,9 @@ test.describe('Packaged Linux embedded MPV frame-copy runtime', () => {
         } finally {
             await cleanupPackagedFrameCopySmoke({
                 apps: [frameCopyApp, fallbackApp],
+                hiddenRuntimeEntry,
                 media,
                 packageClone,
-                runtimeManifest,
             });
         }
     });

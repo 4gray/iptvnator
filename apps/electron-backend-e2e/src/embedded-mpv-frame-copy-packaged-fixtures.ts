@@ -12,7 +12,7 @@ import {
 } from './electron-test-fixtures';
 import type {
     DisposablePackagedLinuxApp,
-    RuntimeManifestGuard,
+    PackagedEntryGuard,
 } from './embedded-mpv-frame-copy-packaged-filesystem';
 
 declare global {
@@ -291,9 +291,9 @@ export async function closeAndWaitForExit(
 
 export async function cleanupPackagedFrameCopySmoke(options: {
     apps: Array<LaunchedElectronApp | undefined>;
+    hiddenRuntimeEntry?: PackagedEntryGuard;
     media?: LocalMediaServer;
     packageClone?: DisposablePackagedLinuxApp;
-    runtimeManifest?: RuntimeManifestGuard;
 }): Promise<void> {
     const errors: unknown[] = [];
 
@@ -308,9 +308,9 @@ export async function cleanupPackagedFrameCopySmoke(options: {
         }
     }
 
-    if (options.runtimeManifest) {
+    if (options.hiddenRuntimeEntry) {
         try {
-            options.runtimeManifest.restore();
+            options.hiddenRuntimeEntry.restore();
         } catch (error) {
             errors.push(error);
         }

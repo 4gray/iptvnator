@@ -1,92 +1,13 @@
 import assert = require('node:assert/strict');
-import {
-    chmodSync,
-    existsSync,
-    lstatSync,
-    mkdtempSync,
-    mkdirSync,
-    readFileSync,
-    readlinkSync,
-    rmSync,
-    statSync,
-    symlinkSync,
-    writeFileSync,
-} from 'node:fs';
-import { tmpdir } from 'node:os';
+import { readFileSync } from 'node:fs';
 import { join, resolve } from 'node:path';
-import { afterEach, describe, it } from 'node:test';
+import { describe, it } from 'node:test';
 import { isMeaningfulNativePlaybackSnapshot } from './embedded-mpv-frame-copy-packaged-fixtures';
-import {
-    createDisposablePackagedLinuxApp,
-    createRuntimeManifestGuard,
-} from './embedded-mpv-frame-copy-packaged-filesystem';
+import './embedded-mpv-frame-copy-packaged-filesystem.tests';
 import { resolvePackagedElectronLaunchArgs } from './electron-test-fixtures';
 import packagedPlaywrightConfig from '../playwright.packaged.config';
 
 const projectRoot = resolve(__dirname, '..');
-const temporaryDirectories = new Set<string>();
-
-type PackageFixture = {
-    executablePath: string;
-    nativeDir: string;
-    packageRoot: string;
-    payloadPath: string;
-    runtimeManifestPath: string;
-};
-
-function createPackageFixture(): PackageFixture {
-    const packageRoot = mkdtempSync(
-        join(tmpdir(), 'iptvnator-packaged-fixture-source-')
-    );
-    temporaryDirectories.add(packageRoot);
-    const executablePath = join(packageRoot, 'IPTVnator');
-    const nativeDir = join(
-        packageRoot,
-        'resources',
-        'app.asar.unpacked',
-        'electron-backend',
-        'native'
-    );
-    const payloadPath = join(packageRoot, 'resources', 'payload.bin');
-    const runtimeManifestPath = join(nativeDir, 'embedded-mpv-runtime.json');
-
-    mkdirSync(nativeDir, { recursive: true });
-    writeFileSync(executablePath, '#!/bin/sh\nexit 0\n');
-    chmodSync(executablePath, 0o755);
-    writeFileSync(payloadPath, 'packaged payload');
-    chmodSync(payloadPath, 0o640);
-    writeFileSync(
-        runtimeManifestPath,
-        JSON.stringify({
-            arch: 'x64',
-            platform: 'linux',
-            profile: 'portable',
-            runtimeMode: 'bundled',
-        })
-    );
-
-    if (process.platform !== 'win32') {
-        symlinkSync(
-            'payload.bin',
-            join(packageRoot, 'resources', 'payload-link')
-        );
-    }
-
-    return {
-        executablePath,
-        nativeDir,
-        packageRoot,
-        payloadPath,
-        runtimeManifestPath,
-    };
-}
-
-afterEach(() => {
-    for (const directory of temporaryDirectories) {
-        rmSync(directory, { force: true, recursive: true });
-    }
-    temporaryDirectories.clear();
-});
 
 describe('packaged Electron launch arguments', () => {
     it('disables the Chromium sandbox only when running as root', () => {
@@ -109,92 +30,6 @@ describe('packaged Electron launch arguments', () => {
             } else {
                 process.env['CI'] = originalCi;
             }
-        }
-    });
-});
-
-describe('disposable unpacked package clone', () => {
-    it('hardlinks regular files, preserves modes and symlinks, and never hides the source manifest', () => {
-        const source = createPackageFixture();
-        const clone = createDisposablePackagedLinuxApp(source.executablePath);
-        temporaryDirectories.add(clone.temporaryRoot);
-
-        try {
-            assert.notEqual(clone.packageRoot, source.packageRoot);
-            assert.equal(
-                statSync(clone.executablePath).mode & 0o777,
-                statSync(source.executablePath).mode & 0o777
-            );
-
-            const clonedPayloadPath = join(
-                clone.packageRoot,
-                'resources',
-                'payload.bin'
-            );
-            assert.equal(
-                statSync(clonedPayloadPath).ino,
-                statSync(source.payloadPath).ino
-            );
-            assert.equal(statSync(clonedPayloadPath).mode & 0o777, 0o640);
-
-            if (process.platform !== 'win32') {
-                const clonedLinkPath = join(
-                    clone.packageRoot,
-                    'resources',
-                    'payload-link'
-                );
-                assert.equal(lstatSync(clonedLinkPath).isSymbolicLink(), true);
-                assert.equal(readlinkSync(clonedLinkPath), 'payload.bin');
-            }
-
-            const clonedRuntimeManifestPath = join(
-                clone.nativeDir,
-                'embedded-mpv-runtime.json'
-            );
-            const guard = createRuntimeManifestGuard(clone.nativeDir);
-            guard.hide();
-            assert.equal(existsSync(clonedRuntimeManifestPath), false);
-            assert.equal(existsSync(source.runtimeManifestPath), true);
-            guard.restore();
-        } finally {
-            clone.cleanup();
-            temporaryDirectories.delete(clone.temporaryRoot);
-        }
-
-        assert.equal(existsSync(clone.temporaryRoot), false);
-        assert.equal(existsSync(source.runtimeManifestPath), true);
-    });
-
-    it('copies a regular file when hardlinking is unavailable', () => {
-        const source = createPackageFixture();
-        const clone = createDisposablePackagedLinuxApp(source.executablePath, {
-            linkFile() {
-                throw Object.assign(new Error('cross-device hardlink'), {
-                    code: 'EXDEV',
-                });
-            },
-        });
-        temporaryDirectories.add(clone.temporaryRoot);
-
-        try {
-            assert.equal(statSync(clone.executablePath).mode & 0o777, 0o755);
-            const clonedPayloadPath = join(
-                clone.packageRoot,
-                'resources',
-                'payload.bin'
-            );
-            assert.equal(
-                readFileSync(clonedPayloadPath, 'utf8'),
-                readFileSync(source.payloadPath, 'utf8')
-            );
-            assert.notEqual(
-                statSync(clonedPayloadPath).ino,
-                statSync(source.payloadPath).ino
-            );
-            assert.equal(statSync(clonedPayloadPath).mode & 0o777, 0o640);
-        } finally {
-            clone.cleanup();
-            temporaryDirectories.delete(clone.temporaryRoot);
         }
     });
 });
@@ -275,6 +110,42 @@ describe('native-view playback proof', () => {
         assert.ok(proofIndex > loadIndex);
         assert.ok(exitCodeIndex > proofIndex);
         assert.ok(disposeIndex > exitCodeIndex);
+    });
+
+    it('removes the manifest-declared libmpv target and expects the stable missing-library reason', () => {
+        const source = readFileSync(
+            join(projectRoot, 'src', 'embedded-mpv-frame-copy-packaged.e2e.ts'),
+            'utf8'
+        );
+        const manifestIdentityIndex = source.indexOf(
+            'const runtimeIdentity = readPackagedRuntimeIdentity'
+        );
+        const guardIndex = source.indexOf(
+            'createPackagedEntryGuard(',
+            manifestIdentityIndex
+        );
+        const sonameIndex = source.indexOf(
+            'runtimeIdentity.libmpvSoname',
+            guardIndex
+        );
+        const hideIndex = source.indexOf('.hide()', sonameIndex);
+        const fallbackStart = source.indexOf(
+            'const launchedFallbackApp',
+            hideIndex
+        );
+        const missingReasonIndex = source.indexOf(
+            "frameCopyUnavailableReason: 'runtime-library-missing'",
+            fallbackStart
+        );
+
+        assert.ok(manifestIdentityIndex >= 0);
+        assert.ok(guardIndex > manifestIdentityIndex);
+        assert.ok(sonameIndex > guardIndex);
+        assert.ok(hideIndex > sonameIndex);
+        assert.ok(fallbackStart > hideIndex);
+        assert.ok(missingReasonIndex > fallbackStart);
+        assert.doesNotMatch(source, /createRuntimeManifestGuard/);
+        assert.doesNotMatch(source, /runtimeManifest\.hide/);
     });
 });
 

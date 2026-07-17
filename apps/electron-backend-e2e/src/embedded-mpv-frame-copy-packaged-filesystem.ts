@@ -1,7 +1,6 @@
 import {
     chmodSync,
     copyFileSync,
-    existsSync,
     linkSync,
     lstatSync,
     mkdirSync,
@@ -11,8 +10,8 @@ import {
     readlinkSync,
     renameSync,
     rmSync,
-    statSync,
     symlinkSync,
+    type Stats,
 } from 'fs';
 import { tmpdir } from 'os';
 import { basename, dirname, join, resolve } from 'path';
@@ -32,14 +31,22 @@ export type DisposablePackagedLinuxAppOptions = {
 
 export type PackagedRuntimeIdentity = {
     arch: string;
+    libmpvSoname: string;
     platform: string;
     profile: string;
     runtimeMode: string;
 };
 
-export type RuntimeManifestGuard = {
+export type PackagedEntryKind = 'regular-file' | 'symbolic-link';
+
+export type PackagedEntryGuard = {
     hide: () => void;
     restore: () => void;
+};
+
+export type PackagedEntryGuardOptions = {
+    expectedKind: PackagedEntryKind;
+    hiddenDirectory: string;
 };
 
 const HARDLINK_COPY_FALLBACK_CODES = new Set([
@@ -50,6 +57,28 @@ const HARDLINK_COPY_FALLBACK_CODES = new Set([
     'EPERM',
     'EXDEV',
 ]);
+const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
+
+function entryKindMatches(
+    stats: Stats,
+    expectedKind: PackagedEntryKind
+): boolean {
+    return expectedKind === 'regular-file'
+        ? stats.isFile() && !stats.isSymbolicLink()
+        : stats.isSymbolicLink();
+}
+
+function entryExistsByLstat(entryPath: string): boolean {
+    try {
+        lstatSync(entryPath);
+        return true;
+    } catch (error) {
+        if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
+            return false;
+        }
+        throw error;
+    }
+}
 
 function clonePackagedEntry(
     sourcePath: string,
@@ -136,43 +165,58 @@ export function createDisposablePackagedLinuxApp(
     };
 }
 
-export function createRuntimeManifestGuard(
-    nativeDir: string
-): RuntimeManifestGuard {
-    const runtimeManifestPath = join(nativeDir, 'embedded-mpv-runtime.json');
-    const hiddenRuntimeManifestPath = `${runtimeManifestPath}.e2e-hidden-${process.pid}`;
+export function createPackagedEntryGuard(
+    entryPath: string,
+    options: PackagedEntryGuardOptions
+): PackagedEntryGuard {
+    const guardedEntryPath = resolve(entryPath);
+    const hiddenDirectory = resolve(options.hiddenDirectory);
+    const hiddenEntryPath = join(
+        hiddenDirectory,
+        `.${basename(guardedEntryPath)}.e2e-hidden-${process.pid}`
+    );
     let hidden = false;
 
     return {
         hide() {
-            if (!statSync(runtimeManifestPath).isFile()) {
+            const entryStats = lstatSync(guardedEntryPath);
+            if (!entryKindMatches(entryStats, options.expectedKind)) {
                 throw new Error(
-                    `Packaged runtime manifest is not a regular file: ${runtimeManifestPath}`
+                    `Packaged entry is not a ${options.expectedKind}: ${guardedEntryPath}`
                 );
             }
-            if (existsSync(hiddenRuntimeManifestPath)) {
+            const hiddenDirectoryStats = lstatSync(hiddenDirectory);
+            if (
+                hiddenDirectoryStats.isSymbolicLink() ||
+                !hiddenDirectoryStats.isDirectory()
+            ) {
                 throw new Error(
-                    `Stale hidden runtime manifest exists: ${hiddenRuntimeManifestPath}`
+                    `Packaged entry stash is not a regular directory: ${hiddenDirectory}`
                 );
             }
-            renameSync(runtimeManifestPath, hiddenRuntimeManifestPath);
+            if (entryExistsByLstat(hiddenEntryPath)) {
+                throw new Error(
+                    `Stale hidden packaged entry exists: ${hiddenEntryPath}`
+                );
+            }
+            renameSync(guardedEntryPath, hiddenEntryPath);
             hidden = true;
         },
         restore() {
             if (!hidden) {
                 return;
             }
-            if (!existsSync(hiddenRuntimeManifestPath)) {
+            if (!entryExistsByLstat(hiddenEntryPath)) {
                 throw new Error(
-                    `Hidden runtime manifest disappeared before restore: ${hiddenRuntimeManifestPath}`
+                    `Hidden packaged entry disappeared before restore: ${hiddenEntryPath}`
                 );
             }
-            if (existsSync(runtimeManifestPath)) {
+            if (entryExistsByLstat(guardedEntryPath)) {
                 throw new Error(
-                    `Refusing to overwrite runtime manifest during restore: ${runtimeManifestPath}`
+                    `Refusing to overwrite packaged entry during restore: ${guardedEntryPath}`
                 );
             }
-            renameSync(hiddenRuntimeManifestPath, runtimeManifestPath);
+            renameSync(hiddenEntryPath, guardedEntryPath);
             hidden = false;
         },
     };
@@ -197,6 +241,14 @@ export function readPackagedRuntimeIdentity(
                 `Packaged runtime manifest ${field} is invalid at ${runtimeManifestPath}.`
             );
         }
+    }
+    if (
+        typeof parsed.libmpvSoname !== 'string' ||
+        !VERSIONED_LIBMPV_PATTERN.test(parsed.libmpvSoname)
+    ) {
+        throw new Error(
+            `Packaged runtime manifest libmpvSoname is invalid at ${runtimeManifestPath}.`
+        );
     }
 
     return parsed as PackagedRuntimeIdentity;
