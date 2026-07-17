@@ -158,8 +158,8 @@
             ],
             "ldflags": [
               "-pthread",
-              "-Wl,-rpath,'$$ORIGIN/lib'",
-              "-Wl,-rpath,<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")"
+              "-Wl,--enable-new-dtags",
+              "-Wl,-rpath,'$$ORIGIN/lib'"
             ],
             "libraries": [
               "-L<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")",

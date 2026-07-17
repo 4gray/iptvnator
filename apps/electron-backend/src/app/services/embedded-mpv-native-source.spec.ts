@@ -570,11 +570,50 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(buildScriptSource).toContain('cleanNativeBuildIntermediates();');
     });
 
-    it('does not stage Linux libmpv runtime libraries', () => {
-        expect(stageRuntimeSource).toContain(
-            "if (platform !== 'linux') {\n" +
-                '        copyDirectory(sourceLibDir, destinationLibDir, runtimeFileFilter);\n' +
-                '    }'
+    it('validates and copies only the staged Linux shared-library closure', () => {
+        expect(buildScriptSource).toContain(
+            "require('../../tools/embedded-mpv/linux-runtime-manifest.cjs')"
+        );
+        expect(buildScriptSource).toContain(
+            'validateLinuxRuntimeManifest(sourceRuntimeManifest)'
+        );
+        expect(buildScriptSource).toContain(
+            'validateLinuxSystemBuildInputManifest(sourceRuntimeManifest)'
+        );
+        expect(buildScriptSource).toContain(
+            'copyLinuxRuntimeClosureToNativeBuild(runtime)'
+        );
+        expect(buildScriptSource).toContain(
+            'runtime.sourceRuntimeManifest.runtimeFiles'
+        );
+        expect(buildScriptSource).toContain(
+            'SHA-256 mismatch for staged Linux runtime file'
+        );
+        expect(buildScriptSource).toContain(
+            'LINUX_NATIVE_LIBRARY_DIR: runtime.libDir'
+        );
+        expect(buildScriptSource).not.toContain(
+            'process.env.LINUX_NATIVE_LIBRARY_DIR || runtime.libDir'
+        );
+    });
+
+    it('writes a profile-neutral Linux frame-copy build manifest', () => {
+        expect(buildScriptSource).toContain(
+            "const LINUX_PACKAGE_RUNTIME_MODES = Object.freeze(['system', 'bundled']);"
+        );
+        expect(buildScriptSource).toContain("origin: 'linux-frame-copy-build'");
+        expect(buildScriptSource).toContain(
+            'allowedPackageRuntimeModes: [...LINUX_PACKAGE_RUNTIME_MODES]'
+        );
+        expect(buildScriptSource).toContain(
+            'buildInputMode: runtime.buildInputMode'
+        );
+        expect(buildScriptSource).toContain(
+            'sourceRuntime: runtime.sourceRuntimeManifest'
+        );
+        expect(buildScriptSource).toContain('runtimeFiles: copiedRuntimeFiles');
+        expect(buildScriptSource).not.toContain(
+            'writeLinuxProcessRuntimeManifest'
         );
     });
 
@@ -617,12 +656,9 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(buildAndMakeWorkflowSource).toContain(
             'Linux frame-copy helper must link libmpv'
         );
-        expect(buildScriptSource).toContain("origin: 'external-mpv-process'");
-        expect(buildScriptSource).toContain('writeLinuxProcessRuntimeManifest');
-        expect(buildScriptSource).toContain('runtimeFiles: []');
     });
 
-    it('supports Linux system-development inputs without leaving stale frame-copy artifacts', () => {
+    it('keeps optional Linux system development separate from required staged inputs', () => {
         expect(buildScriptSource).toContain(
             "const systemIncludeDir =\n            process.env.LIBMPV_INCLUDE_DIR || '/usr/include';"
         );
@@ -634,6 +670,9 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(buildScriptSource).toContain("x64: 'x86_64-linux-gnu'");
         expect(buildScriptSource).toContain(
             "if (!embeddedMpvRequired && runtime.origin === 'system-dev')"
+        );
+        expect(buildScriptSource).toContain(
+            'Required Linux builds must use an explicit staged runtime manifest.'
         );
         expect(buildScriptSource).toContain(
             'removeStaleFrameCopyArtifacts(outputDir);'
@@ -817,6 +856,7 @@ describe('Embedded MPV native build configuration', () => {
         )?.[1];
 
         expect(linuxAddonConfig?.libraries).not.toContain('-lmpv');
+        expect(JSON.stringify(linuxAddonConfig)).not.toContain('-lmpv');
         expect(linuxHelperConfig?.libraries).toEqual(
             expect.arrayContaining([
                 '-lmpv',
@@ -825,6 +865,17 @@ describe('Embedded MPV native build configuration', () => {
                 '-lgbm',
                 '-ldl',
             ])
+        );
+
+        const runtimeLinkerFlags = linuxHelperConfig?.ldflags.filter(
+            (flag: string) => flag.startsWith('-Wl,')
+        );
+        expect(runtimeLinkerFlags).toEqual([
+            '-Wl,--enable-new-dtags',
+            "-Wl,-rpath,'$$ORIGIN/lib'",
+        ]);
+        expect(JSON.stringify(runtimeLinkerFlags)).not.toContain(
+            'LINUX_NATIVE_LIBRARY_DIR'
         );
     });
 });
