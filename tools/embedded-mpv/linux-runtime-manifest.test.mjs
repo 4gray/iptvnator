@@ -14,6 +14,14 @@ const {
     validateLinuxRuntimeManifest,
     validateLinuxSystemBuildInputManifest,
 } = require('./linux-runtime-manifest.cjs');
+const {
+    DEFAULT_SYSTEM_PKG_CONFIG_DIRS,
+    EXTERNAL_SYSTEM_LIBRARIES,
+    EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
+    GLIBC_TOOLCHAIN_ALLOWLIST,
+    REQUIRED_TOOLS,
+    SOURCE_PACKAGES,
+} = require('./build-linux-runtime.cjs');
 
 const workspaceRoot = fileURLToPath(new URL('../..', import.meta.url));
 const stageRuntimeScript = path.join(
@@ -36,36 +44,75 @@ function runtimeFile(name, contents) {
     };
 }
 
+function sourcePackageRecord(sourcePackage) {
+    return {
+        version: sourcePackage.version,
+        sourceUrl: sourcePackage.sourceUrl,
+        ...(sourcePackage.sourceTag
+            ? { sourceTag: sourcePackage.sourceTag }
+            : {}),
+        ...(sourcePackage.sourceKind === 'archive'
+            ? { sourceSha256: sourcePackage.expectedSha256 }
+            : {
+                  sourceGitCommit: sourcePackage.expectedGitCommit,
+                  sourceSubmodules: [`${'a'.repeat(40)} 3rdparty/example`],
+              }),
+        license: sourcePackage.license,
+    };
+}
+
 function createValidManifest(
     runtimeFiles = [
         runtimeFile('libmpv.so.2', 'libmpv-runtime'),
         runtimeFile('libavcodec.so.61', 'libavcodec-runtime'),
     ]
 ) {
+    const packages = Object.fromEntries(
+        SOURCE_PACKAGES.map((sourcePackage) => [
+            sourcePackage.id,
+            sourcePackageRecord(sourcePackage),
+        ])
+    );
+    const runtimeNames = new Set(
+        runtimeFiles
+            .map((runtimeEntry) => runtimeEntry?.name)
+            .filter((name) => typeof name === 'string')
+    );
+    const closureEntries = runtimeFiles
+        .filter(
+            (runtimeEntry) =>
+                runtimeEntry && typeof runtimeEntry.name === 'string'
+        )
+        .map((runtimeEntry) => ({
+            name: runtimeEntry.name,
+            needed: runtimeEntry.name.startsWith('libmpv.so')
+                ? [
+                      ...(runtimeNames.has('libavcodec.so.61')
+                          ? ['libavcodec.so.61']
+                          : []),
+                      'libEGL.so.1',
+                      'libc.so.6',
+                  ]
+                : ['libm.so.6'],
+            rpath: [],
+            runpath: ['$ORIGIN'],
+        }));
+    const externalDependencies = [
+        ...new Set(
+            closureEntries
+                .flatMap(({ needed }) => needed)
+                .filter((neededName) => !runtimeNames.has(neededName))
+        ),
+    ].sort();
+
     return {
         schemaVersion: 1,
         origin: 'vendored-lgpl-source-build',
         platform: 'linux',
         arch: 'x64',
-        packages: {
-            ffmpeg: {
-                version: '8.1',
-                sourceUrl: 'https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz',
-                sourceSha256: 'a'.repeat(64),
-                license: 'LGPL-2.1-or-later',
-            },
-            mpv: {
-                version: '0.41.0',
-                sourceUrl:
-                    'https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz',
-                sourceSha256: 'b'.repeat(64),
-                license: 'LGPL-2.1-or-later',
-            },
-        },
+        packages,
         ffmpeg: {
-            version: '8.1',
-            sourceUrl: 'https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz',
-            sourceSha256: 'a'.repeat(64),
+            ...packages.ffmpeg,
             configureFlags: [
                 '--enable-shared',
                 '--disable-gpl',
@@ -73,15 +120,38 @@ function createValidManifest(
             ],
         },
         mpv: {
-            version: '0.41.0',
-            sourceUrl:
-                'https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz',
-            sourceSha256: 'b'.repeat(64),
+            ...packages.mpv,
             mesonFlags: ['-Dlibmpv=true', '-Dgpl=false'],
         },
         sourceDistribution:
             'https://downloads.example.test/iptvnator/linux-runtime-sources.tar.zst',
         runtimeFiles,
+        runtimeTotalBytes: runtimeFiles.reduce(
+            (total, runtimeEntry) => total + (runtimeEntry?.size ?? 0),
+            0
+        ),
+        runtimeDependencyClosure: {
+            entries: closureEntries,
+            externalDependencies,
+        },
+        externalSystemLibraries: EXTERNAL_SYSTEM_LIBRARIES.map(
+            (externalLibrary) => ({ ...externalLibrary })
+        ),
+        buildHost: {
+            platform: 'linux',
+            arch: 'x64',
+            release: 'fixture-kernel',
+            systemPkgConfigDirs: [...DEFAULT_SYSTEM_PKG_CONFIG_DIRS],
+            systemPkgConfigPackages: Object.fromEntries(
+                EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES.map((packageName) => [
+                    packageName,
+                    `${packageName} fixture version`,
+                ])
+            ),
+            tools: Object.fromEntries(
+                REQUIRED_TOOLS.map((tool) => [tool, `${tool} fixture version`])
+            ),
+        },
     };
 }
 
@@ -180,6 +250,211 @@ test('accepts a complete LGPL Linux x64 source-build manifest', () => {
     assert.deepEqual(validateLinuxRuntimeManifest(createValidManifest()), []);
 });
 
+test('requires the exact pinned source package set and provenance', () => {
+    const expectedPackageNames = SOURCE_PACKAGES.map(({ id }) => id).sort();
+    assert.deepEqual(
+        Object.keys(createValidManifest().packages).sort(),
+        expectedPackageNames
+    );
+
+    for (const packageName of expectedPackageNames) {
+        const manifest = createValidManifest();
+        delete manifest.packages[packageName];
+        assert.match(
+            validateLinuxRuntimeManifest(manifest).join('\n'),
+            new RegExp(`packages\\.${packageName} must be an object`)
+        );
+    }
+
+    const unexpectedPackage = createValidManifest();
+    unexpectedPackage.packages.unpinned = {
+        version: '1.0.0',
+        sourceUrl: 'https://example.test/unpinned.tar.xz',
+        sourceSha256: 'f'.repeat(64),
+        license: 'MIT',
+    };
+    assert.match(
+        validateLinuxRuntimeManifest(unexpectedPackage).join('\n'),
+        /packages contains unexpected source package "unpinned"/
+    );
+});
+
+test('requires pinned archive hashes and exact libplacebo git provenance', () => {
+    const archiveMismatch = createValidManifest();
+    archiveMismatch.packages.freetype.sourceSha256 = '0'.repeat(64);
+    assert.match(
+        validateLinuxRuntimeManifest(archiveMismatch).join('\n'),
+        /packages\.freetype\.sourceSha256 must equal the pinned digest/
+    );
+
+    const commitMismatch = createValidManifest();
+    commitMismatch.packages.libplacebo.sourceGitCommit = '0'.repeat(40);
+    assert.match(
+        validateLinuxRuntimeManifest(commitMismatch).join('\n'),
+        /packages\.libplacebo\.sourceGitCommit must equal the pinned commit/
+    );
+
+    const validSubmoduleRecord = `${'a'.repeat(40)} 3rdparty/example`;
+    for (const sourceSubmodules of [
+        [],
+        ['not-a-submodule-record'],
+        [`${'a'.repeat(40)} ../escape`],
+        [validSubmoduleRecord, validSubmoduleRecord],
+    ]) {
+        const invalidSubmodules = createValidManifest();
+        invalidSubmodules.packages.libplacebo.sourceSubmodules =
+            sourceSubmodules;
+        assert.match(
+            validateLinuxRuntimeManifest(invalidSubmodules).join('\n'),
+            /packages\.libplacebo\.sourceSubmodules/
+        );
+    }
+});
+
+test('requires runtimeTotalBytes to equal the declared runtime file sizes', () => {
+    const missingTotal = createValidManifest();
+    delete missingTotal.runtimeTotalBytes;
+    assert.match(
+        validateLinuxRuntimeManifest(missingTotal).join('\n'),
+        /runtimeTotalBytes must equal the sum/
+    );
+
+    const wrongTotal = createValidManifest();
+    wrongTotal.runtimeTotalBytes += 1;
+    assert.match(
+        validateLinuxRuntimeManifest(wrongTotal).join('\n'),
+        /runtimeTotalBytes must equal the sum/
+    );
+});
+
+test('requires a complete ORIGIN-only runtime dependency closure', () => {
+    const missingEntry = createValidManifest();
+    missingEntry.runtimeDependencyClosure.entries.pop();
+    assert.match(
+        validateLinuxRuntimeManifest(missingEntry).join('\n'),
+        /runtimeDependencyClosure\.entries must contain one record for every runtime file/
+    );
+
+    const duplicateEntry = createValidManifest();
+    duplicateEntry.runtimeDependencyClosure.entries[1].name =
+        duplicateEntry.runtimeDependencyClosure.entries[0].name;
+    assert.match(
+        validateLinuxRuntimeManifest(duplicateEntry).join('\n'),
+        /runtimeDependencyClosure\.entries contains duplicate name/
+    );
+
+    const invalidNeeded = createValidManifest();
+    invalidNeeded.runtimeDependencyClosure.entries[0].needed = 'libc.so.6';
+    assert.match(
+        validateLinuxRuntimeManifest(invalidNeeded).join('\n'),
+        /needed must be an array of safe shared-library names/
+    );
+
+    const absoluteRpath = createValidManifest();
+    absoluteRpath.runtimeDependencyClosure.entries[0].rpath = ['/tmp/lib'];
+    assert.match(
+        validateLinuxRuntimeManifest(absoluteRpath).join('\n'),
+        /rpath must be an empty array/
+    );
+
+    const wrongRunpath = createValidManifest();
+    wrongRunpath.runtimeDependencyClosure.entries[0].runpath = ['/tmp/lib'];
+    assert.match(
+        validateLinuxRuntimeManifest(wrongRunpath).join('\n'),
+        /runpath must contain only "\$ORIGIN"/
+    );
+
+    const unknownDependency = createValidManifest();
+    unknownDependency.runtimeDependencyClosure.entries[0].needed.push(
+        'libsurprise.so.1'
+    );
+    unknownDependency.runtimeDependencyClosure.externalDependencies.push(
+        'libsurprise.so.1'
+    );
+    assert.match(
+        validateLinuxRuntimeManifest(unknownDependency).join('\n'),
+        /libsurprise\.so\.1.*not in the deterministic system-library allowlist/
+    );
+});
+
+test('requires the deterministic external-system-library records', () => {
+    const manifest = createValidManifest();
+    manifest.externalSystemLibraries.reverse();
+    assert.match(
+        validateLinuxRuntimeManifest(manifest).join('\n'),
+        /externalSystemLibraries must exactly match the deterministic allowlist/
+    );
+
+    const allowedNames = new Set([
+        ...GLIBC_TOOLCHAIN_ALLOWLIST,
+        ...EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
+    ]);
+    for (const dependencyName of createValidManifest().runtimeDependencyClosure
+        .externalDependencies) {
+        assert.equal(allowedNames.has(dependencyName), true, dependencyName);
+    }
+});
+
+test('requires a Linux x64 build host and every required tool version', () => {
+    const wrongPlatform = createValidManifest();
+    wrongPlatform.buildHost.platform = 'darwin';
+    assert.match(
+        validateLinuxRuntimeManifest(wrongPlatform).join('\n'),
+        /buildHost\.platform must be "linux"/
+    );
+
+    const wrongArch = createValidManifest();
+    wrongArch.buildHost.arch = 'arm64';
+    assert.match(
+        validateLinuxRuntimeManifest(wrongArch).join('\n'),
+        /buildHost\.arch must be "x64"/
+    );
+
+    for (const tool of REQUIRED_TOOLS) {
+        const missingTool = createValidManifest();
+        delete missingTool.buildHost.tools[tool];
+        assert.match(
+            validateLinuxRuntimeManifest(missingTool).join('\n'),
+            new RegExp(`buildHost\\.tools\\.${tool.replace('-', '\\-')}`)
+        );
+    }
+
+    const unexpectedTool = createValidManifest();
+    unexpectedTool.buildHost.tools.unexpected = '1.0';
+    assert.match(
+        validateLinuxRuntimeManifest(unexpectedTool).join('\n'),
+        /buildHost\.tools contains unexpected tool "unexpected"/
+    );
+
+    const relativePkgConfigDir = createValidManifest();
+    relativePkgConfigDir.buildHost.systemPkgConfigDirs = ['relative/pkgconfig'];
+    assert.match(
+        validateLinuxRuntimeManifest(relativePkgConfigDir).join('\n'),
+        /buildHost\.systemPkgConfigDirs must be a non-empty array of unique absolute paths/
+    );
+
+    for (const packageName of EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES) {
+        const missingPackage = createValidManifest();
+        delete missingPackage.buildHost.systemPkgConfigPackages[packageName];
+        assert.match(
+            validateLinuxRuntimeManifest(missingPackage).join('\n'),
+            new RegExp(
+                `buildHost\\.systemPkgConfigPackages\\.${packageName.replace(
+                    '-',
+                    '\\-'
+                )}`
+            )
+        );
+    }
+
+    const unexpectedPackage = createValidManifest();
+    unexpectedPackage.buildHost.systemPkgConfigPackages.unexpected = '1.0';
+    assert.match(
+        validateLinuxRuntimeManifest(unexpectedPackage).join('\n'),
+        /buildHost\.systemPkgConfigPackages contains unexpected package "unexpected"/
+    );
+});
+
 test('accepts and stages the current Linux CI system build-input manifest', (t) => {
     const systemManifest = createSystemBuildInputManifest();
     assert.deepEqual(validateLinuxSystemBuildInputManifest(systemManifest), []);
@@ -248,6 +523,14 @@ test('returns deterministic validation errors for untrusted input', () => {
         validateLinuxRuntimeManifest(manifest).join('\n'),
         /runtimeFiles\[0\]\.sha256/
     );
+
+    const hostileAllowlist = createValidManifest();
+    hostileAllowlist.externalSystemLibraries = 1n;
+    assert.doesNotThrow(() => validateLinuxRuntimeManifest(hostileAllowlist));
+    assert.match(
+        validateLinuxRuntimeManifest(hostileAllowlist).join('\n'),
+        /externalSystemLibraries/
+    );
 });
 
 test('requires schema, provenance, target, package, and source metadata', () => {
@@ -303,10 +586,18 @@ test('requires exact FFmpeg and mpv source package records', () => {
             license: 'LGPL-2.1-or-later',
         },
     };
-    assert.deepEqual(validateLinuxRuntimeManifest(substitutedPackages), [
-        'Linux runtime manifest packages.ffmpeg must be an object.',
-        'Linux runtime manifest packages.mpv must be an object.',
-    ]);
+    const substitutedErrors =
+        validateLinuxRuntimeManifest(substitutedPackages).join('\n');
+    for (const packageName of SOURCE_PACKAGES.map(({ id }) => id)) {
+        assert.match(
+            substitutedErrors,
+            new RegExp(`packages\\.${packageName} must be an object`)
+        );
+    }
+    assert.match(
+        substitutedErrors,
+        /packages contains unexpected source package "multimediaRuntime"/
+    );
 });
 
 test('rejects GPL and nonfree FFmpeg configurations', () => {
@@ -410,7 +701,8 @@ test('validates safe, unique shared-library metadata', () => {
         runtimeFile('libcodec.a', 'duplicate'),
     ]);
 
-    assert.deepEqual(validateLinuxRuntimeManifest(manifest), [
+    const errors = validateLinuxRuntimeManifest(manifest);
+    assert.deepEqual(errors.slice(0, 7), [
         'Linux runtime manifest runtimeFiles[0].name must be a safe shared-library basename.',
         'Linux runtime manifest runtimeFiles[0].size must be a positive integer.',
         'Linux runtime manifest runtimeFiles[0].sha256 must be a lowercase 64-character hexadecimal digest.',
@@ -419,6 +711,14 @@ test('validates safe, unique shared-library metadata', () => {
         'Linux runtime manifest runtimeFiles contains duplicate name "libcodec.a".',
         'Linux runtime manifest runtimeFiles must include a versioned libmpv.so.N entry.',
     ]);
+    assert.match(
+        errors.join('\n'),
+        /runtimeDependencyClosure\.entries\[0\]\.name must be a safe shared-library basename/
+    );
+    assert.match(
+        errors.join('\n'),
+        /runtimeDependencyClosure\.entries contains duplicate name "libcodec\.a"/
+    );
 });
 
 test('rejects control characters in shared-library basenames', () => {
@@ -448,6 +748,13 @@ test('stages only declared Linux libraries and materializes source symlinks', (t
     fixture.manifest.runtimeFiles.push(
         runtimeFile('libmpv.so', versionedMpvContents)
     );
+    fixture.manifest.runtimeTotalBytes += versionedMpvContents.length;
+    fixture.manifest.runtimeDependencyClosure.entries.push({
+        name: 'libmpv.so',
+        needed: ['libmpv.so.2'],
+        rpath: [],
+        runpath: ['$ORIGIN'],
+    });
     fs.writeFileSync(
         path.join(fixture.prefix, 'runtime-manifest.json'),
         `${JSON.stringify(fixture.manifest, null, 2)}\n`
@@ -499,6 +806,15 @@ test('stages only declared Linux libraries and materializes source symlinks', (t
         stagedManifest.runtimeFiles,
         fixture.manifest.runtimeFiles
     );
+    for (const field of [
+        'packages',
+        'runtimeTotalBytes',
+        'runtimeDependencyClosure',
+        'externalSystemLibraries',
+        'buildHost',
+    ]) {
+        assert.deepEqual(stagedManifest[field], fixture.manifest[field], field);
+    }
 });
 
 test('copies runtime libraries only from the verified byte snapshot', () => {
@@ -635,6 +951,7 @@ test('rejects missing files and mismatched size or hash metadata', (t) => {
         {
             mutateManifest(manifest) {
                 manifest.runtimeFiles[0].size += 1;
+                manifest.runtimeTotalBytes += 1;
             },
         },
         /Size mismatch for Linux runtime file.*libmpv\.so\.2/

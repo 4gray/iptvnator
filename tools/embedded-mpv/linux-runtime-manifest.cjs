@@ -1,6 +1,13 @@
 'use strict';
 
 const path = require('node:path');
+const {
+    EXTERNAL_SYSTEM_LIBRARIES,
+    EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
+    GLIBC_TOOLCHAIN_ALLOWLIST,
+    REQUIRED_TOOLS,
+    SOURCE_PACKAGES,
+} = require('./build-linux-runtime.cjs');
 
 const LINUX_RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -8,7 +15,16 @@ const GIT_COMMIT_PATTERN = /^[a-f0-9]{40,64}$/;
 const SAFE_BASENAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;
 const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
-const REQUIRED_SOURCE_PACKAGES = ['ffmpeg', 'mpv'];
+const REQUIRED_SOURCE_PACKAGES = SOURCE_PACKAGES.map(({ id }) => id);
+const SOURCE_PACKAGE_BY_ID = new Map(
+    SOURCE_PACKAGES.map((sourcePackage) => [sourcePackage.id, sourcePackage])
+);
+const ALLOWED_EXTERNAL_LIBRARY_NAMES = new Set([
+    ...GLIBC_TOOLCHAIN_ALLOWLIST,
+    ...EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
+]);
+const SUBMODULE_RECORD_PATTERN =
+    /^[a-f0-9]{40,64}\s+([A-Za-z0-9_+./-]+)(?:\s+\(.+\))?$/;
 const LINUX_SYSTEM_BACKEND = 'process-isolated mpv --wid';
 
 function isObject(value) {
@@ -28,6 +44,23 @@ function isSafeBasename(value) {
         value !== '.' &&
         value !== '..' &&
         SAFE_BASENAME_PATTERN.test(value)
+    );
+}
+
+function isValidSubmoduleRecord(value) {
+    if (typeof value !== 'string') {
+        return false;
+    }
+    const match = value.match(SUBMODULE_RECORD_PATTERN);
+    if (!match) {
+        return false;
+    }
+    const submodulePath = match[1];
+    return (
+        !path.posix.isAbsolute(submodulePath) &&
+        !submodulePath
+            .split('/')
+            .some((segment) => segment === '.' || segment === '..')
     );
 }
 
@@ -99,6 +132,14 @@ function validatePackages(errors, packages) {
     }
 
     for (const packageName of Object.keys(packages).sort()) {
+        if (!SOURCE_PACKAGE_BY_ID.has(packageName)) {
+            errors.push(
+                `Linux runtime manifest packages contains unexpected source package "${packageName}".`
+            );
+        }
+    }
+
+    for (const packageName of Object.keys(packages).sort()) {
         const packageMetadata = packages[packageName];
         const label = `packages.${packageName}`;
         if (!isObject(packageMetadata)) {
@@ -114,6 +155,85 @@ function validatePackages(errors, packages) {
         if (!isNonEmptyString(packageMetadata.license)) {
             errors.push(
                 `Linux runtime manifest ${label}.license must be a non-empty string.`
+            );
+        }
+
+        const pinnedPackage = SOURCE_PACKAGE_BY_ID.get(packageName);
+        if (!pinnedPackage) {
+            continue;
+        }
+
+        for (const field of ['version', 'sourceUrl', 'license']) {
+            if (
+                isNonEmptyString(packageMetadata[field]) &&
+                packageMetadata[field] !== pinnedPackage[field]
+            ) {
+                errors.push(
+                    `Linux runtime manifest ${label}.${field} must equal the pinned value.`
+                );
+            }
+        }
+
+        if (pinnedPackage.sourceTag) {
+            if (packageMetadata.sourceTag !== pinnedPackage.sourceTag) {
+                errors.push(
+                    `Linux runtime manifest ${label}.sourceTag must equal the pinned tag.`
+                );
+            }
+        } else if (packageMetadata.sourceTag !== undefined) {
+            errors.push(
+                `Linux runtime manifest ${label} must not include sourceTag.`
+            );
+        }
+
+        if (pinnedPackage.sourceKind === 'archive') {
+            if (
+                typeof packageMetadata.sourceSha256 === 'string' &&
+                SHA256_PATTERN.test(packageMetadata.sourceSha256) &&
+                packageMetadata.sourceSha256 !== pinnedPackage.expectedSha256
+            ) {
+                errors.push(
+                    `Linux runtime manifest ${label}.sourceSha256 must equal the pinned digest.`
+                );
+            }
+            if (packageMetadata.sourceGitCommit !== undefined) {
+                errors.push(
+                    `Linux runtime manifest ${label} must not include sourceGitCommit.`
+                );
+            }
+            if (packageMetadata.sourceSubmodules !== undefined) {
+                errors.push(
+                    `Linux runtime manifest ${label} must not include sourceSubmodules.`
+                );
+            }
+            continue;
+        }
+
+        if (
+            typeof packageMetadata.sourceGitCommit === 'string' &&
+            GIT_COMMIT_PATTERN.test(packageMetadata.sourceGitCommit) &&
+            packageMetadata.sourceGitCommit !== pinnedPackage.expectedGitCommit
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.sourceGitCommit must equal the pinned commit.`
+            );
+        }
+        if (packageMetadata.sourceSha256 !== undefined) {
+            errors.push(
+                `Linux runtime manifest ${label} must not include sourceSha256.`
+            );
+        }
+        if (
+            !Array.isArray(packageMetadata.sourceSubmodules) ||
+            packageMetadata.sourceSubmodules.length === 0 ||
+            packageMetadata.sourceSubmodules.some(
+                (record) => !isValidSubmoduleRecord(record)
+            ) ||
+            new Set(packageMetadata.sourceSubmodules).size !==
+                packageMetadata.sourceSubmodules.length
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.sourceSubmodules must be a non-empty array of commit-and-path records.`
             );
         }
     }
@@ -273,6 +393,276 @@ function validateRuntimeFiles(errors, runtimeFiles) {
     }
 }
 
+function validateRuntimeTotalBytes(errors, runtimeFiles, runtimeTotalBytes) {
+    const expectedTotal = Array.isArray(runtimeFiles)
+        ? runtimeFiles.reduce(
+              (total, runtimeFile) =>
+                  total +
+                  (isObject(runtimeFile) &&
+                  Number.isInteger(runtimeFile.size) &&
+                  runtimeFile.size > 0
+                      ? runtimeFile.size
+                      : 0),
+              0
+          )
+        : 0;
+    if (
+        !Number.isInteger(runtimeTotalBytes) ||
+        runtimeTotalBytes !== expectedTotal
+    ) {
+        errors.push(
+            `Linux runtime manifest runtimeTotalBytes must equal the sum of runtimeFiles sizes (${expectedTotal}).`
+        );
+    }
+}
+
+function validateRuntimeDependencyClosure(
+    errors,
+    runtimeDependencyClosure,
+    runtimeFiles
+) {
+    if (!isObject(runtimeDependencyClosure)) {
+        errors.push(
+            'Linux runtime manifest runtimeDependencyClosure must be an object.'
+        );
+        return;
+    }
+
+    const runtimeNames = Array.isArray(runtimeFiles)
+        ? runtimeFiles
+              .filter((runtimeFile) => isObject(runtimeFile))
+              .map(({ name }) => name)
+              .filter((name) => typeof name === 'string')
+        : [];
+    const runtimeNameSet = new Set(runtimeNames);
+    const { entries, externalDependencies } = runtimeDependencyClosure;
+
+    if (!Array.isArray(entries)) {
+        errors.push(
+            'Linux runtime manifest runtimeDependencyClosure.entries must contain one record for every runtime file.'
+        );
+        return;
+    }
+
+    const entryNames = new Set();
+    const computedExternalDependencies = new Set();
+    for (const [index, entry] of entries.entries()) {
+        const label = `runtimeDependencyClosure.entries[${index}]`;
+        if (!isObject(entry)) {
+            errors.push(`Linux runtime manifest ${label} must be an object.`);
+            continue;
+        }
+
+        if (
+            !isSafeBasename(entry.name) ||
+            !SHARED_LIBRARY_PATTERN.test(entry.name)
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.name must be a safe shared-library basename.`
+            );
+        }
+        if (entryNames.has(entry.name)) {
+            errors.push(
+                `Linux runtime manifest runtimeDependencyClosure.entries contains duplicate name "${String(
+                    entry.name
+                )}".`
+            );
+        } else if (typeof entry.name === 'string') {
+            entryNames.add(entry.name);
+        }
+
+        if (
+            !Array.isArray(entry.needed) ||
+            entry.needed.some(
+                (dependencyName) =>
+                    !isSafeBasename(dependencyName) ||
+                    !SHARED_LIBRARY_PATTERN.test(dependencyName)
+            )
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.needed must be an array of safe shared-library names.`
+            );
+        } else {
+            const neededNames = new Set();
+            for (const dependencyName of entry.needed) {
+                if (neededNames.has(dependencyName)) {
+                    errors.push(
+                        `Linux runtime manifest ${label}.needed contains duplicate name "${dependencyName}".`
+                    );
+                    continue;
+                }
+                neededNames.add(dependencyName);
+                if (runtimeNameSet.has(dependencyName)) {
+                    continue;
+                }
+                if (!ALLOWED_EXTERNAL_LIBRARY_NAMES.has(dependencyName)) {
+                    errors.push(
+                        `Linux runtime manifest dependency ${dependencyName} is not in the deterministic system-library allowlist.`
+                    );
+                    continue;
+                }
+                computedExternalDependencies.add(dependencyName);
+            }
+        }
+
+        if (!Array.isArray(entry.rpath) || entry.rpath.length !== 0) {
+            errors.push(
+                `Linux runtime manifest ${label}.rpath must be an empty array.`
+            );
+        }
+        if (
+            !Array.isArray(entry.runpath) ||
+            entry.runpath.length !== 1 ||
+            entry.runpath[0] !== '$ORIGIN'
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.runpath must contain only "$ORIGIN".`
+            );
+        }
+    }
+
+    if (
+        entries.length !== runtimeNames.length ||
+        runtimeNames.some((name) => !entryNames.has(name)) ||
+        [...entryNames].some((name) => !runtimeNameSet.has(name))
+    ) {
+        errors.push(
+            'Linux runtime manifest runtimeDependencyClosure.entries must contain one record for every runtime file.'
+        );
+    }
+
+    const expectedExternalDependencies = [
+        ...computedExternalDependencies,
+    ].sort();
+    if (
+        !Array.isArray(externalDependencies) ||
+        externalDependencies.some(
+            (dependencyName) =>
+                !isSafeBasename(dependencyName) ||
+                !SHARED_LIBRARY_PATTERN.test(dependencyName)
+        ) ||
+        JSON.stringify(externalDependencies) !==
+            JSON.stringify(expectedExternalDependencies)
+    ) {
+        errors.push(
+            'Linux runtime manifest runtimeDependencyClosure.externalDependencies must exactly match the sorted allowlisted external dependency set.'
+        );
+    }
+}
+
+function validateExternalSystemLibraries(errors, externalSystemLibraries) {
+    const expectedKeys = ['interface', 'name', 'reason'];
+    const matchesDeterministicAllowlist =
+        Array.isArray(externalSystemLibraries) &&
+        externalSystemLibraries.length === EXTERNAL_SYSTEM_LIBRARIES.length &&
+        externalSystemLibraries.every((externalLibrary, index) => {
+            if (!isObject(externalLibrary)) {
+                return false;
+            }
+            const actualKeys = Object.keys(externalLibrary).sort();
+            if (
+                actualKeys.length !== expectedKeys.length ||
+                actualKeys.some(
+                    (key, keyIndex) => key !== expectedKeys[keyIndex]
+                )
+            ) {
+                return false;
+            }
+            const expectedLibrary = EXTERNAL_SYSTEM_LIBRARIES[index];
+            return expectedKeys.every(
+                (key) => externalLibrary[key] === expectedLibrary[key]
+            );
+        });
+    if (!matchesDeterministicAllowlist) {
+        errors.push(
+            'Linux runtime manifest externalSystemLibraries must exactly match the deterministic allowlist.'
+        );
+    }
+}
+
+function validateBuildHost(errors, buildHost) {
+    if (!isObject(buildHost)) {
+        errors.push('Linux runtime manifest buildHost must be an object.');
+        return;
+    }
+    if (buildHost.platform !== 'linux') {
+        errors.push(
+            'Linux runtime manifest buildHost.platform must be "linux".'
+        );
+    }
+    if (buildHost.arch !== 'x64') {
+        errors.push('Linux runtime manifest buildHost.arch must be "x64".');
+    }
+    if (!isNonEmptyString(buildHost.release)) {
+        errors.push(
+            'Linux runtime manifest buildHost.release must be a non-empty string.'
+        );
+    }
+
+    if (
+        !Array.isArray(buildHost.systemPkgConfigDirs) ||
+        buildHost.systemPkgConfigDirs.length === 0 ||
+        buildHost.systemPkgConfigDirs.some(
+            (directory) =>
+                !isNonEmptyString(directory) || !path.isAbsolute(directory)
+        ) ||
+        new Set(buildHost.systemPkgConfigDirs).size !==
+            buildHost.systemPkgConfigDirs.length
+    ) {
+        errors.push(
+            'Linux runtime manifest buildHost.systemPkgConfigDirs must be a non-empty array of unique absolute paths.'
+        );
+    }
+
+    if (!isObject(buildHost.systemPkgConfigPackages)) {
+        errors.push(
+            'Linux runtime manifest buildHost.systemPkgConfigPackages must be an object.'
+        );
+    } else {
+        for (const packageName of EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES) {
+            if (
+                !isNonEmptyString(
+                    buildHost.systemPkgConfigPackages[packageName]
+                )
+            ) {
+                errors.push(
+                    `Linux runtime manifest buildHost.systemPkgConfigPackages.${packageName} must be a non-empty version string.`
+                );
+            }
+        }
+        for (const packageName of Object.keys(
+            buildHost.systemPkgConfigPackages
+        ).sort()) {
+            if (!EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES.includes(packageName)) {
+                errors.push(
+                    `Linux runtime manifest buildHost.systemPkgConfigPackages contains unexpected package "${packageName}".`
+                );
+            }
+        }
+    }
+
+    if (!isObject(buildHost.tools)) {
+        errors.push(
+            'Linux runtime manifest buildHost.tools must be an object.'
+        );
+        return;
+    }
+    for (const tool of REQUIRED_TOOLS) {
+        if (!isNonEmptyString(buildHost.tools[tool])) {
+            errors.push(
+                `Linux runtime manifest buildHost.tools.${tool} must be a non-empty version string.`
+            );
+        }
+    }
+    for (const tool of Object.keys(buildHost.tools).sort()) {
+        if (!REQUIRED_TOOLS.includes(tool)) {
+            errors.push(
+                `Linux runtime manifest buildHost.tools contains unexpected tool "${tool}".`
+            );
+        }
+    }
+}
+
 function validateLinuxRuntimeManifest(manifest) {
     if (!isObject(manifest)) {
         return ['Linux runtime manifest must be an object.'];
@@ -307,6 +697,18 @@ function validateLinuxRuntimeManifest(manifest) {
     }
 
     validateRuntimeFiles(errors, manifest.runtimeFiles);
+    validateRuntimeTotalBytes(
+        errors,
+        manifest.runtimeFiles,
+        manifest.runtimeTotalBytes
+    );
+    validateRuntimeDependencyClosure(
+        errors,
+        manifest.runtimeDependencyClosure,
+        manifest.runtimeFiles
+    );
+    validateExternalSystemLibraries(errors, manifest.externalSystemLibraries);
+    validateBuildHost(errors, manifest.buildHost);
     return errors;
 }
 

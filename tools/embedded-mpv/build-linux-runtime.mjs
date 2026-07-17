@@ -11,15 +11,19 @@ const require = createRequire(import.meta.url);
 const {
     BUILD_RECIPES,
     BUILD_ORDER,
+    EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     MPV_MESON_FLAGS,
     REQUIRED_TOOLS,
     SOURCE_PACKAGES,
+    assertArchiveMatchesPin,
+    assertGitCommitMatchesPin,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
     createRuntimeFileRecords,
     materializeLibrarySymlinks,
     parseCliInvocation,
     parseReadelfDynamic,
+    resolveSystemPkgConfigDirs,
     runtimeLibraryNames,
     sha256Buffer,
     validateRuntimeDependencyClosure,
@@ -166,46 +170,6 @@ function assertSafeOutputPrefix(prefix, buildRoot) {
     }
 }
 
-function resolveSystemPkgConfigDirs(environment) {
-    const explicitDirectories =
-        environment.IPTVNATOR_EMBEDDED_MPV_SYSTEM_PKG_CONFIG_DIRS;
-    if (explicitDirectories) {
-        return [
-            ...new Set(
-                explicitDirectories
-                    .split(path.delimiter)
-                    .map((directory) => directory.trim())
-                    .filter(Boolean)
-                    .map((directory) => path.resolve(directory))
-            ),
-        ];
-    }
-
-    const result = spawnSync(
-        'pkg-config',
-        ['--variable', 'pc_path', 'pkg-config'],
-        {
-            env: environment,
-            encoding: 'utf8',
-            stdio: 'pipe',
-        }
-    );
-    if (result.status !== 0 || !result.stdout.trim()) {
-        throw new Error(
-            'Unable to discover system pkg-config directories. Set IPTVNATOR_EMBEDDED_MPV_SYSTEM_PKG_CONFIG_DIRS explicitly.'
-        );
-    }
-    return [
-        ...new Set(
-            result.stdout
-                .trim()
-                .split(path.delimiter)
-                .filter(Boolean)
-                .map((directory) => path.resolve(directory))
-        ),
-    ];
-}
-
 function archiveExtension(sourceUrl) {
     for (const extension of ['.tar.xz', '.tar.gz', '.tar.bz2', '.tgz']) {
         if (new URL(sourceUrl).pathname.endsWith(extension)) {
@@ -255,6 +219,8 @@ function downloadArchive(sourcePackage, context) {
         fs.renameSync(temporaryArchivePath, archivePath);
     }
 
+    const sourceSha256 = sha256File(archivePath);
+    assertArchiveMatchesPin(sourcePackage, sourceSha256);
     const packageSourcePath = sourcePathFor(
         sourcePackage.id,
         context.sourceRoot
@@ -274,7 +240,7 @@ function downloadArchive(sourcePackage, context) {
 
     return {
         ...sourcePackage,
-        sourceSha256: sha256File(archivePath),
+        sourceSha256,
     };
 }
 
@@ -293,15 +259,16 @@ function cloneGitSource(sourcePackage, context) {
         sourcePackage.sourceUrl,
         packageSourcePath,
     ]);
+    const sourceGitCommit = context.runCapture('git', ['rev-parse', 'HEAD'], {
+        cwd: packageSourcePath,
+    });
+    assertGitCommitMatchesPin(sourcePackage, sourceGitCommit);
     context.run(
         'git',
         ['submodule', 'update', '--init', '--recursive', '--depth', '1'],
         { cwd: packageSourcePath }
     );
 
-    const sourceGitCommit = context.runCapture('git', ['rev-parse', 'HEAD'], {
-        cwd: packageSourcePath,
-    });
     const submoduleOutput = context.runCapture(
         'git',
         ['submodule', 'status', '--recursive'],
@@ -569,14 +536,28 @@ function collectBuildHost(context) {
             context.runCapture(tool, versionArgs[tool] ?? ['--version'])
         );
     }
+    const systemPkgConfigPackages = {};
+    for (const packageName of EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES) {
+        systemPkgConfigPackages[packageName] = context.runCapture(
+            'pkg-config',
+            ['--modversion', packageName]
+        );
+    }
 
     return {
         platform: process.platform,
         arch: process.arch,
         release: os.release(),
         systemPkgConfigDirs: [...context.systemPkgConfigDirs],
+        systemPkgConfigPackages,
         tools,
     };
+}
+
+function verifySystemPkgConfigPackages(context) {
+    for (const packageName of EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES) {
+        context.run('pkg-config', ['--exists', packageName]);
+    }
 }
 
 function writeManifest(context, sourceRecords, runtimeMetadata) {
@@ -652,6 +633,7 @@ export function main({
     fs.mkdirSync(context.buildRoot, { recursive: true });
     fs.rmSync(context.prefix, { recursive: true, force: true });
     fs.mkdirSync(context.prefix, { recursive: true });
+    verifySystemPkgConfigPackages(context);
     const sourceRecords = acquireSources(context);
     buildRuntime(context);
     removeNonRuntimeBuildOutputs(prefix);

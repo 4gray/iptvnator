@@ -12,6 +12,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz',
+            expectedSha256:
+                '0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289',
             license: 'FreeType License (FTL)',
         },
         {
@@ -20,6 +22,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz',
+            expectedSha256:
+                '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
             license: 'LGPL-2.1-or-later',
         },
         {
@@ -28,6 +32,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://github.com/harfbuzz/harfbuzz/releases/download/8.5.0/harfbuzz-8.5.0.tar.xz',
+            expectedSha256:
+                '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
             license: 'MIT',
         },
         {
@@ -36,6 +42,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://github.com/libexpat/libexpat/releases/download/R_2_8_2/expat-2.8.2.tar.xz',
+            expectedSha256:
+                '3ad89b8588e6644bd4e49981480d48b21289eebbcd4f0a1a4afb1c29f99b6ab4',
             license: 'MIT',
         },
         {
@@ -44,6 +52,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.16.0.tar.xz',
+            expectedSha256:
+                '6a33dc555cc9ba8b10caf7695878ef134eeb36d0af366041f639b1da9b6ed220',
             license: 'MIT',
         },
         {
@@ -52,6 +62,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://github.com/libass/libass/releases/download/0.17.3/libass-0.17.3.tar.xz',
+            expectedSha256:
+                'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
             license: 'ISC',
         },
         {
@@ -60,6 +72,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz',
+            expectedSha256:
+                'a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8',
             license: 'Apache-2.0',
         },
         {
@@ -67,6 +81,8 @@ const SOURCE_PACKAGES = Object.freeze(
             version: '8.1',
             sourceKind: 'archive',
             sourceUrl: 'https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz',
+            expectedSha256:
+                'b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a',
             license: 'LGPL-2.1-or-later',
         },
         {
@@ -75,6 +91,7 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'git',
             sourceUrl: 'https://github.com/haasn/libplacebo.git',
             sourceTag: 'v7.360.1',
+            expectedGitCommit: 'cee9b076f2c63104ccfd497fa79c39a867293ec4',
             license: 'LGPL-2.1-or-later',
         },
         {
@@ -83,6 +100,8 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceKind: 'archive',
             sourceUrl:
                 'https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz',
+            expectedSha256:
+                'ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209',
             license: 'LGPL-2.1-or-later with -Dgpl=false',
         },
     ].map((sourcePackage) => Object.freeze(sourcePackage))
@@ -375,6 +394,23 @@ const REQUIRED_TOOLS = Object.freeze([
     'tar',
 ]);
 
+const DEFAULT_SYSTEM_PKG_CONFIG_DIRS = Object.freeze([
+    '/usr/lib/x86_64-linux-gnu/pkgconfig',
+    '/usr/lib64/pkgconfig',
+    '/usr/lib/pkgconfig',
+    '/usr/share/pkgconfig',
+]);
+
+const EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES = Object.freeze([
+    'alsa',
+    'egl',
+    'gbm',
+    'gl',
+    'libpulse',
+    'libva',
+    'libva-drm',
+]);
+
 const GLIBC_TOOLCHAIN_ALLOWLIST = Object.freeze([
     'ld-linux-x86-64.so.2',
     'libc.so.6',
@@ -451,8 +487,48 @@ const allowedExternalLibraryNames = new Set([
     ...externalSystemLibraryNames,
 ]);
 
+function assertArchiveMatchesPin(sourcePackage, actualSha256) {
+    if (actualSha256 !== sourcePackage.expectedSha256) {
+        throw new Error(
+            `${sourcePackage.id} archive SHA-256 mismatch: expected ${sourcePackage.expectedSha256}, received ${actualSha256}.`
+        );
+    }
+}
+
+function assertGitCommitMatchesPin(sourcePackage, actualGitCommit) {
+    if (actualGitCommit !== sourcePackage.expectedGitCommit) {
+        throw new Error(
+            `${sourcePackage.id} git commit mismatch: expected ${sourcePackage.expectedGitCommit}, received ${actualGitCommit}.`
+        );
+    }
+}
+
 function joinEnvironmentParts(parts, separator = ' ') {
     return parts.filter((value) => value && value.trim()).join(separator);
+}
+
+function resolveSystemPkgConfigDirs(environment = {}) {
+    const explicitDirectories =
+        environment.IPTVNATOR_EMBEDDED_MPV_SYSTEM_PKG_CONFIG_DIRS;
+    if (!explicitDirectories) {
+        return [...DEFAULT_SYSTEM_PKG_CONFIG_DIRS];
+    }
+
+    const directories = explicitDirectories
+        .split(path.delimiter)
+        .map((directory) => directory.trim())
+        .filter(Boolean);
+    if (
+        directories.length === 0 ||
+        directories.some((directory) => !path.isAbsolute(directory))
+    ) {
+        throw new Error(
+            'IPTVNATOR_EMBEDDED_MPV_SYSTEM_PKG_CONFIG_DIRS must contain only absolute paths.'
+        );
+    }
+    return [
+        ...new Set(directories.map((directory) => path.normalize(directory))),
+    ];
 }
 
 function createBuildEnvironment({
@@ -471,9 +547,31 @@ function createBuildEnvironment({
         ]),
     ];
     const prefixLibDir = path.join(prefix, 'lib');
+    const ignoredVariables = new Set([
+        'CFLAGS',
+        'CPPFLAGS',
+        'CXXFLAGS',
+        'LDFLAGS',
+        'LD_LIBRARY_PATH',
+        'LIBRARY_PATH',
+        'CPATH',
+        'C_INCLUDE_PATH',
+        'CPLUS_INCLUDE_PATH',
+        'CMAKE_PREFIX_PATH',
+        'CMAKE_LIBRARY_PATH',
+        'CMAKE_INCLUDE_PATH',
+        'FONTCONFIG_PATH',
+        'OPENSSL_MODULES',
+    ]);
+    const inheritedEnvironment = Object.fromEntries(
+        Object.entries(baseEnv).filter(
+            ([name]) =>
+                !ignoredVariables.has(name) && !name.startsWith('PKG_CONFIG')
+        )
+    );
 
     return {
-        ...baseEnv,
+        ...inheritedEnvironment,
         PATH: joinEnvironmentParts(
             [path.join(prefix, 'bin'), baseEnv.PATH],
             path.delimiter
@@ -481,29 +579,20 @@ function createBuildEnvironment({
         PKG_CONFIG_PATH: prefixPkgConfigDirs.join(path.delimiter),
         PKG_CONFIG_LIBDIR: pkgConfigLibDirs.join(path.delimiter),
         CMAKE_PREFIX_PATH: prefix,
-        CPPFLAGS: joinEnvironmentParts([
-            `-I${path.join(prefix, 'include')}`,
-            baseEnv.CPPFLAGS,
-        ]),
+        CPPFLAGS: `-I${path.join(prefix, 'include')}`,
         CFLAGS: joinEnvironmentParts([
             '-fPIC',
             `-I${path.join(prefix, 'include')}`,
-            baseEnv.CFLAGS,
         ]),
         CXXFLAGS: joinEnvironmentParts([
             '-fPIC',
             `-I${path.join(prefix, 'include')}`,
-            baseEnv.CXXFLAGS,
         ]),
         LDFLAGS: joinEnvironmentParts([
             `-L${prefixLibDir}`,
             `-Wl,-rpath-link,${prefixLibDir}`,
-            baseEnv.LDFLAGS,
         ]),
-        LD_LIBRARY_PATH: joinEnvironmentParts(
-            [prefixLibDir, baseEnv.LD_LIBRARY_PATH],
-            path.delimiter
-        ),
+        LD_LIBRARY_PATH: prefixLibDir,
         FONTCONFIG_PATH: path.join(prefix, 'etc', 'fonts'),
         OPENSSL_MODULES: path.join(prefixLibDir, 'ossl-modules'),
     };
@@ -768,6 +857,14 @@ function createLinuxRuntimeManifest({
         if (!sourceRecord) {
             throw new Error(`Missing source metadata for ${sourcePackage.id}.`);
         }
+        if (sourcePackage.sourceKind === 'archive') {
+            assertArchiveMatchesPin(sourcePackage, sourceRecord.sourceSha256);
+        } else {
+            assertGitCommitMatchesPin(
+                sourcePackage,
+                sourceRecord.sourceGitCommit
+            );
+        }
         packages[sourcePackage.id] = sourceManifestMetadata(sourceRecord);
     }
 
@@ -817,18 +914,23 @@ function createLinuxRuntimeManifest({
 module.exports = {
     BUILD_RECIPES,
     BUILD_ORDER,
+    DEFAULT_SYSTEM_PKG_CONFIG_DIRS,
     EXTERNAL_SYSTEM_LIBRARIES,
+    EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     FFMPEG_CONFIGURE_FLAGS,
     GLIBC_TOOLCHAIN_ALLOWLIST,
     MPV_MESON_FLAGS,
     REQUIRED_TOOLS,
     SOURCE_PACKAGES,
+    assertArchiveMatchesPin,
+    assertGitCommitMatchesPin,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
     createRuntimeFileRecords,
     materializeLibrarySymlinks,
     parseCliInvocation,
     parseReadelfDynamic,
+    resolveSystemPkgConfigDirs,
     runtimeLibraryNames,
     sha256Buffer,
     validateRuntimeDependencyClosure,

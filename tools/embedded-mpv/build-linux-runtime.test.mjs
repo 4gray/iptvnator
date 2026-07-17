@@ -15,23 +15,49 @@ const require = createRequire(import.meta.url);
 const {
     BUILD_RECIPES,
     BUILD_ORDER,
+    DEFAULT_SYSTEM_PKG_CONFIG_DIRS,
     EXTERNAL_SYSTEM_LIBRARIES,
+    EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     FFMPEG_CONFIGURE_FLAGS,
     GLIBC_TOOLCHAIN_ALLOWLIST,
     MPV_MESON_FLAGS,
     REQUIRED_TOOLS,
     SOURCE_PACKAGES,
+    assertArchiveMatchesPin,
+    assertGitCommitMatchesPin,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
     createRuntimeFileRecords,
     materializeLibrarySymlinks,
     parseCliInvocation,
     parseReadelfDynamic,
+    resolveSystemPkgConfigDirs,
     validateRuntimeDependencyClosure,
 } = require('./build-linux-runtime.cjs');
 const {
     validateLinuxRuntimeManifest,
 } = require('./linux-runtime-manifest.cjs');
+
+function createPinnedSourceRecords() {
+    return Object.fromEntries(
+        SOURCE_PACKAGES.map((sourcePackage) => [
+            sourcePackage.id,
+            {
+                ...sourcePackage,
+                ...(sourcePackage.sourceKind === 'git'
+                    ? {
+                          sourceGitCommit: sourcePackage.expectedGitCommit,
+                          sourceSubmodules: [
+                              `${'a'.repeat(40)} 3rdparty/example`,
+                          ],
+                      }
+                    : {
+                          sourceSha256: sourcePackage.expectedSha256,
+                      }),
+            },
+        ])
+    );
+}
 
 test('provides the Linux source runtime builder entrypoint and helpers', () => {
     assert.equal(fs.existsSync(builderScript), true);
@@ -90,6 +116,109 @@ test('pins the complete source stack and preserves dependency build order', () =
     );
 });
 
+test('hardcodes the verified official archive digests and libplacebo commit', () => {
+    const expectedArchivePins = {
+        expat: '3ad89b8588e6644bd4e49981480d48b21289eebbcd4f0a1a4afb1c29f99b6ab4',
+        ffmpeg: 'b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a',
+        fontconfig:
+            '6a33dc555cc9ba8b10caf7695878ef134eeb36d0af366041f639b1da9b6ed220',
+        freetype:
+            '0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289',
+        fribidi:
+            '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
+        harfbuzz:
+            '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
+        libass: 'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
+        mpv: 'ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209',
+        openssl:
+            'a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8',
+    };
+    assert.deepEqual(
+        Object.fromEntries(
+            SOURCE_PACKAGES.filter(({ sourceKind }) => sourceKind === 'archive')
+                .map(({ id, expectedSha256 }) => [id, expectedSha256])
+                .sort(([left], [right]) => left.localeCompare(right))
+        ),
+        expectedArchivePins
+    );
+    assert.equal(
+        SOURCE_PACKAGES.find(({ id }) => id === 'libplacebo').expectedGitCommit,
+        'cee9b076f2c63104ccfd497fa79c39a867293ec4'
+    );
+});
+
+test('rejects archive and git sources that differ from immutable pins', () => {
+    const freetype = SOURCE_PACKAGES.find(({ id }) => id === 'freetype');
+    assert.doesNotThrow(() =>
+        assertArchiveMatchesPin(freetype, freetype.expectedSha256)
+    );
+    assert.throws(
+        () => assertArchiveMatchesPin(freetype, '0'.repeat(64)),
+        /freetype.*SHA-256 mismatch.*expected 055035.*received 000000/i
+    );
+
+    const libplacebo = SOURCE_PACKAGES.find(({ id }) => id === 'libplacebo');
+    assert.doesNotThrow(() =>
+        assertGitCommitMatchesPin(libplacebo, libplacebo.expectedGitCommit)
+    );
+    assert.throws(
+        () => assertGitCommitMatchesPin(libplacebo, '0'.repeat(40)),
+        /libplacebo.*commit mismatch.*expected cee9b.*received 000000/i
+    );
+});
+
+test('verifies source pins before archive extraction or git submodules', () => {
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    assert.ok(
+        builderSource.indexOf(
+            'assertArchiveMatchesPin(sourcePackage, sourceSha256)'
+        ) < builderSource.indexOf("context.run('tar'")
+    );
+    assert.ok(
+        builderSource.indexOf(
+            'assertGitCommitMatchesPin(sourcePackage, sourceGitCommit)'
+        ) <
+            builderSource.indexOf(
+                "['submodule', 'update', '--init', '--recursive', '--depth', '1']"
+            )
+    );
+});
+
+test('rejects source metadata that does not match the immutable pins', () => {
+    const sourceRecords = createPinnedSourceRecords();
+    sourceRecords.freetype.sourceSha256 = '0'.repeat(64);
+    assert.throws(
+        () =>
+            createLinuxRuntimeManifest({
+                sourceRecords,
+                runtimeFiles: [
+                    {
+                        name: 'libmpv.so.2',
+                        size: 1,
+                        sha256: 'a'.repeat(64),
+                    },
+                ],
+                dependencyClosure: {
+                    entries: [
+                        {
+                            name: 'libmpv.so.2',
+                            needed: ['libc.so.6'],
+                            rpath: [],
+                            runpath: ['$ORIGIN'],
+                        },
+                    ],
+                    externalDependencies: ['libc.so.6'],
+                },
+                buildHost: {
+                    platform: 'linux',
+                    arch: 'x64',
+                    tools: {},
+                },
+            }),
+        /freetype.*SHA-256 mismatch/i
+    );
+});
+
 test('defines shared-only source recipes with font discovery before playback', () => {
     assert.deepEqual(Object.keys(BUILD_RECIPES), BUILD_ORDER);
     assert.ok(BUILD_RECIPES.freetype.args.includes('--enable-shared'));
@@ -137,13 +266,27 @@ test('defines shared-only source recipes with font discovery before playback', (
     }
 });
 
-test('constructs a prefix-first build environment with only declared system interfaces', () => {
+test('constructs a prefix-only build environment and ignores hostile host flags', () => {
     const environment = createBuildEnvironment({
         prefix: '/opt/runtime',
         baseEnv: {
             PATH: '/usr/bin',
-            CFLAGS: '-O2',
-            LDFLAGS: '-Wl,--as-needed',
+            KEEP_ME: 'benign',
+            CPPFLAGS: '-I/host/include',
+            CFLAGS: '-O0 -march=native',
+            CXXFLAGS: '-stdlib=hostile',
+            LDFLAGS: '-L/host/lib -Wl,--as-needed',
+            LD_LIBRARY_PATH: '/host/runtime',
+            LIBRARY_PATH: '/host/implicit',
+            CPATH: '/host/cpath',
+            C_INCLUDE_PATH: '/host/c-include',
+            CPLUS_INCLUDE_PATH: '/host/cxx-include',
+            CMAKE_PREFIX_PATH: '/host/cmake',
+            PKG_CONFIG_PATH: '/host/pkgconfig',
+            PKG_CONFIG_LIBDIR: '/host/pkgconfig-libdir',
+            PKG_CONFIG_SYSROOT_DIR: '/host/sysroot',
+            FONTCONFIG_PATH: '/host/fonts',
+            OPENSSL_MODULES: '/host/openssl-modules',
         },
         systemPkgConfigDirs: [
             '/usr/lib/x86_64-linux-gnu/pkgconfig',
@@ -165,12 +308,79 @@ test('constructs a prefix-first build environment with only declared system inte
             '/usr/share/pkgconfig',
         ].join(':')
     );
-    assert.match(environment.CPPFLAGS, /-I\/opt\/runtime\/include/);
-    assert.match(environment.CFLAGS, /-fPIC/);
-    assert.match(environment.CFLAGS, /-O2/);
-    assert.match(environment.LDFLAGS, /-L\/opt\/runtime\/lib/);
-    assert.match(environment.LDFLAGS, /-Wl,--as-needed/);
+    assert.equal(environment.CPPFLAGS, '-I/opt/runtime/include');
+    assert.equal(environment.CFLAGS, '-fPIC -I/opt/runtime/include');
+    assert.equal(environment.CXXFLAGS, '-fPIC -I/opt/runtime/include');
+    assert.equal(
+        environment.LDFLAGS,
+        '-L/opt/runtime/lib -Wl,-rpath-link,/opt/runtime/lib'
+    );
     assert.equal(environment.LD_LIBRARY_PATH, '/opt/runtime/lib');
+    assert.equal(environment.CMAKE_PREFIX_PATH, '/opt/runtime');
+    assert.equal(environment.KEEP_ME, 'benign');
+    for (const variable of [
+        'LIBRARY_PATH',
+        'CPATH',
+        'C_INCLUDE_PATH',
+        'CPLUS_INCLUDE_PATH',
+        'PKG_CONFIG_SYSROOT_DIR',
+    ]) {
+        assert.equal(environment[variable], undefined, variable);
+    }
+    assert.doesNotMatch(JSON.stringify(environment), /\/host\//);
+});
+
+test('uses fixed Linux x64 pkg-config directories without host discovery', () => {
+    assert.deepEqual(DEFAULT_SYSTEM_PKG_CONFIG_DIRS, [
+        '/usr/lib/x86_64-linux-gnu/pkgconfig',
+        '/usr/lib64/pkgconfig',
+        '/usr/lib/pkgconfig',
+        '/usr/share/pkgconfig',
+    ]);
+    assert.deepEqual(
+        resolveSystemPkgConfigDirs({}),
+        DEFAULT_SYSTEM_PKG_CONFIG_DIRS
+    );
+    assert.deepEqual(
+        resolveSystemPkgConfigDirs({
+            IPTVNATOR_EMBEDDED_MPV_SYSTEM_PKG_CONFIG_DIRS:
+                '/opt/interfaces/pkgconfig:/usr/share/pkgconfig:/opt/interfaces/pkgconfig',
+        }),
+        ['/opt/interfaces/pkgconfig', '/usr/share/pkgconfig']
+    );
+    assert.throws(
+        () =>
+            resolveSystemPkgConfigDirs({
+                IPTVNATOR_EMBEDDED_MPV_SYSTEM_PKG_CONFIG_DIRS:
+                    'relative/pkgconfig',
+            }),
+        /must contain only absolute paths/
+    );
+
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    assert.doesNotMatch(builderSource, /--variable['"],\s*['"]pc_path/);
+});
+
+test('declares only the intended Linux system interface packages', () => {
+    assert.deepEqual(EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES, [
+        'alsa',
+        'egl',
+        'gbm',
+        'gl',
+        'libpulse',
+        'libva',
+        'libva-drm',
+    ]);
+
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    assert.match(
+        builderSource,
+        /pkg-config['"],\s*\[['"]--exists['"],\s*packageName\]/
+    );
+    assert.match(
+        builderSource,
+        /pkg-config['"],\s*\[['"]--modversion['"],\s*packageName\]/
+    );
 });
 
 test('requires ELF patching and inspection tools in addition to the build toolchain', () => {
@@ -534,26 +744,7 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
     fs.writeFileSync(path.join(libDir, 'libavcodec.so.62'), 'avcodec');
     fs.writeFileSync(path.join(libDir, 'libmpv.so.2'), 'mpv');
     const runtimeFiles = createRuntimeFileRecords(libDir);
-    const sourceRecords = Object.fromEntries(
-        SOURCE_PACKAGES.map((sourcePackage, index) => [
-            sourcePackage.id,
-            {
-                ...sourcePackage,
-                ...(sourcePackage.sourceKind === 'git'
-                    ? {
-                          sourceGitCommit: String(index + 1)
-                              .repeat(40)
-                              .slice(0, 40),
-                          sourceSubmodules: [
-                              `${String(index + 2)
-                                  .repeat(40)
-                                  .slice(0, 40)} 3rdparty/example`,
-                          ],
-                      }
-                    : { sourceSha256: String(index).repeat(64).slice(0, 64) }),
-            },
-        ])
-    );
+    const sourceRecords = createPinnedSourceRecords();
     const manifest = createLinuxRuntimeManifest({
         sourceRecords,
         runtimeFiles,
@@ -578,13 +769,16 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
             platform: 'linux',
             arch: 'x64',
             release: 'fixture-kernel',
-            tools: {
-                cc: 'cc fixture',
-                meson: '1.7.0',
-                ninja: '1.12.1',
-                patchelf: '0.18.0',
-                readelf: 'GNU readelf fixture',
-            },
+            systemPkgConfigDirs: [...DEFAULT_SYSTEM_PKG_CONFIG_DIRS],
+            systemPkgConfigPackages: Object.fromEntries(
+                EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES.map((packageName) => [
+                    packageName,
+                    `${packageName} fixture version`,
+                ])
+            ),
+            tools: Object.fromEntries(
+                REQUIRED_TOOLS.map((tool) => [tool, `${tool} fixture version`])
+            ),
         },
         generatedAt: '2026-07-17T00:00:00.000Z',
     });
@@ -601,6 +795,22 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
     assert.deepEqual(
         manifest.externalSystemLibraries,
         EXTERNAL_SYSTEM_LIBRARIES
+    );
+    assert.deepEqual(
+        Object.keys(manifest.buildHost.systemPkgConfigPackages),
+        EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES
+    );
+    for (const sourcePackage of SOURCE_PACKAGES) {
+        if (sourcePackage.sourceKind === 'archive') {
+            assert.equal(
+                manifest.packages[sourcePackage.id].sourceSha256,
+                sourcePackage.expectedSha256
+            );
+        }
+    }
+    assert.equal(
+        manifest.packages.libplacebo.sourceGitCommit,
+        SOURCE_PACKAGES.find(({ id }) => id === 'libplacebo').expectedGitCommit
     );
     assert.doesNotMatch(manifest.sourceDistribution, /TBD|TODO/i);
     assert.match(manifest.sourceDistribution, /source archives/i);
