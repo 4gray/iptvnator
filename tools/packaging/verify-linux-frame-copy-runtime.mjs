@@ -28,6 +28,7 @@ function defaultRunCommand(command, args, options = {}) {
         encoding: 'utf8',
         stdio: 'pipe',
         timeout: options.timeout,
+        killSignal: options.killSignal,
         windowsHide: true,
     });
 }
@@ -321,6 +322,188 @@ export function findExtractedResourceDir(extractionRoot) {
         );
     }
     return candidates[0];
+}
+
+function yamlMappingEntries(lines, key, indent, start = 0, end = lines.length) {
+    const prefix = `${' '.repeat(indent)}${key}:`;
+    return lines
+        .map((line, index) => ({ index, line }))
+        .filter(
+            ({ index, line }) =>
+                index >= start &&
+                index < end &&
+                line.startsWith(prefix) &&
+                line.slice(prefix.length).match(/^(?:\s|$)/) &&
+                line.length - line.trimStart().length === indent
+        )
+        .map(({ index, line }) => {
+            let blockEnd = end;
+            for (
+                let candidateIndex = index + 1;
+                candidateIndex < end;
+                candidateIndex += 1
+            ) {
+                const candidate = lines[candidateIndex];
+                if (!candidate.trim() || candidate.trimStart().startsWith('#')) {
+                    continue;
+                }
+                const candidateIndent =
+                    candidate.length - candidate.trimStart().length;
+                if (candidateIndent <= indent) {
+                    blockEnd = candidateIndex;
+                    break;
+                }
+            }
+            return {
+                index,
+                end: blockEnd,
+                value: line.slice(prefix.length).trim(),
+            };
+        });
+}
+
+function singleYamlMappingEntry(lines, key, indent, start, end) {
+    const entries = yamlMappingEntries(lines, key, indent, start, end);
+    return entries.length === 1 ? entries[0] : null;
+}
+
+function yamlScalarEquals(value, expected) {
+    return (
+        value === expected ||
+        value === JSON.stringify(expected) ||
+        value === `'${expected.replaceAll("'", "''")}'`
+    );
+}
+
+function yamlSequenceIncludes(lines, entry, expected) {
+    if (entry.value) {
+        if (!entry.value.startsWith('[') || !entry.value.endsWith(']')) {
+            return false;
+        }
+        return entry.value
+            .slice(1, -1)
+            .split(',')
+            .map((value) => value.trim())
+            .some((value) => yamlScalarEquals(value, expected));
+    }
+    return lines
+        .slice(entry.index + 1, entry.end)
+        .some((line) =>
+            yamlScalarEquals(line.trim().replace(/^-\s*/, ''), expected)
+        );
+}
+
+export function validateExtractedSnapMetadata(extractionRoot) {
+    const snapYamlPath = path.join(extractionRoot, 'meta', 'snap.yaml');
+    let stat;
+    try {
+        stat = fs.lstatSync(snapYamlPath);
+    } catch {
+        return [`Missing extracted Snap metadata: ${snapYamlPath}`];
+    }
+    if (!stat.isFile() || stat.isSymbolicLink()) {
+        return [`Extracted Snap metadata must be a regular file: ${snapYamlPath}`];
+    }
+
+    let contents;
+    try {
+        contents = fs.readFileSync(snapYamlPath, 'utf8');
+    } catch (error) {
+        return [
+            `Unable to read extracted Snap metadata at ${snapYamlPath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`,
+        ];
+    }
+    if (contents.includes('\t')) {
+        return [
+            `Extracted Snap metadata must use space indentation: ${snapYamlPath}`,
+        ];
+    }
+    const lines = contents.split(/\r?\n/);
+    const errors = [];
+    const plugs = singleYamlMappingEntry(
+        lines,
+        'plugs',
+        0,
+        0,
+        lines.length
+    );
+    const sharedMemory =
+        plugs &&
+        singleYamlMappingEntry(
+            lines,
+            'shared-memory',
+            2,
+            plugs.index + 1,
+            plugs.end
+        );
+    if (!plugs || plugs.value || !sharedMemory || sharedMemory.value) {
+        errors.push(
+            'Extracted Snap metadata must declare exactly one top-level shared-memory plug.'
+        );
+    } else {
+        const interfaceEntry = singleYamlMappingEntry(
+            lines,
+            'interface',
+            4,
+            sharedMemory.index + 1,
+            sharedMemory.end
+        );
+        const privateEntry = singleYamlMappingEntry(
+            lines,
+            'private',
+            4,
+            sharedMemory.index + 1,
+            sharedMemory.end
+        );
+        if (
+            !interfaceEntry ||
+            !yamlScalarEquals(interfaceEntry.value, 'shared-memory')
+        ) {
+            errors.push(
+                'Extracted Snap top-level shared-memory plug must declare interface: shared-memory.'
+            );
+        }
+        if (!privateEntry || privateEntry.value !== 'true') {
+            errors.push(
+                'Extracted Snap top-level shared-memory plug must declare private: true.'
+            );
+        }
+    }
+
+    const apps = singleYamlMappingEntry(lines, 'apps', 0, 0, lines.length);
+    const app =
+        apps &&
+        singleYamlMappingEntry(
+            lines,
+            'iptvnator',
+            2,
+            apps.index + 1,
+            apps.end
+        );
+    const appPlugs =
+        app &&
+        singleYamlMappingEntry(
+            lines,
+            'plugs',
+            4,
+            app.index + 1,
+            app.end
+        );
+    if (
+        !apps ||
+        apps.value ||
+        !app ||
+        app.value ||
+        !appPlugs ||
+        !yamlSequenceIncludes(lines, appPlugs, 'shared-memory')
+    ) {
+        errors.push(
+            'Extracted Snap iptvnator app must use the shared-memory plug.'
+        );
+    }
+    return errors;
 }
 
 export function readElfArchitecture(binaryPath) {
@@ -792,6 +975,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
         {
             encoding: 'utf8',
             env: probeEnvironment,
+            killSignal: 'SIGKILL',
             timeout: RUNTIME_PROBE_TIMEOUT_MS,
             windowsHide: true,
         }
@@ -837,6 +1021,18 @@ export function verifyLinuxFrameCopyArtifact({
             destination: extractionDestination,
             runCommand,
         });
+        if (format === 'snap') {
+            const snapMetadataErrors =
+                validateExtractedSnapMetadata(extractionRoot);
+            if (snapMetadataErrors.length > 0) {
+                throw new Error(
+                    [
+                        `Linux frame-copy package verification failed for ${resolvedArtifactPath}:`,
+                        ...snapMetadataErrors.map((error) => `- ${error}`),
+                    ].join('\n')
+                );
+            }
+        }
         const resourceDir = findExtractedResourceDir(extractionRoot);
         const metadata = metadataReader({
             artifactPath: resolvedArtifactPath,

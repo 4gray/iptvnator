@@ -14,6 +14,7 @@ import {
     readLinuxArtifactMetadata,
     readElfArchitecture,
     validateSystemPackageDependencies,
+    validateExtractedSnapMetadata,
     verifyExtractedLinuxFrameCopyRuntime,
     verifyLinuxFrameCopyArtifact,
 } from './verify-linux-frame-copy-runtime.mjs';
@@ -513,8 +514,189 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             path.join(fixture.nativeDir, 'iptvnator_mpv_helper')
         );
         assert.deepEqual(probeCalls[0].args, ['--runtime-probe']);
-        assert.equal(probeCalls[0].options.timeout, 3000);
-        assert.deepEqual(probeCalls[0].options.env, { PATH: '/usr/bin' });
+        assert.deepEqual(probeCalls[0].options, {
+            encoding: 'utf8',
+            env: { PATH: '/usr/bin' },
+            killSignal: 'SIGKILL',
+            timeout: 3000,
+            windowsHide: true,
+        });
+    } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test('rejects helper probes terminated by a signal or hard timeout', () => {
+    for (const probeResult of [
+        {
+            status: null,
+            signal: 'SIGKILL',
+            stdout: '',
+            stderr: '',
+        },
+        {
+            error: Object.assign(new Error('spawnSync helper ETIMEDOUT'), {
+                code: 'ETIMEDOUT',
+            }),
+            status: null,
+            signal: 'SIGKILL',
+            stdout: '',
+            stderr: '',
+        },
+    ]) {
+        const fixture = createSystemPayload();
+        try {
+            const errors = verifyExtractedLinuxFrameCopyRuntime({
+                resourceDir: fixture.resourceDir,
+                artifactFormat: 'deb',
+                profileName: 'system',
+                packageDependencies: ['libmpv2'],
+                elfInspector: validElfInspector,
+                probeRunner() {
+                    return probeResult;
+                },
+            });
+            assert.match(
+                errors.join('\n'),
+                /(?:runtime probe terminated by signal SIGKILL|Unable to execute .*ETIMEDOUT)/
+            );
+        } finally {
+            fs.rmSync(fixture.root, { recursive: true, force: true });
+        }
+    }
+});
+
+test('requires a private top-level shared-memory plug used by the Snap app', () => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-verifier-snap-metadata-')
+    );
+    const snapYamlPath = path.join(root, 'meta', 'snap.yaml');
+    fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+
+    const validSnapYaml = [
+        'name: iptvnator',
+        'apps:',
+        '  iptvnator:',
+        '    command: iptvnator',
+        '    plugs:',
+        '      - desktop',
+        '      - shared-memory',
+        'plugs:',
+        '  shared-memory:',
+        '    interface: shared-memory',
+        '    private: true',
+        '',
+    ].join('\n');
+
+    try {
+        fs.writeFileSync(snapYamlPath, validSnapYaml);
+        assert.deepEqual(validateExtractedSnapMetadata(root), []);
+
+        for (const [mutate, expected] of [
+            [
+                (contents) =>
+                    contents.replace('    private: true', '    private: false'),
+                /private: true/,
+            ],
+            [
+                (contents) =>
+                    contents.replace('      - shared-memory\n', ''),
+                /app.*shared-memory plug/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '  shared-memory:\n    interface: shared-memory\n    private: true\n',
+                        ''
+                    ),
+                /top-level shared-memory plug/i,
+            ],
+        ]) {
+            fs.writeFileSync(snapYamlPath, mutate(validSnapYaml));
+            assert.match(
+                validateExtractedSnapMetadata(root).join('\n'),
+                expected
+            );
+        }
+
+        fs.rmSync(snapYamlPath);
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /Missing extracted Snap metadata/
+        );
+
+        fs.writeFileSync(path.join(root, 'outside.yaml'), validSnapYaml);
+        fs.symlinkSync(
+            path.join(root, 'outside.yaml'),
+            snapYamlPath,
+            process.platform === 'win32' ? 'file' : undefined
+        );
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /regular file/
+        );
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
+test('artifact verification rejects Snap metadata before accepting its payload', () => {
+    const fixture = createSystemPayload();
+    const artifactPath = path.join(fixture.root, 'package.snap');
+    const snapYamlPath = path.join(fixture.root, 'meta', 'snap.yaml');
+    fs.writeFileSync(artifactPath, 'fixture');
+    fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+    fs.writeFileSync(
+        snapYamlPath,
+        [
+            'name: iptvnator',
+            'apps:',
+            '  iptvnator:',
+            '    command: iptvnator',
+            '    plugs:',
+            '      - desktop',
+            'plugs:',
+            '  shared-memory:',
+            '    interface: shared-memory',
+            '    private: true',
+            '',
+        ].join('\n')
+    );
+    let payloadVerifierCalls = 0;
+
+    const verify = () =>
+        verifyLinuxFrameCopyArtifact({
+            artifactPath,
+            profileName: 'portable',
+            extractArtifact() {
+                return fixture.root;
+            },
+            metadataReader() {
+                return { declaredArch: 'x64', dependencies: [] };
+            },
+            payloadVerifier() {
+                payloadVerifierCalls += 1;
+                return [];
+            },
+        });
+
+    try {
+        assert.throws(verify, /app.*shared-memory plug/i);
+        assert.equal(payloadVerifierCalls, 0);
+
+        fs.writeFileSync(
+            snapYamlPath,
+            fs
+                .readFileSync(snapYamlPath, 'utf8')
+                .replace('      - desktop\n', '      - shared-memory\n')
+        );
+        assert.deepEqual(verify(), {
+            artifactPath,
+            format: 'snap',
+            profileName: 'portable',
+            architecture: 'x64',
+        });
+        assert.equal(payloadVerifierCalls, 1);
     } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });
     }
