@@ -617,6 +617,48 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
+    it('requires a validated bundled source runtime for required Linux builds', () => {
+        expect(buildScriptSource).toContain(
+            "sourceRuntimeValidated: buildInputMode === 'bundled-runtime'"
+        );
+        expect(buildScriptSource).toContain(
+            'assertRequiredLinuxFrameCopyRuntime(runtime);'
+        );
+        expect(buildScriptSource).toContain(
+            "runtime.buildInputMode !== 'bundled-runtime' ||"
+        );
+        expect(buildScriptSource).toContain(
+            'runtime.sourceRuntimeValidated !== true'
+        );
+        expect(buildScriptSource).toContain("runtimeFile.name === 'libmpv.so'");
+        expect(buildScriptSource).toContain(
+            'Required Linux builds must use the validated bundled source runtime containing staged libmpv.'
+        );
+    });
+
+    it('derives packaged Linux libmpv identity from the validated runtime', () => {
+        expect(buildScriptSource).toContain(
+            'function deriveLinuxLibMpvSoname(runtime)'
+        );
+        expect(buildScriptSource).toContain(
+            'runtime.sourceRuntimeManifest.runtimeFiles'
+        );
+        expect(buildScriptSource).toContain('VERSIONED_LINUX_LIBMPV_PATTERN');
+        expect(buildScriptSource).toContain('libmpvSoname,');
+        expect(buildScriptSource).not.toContain("libmpvSoname: 'libmpv.so.2'");
+    });
+
+    it('marks both package modes available only for a validated bundled build', () => {
+        expect(buildScriptSource).toContain(
+            'runtime.sourceRuntimeValidated === true &&\n' +
+                "        runtime.buildInputMode === 'bundled-runtime' &&\n" +
+                '        copiedRuntimeFiles.length > 0 &&\n' +
+                '        libmpvSoname !== null'
+        );
+        expect(buildScriptSource).toContain('system: packageRuntimeAvailable');
+        expect(buildScriptSource).toContain('bundled: packageRuntimeAvailable');
+    });
+
     it('uses platform-specific embedded MPV runtime cache key inputs in CI', () => {
         expect(buildAndMakeWorkflowSource).toContain(
             "const targetPlatform = '${{ matrix.embedded_mpv_platform }}';"
@@ -672,7 +714,7 @@ describe('Embedded MPV native source recording invariants', () => {
             "if (!embeddedMpvRequired && runtime.origin === 'system-dev')"
         );
         expect(buildScriptSource).toContain(
-            'Required Linux builds must use an explicit staged runtime manifest.'
+            'Required Linux builds must use the validated bundled source runtime containing staged libmpv.'
         );
         expect(buildScriptSource).toContain(
             'removeStaleFrameCopyArtifacts(outputDir);'
@@ -858,14 +900,14 @@ describe('Embedded MPV native build configuration', () => {
         expect(linuxAddonConfig?.libraries).not.toContain('-lmpv');
         expect(JSON.stringify(linuxAddonConfig)).not.toContain('-lmpv');
         expect(linuxHelperConfig?.libraries).toEqual(
-            expect.arrayContaining([
-                '-lmpv',
-                '-lEGL',
-                '-lOpenGL',
-                '-lgbm',
-                '-ldl',
-            ])
+            expect.arrayContaining(['-lEGL', '-lOpenGL', '-lgbm', '-ldl'])
         );
+        expect(linuxHelperConfig?.libraries).not.toContain('-lmpv');
+        expect(
+            linuxHelperConfig?.libraries.find((library: string) =>
+                library.includes("path.join(dir, 'libmpv.so')")
+            )
+        ).toContain('LINUX_NATIVE_LIBRARY_DIR');
 
         const runtimeLinkerFlags = linuxHelperConfig?.ldflags.filter(
             (flag: string) => flag.startsWith('-Wl,')

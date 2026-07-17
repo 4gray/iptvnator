@@ -20,6 +20,7 @@ const {
 const LINUX_PACKAGE_RUNTIME_MODES = Object.freeze(['system', 'bundled']);
 const LINUX_STAGED_RUNTIME_ORIGIN = 'vendored-lgpl';
 const LINUX_SOURCE_RUNTIME_ORIGIN = 'vendored-lgpl-source-build';
+const VERSIONED_LINUX_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 
 const workspaceRoot = process.cwd();
 const addonRoot = path.join(
@@ -233,7 +234,7 @@ function validatedLinuxSourceRuntime(runtimeRoot) {
     return {
         buildInputMode,
         sourceRuntimeManifest,
-        sourceRuntimeValidated: true,
+        sourceRuntimeValidated: buildInputMode === 'bundled-runtime',
     };
 }
 
@@ -381,12 +382,6 @@ function resolveRuntime() {
         const systemIncludeDir =
             process.env.LIBMPV_INCLUDE_DIR || '/usr/include';
         if (fs.existsSync(path.join(systemIncludeDir, 'mpv', 'client.h'))) {
-            if (embeddedMpvRequired) {
-                throw new Error(
-                    'Required Linux builds must use an explicit staged runtime manifest.'
-                );
-            }
-
             const sourceRuntimeManifest = {
                 linuxBackend: 'process-isolated mpv --wid',
                 warning: 'Development-only unmanaged system libmpv toolchain.',
@@ -429,6 +424,61 @@ function resolveRuntime() {
     }
 
     return null;
+}
+
+function hasStagedLinuxLibMpvLinkerInput(runtime) {
+    return (
+        Array.isArray(runtime.sourceRuntimeManifest?.runtimeFiles) &&
+        runtime.sourceRuntimeManifest.runtimeFiles.some(
+            (runtimeFile) => runtimeFile.name === 'libmpv.so'
+        )
+    );
+}
+
+function assertRequiredLinuxFrameCopyRuntime(runtime) {
+    if (targetPlatform !== 'linux' || !embeddedMpvRequired) {
+        return;
+    }
+
+    if (
+        runtime.buildInputMode !== 'bundled-runtime' ||
+        runtime.sourceRuntimeValidated !== true ||
+        !hasStagedLinuxLibMpvLinkerInput(runtime)
+    ) {
+        cleanOutput();
+        throw new Error(
+            'Required Linux builds must use the validated bundled source runtime containing staged libmpv.'
+        );
+    }
+}
+
+function deriveLinuxLibMpvSoname(runtime) {
+    if (
+        runtime.buildInputMode !== 'bundled-runtime' ||
+        runtime.sourceRuntimeValidated !== true ||
+        !Array.isArray(runtime.sourceRuntimeManifest?.runtimeFiles)
+    ) {
+        return null;
+    }
+
+    const candidates = runtime.sourceRuntimeManifest.runtimeFiles
+        .map((runtimeFile) => runtimeFile.name)
+        .filter((fileName) => VERSIONED_LINUX_LIBMPV_PATTERN.test(fileName))
+        .sort((left, right) => {
+            const leftVersionParts = left
+                .slice('libmpv.so.'.length)
+                .split('.').length;
+            const rightVersionParts = right
+                .slice('libmpv.so.'.length)
+                .split('.').length;
+            return (
+                leftVersionParts - rightVersionParts ||
+                left.length - right.length ||
+                left.localeCompare(right)
+            );
+        });
+
+    return candidates[0] ?? null;
 }
 
 function copyLinuxRuntimeClosureToNativeBuild(runtime) {
@@ -490,6 +540,12 @@ function copyLinuxRuntimeClosureToNativeBuild(runtime) {
 
 function writeLinuxFrameCopyBuildManifest(runtime) {
     const copiedRuntimeFiles = copyLinuxRuntimeClosureToNativeBuild(runtime);
+    const libmpvSoname = deriveLinuxLibMpvSoname(runtime);
+    const packageRuntimeAvailable =
+        runtime.sourceRuntimeValidated === true &&
+        runtime.buildInputMode === 'bundled-runtime' &&
+        copiedRuntimeFiles.length > 0 &&
+        libmpvSoname !== null;
     const manifest = {
         schemaVersion: 1,
         origin: 'linux-frame-copy-build',
@@ -500,8 +556,8 @@ function writeLinuxFrameCopyBuildManifest(runtime) {
         sourceRuntimeValidated: runtime.sourceRuntimeValidated,
         allowedPackageRuntimeModes: [...LINUX_PACKAGE_RUNTIME_MODES],
         packageRuntimeAvailability: {
-            system: true,
-            bundled: copiedRuntimeFiles.length > 0,
+            system: packageRuntimeAvailable,
+            bundled: packageRuntimeAvailable,
         },
         artifacts: {
             addon: 'embedded_mpv.node',
@@ -514,7 +570,7 @@ function writeLinuxFrameCopyBuildManifest(runtime) {
             helperRunpath: ['$ORIGIN/lib'],
         },
         nativeViewFallback: 'process-isolated mpv --wid',
-        libmpvSoname: 'libmpv.so.2',
+        libmpvSoname,
         runtimeFiles: copiedRuntimeFiles,
         runtimeTotalBytes: copiedRuntimeFiles.reduce(
             (total, runtimeFile) => total + runtimeFile.size,
@@ -684,6 +740,8 @@ function main() {
         log(message);
         return;
     }
+
+    assertRequiredLinuxFrameCopyRuntime(runtime);
 
     const runtimeManifest =
         targetPlatform === 'darwin'

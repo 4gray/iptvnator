@@ -163,7 +163,7 @@
             ],
             "libraries": [
               "-L<!(node -p \"process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'\")",
-              "-lmpv",
+              "<!(node -e \"const path = require('path'); const dir = process.env.LINUX_NATIVE_LIBRARY_DIR || '/usr/lib'; process.stdout.write(path.join(dir, 'libmpv.so'))\")",
               "-lEGL",
               "-lOpenGL",
               "-lgbm",
