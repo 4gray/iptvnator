@@ -1,8 +1,8 @@
-<div class="vjs-player-shell">
+<div #playerRoot class="vjs-player-shell">
     <video
         #target
         class="video-js"
-        controls
+        [controls]="!sharedControls"
         muted
         playsinline
         preload="none"
@@ -13,9 +13,20 @@
         <app-live-edge-button (goLive)="goLive()" />
     }
 
-    <app-series-playback-navigation-controls
-        [navigation]="seriesNavigation()"
-        (previousEpisodeRequested)="previousEpisodeRequested.emit()"
-        (nextEpisodeRequested)="nextEpisodeRequested.emit()"
-    />
+    @if (sharedControls) {
+        <app-player-controls
+            [controller]="controlsAdapter"
+            [playerSurface]="playerRoot"
+            [showControls]="interactionEnabled()"
+            [shortcutsEnabled]="interactionEnabled()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    } @else {
+        <app-series-playback-navigation-controls
+            [navigation]="seriesNavigation()"
+            (previousEpisodeRequested)="previousEpisodeRequested.emit()"
+            (nextEpisodeRequested)="nextEpisodeRequested.emit()"
+        />
+    }
 </div>

@@ -149,8 +149,9 @@ Key files:
   recording acknowledgement from being rolled back by a stale reply.
 - The built-in HTML5/hls.js player is the second guarded consumer.
   `HtmlVideoPlayerComponent` provides a component-scoped
-  `WebVideoControlsAdapter`; its player-local bridge owns HLS/native tracks,
-  MPEG-TS VOD duration correction, caption preference, and source cleanup.
+  `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared
+  with ArtPlayer and owns HLS/native tracks, MPEG-TS VOD duration correction,
+  caption preference, and source cleanup.
   `HtmlVideoElementSession` owns native video-event lifecycle, persisted
   volume, start-time/time/ended propagation, and legacy post-play caption
   suppression.
@@ -159,8 +160,29 @@ Key files:
   interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
   diagnostic actions remain visible. The flag-off path keeps native controls
   and legacy series navigation unchanged.
-- Video.js and ArtPlayer are not wired yet. Their existing skins remain active,
-  and the web rollout token remains default-off.
+- Video.js is the third guarded consumer. `VjsPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; its bridge binds the current Tech
+  video, rebinds after `playerreset`, exposes source-stable audio/subtitle IDs,
+  preserves caption preference and explicit subtitle-off state, and reads
+  duration from Video.js. Reset-driven raw MPEG-TS changes pause first,
+  coalesce to the latest desired source, preserve actual volume across
+  Video.js's reset, and restart when authoritative live/VOD metadata changes.
+  The flag-on path disables native controls, Video.js
+  click/double-click/hotkey actions, and spatial navigation;
+  diagnostic gating and owned-fullscreen exit match HTML5. The flag-off path
+  keeps the existing Video.js skin and legacy series navigation unchanged.
+- ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
+  HLS/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
+  a destroyed-session guard for delayed `customType` callbacks, while
+  `ArtPlayerVideoSession` owns native media/ArtPlayer events. Shared mode uses
+  authoritative live/VOD metadata, HLS/native tracks and caption preference,
+  MPEG-TS VOD duration correction, and reapplies app volume directly after
+  ArtPlayer restores its own stored volume. Vendor chrome/hotkeys are disabled,
+  and a transparent capture layer gives shared controls exclusive click and
+  double-click ownership. Diagnostic interaction gating and owned-fullscreen
+  exit match the other web players. The default-off flag keeps the legacy
+  ArtPlayer skin, source behavior, and series navigation unchanged.
 - Canonical docs: `docs/architecture/player-controls-contract.md` and
   `docs/architecture/embedded-mpv-native.md`
 

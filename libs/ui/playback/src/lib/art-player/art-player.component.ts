@@ -1,34 +1,38 @@
 import {
     Component,
     ElementRef,
-    EventEmitter,
     inject,
-    Input,
+    input,
     OnChanges,
     OnDestroy,
     OnInit,
-    Output,
+    output,
+    signal,
     SimpleChanges,
+    viewChild,
 } from '@angular/core';
 import Artplayer from 'artplayer';
-import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
-import mpegts from 'mpegts.js';
-import { Channel } from '@iptvnator/shared/interfaces';
-import { addHlsAudioTrackSettings } from './art-player-audio-tracks';
+import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
+import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import {
-    InlinePlaybackPlayer,
-    PlaybackDiagnostic,
-    classifyHlsPlaybackIssue,
-    classifyMpegTsPlaybackIssue,
-    classifyNativePlaybackIssue,
-    classifyUnsupportedHlsManifestCodecs,
-    createPlaybackSourceMetadata,
-    getPlaybackMediaExtensionFromUrl,
-} from '../playback-diagnostics/playback-diagnostics.util';
+    PlayerControlsComponent,
+    WEB_PLAYER_SHARED_CONTROLS,
+    WebVideoControlsAdapter,
+} from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
 import { seekMediaToLiveEdge } from '../timeshift/live-edge';
+import {
+    buildArtPlayerChrome,
+    exitOwnedArtPlayerFullscreen,
+    getArtPlayerVideoType,
+    resolveArtPlayerIsLive,
+} from './art-player-setup';
+import { ArtPlayerSourceSession } from './art-player-source-session';
+import { ArtPlayerVideoSession } from './art-player-video-session';
+
+const debugArtPlayer = createDevLogger('ArtPlayer');
 
 Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
 
@@ -36,71 +40,156 @@ Artplayer.AUTO_PLAYBACK_TIMEOUT = 10000;
     selector: 'app-art-player',
     imports: [
         LiveEdgeButtonComponent,
+        PlayerControlsComponent,
         SeriesPlaybackNavigationControlsComponent,
     ],
+    providers: [WebVideoControlsAdapter],
     templateUrl: './art-player.component.html',
     styleUrls: ['./art-player.component.scss'],
 })
 export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
-    @Input() channel!: Channel;
-    @Input() volume = 1;
-    @Input() showCaptions = false;
-    @Input() startTime = 0;
-    @Input() localTimeshiftActive = false;
-    @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
-    @Output() timeUpdate = new EventEmitter<{
+    readonly channel = input.required<Channel>();
+    readonly volume = input(1);
+    readonly showCaptions = input(false);
+    readonly startTime = input(0);
+    readonly localTimeshiftActive = input(false);
+    readonly seriesNavigation = input<SeriesPlaybackNavigation | null>(null);
+    readonly isLive = input(true);
+    readonly interactionEnabled = input(true);
+
+    readonly timeUpdate = output<{
         currentTime: number;
         duration: number;
     }>();
-    @Output() playbackIssue = new EventEmitter<PlaybackDiagnostic | null>();
-    @Output() playbackEnded = new EventEmitter<void>();
-    @Output() previousEpisodeRequested = new EventEmitter<void>();
-    @Output() nextEpisodeRequested = new EventEmitter<void>();
+    readonly playbackIssue = output<PlaybackDiagnostic | null>();
+    readonly playbackEnded = output<void>();
+    readonly previousEpisodeRequested = output<void>();
+    readonly nextEpisodeRequested = output<void>();
 
-    private player!: Artplayer;
-    private hls: Hls | null = null;
-    private mpegtsPlayer: mpegts.Player | null = null;
+    readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
+    readonly controlsAdapter = inject(WebVideoControlsAdapter);
+    readonly playerRoot = viewChild<ElementRef<HTMLElement>>('playerRoot');
+    private readonly artplayerContainer =
+        viewChild.required<ElementRef<HTMLDivElement>>('artplayer');
+    private readonly seriesNavigationSignal =
+        signal<SeriesPlaybackNavigation | null>(null);
 
-    private readonly elementRef = inject(ElementRef);
-
-    private readonly handleNativePlaybackError = () => {
-        this.playbackIssue.emit(
-            classifyNativePlaybackIssue(
-                this.player?.video?.error,
-                this.createSourceMetadata(
-                    this.channel?.url ?? this.player?.video?.currentSrc ?? ''
-                )
-            )
-        );
-    };
-
-    private readonly clearPlaybackIssue = () => {
-        this.playbackIssue.emit(null);
-    };
-
-    private readonly handlePlaybackEnded = () => {
-        this.playbackEnded.emit();
-    };
+    private player: Artplayer | null = null;
+    private sourceSession: ArtPlayerSourceSession | null = null;
+    private videoSession: ArtPlayerVideoSession | null = null;
 
     ngOnInit(): void {
+        this.seriesNavigationSignal.set(this.seriesNavigation());
+        if (this.sharedControls) {
+            this.controlsAdapter.setContext({
+                seriesNavigation: this.seriesNavigationSignal,
+            });
+        }
         this.initPlayer();
+    }
+
+    ngOnChanges(changes: SimpleChanges): void {
+        if (changes['seriesNavigation']) {
+            this.seriesNavigationSignal.set(this.seriesNavigation());
+        }
+
+        const channelChanged =
+            changes['channel'] && !changes['channel'].firstChange;
+        const authoritativeLiveChanged =
+            this.sharedControls &&
+            changes['isLive'] &&
+            !changes['isLive'].firstChange &&
+            changes['isLive'].previousValue !== changes['isLive'].currentValue;
+        const localTimeshiftChanged =
+            changes['localTimeshiftActive'] &&
+            !changes['localTimeshiftActive'].firstChange;
+        if (
+            this.player &&
+            (channelChanged || authoritativeLiveChanged || localTimeshiftChanged)
+        ) {
+            this.destroyPlayer();
+            this.initPlayer();
+        }
+
+        if (changes['showCaptions']) {
+            this.sourceSession?.refreshInputs();
+        }
+        if (changes['interactionEnabled']?.currentValue === false) {
+            exitOwnedArtPlayerFullscreen(
+                this.sharedControls,
+                this.playerRoot()?.nativeElement,
+                (error) =>
+                    debugArtPlayer(
+                        'Failed to exit ArtPlayer fullscreen:',
+                        error
+                    )
+            );
+        }
+        if (changes['volume']?.currentValue !== undefined && this.player) {
+            this.applyVolume(changes['volume'].currentValue);
+        }
     }
 
     ngOnDestroy(): void {
         this.destroyPlayer();
     }
 
-    ngOnChanges(changes: SimpleChanges): void {
-        const playbackModeChanged =
-            (changes['channel'] && !changes['channel'].firstChange) ||
-            (changes['localTimeshiftActive'] &&
-                !changes['localTimeshiftActive'].firstChange);
-        if (playbackModeChanged) {
-            this.destroyPlayer();
-            this.initPlayer();
-        }
-        if (changes['volume'] && this.player) {
-            this.applyVolume(changes['volume'].currentValue);
+    private initPlayer(): void {
+        this.playbackIssue.emit(null);
+        const channel = this.channel();
+        const sourceUrl = channel.url + (channel.epgParams ?? '');
+        const sourceSession = new ArtPlayerSourceSession({
+            sharedControls: this.sharedControls,
+            controlsAdapter: this.controlsAdapter,
+            isLive: () => this.isLive(),
+            showCaptions: () => this.showCaptions(),
+            emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
+        });
+        this.sourceSession = sourceSession;
+
+        const player = new Artplayer({
+            container: this.artplayerContainer().nativeElement,
+            url: sourceUrl,
+            volume: this.clampVolume(this.volume()),
+            // ArtPlayer hides its progress and time controls in live mode. A
+            // local sliding playlist is still semantically live, but its
+            // buffered window must remain seekable in the player UI.
+            isLive:
+                resolveArtPlayerIsLive(
+                    this.sharedControls,
+                    this.isLive(),
+                    channel.url
+                ) && !this.localTimeshiftActive(),
+            autoplay: true,
+            type: getArtPlayerVideoType(channel.url),
+            playsInline: true,
+            backdrop: true,
+            mutex: true,
+            theme: '#ff0000',
+            ...buildArtPlayerChrome(this.sharedControls),
+            customType: sourceSession.customType,
+        });
+        this.player = player;
+        sourceSession.attach(player);
+
+        const videoSession = new ArtPlayerVideoSession({
+            player,
+            sourceUrl: channel.url,
+            getStartTime: () => this.startTime(),
+            getDuration: () => sourceSession.resolveDuration(player.duration),
+            persistSharedVolume: this.sharedControls,
+            emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
+            emitTimeUpdate: (value) => this.timeUpdate.emit(value),
+            emitPlaybackEnded: () => this.playbackEnded.emit(),
+        });
+        this.videoSession = videoSession;
+        videoSession.attach();
+
+        // ArtPlayer synchronously restores `artplayer_settings.volume` after
+        // applying the constructor option. Shared controls use the app-wide
+        // volume as authoritative, so reapply it directly to the media element.
+        if (this.sharedControls) {
+            this.applyVolume(this.volume());
         }
     }
 
@@ -111,166 +200,32 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
     }
 
     private destroyPlayer(): void {
-        if (this.mpegtsPlayer) {
-            this.mpegtsPlayer.pause();
-            this.mpegtsPlayer.unload();
-            this.mpegtsPlayer.detachMediaElement();
-            this.mpegtsPlayer.destroy();
-            this.mpegtsPlayer = null;
-        }
-        if (this.hls) {
-            this.hls.destroy();
-            this.hls = null;
-        }
-        if (this.player) {
-            this.player.video?.removeEventListener(
-                'error',
-                this.handleNativePlaybackError
-            );
-            this.player.video?.removeEventListener(
-                'loadeddata',
-                this.clearPlaybackIssue
-            );
-            this.player.video?.removeEventListener(
-                'playing',
-                this.clearPlaybackIssue
-            );
-            this.player.video?.removeEventListener(
-                'ended',
-                this.handlePlaybackEnded
-            );
-            this.player.destroy();
-        }
-    }
+        const sourceSession = this.sourceSession;
+        this.sourceSession = null;
+        sourceSession?.destroy();
 
-    private initPlayer(): void {
-        this.playbackIssue.emit(null);
-        const el = this.elementRef.nativeElement.querySelector(
-            '.artplayer-container'
-        );
-        const extension = getPlaybackMediaExtensionFromUrl(
-            this.channel?.url ?? ''
-        );
-        const sourceIsLive =
-            extension === 'm3u8' || extension === 'ts' || !extension;
+        const videoSession = this.videoSession;
+        this.videoSession = null;
+        videoSession?.destroy();
 
-        this.player = new Artplayer({
-            container: el,
-            url: this.channel.url + (this.channel.epgParams || ''),
-            volume: this.clampVolume(this.volume),
-            // ArtPlayer hides its progress and time controls in live mode. A
-            // local sliding playlist is still semantically live, but its
-            // buffered window must remain seekable in the player UI.
-            isLive: sourceIsLive && !this.localTimeshiftActive,
-            autoplay: true,
-            type: this.getVideoType(this.channel.url),
-            pip: true,
-            autoPlayback: true,
-            autoSize: true,
-            autoMini: true,
-            screenshot: true,
-            setting: true,
-            playbackRate: true,
-            aspectRatio: true,
-            fullscreen: true,
-            fullscreenWeb: true,
-            playsInline: true,
-            airplay: true,
-            backdrop: true,
-            mutex: true,
-            theme: '#ff0000',
-            customType: {
-                m3u8: (video: HTMLVideoElement, url: string) => {
-                    if (Hls.isSupported()) {
-                        if (this.hls) {
-                            this.hls.destroy();
-                        }
-                        this.hls = new Hls();
-                        this.hls.on(Hls.Events.MANIFEST_PARSED, (_, data) => {
-                            this.handleHlsManifestParsed(url, data);
-                        });
-                        this.hls.on(Hls.Events.ERROR, (_, data) => {
-                            this.handleHlsError(url, data);
-                        });
-                        this.hls.loadSource(url);
-                        this.hls.attachMedia(video);
-                        addHlsAudioTrackSettings(this.player, this.hls);
-                    } else if (
-                        video.canPlayType('application/vnd.apple.mpegurl')
-                    ) {
-                        video.src = url;
-                    }
-                },
-                ts: (video: HTMLVideoElement, url: string) => {
-                    if (mpegts.isSupported()) {
-                        if (this.mpegtsPlayer) {
-                            this.mpegtsPlayer.destroy();
-                        }
-                        this.mpegtsPlayer = mpegts.createPlayer({
-                            type: 'mpegts',
-                            isLive: true,
-                            url: url,
-                        });
-                        this.mpegtsPlayer.attachMediaElement(video);
-                        this.mpegtsPlayer.on(
-                            mpegts.Events.ERROR,
-                            (
-                                type: string,
-                                details: string,
-                                info: unknown
-                            ): void => {
-                                this.playbackIssue.emit(
-                                    classifyMpegTsPlaybackIssue(
-                                        {
-                                            type,
-                                            details,
-                                            info,
-                                        },
-                                        this.createSourceMetadata(
-                                            url,
-                                            'video/mp2t'
-                                        )
-                                    )
-                                );
-                            }
-                        );
-                        this.mpegtsPlayer.load();
-                        this.mpegtsPlayer.play();
-                    }
-                },
-                mkv: (video: HTMLVideoElement, url: string) => {
-                    video.src = url;
-                },
-            },
-        });
-
-        this.player.video.addEventListener(
-            'error',
-            this.handleNativePlaybackError
-        );
-        this.player.video.addEventListener(
-            'loadeddata',
-            this.clearPlaybackIssue
-        );
-        this.player.video.addEventListener('playing', this.clearPlaybackIssue);
-        this.player.video.addEventListener('ended', this.handlePlaybackEnded);
-
-        if (this.startTime > 0) {
-            this.player.on('ready', () => {
-                this.player.seek = this.startTime;
-            });
-        }
-
-        this.player.on('video:timeupdate', () => {
-            this.timeUpdate.emit({
-                currentTime: this.player.currentTime,
-                duration: this.player.duration,
-            });
-        });
+        const player = this.player;
+        this.player = null;
+        player?.destroy();
     }
 
     private applyVolume(value: number): void {
-        this.player.volume = this.clampVolume(value);
+        const player = this.player;
+        if (!player) {
+            return;
+        }
+
+        const volume = this.clampVolume(value);
+        if (this.sharedControls) {
+            player.video.volume = volume;
+            player.video.muted = volume <= 0;
+        } else {
+            player.volume = volume;
+        }
     }
 
     private clampVolume(value: number): number {
@@ -278,79 +233,6 @@ export class ArtPlayerComponent implements OnInit, OnDestroy, OnChanges {
         if (!Number.isFinite(numericValue)) {
             return 1;
         }
-
         return Math.max(0, Math.min(1, numericValue));
-    }
-
-    private handleHlsManifestParsed(
-        url: string,
-        data: ManifestParsedData
-    ): void {
-        const metadata = this.createSourceMetadata(
-            url,
-            'application/x-mpegURL',
-            data.levels
-                .map((level) => level.audioCodec)
-                .filter((codec): codec is string => Boolean(codec)),
-            data.levels
-                .map((level) => level.videoCodec)
-                .filter((codec): codec is string => Boolean(codec))
-        );
-        const issue = classifyUnsupportedHlsManifestCodecs(metadata);
-        if (issue) {
-            this.playbackIssue.emit(issue);
-        }
-    }
-
-    private handleHlsError(url: string, data: ErrorData): void {
-        if (!data.fatal) {
-            return;
-        }
-
-        this.playbackIssue.emit(
-            classifyHlsPlaybackIssue(
-                {
-                    type: data.type,
-                    details: data.details,
-                    fatal: data.fatal,
-                    message: data.error?.message,
-                    error: data.error,
-                },
-                this.createSourceMetadata(url, 'application/x-mpegURL')
-            )
-        );
-    }
-
-    private getVideoType(url: string): string {
-        const extension = getPlaybackMediaExtensionFromUrl(url);
-        switch (extension) {
-            case 'mkv':
-                return 'video/matroska';
-            case 'm3u8':
-                return 'm3u8';
-            case 'mp4':
-                return 'mp4';
-            case 'ts':
-                return 'ts';
-            default:
-                // No recognized extension (e.g. IPTV proxy URL) → default to
-                // MPEG-TS which is the most common format for live IPTV streams.
-                return extension ? 'auto' : 'ts';
-        }
-    }
-
-    private createSourceMetadata(
-        url: string,
-        mimeType?: string,
-        audioCodecs: readonly string[] = [],
-        videoCodecs: readonly string[] = []
-    ) {
-        return createPlaybackSourceMetadata({
-            url,
-            mimeType,
-            player: InlinePlaybackPlayer.ArtPlayer,
-            audioCodecs,
-            videoCodecs,
-        });
     }
 }
