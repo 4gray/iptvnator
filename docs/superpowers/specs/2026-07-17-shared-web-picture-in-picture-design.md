@@ -72,7 +72,10 @@ would also leave the HTML5 player on a separate implementation.
 
 ## Capability and state semantics
 
-`pictureInPicture` is true only when all of the following hold:
+`pictureInPictureActive` is true only when
+`document.pictureInPictureElement === attachedVideo`.
+
+The adapter can request PiP when all of the following hold:
 
 - an `HTMLVideoElement` is attached;
 - `document.pictureInPictureEnabled === true`;
@@ -80,15 +83,18 @@ would also leave the HTML5 player on a separate implementation.
 - `document.exitPictureInPicture` is a function; and
 - `video.disablePictureInPicture !== true`.
 
-`pictureInPictureActive` is true only when
-`document.pictureInPictureElement === attachedVideo`.
+The `pictureInPicture` capability is true when the adapter can request PiP or
+when the attached video is already active and the browser still exposes
+`document.exitPictureInPicture()`. This keeps the exit action available if the
+element's disable flag or the document support flag changes after entry.
 
 `canPictureInPicture` is false while an enter/exit operation is pending.
 Otherwise, it is true when:
 
-- the attached video is already the active PiP owner, so the user can exit; or
-- PiP is supported and the video has loaded metadata (`readyState >= 1`,
-  equivalent to `HTMLMediaElement.HAVE_METADATA`).
+- the attached video is already the active PiP owner and the browser exposes
+  `document.exitPictureInPicture()`, so the user can exit; or
+- the adapter can request PiP and the video has loaded metadata
+  (`readyState >= 1`, equivalent to `HTMLMediaElement.HAVE_METADATA`).
 
 Browser `enterpictureinpicture` and `leavepictureinpicture` events are
 authoritative. The adapter does not optimistically report an active state
