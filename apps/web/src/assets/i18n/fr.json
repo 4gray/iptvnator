@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "L'enregistrement n'a pas pu démarrer.",
             "RECORDING_FAILED_TO_STOP": "L'enregistrement n'a pas pu s'arrêter.",
             "SAVED_TO": "Enregistré dans {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Activer le mode image dans l’image",
+            "EXIT_PICTURE_IN_PICTURE": "Quitter le mode image dans l’image",
             "ENTER_FULLSCREEN": "Passer en plein écran",
             "EXIT_FULLSCREEN": "Quitter le plein écran"
         }

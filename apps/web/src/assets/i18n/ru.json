@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Не удалось начать запись.",
             "RECORDING_FAILED_TO_STOP": "Не удалось остановить запись.",
             "SAVED_TO": "Сохранено в {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Включить режим «картинка в картинке»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйти из режима «картинка в картинке»",
             "ENTER_FULLSCREEN": "Во весь экран",
             "EXIT_FULLSCREEN": "Выйти из полноэкранного режима"
         }

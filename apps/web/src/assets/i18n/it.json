@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Impossibile avviare la registrazione.",
             "RECORDING_FAILED_TO_STOP": "Impossibile interrompere la registrazione.",
             "SAVED_TO": "Salvato in {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Attiva Picture-in-Picture",
+            "EXIT_PICTURE_IN_PICTURE": "Esci da Picture-in-Picture",
             "ENTER_FULLSCREEN": "Attiva schermo intero",
             "EXIT_FULLSCREEN": "Esci dallo schermo intero"
         }

@@ -568,6 +568,36 @@
                 </button>
             }
 
+            @if (capabilities().pictureInPicture) {
+                <button
+                    mat-icon-button
+                    type="button"
+                    class="player-controls__button"
+                    [disabled]="!state().canPictureInPicture"
+                    (click)="togglePictureInPicture()"
+                    [attr.aria-pressed]="state().pictureInPictureActive"
+                    [attr.aria-label]="
+                        (state().pictureInPictureActive
+                            ? 'EMBEDDED_MPV.PLAYER.EXIT_PICTURE_IN_PICTURE'
+                            : 'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                        ) | translate
+                    "
+                    [matTooltip]="
+                        (state().pictureInPictureActive
+                            ? 'EMBEDDED_MPV.PLAYER.EXIT_PICTURE_IN_PICTURE'
+                            : 'EMBEDDED_MPV.PLAYER.ENTER_PICTURE_IN_PICTURE'
+                        ) | translate
+                    "
+                    matTooltipPosition="above"
+                >
+                    <mat-icon>{{
+                        state().pictureInPictureActive
+                            ? 'picture_in_picture_alt'
+                            : 'picture_in_picture'
+                    }}</mat-icon>
+                </button>
+            }
+
             @if (capabilities().fullscreen) {
                 <button
                     mat-icon-button

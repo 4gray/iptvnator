@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "فشل بدء التسجيل.",
             "RECORDING_FAILED_TO_STOP": "فشل إيقاف التسجيل.",
             "SAVED_TO": "تم الحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "تشغيل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "إنهاء صورة داخل صورة",
             "ENTER_FULLSCREEN": "ملء الشاشة",
             "EXIT_FULLSCREEN": "الخروج من ملء الشاشة"
         }

@@ -283,11 +283,9 @@ export class PlayerControlsComponent implements OnDestroy {
         event.preventDefault();
         this.adjustVolume(event.deltaY > 0 ? -0.05 : 0.05);
     }
-
     onVolumeHoverEnter(): void {
         this.volume.hoverEnter();
     }
-
     onVolumeHoverLeave(): void {
         this.volume.hoverLeave();
     }
@@ -304,7 +302,6 @@ export class PlayerControlsComponent implements OnDestroy {
         this.menus.toggle(menu);
         this.reveal();
     }
-
     toggleRecording(): void {
         if (!this.canRecord()) {
             return;
@@ -313,6 +310,13 @@ export class PlayerControlsComponent implements OnDestroy {
         this.controller().commands.toggleRecording();
     }
 
+    togglePictureInPicture(): void {
+        this.reveal();
+        const state = this.state();
+        if (this.capabilities().pictureInPicture && state.canPictureInPicture) {
+            this.controller().commands.togglePictureInPicture();
+        }
+    }
     async toggleFullscreen(): Promise<void> {
         this.reveal();
         if (!this.canFullscreen()) {
@@ -320,7 +324,6 @@ export class PlayerControlsComponent implements OnDestroy {
         }
         await this.fullscreen.toggle();
     }
-
     private adjustVolume(delta: number): void {
         if (!this.capabilities().volume) {
             return;
@@ -328,13 +331,11 @@ export class PlayerControlsComponent implements OnDestroy {
         this.volume.adjust(delta);
         this.reveal();
     }
-
     private readTimelineValue(event: Event): number | null {
         return this.normalizeTimelineValue(
             Number((event.target as HTMLInputElement).value)
         );
     }
-
     private normalizeTimelineValue(value: number): number | null {
         if (!Number.isFinite(value)) {
             return null;

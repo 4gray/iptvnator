@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "無法開始錄製。",
             "RECORDING_FAILED_TO_STOP": "無法停止錄製。",
             "SAVED_TO": "已儲存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "進入子母畫面",
+            "EXIT_PICTURE_IN_PICTURE": "退出子母畫面",
             "ENTER_FULLSCREEN": "進入全螢幕",
             "EXIT_FULLSCREEN": "離開全螢幕"
         }

@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "No se pudo iniciar la grabación.",
             "RECORDING_FAILED_TO_STOP": "No se pudo detener la grabación.",
             "SAVED_TO": "Guardada en {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Activar imagen en imagen",
+            "EXIT_PICTURE_IN_PICTURE": "Salir de imagen en imagen",
             "ENTER_FULLSCREEN": "Entrar en pantalla completa",
             "EXIT_FULLSCREEN": "Salir de pantalla completa"
         }

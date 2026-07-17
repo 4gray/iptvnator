@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "录制启动失败。",
             "RECORDING_FAILED_TO_STOP": "录制停止失败。",
             "SAVED_TO": "已保存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "进入画中画",
+            "EXIT_PICTURE_IN_PICTURE": "退出画中画",
             "ENTER_FULLSCREEN": "进入全屏",
             "EXIT_FULLSCREEN": "退出全屏"
         }

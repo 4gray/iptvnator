@@ -489,6 +489,8 @@
             "RECORDING_FAILED_TO_START": "Η έναρξη της εγγραφής απέτυχε.",
             "RECORDING_FAILED_TO_STOP": "Η διακοπή της εγγραφής απέτυχε.",
             "SAVED_TO": "Αποθηκεύτηκε στο {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Έναρξη εικόνας εντός εικόνας",
+            "EXIT_PICTURE_IN_PICTURE": "Έξοδος από εικόνα εντός εικόνας",
             "ENTER_FULLSCREEN": "Μετάβαση σε πλήρη οθόνη",
             "EXIT_FULLSCREEN": "Έξοδος από πλήρη οθόνη"
         }
