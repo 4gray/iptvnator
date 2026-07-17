@@ -301,6 +301,26 @@ test('resolves the required Linux profile from afterPack targets before mutation
     );
 });
 
+test('keeps every non-x64 Linux target marker-only even when the configured addon arch matches it', () => {
+    const context = resolveLinuxFrameCopyPackagingContext(
+        {
+            electronPlatformName: 'linux',
+            arch: 3,
+            targets: [{ name: 'deb' }],
+        },
+        {
+            required: true,
+            environment: {
+                IPTVNATOR_LINUX_FRAME_COPY_PROFILE: 'system',
+                IPTVNATOR_EMBEDDED_MPV_ARCH: 'arm64',
+            },
+        }
+    );
+
+    assert.equal(context.targetArch, 'arm64');
+    assert.equal(context.foreignArch, true);
+});
+
 test('rejects missing, mixed, and unknown required Linux packaging context', () => {
     const baseParams = {
         electronPlatformName: 'linux',
@@ -811,6 +831,24 @@ test('validates Linux ELF process isolation, helper linkage, and bundled closure
     });
     assert.match(addonLinkErrors.join('\n'), /must not link libmpv/);
 
+    const pathBearingAddonLinkErrors = validatePackagedEmbeddedMpv(
+        fixture.resourceDir,
+        {
+            ...options,
+            elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+                [FRAME_COPY_ARTIFACTS.addon]: {
+                    needed: ['/tmp/build/libmpv.so.2'],
+                    rpath: [],
+                    runpath: [],
+                },
+            }),
+        }
+    );
+    assert.match(
+        pathBearingAddonLinkErrors.join('\n'),
+        /must not link libmpv.*\/tmp\/build\/libmpv\.so\.2/
+    );
+
     const helperLinkErrors = validatePackagedEmbeddedMpv(fixture.resourceDir, {
         ...options,
         elfInspector: validElfInspector(fixture.nativeDir, manifest, {
@@ -824,6 +862,29 @@ test('validates Linux ELF process isolation, helper linkage, and bundled closure
     assert.match(
         helperLinkErrors.join('\n'),
         /must directly need libmpv\.so\.2/
+    );
+
+    const unexpectedHelperLinkErrors = validatePackagedEmbeddedMpv(
+        fixture.resourceDir,
+        {
+            ...options,
+            elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+                [FRAME_COPY_ARTIFACTS.helper]: {
+                    needed: [
+                        manifest.libmpvSoname,
+                        'libEGL.so.1',
+                        'libc.so.6',
+                        'libsurprise.so.1',
+                    ],
+                    rpath: [],
+                    runpath: ['$ORIGIN/lib'],
+                },
+            }),
+        }
+    );
+    assert.match(
+        unexpectedHelperLinkErrors.join('\n'),
+        /helper dependency is not bundled or allowlisted.*libsurprise\.so\.1/
     );
 
     const closureErrors = validatePackagedEmbeddedMpv(fixture.resourceDir, {
@@ -841,6 +902,69 @@ test('validates Linux ELF process isolation, helper linkage, and bundled closure
         closureErrors.join('\n'),
         /not bundled or allowlisted.*libsurprise\.so\.1/
     );
+
+    fs.writeFileSync(
+        join(fixture.appOutDir, 'libelectron-extra.so'),
+        'electron library'
+    );
+    const electronLibraryErrors = validatePackagedEmbeddedMpv(
+        fixture.resourceDir,
+        {
+            ...options,
+            elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+                'libelectron-extra.so': {
+                    needed: ['libmpv.so.2'],
+                    rpath: [],
+                    runpath: [],
+                },
+            }),
+        }
+    );
+    assert.match(
+        electronLibraryErrors.join('\n'),
+        /Linux Electron library must not link libmpv.*libelectron-extra\.so/
+    );
+});
+
+test('rejects undeclared helper dependencies in system-runtime packages', (t) => {
+    const fixture = createNativeFixture();
+    t.after(() =>
+        fs.rmSync(fixture.fixtureRoot, { recursive: true, force: true })
+    );
+    const manifest = preparePackagedFrameCopyArtifacts(
+        fixture.nativeDir,
+        'linux',
+        {
+            profile: 'system',
+            targetNames: ['deb'],
+        }
+    );
+
+    const errors = validatePackagedEmbeddedMpv(fixture.resourceDir, {
+        platform: 'linux',
+        required: true,
+        foreignArch: false,
+        profile: 'system',
+        targetNames: ['deb'],
+        hostPlatform: 'linux',
+        elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+            [FRAME_COPY_ARTIFACTS.helper]: {
+                needed: [
+                    manifest.libmpvSoname,
+                    'libEGL.so.1',
+                    'libc.so.6',
+                    'libsurprise.so.1',
+                ],
+                rpath: [],
+                runpath: ['$ORIGIN/lib'],
+            },
+        }),
+    });
+
+    assert.match(
+        errors.join('\n'),
+        /helper dependency is not bundled or allowlisted.*libsurprise\.so\.1/
+    );
 });
 
 test('resolveElectronBuilderArchName maps builder-util Arch enum values', () => {
@@ -852,7 +976,7 @@ test('resolveElectronBuilderArchName maps builder-util Arch enum values', () => 
     assert.equal(resolveElectronBuilderArchName(99), null);
 });
 
-test('flags Linux packages whose arch differs from the built addon', () => {
+test('flags every non-x64 Linux package regardless of configured build arch', () => {
     assert.equal(
         isForeignLinuxEmbeddedMpvArch('linux', 3, X64_ADDON_ENV),
         true
@@ -864,6 +988,12 @@ test('flags Linux packages whose arch differs from the built addon', () => {
     assert.equal(
         isForeignLinuxEmbeddedMpvArch('linux', 'x64', X64_ADDON_ENV),
         false
+    );
+    assert.equal(
+        isForeignLinuxEmbeddedMpvArch('linux', 'arm64', {
+            IPTVNATOR_EMBEDDED_MPV_ARCH: 'arm64',
+        }),
+        true
     );
     // Only Linux fans out foreign arches from one dist tree.
     assert.equal(

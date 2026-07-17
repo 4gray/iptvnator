@@ -745,26 +745,17 @@ function resolveConfiguredLinuxTargetNames(configuredTargets, targetArch) {
     return [...targetNames].sort();
 }
 
-function getEmbeddedMpvAddonArch(env = process.env) {
-    return env.IPTVNATOR_EMBEDDED_MPV_ARCH || process.arch;
-}
-
 /**
- * The embedded MPV addon is compiled once per CI host (x64 on Linux), but
- * electron-builder also produces arm64/armv7l Linux packages from the same
- * dist output. Those packages must not ship a foreign-architecture
- * `embedded_mpv.node` — it can never load and produces a cryptic error.
+ * Official Linux frame-copy support is x64-only. electron-builder also
+ * produces arm64/armv7l packages, which must always carry only the
+ * unavailable marker and native-view fallback.
  */
-function isForeignLinuxEmbeddedMpvArch(
-    platform,
-    targetArch,
-    env = process.env
-) {
+function isForeignLinuxEmbeddedMpvArch(platform, targetArch) {
     if (normalizeEmbeddedMpvPlatform(platform) !== 'linux') {
         return false;
     }
     const archName = resolveElectronBuilderArchName(targetArch);
-    return Boolean(archName) && archName !== getEmbeddedMpvAddonArch(env);
+    return Boolean(archName) && archName !== 'x64';
 }
 
 // Maps electron-builder Linux output directory names (`linux-unpacked`,
@@ -1294,6 +1285,40 @@ function normalizeElfInspection(value, binaryPath) {
     return result;
 }
 
+function dependencyFileName(dependencyName) {
+    return dependencyName.replaceAll('\\', '/').split('/').at(-1) ?? '';
+}
+
+function listElectronShippedLinuxLibraries(resourceDir) {
+    const appDir = path.dirname(resourceDir);
+    const normalizedResourceDir = path.resolve(resourceDir);
+    const libraries = [];
+
+    function visit(directoryPath) {
+        for (const entry of fs.readdirSync(directoryPath, {
+            withFileTypes: true,
+        })) {
+            const entryPath = path.join(directoryPath, entry.name);
+            if (path.resolve(entryPath) === normalizedResourceDir) {
+                continue;
+            }
+            if (entry.isDirectory()) {
+                visit(entryPath);
+                continue;
+            }
+            if (
+                (entry.isFile() || entry.isSymbolicLink()) &&
+                /\.so(?:\.\d+)*$/.test(entry.name)
+            ) {
+                libraries.push(entryPath);
+            }
+        }
+    }
+
+    visit(appDir);
+    return libraries.sort();
+}
+
 function inspectLinuxElfIsolation(
     resourceDir,
     nativeDir,
@@ -1328,6 +1353,11 @@ function inspectLinuxElfIsolation(
         reader: path.join(nativeDir, linuxFrameCopyArtifacts.frameReader.name),
         helper: path.join(nativeDir, linuxFrameCopyArtifacts.helper.name),
     };
+    for (const [index, libraryPath] of listElectronShippedLinuxLibraries(
+        resourceDir
+    ).entries()) {
+        inspectedPaths[`electronLibrary:${index}`] = libraryPath;
+    }
     const inspections = {};
     for (const [label, binaryPath] of Object.entries(inspectedPaths)) {
         if (
@@ -1353,19 +1383,35 @@ function inspectLinuxElfIsolation(
         }
     }
 
-    for (const label of ['electron', 'addon', 'reader']) {
+    for (const label of Object.keys(inspections).filter(
+        (name) =>
+            name === 'electron' ||
+            name === 'addon' ||
+            name === 'reader' ||
+            name.startsWith('electronLibrary:')
+    )) {
         const dynamic = inspections[label];
         if (!dynamic) {
             continue;
         }
+        const displayLabel = label.startsWith('electronLibrary:')
+            ? 'Electron library'
+            : label;
+        for (const dependencyName of dynamic.needed) {
+            if (dependencyFileName(dependencyName) !== dependencyName) {
+                errors.push(
+                    `Linux ${displayLabel} DT_NEEDED entry must not contain a path: ${dependencyName} in ${inspectedPaths[label]}.`
+                );
+            }
+        }
         const libmpvDependencies = dynamic.needed.filter((dependencyName) =>
-            anyLinuxLibmpvPattern.test(dependencyName)
+            anyLinuxLibmpvPattern.test(dependencyFileName(dependencyName))
         );
         if (libmpvDependencies.length > 0) {
             errors.push(
-                `Linux ${label} binary must not link libmpv; found ${libmpvDependencies.join(
+                `Linux ${displayLabel} must not link libmpv; found ${libmpvDependencies.join(
                     ', '
-                )}.`
+                )} in ${inspectedPaths[label]}.`
             );
         }
     }
@@ -1379,8 +1425,9 @@ function inspectLinuxElfIsolation(
         }
         const unexpectedLibmpvDependencies = helper.needed.filter(
             (dependencyName) =>
-                anyLinuxLibmpvPattern.test(dependencyName) &&
-                dependencyName !== manifest.libmpvSoname
+                anyLinuxLibmpvPattern.test(
+                    dependencyFileName(dependencyName)
+                ) && dependencyName !== manifest.libmpvSoname
         );
         if (unexpectedLibmpvDependencies.length > 0) {
             errors.push(
@@ -1407,6 +1454,32 @@ function inspectLinuxElfIsolation(
                         : '<empty>'
                 }.`
             );
+        }
+
+        const allowedHelperDependencies = new Set([
+            manifest.libmpvSoname,
+            ...GLIBC_TOOLCHAIN_ALLOWLIST,
+            ...EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
+            ...(manifest.runtimeMode === 'bundled' &&
+            Array.isArray(manifest.runtimeFiles)
+                ? manifest.runtimeFiles.map(({ name }) => name)
+                : []),
+            ...(manifest.runtimeMode === 'bundled' &&
+            Array.isArray(
+                manifest.runtimeDependencyClosure?.externalDependencies
+            )
+                ? manifest.runtimeDependencyClosure.externalDependencies
+                : []),
+        ]);
+        for (const dependencyName of helper.needed) {
+            if (
+                dependencyFileName(dependencyName) !== dependencyName ||
+                !allowedHelperDependencies.has(dependencyName)
+            ) {
+                errors.push(
+                    `Linux frame-copy helper dependency is not bundled or allowlisted: ${dependencyName}.`
+                );
+            }
         }
     }
 
@@ -1822,7 +1895,6 @@ module.exports = {
     validateNoForbiddenRuntimeLinks,
     getPackagedRuntimeCandidates,
     validatePackagedEmbeddedMpv,
-    getEmbeddedMpvAddonArch,
     isForeignLinuxEmbeddedMpvArch,
     linuxUnpackedDirArch,
     resolveConfiguredLinuxTargetNames,

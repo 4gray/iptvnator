@@ -1,6 +1,5 @@
 const linuxAfterPack = require('./linux-after-pack.cjs');
 const {
-    getEmbeddedMpvAddonArch,
     isForeignLinuxEmbeddedMpvArch,
     resolveElectronBuilderArchName,
     validatePackagedEmbeddedMpv,
@@ -118,8 +117,11 @@ function resolveLinuxFrameCopyPackagingContext(
         );
     }
 
-    const addonArch = getEmbeddedMpvAddonArch(environment);
-    const foreignArch = targetArch !== addonArch;
+    // Official Linux frame-copy artifacts are intentionally x64-only. Do not
+    // let a caller-provided build-arch environment value promote an ARM
+    // package to a supported layout: every non-x64 target must remain the
+    // marker-only native-view fallback.
+    const foreignArch = targetArch !== 'x64';
     const profileValue =
         environment.IPTVNATOR_LINUX_FRAME_COPY_PROFILE?.trim() ?? '';
     if (!profileValue) {

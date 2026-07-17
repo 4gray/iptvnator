@@ -305,6 +305,9 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
         packageLayoutVerifier,
         /validateLinuxProfileTargets\(\s*linuxFrameCopyProfile,\s*linuxTargetNames\s*\)/s
     );
+    assert.match(packageLayoutVerifier, /dirArch !== 'x64'/);
+    assert.doesNotMatch(packageLayoutVerifier, /getEmbeddedMpvAddonArch/);
+    assert.match(electronAfterPackSource, /targetArch !== 'x64'/);
 });
 
 test('nx-electron packaging does not copy duplicate root package metadata', () => {
