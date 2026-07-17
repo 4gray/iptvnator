@@ -9,14 +9,18 @@ import {
 } from '@playwright/test';
 import { createServer, Server } from 'http';
 import {
+    accessSync,
+    constants as fsConstants,
     existsSync,
     mkdtempSync,
+    readdirSync,
     readFileSync,
     rmSync,
+    statSync,
     writeFileSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -70,7 +74,7 @@ type ElectronFixtures = {
     dataDir: string;
 };
 
-type LaunchElectronAppOptions = {
+export type LaunchElectronAppOptions = {
     env?: Record<string, string | undefined>;
 };
 
@@ -164,6 +168,136 @@ export async function launchElectronApp(
     await startPortalDebugCapture(mainWindow);
     await startDbOperationCapture(mainWindow);
     await startRendererFrameCapture(mainWindow);
+
+    return {
+        electronApp,
+        mainWindow,
+    };
+}
+
+/**
+ * Resolve the x64 unpacked Linux executable produced by electron-builder.
+ * An explicit path wins so CI can point at an AppImage/Flatpak extraction
+ * without relying on electron-builder's local output directory names.
+ */
+export function resolvePackagedLinuxExecutable(
+    explicitPath = process.env['IPTVNATOR_E2E_PACKAGED_EXECUTABLE']
+): string | undefined {
+    if (explicitPath?.trim()) {
+        return resolve(explicitPath.trim());
+    }
+
+    const executablesRoot = join(workspaceRoot, 'dist', 'executables');
+    if (!existsSync(executablesRoot)) {
+        return undefined;
+    }
+
+    const unpackedDirectories = readdirSync(executablesRoot, {
+        withFileTypes: true,
+    })
+        .filter(
+            (entry) =>
+                entry.isDirectory() &&
+                entry.name.startsWith('linux') &&
+                entry.name.endsWith('-unpacked') &&
+                !entry.name.includes('arm')
+        )
+        .sort((left, right) => {
+            const leftPriority = left.name === 'linux-unpacked' ? 0 : 1;
+            const rightPriority = right.name === 'linux-unpacked' ? 0 : 1;
+            return (
+                leftPriority - rightPriority ||
+                left.name.localeCompare(right.name)
+            );
+        });
+
+    for (const directory of unpackedDirectories) {
+        for (const executableName of ['IPTVnator', 'iptvnator']) {
+            const candidate = join(
+                executablesRoot,
+                directory.name,
+                executableName
+            );
+            try {
+                accessSync(candidate, fsConstants.X_OK);
+                if (statSync(candidate).isFile()) {
+                    return candidate;
+                }
+            } catch {
+                // Keep looking for the next unpacked x64 layout.
+            }
+        }
+    }
+
+    return undefined;
+}
+
+export function getPackagedLinuxNativeDir(executablePath: string): string {
+    return join(
+        dirname(resolve(executablePath)),
+        'resources',
+        'app.asar.unpacked',
+        'electron-backend',
+        'native'
+    );
+}
+
+/**
+ * Launch a real packaged Linux executable. Unlike the regular source E2E
+ * launcher, this deliberately keeps Chromium's GPU path enabled: the
+ * frame-copy smoke sets LIBGL_ALWAYS_SOFTWARE=1 and needs WebGL2 to prove
+ * that the shared-memory frame reaches the renderer canvas.
+ */
+export async function launchPackagedElectronApp(
+    executablePath: string,
+    dataDir: string,
+    options: LaunchElectronAppOptions = {}
+): Promise<LaunchedElectronApp> {
+    if (process.platform !== 'linux') {
+        throw new Error(
+            'The packaged embedded-MPV launcher is available on Linux only.'
+        );
+    }
+
+    const resolvedExecutablePath = resolve(executablePath);
+    try {
+        accessSync(resolvedExecutablePath, fsConstants.X_OK);
+        if (!statSync(resolvedExecutablePath).isFile()) {
+            throw new Error('not a regular file');
+        }
+    } catch (error) {
+        throw new Error(
+            `Packaged Linux executable is not a regular executable file at ${resolvedExecutablePath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+    }
+
+    const args: string[] = [];
+    if (
+        process.env['CI'] ||
+        (typeof process.getuid === 'function' && process.getuid() === 0)
+    ) {
+        args.push('--no-sandbox');
+    }
+
+    const electronApp = await electron.launch({
+        executablePath: resolvedExecutablePath,
+        args,
+        env: {
+            ...process.env,
+            IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS:
+                process.env['IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS'] ?? '1',
+            ...options.env,
+            ELECTRON_IS_DEV: '0',
+            IPTVNATOR_E2E_DATA_DIR: dataDir,
+            NODE_ENV: 'test',
+        },
+    });
+    attachElectronProcessDiagnostics(electronApp);
+
+    const mainWindow = await findMainWindow(electronApp);
+    await waitForAppReady(mainWindow);
 
     return {
         electronApp,
