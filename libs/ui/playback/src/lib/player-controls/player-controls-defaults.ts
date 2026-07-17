@@ -12,6 +12,7 @@ export const DEFAULT_PLAYER_CAPABILITIES: PlayerControlsCapabilities = {
     playbackSpeed: false,
     aspectRatio: false,
     recording: false,
+    pictureInPicture: false,
     fullscreen: false,
     seriesNavigation: false,
 };
@@ -51,6 +52,8 @@ export function createEmptyControlsState(): PlayerControlsState {
         aspectRatio: 'no',
         aspectPresets: DEFAULT_ASPECT_PRESETS,
         recording: { active: false, elapsedSeconds: 0, message: null },
+        pictureInPictureActive: false,
+        canPictureInPicture: false,
         canPreviousEpisode: false,
         canNextEpisode: false,
     };

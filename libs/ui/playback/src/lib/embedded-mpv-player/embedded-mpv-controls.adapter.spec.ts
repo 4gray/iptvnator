@@ -198,6 +198,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
             playbackSpeed: true,
             aspectRatio: true,
             recording: true,
+            pictureInPicture: false,
             fullscreen: true,
             seriesNavigation: true,
         });
@@ -222,6 +223,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
             playbackSpeed: false,
             aspectRatio: false,
             recording: false,
+            pictureInPicture: false,
             fullscreen: true,
             seriesNavigation: true,
         });
@@ -263,6 +265,8 @@ describe('EmbeddedMpvControlsAdapter', () => {
             speedPresets: DEFAULT_SPEED_PRESETS,
             aspectRatio: '16:9',
             aspectPresets: DEFAULT_ASPECT_PRESETS,
+            pictureInPictureActive: false,
+            canPictureInPicture: false,
             canPreviousEpisode: true,
             canNextEpisode: false,
         });
@@ -374,6 +378,7 @@ describe('EmbeddedMpvControlsAdapter', () => {
     it('delegates every non-recording shared-controls command', () => {
         configure();
 
+        expect(() => adapter.commands.togglePictureInPicture()).not.toThrow();
         adapter.commands.togglePlay();
         adapter.commands.seekTo(45);
         adapter.commands.seekBy(-10);
