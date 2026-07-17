@@ -642,9 +642,12 @@ engine` (restart required) or
   `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and `licenses/**`.
   CI caches the staged runtime plus immutable source inputs, never finished
   notices or the compliance tarball; it regenerates those notices and the
-  deterministic `linux-frame-copy-runtime-sources.tar.xz` for the current
-  checkout. On Windows, package validation requires the exact MPV DLL named by
-  the helper's PE import table beside the executable.
+  VCS-metadata-free `linux-frame-copy-runtime-sources.tar.xz` for the current
+  checkout while preserving exact commit/submodule records. Snap Store
+  publication runs only from a public `v*` GitHub release that already
+  contains the Snap assets and exactly one source archive. On Windows, package
+  validation requires the exact MPV DLL named by the helper's PE import table
+  beside the executable.
   Backend adapter:
   `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts`;
   shared-controls adapter:

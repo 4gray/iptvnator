@@ -675,9 +675,11 @@ the finished source-compliance archive. Runtime cache entries are saved only
 from trusted repository refs. The Linux cache key covers the builder/stager,
 notice generator, pinned sources, and toolchain. On every run, including a
 cache hit, CI validates the cached hashes and clean checkout, regenerates the
-notices for the current runtime manifest, and creates the deterministic
+notices for the current runtime manifest, converts libplacebo into a
+VCS-metadata-free working-tree snapshot while retaining the validated
+commit/submodule record, and creates
 `linux-frame-copy-runtime-sources.tar.xz` for the current repository revision
-and binary diff.
+and binary diff with normalized tar metadata.
 
 Windows CI uses a checksum-pinned `win32-x64` runtime archive configured
 through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and
@@ -768,10 +770,16 @@ verified, and the x64 helper probe runs in the intended runtime environment.
 Bundled package layouts must include the generated notices and exact license
 tree. The separately uploaded
 `linux-frame-copy-runtime-sources.tar.xz` contains the exact archive set,
-clean recursive libplacebo checkout, notice/license inputs, runtime metadata,
-current revision/diff, and build tooling. Its tar metadata is normalized for
-deterministic output. ARM artifacts are independently verified as marker-only
-and never run the x64 helper.
+the VCS-metadata-free libplacebo working tree plus exact commit/submodule
+records, notice/license inputs, runtime metadata, current revision/diff, and
+build tooling. Its tar metadata is normalized. ARM artifacts are independently
+verified as marker-only and never run the x64 helper.
+
+The build workflow creates a draft GitHub release but never publishes Snap in
+parallel with that draft. The separate Snap workflow runs only for a public
+`release.published` event whose tag starts with `v`; before any Store upload it
+requires at least one exact `.snap` asset and exactly one non-empty
+`linux-frame-copy-runtime-sources.tar.xz` in that public release.
 
 During temporary artifact tests, CI may also set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for PR and `master` push jobs where a runtime is known to exist. After the artifacts are manually validated, remove temporary conditions so ordinary development builds leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. This keeps the native feature in-tree without making every non-release build depend on runtime artifacts.
 

@@ -193,13 +193,23 @@ finished notices or the compliance tarball. After either a build or cache hit,
 CI revalidates those inputs, regenerates `vendor/embedded-mpv/linux-x64/notices`
 for the current runtime manifest, and creates
 `linux-frame-copy-runtime-sources.tar.xz` for the current repository
-revision/diff.
+revision/diff. Before archiving, the clean cached libplacebo checkout is
+converted into a non-dereferenced working-tree snapshot with every `.git`
+entry removed; the validated main/submodule commits remain in the source
+index.
 
-That deterministic source-compliance archive contains the exact unique archive
-hash set, clean libplacebo checkout and recursive submodules, license inputs,
-generated notices, runtime/source index metadata, and the builder, stager,
-manifest, and notice-generator code. The notice generator rejects missing,
-undeclared, symlinked, size-mismatched, or hash-mismatched license files.
+That source-compliance archive uses normalized tar metadata and contains the
+exact unique archive hash set, VCS-free libplacebo sources and recursive
+submodules, license inputs, generated notices, runtime/source index metadata,
+and the builder, stager, manifest, notice-generator, and source-snapshot code.
+The notice generator rejects missing, undeclared, symlinked, size-mismatched,
+or hash-mismatched license files.
+
+Snap publication is a separate `release.published` workflow for public `v*`
+GitHub releases. It verifies that the public release already contains at least
+one Snap and exactly one non-empty
+`linux-frame-copy-runtime-sources.tar.xz` before uploading any Snap to the
+Store's edge channel.
 
 Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
 in its import library is preserved and must be present beside

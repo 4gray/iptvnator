@@ -213,4 +213,8 @@ status.
 
 Release artifacts must publish the generated runtime manifest and exact source
 archives/metadata required by the recorded LGPL source-distribution statement.
-No publication, push, pull request, or merge is part of this task.
+The libplacebo payload is a VCS-metadata-free working-tree snapshot with exact
+commit/submodule records, so clone-local `.git` state cannot perturb the
+compliance tar. Automated Snap publication must wait for a public `v*` release
+that already contains both the Snap assets and the exact source archive. No
+publication, push, pull request, or merge is part of this task.

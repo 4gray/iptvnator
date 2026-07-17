@@ -248,8 +248,12 @@ Key files:
   `pnp.ids` input. Each bundled package carries
   `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and the exact
   `licenses/**` files. CI may cache immutable source inputs, but regenerates
-  notices and `linux-frame-copy-runtime-sources.tar.xz` for the current
-  checkout on every run. Canonical maintenance docs:
+  notices and a VCS-metadata-free
+  `linux-frame-copy-runtime-sources.tar.xz` for the current checkout on every
+  run while retaining exact commit/submodule records. Automated Snap Store
+  publication is allowed only after a public `v*` GitHub release contains
+  both the Snap assets and exactly one matching source archive. Canonical
+  maintenance docs:
   `docs/architecture/embedded-mpv-native.md` and
   `tools/embedded-mpv/README.md`.
 
