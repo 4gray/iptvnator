@@ -149,7 +149,12 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             'size\twidth=1600\theight=900\n'
         );
         const writesBefore = child.stdin.written.length;
-        adapter.setBounds(sessionId, { x: -10000, y: -10000, width: 1, height: 1 });
+        adapter.setBounds(sessionId, {
+            x: -10000,
+            y: -10000,
+            width: 1,
+            height: 1,
+        });
         expect(child.stdin.written.length).toBe(writesBefore);
     });
 
@@ -192,7 +197,7 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
             ['darwin', 'arm64', true],
             ['darwin', 'x64', false],
             ['linux', 'x64', true],
-            ['linux', 'arm64', true],
+            ['linux', 'arm64', false],
             ['win32', 'x64', true],
             ['freebsd', 'x64', false],
         ])(

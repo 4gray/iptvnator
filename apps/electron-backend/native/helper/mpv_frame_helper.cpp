@@ -41,6 +41,7 @@ namespace {
 
 using frame_helper::Command;
 using frame_helper::emitLine;
+using frame_helper::GlContext;
 using frame_helper::JsonWriter;
 using frame_helper::RenderPipeline;
 
@@ -612,6 +613,7 @@ struct HelperArgs {
     int width = 1280;
     int height = 720;
     double volume = 1;
+    bool runtimeProbe = false;
 };
 
 HelperArgs parseArgs(int argc, char** argv) {
@@ -627,10 +629,99 @@ HelperArgs parseArgs(int argc, char** argv) {
         else if (arg == "--volume") args.volume = std::atof(next().c_str());
         else if (arg == "--hwdec") args.hwdec = next();
         else if (arg == "--audio-delay") args.audioDelay = next();
+        else if (arg == "--runtime-probe") args.runtimeProbe = true;
     }
     args.width = std::max(16, args.width);
     args.height = std::max(16, args.height);
     return args;
+}
+
+int runtimeProbeFailure(const std::string& reason,
+                        const std::string& detail = "") {
+    JsonWriter writer;
+    writer.num("protocol", 1)
+        .boolean("usable", false)
+        .str("reason", reason);
+    if (!detail.empty()) writer.str("detail", detail);
+    emitLine(writer.finish());
+    return 1;
+}
+
+std::string libmpvClientApiVersion() {
+    const unsigned long version = mpv_client_api_version();
+    return std::to_string(version >> 16) + "." +
+           std::to_string(version & 0xffff);
+}
+
+/*
+ * Bounded startup capability probe: initialize an idle libmpv client and
+ * create the platform GL + mpv OpenGL render contexts. It deliberately does
+ * not create an FBO/shm ring, open media, or enter either command loop.
+ */
+int runRuntimeProbe() {
+    mpv_handle* mpv = mpv_create();
+    if (!mpv) {
+        return runtimeProbeFailure("mpv-create-failed");
+    }
+
+    mpv_set_option_string(mpv, "vo", "libmpv");
+    mpv_set_option_string(mpv, "idle", "yes");
+    mpv_set_option_string(mpv, "input-default-bindings", "no");
+    mpv_set_option_string(mpv, "osc", "no");
+    const int initializeResult = mpv_initialize(mpv);
+    if (initializeResult < 0) {
+        const std::string error = mpv_error_string(initializeResult);
+        mpv_destroy(mpv);
+        return runtimeProbeFailure("mpv-initialize-failed", error);
+    }
+
+    GlContext gl;
+    std::string error;
+    if (!gl.create(error)) {
+        gl.destroy();
+        mpv_terminate_destroy(mpv);
+        return runtimeProbeFailure("gl-context-create-failed", error);
+    }
+    if (!gl.makeCurrent(error)) {
+        gl.destroy();
+        mpv_terminate_destroy(mpv);
+        return runtimeProbeFailure("gl-context-bind-failed", error);
+    }
+
+    mpv_opengl_init_params glInit = {
+        gl.procLoader(),
+        gl.procLoaderCtx(),
+    };
+    mpv_render_param renderParams[] = {
+        {MPV_RENDER_PARAM_API_TYPE,
+         const_cast<char*>(MPV_RENDER_API_TYPE_OPENGL)},
+        {MPV_RENDER_PARAM_OPENGL_INIT_PARAMS, &glInit},
+        {MPV_RENDER_PARAM_INVALID, nullptr},
+    };
+    mpv_render_context* renderContext = nullptr;
+    const int renderResult =
+        mpv_render_context_create(&renderContext, mpv, renderParams);
+    if (renderResult < 0 || !renderContext) {
+        const std::string renderError =
+            renderResult < 0 ? mpv_error_string(renderResult)
+                             : "render context unavailable";
+        if (renderContext) mpv_render_context_free(renderContext);
+        gl.destroy();
+        mpv_terminate_destroy(mpv);
+        return runtimeProbeFailure("mpv-render-context-failed", renderError);
+    }
+
+    const std::string libmpvVersion = libmpvClientApiVersion();
+    mpv_render_context_free(renderContext);
+    gl.destroy();
+    mpv_terminate_destroy(mpv);
+    emitLine(JsonWriter()
+                 .num("protocol", 1)
+                 .boolean("usable", true)
+                 .str("libmpv", libmpvVersion)
+                 .str("renderApi", gl.renderApiName())
+                 .finish());
+    return 0;
 }
 
 } // namespace
@@ -641,6 +732,9 @@ int main(int argc, char** argv) {
     signal(SIGPIPE, SIG_IGN);
 #endif
     const HelperArgs args = parseArgs(argc, argv);
+    if (args.runtimeProbe) {
+        return runRuntimeProbe();
+    }
 
     g_state.mpv = mpv_create();
     if (!g_state.mpv) {

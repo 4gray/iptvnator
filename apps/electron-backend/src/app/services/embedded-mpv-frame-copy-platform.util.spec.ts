@@ -10,10 +10,13 @@ const mockElectronApp = {
 jest.mock('electron', () => ({ app: mockElectronApp }));
 
 import {
+    getFrameCopyRuntimeAvailability,
     isFrameCopyPlatformSupported,
+    isFrameCopyRuntimeUsable,
     resolveFrameCopyHelperPath,
 } from './embedded-mpv-frame-copy-platform.util';
 import * as frameCopyPlatform from './embedded-mpv-frame-copy-platform.util';
+import type { EmbeddedMpvFrameCopyRuntimeResult } from './embedded-mpv-frame-copy-runtime';
 
 describe('embedded-mpv-frame-copy-platform.util', () => {
     describe('isFrameCopyPlatformSupported', () => {
@@ -31,7 +34,8 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             ['darwin', 'arm64', true],
             ['darwin', 'x64', false],
             ['linux', 'x64', true],
-            ['linux', 'arm64', true],
+            ['linux', 'arm64', false],
+            ['linux', 'arm', false],
             ['win32', 'x64', true],
             ['freebsd', 'x64', false],
         ])('%s/%s -> %s', (platform, arch, expected) => {
@@ -61,8 +65,7 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             process.platform === 'win32'
                 ? 'iptvnator_mpv_helper.exe'
                 : 'iptvnator_mpv_helper';
-        const helperPath = () =>
-            path.join(releaseDir(), helperFileName());
+        const helperPath = () => path.join(releaseDir(), helperFileName());
         const readerPath = () =>
             path.join(releaseDir(), 'embedded_mpv_frame_reader.node');
 
@@ -151,6 +154,87 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             );
 
             expect(resolveFrameCopyHelperPath()).toBe(packagedHelper);
+        });
+    });
+
+    describe('isFrameCopyRuntimeUsable', () => {
+        const originalPlatform = process.platform;
+        const originalArch = process.arch;
+
+        afterEach(() => {
+            Object.defineProperty(process, 'platform', {
+                value: originalPlatform,
+            });
+            Object.defineProperty(process, 'arch', { value: originalArch });
+        });
+
+        it('requires a successful Linux x64 runtime probe', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn<
+                EmbeddedMpvFrameCopyRuntimeResult,
+                [string]
+            >(() => ({
+                usable: true,
+                profile: 'system',
+                runtimeMode: 'system',
+                libmpv: '2.3',
+                renderApi: 'egl',
+            }));
+
+            expect(isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)).toBe(
+                true
+            );
+            expect(probeRuntime).toHaveBeenCalledWith(
+                '/native/iptvnator_mpv_helper'
+            );
+
+            probeRuntime.mockReturnValueOnce({
+                usable: false,
+                reason: 'helper-probe-failed',
+            });
+            expect(
+                getFrameCopyRuntimeAvailability(resolveHelper, probeRuntime)
+            ).toEqual({
+                usable: false,
+                reason: 'helper-probe-failed',
+            });
+        });
+
+        it.each<[NodeJS.Platform, string]>([
+            ['darwin', 'arm64'],
+            ['win32', 'x64'],
+        ])(
+            'keeps the existing helper-presence gate on %s',
+            (platform, arch) => {
+                Object.defineProperty(process, 'platform', {
+                    value: platform,
+                });
+                Object.defineProperty(process, 'arch', { value: arch });
+                const resolveHelper = jest.fn(
+                    () => '/native/iptvnator_mpv_helper'
+                );
+                const probeRuntime = jest.fn();
+
+                expect(
+                    isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)
+                ).toBe(true);
+                expect(probeRuntime).not.toHaveBeenCalled();
+            }
+        );
+
+        it('rejects Linux ARM before helper discovery or probing', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'arm64' });
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn();
+
+            expect(isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)).toBe(
+                false
+            );
+            expect(resolveHelper).not.toHaveBeenCalled();
+            expect(probeRuntime).not.toHaveBeenCalled();
         });
     });
 

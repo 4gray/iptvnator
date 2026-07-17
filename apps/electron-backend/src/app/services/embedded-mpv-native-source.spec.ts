@@ -43,6 +43,10 @@ describe('Embedded MPV native source recording invariants', () => {
         path.resolve(__dirname, '../../../native/helper/frame_helper_render.h'),
         'utf8'
     );
+    const frameHelperSource = readFileSync(
+        path.resolve(__dirname, '../../../native/helper/mpv_frame_helper.cpp'),
+        'utf8'
+    );
     const frameHelperGlSource = readFileSync(
         path.resolve(__dirname, '../../../native/helper/frame_helper_gl.h'),
         'utf8'
@@ -754,6 +758,59 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(runLoop).toContain(
             'if (targetsRebuilt || (flags & MPV_RENDER_UPDATE_FRAME))'
         );
+    });
+
+    it('runs the helper runtime probe without shared memory, media, or command loops', () => {
+        const runtimeProbe = sourceFunctionBody(
+            frameHelperSource,
+            'int runRuntimeProbe(',
+            'runRuntimeProbe'
+        );
+        const main = sourceFunctionBody(frameHelperSource, 'int main(', 'main');
+        const runtimeProbeFailure = sourceFunctionBody(
+            frameHelperSource,
+            'int runtimeProbeFailure(',
+            'runtimeProbeFailure'
+        );
+
+        expect(main).toContain('if (args.runtimeProbe) {');
+        expect(main).toContain('return runRuntimeProbe();');
+        expect(runtimeProbe).toContain('mpv_create()');
+        expect(runtimeProbe).toContain('"idle", "yes"');
+        expect(runtimeProbe).toContain('"vo", "libmpv"');
+        expect(runtimeProbe).toContain('mpv_initialize(mpv)');
+        expect(runtimeProbe).toContain('GlContext gl;');
+        expect(runtimeProbe).toContain('gl.create(error)');
+        expect(runtimeProbe).toContain('gl.makeCurrent(error)');
+        expect(runtimeProbe).toContain('mpv_render_context_create(');
+        expect(runtimeProbe).toContain('mpv_render_context_free(');
+        expect(runtimeProbe).toContain('gl.destroy()');
+        expect(runtimeProbe).toContain('mpv_terminate_destroy(mpv)');
+        expect(runtimeProbe).toContain('.num("protocol", 1)');
+        expect(runtimeProbe).toContain('.boolean("usable", true)');
+        expect(runtimeProbe).toContain('.str("libmpv",');
+        expect(runtimeProbe).toContain('.str("renderApi", gl.renderApiName())');
+        expect(runtimeProbe).not.toContain('pipeline');
+        expect(runtimeProbe).not.toContain('shm');
+        expect(runtimeProbe).not.toContain('runStdinLoop');
+        expect(runtimeProbe).not.toContain('runMpvEventLoop');
+        expect(runtimeProbe).not.toContain('loadfile');
+        expect(runtimeProbe.match(/emitLine\(/g)).toHaveLength(1);
+        expect(runtimeProbeFailure).toContain('.num("protocol", 1)');
+        expect(runtimeProbeFailure).toContain('.boolean("usable", false)');
+        expect(runtimeProbeFailure).toContain('.str("reason", reason)');
+        expect(runtimeProbeFailure.match(/emitLine\(/g)).toHaveLength(1);
+        expect(runtimeProbeFailure).toContain('return 1;');
+    });
+
+    it('identifies the Linux helper runtime probe render API as EGL', () => {
+        const renderApiName = sourceFunctionBody(
+            linuxFrameHelperGlSource,
+            'const char* renderApiName() const',
+            'GlContext::renderApiName'
+        );
+
+        expect(renderApiName).toContain('return "egl";');
     });
 
     it('validates complete EGL candidates and keeps software rendering as the final fallback', () => {

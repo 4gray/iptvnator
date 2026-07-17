@@ -188,6 +188,7 @@ public:
 
     GlGetProcAddressFn procLoader() const { return glDlsymGetProcAddress; }
     void* procLoaderCtx() const { return glDylib_; }
+    const char* renderApiName() const { return "cgl"; }
 
 private:
     CGLContextObj cgl_ = nullptr;
@@ -337,6 +338,7 @@ public:
 
     GlGetProcAddressFn procLoader() const { return eglWrapGetProcAddress; }
     void* procLoaderCtx() const { return nullptr; }
+    const char* renderApiName() const { return "egl"; }
 
 private:
     enum class DisplayTier { SurfacelessMesa, Default, Gbm };
@@ -780,6 +782,7 @@ public:
 
     GlGetProcAddressFn procLoader() const { return wglLoaderGetProcAddress; }
     void* procLoaderCtx() const { return opengl32_; }
+    const char* renderApiName() const { return "wgl"; }
 
 private:
     HWND window_ = nullptr;

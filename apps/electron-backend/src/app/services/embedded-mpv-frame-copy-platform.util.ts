@@ -1,6 +1,8 @@
 import { app } from 'electron';
 import { accessSync, constants as fsConstants, statSync } from 'fs';
 import path from 'path';
+import { probeEmbeddedMpvFrameCopyRuntime } from './embedded-mpv-frame-copy-runtime';
+import type { EmbeddedMpvFrameCopyRuntimeResult } from './embedded-mpv-frame-copy-runtime';
 
 /**
  * Platform gate + helper discovery for the embedded MPV frame-copy engine,
@@ -9,15 +11,15 @@ import path from 'path';
  * callable before app.whenReady().
  *
  * macOS: Apple Silicon only (owner decision 2026-07-10) — Intel Macs keep
- * the docked native engine. Linux: any arch — the helper renders offscreen
- * through headless EGL and links libmpv out of process, so neither window
- * embedding nor the in-process-libmpv ban constrains it. Windows: any arch
- * with a helper binary (WGL offscreen render; in practice x64, the only
- * vendored runtime) — the helper-presence check below is the real gate.
+ * the docked native engine. Linux: x64 only — official packages validate a
+ * profile manifest and run the helper's bounded EGL/libmpv capability probe;
+ * ARM packages remain honestly unavailable. Windows: any arch with a helper
+ * binary (WGL offscreen render; in practice x64, the only vendored runtime)
+ * — the helper-presence check below is the real gate.
  */
 export function isFrameCopyPlatformSupported(): boolean {
     return (
-        process.platform === 'linux' ||
+        (process.platform === 'linux' && process.arch === 'x64') ||
         process.platform === 'win32' ||
         (process.platform === 'darwin' && process.arch === 'arm64')
     );
@@ -104,10 +106,7 @@ export function resolveFrameCopyHelperPath(): string | null {
             .map((candidatePath) => path.dirname(candidatePath))
             .map((nativeDir) => ({
                 helper: path.join(nativeDir, helperFileName),
-                reader: path.join(
-                    nativeDir,
-                    'embedded_mpv_frame_reader.node'
-                ),
+                reader: path.join(nativeDir, 'embedded_mpv_frame_reader.node'),
             }))
             .find(({ helper, reader }) => {
                 try {
@@ -127,10 +126,67 @@ export function resolveFrameCopyHelperPath(): string | null {
     );
 }
 
+type FrameCopyRuntimeProbe = (
+    helperPath: string
+) => EmbeddedMpvFrameCopyRuntimeResult;
+
+export type FrameCopyRuntimeAvailability =
+    | EmbeddedMpvFrameCopyRuntimeResult
+    | { usable: true };
+
+let cachedDefaultRuntimeAvailability: FrameCopyRuntimeAvailability | undefined;
+
+export function getFrameCopyRuntimeAvailability(
+    resolveHelper: () => string | null = resolveFrameCopyHelperPath,
+    probeRuntime: FrameCopyRuntimeProbe = probeEmbeddedMpvFrameCopyRuntime
+): FrameCopyRuntimeAvailability {
+    const usesProcessDecision =
+        resolveHelper === resolveFrameCopyHelperPath &&
+        probeRuntime === probeEmbeddedMpvFrameCopyRuntime;
+    if (usesProcessDecision && cachedDefaultRuntimeAvailability !== undefined) {
+        return cachedDefaultRuntimeAvailability;
+    }
+
+    let availability: FrameCopyRuntimeAvailability;
+    if (!isFrameCopyPlatformSupported()) {
+        availability = {
+            usable: false,
+            reason:
+                process.platform === 'linux'
+                    ? 'unsupported-architecture'
+                    : 'unsupported-platform',
+        };
+    } else {
+        const helperPath = resolveHelper();
+        if (!helperPath) {
+            availability = {
+                usable: false,
+                reason: 'runtime-artifact-missing',
+            };
+        } else if (process.platform !== 'linux') {
+            availability = { usable: true };
+        } else {
+            try {
+                availability = probeRuntime(helperPath);
+            } catch {
+                availability = {
+                    usable: false,
+                    reason: 'runtime-probe-internal-error',
+                };
+            }
+        }
+    }
+    if (usesProcessDecision) {
+        cachedDefaultRuntimeAvailability = availability;
+    }
+    return availability;
+}
+
 export function isFrameCopyRuntimeUsable(
-    resolveHelper: () => string | null = resolveFrameCopyHelperPath
+    resolveHelper: () => string | null = resolveFrameCopyHelperPath,
+    probeRuntime: FrameCopyRuntimeProbe = probeEmbeddedMpvFrameCopyRuntime
 ): boolean {
-    return isFrameCopyPlatformSupported() && resolveHelper() !== null;
+    return getFrameCopyRuntimeAvailability(resolveHelper, probeRuntime).usable;
 }
 
 export function shouldPromotePersistedFrameCopyOptIn(
