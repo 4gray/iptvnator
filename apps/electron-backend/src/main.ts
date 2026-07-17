@@ -36,10 +36,7 @@ import {
     shouldPromotePersistedFrameCopyOptIn,
 } from './app/services/embedded-mpv-frame-copy-platform.util';
 import { isEmbeddedMpvFeatureEnabled } from './app/services/embedded-mpv-runtime-policy.util';
-import {
-    EMBEDDED_MPV_FRAME_COPY,
-    store,
-} from './app/services/store.service';
+import { EMBEDDED_MPV_FRAME_COPY, store } from './app/services/store.service';
 
 app.setName('iptvnator');
 
@@ -74,7 +71,7 @@ if (
     shouldPromotePersistedFrameCopyOptIn(
         store.get(EMBEDDED_MPV_FRAME_COPY, false),
         process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY,
-        isFrameCopyRuntimeUsable()
+        isFrameCopyRuntimeUsable
     )
 ) {
     process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';

@@ -14,9 +14,12 @@ import {
     isFrameCopyPlatformSupported,
     isFrameCopyRuntimeUsable,
     resolveFrameCopyHelperPath,
+    shouldPromotePersistedFrameCopyOptIn,
 } from './embedded-mpv-frame-copy-platform.util';
-import * as frameCopyPlatform from './embedded-mpv-frame-copy-platform.util';
-import type { EmbeddedMpvFrameCopyRuntimeResult } from './embedded-mpv-frame-copy-runtime';
+import type {
+    EmbeddedMpvFrameCopyManifestContract,
+    EmbeddedMpvFrameCopyRuntimeResult,
+} from './embedded-mpv-frame-copy-runtime';
 
 describe('embedded-mpv-frame-copy-platform.util', () => {
     describe('isFrameCopyPlatformSupported', () => {
@@ -161,11 +164,16 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
         const originalPlatform = process.platform;
         const originalArch = process.arch;
 
+        beforeEach(() => {
+            mockElectronApp.isPackaged = false;
+        });
+
         afterEach(() => {
             Object.defineProperty(process, 'platform', {
                 value: originalPlatform,
             });
             Object.defineProperty(process, 'arch', { value: originalArch });
+            mockElectronApp.isPackaged = false;
         });
 
         it('requires a successful Linux x64 runtime probe', () => {
@@ -174,7 +182,7 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
             const probeRuntime = jest.fn<
                 EmbeddedMpvFrameCopyRuntimeResult,
-                [string]
+                [string, EmbeddedMpvFrameCopyManifestContract]
             >(() => ({
                 usable: true,
                 profile: 'system',
@@ -187,7 +195,8 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
                 true
             );
             expect(probeRuntime).toHaveBeenCalledWith(
-                '/native/iptvnator_mpv_helper'
+                '/native/iptvnator_mpv_helper',
+                'development'
             );
 
             probeRuntime.mockReturnValueOnce({
@@ -200,6 +209,31 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
                 usable: false,
                 reason: 'helper-probe-failed',
             });
+        });
+
+        it('selects the packaged manifest contract only from app.isPackaged', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            mockElectronApp.isPackaged = true;
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn<
+                EmbeddedMpvFrameCopyRuntimeResult,
+                [string, EmbeddedMpvFrameCopyManifestContract]
+            >(() => ({
+                usable: true,
+                profile: 'system',
+                runtimeMode: 'system',
+                libmpv: '2.3',
+                renderApi: 'egl',
+            }));
+
+            expect(isFrameCopyRuntimeUsable(resolveHelper, probeRuntime)).toBe(
+                true
+            );
+            expect(probeRuntime).toHaveBeenCalledWith(
+                '/native/iptvnator_mpv_helper',
+                'packaged'
+            );
         });
 
         it.each<[NodeJS.Platform, string]>([
@@ -236,24 +270,50 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             expect(resolveHelper).not.toHaveBeenCalled();
             expect(probeRuntime).not.toHaveBeenCalled();
         });
+
+        it('reports unsupported architecture for Intel macOS', () => {
+            Object.defineProperty(process, 'platform', { value: 'darwin' });
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            const resolveHelper = jest.fn(() => '/native/iptvnator_mpv_helper');
+            const probeRuntime = jest.fn();
+
+            expect(
+                getFrameCopyRuntimeAvailability(resolveHelper, probeRuntime)
+            ).toEqual({
+                usable: false,
+                reason: 'unsupported-architecture',
+            });
+            expect(resolveHelper).not.toHaveBeenCalled();
+            expect(probeRuntime).not.toHaveBeenCalled();
+        });
     });
 
-    it('promotes a stored opt-in only without an explicit env override and with a usable runtime', () => {
-        const shouldPromote = (
-            frameCopyPlatform as typeof frameCopyPlatform & {
-                shouldPromotePersistedFrameCopyOptIn?: (
-                    storedEnabled: boolean,
-                    explicitEnv: string | undefined,
-                    runtimeUsable: boolean
-                ) => boolean;
-            }
-        ).shouldPromotePersistedFrameCopyOptIn;
+    it('lazily probes only a stored opt-in without an explicit env override', () => {
+        const runtimeUsable = jest.fn(() => true);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(
+                false,
+                undefined,
+                runtimeUsable
+            )
+        ).toBe(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, '0', runtimeUsable)
+        ).toBe(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, '1', runtimeUsable)
+        ).toBe(false);
+        expect(runtimeUsable).not.toHaveBeenCalled();
 
-        expect(shouldPromote).toBeDefined();
-        expect(shouldPromote?.(true, undefined, true)).toBe(true);
-        expect(shouldPromote?.(true, undefined, false)).toBe(false);
-        expect(shouldPromote?.(true, '0', true)).toBe(false);
-        expect(shouldPromote?.(true, '1', true)).toBe(false);
-        expect(shouldPromote?.(false, undefined, true)).toBe(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, undefined, runtimeUsable)
+        ).toBe(true);
+        expect(runtimeUsable).toHaveBeenCalledTimes(1);
+
+        runtimeUsable.mockReturnValue(false);
+        expect(
+            shouldPromotePersistedFrameCopyOptIn(true, undefined, runtimeUsable)
+        ).toBe(false);
+        expect(runtimeUsable).toHaveBeenCalledTimes(2);
     });
 });

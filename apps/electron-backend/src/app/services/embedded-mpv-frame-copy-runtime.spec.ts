@@ -24,6 +24,161 @@ import {
 const SUCCESS_OUTPUT =
     '{"protocol":1,"usable":true,"libmpv":"2.3","renderApi":"egl"}\n';
 
+const EXTERNAL_SYSTEM_LIBRARIES = [
+    {
+        name: 'libEGL.so.1',
+        interface: 'EGL',
+        reason: 'System graphics-driver interface used by the frame-copy helper.',
+    },
+    {
+        name: 'libGL.so.1',
+        interface: 'OpenGL',
+        reason: 'System OpenGL compatibility interface supplied by the graphics stack.',
+    },
+    {
+        name: 'libGLX.so.0',
+        interface: 'OpenGL',
+        reason: 'GLVND OpenGL dispatch interface supplied by the graphics stack.',
+    },
+    {
+        name: 'libOpenGL.so.0',
+        interface: 'OpenGL',
+        reason: 'GLVND OpenGL interface supplied by the graphics stack.',
+    },
+    {
+        name: 'libasound.so.2',
+        interface: 'ALSA',
+        reason: 'Linux system audio interface intentionally used by libmpv.',
+    },
+    {
+        name: 'libdrm.so.2',
+        interface: 'DRM',
+        reason: 'Kernel graphics interface used by system GBM and VA-API drivers.',
+    },
+    {
+        name: 'libgbm.so.1',
+        interface: 'GBM',
+        reason: 'System graphics-buffer interface used by headless EGL rendering.',
+    },
+    {
+        name: 'libpulse.so.0',
+        interface: 'PulseAudio',
+        reason: 'Linux desktop audio interface intentionally used by libmpv.',
+    },
+    {
+        name: 'libva-drm.so.2',
+        interface: 'VA-API DRM',
+        reason: 'System VA-API DRM interface used for hardware decoding.',
+    },
+    {
+        name: 'libva.so.2',
+        interface: 'VA-API',
+        reason: 'System video-acceleration interface used for hardware decoding.',
+    },
+];
+
+const PINNED_SOURCE_PACKAGE_IDENTITIES = {
+    freetype: {
+        version: '2.13.3',
+        sourceUrl:
+            'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz',
+        sourceSha256:
+            '0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289',
+        license: 'FreeType License (FTL)',
+    },
+    fribidi: {
+        version: '1.0.16',
+        sourceUrl:
+            'https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz',
+        sourceSha256:
+            '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
+        license: 'LGPL-2.1-or-later',
+    },
+    harfbuzz: {
+        version: '8.5.0',
+        sourceUrl:
+            'https://github.com/harfbuzz/harfbuzz/releases/download/8.5.0/harfbuzz-8.5.0.tar.xz',
+        sourceSha256:
+            '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
+        license: 'MIT',
+    },
+    expat: {
+        version: '2.8.2',
+        sourceUrl:
+            'https://github.com/libexpat/libexpat/releases/download/R_2_8_2/expat-2.8.2.tar.xz',
+        sourceSha256:
+            '3ad89b8588e6644bd4e49981480d48b21289eebbcd4f0a1a4afb1c29f99b6ab4',
+        license: 'MIT',
+    },
+    fontconfig: {
+        version: '2.16.0',
+        sourceUrl:
+            'https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.16.0.tar.xz',
+        sourceSha256:
+            '6a33dc555cc9ba8b10caf7695878ef134eeb36d0af366041f639b1da9b6ed220',
+        license: 'MIT',
+    },
+    libass: {
+        version: '0.17.3',
+        sourceUrl:
+            'https://github.com/libass/libass/releases/download/0.17.3/libass-0.17.3.tar.xz',
+        sourceSha256:
+            'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
+        license: 'ISC',
+    },
+    openssl: {
+        version: '3.5.7',
+        sourceUrl:
+            'https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz',
+        sourceSha256:
+            'a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8',
+        license: 'Apache-2.0',
+    },
+    ffmpeg: {
+        version: '8.1',
+        sourceUrl: 'https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz',
+        sourceSha256:
+            'b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a',
+        license: 'LGPL-2.1-or-later',
+    },
+    libplacebo: {
+        version: '7.360.1',
+        sourceUrl: 'https://github.com/haasn/libplacebo.git',
+        sourceTag: 'v7.360.1',
+        sourceGitCommit: 'cee9b076f2c63104ccfd497fa79c39a867293ec4',
+        license: 'LGPL-2.1-or-later',
+    },
+    hwdata: {
+        version: '0.409',
+        sourceUrl:
+            'https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.409.tar.gz',
+        sourceSha256:
+            '23006accc0f931dd5187d0307a57d0744e2b8feb85e73c37bc0f5229fb31eadd',
+        buildInput: {
+            consumer: 'libdisplay-info',
+            relativePath: 'pnp.ids',
+            purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
+        },
+        license: 'GPL-2.0-or-later OR XFree86-1.0',
+    },
+    'libdisplay-info': {
+        version: '0.1.1',
+        sourceUrl:
+            'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.1.1/downloads/libdisplay-info-0.1.1.tar.xz',
+        sourceSha256:
+            '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
+        license: 'MIT',
+    },
+    mpv: {
+        version: '0.41.0',
+        sourceUrl:
+            'https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz',
+        sourceSha256:
+            'ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209',
+        license: 'LGPL-2.1-or-later with -Dgpl=false',
+    },
+};
+
 interface RuntimeFile {
     name: string;
     size: number;
@@ -52,6 +207,54 @@ function createRuntimeFiles(
             sha256: sha256(contents),
         }))
         .sort((left, right) => left.name.localeCompare(right.name));
+}
+
+function createSourceRuntime(
+    runtimeFiles: RuntimeFile[],
+    runtimeDependencyClosure: Record<string, unknown>
+): Record<string, unknown> {
+    const packages = cloneManifest(PINNED_SOURCE_PACKAGE_IDENTITIES);
+    (
+        packages.libplacebo as typeof packages.libplacebo & {
+            sourceSubmodules: string[];
+        }
+    ).sourceSubmodules = [`${'a'.repeat(40)} 3rdparty/example`];
+    return {
+        schemaVersion: 1,
+        origin: 'vendored-lgpl-source-build',
+        platform: 'linux',
+        arch: 'x64',
+        packages,
+        ffmpeg: {
+            ...(packages.ffmpeg as Record<string, unknown>),
+            configureFlags: ['--disable-gpl', '--disable-nonfree'],
+        },
+        mpv: {
+            ...(packages.mpv as Record<string, unknown>),
+            mesonFlags: ['-Dgpl=false', '-Dlibmpv=true'],
+        },
+        sourceDistribution:
+            'Publish the exact hwdata archive and pnp.ids with the libdisplay-info source.',
+        runtimeFiles,
+        runtimeTotalBytes: runtimeFiles.reduce(
+            (total, runtimeFile) => total + runtimeFile.size,
+            0
+        ),
+        runtimeAbi: {
+            baseline: {
+                distribution: 'Ubuntu 22.04',
+                glibcMaximum: '2.35',
+                glibcxxMaximum: '3.4.30',
+            },
+            files: runtimeFiles.map(({ name }) => ({
+                name,
+                requiredGlibc: '2.34',
+                requiredGlibcxx: null,
+            })),
+        },
+        runtimeDependencyClosure,
+        externalSystemLibraries: cloneManifest(EXTERNAL_SYSTEM_LIBRARIES),
+    };
 }
 
 function createFixture(
@@ -90,7 +293,11 @@ function createFixture(
         })),
         externalDependencies: [],
     };
-    const externalSystemLibraries: unknown[] = [];
+    const externalSystemLibraries = cloneManifest(EXTERNAL_SYSTEM_LIBRARIES);
+    const sourceRuntime = createSourceRuntime(
+        runtimeFiles,
+        runtimeDependencyClosure
+    );
     const manifest: Record<string, unknown> = {
         schemaVersion: 1,
         origin: bundled
@@ -150,19 +357,7 @@ function createFixture(
             ? {
                   runtimeDependencyClosure,
                   externalSystemLibraries,
-                  sourceRuntime: {
-                      schemaVersion: 1,
-                      origin: 'vendored-lgpl-source-build',
-                      platform: 'linux',
-                      arch: 'x64',
-                      runtimeFiles,
-                      runtimeTotalBytes: runtimeFiles.reduce(
-                          (total, runtimeFile) => total + runtimeFile.size,
-                          0
-                      ),
-                      runtimeDependencyClosure,
-                      externalSystemLibraries,
-                  },
+                  sourceRuntime,
               }
             : {}),
     };
@@ -185,6 +380,89 @@ function createFixture(
     };
 }
 
+function createDevelopmentFixture(
+    rootDir: string,
+    buildInputMode: 'system-dev' | 'system-build-inputs' | 'bundled-runtime'
+): RuntimeFixture {
+    const bundled = buildInputMode === 'bundled-runtime';
+    const fixture = createFixture(rootDir, bundled ? 'portable' : 'system');
+    const packagedSourceRuntime = fixture.manifest.sourceRuntime;
+    const sourceRuntime =
+        buildInputMode === 'system-dev'
+            ? {
+                  linuxBackend: 'process-isolated mpv --wid',
+                  warning:
+                      'Development-only unmanaged system libmpv toolchain.',
+              }
+            : buildInputMode === 'system-build-inputs'
+              ? {
+                    linuxBackend: 'process-isolated mpv --wid',
+                    buildInputs: {
+                        libmpvDevPackage: 'libmpv-dev',
+                        mpvPackage: 'mpv',
+                    },
+                    sourceDistribution:
+                        'Linux development inputs are supplied by the host package manager.',
+                }
+              : packagedSourceRuntime;
+    const manifest: Record<string, unknown> = {
+        schemaVersion: 1,
+        origin: 'linux-frame-copy-build',
+        generatedAt: '2026-07-17T00:00:00.000Z',
+        platform: 'linux',
+        arch: 'x64',
+        buildInputMode,
+        sourceRuntimeValidated: bundled,
+        allowedPackageRuntimeModes: ['system', 'bundled'],
+        packageRuntimeAvailability: {
+            system: bundled,
+            bundled,
+        },
+        artifacts: {
+            addon: 'embedded_mpv.node',
+            frameReader: 'embedded_mpv_frame_reader.node',
+            helper: 'iptvnator_mpv_helper',
+        },
+        processIsolation: {
+            addonLoadsLibmpv: false,
+            helperLinksLibmpv: true,
+            helperRunpath: ['$ORIGIN/lib'],
+        },
+        nativeViewFallback: 'process-isolated mpv --wid',
+        libmpvSoname: bundled ? 'libmpv.so.2' : null,
+        runtimeFiles: fixture.manifest.runtimeFiles,
+        runtimeTotalBytes: fixture.manifest.runtimeTotalBytes,
+        sourceRuntime,
+    };
+    fixture.manifest = manifest;
+    writeManifest(fixture.manifestPath, manifest);
+    return fixture;
+}
+
+function probeDevelopmentRuntime(
+    probeRuntime: ReturnType<typeof createEmbeddedMpvFrameCopyRuntimeProbe>,
+    helperPath: string
+) {
+    return (
+        probeRuntime as unknown as (
+            path: string,
+            contract: 'development'
+        ) => ReturnType<typeof probeRuntime>
+    )(helperPath, 'development');
+}
+
+function mirrorBundledManifestFields(manifest: Record<string, unknown>): void {
+    const sourceRuntime = manifest.sourceRuntime as Record<string, unknown>;
+    sourceRuntime.runtimeFiles = cloneManifest(manifest.runtimeFiles);
+    sourceRuntime.runtimeTotalBytes = manifest.runtimeTotalBytes;
+    sourceRuntime.runtimeDependencyClosure = cloneManifest(
+        manifest.runtimeDependencyClosure
+    );
+    sourceRuntime.externalSystemLibraries = cloneManifest(
+        manifest.externalSystemLibraries
+    );
+}
+
 function writeManifest(
     manifestPath: string,
     manifest: Record<string, unknown>
@@ -195,10 +473,8 @@ function writeManifest(
     chmodSync(manifestPath, 0o644);
 }
 
-function cloneManifest(
-    manifest: Record<string, unknown>
-): Record<string, unknown> {
-    return JSON.parse(JSON.stringify(manifest)) as Record<string, unknown>;
+function cloneManifest<T>(manifest: T): T {
+    return JSON.parse(JSON.stringify(manifest)) as T;
 }
 
 describe('embedded-mpv-frame-copy-runtime', () => {
@@ -234,14 +510,18 @@ describe('embedded-mpv-frame-copy-runtime', () => {
         return createEmbeddedMpvFrameCopyRuntimeProbe({
             platform: 'linux',
             arch: 'x64',
-            env: { PATH: '/usr/bin', LD_LIBRARY_PATH: '/system/libs' },
+            env: {
+                PATH: '/usr/bin',
+                LD_LIBRARY_PATH: '/ambient/libs',
+                LD_PRELOAD: '/tmp/inject.so',
+            },
             fileSystem,
             spawnSync: spawnRuntimeProbe as typeof spawnSync,
             ...overrides,
         });
     }
 
-    it('validates a system package, preserves its environment, and caches by helper/manifest identity', () => {
+    it('validates a system package, sanitizes loader overrides, and caches by helper/manifest identity', () => {
         const fixture = createFixture(rootDir);
         const probeRuntime = createProbe();
 
@@ -263,7 +543,6 @@ describe('embedded-mpv-frame-copy-runtime', () => {
                 windowsHide: true,
                 env: {
                     PATH: '/usr/bin',
-                    LD_LIBRARY_PATH: '/system/libs',
                 },
             }
         );
@@ -271,7 +550,7 @@ describe('embedded-mpv-frame-copy-runtime', () => {
     });
 
     it.each(['portable', 'flatpak'] as const)(
-        'validates the exact %s bundled closure and prepends only its private library directory',
+        'validates the exact %s bundled closure and uses only its private library directory',
         (profile) => {
             const fixture = createFixture(rootDir, profile);
             const probeRuntime = createProbe();
@@ -289,15 +568,125 @@ describe('embedded-mpv-frame-copy-runtime', () => {
                 expect.objectContaining({
                     env: {
                         PATH: '/usr/bin',
-                        LD_LIBRARY_PATH: `${path.join(
-                            fixture.nativeDir,
-                            'lib'
-                        )}:/system/libs`,
+                        LD_LIBRARY_PATH: path.join(fixture.nativeDir, 'lib'),
                     },
                 })
             );
         }
     );
+
+    it.each(['system-dev', 'system-build-inputs', 'bundled-runtime'] as const)(
+        'accepts an exact unpackaged %s build manifest and still runs the helper probe',
+        (buildInputMode) => {
+            const fixture = createDevelopmentFixture(rootDir, buildInputMode);
+
+            expect(
+                probeDevelopmentRuntime(createProbe(), fixture.helperPath)
+            ).toEqual(
+                expect.objectContaining({
+                    usable: true,
+                    runtimeMode:
+                        buildInputMode === 'bundled-runtime'
+                            ? 'bundled'
+                            : 'system',
+                })
+            );
+            expect(spawnRuntimeProbe).toHaveBeenCalledWith(
+                fixture.helperPath,
+                ['--runtime-probe'],
+                expect.objectContaining({
+                    env:
+                        buildInputMode === 'bundled-runtime'
+                            ? {
+                                  PATH: '/usr/bin',
+                                  LD_LIBRARY_PATH: path.join(
+                                      fixture.nativeDir,
+                                      'lib'
+                                  ),
+                              }
+                            : {
+                                  PATH: '/usr/bin',
+                              },
+                })
+            );
+        }
+    );
+
+    it('keeps the packaged manifest contract strict when a development manifest is present', () => {
+        const fixture = createDevelopmentFixture(rootDir, 'bundled-runtime');
+
+        expect(createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'runtime-manifest-invalid',
+        });
+        expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        {
+            label: 'origin',
+            mutate(manifest: Record<string, unknown>) {
+                manifest.origin = 'system-libmpv-frame-copy';
+            },
+        },
+        {
+            label: 'architecture',
+            mutate(manifest: Record<string, unknown>) {
+                manifest.arch = 'arm64';
+            },
+        },
+        {
+            label: 'artifact set',
+            mutate(manifest: Record<string, unknown>) {
+                const artifacts = manifest.artifacts as Record<string, unknown>;
+                artifacts.helper = 'other-helper';
+            },
+        },
+        {
+            label: 'package availability',
+            mutate(manifest: Record<string, unknown>) {
+                manifest.packageRuntimeAvailability = {
+                    system: true,
+                    bundled: false,
+                };
+            },
+        },
+        {
+            label: 'unexpected field',
+            mutate(manifest: Record<string, unknown>) {
+                manifest.manifestContract = 'packaged';
+            },
+        },
+    ])(
+        'rejects a development manifest with an invalid $label',
+        ({ mutate }) => {
+            const fixture = createDevelopmentFixture(rootDir, 'system-dev');
+            const manifest = cloneManifest(fixture.manifest);
+            mutate(manifest);
+            writeManifest(fixture.manifestPath, manifest);
+
+            expect(
+                probeDevelopmentRuntime(createProbe(), fixture.helperPath)
+            ).toEqual({
+                usable: false,
+                reason: 'runtime-manifest-invalid',
+            });
+            expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+        }
+    );
+
+    it('rejects a system development manifest with a private runtime directory', () => {
+        const fixture = createDevelopmentFixture(rootDir, 'system-dev');
+        mkdirSync(path.join(fixture.nativeDir, 'lib'));
+
+        expect(
+            probeDevelopmentRuntime(createProbe(), fixture.helperPath)
+        ).toEqual({
+            usable: false,
+            reason: 'runtime-library-directory-invalid',
+        });
+        expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+    });
 
     it('reprobes when the helper identity changes', () => {
         const fixture = createFixture(rootDir);
@@ -478,6 +867,211 @@ describe('embedded-mpv-frame-copy-runtime', () => {
         const fixture = createFixture(rootDir, 'portable');
         const manifest = cloneManifest(fixture.manifest);
         manifest[field] = value;
+        writeManifest(fixture.manifestPath, manifest);
+
+        expect(createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'runtime-manifest-invalid',
+        });
+        expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+    });
+
+    it.each([
+        ['system', ['deb', 'pacman']],
+        ['portable', ['appimage']],
+    ] as const)(
+        'rejects an allowed subset of the exact %s profile targets',
+        (profile, targets) => {
+            const fixture = createFixture(rootDir, profile);
+            const manifest = cloneManifest(fixture.manifest);
+            manifest.targets = targets;
+            writeManifest(fixture.manifestPath, manifest);
+
+            expect(createProbe()(fixture.helperPath)).toEqual({
+                usable: false,
+                reason: 'runtime-manifest-invalid',
+            });
+            expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+        }
+    );
+
+    it('rejects a bundled closure dependency outside the deterministic system allowlist', () => {
+        const fixture = createFixture(rootDir, 'portable');
+        const manifest = cloneManifest(fixture.manifest);
+        const closure = manifest.runtimeDependencyClosure as {
+            entries: Array<{ needed: string[] }>;
+            externalDependencies: string[];
+        };
+        closure.entries[0].needed = ['libambient-only.so.1'];
+        closure.externalDependencies = ['libambient-only.so.1'];
+        mirrorBundledManifestFields(manifest);
+        writeManifest(fixture.manifestPath, manifest);
+
+        expect(createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'runtime-manifest-invalid',
+        });
+        expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+    });
+
+    it('requires externalDependencies to exactly equal the sorted external closure', () => {
+        const fixture = createFixture(rootDir, 'portable');
+        const manifest = cloneManifest(fixture.manifest);
+        const closure = manifest.runtimeDependencyClosure as {
+            entries: Array<{ needed: string[] }>;
+            externalDependencies: string[];
+        };
+        closure.entries[0].needed = ['libEGL.so.1', 'libc.so.6'];
+        closure.externalDependencies = [];
+        mirrorBundledManifestFields(manifest);
+        writeManifest(fixture.manifestPath, manifest);
+
+        expect(createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'runtime-manifest-invalid',
+        });
+        expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+    });
+
+    it('accepts only the exact deterministic external-system library declaration', () => {
+        const fixture = createFixture(rootDir, 'portable');
+        const manifest = cloneManifest(fixture.manifest);
+        (manifest.externalSystemLibraries as unknown[]).pop();
+        mirrorBundledManifestFields(manifest);
+        writeManifest(fixture.manifestPath, manifest);
+
+        expect(createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'runtime-manifest-invalid',
+        });
+        expect(spawnRuntimeProbe).not.toHaveBeenCalled();
+    });
+
+    it('accepts bundled dependencies on declared system interfaces and the glibc toolchain', () => {
+        const fixture = createFixture(rootDir, 'portable');
+        const manifest = cloneManifest(fixture.manifest);
+        const closure = manifest.runtimeDependencyClosure as {
+            entries: Array<{ needed: string[] }>;
+            externalDependencies: string[];
+        };
+        closure.entries[0].needed = ['libEGL.so.1', 'libc.so.6'];
+        closure.externalDependencies = ['libEGL.so.1', 'libc.so.6'];
+        mirrorBundledManifestFields(manifest);
+        writeManifest(fixture.manifestPath, manifest);
+
+        expect(createProbe()(fixture.helperPath)).toEqual(
+            expect.objectContaining({ usable: true, runtimeMode: 'bundled' })
+        );
+        expect(spawnRuntimeProbe).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+        {
+            label: 'pinned source identity',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                packages.mpv.sourceSha256 = '0'.repeat(64);
+            },
+        },
+        {
+            label: 'pinned source URL',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                packages.freetype.sourceUrl =
+                    'https://example.invalid/freetype.tar.xz';
+            },
+        },
+        {
+            label: 'pinned git tag',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                packages.libplacebo.sourceTag = 'main';
+            },
+        },
+        {
+            label: 'pinned hwdata build input',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                packages.hwdata.buildInput = {
+                    consumer: 'libdisplay-info',
+                    relativePath: '../pnp.ids',
+                    purpose:
+                        'PNP vendor lookup table compiled into libdisplay-info.',
+                };
+            },
+        },
+        {
+            label: 'git submodule record',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                packages.libplacebo.sourceSubmodules = [
+                    `${'a'.repeat(40)} ../outside`,
+                ];
+            },
+        },
+        {
+            label: 'duplicate git submodule records',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                const record = `${'a'.repeat(40)} 3rdparty/example`;
+                packages.libplacebo.sourceSubmodules = [record, record];
+            },
+        },
+        {
+            label: 'portable ABI baseline',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const runtimeAbi = sourceRuntime.runtimeAbi as {
+                    baseline: Record<string, unknown>;
+                };
+                runtimeAbi.baseline.glibcMaximum = '9.99';
+            },
+        },
+        {
+            label: 'source-distribution obligation',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                sourceRuntime.sourceDistribution = 'Sources available.';
+            },
+        },
+        {
+            label: 'FFmpeg LGPL flags',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const ffmpeg = sourceRuntime.ffmpeg as {
+                    configureFlags: string[];
+                };
+                ffmpeg.configureFlags = ['--disable-nonfree', '--enable-gpl'];
+            },
+        },
+        {
+            label: 'mpv LGPL flags',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const mpv = sourceRuntime.mpv as {
+                    mesonFlags: string[];
+                };
+                mpv.mesonFlags = ['-Dgpl=true', '-Dlibmpv=true'];
+            },
+        },
+    ])('rejects an invalid $label', ({ mutate }) => {
+        const fixture = createFixture(rootDir, 'portable');
+        const manifest = cloneManifest(fixture.manifest);
+        mutate(manifest.sourceRuntime as Record<string, unknown>);
         writeManifest(fixture.manifestPath, manifest);
 
         expect(createProbe()(fixture.helperPath)).toEqual({

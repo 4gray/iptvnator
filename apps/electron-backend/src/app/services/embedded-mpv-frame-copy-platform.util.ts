@@ -2,7 +2,10 @@ import { app } from 'electron';
 import { accessSync, constants as fsConstants, statSync } from 'fs';
 import path from 'path';
 import { probeEmbeddedMpvFrameCopyRuntime } from './embedded-mpv-frame-copy-runtime';
-import type { EmbeddedMpvFrameCopyRuntimeResult } from './embedded-mpv-frame-copy-runtime';
+import type {
+    EmbeddedMpvFrameCopyManifestContract,
+    EmbeddedMpvFrameCopyRuntimeResult,
+} from './embedded-mpv-frame-copy-runtime';
 
 /**
  * Platform gate + helper discovery for the embedded MPV frame-copy engine,
@@ -127,7 +130,8 @@ export function resolveFrameCopyHelperPath(): string | null {
 }
 
 type FrameCopyRuntimeProbe = (
-    helperPath: string
+    helperPath: string,
+    manifestContract: EmbeddedMpvFrameCopyManifestContract
 ) => EmbeddedMpvFrameCopyRuntimeResult;
 
 export type FrameCopyRuntimeAvailability =
@@ -152,7 +156,7 @@ export function getFrameCopyRuntimeAvailability(
         availability = {
             usable: false,
             reason:
-                process.platform === 'linux'
+                process.platform === 'linux' || process.platform === 'darwin'
                     ? 'unsupported-architecture'
                     : 'unsupported-platform',
         };
@@ -167,7 +171,13 @@ export function getFrameCopyRuntimeAvailability(
             availability = { usable: true };
         } else {
             try {
-                availability = probeRuntime(helperPath);
+                // app.isPackaged is the trusted boundary. Environment flags
+                // can request the feature, but cannot weaken its manifest
+                // contract or make development artifacts package-trusted.
+                availability = probeRuntime(
+                    helperPath,
+                    app.isPackaged ? 'packaged' : 'development'
+                );
             } catch {
                 availability = {
                     usable: false,
@@ -192,7 +202,7 @@ export function isFrameCopyRuntimeUsable(
 export function shouldPromotePersistedFrameCopyOptIn(
     storedEnabled: boolean,
     explicitEnv: string | undefined,
-    runtimeUsable = isFrameCopyRuntimeUsable()
+    runtimeUsable: () => boolean = isFrameCopyRuntimeUsable
 ): boolean {
-    return explicitEnv === undefined && storedEnabled && runtimeUsable;
+    return explicitEnv === undefined && storedEnabled && runtimeUsable();
 }

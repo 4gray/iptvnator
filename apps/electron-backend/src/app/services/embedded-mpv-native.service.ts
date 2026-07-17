@@ -113,8 +113,9 @@ export class EmbeddedMpvNativeService {
     /**
      * Frame-copy engine: helper process + shm ring + renderer canvas.
      * Experimental, macOS Apple Silicon (owner decision 2026-07-10), Linux
-     * and Windows, opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1
-     * on top of the regular embedded MPV experiment flag.
+     * x64 and Windows, opted into with
+     * IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on top of the regular
+     * embedded MPV experiment flag.
      */
     private isFrameCopyEngineRequested(): boolean {
         return ['1', 'true', 'yes', 'on'].includes(

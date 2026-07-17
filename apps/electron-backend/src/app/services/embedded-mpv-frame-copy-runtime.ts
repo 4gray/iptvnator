@@ -10,11 +10,191 @@ const FRAME_COPY_READER_NAME = 'embedded_mpv_frame_reader.node';
 const FRAME_COPY_HELPER_NAME = 'iptvnator_mpv_helper';
 const RUNTIME_PROBE_PROTOCOL = 1;
 const RUNTIME_PROBE_TIMEOUT_MS = 3000;
-const LINUX_LIBRARY_PATH_DELIMITER = ':';
 const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 const SAFE_RUNTIME_NAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
+const GIT_COMMIT_PATTERN = /^[a-f0-9]{40,64}$/;
+const SUBMODULE_RECORD_PATTERN =
+    /^[a-f0-9]{40,64}\s+([A-Za-z0-9_+./-]+)(?:\s+\(.+\))?$/;
+const VERSION_PATTERN = /^\d+(?:\.\d+)+$/;
+
+const GLIBC_TOOLCHAIN_ALLOWLIST = [
+    'ld-linux-x86-64.so.2',
+    'libc.so.6',
+    'libdl.so.2',
+    'libgcc_s.so.1',
+    'libm.so.6',
+    'libpthread.so.0',
+    'librt.so.1',
+    'libstdc++.so.6',
+] as const;
+
+const EXPECTED_EXTERNAL_SYSTEM_LIBRARIES = [
+    {
+        name: 'libEGL.so.1',
+        interface: 'EGL',
+        reason: 'System graphics-driver interface used by the frame-copy helper.',
+    },
+    {
+        name: 'libGL.so.1',
+        interface: 'OpenGL',
+        reason: 'System OpenGL compatibility interface supplied by the graphics stack.',
+    },
+    {
+        name: 'libGLX.so.0',
+        interface: 'OpenGL',
+        reason: 'GLVND OpenGL dispatch interface supplied by the graphics stack.',
+    },
+    {
+        name: 'libOpenGL.so.0',
+        interface: 'OpenGL',
+        reason: 'GLVND OpenGL interface supplied by the graphics stack.',
+    },
+    {
+        name: 'libasound.so.2',
+        interface: 'ALSA',
+        reason: 'Linux system audio interface intentionally used by libmpv.',
+    },
+    {
+        name: 'libdrm.so.2',
+        interface: 'DRM',
+        reason: 'Kernel graphics interface used by system GBM and VA-API drivers.',
+    },
+    {
+        name: 'libgbm.so.1',
+        interface: 'GBM',
+        reason: 'System graphics-buffer interface used by headless EGL rendering.',
+    },
+    {
+        name: 'libpulse.so.0',
+        interface: 'PulseAudio',
+        reason: 'Linux desktop audio interface intentionally used by libmpv.',
+    },
+    {
+        name: 'libva-drm.so.2',
+        interface: 'VA-API DRM',
+        reason: 'System VA-API DRM interface used for hardware decoding.',
+    },
+    {
+        name: 'libva.so.2',
+        interface: 'VA-API',
+        reason: 'System video-acceleration interface used for hardware decoding.',
+    },
+] as const;
+
+const ALLOWED_EXTERNAL_LIBRARY_NAMES = new Set<string>([
+    ...GLIBC_TOOLCHAIN_ALLOWLIST,
+    ...EXPECTED_EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
+]);
+
+const PORTABLE_ABI_BASELINE = {
+    distribution: 'Ubuntu 22.04',
+    glibcMaximum: '2.35',
+    glibcxxMaximum: '3.4.30',
+} as const;
+
+const PINNED_SOURCE_PACKAGE_IDENTITIES = {
+    freetype: {
+        version: '2.13.3',
+        sourceUrl:
+            'https://download.savannah.gnu.org/releases/freetype/freetype-2.13.3.tar.xz',
+        sourceSha256:
+            '0550350666d427c74daeb85d5ac7bb353acba5f76956395995311a9c6f063289',
+        license: 'FreeType License (FTL)',
+    },
+    fribidi: {
+        version: '1.0.16',
+        sourceUrl:
+            'https://github.com/fribidi/fribidi/releases/download/v1.0.16/fribidi-1.0.16.tar.xz',
+        sourceSha256:
+            '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
+        license: 'LGPL-2.1-or-later',
+    },
+    harfbuzz: {
+        version: '8.5.0',
+        sourceUrl:
+            'https://github.com/harfbuzz/harfbuzz/releases/download/8.5.0/harfbuzz-8.5.0.tar.xz',
+        sourceSha256:
+            '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
+        license: 'MIT',
+    },
+    expat: {
+        version: '2.8.2',
+        sourceUrl:
+            'https://github.com/libexpat/libexpat/releases/download/R_2_8_2/expat-2.8.2.tar.xz',
+        sourceSha256:
+            '3ad89b8588e6644bd4e49981480d48b21289eebbcd4f0a1a4afb1c29f99b6ab4',
+        license: 'MIT',
+    },
+    fontconfig: {
+        version: '2.16.0',
+        sourceUrl:
+            'https://www.freedesktop.org/software/fontconfig/release/fontconfig-2.16.0.tar.xz',
+        sourceSha256:
+            '6a33dc555cc9ba8b10caf7695878ef134eeb36d0af366041f639b1da9b6ed220',
+        license: 'MIT',
+    },
+    libass: {
+        version: '0.17.3',
+        sourceUrl:
+            'https://github.com/libass/libass/releases/download/0.17.3/libass-0.17.3.tar.xz',
+        sourceSha256:
+            'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
+        license: 'ISC',
+    },
+    openssl: {
+        version: '3.5.7',
+        sourceUrl:
+            'https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz',
+        sourceSha256:
+            'a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8',
+        license: 'Apache-2.0',
+    },
+    ffmpeg: {
+        version: '8.1',
+        sourceUrl: 'https://ffmpeg.org/releases/ffmpeg-8.1.tar.xz',
+        sourceSha256:
+            'b072aed6871998cce9b36e7774033105ca29e33632be5b6347f3206898e0756a',
+        license: 'LGPL-2.1-or-later',
+    },
+    libplacebo: {
+        version: '7.360.1',
+        sourceUrl: 'https://github.com/haasn/libplacebo.git',
+        sourceTag: 'v7.360.1',
+        sourceGitCommit: 'cee9b076f2c63104ccfd497fa79c39a867293ec4',
+        license: 'LGPL-2.1-or-later',
+    },
+    hwdata: {
+        version: '0.409',
+        sourceUrl:
+            'https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.409.tar.gz',
+        sourceSha256:
+            '23006accc0f931dd5187d0307a57d0744e2b8feb85e73c37bc0f5229fb31eadd',
+        buildInput: {
+            consumer: 'libdisplay-info',
+            relativePath: 'pnp.ids',
+            purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
+        },
+        license: 'GPL-2.0-or-later OR XFree86-1.0',
+    },
+    'libdisplay-info': {
+        version: '0.1.1',
+        sourceUrl:
+            'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.1.1/downloads/libdisplay-info-0.1.1.tar.xz',
+        sourceSha256:
+            '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
+        license: 'MIT',
+    },
+    mpv: {
+        version: '0.41.0',
+        sourceUrl:
+            'https://github.com/mpv-player/mpv/archive/refs/tags/v0.41.0.tar.gz',
+        sourceSha256:
+            'ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209',
+        license: 'LGPL-2.1-or-later with -Dgpl=false',
+    },
+} as const;
 
 const EXPECTED_ARTIFACTS = {
     addon: {
@@ -42,6 +222,37 @@ const EXPECTED_PROCESS_ISOLATION = {
     helperLinksLibmpv: true,
     helperRunpath: ['$ORIGIN/lib'],
 };
+
+const EXPECTED_DEVELOPMENT_ARTIFACTS = {
+    addon: FRAME_COPY_ADDON_NAME,
+    frameReader: FRAME_COPY_READER_NAME,
+    helper: FRAME_COPY_HELPER_NAME,
+};
+
+const EXPECTED_DEVELOPMENT_PROCESS_ISOLATION = {
+    addonLoadsLibmpv: false,
+    helperLinksLibmpv: true,
+    helperRunpath: ['$ORIGIN/lib'],
+};
+
+const DEVELOPMENT_MANIFEST_FIELDS = [
+    'allowedPackageRuntimeModes',
+    'arch',
+    'artifacts',
+    'buildInputMode',
+    'generatedAt',
+    'libmpvSoname',
+    'nativeViewFallback',
+    'origin',
+    'packageRuntimeAvailability',
+    'platform',
+    'processIsolation',
+    'runtimeFiles',
+    'runtimeTotalBytes',
+    'schemaVersion',
+    'sourceRuntime',
+    'sourceRuntimeValidated',
+] as const;
 
 const SYSTEM_PACKAGE_DEPENDENCIES = {
     deb: 'libmpv2',
@@ -114,10 +325,15 @@ export type EmbeddedMpvFrameCopyRuntimeFailureReason =
     | 'helper-probe-unusable'
     | 'runtime-probe-internal-error';
 
+export type EmbeddedMpvFrameCopyManifestContract = 'packaged' | 'development';
+
+type RuntimeProfile = keyof typeof PROFILE_CONTRACTS;
+type RuntimeProbeProfile = RuntimeProfile | 'development';
+
 export type EmbeddedMpvFrameCopyRuntimeResult =
     | {
           usable: true;
-          profile: keyof typeof PROFILE_CONTRACTS;
+          profile: RuntimeProbeProfile;
           runtimeMode: 'system' | 'bundled';
           libmpv: string;
           renderApi: 'egl';
@@ -142,8 +358,6 @@ export interface EmbeddedMpvFrameCopyRuntimeDependencies {
     spawnSync: typeof nodeSpawnSync;
 }
 
-type RuntimeProfile = keyof typeof PROFILE_CONTRACTS;
-
 interface RuntimeFile {
     name: string;
     size: number;
@@ -151,7 +365,7 @@ interface RuntimeFile {
 }
 
 interface ValidManifest {
-    profile: RuntimeProfile;
+    profile: RuntimeProbeProfile;
     runtimeMode: 'system' | 'bundled';
     runtimeFiles: RuntimeFile[];
 }
@@ -260,9 +474,10 @@ function validateTargets(
     targets: unknown,
     allowedTargets: ReadonlySet<string>
 ): boolean {
+    const expectedTargets = [...allowedTargets].sort();
     if (
         !Array.isArray(targets) ||
-        targets.length === 0 ||
+        targets.length !== expectedTargets.length ||
         targets.some(
             (target) =>
                 typeof target !== 'string' ||
@@ -273,10 +488,7 @@ function validateTargets(
     ) {
         return false;
     }
-    return (
-        new Set(targets).size === targets.length &&
-        isDeepStrictEqual([...targets].sort(), targets)
-    );
+    return isDeepStrictEqual(targets, expectedTargets);
 }
 
 function validateRuntimeFiles(value: unknown): RuntimeFile[] | null {
@@ -317,9 +529,14 @@ function validateRuntimeFiles(value: unknown): RuntimeFile[] | null {
 function validateRuntimeClosure(
     value: unknown,
     runtimeFiles: RuntimeFile[],
-    libmpvSoname: string
+    libmpvSoname: string,
+    externalSystemLibraries: unknown
 ): boolean {
     if (
+        !isDeepStrictEqual(
+            externalSystemLibraries,
+            EXPECTED_EXTERNAL_SYSTEM_LIBRARIES
+        ) ||
         !isObject(value) ||
         !hasExactFields(value, ['entries', 'externalDependencies']) ||
         !Array.isArray(value.entries) ||
@@ -327,14 +544,17 @@ function validateRuntimeClosure(
         value.externalDependencies.some(
             (dependency) =>
                 typeof dependency !== 'string' ||
-                !SAFE_RUNTIME_NAME_PATTERN.test(dependency)
+                !SAFE_RUNTIME_NAME_PATTERN.test(dependency) ||
+                !SHARED_LIBRARY_PATTERN.test(dependency)
         )
     ) {
         return false;
     }
 
     const runtimeNames = runtimeFiles.map(({ name }) => name);
+    const runtimeNameSet = new Set(runtimeNames);
     const closureNames: string[] = [];
+    const computedExternalDependencies = new Set<string>();
     for (const entry of value.entries) {
         if (
             !isObject(entry) ||
@@ -351,28 +571,274 @@ function validateRuntimeClosure(
             entry.needed.some(
                 (dependency) =>
                     typeof dependency !== 'string' ||
-                    !SAFE_RUNTIME_NAME_PATTERN.test(dependency)
+                    !SAFE_RUNTIME_NAME_PATTERN.test(dependency) ||
+                    !SHARED_LIBRARY_PATTERN.test(dependency)
             ) ||
             !isDeepStrictEqual(entry.rpath, []) ||
-            !isDeepStrictEqual(entry.runpath, ['$ORIGIN'])
+            !isDeepStrictEqual(entry.runpath, ['$ORIGIN']) ||
+            new Set(entry.needed).size !== entry.needed.length ||
+            !isDeepStrictEqual([...entry.needed].sort(), entry.needed)
         ) {
             return false;
         }
         closureNames.push(entry.name);
+        for (const dependency of entry.needed) {
+            if (runtimeNameSet.has(dependency)) {
+                continue;
+            }
+            if (!ALLOWED_EXTERNAL_LIBRARY_NAMES.has(dependency)) {
+                return false;
+            }
+            computedExternalDependencies.add(dependency);
+        }
     }
 
     const linkerAlias = value.entries.find(
         (entry) => isObject(entry) && entry.name === 'libmpv.so'
     );
     return (
-        isDeepStrictEqual([...closureNames].sort(), [...runtimeNames].sort()) &&
+        isDeepStrictEqual(closureNames, runtimeNames) &&
         new Set(closureNames).size === closureNames.length &&
+        isDeepStrictEqual(
+            value.externalDependencies,
+            [...computedExternalDependencies].sort()
+        ) &&
         isObject(linkerAlias) &&
         linkerAlias.soname === libmpvSoname
     );
 }
 
-function validateManifest(
+function compareDottedVersions(left: string, right: string): number {
+    const leftParts = left.split('.').map(Number);
+    const rightParts = right.split('.').map(Number);
+    const length = Math.max(leftParts.length, rightParts.length);
+    for (let index = 0; index < length; index += 1) {
+        const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+        if (difference !== 0) {
+            return difference;
+        }
+    }
+    return 0;
+}
+
+function validatesPinnedSourceIdentity(
+    candidate: unknown,
+    expected: (typeof PINNED_SOURCE_PACKAGE_IDENTITIES)[keyof typeof PINNED_SOURCE_PACKAGE_IDENTITIES]
+): boolean {
+    if (
+        !isObject(candidate) ||
+        candidate.version !== expected.version ||
+        candidate.sourceUrl !== expected.sourceUrl ||
+        candidate.license !== expected.license
+    ) {
+        return false;
+    }
+    if (
+        ('sourceTag' in expected
+            ? candidate.sourceTag !== expected.sourceTag
+            : candidate.sourceTag !== undefined) ||
+        ('buildInput' in expected
+            ? !isDeepStrictEqual(candidate.buildInput, expected.buildInput)
+            : candidate.buildInput !== undefined)
+    ) {
+        return false;
+    }
+    if ('sourceSha256' in expected) {
+        return (
+            candidate.sourceSha256 === expected.sourceSha256 &&
+            candidate.sourceGitCommit === undefined &&
+            candidate.sourceSubmodules === undefined
+        );
+    }
+    return (
+        candidate.sourceGitCommit === expected.sourceGitCommit &&
+        GIT_COMMIT_PATTERN.test(candidate.sourceGitCommit) &&
+        candidate.sourceSha256 === undefined &&
+        validatesGitSubmoduleRecords(candidate.sourceSubmodules)
+    );
+}
+
+function validatesGitSubmoduleRecords(value: unknown): boolean {
+    if (
+        !Array.isArray(value) ||
+        value.length === 0 ||
+        new Set(value).size !== value.length
+    ) {
+        return false;
+    }
+    return value.every((record) => {
+        if (typeof record !== 'string') {
+            return false;
+        }
+        const match = record.match(SUBMODULE_RECORD_PATTERN);
+        if (!match) {
+            return false;
+        }
+        const submodulePath = match[1];
+        return (
+            !path.posix.isAbsolute(submodulePath) &&
+            !submodulePath
+                .split('/')
+                .some((segment) => segment === '.' || segment === '..')
+        );
+    });
+}
+
+function validateStringFlags(value: unknown): value is string[] {
+    return (
+        Array.isArray(value) &&
+        value.every(
+            (flag) =>
+                typeof flag === 'string' &&
+                flag.length > 0 &&
+                flag.trim() === flag
+        ) &&
+        new Set(value).size === value.length
+    );
+}
+
+function validateRuntimeAbi(
+    value: unknown,
+    runtimeFiles: RuntimeFile[]
+): boolean {
+    if (
+        !isObject(value) ||
+        !hasExactFields(value, ['baseline', 'files']) ||
+        !isDeepStrictEqual(value.baseline, PORTABLE_ABI_BASELINE) ||
+        !Array.isArray(value.files)
+    ) {
+        return false;
+    }
+
+    const abiFileNames: string[] = [];
+    for (const record of value.files) {
+        if (
+            !isObject(record) ||
+            !hasExactFields(record, [
+                'name',
+                'requiredGlibc',
+                'requiredGlibcxx',
+            ]) ||
+            !isSafeRuntimeName(record.name)
+        ) {
+            return false;
+        }
+        for (const [field, maximum] of [
+            ['requiredGlibc', PORTABLE_ABI_BASELINE.glibcMaximum],
+            ['requiredGlibcxx', PORTABLE_ABI_BASELINE.glibcxxMaximum],
+        ] as const) {
+            const version = record[field];
+            if (
+                version !== null &&
+                (typeof version !== 'string' ||
+                    !VERSION_PATTERN.test(version) ||
+                    compareDottedVersions(version, maximum) > 0)
+            ) {
+                return false;
+            }
+        }
+        abiFileNames.push(record.name);
+    }
+
+    return isDeepStrictEqual(
+        abiFileNames,
+        runtimeFiles.map(({ name }) => name)
+    );
+}
+
+/**
+ * The source builder and package verifier own exhaustive build-host, recipe,
+ * tool-version, URL and external-configuration validation. Startup repeats
+ * only the immutable policy boundary needed before sandbox relaxation:
+ * pinned source identities/licenses, LGPL flags, portable ABI, display-data
+ * distribution, and the exact runtime closure mirrored by the package.
+ */
+function validateSourceRuntimePolicy(
+    value: unknown,
+    runtimeFiles: RuntimeFile[],
+    runtimeDependencyClosure: unknown,
+    externalSystemLibraries: unknown
+): boolean {
+    if (
+        !isObject(value) ||
+        value.schemaVersion !== 1 ||
+        value.origin !== 'vendored-lgpl-source-build' ||
+        value.platform !== 'linux' ||
+        value.arch !== 'x64' ||
+        !isObject(value.packages) ||
+        !isObject(value.ffmpeg) ||
+        !isObject(value.mpv) ||
+        !isDeepStrictEqual(
+            Object.keys(value.packages).sort(),
+            Object.keys(PINNED_SOURCE_PACKAGE_IDENTITIES).sort()
+        )
+    ) {
+        return false;
+    }
+
+    for (const [packageName, expectedIdentity] of Object.entries(
+        PINNED_SOURCE_PACKAGE_IDENTITIES
+    )) {
+        if (
+            !validatesPinnedSourceIdentity(
+                value.packages[packageName],
+                expectedIdentity
+            )
+        ) {
+            return false;
+        }
+    }
+
+    if (
+        !validatesPinnedSourceIdentity(
+            value.ffmpeg,
+            PINNED_SOURCE_PACKAGE_IDENTITIES.ffmpeg
+        ) ||
+        !validateStringFlags(value.ffmpeg.configureFlags) ||
+        !value.ffmpeg.configureFlags.includes('--disable-gpl') ||
+        !value.ffmpeg.configureFlags.includes('--disable-nonfree') ||
+        value.ffmpeg.configureFlags.includes('--enable-gpl') ||
+        value.ffmpeg.configureFlags.includes('--enable-nonfree') ||
+        !validatesPinnedSourceIdentity(
+            value.mpv,
+            PINNED_SOURCE_PACKAGE_IDENTITIES.mpv
+        ) ||
+        !validateStringFlags(value.mpv.mesonFlags) ||
+        !value.mpv.mesonFlags.includes('-Dgpl=false') ||
+        !value.mpv.mesonFlags.includes('-Dlibmpv=true') ||
+        value.mpv.mesonFlags.includes('-Dgpl=true')
+    ) {
+        return false;
+    }
+
+    if (
+        typeof value.sourceDistribution !== 'string' ||
+        !/\bhwdata\b/i.test(value.sourceDistribution) ||
+        !/\bpnp\.ids\b/i.test(value.sourceDistribution) ||
+        !/\blibdisplay-info\b/i.test(value.sourceDistribution) ||
+        value.runtimeTotalBytes !==
+            runtimeFiles.reduce(
+                (total, runtimeFile) => total + runtimeFile.size,
+                0
+            ) ||
+        !isDeepStrictEqual(value.runtimeFiles, runtimeFiles) ||
+        !isDeepStrictEqual(
+            value.runtimeDependencyClosure,
+            runtimeDependencyClosure
+        ) ||
+        !isDeepStrictEqual(
+            value.externalSystemLibraries,
+            externalSystemLibraries
+        ) ||
+        !validateRuntimeAbi(value.runtimeAbi, runtimeFiles)
+    ) {
+        return false;
+    }
+
+    return true;
+}
+
+function validatePackagedManifest(
     manifest: Record<string, unknown>
 ): ValidationResult<ValidManifest> {
     if (
@@ -449,28 +915,13 @@ function validateManifest(
         !validateRuntimeClosure(
             manifest.runtimeDependencyClosure,
             runtimeFiles,
-            manifest.libmpvSoname
+            manifest.libmpvSoname,
+            manifest.externalSystemLibraries
         ) ||
-        !Array.isArray(manifest.externalSystemLibraries) ||
-        !isObject(manifest.sourceRuntime)
-    ) {
-        return validationFailure('runtime-manifest-invalid');
-    }
-
-    const sourceRuntime = manifest.sourceRuntime;
-    if (
-        sourceRuntime.schemaVersion !== 1 ||
-        sourceRuntime.origin !== 'vendored-lgpl-source-build' ||
-        sourceRuntime.platform !== 'linux' ||
-        sourceRuntime.arch !== 'x64' ||
-        sourceRuntime.runtimeTotalBytes !== manifest.runtimeTotalBytes ||
-        !isDeepStrictEqual(sourceRuntime.runtimeFiles, manifest.runtimeFiles) ||
-        !isDeepStrictEqual(
-            sourceRuntime.runtimeDependencyClosure,
-            manifest.runtimeDependencyClosure
-        ) ||
-        !isDeepStrictEqual(
-            sourceRuntime.externalSystemLibraries,
+        !validateSourceRuntimePolicy(
+            manifest.sourceRuntime,
+            runtimeFiles,
+            manifest.runtimeDependencyClosure,
             manifest.externalSystemLibraries
         )
     ) {
@@ -480,6 +931,144 @@ function validateManifest(
     return {
         value: {
             profile,
+            runtimeMode: 'bundled',
+            runtimeFiles,
+        },
+    };
+}
+
+function validateSystemDevelopmentSource(
+    value: unknown,
+    buildInputMode: 'system-dev' | 'system-build-inputs'
+): boolean {
+    if (buildInputMode === 'system-dev') {
+        return isDeepStrictEqual(value, {
+            linuxBackend: 'process-isolated mpv --wid',
+            warning: 'Development-only unmanaged system libmpv toolchain.',
+        });
+    }
+    if (
+        !isObject(value) ||
+        !hasExactFields(value, [
+            'buildInputs',
+            'linuxBackend',
+            'sourceDistribution',
+        ]) ||
+        value.linuxBackend !== 'process-isolated mpv --wid' ||
+        typeof value.sourceDistribution !== 'string' ||
+        value.sourceDistribution.trim() === '' ||
+        !isObject(value.buildInputs) ||
+        !hasExactFields(value.buildInputs, ['libmpvDevPackage', 'mpvPackage'])
+    ) {
+        return false;
+    }
+    return ['libmpvDevPackage', 'mpvPackage'].every((packageField) => {
+        const packageName = value.buildInputs[packageField];
+        return typeof packageName === 'string' && packageName.trim().length > 0;
+    });
+}
+
+function validateDevelopmentManifest(
+    manifest: Record<string, unknown>
+): ValidationResult<ValidManifest> {
+    const buildInputMode = manifest.buildInputMode;
+    if (
+        !hasExactFields(manifest, DEVELOPMENT_MANIFEST_FIELDS) ||
+        manifest.schemaVersion !== 1 ||
+        manifest.origin !== 'linux-frame-copy-build' ||
+        manifest.platform !== 'linux' ||
+        manifest.arch !== 'x64' ||
+        typeof manifest.generatedAt !== 'string' ||
+        manifest.generatedAt.trim() === '' ||
+        Number.isNaN(Date.parse(manifest.generatedAt)) ||
+        !['system-dev', 'system-build-inputs', 'bundled-runtime'].includes(
+            String(buildInputMode)
+        ) ||
+        !isDeepStrictEqual(manifest.allowedPackageRuntimeModes, [
+            'system',
+            'bundled',
+        ]) ||
+        !isDeepStrictEqual(
+            manifest.artifacts,
+            EXPECTED_DEVELOPMENT_ARTIFACTS
+        ) ||
+        !isDeepStrictEqual(
+            manifest.processIsolation,
+            EXPECTED_DEVELOPMENT_PROCESS_ISOLATION
+        ) ||
+        manifest.nativeViewFallback !== 'process-isolated mpv --wid'
+    ) {
+        return validationFailure('runtime-manifest-invalid');
+    }
+
+    if (
+        buildInputMode === 'system-dev' ||
+        buildInputMode === 'system-build-inputs'
+    ) {
+        if (
+            manifest.sourceRuntimeValidated !== false ||
+            !isDeepStrictEqual(manifest.packageRuntimeAvailability, {
+                system: false,
+                bundled: false,
+            }) ||
+            manifest.libmpvSoname !== null ||
+            !isDeepStrictEqual(manifest.runtimeFiles, []) ||
+            manifest.runtimeTotalBytes !== 0 ||
+            !validateSystemDevelopmentSource(
+                manifest.sourceRuntime,
+                buildInputMode
+            )
+        ) {
+            return validationFailure('runtime-manifest-invalid');
+        }
+        return {
+            value: {
+                profile: 'development',
+                runtimeMode: 'system',
+                runtimeFiles: [],
+            },
+        };
+    }
+
+    const sourceRuntime = manifest.sourceRuntime;
+    const runtimeFiles = validateRuntimeFiles(manifest.runtimeFiles);
+    if (
+        buildInputMode !== 'bundled-runtime' ||
+        manifest.sourceRuntimeValidated !== true ||
+        !isDeepStrictEqual(manifest.packageRuntimeAvailability, {
+            system: true,
+            bundled: true,
+        }) ||
+        typeof manifest.libmpvSoname !== 'string' ||
+        !VERSIONED_LIBMPV_PATTERN.test(manifest.libmpvSoname) ||
+        !runtimeFiles ||
+        !runtimeFiles.some(({ name }) => name === 'libmpv.so') ||
+        !runtimeFiles.some(({ name }) => name === manifest.libmpvSoname) ||
+        manifest.runtimeTotalBytes !==
+            runtimeFiles.reduce(
+                (total, runtimeFile) => total + runtimeFile.size,
+                0
+            ) ||
+        !isObject(sourceRuntime) ||
+        !validateRuntimeClosure(
+            sourceRuntime.runtimeDependencyClosure,
+            runtimeFiles,
+            manifest.libmpvSoname,
+            sourceRuntime.externalSystemLibraries
+        ) ||
+        !validateSourceRuntimePolicy(
+            sourceRuntime,
+            runtimeFiles,
+            sourceRuntime.runtimeDependencyClosure,
+            sourceRuntime.externalSystemLibraries
+        )
+    ) {
+        return validationFailure('runtime-manifest-invalid');
+    }
+
+    return {
+        value: {
+            profile: 'development',
             runtimeMode: 'bundled',
             runtimeFiles,
         },
@@ -606,7 +1195,8 @@ function validateBundledRuntimeFiles(
 function validatePackage(
     helperPath: string,
     manifestPath: string,
-    fileSystem: EmbeddedMpvFrameCopyRuntimeFileSystem
+    fileSystem: EmbeddedMpvFrameCopyRuntimeFileSystem,
+    manifestContract: EmbeddedMpvFrameCopyManifestContract
 ): ValidationResult<ValidatedPackage> {
     const nativeDir = path.dirname(helperPath);
     if (
@@ -633,7 +1223,10 @@ function validatePackage(
     if (isValidationFailure(manifestResult)) {
         return manifestResult;
     }
-    const validManifest = validateManifest(manifestResult.value);
+    const validManifest =
+        manifestContract === 'packaged'
+            ? validatePackagedManifest(manifestResult.value)
+            : validateDevelopmentManifest(manifestResult.value);
     if (isValidationFailure(validManifest)) {
         return validManifest;
     }
@@ -749,13 +1342,13 @@ function runHelperProbe(
     dependencies: EmbeddedMpvFrameCopyRuntimeDependencies
 ): EmbeddedMpvFrameCopyRuntimeResult {
     const probeEnvironment = { ...dependencies.env };
+    // The manifest/OS package is the loader contract. Ambient overrides could
+    // replace libmpv or inject code into the helper before its bounded probe.
+    delete probeEnvironment.LD_LIBRARY_PATH;
+    delete probeEnvironment.LD_PRELOAD;
     if (runtimePackage.manifest.runtimeMode === 'bundled') {
         const bundledLibDir = path.join(runtimePackage.nativeDir, 'lib');
-        probeEnvironment.LD_LIBRARY_PATH =
-            bundledLibDir +
-            (probeEnvironment.LD_LIBRARY_PATH
-                ? `${LINUX_LIBRARY_PATH_DELIMITER}${probeEnvironment.LD_LIBRARY_PATH}`
-                : '');
+        probeEnvironment.LD_LIBRARY_PATH = bundledLibDir;
     }
 
     let result: ReturnType<typeof nodeSpawnSync>;
@@ -799,7 +1392,10 @@ function runHelperProbe(
  */
 export function createEmbeddedMpvFrameCopyRuntimeProbe(
     overrides: Partial<EmbeddedMpvFrameCopyRuntimeDependencies> = {}
-): (helperPath: string) => EmbeddedMpvFrameCopyRuntimeResult {
+): (
+    helperPath: string,
+    manifestContract?: EmbeddedMpvFrameCopyManifestContract
+) => EmbeddedMpvFrameCopyRuntimeResult {
     const defaultFileSystem: EmbeddedMpvFrameCopyRuntimeFileSystem = {
         accessSync: (filePath, mode) =>
             nodeFileSystem.accessSync(filePath, mode),
@@ -817,7 +1413,10 @@ export function createEmbeddedMpvFrameCopyRuntimeProbe(
     };
     const resultCache = new Map<string, EmbeddedMpvFrameCopyRuntimeResult>();
 
-    return (helperPath: string): EmbeddedMpvFrameCopyRuntimeResult => {
+    return (
+        helperPath: string,
+        manifestContract: EmbeddedMpvFrameCopyManifestContract = 'packaged'
+    ): EmbeddedMpvFrameCopyRuntimeResult => {
         if (dependencies.platform !== 'linux') {
             return failure('unsupported-platform');
         }
@@ -846,7 +1445,7 @@ export function createEmbeddedMpvFrameCopyRuntimeProbe(
             );
         }
 
-        const cacheKey = `${fileIdentity(
+        const cacheKey = `${manifestContract}\0${fileIdentity(
             helperPath,
             helperStat
         )}\0${fileIdentity(manifestPath, manifestStat)}`;
@@ -860,7 +1459,8 @@ export function createEmbeddedMpvFrameCopyRuntimeProbe(
             const runtimePackage = validatePackage(
                 helperPath,
                 manifestPath,
-                dependencies.fileSystem
+                dependencies.fileSystem,
+                manifestContract
             );
             result = isValidationFailure(runtimePackage)
                 ? failure(runtimePackage.reason)
@@ -880,7 +1480,8 @@ const processRuntimeProbe = createEmbeddedMpvFrameCopyRuntimeProbe();
  * the service gate. The helper and manifest identities scope cached results.
  */
 export function probeEmbeddedMpvFrameCopyRuntime(
-    helperPath: string
+    helperPath: string,
+    manifestContract: EmbeddedMpvFrameCopyManifestContract
 ): EmbeddedMpvFrameCopyRuntimeResult {
-    return processRuntimeProbe(helperPath);
+    return processRuntimeProbe(helperPath, manifestContract);
 }
