@@ -305,7 +305,9 @@ export async function launchPackagedElectronApp(
     };
 }
 
-function attachElectronProcessDiagnostics(electronApp: ElectronApplication): void {
+function attachElectronProcessDiagnostics(
+    electronApp: ElectronApplication
+): void {
     if (!process.env['CI']) {
         return;
     }
@@ -369,10 +371,7 @@ async function waitForPromiseWithTimeout(
         return await Promise.race([
             promise.then(() => true),
             new Promise<boolean>((resolvePromise) => {
-                timeoutId = setTimeout(
-                    () => resolvePromise(false),
-                    timeoutMs
-                );
+                timeoutId = setTimeout(() => resolvePromise(false), timeoutMs);
             }),
         ]);
     } finally {
@@ -431,11 +430,11 @@ async function waitForAppReady(page: Page): Promise<void> {
     } catch (error) {
         const diagnostics = await page.evaluate(() => ({
             appRootLength:
-                document.querySelector('app-root')?.innerHTML.trim().length ?? 0,
+                document.querySelector('app-root')?.innerHTML.trim().length ??
+                0,
             baseHref:
-                document
-                    .querySelector('base')
-                    ?.getAttribute('href') ?? '<missing>',
+                document.querySelector('base')?.getAttribute('href') ??
+                '<missing>',
             readyState: document.readyState,
             title: document.title,
             url: location.href,
@@ -635,15 +634,17 @@ async function clickDialogMethodOption(
     label: RegExp,
     legacySelector?: string
 ): Promise<void> {
-    const optionByRadio = dialog
-        .getByRole('radio', { name: label })
-        .first();
+    const optionByRadio = dialog.getByRole('radio', { name: label }).first();
     if ((await optionByRadio.count()) > 0) {
         await optionByRadio.click();
         return;
     }
 
-    for (const tablistLabel of ['Source method', 'Playlist category', 'M3U source']) {
+    for (const tablistLabel of [
+        'Source method',
+        'Playlist category',
+        'M3U source',
+    ]) {
         const tablist = dialog
             .locator(`[role="tablist"][aria-label="${tablistLabel}"]`)
             .first();
@@ -675,9 +676,7 @@ async function clickDialogMethodOption(
     }
 
     if (!legacySelector) {
-        throw new Error(
-            `Could not find dialog option matching ${label}.`
-        );
+        throw new Error(`Could not find dialog option matching ${label}.`);
     }
 
     await dialog.locator(legacySelector).click();
@@ -838,9 +837,7 @@ export function buildM3uContent(channels: M3uTestChannel[]): string {
         const attributes = [
             channel.tvgId ? `tvg-id="${channel.tvgId}"` : '',
             channel.tvgCountry ? `tvg-country="${channel.tvgCountry}"` : '',
-            channel.tvgLanguage
-                ? `tvg-language="${channel.tvgLanguage}"`
-                : '',
+            channel.tvgLanguage ? `tvg-language="${channel.tvgLanguage}"` : '',
             channel.tvgName ? `tvg-name="${channel.tvgName}"` : '',
             channel.logo ? `tvg-logo="${channel.logo}"` : '',
             channel.groupTitle ? `group-title="${channel.groupTitle}"` : '',
@@ -1023,9 +1020,7 @@ export async function switchUnifiedCollectionContent(
     await clickButtonToggleOption(toggleGroup, contentLabel);
 }
 
-export async function clearCurrentUnifiedCollection(
-    page: Page
-): Promise<void> {
+export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
     await page
         .getByRole('button', {
             name: /Clear .* (favorites|recently viewed)/i,
