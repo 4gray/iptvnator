@@ -1,12 +1,18 @@
 'use strict';
 
 const path = require('node:path');
+const { isDeepStrictEqual } = require('node:util');
 const {
     EXTERNAL_SYSTEM_LIBRARIES,
     EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     GLIBC_TOOLCHAIN_ALLOWLIST,
+    MINIMUM_TOOL_VERSIONS,
+    PORTABLE_ABI_BASELINE,
     REQUIRED_TOOLS,
+    RUNTIME_EXTERNAL_CONFIGURATION,
     SOURCE_PACKAGES,
+    compareVersions,
+    parseVersion,
 } = require('./build-linux-runtime.cjs');
 
 const LINUX_RUNTIME_MANIFEST_SCHEMA_VERSION = 1;
@@ -303,19 +309,31 @@ function validateMpv(errors, mpv) {
     });
 
     if (Array.isArray(mpv.mesonFlags)) {
-        for (const [option, requiredFlag] of [
-            ['-Dgpl', '-Dgpl=false'],
-            ['-Dlibmpv', '-Dlibmpv=true'],
-        ]) {
-            const assignments = mpv.mesonFlags.filter(
-                (flag) =>
-                    typeof flag === 'string' && flag.startsWith(`${option}=`)
-            );
+        const assignmentsByOption = new Map();
+        for (const flag of mpv.mesonFlags) {
+            const match =
+                typeof flag === 'string' ? flag.match(/^(-D[^=]+)=/) : null;
+            if (!match) {
+                continue;
+            }
+            const option = match[1];
+            const assignments = assignmentsByOption.get(option) ?? [];
+            assignments.push(flag);
+            assignmentsByOption.set(option, assignments);
+        }
+        for (const [option, assignments] of assignmentsByOption) {
             if (assignments.length > 1) {
                 errors.push(
                     `Linux runtime manifest mpv.mesonFlags must assign "${option}" exactly once.`
                 );
             }
+        }
+
+        for (const [option, requiredFlag] of [
+            ['-Dgpl', '-Dgpl=false'],
+            ['-Dlibmpv', '-Dlibmpv=true'],
+        ]) {
+            const assignments = assignmentsByOption.get(option) ?? [];
             for (const flag of assignments) {
                 if (flag !== requiredFlag) {
                     errors.push(
@@ -336,6 +354,7 @@ function validateRuntimeFiles(errors, runtimeFiles) {
     }
 
     const names = new Set();
+    let hasLibMpvLinkerAlias = false;
     let hasVersionedLibMpv = false;
 
     for (const [index, runtimeFile] of runtimeFiles.entries()) {
@@ -380,6 +399,9 @@ function validateRuntimeFiles(errors, runtimeFiles) {
             } else {
                 names.add(name);
             }
+            if (name === 'libmpv.so') {
+                hasLibMpvLinkerAlias = true;
+            }
             if (VERSIONED_LIBMPV_PATTERN.test(name)) {
                 hasVersionedLibMpv = true;
             }
@@ -389,6 +411,11 @@ function validateRuntimeFiles(errors, runtimeFiles) {
     if (!hasVersionedLibMpv) {
         errors.push(
             'Linux runtime manifest runtimeFiles must include a versioned libmpv.so.N entry.'
+        );
+    }
+    if (!hasLibMpvLinkerAlias) {
+        errors.push(
+            'Linux runtime manifest runtimeFiles must include the libmpv.so linker alias.'
         );
     }
 }
@@ -412,6 +439,110 @@ function validateRuntimeTotalBytes(errors, runtimeFiles, runtimeTotalBytes) {
     ) {
         errors.push(
             `Linux runtime manifest runtimeTotalBytes must equal the sum of runtimeFiles sizes (${expectedTotal}).`
+        );
+    }
+}
+
+function validateRuntimeAbi(errors, runtimeAbi, runtimeFiles) {
+    if (!isObject(runtimeAbi)) {
+        errors.push('Linux runtime manifest runtimeAbi must be an object.');
+        return;
+    }
+    if (
+        !isObject(runtimeAbi.baseline) ||
+        !isDeepStrictEqual(runtimeAbi.baseline, PORTABLE_ABI_BASELINE)
+    ) {
+        errors.push(
+            'Linux runtime manifest runtimeAbi.baseline must exactly match the portable ABI baseline.'
+        );
+    }
+
+    const runtimeNames = Array.isArray(runtimeFiles)
+        ? runtimeFiles
+              .filter((runtimeFile) => isObject(runtimeFile))
+              .map(({ name }) => name)
+              .filter((name) => typeof name === 'string')
+        : [];
+    const runtimeNameSet = new Set(runtimeNames);
+    if (!Array.isArray(runtimeAbi.files)) {
+        errors.push(
+            'Linux runtime manifest runtimeAbi.files must contain one record for every runtime file.'
+        );
+        return;
+    }
+
+    const abiNames = new Set();
+    for (const [index, record] of runtimeAbi.files.entries()) {
+        const label = `runtimeAbi.files[${index}]`;
+        if (!isObject(record)) {
+            errors.push(`Linux runtime manifest ${label} must be an object.`);
+            continue;
+        }
+        if (
+            !isSafeBasename(record.name) ||
+            !SHARED_LIBRARY_PATTERN.test(record.name)
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.name must be a safe shared-library basename.`
+            );
+        }
+        if (abiNames.has(record.name)) {
+            errors.push(
+                `Linux runtime manifest runtimeAbi.files contains duplicate name "${String(
+                    record.name
+                )}".`
+            );
+        } else if (typeof record.name === 'string') {
+            abiNames.add(record.name);
+        }
+
+        for (const [field, maximum] of [
+            ['requiredGlibc', PORTABLE_ABI_BASELINE.glibcMaximum],
+            ['requiredGlibcxx', PORTABLE_ABI_BASELINE.glibcxxMaximum],
+        ]) {
+            const version = record[field];
+            if (
+                version !== null &&
+                (typeof version !== 'string' ||
+                    !/^\d+(?:\.\d+)+$/.test(version))
+            ) {
+                errors.push(
+                    `Linux runtime manifest ${label}.${field} must be null or a dotted numeric symbol version.`
+                );
+                continue;
+            }
+            if (version && compareVersions(version, maximum) > 0) {
+                errors.push(
+                    `Linux runtime manifest ${label}.${field} must not exceed portable ABI maximum ${maximum}.`
+                );
+            }
+        }
+    }
+
+    if (
+        runtimeAbi.files.length !== runtimeNames.length ||
+        runtimeNames.some((name) => !abiNames.has(name)) ||
+        [...abiNames].some((name) => !runtimeNameSet.has(name))
+    ) {
+        errors.push(
+            'Linux runtime manifest runtimeAbi.files must contain one record for every runtime file.'
+        );
+    }
+}
+
+function validateRuntimeExternalConfiguration(
+    errors,
+    runtimeExternalConfiguration
+) {
+    if (
+        !isObject(runtimeExternalConfiguration) ||
+        !isDeepStrictEqual(
+            runtimeExternalConfiguration,
+            RUNTIME_EXTERNAL_CONFIGURATION
+        )
+    ) {
+        errors.push(
+            'Linux runtime manifest runtimeExternalConfiguration must exactly match the system-owned runtime paths.'
         );
     }
 }
@@ -472,6 +603,16 @@ function validateRuntimeDependencyClosure(
         }
 
         if (
+            entry.soname !== null &&
+            (!isSafeBasename(entry.soname) ||
+                !SHARED_LIBRARY_PATTERN.test(entry.soname))
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.soname must be null or a safe shared-library basename.`
+            );
+        }
+
+        if (
             !Array.isArray(entry.needed) ||
             entry.needed.some(
                 (dependencyName) =>
@@ -528,6 +669,20 @@ function validateRuntimeDependencyClosure(
     ) {
         errors.push(
             'Linux runtime manifest runtimeDependencyClosure.entries must contain one record for every runtime file.'
+        );
+    }
+
+    const libMpvLinkerEntry = entries.find(
+        (entry) => isObject(entry) && entry.name === 'libmpv.so'
+    );
+    if (
+        !libMpvLinkerEntry ||
+        typeof libMpvLinkerEntry.soname !== 'string' ||
+        !VERSIONED_LIBMPV_PATTERN.test(libMpvLinkerEntry.soname) ||
+        !runtimeNameSet.has(libMpvLinkerEntry.soname)
+    ) {
+        errors.push(
+            'Linux runtime manifest libmpv.so must declare a versioned SONAME present in runtimeFiles.'
         );
     }
 
@@ -598,6 +753,23 @@ function validateBuildHost(errors, buildHost) {
             'Linux runtime manifest buildHost.release must be a non-empty string.'
         );
     }
+    if (
+        typeof buildHost.glibcVersion !== 'string' ||
+        !/^\d+(?:\.\d+)+$/.test(buildHost.glibcVersion)
+    ) {
+        errors.push(
+            'Linux runtime manifest buildHost.glibcVersion must be a dotted numeric version.'
+        );
+    } else if (
+        compareVersions(
+            buildHost.glibcVersion,
+            PORTABLE_ABI_BASELINE.glibcMaximum
+        ) > 0
+    ) {
+        errors.push(
+            `Linux runtime manifest buildHost.glibcVersion ${buildHost.glibcVersion} exceeds portable ABI baseline maximum ${PORTABLE_ABI_BASELINE.glibcMaximum}.`
+        );
+    }
 
     if (
         !Array.isArray(buildHost.systemPkgConfigDirs) ||
@@ -648,9 +820,23 @@ function validateBuildHost(errors, buildHost) {
         return;
     }
     for (const tool of REQUIRED_TOOLS) {
-        if (!isNonEmptyString(buildHost.tools[tool])) {
+        const declaredVersion = buildHost.tools[tool];
+        if (!isNonEmptyString(declaredVersion)) {
             errors.push(
                 `Linux runtime manifest buildHost.tools.${tool} must be a non-empty version string.`
+            );
+            continue;
+        }
+        const actualVersion = parseVersion(declaredVersion);
+        if (!actualVersion) {
+            errors.push(
+                `Linux runtime manifest buildHost.tools.${tool} must contain a parseable dotted numeric version.`
+            );
+        } else if (
+            compareVersions(actualVersion, MINIMUM_TOOL_VERSIONS[tool]) < 0
+        ) {
+            errors.push(
+                `Linux runtime manifest buildHost.tools.${tool} ${actualVersion} is unsupported; requires ${MINIMUM_TOOL_VERSIONS[tool]} or newer.`
             );
         }
     }
@@ -694,6 +880,10 @@ function validateLinuxRuntimeManifest(manifest) {
         errors.push(
             'Linux runtime manifest sourceDistribution must be a non-empty string.'
         );
+    } else if (!/\blibdisplay-info\b/i.test(manifest.sourceDistribution)) {
+        errors.push(
+            'Linux runtime manifest sourceDistribution must explicitly include libdisplay-info.'
+        );
     }
 
     validateRuntimeFiles(errors, manifest.runtimeFiles);
@@ -701,6 +891,11 @@ function validateLinuxRuntimeManifest(manifest) {
         errors,
         manifest.runtimeFiles,
         manifest.runtimeTotalBytes
+    );
+    validateRuntimeAbi(errors, manifest.runtimeAbi, manifest.runtimeFiles);
+    validateRuntimeExternalConfiguration(
+        errors,
+        manifest.runtimeExternalConfiguration
     );
     validateRuntimeDependencyClosure(
         errors,

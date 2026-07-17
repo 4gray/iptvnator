@@ -20,18 +20,32 @@ const {
     EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     FFMPEG_CONFIGURE_FLAGS,
     GLIBC_TOOLCHAIN_ALLOWLIST,
+    MINIMUM_TOOL_VERSIONS,
     MPV_MESON_FLAGS,
+    OUTPUT_OWNERSHIP_MARKER,
+    PORTABLE_ABI_BASELINE,
     REQUIRED_TOOLS,
+    RUNTIME_EXTERNAL_CONFIGURATION,
     SOURCE_PACKAGES,
     assertArchiveMatchesPin,
     assertGitCommitMatchesPin,
+    assertMinimumToolVersions,
+    assertOwnedOutputDestination,
+    assertPortableAbiRecords,
+    assertPortableBuildHostGlibc,
+    assertUniqueMesonOptionAssignments,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
+    createOwnedStagingPrefix,
     createRuntimeFileRecords,
     materializeLibrarySymlinks,
     parseCliInvocation,
     parseReadelfDynamic,
+    parseReadelfVersionInfo,
+    publishOwnedOutput,
+    retainRuntimeLibraries,
     resolveSystemPkgConfigDirs,
+    selectReachableRuntimeLibraryNames,
     validateRuntimeDependencyClosure,
 } = require('./build-linux-runtime.cjs');
 const {
@@ -77,6 +91,7 @@ test('pins the complete source stack and preserves dependency build order', () =
             { id: 'openssl', version: '3.5.7' },
             { id: 'ffmpeg', version: '8.1' },
             { id: 'libplacebo', version: '7.360.1' },
+            { id: 'libdisplay-info', version: '0.1.1' },
             { id: 'mpv', version: '0.41.0' },
         ]
     );
@@ -114,6 +129,19 @@ test('pins the complete source stack and preserves dependency build order', () =
         byId.get('openssl').sourceUrl,
         'https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz'
     );
+    assert.deepEqual(byId.get('libdisplay-info'), {
+        id: 'libdisplay-info',
+        version: '0.1.1',
+        sourceKind: 'archive',
+        sourceUrl:
+            'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.1.1/downloads/libdisplay-info-0.1.1.tar.xz',
+        expectedSha256:
+            '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
+        license: 'MIT',
+    });
+    assert.ok(
+        BUILD_ORDER.indexOf('libdisplay-info') < BUILD_ORDER.indexOf('mpv')
+    );
 });
 
 test('hardcodes the verified official archive digests and libplacebo commit', () => {
@@ -129,6 +157,8 @@ test('hardcodes the verified official archive digests and libplacebo commit', ()
         harfbuzz:
             '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
         libass: 'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
+        'libdisplay-info':
+            '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
         mpv: 'ee21092a5ee427353392360929dc64645c54479aefdb5babc5cfbb5fad626209',
         openssl:
             'a8c0d28a529ca480f9f36cf5792e2cd21984552a3c8e4aa11a24aa31aeac98e8',
@@ -246,6 +276,12 @@ test('defines shared-only source recipes with font discovery before playback', (
         '-Dtests=disabled',
         '-Dtools=disabled',
         '-Dcache-build=disabled',
+        '-Dxml-backend=expat',
+        '-Dbaseconfig-dir=/etc/fonts',
+        '-Dconfig-dir=/etc/fonts/conf.d',
+        '-Dtemplate-dir=/usr/share/fontconfig/conf.avail',
+        '-Dcache-dir=/var/cache/fontconfig',
+        '-Dxml-dir=/usr/share/xml/fontconfig',
     ]) {
         assert.ok(BUILD_RECIPES.fontconfig.args.includes(flag), flag);
     }
@@ -254,15 +290,48 @@ test('defines shared-only source recipes with font discovery before playback', (
         BUILD_RECIPES.libass.args.includes('--disable-fontconfig'),
         false
     );
-    for (const flag of ['shared', 'no-apps', 'no-docs', 'no-tests']) {
+    for (const flag of [
+        'shared',
+        'no-apps',
+        'no-docs',
+        'no-tests',
+        '--openssldir=/etc/ssl',
+    ]) {
         assert.ok(BUILD_RECIPES.openssl.args.includes(flag), flag);
     }
     assert.ok(
         BUILD_ORDER.indexOf('fontconfig') < BUILD_ORDER.indexOf('libass')
     );
     assert.ok(BUILD_ORDER.indexOf('openssl') < BUILD_ORDER.indexOf('ffmpeg'));
+    assert.equal(BUILD_RECIPES['libdisplay-info'].buildSystem, 'meson');
     for (const packageId of BUILD_ORDER) {
         assert.equal(BUILD_RECIPES[packageId].sharedOnly, true, packageId);
+    }
+});
+
+test('rejects duplicate option assignments in every Meson recipe', () => {
+    assert.doesNotThrow(() =>
+        assertUniqueMesonOptionAssignments(BUILD_RECIPES)
+    );
+
+    for (const [packageId, duplicateFlag] of [
+        ['fontconfig', '-Dxml-backend=libxml2'],
+        ['libplacebo', '-Dvulkan=enabled'],
+    ]) {
+        const duplicateRecipes = {
+            ...BUILD_RECIPES,
+            [packageId]: {
+                ...BUILD_RECIPES[packageId],
+                args: [...BUILD_RECIPES[packageId].args, duplicateFlag],
+            },
+        };
+        assert.throws(
+            () => assertUniqueMesonOptionAssignments(duplicateRecipes),
+            new RegExp(
+                `${packageId}.*${duplicateFlag.split('=')[0]}.*once`,
+                'i'
+            )
+        );
     }
 });
 
@@ -330,6 +399,117 @@ test('constructs a prefix-only build environment and ignores hostile host flags'
     assert.doesNotMatch(JSON.stringify(environment), /\/host\//);
 });
 
+test('rejects an existing unmarked output without changing its contents', (t) => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-output-ownership-')
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const outputPrefix = path.join(root, 'usr', 'local');
+    fs.mkdirSync(outputPrefix, { recursive: true });
+    fs.writeFileSync(path.join(outputPrefix, 'keep-me'), 'untouched');
+
+    assert.throws(
+        () => assertOwnedOutputDestination(outputPrefix),
+        /existing output.*ownership marker/i
+    );
+    assert.equal(
+        fs.readFileSync(path.join(outputPrefix, 'keep-me'), 'utf8'),
+        'untouched'
+    );
+});
+
+test('atomically publishes only owned outputs and rolls back failures', (t) => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-output-publish-')
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const outputPrefix = path.join(root, 'runtime');
+    fs.mkdirSync(outputPrefix);
+    fs.writeFileSync(
+        path.join(outputPrefix, OUTPUT_OWNERSHIP_MARKER),
+        'iptvnator-embedded-mpv-linux-runtime-v1\n'
+    );
+    fs.writeFileSync(path.join(outputPrefix, 'state'), 'previous');
+
+    const failedStagingPrefix = createOwnedStagingPrefix(outputPrefix, {
+        token: 'failed',
+    });
+    fs.writeFileSync(path.join(failedStagingPrefix, 'state'), 'replacement');
+    let renameCount = 0;
+    const failingFileSystem = {
+        ...fs,
+        renameSync(source, destination) {
+            renameCount += 1;
+            if (renameCount === 2) {
+                throw new Error('injected publication failure');
+            }
+            return fs.renameSync(source, destination);
+        },
+    };
+    assert.throws(
+        () =>
+            publishOwnedOutput({
+                fileSystem: failingFileSystem,
+                outputPrefix,
+                stagingPrefix: failedStagingPrefix,
+                token: 'rollback',
+            }),
+        /injected publication failure/
+    );
+    assert.equal(
+        fs.readFileSync(path.join(outputPrefix, 'state'), 'utf8'),
+        'previous'
+    );
+    assert.equal(fs.existsSync(failedStagingPrefix), false);
+    assert.deepEqual(
+        fs.readdirSync(root).filter((name) => name.includes('backup')),
+        []
+    );
+
+    const successfulStagingPrefix = createOwnedStagingPrefix(outputPrefix, {
+        token: 'successful',
+    });
+    fs.writeFileSync(
+        path.join(successfulStagingPrefix, 'state'),
+        'replacement'
+    );
+    publishOwnedOutput({
+        outputPrefix,
+        stagingPrefix: successfulStagingPrefix,
+        token: 'success',
+    });
+    assert.equal(
+        fs.readFileSync(path.join(outputPrefix, 'state'), 'utf8'),
+        'replacement'
+    );
+    assert.equal(
+        fs.readFileSync(
+            path.join(outputPrefix, OUTPUT_OWNERSHIP_MARKER),
+            'utf8'
+        ),
+        'iptvnator-embedded-mpv-linux-runtime-v1\n'
+    );
+});
+
+test('builds in an owned sibling before atomically publishing output', () => {
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    assert.doesNotMatch(
+        builderSource,
+        /fs\.rmSync\(context\.prefix, \{ recursive: true, force: true \}\)/
+    );
+    const toolPreflight = builderSource.indexOf(
+        'assertMinimumToolVersions(toolVersions)'
+    );
+    const stagingMutation = builderSource.indexOf(
+        'createOwnedStagingPrefix(outputPrefix'
+    );
+    const publication = builderSource.indexOf('publishOwnedOutput({');
+    assert.notEqual(stagingMutation, -1);
+    assert.notEqual(publication, -1);
+    assert.ok(toolPreflight < stagingMutation);
+    assert.ok(stagingMutation < publication);
+});
+
 test('uses fixed Linux x64 pkg-config directories without host discovery', () => {
     assert.deepEqual(DEFAULT_SYSTEM_PKG_CONFIG_DIRS, [
         '/usr/lib/x86_64-linux-gnu/pkgconfig',
@@ -367,6 +547,7 @@ test('declares only the intended Linux system interface packages', () => {
         'egl',
         'gbm',
         'gl',
+        'libdrm',
         'libpulse',
         'libva',
         'libva-drm',
@@ -391,6 +572,7 @@ test('requires ELF patching and inspection tools in addition to the build toolch
         'git',
         'make',
         'meson',
+        'nasm',
         'ninja',
         'patchelf',
         'pkg-config',
@@ -399,6 +581,95 @@ test('requires ELF patching and inspection tools in addition to the build toolch
     ]) {
         assert.ok(REQUIRED_TOOLS.includes(tool), tool);
     }
+});
+
+test('preflights every required tool against a supported minimum version', () => {
+    assert.deepEqual(
+        Object.keys(MINIMUM_TOOL_VERSIONS).sort(),
+        [...REQUIRED_TOOLS].sort()
+    );
+    assert.equal(MINIMUM_TOOL_VERSIONS.meson, '1.6.0');
+    assert.equal(MINIMUM_TOOL_VERSIONS.nasm, '2.15.05');
+
+    const supportedVersions = Object.fromEntries(
+        REQUIRED_TOOLS.map((tool) => [
+            tool,
+            `${tool} ${MINIMUM_TOOL_VERSIONS[tool]}`,
+        ])
+    );
+    assert.doesNotThrow(() => assertMinimumToolVersions(supportedVersions));
+
+    const missingTool = { ...supportedVersions };
+    delete missingTool.nasm;
+    assert.throws(
+        () => assertMinimumToolVersions(missingTool),
+        /missing required tool version.*nasm/i
+    );
+
+    for (const [tool, oldVersion] of [
+        ['meson', 'meson 1.5.9'],
+        ['nasm', 'NASM version 2.15.04'],
+    ]) {
+        assert.throws(
+            () =>
+                assertMinimumToolVersions({
+                    ...supportedVersions,
+                    [tool]: oldVersion,
+                }),
+            new RegExp(`${tool}.*requires.*${MINIMUM_TOOL_VERSIONS[tool]}`, 'i')
+        );
+    }
+});
+
+test('completes tool and system-package preflight before filesystem mutation', () => {
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    const buildRootMutation = builderSource.indexOf(
+        'fs.mkdirSync(context.buildRoot'
+    );
+    const toolPreflight = builderSource.indexOf(
+        'assertMinimumToolVersions(toolVersions)'
+    );
+    const packagePreflight = builderSource.indexOf(
+        'verifySystemPkgConfigPackages(context)'
+    );
+    const mesonPolicyPreflight = builderSource.indexOf(
+        'assertUniqueMesonOptionAssignments(BUILD_RECIPES)'
+    );
+    assert.notEqual(mesonPolicyPreflight, -1);
+    assert.notEqual(toolPreflight, -1);
+    assert.notEqual(packagePreflight, -1);
+    assert.ok(mesonPolicyPreflight < buildRootMutation);
+    assert.ok(toolPreflight < buildRootMutation);
+    assert.ok(packagePreflight < buildRootMutation);
+});
+
+test('uses DESTDIR with standard fontconfig and OpenSSL runtime paths', () => {
+    assert.deepEqual(RUNTIME_EXTERNAL_CONFIGURATION, {
+        fontconfig: {
+            configDirectory: '/etc/fonts',
+            templateDirectory: '/usr/share/fontconfig',
+            cacheDirectory: '/var/cache/fontconfig',
+            ownership: 'system',
+        },
+        openssl: {
+            configFile: '/etc/ssl/openssl.cnf',
+            certificateFile: '/etc/ssl/cert.pem',
+            certificateDirectory: '/etc/ssl/certs',
+            ownership: 'system',
+        },
+    });
+    assert.doesNotMatch(
+        JSON.stringify(RUNTIME_EXTERNAL_CONFIGURATION),
+        /build|prefix|tmp/i
+    );
+
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    assert.match(builderSource, /DESTDIR/);
+    assert.match(builderSource, /installWithDestdir/);
+    assert.doesNotMatch(
+        builderSource,
+        /--openssldir=\$\{path\.join\(context\.prefix/
+    );
 });
 
 test('uses an explicit LGPL FFmpeg HTTPS and HLS protocol baseline', () => {
@@ -573,6 +844,7 @@ test('uses valid mpv v0.41 Meson option names and pins the Linux backends', () =
         '-Dvulkan=disabled',
         '-Dshaderc=disabled',
         '-Dspirv-cross=disabled',
+        '-Ddrm=enabled',
         '-Dgl=enabled',
         '-Dplain-gl=enabled',
         '-Degl=enabled',
@@ -583,6 +855,13 @@ test('uses valid mpv v0.41 Meson option names and pins the Linux backends', () =
         '-Dvaapi-drm=enabled',
     ]) {
         assert.ok(MPV_MESON_FLAGS.includes(required), `missing ${required}`);
+    }
+    assert.equal(MPV_MESON_FLAGS.includes('-Ddrm=disabled'), false);
+    for (const optionName of ['drm', 'gbm', 'vaapi-drm']) {
+        const assignments = MPV_MESON_FLAGS.filter((flag) =>
+            flag.startsWith(`-D${optionName}=`)
+        );
+        assert.deepEqual(assignments, [`-D${optionName}=enabled`]);
     }
 });
 
@@ -620,6 +899,7 @@ test('keeps the external dependency allowlists explicit and deterministic', () =
 
 test('parses readelf dynamic sections and validates an ORIGIN-only closure', () => {
     const mpvDynamic = parseReadelfDynamic(`
+ 0x000000000000000e (SONAME)             Library soname: [libmpv.so.2]
  0x0000000000000001 (NEEDED)             Shared library: [libavcodec.so.62]
  0x0000000000000001 (NEEDED)             Shared library: [libEGL.so.1]
  0x0000000000000001 (NEEDED)             Shared library: [libc.so.6]
@@ -629,6 +909,7 @@ test('parses readelf dynamic sections and validates an ORIGIN-only closure', () 
         needed: ['libEGL.so.1', 'libavcodec.so.62', 'libc.so.6'],
         rpath: [],
         runpath: ['$ORIGIN'],
+        soname: 'libmpv.so.2',
     });
 
     const closure = validateRuntimeDependencyClosure({
@@ -655,6 +936,50 @@ test('parses readelf dynamic sections and validates an ORIGIN-only closure', () 
         'libavcodec.so.62',
         'libc.so.6',
     ]);
+    assert.equal(closure.entries[1].soname, 'libmpv.so.2');
+
+    const aliasClosure = validateRuntimeDependencyClosure({
+        entries: [
+            {
+                name: 'libmpv.so',
+                ...mpvDynamic,
+            },
+            {
+                name: 'libmpv.so.2',
+                ...mpvDynamic,
+            },
+            {
+                name: 'libavcodec.so.62',
+                needed: ['libm.so.6'],
+                rpath: [],
+                runpath: ['$ORIGIN'],
+                soname: 'libavcodec.so.62',
+            },
+        ],
+        runtimeFileNames: ['libavcodec.so.62', 'libmpv.so', 'libmpv.so.2'],
+        buildPrefix: '/tmp/iptvnator-prefix',
+    });
+    assert.equal(
+        aliasClosure.entries.find(({ name }) => name === 'libmpv.so').soname,
+        'libmpv.so.2'
+    );
+    assert.throws(
+        () =>
+            validateRuntimeDependencyClosure({
+                entries: aliasClosure.entries.map((entry) =>
+                    entry.name === 'libmpv.so'
+                        ? { ...entry, soname: 'libmpv.so.99' }
+                        : entry
+                ),
+                runtimeFileNames: [
+                    'libavcodec.so.62',
+                    'libmpv.so',
+                    'libmpv.so.2',
+                ],
+                buildPrefix: '/tmp/iptvnator-prefix',
+            }),
+        /libmpv\.so must declare a versioned SONAME present in the runtime closure/
+    );
 
     assert.throws(
         () =>
@@ -694,6 +1019,140 @@ test('parses readelf dynamic sections and validates an ORIGIN-only closure', () 
             /RUNPATH/
         );
     }
+});
+
+test('retains only the reachable SONAME closure plus the libmpv linker alias', (t) => {
+    const entries = [
+        {
+            name: 'libmpv.so',
+            soname: 'libmpv.so.2',
+            needed: ['libavcodec.so.62', 'libc.so.6'],
+        },
+        {
+            name: 'libmpv.so.2',
+            soname: 'libmpv.so.2',
+            needed: ['libavcodec.so.62', 'libc.so.6'],
+        },
+        {
+            name: 'libmpv.so.2.0.0',
+            soname: 'libmpv.so.2',
+            needed: ['libavcodec.so.62', 'libc.so.6'],
+        },
+        {
+            name: 'libavcodec.so',
+            soname: 'libavcodec.so.62',
+            needed: ['libm.so.6'],
+        },
+        {
+            name: 'libavcodec.so.62',
+            soname: 'libavcodec.so.62',
+            needed: ['libm.so.6'],
+        },
+        {
+            name: 'libavcodec.so.62.1.0',
+            soname: 'libavcodec.so.62',
+            needed: ['libm.so.6'],
+        },
+        {
+            name: 'libunused.so.1',
+            soname: 'libunused.so.1',
+            needed: ['libc.so.6'],
+        },
+    ];
+    const retainedNames = selectReachableRuntimeLibraryNames(entries);
+    assert.deepEqual(retainedNames, [
+        'libavcodec.so.62',
+        'libmpv.so',
+        'libmpv.so.2',
+    ]);
+
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-runtime-prune-')
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const libDir = path.join(root, 'lib');
+    fs.mkdirSync(libDir);
+    fs.writeFileSync(path.join(libDir, 'libmpv.so.2.0.0'), 'mpv');
+    fs.symlinkSync('libmpv.so.2.0.0', path.join(libDir, 'libmpv.so.2'));
+    fs.symlinkSync('libmpv.so.2', path.join(libDir, 'libmpv.so'));
+    fs.writeFileSync(path.join(libDir, 'libavcodec.so.62.1.0'), 'codec');
+    fs.symlinkSync(
+        'libavcodec.so.62.1.0',
+        path.join(libDir, 'libavcodec.so.62')
+    );
+    fs.symlinkSync('libavcodec.so.62', path.join(libDir, 'libavcodec.so'));
+    fs.writeFileSync(path.join(libDir, 'libunused.so.1'), 'unused');
+
+    retainRuntimeLibraries(libDir, retainedNames);
+    assert.deepEqual(fs.readdirSync(libDir).sort(), retainedNames);
+    for (const retainedName of retainedNames) {
+        assert.equal(
+            fs.lstatSync(path.join(libDir, retainedName)).isFile(),
+            true,
+            retainedName
+        );
+    }
+});
+
+test('enforces the Ubuntu 22.04 GLIBC and GLIBCXX symbol ceilings', () => {
+    assert.deepEqual(PORTABLE_ABI_BASELINE, {
+        distribution: 'Ubuntu 22.04',
+        glibcMaximum: '2.35',
+        glibcxxMaximum: '3.4.30',
+    });
+    const record = parseReadelfVersionInfo(
+        `
+  0x0010:   Name: GLIBC_2.2.5  Flags: none  Version: 7
+  0x0020:   Name: GLIBC_2.34   Flags: none  Version: 5
+  0x0030:   Name: GLIBCXX_3.4.21  Flags: none  Version: 4
+  0x0040:   Name: GLIBCXX_3.4.29  Flags: none  Version: 3
+`,
+        'libmpv.so.2'
+    );
+    assert.deepEqual(record, {
+        name: 'libmpv.so.2',
+        requiredGlibc: '2.34',
+        requiredGlibcxx: '3.4.29',
+    });
+    assert.doesNotThrow(() => assertPortableAbiRecords([record]));
+
+    for (const [field, version] of [
+        ['requiredGlibc', '2.36'],
+        ['requiredGlibcxx', '3.4.31'],
+    ]) {
+        assert.throws(
+            () =>
+                assertPortableAbiRecords([
+                    {
+                        ...record,
+                        [field]: version,
+                    },
+                ]),
+            /portable ABI baseline.*newer symbol/i
+        );
+    }
+});
+
+test('rejects build hosts newer than the portable glibc baseline', () => {
+    assert.doesNotThrow(() => assertPortableBuildHostGlibc('2.35'));
+    assert.throws(
+        () => assertPortableBuildHostGlibc('2.36'),
+        /build host glibc 2\.36.*portable ABI baseline.*2\.35/i
+    );
+    assert.throws(
+        () => assertPortableBuildHostGlibc(undefined),
+        /unable to determine the Linux build host glibc version/i
+    );
+});
+
+test('inspects every retained runtime file for portable symbol versions', () => {
+    const builderSource = fs.readFileSync(builderScript, 'utf8');
+    assert.match(
+        builderSource,
+        /runCapture\('readelf', \[\s*'--version-info',\s*libraryPath,\s*\]\)/
+    );
+    assert.match(builderSource, /retainRuntimeLibraries\(libDir,/);
+    assert.match(builderSource, /assertPortableAbiRecords\(abiRecords\)/);
 });
 
 test('materializes symlink aliases and hashes every runtime library', (t) => {
@@ -742,22 +1201,38 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
     const libDir = path.join(root, 'lib');
     fs.mkdirSync(libDir);
     fs.writeFileSync(path.join(libDir, 'libavcodec.so.62'), 'avcodec');
+    fs.writeFileSync(path.join(libDir, 'libmpv.so'), 'mpv');
     fs.writeFileSync(path.join(libDir, 'libmpv.so.2'), 'mpv');
     const runtimeFiles = createRuntimeFileRecords(libDir);
     const sourceRecords = createPinnedSourceRecords();
+    const abiRecords = runtimeFiles.map(({ name }) => ({
+        name,
+        requiredGlibc: '2.34',
+        requiredGlibcxx: null,
+    }));
     const manifest = createLinuxRuntimeManifest({
         sourceRecords,
         runtimeFiles,
+        abiRecords,
         dependencyClosure: {
             entries: [
                 {
                     name: 'libavcodec.so.62',
+                    soname: 'libavcodec.so.62',
                     needed: ['libm.so.6'],
                     rpath: [],
                     runpath: ['$ORIGIN'],
                 },
                 {
+                    name: 'libmpv.so',
+                    soname: 'libmpv.so.2',
+                    needed: ['libavcodec.so.62', 'libEGL.so.1'],
+                    rpath: [],
+                    runpath: ['$ORIGIN'],
+                },
+                {
                     name: 'libmpv.so.2',
+                    soname: 'libmpv.so.2',
                     needed: ['libavcodec.so.62', 'libEGL.so.1'],
                     rpath: [],
                     runpath: ['$ORIGIN'],
@@ -769,6 +1244,7 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
             platform: 'linux',
             arch: 'x64',
             release: 'fixture-kernel',
+            glibcVersion: '2.35',
             systemPkgConfigDirs: [...DEFAULT_SYSTEM_PKG_CONFIG_DIRS],
             systemPkgConfigPackages: Object.fromEntries(
                 EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES.map((packageName) => [
@@ -777,7 +1253,10 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
                 ])
             ),
             tools: Object.fromEntries(
-                REQUIRED_TOOLS.map((tool) => [tool, `${tool} fixture version`])
+                REQUIRED_TOOLS.map((tool) => [
+                    tool,
+                    `${tool} ${MINIMUM_TOOL_VERSIONS[tool]}`,
+                ])
             ),
         },
         generatedAt: '2026-07-17T00:00:00.000Z',
@@ -792,10 +1271,25 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
         'libEGL.so.1',
         'libm.so.6',
     ]);
+    assert.equal(
+        manifest.runtimeDependencyClosure.entries.find(
+            ({ name }) => name === 'libmpv.so'
+        ).soname,
+        'libmpv.so.2'
+    );
     assert.deepEqual(
         manifest.externalSystemLibraries,
         EXTERNAL_SYSTEM_LIBRARIES
     );
+    assert.deepEqual(manifest.runtimeAbi, {
+        baseline: PORTABLE_ABI_BASELINE,
+        files: abiRecords,
+    });
+    assert.deepEqual(
+        manifest.runtimeExternalConfiguration,
+        RUNTIME_EXTERNAL_CONFIGURATION
+    );
+    assert.equal(manifest.buildHost.glibcVersion, '2.35');
     assert.deepEqual(
         Object.keys(manifest.buildHost.systemPkgConfigPackages),
         EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES
@@ -814,6 +1308,7 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
     );
     assert.doesNotMatch(manifest.sourceDistribution, /TBD|TODO/i);
     assert.match(manifest.sourceDistribution, /source archives/i);
+    assert.match(manifest.sourceDistribution, /libdisplay-info/i);
 });
 
 test('guards the CLI to Linux x64 and requires exactly one output prefix', () => {
@@ -883,7 +1378,7 @@ test('patches every materialized ELF runtime to ORIGIN before validating closure
         builderSource,
         /runCapture\('readelf', \['-d', libraryPath\]\)/
     );
-    assert.match(builderSource, /materializeLibrarySymlinks\(libDir\)/);
+    assert.match(builderSource, /retainRuntimeLibraries\(libDir,/);
     assert.match(builderSource, /validateRuntimeDependencyClosure\(\{/);
     assert.match(builderSource, /createRuntimeFileRecords\(libDir\)/);
     assert.match(builderSource, /runtime-manifest\.json/);

@@ -95,6 +95,16 @@ const SOURCE_PACKAGES = Object.freeze(
             license: 'LGPL-2.1-or-later',
         },
         {
+            id: 'libdisplay-info',
+            version: '0.1.1',
+            sourceKind: 'archive',
+            sourceUrl:
+                'https://gitlab.freedesktop.org/emersion/libdisplay-info/-/releases/0.1.1/downloads/libdisplay-info-0.1.1.tar.xz',
+            expectedSha256:
+                '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
+            license: 'MIT',
+        },
+        {
             id: 'mpv',
             version: '0.41.0',
             sourceKind: 'archive',
@@ -203,7 +213,7 @@ const MPV_MESON_FLAGS = Object.freeze([
     '-Dd3d11=disabled',
     '-Ddirect3d=disabled',
     '-Ddmabuf-wayland=disabled',
-    '-Ddrm=disabled',
+    '-Ddrm=enabled',
     '-Degl=enabled',
     '-Degl-android=disabled',
     '-Degl-angle=disabled',
@@ -318,6 +328,12 @@ const BUILD_RECIPES = Object.freeze({
             '-Dtools=disabled',
             '-Dcache-build=disabled',
             '-Dnls=disabled',
+            '-Dxml-backend=expat',
+            '-Dbaseconfig-dir=/etc/fonts',
+            '-Dconfig-dir=/etc/fonts/conf.d',
+            '-Dtemplate-dir=/usr/share/fontconfig/conf.avail',
+            '-Dcache-dir=/var/cache/fontconfig',
+            '-Dxml-dir=/usr/share/xml/fontconfig',
         ]),
     }),
     libass: Object.freeze({
@@ -344,6 +360,7 @@ const BUILD_RECIPES = Object.freeze({
             'no-legacy',
             'no-module',
             'no-weak-ssl-ciphers',
+            '--openssldir=/etc/ssl',
         ]),
     }),
     ffmpeg: Object.freeze({
@@ -371,6 +388,11 @@ const BUILD_RECIPES = Object.freeze({
             '-Dxxhash=disabled',
         ]),
     }),
+    'libdisplay-info': Object.freeze({
+        buildSystem: 'meson',
+        sharedOnly: true,
+        args: Object.freeze([]),
+    }),
     mpv: Object.freeze({
         buildSystem: 'meson',
         sharedOnly: true,
@@ -385,6 +407,7 @@ const REQUIRED_TOOLS = Object.freeze([
     'git',
     'make',
     'meson',
+    'nasm',
     'ninja',
     'patchelf',
     'perl',
@@ -393,6 +416,23 @@ const REQUIRED_TOOLS = Object.freeze([
     'readelf',
     'tar',
 ]);
+
+const MINIMUM_TOOL_VERSIONS = Object.freeze({
+    cc: '9.0.0',
+    cmake: '3.16.0',
+    curl: '7.71.0',
+    git: '2.30.0',
+    make: '4.0.0',
+    meson: '1.6.0',
+    nasm: '2.15.05',
+    ninja: '1.10.0',
+    patchelf: '0.14.0',
+    perl: '5.30.0',
+    'pkg-config': '0.29.0',
+    python3: '3.8.0',
+    readelf: '2.35.0',
+    tar: '1.30.0',
+});
 
 const DEFAULT_SYSTEM_PKG_CONFIG_DIRS = Object.freeze([
     '/usr/lib/x86_64-linux-gnu/pkgconfig',
@@ -406,6 +446,7 @@ const EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES = Object.freeze([
     'egl',
     'gbm',
     'gl',
+    'libdrm',
     'libpulse',
     'libva',
     'libva-drm',
@@ -477,6 +518,31 @@ const EXTERNAL_SYSTEM_LIBRARIES = Object.freeze(
     ].map((externalLibrary) => Object.freeze(externalLibrary))
 );
 
+const RUNTIME_EXTERNAL_CONFIGURATION = Object.freeze({
+    fontconfig: Object.freeze({
+        configDirectory: '/etc/fonts',
+        templateDirectory: '/usr/share/fontconfig',
+        cacheDirectory: '/var/cache/fontconfig',
+        ownership: 'system',
+    }),
+    openssl: Object.freeze({
+        configFile: '/etc/ssl/openssl.cnf',
+        certificateFile: '/etc/ssl/cert.pem',
+        certificateDirectory: '/etc/ssl/certs',
+        ownership: 'system',
+    }),
+});
+
+const OUTPUT_OWNERSHIP_MARKER = '.iptvnator-linux-runtime-owner';
+const OUTPUT_OWNERSHIP_MARKER_CONTENT =
+    'iptvnator-embedded-mpv-linux-runtime-v1\n';
+
+const PORTABLE_ABI_BASELINE = Object.freeze({
+    distribution: 'Ubuntu 22.04',
+    glibcMaximum: '2.35',
+    glibcxxMaximum: '3.4.30',
+});
+
 const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const externalSystemLibraryNames = new Set(
@@ -500,6 +566,217 @@ function assertGitCommitMatchesPin(sourcePackage, actualGitCommit) {
         throw new Error(
             `${sourcePackage.id} git commit mismatch: expected ${sourcePackage.expectedGitCommit}, received ${actualGitCommit}.`
         );
+    }
+}
+
+function parseVersion(value) {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    const match = value.match(/\b(\d+\.\d+(?:\.\d+)*)\b/);
+    return match?.[1] ?? null;
+}
+
+function compareVersions(left, right) {
+    const leftParts = left.split('.').map(Number);
+    const rightParts = right.split('.').map(Number);
+    const length = Math.max(leftParts.length, rightParts.length);
+    for (let index = 0; index < length; index += 1) {
+        const difference = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+        if (difference !== 0) {
+            return Math.sign(difference);
+        }
+    }
+    return 0;
+}
+
+function assertMinimumToolVersions(toolVersions) {
+    for (const tool of REQUIRED_TOOLS) {
+        const declaredVersion = toolVersions?.[tool];
+        if (typeof declaredVersion !== 'string' || !declaredVersion.trim()) {
+            throw new Error(`Missing required tool version for ${tool}.`);
+        }
+        const actualVersion = parseVersion(declaredVersion);
+        if (!actualVersion) {
+            throw new Error(
+                `Unable to parse required tool version for ${tool}: ${declaredVersion}.`
+            );
+        }
+        const minimumVersion = MINIMUM_TOOL_VERSIONS[tool];
+        if (compareVersions(actualVersion, minimumVersion) < 0) {
+            throw new Error(
+                `${tool} ${actualVersion} is unsupported; ${tool} requires ${minimumVersion} or newer for Linux runtime builds.`
+            );
+        }
+    }
+}
+
+function assertUniqueMesonOptionAssignments(buildRecipes) {
+    if (!buildRecipes || typeof buildRecipes !== 'object') {
+        throw new TypeError('Linux runtime build recipes must be an object.');
+    }
+    for (const [packageId, recipe] of Object.entries(buildRecipes)) {
+        if (recipe?.buildSystem !== 'meson') {
+            continue;
+        }
+        if (!Array.isArray(recipe.args)) {
+            throw new Error(
+                `${packageId} Meson recipe must declare an argument array.`
+            );
+        }
+
+        const assignmentsByOption = new Map();
+        for (const flag of recipe.args) {
+            const match =
+                typeof flag === 'string' ? flag.match(/^(-D[^=]+)=/) : null;
+            if (!match) {
+                continue;
+            }
+            const option = match[1];
+            const assignmentCount = (assignmentsByOption.get(option) ?? 0) + 1;
+            assignmentsByOption.set(option, assignmentCount);
+            if (assignmentCount > 1) {
+                throw new Error(
+                    `${packageId} Meson recipe must assign ${option} exactly once.`
+                );
+            }
+        }
+    }
+}
+
+function lstatIfExists(fileSystem, filePath) {
+    try {
+        return fileSystem.lstatSync(filePath);
+    } catch (error) {
+        if (error?.code === 'ENOENT') {
+            return null;
+        }
+        throw error;
+    }
+}
+
+function assertOwnedOutputDestination(outputPrefix, fileSystem = fs) {
+    const outputStat = lstatIfExists(fileSystem, outputPrefix);
+    if (!outputStat) {
+        return;
+    }
+    if (!outputStat.isDirectory() || outputStat.isSymbolicLink()) {
+        throw new Error(
+            `Existing output ${outputPrefix} must be a non-symbolic-link directory carrying the IPTVnator ownership marker.`
+        );
+    }
+
+    const markerPath = path.join(outputPrefix, OUTPUT_OWNERSHIP_MARKER);
+    const markerStat = lstatIfExists(fileSystem, markerPath);
+    if (
+        !markerStat ||
+        !markerStat.isFile() ||
+        markerStat.isSymbolicLink() ||
+        fileSystem.readFileSync(markerPath, 'utf8') !==
+            OUTPUT_OWNERSHIP_MARKER_CONTENT
+    ) {
+        throw new Error(
+            `Existing output ${outputPrefix} is missing the valid IPTVnator ownership marker.`
+        );
+    }
+}
+
+function ownedStagingPrefixPath(outputPrefix, token) {
+    return path.join(
+        path.dirname(outputPrefix),
+        `.${path.basename(outputPrefix)}.iptvnator-stage-${token}`
+    );
+}
+
+function createOwnedStagingPrefix(
+    outputPrefix,
+    { fileSystem = fs, token = crypto.randomBytes(8).toString('hex') } = {}
+) {
+    assertOwnedOutputDestination(outputPrefix, fileSystem);
+    const outputParent = path.dirname(outputPrefix);
+    const stagingPrefix = ownedStagingPrefixPath(outputPrefix, token);
+    if (lstatIfExists(fileSystem, stagingPrefix)) {
+        throw new Error(
+            `Refusing to reuse existing Linux runtime staging path ${stagingPrefix}.`
+        );
+    }
+
+    fileSystem.mkdirSync(outputParent, { recursive: true });
+    fileSystem.mkdirSync(stagingPrefix);
+    try {
+        fileSystem.writeFileSync(
+            path.join(stagingPrefix, OUTPUT_OWNERSHIP_MARKER),
+            OUTPUT_OWNERSHIP_MARKER_CONTENT,
+            { mode: 0o644 }
+        );
+    } catch (error) {
+        fileSystem.rmSync(stagingPrefix, { recursive: true, force: true });
+        throw error;
+    }
+    return stagingPrefix;
+}
+
+function publishOwnedOutput({
+    outputPrefix,
+    stagingPrefix,
+    fileSystem = fs,
+    token = crypto.randomBytes(8).toString('hex'),
+}) {
+    assertOwnedOutputDestination(outputPrefix, fileSystem);
+    assertOwnedOutputDestination(stagingPrefix, fileSystem);
+    if (!lstatIfExists(fileSystem, stagingPrefix)) {
+        throw new Error(
+            `Linux runtime staging prefix does not exist: ${stagingPrefix}.`
+        );
+    }
+
+    const backupPrefix = path.join(
+        path.dirname(outputPrefix),
+        `.${path.basename(outputPrefix)}.iptvnator-backup-${token}`
+    );
+    if (lstatIfExists(fileSystem, backupPrefix)) {
+        throw new Error(
+            `Refusing to reuse existing Linux runtime backup path ${backupPrefix}.`
+        );
+    }
+
+    let movedPreviousOutput = false;
+    let published = false;
+    try {
+        if (lstatIfExists(fileSystem, outputPrefix)) {
+            fileSystem.renameSync(outputPrefix, backupPrefix);
+            movedPreviousOutput = true;
+        }
+        fileSystem.renameSync(stagingPrefix, outputPrefix);
+        published = true;
+        if (movedPreviousOutput) {
+            fileSystem.rmSync(backupPrefix, {
+                recursive: true,
+                force: true,
+            });
+        }
+    } catch (error) {
+        if (
+            movedPreviousOutput &&
+            !lstatIfExists(fileSystem, outputPrefix) &&
+            lstatIfExists(fileSystem, backupPrefix)
+        ) {
+            fileSystem.renameSync(backupPrefix, outputPrefix);
+        }
+        throw error;
+    } finally {
+        if (lstatIfExists(fileSystem, stagingPrefix)) {
+            fileSystem.rmSync(stagingPrefix, {
+                recursive: true,
+                force: true,
+            });
+        }
+        if (published && lstatIfExists(fileSystem, backupPrefix)) {
+            fileSystem.rmSync(backupPrefix, {
+                recursive: true,
+                force: true,
+            });
+        }
     }
 }
 
@@ -625,9 +902,12 @@ function assertPathInside(parentPath, candidatePath, label) {
     }
 }
 
-function materializeLibrarySymlinks(libDir) {
+function materializeLibrarySymlinks(libDir, selectedNames = null) {
     const realLibDir = fs.realpathSync(libDir);
     for (const name of runtimeLibraryNames(libDir)) {
+        if (selectedNames && !selectedNames.has(name)) {
+            continue;
+        }
         const libraryPath = path.join(libDir, name);
         const stat = fs.lstatSync(libraryPath);
         if (!stat.isSymbolicLink()) {
@@ -654,6 +934,109 @@ function materializeLibrarySymlinks(libDir) {
     }
 }
 
+function selectReachableRuntimeLibraryNames(entries) {
+    if (!Array.isArray(entries)) {
+        throw new TypeError('Runtime dynamic entries must be an array.');
+    }
+
+    const entriesByName = new Map();
+    for (const entry of entries) {
+        if (
+            !entry ||
+            typeof entry.name !== 'string' ||
+            !SHARED_LIBRARY_PATTERN.test(entry.name)
+        ) {
+            throw new Error(
+                'Runtime dynamic entry has an invalid library name.'
+            );
+        }
+        if (entriesByName.has(entry.name)) {
+            throw new Error(
+                `Runtime dynamic entries contain duplicate library ${entry.name}.`
+            );
+        }
+        entriesByName.set(entry.name, entry);
+    }
+
+    const linkerAlias = entriesByName.get('libmpv.so');
+    if (!linkerAlias) {
+        throw new Error(
+            'Linux runtime must contain the libmpv.so linker alias.'
+        );
+    }
+    if (
+        typeof linkerAlias.soname !== 'string' ||
+        !SHARED_LIBRARY_PATTERN.test(linkerAlias.soname) ||
+        !entriesByName.has(linkerAlias.soname)
+    ) {
+        throw new Error(
+            'libmpv.so must declare a bundled SONAME before runtime pruning.'
+        );
+    }
+
+    const reachableNames = new Set(['libmpv.so']);
+    const pendingNames = [linkerAlias.soname];
+    while (pendingNames.length > 0) {
+        const libraryName = pendingNames.shift();
+        if (reachableNames.has(libraryName)) {
+            continue;
+        }
+        reachableNames.add(libraryName);
+        const entry = entriesByName.get(libraryName);
+        if (!entry) {
+            throw new Error(
+                `Reachable runtime library ${libraryName} is missing its dynamic entry.`
+            );
+        }
+        for (const neededName of entry.needed ?? []) {
+            if (
+                entriesByName.has(neededName) &&
+                !reachableNames.has(neededName)
+            ) {
+                pendingNames.push(neededName);
+            }
+        }
+    }
+
+    return [...reachableNames].sort();
+}
+
+function retainRuntimeLibraries(libDir, retainedNames) {
+    if (!Array.isArray(retainedNames) || retainedNames.length === 0) {
+        throw new Error('Runtime retention list must be a non-empty array.');
+    }
+    const retainedNameSet = new Set(retainedNames);
+    if (retainedNameSet.size !== retainedNames.length) {
+        throw new Error('Runtime retention list contains duplicate libraries.');
+    }
+
+    const availableNames = runtimeLibraryNames(libDir);
+    for (const retainedName of retainedNameSet) {
+        if (!availableNames.includes(retainedName)) {
+            throw new Error(
+                `Retained runtime library does not exist: ${retainedName}.`
+            );
+        }
+    }
+
+    materializeLibrarySymlinks(libDir, retainedNameSet);
+    for (const libraryName of availableNames) {
+        if (!retainedNameSet.has(libraryName)) {
+            fs.rmSync(path.join(libDir, libraryName));
+        }
+    }
+
+    for (const retainedName of retainedNameSet) {
+        const retainedPath = path.join(libDir, retainedName);
+        const stat = fs.lstatSync(retainedPath);
+        if (!stat.isFile() || stat.isSymbolicLink()) {
+            throw new Error(
+                `Retained runtime library ${retainedName} must be a materialized regular file.`
+            );
+        }
+    }
+}
+
 function createRuntimeFileRecords(libDir) {
     return runtimeLibraryNames(libDir).map((name) => {
         const libraryPath = path.join(libDir, name);
@@ -677,10 +1060,16 @@ function parseReadelfDynamic(output) {
         needed: [],
         rpath: [],
         runpath: [],
+        soname: null,
     };
-    const dynamicEntryPattern = /\((NEEDED|RPATH|RUNPATH)\)[^[]*\[([^\]]*)\]/g;
+    const dynamicEntryPattern =
+        /\((NEEDED|RPATH|RUNPATH|SONAME)\)[^[]*\[([^\]]*)\]/g;
     for (const match of output.matchAll(dynamicEntryPattern)) {
         const [, tag, value] = match;
+        if (tag === 'SONAME') {
+            dynamic.soname = value;
+            continue;
+        }
         if (tag === 'NEEDED') {
             dynamic.needed.push(value);
             continue;
@@ -691,10 +1080,73 @@ function parseReadelfDynamic(output) {
         );
     }
 
-    for (const field of Object.keys(dynamic)) {
+    for (const field of ['needed', 'rpath', 'runpath']) {
         dynamic[field] = [...new Set(dynamic[field])].sort();
     }
     return dynamic;
+}
+
+function parseReadelfVersionInfo(output, name) {
+    if (typeof output !== 'string' || typeof name !== 'string' || !name) {
+        throw new TypeError(
+            'readelf version output and runtime library name are required.'
+        );
+    }
+
+    let requiredGlibc = null;
+    let requiredGlibcxx = null;
+    const versionPattern = /\b(GLIBCXX|GLIBC)_(\d+(?:\.\d+)+)\b/g;
+    for (const [, namespace, version] of output.matchAll(versionPattern)) {
+        if (
+            namespace === 'GLIBC' &&
+            (!requiredGlibc || compareVersions(version, requiredGlibc) > 0)
+        ) {
+            requiredGlibc = version;
+        }
+        if (
+            namespace === 'GLIBCXX' &&
+            (!requiredGlibcxx || compareVersions(version, requiredGlibcxx) > 0)
+        ) {
+            requiredGlibcxx = version;
+        }
+    }
+
+    return { name, requiredGlibc, requiredGlibcxx };
+}
+
+function assertPortableAbiRecords(records) {
+    if (!Array.isArray(records)) {
+        throw new TypeError('Runtime ABI records must be an array.');
+    }
+    for (const record of records) {
+        for (const [field, maximum] of [
+            ['requiredGlibc', PORTABLE_ABI_BASELINE.glibcMaximum],
+            ['requiredGlibcxx', PORTABLE_ABI_BASELINE.glibcxxMaximum],
+        ]) {
+            const version = record?.[field];
+            if (version && compareVersions(version, maximum) > 0) {
+                throw new Error(
+                    `Portable ABI baseline ${PORTABLE_ABI_BASELINE.distribution} rejects newer symbol ${version} required by ${record.name}; maximum ${field} is ${maximum}.`
+                );
+            }
+        }
+    }
+}
+
+function assertPortableBuildHostGlibc(glibcVersion) {
+    if (
+        typeof glibcVersion !== 'string' ||
+        !/^\d+(?:\.\d+)+$/.test(glibcVersion)
+    ) {
+        throw new Error(
+            'Unable to determine the Linux build host glibc version.'
+        );
+    }
+    if (compareVersions(glibcVersion, PORTABLE_ABI_BASELINE.glibcMaximum) > 0) {
+        throw new Error(
+            `Build host glibc ${glibcVersion} exceeds the portable ABI baseline ${PORTABLE_ABI_BASELINE.distribution} maximum ${PORTABLE_ABI_BASELINE.glibcMaximum}.`
+        );
+    }
 }
 
 function validateRuntimeDependencyClosure({
@@ -714,6 +1166,7 @@ function validateRuntimeDependencyClosure({
     const normalizedEntries = [...entries]
         .map((entry) => ({
             name: entry.name,
+            soname: entry.soname ?? null,
             needed: [...new Set(entry.needed ?? [])].sort(),
             rpath: [...new Set(entry.rpath ?? [])].sort(),
             runpath: [...new Set(entry.runpath ?? [])].sort(),
@@ -732,6 +1185,27 @@ function validateRuntimeDependencyClosure({
             );
         }
         entryNames.add(entry.name);
+
+        if (
+            entry.soname !== null &&
+            (typeof entry.soname !== 'string' ||
+                !SHARED_LIBRARY_PATTERN.test(entry.soname) ||
+                path.basename(entry.soname) !== entry.soname)
+        ) {
+            throw new Error(
+                `${entry.name} SONAME must be null or a safe shared-library basename.`
+            );
+        }
+        if (
+            entry.name === 'libmpv.so' &&
+            (typeof entry.soname !== 'string' ||
+                !/^libmpv\.so\.\d+(?:\.\d+)*$/.test(entry.soname) ||
+                !bundledNames.has(entry.soname))
+        ) {
+            throw new Error(
+                'libmpv.so must declare a versioned SONAME present in the runtime closure.'
+            );
+        }
 
         if (entry.rpath.length > 0) {
             throw new Error(
@@ -845,6 +1319,7 @@ function sourceManifestMetadata(sourceRecord) {
 function createLinuxRuntimeManifest({
     sourceRecords,
     runtimeFiles,
+    abiRecords,
     dependencyClosure,
     buildHost,
     generatedAt = new Date().toISOString(),
@@ -867,6 +1342,7 @@ function createLinuxRuntimeManifest({
         }
         packages[sourcePackage.id] = sourceManifestMetadata(sourceRecord);
     }
+    assertPortableAbiRecords(abiRecords);
 
     const runtimeTotalBytes = runtimeFiles.reduce(
         (total, runtimeFile) => total + runtimeFile.size,
@@ -893,9 +1369,18 @@ function createLinuxRuntimeManifest({
         },
         runtimeFiles: runtimeFiles.map((runtimeFile) => ({ ...runtimeFile })),
         runtimeTotalBytes,
+        runtimeAbi: {
+            baseline: { ...PORTABLE_ABI_BASELINE },
+            files: abiRecords.map((record) => ({ ...record })),
+        },
+        runtimeExternalConfiguration: {
+            fontconfig: { ...RUNTIME_EXTERNAL_CONFIGURATION.fontconfig },
+            openssl: { ...RUNTIME_EXTERNAL_CONFIGURATION.openssl },
+        },
         runtimeDependencyClosure: {
             entries: dependencyClosure.entries.map((entry) => ({
                 name: entry.name,
+                soname: entry.soname ?? null,
                 needed: [...entry.needed],
                 rpath: [...entry.rpath],
                 runpath: [...entry.runpath],
@@ -907,7 +1392,7 @@ function createLinuxRuntimeManifest({
         ),
         buildHost,
         sourceDistribution:
-            'Attach a source archive to the corresponding Linux binary release containing the exact downloaded source archives, a checkout or git bundle of the recorded libplacebo commit and submodules, tools/embedded-mpv/build-linux-runtime.mjs, tools/embedded-mpv/build-linux-runtime.cjs, this runtime manifest, and any local patches.',
+            'Attach a source archive to the corresponding Linux binary release containing the exact downloaded source archives, including the pinned MIT-licensed libdisplay-info source archive, a checkout or git bundle of the recorded libplacebo commit and submodules, tools/embedded-mpv/build-linux-runtime.mjs, tools/embedded-mpv/build-linux-runtime.cjs, this runtime manifest, and any local patches.',
     };
 }
 
@@ -919,19 +1404,36 @@ module.exports = {
     EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     FFMPEG_CONFIGURE_FLAGS,
     GLIBC_TOOLCHAIN_ALLOWLIST,
+    MINIMUM_TOOL_VERSIONS,
     MPV_MESON_FLAGS,
+    OUTPUT_OWNERSHIP_MARKER,
+    PORTABLE_ABI_BASELINE,
     REQUIRED_TOOLS,
+    RUNTIME_EXTERNAL_CONFIGURATION,
     SOURCE_PACKAGES,
     assertArchiveMatchesPin,
     assertGitCommitMatchesPin,
+    assertMinimumToolVersions,
+    assertOwnedOutputDestination,
+    assertPortableAbiRecords,
+    assertPortableBuildHostGlibc,
+    assertUniqueMesonOptionAssignments,
+    compareVersions,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
+    createOwnedStagingPrefix,
     createRuntimeFileRecords,
     materializeLibrarySymlinks,
+    ownedStagingPrefixPath,
     parseCliInvocation,
     parseReadelfDynamic,
+    parseReadelfVersionInfo,
+    parseVersion,
     resolveSystemPkgConfigDirs,
     runtimeLibraryNames,
     sha256Buffer,
+    publishOwnedOutput,
+    retainRuntimeLibraries,
+    selectReachableRuntimeLibraryNames,
     validateRuntimeDependencyClosure,
 };

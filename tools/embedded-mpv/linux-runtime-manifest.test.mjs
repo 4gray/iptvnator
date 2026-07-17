@@ -19,7 +19,10 @@ const {
     EXTERNAL_SYSTEM_LIBRARIES,
     EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     GLIBC_TOOLCHAIN_ALLOWLIST,
+    MINIMUM_TOOL_VERSIONS,
+    PORTABLE_ABI_BASELINE,
     REQUIRED_TOOLS,
+    RUNTIME_EXTERNAL_CONFIGURATION,
     SOURCE_PACKAGES,
 } = require('./build-linux-runtime.cjs');
 
@@ -65,6 +68,7 @@ function createValidManifest(
     runtimeFiles = [
         runtimeFile('libmpv.so.2', 'libmpv-runtime'),
         runtimeFile('libavcodec.so.61', 'libavcodec-runtime'),
+        runtimeFile('libmpv.so', 'libmpv-runtime'),
     ]
 ) {
     const packages = Object.fromEntries(
@@ -85,6 +89,9 @@ function createValidManifest(
         )
         .map((runtimeEntry) => ({
             name: runtimeEntry.name,
+            soname: runtimeEntry.name.startsWith('libmpv.so')
+                ? 'libmpv.so.2'
+                : runtimeEntry.name,
             needed: runtimeEntry.name.startsWith('libmpv.so')
                 ? [
                       ...(runtimeNames.has('libavcodec.so.61')
@@ -124,11 +131,27 @@ function createValidManifest(
             mesonFlags: ['-Dlibmpv=true', '-Dgpl=false'],
         },
         sourceDistribution:
-            'https://downloads.example.test/iptvnator/linux-runtime-sources.tar.zst',
+            'Publish the exact source archives, including the pinned MIT-licensed libdisplay-info source archive.',
         runtimeFiles,
         runtimeTotalBytes: runtimeFiles.reduce(
             (total, runtimeEntry) => total + (runtimeEntry?.size ?? 0),
             0
+        ),
+        runtimeAbi: {
+            baseline: { ...PORTABLE_ABI_BASELINE },
+            files: runtimeFiles
+                .filter(
+                    (runtimeEntry) =>
+                        runtimeEntry && typeof runtimeEntry.name === 'string'
+                )
+                .map(({ name }) => ({
+                    name,
+                    requiredGlibc: '2.34',
+                    requiredGlibcxx: null,
+                })),
+        },
+        runtimeExternalConfiguration: structuredClone(
+            RUNTIME_EXTERNAL_CONFIGURATION
         ),
         runtimeDependencyClosure: {
             entries: closureEntries,
@@ -141,6 +164,7 @@ function createValidManifest(
             platform: 'linux',
             arch: 'x64',
             release: 'fixture-kernel',
+            glibcVersion: '2.35',
             systemPkgConfigDirs: [...DEFAULT_SYSTEM_PKG_CONFIG_DIRS],
             systemPkgConfigPackages: Object.fromEntries(
                 EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES.map((packageName) => [
@@ -149,7 +173,10 @@ function createValidManifest(
                 ])
             ),
             tools: Object.fromEntries(
-                REQUIRED_TOOLS.map((tool) => [tool, `${tool} fixture version`])
+                REQUIRED_TOOLS.map((tool) => [
+                    tool,
+                    `${tool} ${MINIMUM_TOOL_VERSIONS[tool]}`,
+                ])
             ),
         },
     };
@@ -186,6 +213,7 @@ function createFixture(t, options = {}) {
     const contentsByName = new Map([
         ['libmpv.so.2', 'libmpv-runtime'],
         ['libavcodec.so.61', 'libavcodec-runtime'],
+        ['libmpv.so', 'libmpv-runtime'],
     ]);
 
     for (const [name, contents] of contentsByName) {
@@ -377,6 +405,54 @@ test('requires a complete ORIGIN-only runtime dependency closure', () => {
     );
 });
 
+test('requires safe SONAME metadata and a bundled versioned libmpv target', () => {
+    const missingLinkerAlias = createValidManifest();
+    const aliasFile = missingLinkerAlias.runtimeFiles.find(
+        ({ name }) => name === 'libmpv.so'
+    );
+    missingLinkerAlias.runtimeFiles = missingLinkerAlias.runtimeFiles.filter(
+        ({ name }) => name !== 'libmpv.so'
+    );
+    missingLinkerAlias.runtimeTotalBytes -= aliasFile.size;
+    missingLinkerAlias.runtimeAbi.files =
+        missingLinkerAlias.runtimeAbi.files.filter(
+            ({ name }) => name !== 'libmpv.so'
+        );
+    missingLinkerAlias.runtimeDependencyClosure.entries =
+        missingLinkerAlias.runtimeDependencyClosure.entries.filter(
+            ({ name }) => name !== 'libmpv.so'
+        );
+    assert.match(
+        validateLinuxRuntimeManifest(missingLinkerAlias).join('\n'),
+        /runtimeFiles must include the libmpv\.so linker alias/
+    );
+
+    const missingLibmpvSoname = createValidManifest();
+    missingLibmpvSoname.runtimeDependencyClosure.entries.find(
+        ({ name }) => name === 'libmpv.so'
+    ).soname = null;
+    assert.match(
+        validateLinuxRuntimeManifest(missingLibmpvSoname).join('\n'),
+        /libmpv\.so must declare a versioned SONAME present in runtimeFiles/
+    );
+
+    const unsafeSoname = createValidManifest();
+    unsafeSoname.runtimeDependencyClosure.entries[0].soname = '../libmpv.so.2';
+    assert.match(
+        validateLinuxRuntimeManifest(unsafeSoname).join('\n'),
+        /runtimeDependencyClosure\.entries\[0\]\.soname must be null or a safe shared-library basename/
+    );
+
+    const absentSonameTarget = createValidManifest();
+    absentSonameTarget.runtimeDependencyClosure.entries.find(
+        ({ name }) => name === 'libmpv.so'
+    ).soname = 'libmpv.so.99';
+    assert.match(
+        validateLinuxRuntimeManifest(absentSonameTarget).join('\n'),
+        /libmpv\.so must declare a versioned SONAME present in runtimeFiles/
+    );
+});
+
 test('requires the deterministic external-system-library records', () => {
     const manifest = createValidManifest();
     manifest.externalSystemLibraries.reverse();
@@ -452,6 +528,68 @@ test('requires a Linux x64 build host and every required tool version', () => {
     assert.match(
         validateLinuxRuntimeManifest(unexpectedPackage).join('\n'),
         /buildHost\.systemPkgConfigPackages contains unexpected package "unexpected"/
+    );
+
+    const unsupportedGlibc = createValidManifest();
+    unsupportedGlibc.buildHost.glibcVersion = '2.36';
+    assert.match(
+        validateLinuxRuntimeManifest(unsupportedGlibc).join('\n'),
+        /buildHost\.glibcVersion.*portable ABI baseline.*2\.35/i
+    );
+
+    const unsupportedMeson = createValidManifest();
+    unsupportedMeson.buildHost.tools.meson = 'meson 1.5.9';
+    assert.match(
+        validateLinuxRuntimeManifest(unsupportedMeson).join('\n'),
+        /buildHost\.tools\.meson.*requires 1\.6\.0 or newer/i
+    );
+});
+
+test('requires exact portable ABI and external configuration records', () => {
+    const missingAbiFile = createValidManifest();
+    missingAbiFile.runtimeAbi.files.pop();
+    assert.match(
+        validateLinuxRuntimeManifest(missingAbiFile).join('\n'),
+        /runtimeAbi\.files must contain one record for every runtime file/
+    );
+
+    const newerGlibcSymbol = createValidManifest();
+    newerGlibcSymbol.runtimeAbi.files[0].requiredGlibc = '2.36';
+    assert.match(
+        validateLinuxRuntimeManifest(newerGlibcSymbol).join('\n'),
+        /runtimeAbi\.files\[0\]\.requiredGlibc.*maximum 2\.35/
+    );
+
+    const newerGlibcxxSymbol = createValidManifest();
+    newerGlibcxxSymbol.runtimeAbi.files[0].requiredGlibcxx = '3.4.31';
+    assert.match(
+        validateLinuxRuntimeManifest(newerGlibcxxSymbol).join('\n'),
+        /runtimeAbi\.files\[0\]\.requiredGlibcxx.*maximum 3\.4\.30/
+    );
+
+    const wrongBaseline = createValidManifest();
+    wrongBaseline.runtimeAbi.baseline.distribution = 'current host';
+    assert.match(
+        validateLinuxRuntimeManifest(wrongBaseline).join('\n'),
+        /runtimeAbi\.baseline must exactly match the portable ABI baseline/
+    );
+
+    const buildPathConfiguration = createValidManifest();
+    buildPathConfiguration.runtimeExternalConfiguration.fontconfig.configDirectory =
+        '/tmp/build-prefix/etc/fonts';
+    assert.match(
+        validateLinuxRuntimeManifest(buildPathConfiguration).join('\n'),
+        /runtimeExternalConfiguration must exactly match the system-owned runtime paths/
+    );
+});
+
+test('requires the source-distribution statement to name libdisplay-info', () => {
+    const manifest = createValidManifest();
+    manifest.sourceDistribution =
+        'Publish all of the other source archives with the binary release.';
+    assert.match(
+        validateLinuxRuntimeManifest(manifest).join('\n'),
+        /sourceDistribution must explicitly include libdisplay-info/
     );
 });
 
@@ -690,6 +828,15 @@ test('rejects duplicate or contradictory required mpv Meson assignments', () => 
     }
 });
 
+test('rejects duplicate assignments for every mpv Meson option', () => {
+    const manifest = createValidManifest();
+    manifest.mpv.mesonFlags.push('-Ddrm=enabled', '-Ddrm=enabled');
+    assert.match(
+        validateLinuxRuntimeManifest(manifest).join('\n'),
+        /mpv\.mesonFlags must assign "-Ddrm" exactly once/
+    );
+});
+
 test('validates safe, unique shared-library metadata', () => {
     const manifest = createValidManifest([
         {
@@ -729,32 +876,20 @@ test('rejects control characters in shared-library basenames', () => {
 
     assert.match(
         validateLinuxRuntimeManifest(manifest).join('\n'),
-        /runtimeFiles\[2\]\.name must be a safe shared-library basename/
+        /runtimeFiles\[3\]\.name must be a safe shared-library basename/
     );
 });
 
 test('stages only declared Linux libraries and materializes source symlinks', (t) => {
     const fixture = createFixture(t);
-    const versionedMpvContents = fs.readFileSync(
-        path.join(fixture.libDir, 'libmpv.so.2')
-    );
     fs.renameSync(
         path.join(fixture.libDir, 'libmpv.so.2'),
         path.join(fixture.libDir, 'libmpv.so.2.1.0')
     );
+    fs.rmSync(path.join(fixture.libDir, 'libmpv.so'));
     fs.symlinkSync('libmpv.so.2.1.0', path.join(fixture.libDir, 'libmpv.so.2'));
     fs.symlinkSync('libmpv.so.2', path.join(fixture.libDir, 'libmpv.so'));
     fs.writeFileSync(path.join(fixture.libDir, 'libundeclared.so.1'), 'extra');
-    fixture.manifest.runtimeFiles.push(
-        runtimeFile('libmpv.so', versionedMpvContents)
-    );
-    fixture.manifest.runtimeTotalBytes += versionedMpvContents.length;
-    fixture.manifest.runtimeDependencyClosure.entries.push({
-        name: 'libmpv.so',
-        needed: ['libmpv.so.2'],
-        rpath: [],
-        runpath: ['$ORIGIN'],
-    });
     fs.writeFileSync(
         path.join(fixture.prefix, 'runtime-manifest.json'),
         `${JSON.stringify(fixture.manifest, null, 2)}\n`
@@ -809,6 +944,8 @@ test('stages only declared Linux libraries and materializes source symlinks', (t
     for (const field of [
         'packages',
         'runtimeTotalBytes',
+        'runtimeAbi',
+        'runtimeExternalConfiguration',
         'runtimeDependencyClosure',
         'externalSystemLibraries',
         'buildHost',

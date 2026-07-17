@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import fs from 'node:fs';
+import crypto from 'node:crypto';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -13,19 +14,30 @@ const {
     BUILD_ORDER,
     EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     MPV_MESON_FLAGS,
+    PORTABLE_ABI_BASELINE,
     REQUIRED_TOOLS,
     SOURCE_PACKAGES,
     assertArchiveMatchesPin,
     assertGitCommitMatchesPin,
+    assertMinimumToolVersions,
+    assertOwnedOutputDestination,
+    assertPortableAbiRecords,
+    assertPortableBuildHostGlibc,
+    assertUniqueMesonOptionAssignments,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
+    createOwnedStagingPrefix,
     createRuntimeFileRecords,
-    materializeLibrarySymlinks,
+    ownedStagingPrefixPath,
     parseCliInvocation,
     parseReadelfDynamic,
+    parseReadelfVersionInfo,
+    retainRuntimeLibraries,
     resolveSystemPkgConfigDirs,
     runtimeLibraryNames,
+    selectReachableRuntimeLibraryNames,
     sha256Buffer,
+    publishOwnedOutput,
     validateRuntimeDependencyClosure,
 } = require('./build-linux-runtime.cjs');
 const {
@@ -344,6 +356,91 @@ function mesonInstall(packageId, recipe, context) {
     context.run('meson', ['install', '-C', buildPath], { cwd: sourcePath });
 }
 
+function pathInsideDestdir(destdir, absolutePath) {
+    return path.join(
+        destdir,
+        absolutePath.slice(path.parse(absolutePath).root.length)
+    );
+}
+
+function copyDirectoryContents(sourceDirectory, destinationDirectory) {
+    if (!fs.existsSync(sourceDirectory)) {
+        return;
+    }
+    fs.mkdirSync(destinationDirectory, { recursive: true });
+    for (const entry of fs.readdirSync(sourceDirectory)) {
+        fs.cpSync(
+            path.join(sourceDirectory, entry),
+            path.join(destinationDirectory, entry),
+            {
+                recursive: true,
+                force: true,
+            }
+        );
+    }
+}
+
+function installWithDestdir(packageId, context, install, externalPaths = []) {
+    const destdir = path.join(context.buildRoot, 'install-roots', packageId);
+    fs.rmSync(destdir, { recursive: true, force: true });
+    fs.mkdirSync(destdir, { recursive: true });
+    try {
+        install(destdir);
+        copyDirectoryContents(
+            pathInsideDestdir(destdir, context.prefix),
+            context.prefix
+        );
+        for (const { destination, source } of externalPaths) {
+            copyDirectoryContents(
+                pathInsideDestdir(destdir, source),
+                path.join(context.prefix, destination)
+            );
+        }
+    } finally {
+        fs.rmSync(destdir, { recursive: true, force: true });
+    }
+}
+
+function fontconfigInstall(recipe, context) {
+    const sourcePath = sourcePathFor('fontconfig', context.sourceRoot);
+    const buildPath = path.join(sourcePath, 'build-iptvnator');
+    fs.rmSync(buildPath, { recursive: true, force: true });
+    context.run(
+        'meson',
+        ['setup', buildPath, ...mesonSetupArgs(context.prefix, recipe.args)],
+        { cwd: sourcePath }
+    );
+    context.run(
+        'meson',
+        ['compile', '--jobs', context.parallelism, '-C', buildPath],
+        { cwd: sourcePath }
+    );
+    installWithDestdir(
+        'fontconfig',
+        context,
+        (destdir) =>
+            context.run('meson', ['install', '-C', buildPath], {
+                cwd: sourcePath,
+                env: { ...context.buildEnvironment, DESTDIR: destdir },
+            }),
+        [
+            { source: '/etc/fonts', destination: path.join('etc', 'fonts') },
+            {
+                source: '/usr/share/fontconfig',
+                destination: path.join('share', 'fontconfig'),
+            },
+            {
+                source: '/usr/share/xml/fontconfig',
+                destination: path.join('share', 'xml', 'fontconfig'),
+            },
+            {
+                source: '/var/cache/fontconfig',
+                destination: path.join('var', 'cache', 'fontconfig'),
+            },
+        ]
+    );
+}
+
 function cmakeInstall(packageId, recipe, context) {
     const sourcePath = sourcePathFor(packageId, context.sourceRoot);
     const buildPath = path.join(sourcePath, 'build-iptvnator');
@@ -378,14 +475,17 @@ function opensslInstall(recipe, context) {
             './Configure',
             'linux-x86_64',
             `--prefix=${context.prefix}`,
-            `--openssldir=${path.join(context.prefix, 'etc', 'ssl')}`,
             '--libdir=lib',
             ...recipe.args,
         ],
         { cwd: sourcePath }
     );
     context.run('make', [`-j${context.parallelism}`], { cwd: sourcePath });
-    context.run('make', ['install_sw'], { cwd: sourcePath });
+    installWithDestdir('openssl', context, (destdir) =>
+        context.run('make', ['install_sw', `DESTDIR=${destdir}`], {
+            cwd: sourcePath,
+        })
+    );
 }
 
 function ffmpegInstall(recipe, context) {
@@ -401,6 +501,10 @@ function buildRuntime(context) {
     for (const packageId of BUILD_ORDER) {
         const recipe = BUILD_RECIPES[packageId];
         log(`Building ${packageId} as shared libraries`);
+        if (packageId === 'fontconfig') {
+            fontconfigInstall(recipe, context);
+            continue;
+        }
         switch (recipe.buildSystem) {
             case 'configure':
                 configureInstall(packageId, recipe, context);
@@ -477,8 +581,25 @@ function postProcessRuntime(context) {
     if (!fs.existsSync(libDir)) {
         throw new Error(`Runtime library directory was not built: ${libDir}.`);
     }
-    materializeLibrarySymlinks(libDir);
 
+    const unprunedDynamicEntries = runtimeLibraryNames(libDir).map(
+        (libraryName) => {
+            const libraryPath = path.join(libDir, libraryName);
+            assertElfLibrary(libraryPath);
+            return {
+                name: libraryName,
+                ...parseReadelfDynamic(
+                    context.runCapture('readelf', ['-d', libraryPath])
+                ),
+            };
+        }
+    );
+    const retainedNames = selectReachableRuntimeLibraryNames(
+        unprunedDynamicEntries
+    );
+    retainRuntimeLibraries(libDir, retainedNames);
+
+    const abiRecords = [];
     const dynamicEntries = [];
     for (const libraryName of runtimeLibraryNames(libDir)) {
         const libraryPath = path.join(libDir, libraryName);
@@ -488,7 +609,13 @@ function postProcessRuntime(context) {
             context.runCapture('readelf', ['-d', libraryPath])
         );
         dynamicEntries.push({ name: libraryName, ...dynamic });
+        const versionInfo = context.runCapture('readelf', [
+            '--version-info',
+            libraryPath,
+        ]);
+        abiRecords.push(parseReadelfVersionInfo(versionInfo, libraryName));
     }
+    assertPortableAbiRecords(abiRecords);
 
     const runtimeFiles = createRuntimeFileRecords(libDir);
     if (runtimeFiles.length === 0) {
@@ -502,7 +629,12 @@ function postProcessRuntime(context) {
         buildPrefix: context.prefix,
     });
 
-    return { dependencyClosure, runtimeFiles };
+    return {
+        abiBaseline: PORTABLE_ABI_BASELINE,
+        abiRecords,
+        dependencyClosure,
+        runtimeFiles,
+    };
 }
 
 function firstLine(value) {
@@ -515,6 +647,31 @@ function firstLine(value) {
 }
 
 function collectBuildHost(context) {
+    const tools = context.toolVersions;
+    if (!tools) {
+        throw new Error('Linux runtime tool versions were not preflighted.');
+    }
+    return {
+        platform: process.platform,
+        arch: process.arch,
+        release: os.release(),
+        glibcVersion: context.glibcVersion,
+        systemPkgConfigDirs: [...context.systemPkgConfigDirs],
+        systemPkgConfigPackages: {
+            ...context.systemPkgConfigPackages,
+        },
+        tools: { ...tools },
+    };
+}
+
+function detectBuildHostGlibcVersion() {
+    const glibcVersion =
+        process.report?.getReport?.()?.header?.glibcVersionRuntime;
+    assertPortableBuildHostGlibc(glibcVersion);
+    return glibcVersion;
+}
+
+function collectToolVersions(context) {
     const versionArgs = {
         cc: ['--version'],
         cmake: ['--version'],
@@ -522,42 +679,34 @@ function collectBuildHost(context) {
         git: ['--version'],
         make: ['--version'],
         meson: ['--version'],
+        nasm: ['-v'],
         ninja: ['--version'],
         patchelf: ['--version'],
-        perl: ['--version'],
+        perl: ['-e', 'printf "%vd\\n", $^V'],
         'pkg-config': ['--version'],
         python3: ['--version'],
         readelf: ['--version'],
         tar: ['--version'],
     };
-    const tools = {};
+    const toolVersions = {};
     for (const tool of REQUIRED_TOOLS) {
-        tools[tool] = firstLine(
+        toolVersions[tool] = firstLine(
             context.runCapture(tool, versionArgs[tool] ?? ['--version'])
         );
     }
+    return toolVersions;
+}
+
+function verifySystemPkgConfigPackages(context) {
     const systemPkgConfigPackages = {};
     for (const packageName of EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES) {
+        context.run('pkg-config', ['--exists', packageName]);
         systemPkgConfigPackages[packageName] = context.runCapture(
             'pkg-config',
             ['--modversion', packageName]
         );
     }
-
-    return {
-        platform: process.platform,
-        arch: process.arch,
-        release: os.release(),
-        systemPkgConfigDirs: [...context.systemPkgConfigDirs],
-        systemPkgConfigPackages,
-        tools,
-    };
-}
-
-function verifySystemPkgConfigPackages(context) {
-    for (const packageName of EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES) {
-        context.run('pkg-config', ['--exists', packageName]);
-    }
+    return systemPkgConfigPackages;
 }
 
 function writeManifest(context, sourceRecords, runtimeMetadata) {
@@ -565,6 +714,7 @@ function writeManifest(context, sourceRecords, runtimeMetadata) {
     const manifest = createLinuxRuntimeManifest({
         sourceRecords,
         runtimeFiles: runtimeMetadata.runtimeFiles,
+        abiRecords: runtimeMetadata.abiRecords,
         dependencyClosure: runtimeMetadata.dependencyClosure,
         buildHost: collectBuildHost(context),
         ffmpegConfigureFlags: context.ffmpegConfigureFlags,
@@ -616,6 +766,7 @@ function createBuildContext(prefix, environment) {
         sourceRoot: path.join(buildRoot, 'sources'),
         parallelism: resolveParallelism(environment),
         systemPkgConfigDirs,
+        buildEnvironment,
         ffmpegConfigureFlags: null,
     };
 }
@@ -627,21 +778,56 @@ export function main({
     cwd = process.cwd(),
     environment = process.env,
 } = {}) {
-    const { prefix } = parseCliInvocation({ platform, arch, argv, cwd });
+    const { prefix: outputPrefix } = parseCliInvocation({
+        platform,
+        arch,
+        argv,
+        cwd,
+    });
+    assertUniqueMesonOptionAssignments(BUILD_RECIPES);
     ensureTools();
-    const context = createBuildContext(prefix, environment);
+    assertOwnedOutputDestination(outputPrefix);
+    const stagingToken = `${process.pid}-${crypto
+        .randomBytes(8)
+        .toString('hex')}`;
+    const stagingPrefix = ownedStagingPrefixPath(outputPrefix, stagingToken);
+    const context = createBuildContext(stagingPrefix, environment);
+    assertSafeOutputPrefix(outputPrefix, context.buildRoot);
+    const toolVersions = collectToolVersions(context);
+    assertMinimumToolVersions(toolVersions);
+    context.toolVersions = toolVersions;
+    context.glibcVersion = detectBuildHostGlibcVersion();
+    context.systemPkgConfigPackages = verifySystemPkgConfigPackages(context);
     fs.mkdirSync(context.buildRoot, { recursive: true });
-    fs.rmSync(context.prefix, { recursive: true, force: true });
-    fs.mkdirSync(context.prefix, { recursive: true });
-    verifySystemPkgConfigPackages(context);
-    const sourceRecords = acquireSources(context);
-    buildRuntime(context);
-    removeNonRuntimeBuildOutputs(prefix);
-    const runtimeMetadata = postProcessRuntime(context);
-    const manifest = writeManifest(context, sourceRecords, runtimeMetadata);
-    log(
-        `Built ${manifest.runtimeFiles.length} LGPL-compatible runtime libraries (${manifest.runtimeTotalBytes} bytes) at ${prefix}`
-    );
+    let stagingCreated = false;
+    try {
+        const createdStagingPrefix = createOwnedStagingPrefix(outputPrefix, {
+            token: stagingToken,
+        });
+        if (createdStagingPrefix !== stagingPrefix) {
+            throw new Error(
+                'Linux runtime staging prefix changed unexpectedly.'
+            );
+        }
+        stagingCreated = true;
+        const sourceRecords = acquireSources(context);
+        buildRuntime(context);
+        removeNonRuntimeBuildOutputs(context.prefix);
+        const runtimeMetadata = postProcessRuntime(context);
+        const manifest = writeManifest(context, sourceRecords, runtimeMetadata);
+        publishOwnedOutput({
+            outputPrefix,
+            stagingPrefix,
+        });
+        stagingCreated = false;
+        log(
+            `Built ${manifest.runtimeFiles.length} LGPL-compatible runtime libraries (${manifest.runtimeTotalBytes} bytes) at ${outputPrefix}`
+        );
+    } finally {
+        if (stagingCreated) {
+            fs.rmSync(stagingPrefix, { recursive: true, force: true });
+        }
+    }
 }
 
 const invokedScriptPath = process.argv[1]
