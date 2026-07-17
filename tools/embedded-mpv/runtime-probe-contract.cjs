@@ -1,0 +1,5 @@
+const RUNTIME_PROBE_CONTRACT = Object.freeze({
+    RUNTIME_PROBE_TIMEOUT_MS: 3000,
+});
+
+module.exports = RUNTIME_PROBE_CONTRACT;

@@ -16,9 +16,11 @@ const {
     LINUX_SYSTEM_PACKAGE_DEPENDENCIES,
     resolveLinuxFrameCopyProfile,
 } = require('./linux-frame-copy-profile.cjs');
+const {
+    RUNTIME_PROBE_TIMEOUT_MS,
+} = require('../embedded-mpv/runtime-probe-contract.cjs');
 
 const scriptPath = fileURLToPath(import.meta.url);
-const RUNTIME_PROBE_TIMEOUT_MS = 3000;
 const LIBMPV_DEPENDENCY_PATTERN = /^libmpv\.so(?:\.|$)/;
 
 function defaultRunCommand(command, args, options = {}) {

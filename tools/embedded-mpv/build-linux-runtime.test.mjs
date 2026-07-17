@@ -810,6 +810,42 @@ test('uses DESTDIR with standard fontconfig and OpenSSL runtime paths', () => {
     );
 });
 
+test('preserves relative library symlinks copied out of DESTDIR', async (t) => {
+    const { copyDirectoryContents } = await import(
+        pathToFileURL(builderScript).href
+    );
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-destdir-links-')
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const sourceDirectory = path.join(root, 'destdir', 'lib');
+    const destinationDirectory = path.join(root, 'prefix', 'lib');
+    fs.mkdirSync(sourceDirectory, { recursive: true });
+    fs.writeFileSync(path.join(sourceDirectory, 'libcrypto.so.3'), 'crypto');
+    fs.symlinkSync(
+        'libcrypto.so.3',
+        path.join(sourceDirectory, 'libcrypto.so')
+    );
+
+    copyDirectoryContents(sourceDirectory, destinationDirectory);
+    fs.rmSync(path.join(root, 'destdir'), {
+        recursive: true,
+        force: true,
+    });
+
+    assert.equal(
+        fs.readlinkSync(path.join(destinationDirectory, 'libcrypto.so')),
+        'libcrypto.so.3'
+    );
+    assert.equal(
+        fs.readFileSync(
+            path.join(destinationDirectory, 'libcrypto.so'),
+            'utf8'
+        ),
+        'crypto'
+    );
+});
+
 test('uses an explicit LGPL FFmpeg HTTPS and HLS protocol baseline', () => {
     const required = [
         '--enable-shared',
@@ -1556,5 +1592,17 @@ test('registers the builder script and focused test with package and Nx', () => 
     assert.match(
         packagingProject.targets.test.options.command,
         /tools\/embedded-mpv\/build-linux-runtime\.test\.mjs/
+    );
+
+    const lintInputs = packagingProject.targets.lint.inputs;
+    for (const registeredInput of [
+        '{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.mjs',
+        '{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.test.mjs',
+    ]) {
+        assert.ok(lintInputs.includes(registeredInput), registeredInput);
+    }
+    assert.match(
+        packagingProject.targets.lint.command,
+        /tools\/embedded-mpv\/build-linux-runtime\.\{mjs,test\.mjs\}/
     );
 });

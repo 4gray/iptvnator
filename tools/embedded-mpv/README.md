@@ -209,8 +209,10 @@ or hash-mismatched license files.
 Snap publication is a separate `release.published` workflow for public `v*`
 GitHub releases. It verifies that the public release already contains at least
 one Snap and exactly one non-empty
-`linux-frame-copy-runtime-sources.tar.xz` before uploading any Snap to the
-Store's edge channel.
+`linux-frame-copy-runtime-sources.tar.xz` before uploading anything. The
+workflow uploads only to the Store's edge channel.
+Candidate/stable promotion is manual after installed-Snap frame-copy and
+missing-runtime fallback smoke; GitHub Actions never promotes automatically.
 
 Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
 in its import library is preserved and must be present beside

@@ -80,5 +80,7 @@ jobs:
                       while IFS= read -r SNAP_NAME; do
                           SNAP_FILE="${RUNNER_TEMP}/snap-release-downloads/${SNAP_NAME}"
                           echo "Publishing public release asset: ${SNAP_NAME}"
+                          # Candidate/stable promotion is manual after installed-Snap frame-copy and missing-runtime fallback smoke.
+                          # GitHub Actions never promotes automatically.
                           snapcraft upload --release=edge "${SNAP_FILE}"
                       done

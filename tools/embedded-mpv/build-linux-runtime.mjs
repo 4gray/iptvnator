@@ -382,7 +382,7 @@ function pathInsideDestdir(destdir, absolutePath) {
     );
 }
 
-function copyDirectoryContents(sourceDirectory, destinationDirectory) {
+export function copyDirectoryContents(sourceDirectory, destinationDirectory) {
     if (!fs.existsSync(sourceDirectory)) {
         return;
     }
@@ -394,6 +394,7 @@ function copyDirectoryContents(sourceDirectory, destinationDirectory) {
             {
                 recursive: true,
                 force: true,
+                verbatimSymlinks: true,
             }
         );
     }

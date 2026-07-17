@@ -779,7 +779,10 @@ The build workflow creates a draft GitHub release but never publishes Snap in
 parallel with that draft. The separate Snap workflow runs only for a public
 `release.published` event whose tag starts with `v`; before any Store upload it
 requires at least one exact `.snap` asset and exactly one non-empty
-`linux-frame-copy-runtime-sources.tar.xz` in that public release.
+`linux-frame-copy-runtime-sources.tar.xz` in that public release. The workflow
+uploads only to the Store's edge channel. Candidate/stable promotion is manual
+after installed-Snap frame-copy and missing-runtime fallback smoke; GitHub
+Actions never promotes automatically.
 
 During temporary artifact tests, CI may also set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for PR and `master` push jobs where a runtime is known to exist. After the artifacts are manually validated, remove temporary conditions so ordinary development builds leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. This keeps the native feature in-tree without making every non-release build depend on runtime artifacts.
 

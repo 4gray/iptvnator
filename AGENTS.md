@@ -252,8 +252,10 @@ Key files:
   `linux-frame-copy-runtime-sources.tar.xz` for the current checkout on every
   run while retaining exact commit/submodule records. Automated Snap Store
   publication is allowed only after a public `v*` GitHub release contains
-  both the Snap assets and exactly one matching source archive. Canonical
-  maintenance docs:
+  both the Snap assets and exactly one matching source archive. The workflow
+  uploads only to the Store's edge channel. Candidate/stable promotion is
+  manual after installed-Snap frame-copy and missing-runtime fallback smoke;
+  GitHub Actions never promotes automatically. Canonical maintenance docs:
   `docs/architecture/embedded-mpv-native.md` and
   `tools/embedded-mpv/README.md`.
 

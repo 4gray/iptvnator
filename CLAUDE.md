@@ -645,9 +645,11 @@ engine` (restart required) or
   VCS-metadata-free `linux-frame-copy-runtime-sources.tar.xz` for the current
   checkout while preserving exact commit/submodule records. Snap Store
   publication runs only from a public `v*` GitHub release that already
-  contains the Snap assets and exactly one source archive. On Windows, package
-  validation requires the exact MPV DLL named by the helper's PE import table
-  beside the executable.
+  contains the Snap assets and exactly one source archive. The workflow uploads
+  only to the Store's edge channel. Candidate/stable promotion is manual after
+  installed-Snap frame-copy and missing-runtime fallback smoke; GitHub Actions
+  never promotes automatically. On Windows, package validation requires the
+  exact MPV DLL named by the helper's PE import table beside the executable.
   Backend adapter:
   `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts`;
   shared-controls adapter:

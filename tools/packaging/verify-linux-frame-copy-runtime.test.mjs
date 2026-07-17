@@ -19,6 +19,26 @@ import {
     verifyLinuxFrameCopyArtifact,
 } from './verify-linux-frame-copy-runtime.mjs';
 
+const runtimeProbeContractUrl = new URL(
+    '../embedded-mpv/runtime-probe-contract.cjs',
+    import.meta.url
+);
+const runtimeProbeContractTypesUrl = new URL(
+    '../embedded-mpv/runtime-probe-contract.d.cts',
+    import.meta.url
+);
+const verifierUrl = new URL(
+    './verify-linux-frame-copy-runtime.mjs',
+    import.meta.url
+);
+const backendRuntimeContractsUrl = new URL(
+    '../../apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/contracts.ts',
+    import.meta.url
+);
+const electronBackendProjectUrl = new URL(
+    '../../apps/electron-backend/project.json',
+    import.meta.url
+);
 const SYSTEM_TARGETS = ['deb', 'pacman', 'rpm'];
 const SYSTEM_MANIFEST = {
     schemaVersion: 1,
@@ -64,6 +84,85 @@ const SYSTEM_MANIFEST = {
     runtimeFiles: [],
     runtimeTotalBytes: 0,
 };
+
+test('uses the shared frozen 3000 ms runtime probe timeout contract', async () => {
+    assert.equal(
+        fs.existsSync(runtimeProbeContractUrl),
+        true,
+        'the shared runtime probe contract must exist'
+    );
+    assert.equal(
+        fs.existsSync(runtimeProbeContractTypesUrl),
+        true,
+        'the shared runtime probe contract types must exist'
+    );
+
+    const { default: runtimeProbeContract } = await import(
+        runtimeProbeContractUrl.href
+    );
+    assert.equal(Object.isFrozen(runtimeProbeContract), true);
+    assert.equal(runtimeProbeContract.RUNTIME_PROBE_TIMEOUT_MS, 3000);
+    assert.match(
+        fs.readFileSync(runtimeProbeContractTypesUrl, 'utf8'),
+        /readonly RUNTIME_PROBE_TIMEOUT_MS: 3000/
+    );
+
+    const verifierSource = fs.readFileSync(verifierUrl, 'utf8');
+    assert.match(
+        verifierSource,
+        /require\(['"]\.\.\/embedded-mpv\/runtime-probe-contract\.cjs['"]\)/
+    );
+    assert.doesNotMatch(
+        verifierSource,
+        /const RUNTIME_PROBE_TIMEOUT_MS\s*=\s*3000/
+    );
+
+    const backendContractsSource = fs.readFileSync(
+        backendRuntimeContractsUrl,
+        'utf8'
+    );
+    assert.match(
+        backendContractsSource,
+        /import runtimeProbeContract = require\(['"][^'"]*\/runtime-probe-contract\.cjs['"]\)/
+    );
+    assert.match(
+        backendContractsSource,
+        /export const \{ RUNTIME_PROBE_TIMEOUT_MS \} = runtimeProbeContract/
+    );
+    assert.doesNotMatch(
+        backendContractsSource,
+        /RUNTIME_PROBE_TIMEOUT_MS\s*=\s*3000/
+    );
+});
+
+test('tracks the shared probe contract in cached backend targets and runtime lint', () => {
+    const backendProject = JSON.parse(
+        fs.readFileSync(electronBackendProjectUrl, 'utf8')
+    );
+    const contractInputs = [
+        '{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs',
+        '{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts',
+    ];
+
+    for (const targetName of ['build', 'build-e2e', 'test', 'lint']) {
+        const inputs = backendProject.targets[targetName]?.inputs ?? [];
+        for (const contractInput of contractInputs) {
+            assert.ok(
+                inputs.includes(contractInput),
+                `${targetName} must track ${contractInput}`
+            );
+        }
+    }
+
+    assert.match(
+        backendProject.targets.lint.command,
+        /embedded-mpv-frame-copy-runtime\.ts/
+    );
+    assert.match(
+        backendProject.targets.lint.command,
+        /embedded-mpv-frame-copy-runtime\/\*\*\/\*\.ts/
+    );
+});
 
 function elfHeader(architecture) {
     const machines = {

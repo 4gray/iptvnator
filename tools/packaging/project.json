@@ -39,6 +39,8 @@
                 "{workspaceRoot}/tools/embedded-mpv/generate-linux-runtime-notices.test.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-runtime-manifest.cjs",
                 "{workspaceRoot}/tools/embedded-mpv/linux-runtime-manifest.test.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts",
                 "{workspaceRoot}/tools/embedded-mpv/stage-runtime.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs"
             ],
@@ -55,9 +57,13 @@
                 "{workspaceRoot}/tools/packaging/prepare-linux-runtime-source-snapshot.cjs",
                 "{workspaceRoot}/tools/packaging/prepare-linux-runtime-source-snapshot.test.mjs",
                 "{workspaceRoot}/tools/packaging/publish-snap-workflow.test.mjs",
-                "{workspaceRoot}/tools/packaging/release-snap-assets.cjs"
+                "{workspaceRoot}/tools/packaging/release-snap-assets.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/build-linux-runtime.test.mjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
             ],
-            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\" \"tools/embedded-mpv/generate-linux-runtime-notices.{cjs,test.mjs}\""
+            "command": "eslint \"tools/packaging/**/*.{js,cjs,mjs,ts}\" \"tools/embedded-mpv/build-linux-runtime.{mjs,test.mjs}\" \"tools/embedded-mpv/generate-linux-runtime-notices.{cjs,test.mjs}\" \"tools/embedded-mpv/runtime-probe-contract.cjs\""
         }
     },
     "tags": ["scope:tools", "domain:packaging", "type:tool"]
