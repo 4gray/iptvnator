@@ -367,6 +367,54 @@ function singleYamlMappingEntry(lines, key, indent, start, end) {
     return entries.length === 1 ? entries[0] : null;
 }
 
+function directYamlMappingEntries(lines, parent, indent) {
+    const entries = [];
+    for (
+        let index = parent.index + 1;
+        index < parent.end;
+        index += 1
+    ) {
+        const line = lines[index];
+        if (!line.trim() || line.trimStart().startsWith('#')) {
+            continue;
+        }
+        const lineIndent = line.length - line.trimStart().length;
+        if (lineIndent !== indent) {
+            continue;
+        }
+        const match = line
+            .slice(indent)
+            .match(/^([A-Za-z0-9][A-Za-z0-9_-]*):(?:\s*(.*))?$/);
+        if (!match) {
+            return null;
+        }
+        let blockEnd = parent.end;
+        for (
+            let candidateIndex = index + 1;
+            candidateIndex < parent.end;
+            candidateIndex += 1
+        ) {
+            const candidate = lines[candidateIndex];
+            if (!candidate.trim() || candidate.trimStart().startsWith('#')) {
+                continue;
+            }
+            const candidateIndent =
+                candidate.length - candidate.trimStart().length;
+            if (candidateIndent <= indent) {
+                blockEnd = candidateIndex;
+                break;
+            }
+        }
+        entries.push({
+            key: match[1],
+            value: match[2] ?? '',
+            index,
+            end: blockEnd,
+        });
+    }
+    return entries;
+}
+
 function yamlScalarEquals(value, expected) {
     return (
         value === expected ||
@@ -380,17 +428,40 @@ function yamlSequenceIncludes(lines, entry, expected) {
         if (!entry.value.startsWith('[') || !entry.value.endsWith(']')) {
             return false;
         }
-        return entry.value
+        const values = entry.value
             .slice(1, -1)
             .split(',')
-            .map((value) => value.trim())
-            .some((value) => yamlScalarEquals(value, expected));
-    }
-    return lines
-        .slice(entry.index + 1, entry.end)
-        .some((line) =>
-            yamlScalarEquals(line.trim().replace(/^-\s*/, ''), expected)
+            .map((value) => value.trim());
+        return (
+            values.length > 0 &&
+            values.every(
+                (value) =>
+                    value.length > 0 &&
+                    !/[:[\]{}&*]/.test(value) &&
+                    !value.startsWith('-')
+            ) &&
+            values.some((value) => yamlScalarEquals(value, expected))
         );
+    }
+    const sequenceLines = lines
+        .slice(entry.index + 1, entry.end)
+        .filter(
+            (line) => line.trim() && !line.trimStart().startsWith('#')
+        );
+    const itemIndent = 6;
+    const values = sequenceLines.map((line) => {
+        const lineIndent = line.length - line.trimStart().length;
+        if (lineIndent !== itemIndent) {
+            return null;
+        }
+        const match = line.trim().match(/^-\s+([^:[\]{}&*]+)$/);
+        return match?.[1].trim() ?? null;
+    });
+    return (
+        values.length > 0 &&
+        values.every((value) => value !== null) &&
+        values.some((value) => yamlScalarEquals(value, expected))
+    );
 }
 
 export function validateExtractedSnapMetadata(extractionRoot) {
@@ -443,20 +514,23 @@ export function validateExtractedSnapMetadata(extractionRoot) {
             'Extracted Snap metadata must declare exactly one top-level shared-memory plug.'
         );
     } else {
-        const interfaceEntry = singleYamlMappingEntry(
-            lines,
-            'interface',
-            4,
-            sharedMemory.index + 1,
-            sharedMemory.end
-        );
-        const privateEntry = singleYamlMappingEntry(
-            lines,
-            'private',
-            4,
-            sharedMemory.index + 1,
-            sharedMemory.end
-        );
+        const fields = directYamlMappingEntries(lines, sharedMemory, 4);
+        const interfaceEntries =
+            fields?.filter(({ key }) => key === 'interface') ?? [];
+        const privateEntries =
+            fields?.filter(({ key }) => key === 'private') ?? [];
+        const interfaceEntry = interfaceEntries[0];
+        const privateEntry = privateEntries[0];
+        if (
+            !fields ||
+            fields.length !== 2 ||
+            interfaceEntries.length !== 1 ||
+            privateEntries.length !== 1
+        ) {
+            errors.push(
+                'Extracted Snap private shared-memory plug must contain exactly interface and private.'
+            );
+        }
         if (
             !interfaceEntry ||
             !yamlScalarEquals(interfaceEntry.value, 'shared-memory')
@@ -470,6 +544,68 @@ export function validateExtractedSnapMetadata(extractionRoot) {
                 'Extracted Snap top-level shared-memory plug must declare private: true.'
             );
         }
+
+        const plugEntries = directYamlMappingEntries(lines, plugs, 2);
+        const sharedMemoryInterfaces =
+            plugEntries?.filter((plugEntry) => {
+                const plugFields = directYamlMappingEntries(
+                    lines,
+                    plugEntry,
+                    4
+                );
+                const interfaceFields =
+                    plugFields?.filter(({ key }) => key === 'interface') ?? [];
+                return (
+                    interfaceFields.length === 1 &&
+                    yamlScalarEquals(
+                        interfaceFields[0].value,
+                        'shared-memory'
+                    )
+                );
+            }) ?? [];
+        if (
+            !plugEntries ||
+            sharedMemoryInterfaces.length !== 1 ||
+            sharedMemoryInterfaces[0].key !== 'shared-memory'
+        ) {
+            errors.push(
+                'Extracted Snap metadata must declare exactly one plug with the shared-memory interface.'
+            );
+        }
+    }
+
+    const slotsEntries = yamlMappingEntries(
+        lines,
+        'slots',
+        0,
+        0,
+        lines.length
+    );
+    let hasSharedMemorySlot = slotsEntries.length > 1;
+    for (const slots of slotsEntries) {
+        const slotEntries = directYamlMappingEntries(lines, slots, 2);
+        if (!slotEntries) {
+            hasSharedMemorySlot = true;
+            continue;
+        }
+        hasSharedMemorySlot ||= slotEntries.some((slotEntry) => {
+            if (slotEntry.key === 'shared-memory') {
+                return true;
+            }
+            const slotFields = directYamlMappingEntries(lines, slotEntry, 4);
+            return (
+                slotFields?.some(
+                    ({ key, value }) =>
+                        key === 'interface' &&
+                        yamlScalarEquals(value, 'shared-memory')
+                ) ?? false
+            );
+        });
+    }
+    if (hasSharedMemorySlot) {
+        errors.push(
+            'Extracted Snap metadata must not declare a shared-memory slot.'
+        );
     }
 
     const apps = singleYamlMappingEntry(lines, 'apps', 0, 0, lines.length);
@@ -500,7 +636,7 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         !yamlSequenceIncludes(lines, appPlugs, 'shared-memory')
     ) {
         errors.push(
-            'Extracted Snap iptvnator app must use the shared-memory plug.'
+            'Extracted Snap iptvnator app scalar sequence must contain the shared-memory plug.'
         );
     }
     return errors;

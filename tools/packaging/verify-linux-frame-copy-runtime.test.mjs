@@ -611,6 +611,50 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
                     ),
                 /top-level shared-memory plug/i,
             ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    private: true\n',
+                        '    private: true\n    shared-memory: named-area\n'
+                    ),
+                /private shared-memory plug.*exactly interface and private/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '\nplugs:\n',
+                        [
+                            '',
+                            'plugs:',
+                            '  second-shared-memory:',
+                            '    interface: shared-memory',
+                            '    private: true',
+                            '',
+                        ].join('\n')
+                    ),
+                /exactly one plug.*shared-memory interface/i,
+            ],
+            [
+                (contents) =>
+                    `${contents}slots:\n  shared-memory:\n    interface: shared-memory\n`,
+                /must not declare.*shared-memory slot/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        [
+                            '    plugs:',
+                            '      - desktop',
+                            '      - shared-memory',
+                        ].join('\n'),
+                        [
+                            '    plugs:',
+                            '      nested:',
+                            '        - shared-memory',
+                        ].join('\n')
+                    ),
+                /scalar sequence.*shared-memory/i,
+            ],
         ]) {
             fs.writeFileSync(snapYamlPath, mutate(validSnapYaml));
             assert.match(
