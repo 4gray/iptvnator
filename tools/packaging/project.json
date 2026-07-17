@@ -21,11 +21,13 @@
                 "{workspaceRoot}/tools/packaging/asar-dependency-closure.test.mjs",
                 "{workspaceRoot}/tools/packaging/embedded-mpv-packaging.cjs",
                 "{workspaceRoot}/tools/packaging/embedded-mpv-arch.test.mjs",
+                "{workspaceRoot}/tools/packaging/linux-frame-copy-profile.cjs",
+                "{workspaceRoot}/tools/packaging/linux-frame-copy-profile.test.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/stage-runtime.mjs",
                 "{workspaceRoot}/tools/embedded-mpv/stage-windows-runtime-archive.mjs"
             ],
             "options": {
-                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs",
+                "command": "node --test tools/packaging/electron-package-identity.test.mjs tools/packaging/asar-dependency-closure.test.mjs tools/packaging/embedded-mpv-arch.test.mjs tools/packaging/linux-frame-copy-profile.test.mjs",
                 "cwd": "{workspaceRoot}"
             }
         },
