@@ -263,6 +263,13 @@ test.describe('Electron Settings', () => {
             await goToDashboard(app.mainWindow);
             await importM3uPlaylistFromNativeDialog(app, m3uFixturePath);
             await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+/);
+            await app.mainWindow.route(
+                'https://example.channels/path-to-file/1.m3u8',
+                () => {
+                    // Keep the synthetic stream pending so its network failure
+                    // cannot replace the shared controls with a diagnostic.
+                }
+            );
 
             const firstChannel = channelItemByTitle(
                 app.mainWindow,
@@ -271,14 +278,135 @@ test.describe('Electron Settings', () => {
 
             await expect(firstChannel).toBeVisible({ timeout: 20000 });
             await firstChannel.click();
-            await expect(
-                app.mainWindow.locator(
-                    'app-html-video-player app-player-controls'
-                )
-            ).toBeVisible();
+            await app.mainWindow.evaluate(() => {
+                const video = document.querySelector<HTMLVideoElement>(
+                    'app-html-video-player video'
+                );
+                if (!video) {
+                    throw new Error(
+                        'Expected app-html-video-player video after the HTML5 player mounted'
+                    );
+                }
+
+                const ownerDocument = video.ownerDocument;
+                let activePictureInPictureElement: Element | null = null;
+                video.dataset['pictureInPictureRequestCount'] = '0';
+                video.dataset['pictureInPictureExitCount'] = '0';
+
+                Object.defineProperty(
+                    ownerDocument,
+                    'pictureInPictureEnabled',
+                    {
+                        configurable: true,
+                        value: true,
+                    }
+                );
+                Object.defineProperty(
+                    ownerDocument,
+                    'pictureInPictureElement',
+                    {
+                        configurable: true,
+                        get: () => activePictureInPictureElement,
+                    }
+                );
+                Object.defineProperty(ownerDocument, 'exitPictureInPicture', {
+                    configurable: true,
+                    value: async (): Promise<void> => {
+                        video.dataset['pictureInPictureExitCount'] = String(
+                            Number(
+                                video.dataset['pictureInPictureExitCount'] ??
+                                    '0'
+                            ) + 1
+                        );
+                        const previousOwner = activePictureInPictureElement;
+                        activePictureInPictureElement = null;
+                        previousOwner?.dispatchEvent(
+                            new Event('leavepictureinpicture')
+                        );
+                    },
+                });
+                Object.defineProperty(video, 'requestPictureInPicture', {
+                    configurable: true,
+                    value: async (): Promise<PictureInPictureWindow> => {
+                        video.dataset['pictureInPictureRequestCount'] = String(
+                            Number(
+                                video.dataset['pictureInPictureRequestCount'] ??
+                                    '0'
+                            ) + 1
+                        );
+                        activePictureInPictureElement = video;
+                        video.dispatchEvent(new Event('enterpictureinpicture'));
+
+                        const pictureInPictureWindow: PictureInPictureWindow =
+                            Object.assign(new EventTarget(), {
+                                height: video.videoHeight,
+                                onresize: null,
+                                width: video.videoWidth,
+                            });
+                        return pictureInPictureWindow;
+                    },
+                });
+                Object.defineProperty(video, 'disablePictureInPicture', {
+                    configurable: true,
+                    value: false,
+                });
+                Object.defineProperty(video, 'readyState', {
+                    configurable: true,
+                    value: HTMLMediaElement.HAVE_METADATA,
+                });
+                video.dispatchEvent(new Event('loadedmetadata'));
+            });
+
+            const playerControls = app.mainWindow.locator(
+                'app-html-video-player app-player-controls'
+            );
+            await expect(playerControls).toBeVisible();
             await expect(
                 app.mainWindow.locator('app-html-video-player video[controls]')
             ).toHaveCount(0);
+            const video = app.mainWindow.locator('app-html-video-player video');
+            const enterPictureInPicture = playerControls.getByRole('button', {
+                name: 'Enter picture-in-picture',
+            });
+
+            await expect(enterPictureInPicture).toBeVisible();
+            await expect(enterPictureInPicture).toBeEnabled();
+            await expect(enterPictureInPicture).toHaveAttribute(
+                'aria-pressed',
+                'false'
+            );
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-request-count',
+                '0'
+            );
+            await enterPictureInPicture.click();
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-request-count',
+                '1'
+            );
+
+            const exitPictureInPicture = playerControls.getByRole('button', {
+                name: 'Exit picture-in-picture',
+            });
+            await expect(exitPictureInPicture).toBeVisible();
+            await expect(exitPictureInPicture).toHaveAttribute(
+                'aria-pressed',
+                'true'
+            );
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-exit-count',
+                '0'
+            );
+            await exitPictureInPicture.click();
+            await expect(video).toHaveAttribute(
+                'data-picture-in-picture-exit-count',
+                '1'
+            );
+            await expect(enterPictureInPicture).toBeVisible();
+            await expect(enterPictureInPicture).toHaveAttribute(
+                'aria-pressed',
+                'false'
+            );
         } finally {
             await closeElectronApp(app);
         }
