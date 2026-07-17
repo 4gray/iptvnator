@@ -15,74 +15,74 @@
 ### Runtime contracts and staging
 
 - Create `tools/embedded-mpv/linux-runtime-manifest.cjs`
-  - Parse, normalize, and validate Linux frame-copy runtime manifests.
+    - Parse, normalize, and validate Linux frame-copy runtime manifests.
 - Create `tools/embedded-mpv/build-linux-runtime.mjs`
-  - Build the pinned LGPL-compatible FFmpeg/libass/libplacebo/libmpv prefix.
+    - Build the pinned LGPL-compatible FFmpeg/libass/libplacebo/libmpv prefix.
 - Modify `tools/embedded-mpv/stage-runtime.mjs`
-  - Stage Linux shared libraries and reject incomplete release manifests.
+    - Stage Linux shared libraries and reject incomplete release manifests.
 - Modify `apps/electron-backend/build-embedded-mpv.js`
-  - Build against staged Linux libmpv, copy the bundled closure, and emit the
-    profile-neutral build manifest.
+    - Build against staged Linux libmpv, copy the bundled closure, and emit the
+      profile-neutral build manifest.
 - Modify `apps/electron-backend/native/binding.gyp`
-  - Keep helper RPATH relative and remove build-host RPATH.
+    - Keep helper RPATH relative and remove build-host RPATH.
 - Modify `package.json`
-  - Expose the Linux runtime build command.
+    - Expose the Linux runtime build command.
 
 ### Packaging profiles and validation
 
 - Create `tools/packaging/linux-frame-copy-profile.cjs`
-  - Own profile names, target sets, manifest origins, and package dependencies.
+    - Own profile names, target sets, manifest origins, and package dependencies.
 - Create `tools/packaging/linux-frame-copy-profile.test.mjs`
-  - Verify profile/target/dependency mapping and invalid combinations.
+    - Verify profile/target/dependency mapping and invalid combinations.
 - Modify `electron-builder.json`
-  - Declare DEB/RPM/Pacman libmpv dependencies.
+    - Declare DEB/RPM/Pacman libmpv dependencies.
 - Modify `tools/packaging/embedded-mpv-frame-copy-files.cjs`
-  - Package Linux helper/reader and select/remove private runtime by profile.
+    - Package Linux helper/reader and select/remove private runtime by profile.
 - Modify `tools/packaging/embedded-mpv-packaging.cjs`
-  - Validate Linux ELF linkage, manifest, files, modes, RPATH, and isolation.
+    - Validate Linux ELF linkage, manifest, files, modes, RPATH, and isolation.
 - Modify `tools/packaging/embedded-mpv-arch.test.mjs`
-  - Cover system, bundled, malformed, and foreign-architecture layouts.
+    - Cover system, bundled, malformed, and foreign-architecture layouts.
 - Modify `tools/packaging/electron-after-pack.cjs`
-  - Pass the required Linux profile into preparation and validation.
+    - Pass the required Linux profile into preparation and validation.
 - Modify `tools/packaging/verify-electron-package-layout.mjs`
-  - Verify the expected profile for every unpacked layout.
+    - Verify the expected profile for every unpacked layout.
 - Modify `tools/packaging/project.json`
-  - Add new tests and source inputs.
+    - Add new tests and source inputs.
 
 ### Runtime capability probe
 
 - Modify `apps/electron-backend/native/helper/frame_helper_gl.h`
-  - Provide a context-only probe that does not create a playback session.
+    - Provide a context-only probe that does not create a playback session.
 - Modify `apps/electron-backend/native/helper/mpv_frame_helper.cpp`
-  - Implement the versioned `--runtime-probe` JSON protocol.
+    - Implement the versioned `--runtime-probe` JSON protocol.
 - Create `apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts`
-  - Validate manifest/files and run/cache the bounded helper probe.
+    - Validate manifest/files and run/cache the bounded helper probe.
 - Create `apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.spec.ts`
-  - Cover all fail-closed paths and success caching.
+    - Cover all fail-closed paths and success caching.
 - Modify `apps/electron-backend/src/app/services/embedded-mpv-frame-copy-platform.util.ts`
-  - Resolve an artifact set and delegate usability to the runtime probe.
+    - Resolve an artifact set and delegate usability to the runtime probe.
 - Modify `apps/electron-backend/src/app/services/embedded-mpv-frame-copy-platform.util.spec.ts`
-  - Keep path/security coverage and add manifest/probe integration cases.
+    - Keep path/security coverage and add manifest/probe integration cases.
 - Modify `apps/electron-backend/src/app/services/embedded-mpv-native.service.ts`
-  - Surface stable fallback diagnostics without changing native-view safety.
+    - Surface stable fallback diagnostics without changing native-view safety.
 
 ### Linux CI, package smoke, and documentation
 
 - Create `tools/packaging/verify-linux-frame-copy-runtime.mjs`
-  - Inspect real package payload ELF/modes/manifest and invoke the helper probe.
+    - Inspect real package payload ELF/modes/manifest and invoke the helper probe.
 - Create `tools/packaging/verify-linux-frame-copy-runtime.test.mjs`
-  - Unit-test verifier parsing and failure reporting with fixtures.
+    - Unit-test verifier parsing and failure reporting with fixtures.
 - Create `apps/electron-backend-e2e/src/embedded-mpv-frame-copy-packaged.e2e.ts`
-  - Exercise packaged capability, a deterministic media frame, and fallback.
+    - Exercise packaged capability, a deterministic media frame, and fallback.
 - Modify `.github/workflows/build-and-make.yaml`
-  - Build/cache runtime, split profiles, inspect every format, and run sandbox
-    and container smoke coverage.
+    - Build/cache runtime, split profiles, inspect every format, and run sandbox
+      and container smoke coverage.
 - Modify `docs/architecture/embedded-mpv-native.md`
 - Modify `tools/embedded-mpv/README.md`
 - Modify `vendor/embedded-mpv/README.md`
 - Modify `AGENTS.md`
 - Modify `CLAUDE.md`
-  - Document the final contract and verification matrix.
+    - Document the final contract and verification matrix.
 
 ## Task 1: Define Linux Packaging Profiles
 
@@ -115,10 +115,9 @@ assert.deepEqual(LINUX_SYSTEM_PACKAGE_DEPENDENCIES, {
     rpm: 'mpv-libs',
     pacman: 'mpv',
 });
-assert.deepEqual(
-    validateLinuxProfileTargets('system', ['deb', 'AppImage']),
-    ['Linux frame-copy profile "system" cannot build target "appimage".']
-);
+assert.deepEqual(validateLinuxProfileTargets('system', ['deb', 'AppImage']), [
+    'Linux frame-copy profile "system" cannot build target "appimage".',
+]);
 ```
 
 - [ ] **Step 2: Run RED**
@@ -220,7 +219,13 @@ Linux mpv flags must include:
 ```
 
 Record downloaded SHA-256 values, git commits/submodules, exact flags, runtime
-file names/sizes, and source-distribution obligations.
+file names/sizes, and source-distribution obligations. Pin the hwdata v0.409
+archive and record its `pnp.ids` as a build input to libdisplay-info 0.1.1.
+Stage private `hwdata.pc` metadata and run libdisplay-info's Meson setup with a
+prefix-only pkg-config environment so the upstream
+`/usr/share/hwdata/pnp.ids` fallback is unreachable. Include the exact hwdata
+archive and its `GPL-2.0-or-later OR XFree86-1.0` notice in the release source
+bundle.
 
 - [ ] **Step 4: Implement Linux staging**
 
@@ -422,7 +427,7 @@ Expected: FAIL because the runtime probe module does not exist.
 Emit exactly one line:
 
 ```json
-{"protocol":1,"usable":true,"libmpv":"2.x","renderApi":"egl"}
+{ "protocol": 1, "usable": true, "libmpv": "2.x", "renderApi": "egl" }
 ```
 
 Exit nonzero with a JSON `reason` when `mpv_create`, `mpv_initialize`, or the
@@ -651,4 +656,3 @@ Report separately:
 
 Do not push, open a PR, publish artifacts, or merge. Leave the fully checked
 local branch ready for explicit user confirmation in a new task.
-

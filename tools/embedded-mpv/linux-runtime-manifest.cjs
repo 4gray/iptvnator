@@ -192,6 +192,24 @@ function validatePackages(errors, packages) {
             );
         }
 
+        if (pinnedPackage.buildInput) {
+            if (
+                !isObject(packageMetadata.buildInput) ||
+                !isDeepStrictEqual(
+                    packageMetadata.buildInput,
+                    pinnedPackage.buildInput
+                )
+            ) {
+                errors.push(
+                    `Linux runtime manifest ${label}.buildInput must equal the pinned build input.`
+                );
+            }
+        } else if (packageMetadata.buildInput !== undefined) {
+            errors.push(
+                `Linux runtime manifest ${label} must not include buildInput.`
+            );
+        }
+
         if (pinnedPackage.sourceKind === 'archive') {
             if (
                 typeof packageMetadata.sourceSha256 === 'string' &&
@@ -880,10 +898,18 @@ function validateLinuxRuntimeManifest(manifest) {
         errors.push(
             'Linux runtime manifest sourceDistribution must be a non-empty string.'
         );
-    } else if (!/\blibdisplay-info\b/i.test(manifest.sourceDistribution)) {
-        errors.push(
-            'Linux runtime manifest sourceDistribution must explicitly include libdisplay-info.'
-        );
+    } else {
+        for (const [sourceName, sourcePattern] of [
+            ['hwdata', /\bhwdata\b/i],
+            ['pnp.ids', /\bpnp\.ids\b/i],
+            ['libdisplay-info', /\blibdisplay-info\b/i],
+        ]) {
+            if (!sourcePattern.test(manifest.sourceDistribution)) {
+                errors.push(
+                    `Linux runtime manifest sourceDistribution must explicitly include ${sourceName}.`
+                );
+            }
+        }
     }
 
     validateRuntimeFiles(errors, manifest.runtimeFiles);

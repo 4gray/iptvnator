@@ -54,6 +54,9 @@ function sourcePackageRecord(sourcePackage) {
         ...(sourcePackage.sourceTag
             ? { sourceTag: sourcePackage.sourceTag }
             : {}),
+        ...(sourcePackage.buildInput
+            ? { buildInput: structuredClone(sourcePackage.buildInput) }
+            : {}),
         ...(sourcePackage.sourceKind === 'archive'
             ? { sourceSha256: sourcePackage.expectedSha256 }
             : {
@@ -131,7 +134,7 @@ function createValidManifest(
             mesonFlags: ['-Dlibmpv=true', '-Dgpl=false'],
         },
         sourceDistribution:
-            'Publish the exact source archives, including the pinned MIT-licensed libdisplay-info source archive.',
+            'Publish the exact source archives, including pinned hwdata pnp.ids and the MIT-licensed libdisplay-info source archive.',
         runtimeFiles,
         runtimeTotalBytes: runtimeFiles.reduce(
             (total, runtimeEntry) => total + (runtimeEntry?.size ?? 0),
@@ -320,6 +323,14 @@ test('requires pinned archive hashes and exact libplacebo git provenance', () =>
     assert.match(
         validateLinuxRuntimeManifest(commitMismatch).join('\n'),
         /packages\.libplacebo\.sourceGitCommit must equal the pinned commit/
+    );
+
+    const hostHwdataInput = createValidManifest();
+    hostHwdataInput.packages.hwdata.buildInput.relativePath =
+        '/usr/share/hwdata/pnp.ids';
+    assert.match(
+        validateLinuxRuntimeManifest(hostHwdataInput).join('\n'),
+        /packages\.hwdata\.buildInput must equal the pinned build input/
     );
 
     const validSubmoduleRecord = `${'a'.repeat(40)} 3rdparty/example`;
@@ -583,12 +594,15 @@ test('requires exact portable ABI and external configuration records', () => {
     );
 });
 
-test('requires the source-distribution statement to name libdisplay-info', () => {
+test('requires the source-distribution statement to name pinned display data', () => {
     const manifest = createValidManifest();
     manifest.sourceDistribution =
         'Publish all of the other source archives with the binary release.';
+    const errors = validateLinuxRuntimeManifest(manifest).join('\n');
+    assert.match(errors, /sourceDistribution must explicitly include hwdata/);
+    assert.match(errors, /sourceDistribution must explicitly include pnp\.ids/);
     assert.match(
-        validateLinuxRuntimeManifest(manifest).join('\n'),
+        errors,
         /sourceDistribution must explicitly include libdisplay-info/
     );
 });

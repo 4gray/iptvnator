@@ -43,11 +43,11 @@ carry an explicit unavailable marker and must not contain x64 native binaries.
 
 Linux packaging is split into explicit profiles:
 
-| Profile | Formats | libmpv strategy |
-| --- | --- | --- |
-| `system` | DEB, RPM, Pacman | Depend on the distribution package and resolve `libmpv.so.2` from the host |
-| `portable` | AppImage, Snap | Bundle the pinned LGPL-compatible runtime closure under `native/lib` |
-| `flatpak` | Flatpak | Bundle the same pinned LGPL-compatible runtime closure under `native/lib` |
+| Profile    | Formats          | libmpv strategy                                                            |
+| ---------- | ---------------- | -------------------------------------------------------------------------- |
+| `system`   | DEB, RPM, Pacman | Depend on the distribution package and resolve `libmpv.so.2` from the host |
+| `portable` | AppImage, Snap   | Bundle the pinned LGPL-compatible runtime closure under `native/lib`       |
+| `flatpak`  | Flatpak          | Bundle the same pinned LGPL-compatible runtime closure under `native/lib`  |
 
 The official CI matrix must run these profiles independently. The packaging
 hook receives the profile through a required environment value and validates
@@ -74,6 +74,16 @@ under the LGPL. The minimal codec baseline is FFmpeg's built-in LGPL decoders,
 demuxers, protocols, and software scaling/resampling plus libass text
 subtitles. Hardware decoding remains opportunistic through host Mesa/driver
 interfaces and must fall back to software decoding.
+
+The source build also pins the `hwdata` v0.409 archive and its SHA-256 because
+libdisplay-info 0.1.1 compiles `pnp.ids` into its generated vendor lookup
+table. The builder stages that file with private `hwdata.pc` metadata and
+restricts libdisplay-info's native pkg-config search to the staged prefix, so
+Meson's `/usr/share/hwdata/pnp.ids` fallback cannot make the runtime depend on
+unrecorded host data. The runtime manifest records this build-input
+relationship. Release source bundles must include the exact hwdata archive and
+its dual-license notice (`GPL-2.0-or-later OR XFree86-1.0`) alongside the
+MIT-licensed libdisplay-info source.
 
 ## Runtime Layout And Linkage
 
@@ -115,6 +125,7 @@ The manifest records:
 - libmpv SONAME and either system package requirements or bundled files;
 - source package versions, URLs/checksums, license identifiers, and exact
   FFmpeg/mpv build flags for bundled profiles;
+- the pinned hwdata `pnp.ids` build input consumed by libdisplay-info;
 - runtime closure and total byte size;
 - the native-view backend contract and the fact that only the helper links
   libmpv.
@@ -203,4 +214,3 @@ status.
 Release artifacts must publish the generated runtime manifest and exact source
 archives/metadata required by the recorded LGPL source-distribution statement.
 No publication, push, pull request, or merge is part of this task.
-

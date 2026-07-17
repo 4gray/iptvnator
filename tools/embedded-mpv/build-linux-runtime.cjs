@@ -4,6 +4,12 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 
+const HWDATA_BUILD_INPUT = Object.freeze({
+    consumer: 'libdisplay-info',
+    relativePath: 'pnp.ids',
+    purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
+});
+
 const SOURCE_PACKAGES = Object.freeze(
     [
         {
@@ -93,6 +99,17 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceTag: 'v7.360.1',
             expectedGitCommit: 'cee9b076f2c63104ccfd497fa79c39a867293ec4',
             license: 'LGPL-2.1-or-later',
+        },
+        {
+            id: 'hwdata',
+            version: '0.409',
+            sourceKind: 'archive',
+            sourceUrl:
+                'https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.409.tar.gz',
+            expectedSha256:
+                '23006accc0f931dd5187d0307a57d0744e2b8feb85e73c37bc0f5229fb31eadd',
+            license: 'GPL-2.0-or-later OR XFree86-1.0',
+            buildInput: HWDATA_BUILD_INPUT,
         },
         {
             id: 'libdisplay-info',
@@ -387,6 +404,11 @@ const BUILD_RECIPES = Object.freeze({
             '-Dunwind=disabled',
             '-Dxxhash=disabled',
         ]),
+    }),
+    hwdata: Object.freeze({
+        buildSystem: 'data',
+        sharedOnly: false,
+        args: Object.freeze([]),
     }),
     'libdisplay-info': Object.freeze({
         buildSystem: 'meson',
@@ -875,6 +897,148 @@ function createBuildEnvironment({
     };
 }
 
+function createPinnedHwdataPkgConfigEnvironment({ buildEnvironment, prefix }) {
+    if (!buildEnvironment || typeof buildEnvironment !== 'object') {
+        throw new TypeError(
+            'Pinned hwdata requires the Linux runtime build environment.'
+        );
+    }
+    const prefixPkgConfigDirs = [
+        path.join(prefix, 'lib', 'pkgconfig'),
+        path.join(prefix, 'share', 'pkgconfig'),
+    ];
+    const pinnedPkgConfigPath = prefixPkgConfigDirs.join(path.delimiter);
+    return {
+        ...buildEnvironment,
+        PKG_CONFIG_PATH: pinnedPkgConfigPath,
+        PKG_CONFIG_LIBDIR: pinnedPkgConfigPath,
+    };
+}
+
+function assertPinnedHwdataResolution({
+    pcFileDir,
+    pkgDataDir,
+    prefix,
+    version,
+}) {
+    const expectedPcFileDir = path.join(prefix, 'share', 'pkgconfig');
+    const expectedPkgDataDir = path.join(prefix, 'share', 'hwdata');
+    if (path.resolve(pcFileDir) !== path.resolve(expectedPcFileDir)) {
+        throw new Error(
+            `Pinned hwdata pkg-config metadata resolved outside the staged prefix: ${pcFileDir}.`
+        );
+    }
+    if (path.resolve(pkgDataDir) !== path.resolve(expectedPkgDataDir)) {
+        throw new Error(
+            `Pinned hwdata data resolved outside the staged prefix: ${pkgDataDir}.`
+        );
+    }
+    const hwdataPackage = SOURCE_PACKAGES.find(({ id }) => id === 'hwdata');
+    if (version !== hwdataPackage.version) {
+        throw new Error(
+            `Pinned hwdata version mismatch: expected ${hwdataPackage.version}, received ${version}.`
+        );
+    }
+}
+
+function preparePinnedHwdataBuildInput({
+    buildEnvironment,
+    fileSystem = fs,
+    prefix,
+    runCapture,
+    sourcePath,
+}) {
+    if (typeof runCapture !== 'function') {
+        throw new TypeError(
+            'Pinned hwdata preparation requires a command capture function.'
+        );
+    }
+    const hwdataPackage = SOURCE_PACKAGES.find(({ id }) => id === 'hwdata');
+    const sourceRoot = fileSystem.realpathSync(sourcePath);
+    const sourceInputPath = path.join(
+        sourcePath,
+        hwdataPackage.buildInput.relativePath
+    );
+    const sourceInputStat = fileSystem.lstatSync(sourceInputPath);
+    if (!sourceInputStat.isFile() || sourceInputStat.isSymbolicLink()) {
+        throw new Error(
+            `Pinned hwdata build input must be a regular file: ${sourceInputPath}.`
+        );
+    }
+    const realSourceInputPath = fileSystem.realpathSync(sourceInputPath);
+    assertPathInside(
+        sourceRoot,
+        realSourceInputPath,
+        'Pinned hwdata build input'
+    );
+    const pnpIds = fileSystem.readFileSync(realSourceInputPath);
+    if (pnpIds.length === 0) {
+        throw new Error('Pinned hwdata pnp.ids build input must not be empty.');
+    }
+
+    const pkgDataDir = path.join(prefix, 'share', 'hwdata');
+    const pcFileDir = path.join(prefix, 'share', 'pkgconfig');
+    fileSystem.mkdirSync(pkgDataDir, { recursive: true });
+    fileSystem.mkdirSync(pcFileDir, { recursive: true });
+    fileSystem.writeFileSync(path.join(pkgDataDir, 'pnp.ids'), pnpIds, {
+        mode: 0o644,
+    });
+    fileSystem.writeFileSync(
+        path.join(pcFileDir, 'hwdata.pc'),
+        [
+            `prefix=${prefix}`,
+            'datadir=${prefix}/share',
+            `pkgdatadir=${pkgDataDir}`,
+            '',
+            'Name: hwdata',
+            'Description: Pinned PNP hardware identification data',
+            `Version: ${hwdataPackage.version}`,
+            '',
+        ].join('\n'),
+        { mode: 0o644 }
+    );
+
+    const pinnedEnvironment = createPinnedHwdataPkgConfigEnvironment({
+        buildEnvironment,
+        prefix,
+    });
+    const captureOptions = { env: pinnedEnvironment };
+    const resolvedPcFileDir = runCapture(
+        'pkg-config',
+        ['--variable=pcfiledir', 'hwdata'],
+        captureOptions
+    );
+    const resolvedPkgDataDir = runCapture(
+        'pkg-config',
+        ['--variable=pkgdatadir', 'hwdata'],
+        captureOptions
+    );
+    const resolvedVersion = runCapture(
+        'pkg-config',
+        ['--modversion', 'hwdata'],
+        captureOptions
+    );
+    assertPinnedHwdataResolution({
+        pcFileDir: resolvedPcFileDir,
+        pkgDataDir: resolvedPkgDataDir,
+        prefix,
+        version: resolvedVersion,
+    });
+    return pinnedEnvironment;
+}
+
+function resolveLinuxPackageBuildEnvironment(packageId, context) {
+    if (packageId !== 'libdisplay-info') {
+        return context.buildEnvironment;
+    }
+    if (!context.hwdataBuildEnvironment) {
+        throw new Error(
+            'libdisplay-info requires the staged pinned hwdata build environment.'
+        );
+    }
+    return context.hwdataBuildEnvironment;
+}
+
 function sha256Buffer(contents) {
     return crypto.createHash('sha256').update(contents).digest('hex');
 }
@@ -1294,6 +1458,9 @@ function sourceManifestMetadata(sourceRecord) {
         ...(sourceRecord.sourceSubmodules
             ? { sourceSubmodules: [...sourceRecord.sourceSubmodules] }
             : {}),
+        ...(sourceRecord.buildInput
+            ? { buildInput: { ...sourceRecord.buildInput } }
+            : {}),
         license: sourceRecord.license,
     };
 
@@ -1392,7 +1559,7 @@ function createLinuxRuntimeManifest({
         ),
         buildHost,
         sourceDistribution:
-            'Attach a source archive to the corresponding Linux binary release containing the exact downloaded source archives, including the pinned MIT-licensed libdisplay-info source archive, a checkout or git bundle of the recorded libplacebo commit and submodules, tools/embedded-mpv/build-linux-runtime.mjs, tools/embedded-mpv/build-linux-runtime.cjs, this runtime manifest, and any local patches.',
+            'Attach a source archive to the corresponding Linux binary release containing the exact downloaded source archives, including the pinned dual-licensed hwdata archive whose pnp.ids is compiled into the MIT-licensed libdisplay-info source archive, a checkout or git bundle of the recorded libplacebo commit and submodules, tools/embedded-mpv/build-linux-runtime.mjs, tools/embedded-mpv/build-linux-runtime.cjs, this runtime manifest, and any local patches.',
     };
 }
 
@@ -1429,7 +1596,9 @@ module.exports = {
     parseReadelfDynamic,
     parseReadelfVersionInfo,
     parseVersion,
+    preparePinnedHwdataBuildInput,
     resolveSystemPkgConfigDirs,
+    resolveLinuxPackageBuildEnvironment,
     runtimeLibraryNames,
     sha256Buffer,
     publishOwnedOutput,

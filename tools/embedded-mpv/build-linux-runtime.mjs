@@ -32,7 +32,9 @@ const {
     parseCliInvocation,
     parseReadelfDynamic,
     parseReadelfVersionInfo,
+    preparePinnedHwdataBuildInput,
     retainRuntimeLibraries,
+    resolveLinuxPackageBuildEnvironment,
     resolveSystemPkgConfigDirs,
     runtimeLibraryNames,
     selectReachableRuntimeLibraryNames,
@@ -342,18 +344,35 @@ function mesonSetupArgs(prefix, recipeArgs) {
 function mesonInstall(packageId, recipe, context) {
     const sourcePath = sourcePathFor(packageId, context.sourceRoot);
     const buildPath = path.join(sourcePath, 'build-iptvnator');
+    const buildEnvironment = resolveLinuxPackageBuildEnvironment(
+        packageId,
+        context
+    );
     fs.rmSync(buildPath, { recursive: true, force: true });
     context.run(
         'meson',
         ['setup', buildPath, ...mesonSetupArgs(context.prefix, recipe.args)],
-        { cwd: sourcePath }
+        { cwd: sourcePath, env: buildEnvironment }
     );
     context.run(
         'meson',
         ['compile', '--jobs', context.parallelism, '-C', buildPath],
-        { cwd: sourcePath }
+        { cwd: sourcePath, env: buildEnvironment }
     );
-    context.run('meson', ['install', '-C', buildPath], { cwd: sourcePath });
+    context.run('meson', ['install', '-C', buildPath], {
+        cwd: sourcePath,
+        env: buildEnvironment,
+    });
+}
+
+function prepareHwdata(context) {
+    context.hwdataBuildEnvironment = preparePinnedHwdataBuildInput({
+        buildEnvironment: context.buildEnvironment,
+        prefix: context.prefix,
+        runCapture: (command, args, options) =>
+            context.runCapture(command, args, options),
+        sourcePath: sourcePathFor('hwdata', context.sourceRoot),
+    });
 }
 
 function pathInsideDestdir(destdir, absolutePath) {
@@ -506,6 +525,9 @@ function buildRuntime(context) {
             continue;
         }
         switch (recipe.buildSystem) {
+            case 'data':
+                prepareHwdata(context);
+                break;
             case 'configure':
                 configureInstall(packageId, recipe, context);
                 break;

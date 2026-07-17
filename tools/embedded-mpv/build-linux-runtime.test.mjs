@@ -42,8 +42,10 @@ const {
     parseCliInvocation,
     parseReadelfDynamic,
     parseReadelfVersionInfo,
+    preparePinnedHwdataBuildInput,
     publishOwnedOutput,
     retainRuntimeLibraries,
+    resolveLinuxPackageBuildEnvironment,
     resolveSystemPkgConfigDirs,
     selectReachableRuntimeLibraryNames,
     validateRuntimeDependencyClosure,
@@ -91,6 +93,7 @@ test('pins the complete source stack and preserves dependency build order', () =
             { id: 'openssl', version: '3.5.7' },
             { id: 'ffmpeg', version: '8.1' },
             { id: 'libplacebo', version: '7.360.1' },
+            { id: 'hwdata', version: '0.409' },
             { id: 'libdisplay-info', version: '0.1.1' },
             { id: 'mpv', version: '0.41.0' },
         ]
@@ -129,6 +132,21 @@ test('pins the complete source stack and preserves dependency build order', () =
         byId.get('openssl').sourceUrl,
         'https://github.com/openssl/openssl/releases/download/openssl-3.5.7/openssl-3.5.7.tar.gz'
     );
+    assert.deepEqual(byId.get('hwdata'), {
+        id: 'hwdata',
+        version: '0.409',
+        sourceKind: 'archive',
+        sourceUrl:
+            'https://github.com/vcrhonek/hwdata/archive/refs/tags/v0.409.tar.gz',
+        expectedSha256:
+            '23006accc0f931dd5187d0307a57d0744e2b8feb85e73c37bc0f5229fb31eadd',
+        license: 'GPL-2.0-or-later OR XFree86-1.0',
+        buildInput: {
+            consumer: 'libdisplay-info',
+            relativePath: 'pnp.ids',
+            purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
+        },
+    });
     assert.deepEqual(byId.get('libdisplay-info'), {
         id: 'libdisplay-info',
         version: '0.1.1',
@@ -139,6 +157,9 @@ test('pins the complete source stack and preserves dependency build order', () =
             '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
         license: 'MIT',
     });
+    assert.ok(
+        BUILD_ORDER.indexOf('hwdata') < BUILD_ORDER.indexOf('libdisplay-info')
+    );
     assert.ok(
         BUILD_ORDER.indexOf('libdisplay-info') < BUILD_ORDER.indexOf('mpv')
     );
@@ -156,6 +177,7 @@ test('hardcodes the verified official archive digests and libplacebo commit', ()
             '1b1cde5b235d40479e91be2f0e88a309e3214c8ab470ec8a2744d82a5a9ea05c',
         harfbuzz:
             '77e4f7f98f3d86bf8788b53e6832fb96279956e1c3961988ea3d4b7ca41ddc27',
+        hwdata: '23006accc0f931dd5187d0307a57d0744e2b8feb85e73c37bc0f5229fb31eadd',
         libass: 'eae425da50f0015c21f7b3a9c7262a910f0218af469e22e2931462fed3c50959',
         'libdisplay-info':
             '0d8731588e9f82a9cac96324a3d7c82e2ba5b1b5e006143fefe692c74069fb60',
@@ -303,10 +325,123 @@ test('defines shared-only source recipes with font discovery before playback', (
         BUILD_ORDER.indexOf('fontconfig') < BUILD_ORDER.indexOf('libass')
     );
     assert.ok(BUILD_ORDER.indexOf('openssl') < BUILD_ORDER.indexOf('ffmpeg'));
+    assert.equal(BUILD_RECIPES.hwdata.buildSystem, 'data');
+    assert.equal(BUILD_RECIPES.hwdata.sharedOnly, false);
     assert.equal(BUILD_RECIPES['libdisplay-info'].buildSystem, 'meson');
-    for (const packageId of BUILD_ORDER) {
+    for (const packageId of BUILD_ORDER.filter(
+        (packageId) => packageId !== 'hwdata'
+    )) {
         assert.equal(BUILD_RECIPES[packageId].sharedOnly, true, packageId);
     }
+});
+
+test('stages pinned hwdata and excludes host pkg-config fallback', (t) => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-pinned-hwdata-')
+    );
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const sourcePath = path.join(root, 'sources', 'hwdata');
+    const prefix = path.join(root, 'runtime');
+    fs.mkdirSync(sourcePath, { recursive: true });
+    const pnpIds = 'ABC Example Display Vendor\n';
+    fs.writeFileSync(path.join(sourcePath, 'pnp.ids'), pnpIds);
+
+    const invocations = [];
+    const buildEnvironment = {
+        PATH: '/usr/bin',
+        PKG_CONFIG_PATH: '/host/pkgconfig',
+        PKG_CONFIG_LIBDIR:
+            '/usr/lib/x86_64-linux-gnu/pkgconfig:/usr/share/pkgconfig',
+    };
+    const pinnedEnvironment = preparePinnedHwdataBuildInput({
+        buildEnvironment,
+        prefix,
+        runCapture(command, args, options) {
+            invocations.push({ args, command, env: options.env });
+            assert.equal(options.env.PKG_CONFIG_PATH.includes('/host'), false);
+            assert.equal(options.env.PKG_CONFIG_LIBDIR.includes('/usr'), false);
+            if (args[0] === '--variable=pcfiledir') {
+                return path.join(prefix, 'share', 'pkgconfig');
+            }
+            if (args[0] === '--variable=pkgdatadir') {
+                return path.join(prefix, 'share', 'hwdata');
+            }
+            if (args[0] === '--modversion') {
+                return '0.409';
+            }
+            throw new Error(`Unexpected pkg-config query: ${args.join(' ')}`);
+        },
+        sourcePath,
+    });
+
+    assert.equal(
+        fs.readFileSync(
+            path.join(prefix, 'share', 'hwdata', 'pnp.ids'),
+            'utf8'
+        ),
+        pnpIds
+    );
+    const pkgConfig = fs.readFileSync(
+        path.join(prefix, 'share', 'pkgconfig', 'hwdata.pc'),
+        'utf8'
+    );
+    assert.match(pkgConfig, /^Version: 0\.409$/m);
+    assert.match(
+        pkgConfig,
+        new RegExp(
+            `^pkgdatadir=${path
+                .join(prefix, 'share', 'hwdata')
+                .replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`,
+            'm'
+        )
+    );
+    assert.doesNotMatch(pkgConfig, /\/usr\/share\/hwdata/);
+    assert.equal(pinnedEnvironment.PKG_CONFIG_PATH.includes('/host'), false);
+    assert.equal(pinnedEnvironment.PKG_CONFIG_LIBDIR.includes('/usr'), false);
+    assert.equal(
+        resolveLinuxPackageBuildEnvironment('libdisplay-info', {
+            buildEnvironment,
+            hwdataBuildEnvironment: pinnedEnvironment,
+        }),
+        pinnedEnvironment
+    );
+    assert.equal(
+        resolveLinuxPackageBuildEnvironment('mpv', {
+            buildEnvironment,
+            hwdataBuildEnvironment: pinnedEnvironment,
+        }),
+        buildEnvironment
+    );
+    assert.throws(
+        () =>
+            resolveLinuxPackageBuildEnvironment('libdisplay-info', {
+                buildEnvironment,
+            }),
+        /libdisplay-info.*pinned hwdata/i
+    );
+    assert.deepEqual(
+        invocations.map(({ args, command }) => [command, ...args]),
+        [
+            ['pkg-config', '--variable=pcfiledir', 'hwdata'],
+            ['pkg-config', '--variable=pkgdatadir', 'hwdata'],
+            ['pkg-config', '--modversion', 'hwdata'],
+        ]
+    );
+
+    assert.throws(
+        () =>
+            preparePinnedHwdataBuildInput({
+                buildEnvironment,
+                prefix: path.join(root, 'rejected-runtime'),
+                runCapture(_command, args) {
+                    return args[0] === '--modversion'
+                        ? '0.409'
+                        : '/usr/share/hwdata';
+                },
+                sourcePath,
+            }),
+        /pinned hwdata.*host|host.*hwdata|resolved outside/i
+    );
 });
 
 test('rejects duplicate option assignments in every Meson recipe', () => {
@@ -1309,6 +1444,13 @@ test('generates a hash-complete manifest accepted by the Linux validator', (t) =
     assert.doesNotMatch(manifest.sourceDistribution, /TBD|TODO/i);
     assert.match(manifest.sourceDistribution, /source archives/i);
     assert.match(manifest.sourceDistribution, /libdisplay-info/i);
+    assert.match(manifest.sourceDistribution, /hwdata/i);
+    assert.match(manifest.sourceDistribution, /pnp\.ids/i);
+    assert.deepEqual(manifest.packages.hwdata.buildInput, {
+        consumer: 'libdisplay-info',
+        relativePath: 'pnp.ids',
+        purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
+    });
 });
 
 test('guards the CLI to Linux x64 and requires exactly one output prefix', () => {
