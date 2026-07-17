@@ -153,6 +153,12 @@ export const SettingsStore = signalStore(
             async updateSettings(settings: Partial<Settings>) {
                 patchState(store, {
                     ...settings,
+                    ...(settings.webPlayerSharedControls !== undefined
+                        ? {
+                              webPlayerSharedControls:
+                                  settings.webPlayerSharedControls === true,
+                          }
+                        : {}),
                     ...(settings.dashboardRails !== undefined
                         ? {
                               dashboardRails: normalizeDashboardRailsSettings(

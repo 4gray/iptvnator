@@ -170,6 +170,7 @@ describe('SettingsStore dashboard rail settings', () => {
             webPlayerSharedControls: 'true' as unknown as boolean,
         });
 
+        expect(store.webPlayerSharedControls?.()).toBe(false);
         expect(storage.set).toHaveBeenCalledWith(
             STORE_KEY.Settings,
             expect.objectContaining({
