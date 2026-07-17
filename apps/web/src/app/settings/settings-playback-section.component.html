@@ -87,6 +87,9 @@
             </div>
             <div class="setting-item__control setting-item__toggle">
                 <mat-checkbox
+                    [aria-label]="
+                        'SETTINGS.WEB_PLAYER_SHARED_CONTROLS' | translate
+                    "
                     formControlName="webPlayerSharedControls"
                     data-test-id="web-player-shared-controls-toggle"
                 ></mat-checkbox>

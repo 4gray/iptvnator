@@ -14,6 +14,8 @@ const VLC_PATH_DESCRIPTION =
 const MPV_ARGUMENTS_PLACEHOLDER =
     '--ontop\n--autofit=640x360\n--geometry=+80+80';
 const VLC_ARGUMENTS_PLACEHOLDER = '--video-on-top\n--width=640\n--height=360';
+const WEB_PLAYER_SHARED_CONTROLS_LABEL =
+    'Unified controls for web players (experimental)';
 
 describe('SettingsPlaybackSectionComponent', () => {
     let fixture: ComponentFixture<SettingsPlaybackSectionComponent>;
@@ -39,6 +41,8 @@ describe('SettingsPlaybackSectionComponent', () => {
                     MPV_PLAYER_PATH_DESCRIPTION: MPV_PATH_DESCRIPTION,
                     MPV_COMPATIBLE_PLAYER_TIP: MPV_COMPATIBLE_PLAYER_TIP,
                     VLC_PLAYER_PATH_DESCRIPTION: VLC_PATH_DESCRIPTION,
+                    WEB_PLAYER_SHARED_CONTROLS:
+                        WEB_PLAYER_SHARED_CONTROLS_LABEL,
                 },
             },
             true
@@ -175,6 +179,18 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
 
         expect(checkbox?.checked).toBe(true);
+    });
+
+    it('labels the rendered native shared web controls checkbox', () => {
+        fixture.detectChanges();
+
+        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        );
+
+        expect(checkbox?.getAttribute('aria-label')).toBe(
+            WEB_PLAYER_SHARED_CONTROLS_LABEL
+        );
     });
 
     it('keeps the double-click option visible when path settings are unavailable', () => {
