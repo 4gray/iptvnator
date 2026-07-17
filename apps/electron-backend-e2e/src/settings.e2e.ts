@@ -169,6 +169,11 @@ test.describe('Electron Settings', () => {
                 'select-video-player',
                 'html5'
             );
+            const sharedControlsCheckbox = firstLaunch.mainWindow
+                .getByTestId('web-player-shared-controls-setting')
+                .locator('input[type="checkbox"]');
+            await expect(sharedControlsCheckbox).toBeVisible();
+            await sharedControlsCheckbox.check();
             await selectSettingsOption(
                 firstLaunch.mainWindow,
                 'select-stream-format',
@@ -207,6 +212,11 @@ test.describe('Electron Settings', () => {
                 secondLaunch.mainWindow.getByTestId('select-video-player')
             ).toContainText(/HTML5/i);
             await expect(
+                secondLaunch.mainWindow
+                    .getByTestId('web-player-shared-controls-setting')
+                    .locator('input[type="checkbox"]')
+            ).toBeChecked();
+            await expect(
                 secondLaunch.mainWindow.getByTestId('select-stream-format')
             ).toContainText('ts');
             await expect(
@@ -228,6 +238,49 @@ test.describe('Electron Settings', () => {
         } finally {
             await closeElectronApp(secondLaunch);
             await epgServer.close();
+        }
+    });
+
+    test('@settings @playback @electron applies shared controls to the next HTML5 session', async ({
+        dataDir,
+    }) => {
+        const app = await launchElectronApp(dataDir);
+
+        try {
+            await openSettings(app.mainWindow);
+            await selectSettingsOption(
+                app.mainWindow,
+                'select-video-player',
+                'html5'
+            );
+            const sharedControlsCheckbox = app.mainWindow
+                .getByTestId('web-player-shared-controls-setting')
+                .locator('input[type="checkbox"]');
+            await expect(sharedControlsCheckbox).toBeVisible();
+            await sharedControlsCheckbox.check();
+            await saveSettings(app.mainWindow);
+
+            await goToDashboard(app.mainWindow);
+            await importM3uPlaylistFromNativeDialog(app, m3uFixturePath);
+            await app.mainWindow.waitForURL(/\/workspace\/playlists\/.+/);
+
+            const firstChannel = channelItemByTitle(
+                app.mainWindow,
+                'Channel 1'
+            ).first();
+
+            await expect(firstChannel).toBeVisible({ timeout: 20000 });
+            await firstChannel.click();
+            await expect(
+                app.mainWindow.locator(
+                    'app-html-video-player app-player-controls'
+                )
+            ).toBeVisible();
+            await expect(
+                app.mainWindow.locator('app-html-video-player video[controls]')
+            ).toHaveCount(0);
+        } finally {
+            await closeElectronApp(app);
         }
     });
 
