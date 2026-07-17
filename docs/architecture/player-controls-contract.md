@@ -63,7 +63,10 @@ ArtPlayer skin, source behavior, and legacy series navigation remain unchanged.
 `Settings.webPlayerSharedControls` remains default-off. `WebPlayerViewComponent`
 snapshots it into `WEB_PLAYER_SHARED_CONTROLS` when a new player host is
 created, so HTML5, Video.js, and ArtPlayer switch atomically without an
-application restart. Existing sessions never change controls mode in place.
+application restart. The parent `/workspace` route awaits the initial
+`SettingsStore` load, including for cold-start direct links to workspace
+children, before any player host can take this snapshot. Existing sessions
+never change controls mode in place.
 
 The shared-controls architecture remains engine-selective: frame-copy can use
 normal DOM layering, while the native platform view cannot. The integration

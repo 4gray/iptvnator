@@ -1,6 +1,6 @@
 import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import {
     DashboardRailsSettings,
     Language,
@@ -51,6 +51,58 @@ describe('SettingsStore dashboard rail settings', () => {
                 },
             ],
         });
+    });
+
+    it('shares the pending initial settings load across startup waiters', async () => {
+        const pendingSettings = new Subject<Partial<Settings> | null>();
+        storage.get.mockReturnValue(pendingSettings.asObservable());
+        const store = injector.get(SettingsStore);
+
+        const firstWaiter = store.loadSettings();
+        const secondWaiter = store.loadSettings();
+        const allWaiters = Promise.all([firstWaiter, secondWaiter]);
+        let waitersResolved = false;
+        void allWaiters.then(() => {
+            waitersResolved = true;
+        });
+
+        await Promise.resolve();
+
+        expect(waitersResolved).toBe(false);
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+
+        pendingSettings.next({ webPlayerSharedControls: true });
+        pendingSettings.complete();
+        await allWaiters;
+
+        expect(storage.get).toHaveBeenCalledTimes(1);
+        expect(firstWaiter).toBe(secondWaiter);
+        expect(waitersResolved).toBe(true);
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
+    });
+
+    it('retries the initial settings load after a storage error', async () => {
+        const failingSettings = new Subject<Partial<Settings> | null>();
+        storage.get
+            .mockReturnValueOnce(failingSettings.asObservable())
+            .mockReturnValueOnce(of({ webPlayerSharedControls: true }));
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            const store = injector.get(SettingsStore);
+            const initialLoad = store.loadSettings();
+
+            failingSettings.error(new Error('storage unavailable'));
+            await initialLoad;
+            await store.loadSettings();
+
+            expect(storage.get).toHaveBeenCalledTimes(2);
+            expect(store.getSettings().webPlayerSharedControls).toBe(true);
+        } finally {
+            consoleError.mockRestore();
+        }
     });
 
     it('uses enabled dashboard rail defaults when no settings are stored', async () => {

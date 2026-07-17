@@ -137,9 +137,11 @@ Key files:
 - Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
   appears only when HTML5, Video.js, or ArtPlayer is selected.
   `WebPlayerViewComponent` snapshots the preference into
-  `WEB_PLAYER_SHARED_CONTROLS` for each new player host. Saving applies to the
-  next host without an application restart; an existing session never changes
-  controls mode in place.
+  `WEB_PLAYER_SHARED_CONTROLS` for each new player host. The parent `/workspace`
+  route awaits the initial `SettingsStore` load, including cold-start direct
+  links, before this snapshot can occur. Saving applies to the next host without
+  an application restart; an existing session never changes controls mode in
+  place.
 - Embedded MPV ignores the web-player preference. Frame-copy always uses shared
   DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
   native-view retains the legacy compositor-safe dock and external MPV/VLC

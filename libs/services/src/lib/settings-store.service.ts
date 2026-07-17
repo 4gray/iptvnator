@@ -108,180 +108,200 @@ export const SettingsStore = signalStore(
             () => store.epgViewMode?.() ?? 'timeline'
         ),
     })),
-    withMethods((store, storage = inject(StorageMap)) => ({
-        async loadSettings() {
-            try {
-                const stored = await firstValueFrom(
-                    storage.get(STORE_KEY.Settings)
-                );
-                if (stored) {
-                    const storedSettings = stored as Partial<Settings>;
-                    patchState(store, {
-                        ...DEFAULT_SETTINGS,
-                        ...storedSettings,
-                        webPlayerSharedControls:
-                            storedSettings.webPlayerSharedControls === true,
-                        dashboardRails: normalizeDashboardRailsSettings(
-                            storedSettings.dashboardRails
-                        ),
-                    });
-                    void this.sanitizeEmbeddedMpvSelection().catch((error) => {
-                        console.warn(
-                            'Failed to verify embedded MPV support while loading settings.',
-                            error
+    withMethods((store, storage = inject(StorageMap)) => {
+        let settingsLoadPromise: Promise<void> | undefined;
+
+        return {
+            loadSettings() {
+                if (settingsLoadPromise) {
+                    return settingsLoadPromise;
+                }
+
+                settingsLoadPromise = (async () => {
+                    const stored = await firstValueFrom(
+                        storage.get(STORE_KEY.Settings)
+                    );
+                    if (stored) {
+                        const storedSettings = stored as Partial<Settings>;
+                        patchState(store, {
+                            ...DEFAULT_SETTINGS,
+                            ...storedSettings,
+                            webPlayerSharedControls:
+                                storedSettings.webPlayerSharedControls === true,
+                            dashboardRails: normalizeDashboardRailsSettings(
+                                storedSettings.dashboardRails
+                            ),
+                        });
+                        void this.sanitizeEmbeddedMpvSelection().catch(
+                            (error) => {
+                                console.warn(
+                                    'Failed to verify embedded MPV support while loading settings.',
+                                    error
+                                );
+                            }
                         );
-                    });
-                }
-            } catch (error) {
-                console.error('Failed to load settings:', error);
-                // Keep default settings if loading fails
-            }
-        },
-
-        async updateSettings(settings: Partial<Settings>) {
-            patchState(store, {
-                ...settings,
-                ...(settings.dashboardRails !== undefined
-                    ? {
-                          dashboardRails: normalizeDashboardRailsSettings(
-                              settings.dashboardRails
-                          ),
-                      }
-                    : {}),
-            });
-            // Save the complete settings object, not just the partial update
-            const completeSettings = this.getSettings();
-            try {
-                await firstValueFrom(
-                    storage.set(STORE_KEY.Settings, completeSettings)
-                );
-                if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
-                    scheduleEmbeddedMpvPrepare();
-                }
-            } catch (error) {
-                console.error('Failed to save settings:', error);
-                throw error;
-            }
-        },
-
-        getSettings() {
-            return {
-                player: store.player(),
-                webPlayerSharedControls:
-                    store.webPlayerSharedControls?.() === true,
-                streamFormat: store.streamFormat(),
-                openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
-                language: store.language(),
-                showCaptions: store.showCaptions(),
-                showDashboard: store.showDashboard(),
-                startupBehavior: store.startupBehavior(),
-                showExternalPlaybackBar:
-                    store.showExternalPlaybackBar?.() ??
-                    DEFAULT_SETTINGS.showExternalPlaybackBar,
-                theme: store.theme(),
-                mpvPlayerPath: store.mpvPlayerPath(),
-                mpvPlayerArguments: store.mpvPlayerArguments(),
-                mpvReuseInstance: store.mpvReuseInstance(),
-                vlcPlayerPath: store.vlcPlayerPath(),
-                vlcPlayerArguments: store.vlcPlayerArguments(),
-                vlcReuseInstance: store.vlcReuseInstance(),
-                remoteControl: store.remoteControl(),
-                remoteControlPort: store.remoteControlPort(),
-                epgUrl: store.epgUrl(),
-                downloadFolder:
-                    store.downloadFolder?.() ?? DEFAULT_SETTINGS.downloadFolder,
-                recordingFolder:
-                    store.recordingFolder?.() ??
-                    DEFAULT_SETTINGS.recordingFolder,
-                embeddedMpvFrameCopy:
-                    store.embeddedMpvFrameCopy?.() ?? false,
-                coverSize: store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
-                epgViewMode:
-                    store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
-                dashboardRails: normalizeDashboardRailsSettings(
-                    store.dashboardRails?.()
-                ),
-                preferUploadedEpgOverXtream:
-                    store.preferUploadedEpgOverXtream?.() ??
-                    DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
-                trustedPrivateNetworkEpgUrls:
-                    store.trustedPrivateNetworkEpgUrls?.() ??
-                    DEFAULT_SETTINGS.trustedPrivateNetworkEpgUrls,
-                trustedInsecureTlsHosts:
-                    store.trustedInsecureTlsHosts?.() ??
-                    DEFAULT_SETTINGS.trustedInsecureTlsHosts,
-                tmdb: store.tmdb?.() ?? DEFAULT_SETTINGS.tmdb,
-            };
-        },
-
-        getDownloadFolder() {
-            return store.downloadFolder?.() ?? DEFAULT_SETTINGS.downloadFolder;
-        },
-
-        getRecordingFolder() {
-            return (
-                store.recordingFolder?.() ?? DEFAULT_SETTINGS.recordingFolder
-            );
-        },
-
-        getTrustOptions(): ElectronBridgeTrustOptions {
-            const settings = this.getSettings();
-            return {
-                trustedPrivateNetworkEpgUrls:
-                    settings.trustedPrivateNetworkEpgUrls ?? [],
-                trustedInsecureTlsHosts: settings.trustedInsecureTlsHosts ?? [],
-            };
-        },
-
-        getPlayer() {
-            return store.player();
-        },
-
-        isEmbeddedPlayer() {
-            return (
-                store.player() === VideoPlayer.VideoJs ||
-                store.player() === VideoPlayer.Html5Player ||
-                store.player() === VideoPlayer.ArtPlayer ||
-                store.player() === VideoPlayer.EmbeddedMpv
-            );
-        },
-
-        async sanitizeEmbeddedMpvSelection() {
-            if (store.player() !== VideoPlayer.EmbeddedMpv) {
-                return;
-            }
-
-            if (
-                typeof window === 'undefined' ||
-                !window.electron?.getEmbeddedMpvSupport
-            ) {
-                await this.updateSettings({
-                    player: DEFAULT_SETTINGS.player,
+                    }
+                })().catch((error) => {
+                    settingsLoadPromise = undefined;
+                    console.error('Failed to load settings:', error);
+                    // Keep default settings if loading fails
                 });
-                return;
-            }
 
-            try {
-                const support = await window.electron.getEmbeddedMpvSupport();
-                if (!support.supported) {
+                return settingsLoadPromise;
+            },
+
+            async updateSettings(settings: Partial<Settings>) {
+                patchState(store, {
+                    ...settings,
+                    ...(settings.dashboardRails !== undefined
+                        ? {
+                              dashboardRails: normalizeDashboardRailsSettings(
+                                  settings.dashboardRails
+                              ),
+                          }
+                        : {}),
+                });
+                // Save the complete settings object, not just the partial update
+                const completeSettings = this.getSettings();
+                try {
+                    await firstValueFrom(
+                        storage.set(STORE_KEY.Settings, completeSettings)
+                    );
+                    if (completeSettings.player === VideoPlayer.EmbeddedMpv) {
+                        scheduleEmbeddedMpvPrepare();
+                    }
+                } catch (error) {
+                    console.error('Failed to save settings:', error);
+                    throw error;
+                }
+            },
+
+            getSettings() {
+                return {
+                    player: store.player(),
+                    webPlayerSharedControls:
+                        store.webPlayerSharedControls?.() === true,
+                    streamFormat: store.streamFormat(),
+                    openStreamOnDoubleClick: store.openStreamOnDoubleClick(),
+                    language: store.language(),
+                    showCaptions: store.showCaptions(),
+                    showDashboard: store.showDashboard(),
+                    startupBehavior: store.startupBehavior(),
+                    showExternalPlaybackBar:
+                        store.showExternalPlaybackBar?.() ??
+                        DEFAULT_SETTINGS.showExternalPlaybackBar,
+                    theme: store.theme(),
+                    mpvPlayerPath: store.mpvPlayerPath(),
+                    mpvPlayerArguments: store.mpvPlayerArguments(),
+                    mpvReuseInstance: store.mpvReuseInstance(),
+                    vlcPlayerPath: store.vlcPlayerPath(),
+                    vlcPlayerArguments: store.vlcPlayerArguments(),
+                    vlcReuseInstance: store.vlcReuseInstance(),
+                    remoteControl: store.remoteControl(),
+                    remoteControlPort: store.remoteControlPort(),
+                    epgUrl: store.epgUrl(),
+                    downloadFolder:
+                        store.downloadFolder?.() ??
+                        DEFAULT_SETTINGS.downloadFolder,
+                    recordingFolder:
+                        store.recordingFolder?.() ??
+                        DEFAULT_SETTINGS.recordingFolder,
+                    embeddedMpvFrameCopy:
+                        store.embeddedMpvFrameCopy?.() ?? false,
+                    coverSize:
+                        store.coverSize?.() ?? DEFAULT_SETTINGS.coverSize,
+                    epgViewMode:
+                        store.epgViewMode?.() ?? DEFAULT_SETTINGS.epgViewMode,
+                    dashboardRails: normalizeDashboardRailsSettings(
+                        store.dashboardRails?.()
+                    ),
+                    preferUploadedEpgOverXtream:
+                        store.preferUploadedEpgOverXtream?.() ??
+                        DEFAULT_SETTINGS.preferUploadedEpgOverXtream,
+                    trustedPrivateNetworkEpgUrls:
+                        store.trustedPrivateNetworkEpgUrls?.() ??
+                        DEFAULT_SETTINGS.trustedPrivateNetworkEpgUrls,
+                    trustedInsecureTlsHosts:
+                        store.trustedInsecureTlsHosts?.() ??
+                        DEFAULT_SETTINGS.trustedInsecureTlsHosts,
+                    tmdb: store.tmdb?.() ?? DEFAULT_SETTINGS.tmdb,
+                };
+            },
+
+            getDownloadFolder() {
+                return (
+                    store.downloadFolder?.() ?? DEFAULT_SETTINGS.downloadFolder
+                );
+            },
+
+            getRecordingFolder() {
+                return (
+                    store.recordingFolder?.() ??
+                    DEFAULT_SETTINGS.recordingFolder
+                );
+            },
+
+            getTrustOptions(): ElectronBridgeTrustOptions {
+                const settings = this.getSettings();
+                return {
+                    trustedPrivateNetworkEpgUrls:
+                        settings.trustedPrivateNetworkEpgUrls ?? [],
+                    trustedInsecureTlsHosts:
+                        settings.trustedInsecureTlsHosts ?? [],
+                };
+            },
+
+            getPlayer() {
+                return store.player();
+            },
+
+            isEmbeddedPlayer() {
+                return (
+                    store.player() === VideoPlayer.VideoJs ||
+                    store.player() === VideoPlayer.Html5Player ||
+                    store.player() === VideoPlayer.ArtPlayer ||
+                    store.player() === VideoPlayer.EmbeddedMpv
+                );
+            },
+
+            async sanitizeEmbeddedMpvSelection() {
+                if (store.player() !== VideoPlayer.EmbeddedMpv) {
+                    return;
+                }
+
+                if (
+                    typeof window === 'undefined' ||
+                    !window.electron?.getEmbeddedMpvSupport
+                ) {
                     await this.updateSettings({
                         player: DEFAULT_SETTINGS.player,
                     });
                     return;
                 }
 
-                scheduleEmbeddedMpvPrepare();
-            } catch (error) {
-                console.warn(
-                    'Failed to verify embedded MPV support; reverting to the default inline player.',
-                    error
-                );
-                await this.updateSettings({
-                    player: DEFAULT_SETTINGS.player,
-                });
-            }
-        },
-    })),
+                try {
+                    const support =
+                        await window.electron.getEmbeddedMpvSupport();
+                    if (!support.supported) {
+                        await this.updateSettings({
+                            player: DEFAULT_SETTINGS.player,
+                        });
+                        return;
+                    }
+
+                    scheduleEmbeddedMpvPrepare();
+                } catch (error) {
+                    console.warn(
+                        'Failed to verify embedded MPV support; reverting to the default inline player.',
+                        error
+                    );
+                    await this.updateSettings({
+                        player: DEFAULT_SETTINGS.player,
+                    });
+                }
+            },
+        };
+    }),
     withHooks({
         onInit(store) {
             store.loadSettings();
