@@ -29,10 +29,12 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
 import {
+    getFrameCopyRuntimeAvailability,
     getEmbeddedMpvAddonCandidatePaths,
     isFrameCopyRuntimeUsable,
     resolveFrameCopyHelperPath,
 } from './embedded-mpv-frame-copy-platform.util';
+import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
 import {
     EMBEDDED_MPV_EXPERIMENT_ENV,
     isEmbeddedMpvFeatureEnabled,
@@ -112,8 +114,9 @@ export class EmbeddedMpvNativeService {
     /**
      * Frame-copy engine: helper process + shm ring + renderer canvas.
      * Experimental, macOS Apple Silicon (owner decision 2026-07-10), Linux
-     * and Windows, opted into with IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1
-     * on top of the regular embedded MPV experiment flag.
+     * x64 and Windows, opted into with
+     * IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on top of the regular
+     * embedded MPV experiment flag.
      */
     private isFrameCopyEngineRequested(): boolean {
         return ['1', 'true', 'yes', 'on'].includes(
@@ -127,10 +130,7 @@ export class EmbeddedMpvNativeService {
         // Requires the helper binary too: a stale opt-in (cleaned native
         // build, bad install) must fall back to the native engine instead
         // of leaving embedded MPV unsupported with no way to recover.
-        return (
-            this.isFrameCopyEngineRequested() &&
-            isFrameCopyRuntimeUsable(() => this.resolveFrameCopyHelperPath())
-        );
+        return this.isFrameCopyEngineRequested() && isFrameCopyRuntimeUsable();
     }
 
     getActiveEngine(): EmbeddedMpvEngine {
@@ -138,9 +138,31 @@ export class EmbeddedMpvNativeService {
     }
 
     isFrameCopyAvailable(): boolean {
-        return isFrameCopyRuntimeUsable(() =>
-            this.resolveFrameCopyHelperPath()
-        );
+        return isFrameCopyRuntimeUsable();
+    }
+
+    private getFrameCopySupportDetails(): Pick<
+        EmbeddedMpvSupport,
+        'frameCopyAvailable' | 'frameCopyUnavailableReason'
+    > {
+        const availability = getFrameCopyRuntimeAvailability();
+        if (!('reason' in availability)) {
+            return { frameCopyAvailable: true };
+        }
+        return {
+            frameCopyAvailable: false,
+            frameCopyUnavailableReason: availability.reason,
+        };
+    }
+
+    private resolveFrameCopyRuntimeMode(): EmbeddedMpvFrameCopyRuntimeMode | null {
+        if (process.platform !== 'linux') {
+            return null;
+        }
+        const availability = getFrameCopyRuntimeAvailability();
+        return availability.usable && 'runtimeMode' in availability
+            ? availability.runtimeMode
+            : null;
     }
 
     getFrameSource(sessionId: string): EmbeddedMpvFrameSource | null {
@@ -150,7 +172,8 @@ export class EmbeddedMpvNativeService {
     private getFrameCopyAdapter(): EmbeddedMpvFrameCopyAdapter {
         if (!this.frameCopyAdapter) {
             this.frameCopyAdapter = new EmbeddedMpvFrameCopyAdapter({
-                resolveHelperPath: () => this.resolveFrameCopyHelperPath(),
+                resolveHelperPath: resolveFrameCopyHelperPath,
+                resolveRuntimeMode: () => this.resolveFrameCopyRuntimeMode(),
                 getScaleFactor: () => this.getMainWindowScaleFactor(),
                 onFrameSourceChanged: (sessionId, source) => {
                     if (!App.mainWindow || App.mainWindow.isDestroyed()) {
@@ -164,12 +187,6 @@ export class EmbeddedMpvNativeService {
             });
         }
         return this.frameCopyAdapter;
-    }
-
-    private resolveFrameCopyHelperPath(): string | null {
-        // Shared with the startup sandbox gate; kept as an instance method so
-        // service tests can stub helper discovery per scenario.
-        return resolveFrameCopyHelperPath();
     }
 
     private getMainWindowScaleFactor(): number {
@@ -229,7 +246,7 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: 'Embedded MPV on Linux currently requires X11 or Xwayland. Native Wayland embedding is not supported yet.',
-                frameCopyAvailable: this.isFrameCopyAvailable(),
+                ...this.getFrameCopySupportDetails(),
             };
         }
 
@@ -249,7 +266,7 @@ export class EmbeddedMpvNativeService {
                 supported: true,
                 platform: process.platform,
                 engine: 'frame-copy',
-                frameCopyAvailable: true,
+                ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
             };
         }
@@ -261,7 +278,7 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: missingLinuxMpvExecutableReason,
-                frameCopyAvailable: this.isFrameCopyAvailable(),
+                ...this.getFrameCopySupportDetails(),
             };
         }
 
@@ -279,7 +296,7 @@ export class EmbeddedMpvNativeService {
                     supported: true,
                     platform: process.platform,
                     engine: this.getActiveEngine(),
-                    frameCopyAvailable: this.isFrameCopyAvailable(),
+                    ...this.getFrameCopySupportDetails(),
                     capabilities: this.detectCapabilities(),
                 };
             } catch (error) {
@@ -345,7 +362,7 @@ export class EmbeddedMpvNativeService {
                 supported: true,
                 platform: process.platform,
                 engine: this.getActiveEngine(),
-                frameCopyAvailable: this.isFrameCopyAvailable(),
+                ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -377,7 +394,7 @@ export class EmbeddedMpvNativeService {
                 supported: true,
                 platform: process.platform,
                 engine: this.getActiveEngine(),
-                frameCopyAvailable: this.isFrameCopyAvailable(),
+                ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -709,8 +726,9 @@ export class EmbeddedMpvNativeService {
             });
         };
 
-        App.mainWindow.webContents.on('render-process-gone', (_event, details) =>
-            disposeAll(`process gone (${details.reason})`)
+        App.mainWindow.webContents.on(
+            'render-process-gone',
+            (_event, details) => disposeAll(`process gone (${details.reason})`)
         );
         // Full navigations/reloads only — in-app Angular routing emits
         // did-navigate-in-page and must not kill the active session.
