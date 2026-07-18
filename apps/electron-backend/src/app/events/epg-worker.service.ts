@@ -422,7 +422,6 @@ export class EpgWorkerService {
             }
 
             let settled = false;
-            let timeoutId: ReturnType<typeof setTimeout>;
             const settle = (fn: () => void) => {
                 if (settled) return;
                 settled = true;
@@ -430,7 +429,7 @@ export class EpgWorkerService {
                 fn();
             };
 
-            timeoutId = setTimeout(() => {
+            const timeoutId = setTimeout(() => {
                 const errorMessage = `${options.timeoutLabel} timed out after ${
                     this.fetchTimeoutMs / 1000
                 }s`;

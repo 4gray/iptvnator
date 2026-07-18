@@ -1002,4 +1002,21 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             })
         );
     });
+
+    it('still broadcasts a closed session when native dispose throws', () => {
+        startSession('s1', snapshot('playing'));
+        addon.disposeSession.mockImplementationOnce(() => {
+            throw new Error('native dispose failed');
+        });
+
+        const disposed = service.disposeSession('s1');
+
+        expect(disposed?.status).toBe('closed');
+        expect(mainWindowSendMock).toHaveBeenLastCalledWith(
+            'EMBEDDED_MPV_SESSION_UPDATE',
+            expect.objectContaining({ id: 's1', status: 'closed' })
+        );
+        // The session is removed from the registry despite the addon failure.
+        expect(service.disposeSession('s1')).toBeNull();
+    });
 });

@@ -193,7 +193,7 @@
             }
         },
         "lint": {
-            "command": "eslint apps/electron-backend/**/*.ts"
+            "command": "eslint \"apps/electron-backend/**/*.ts\""
         },
         "test": {
             "executor": "@nx/jest:jest",

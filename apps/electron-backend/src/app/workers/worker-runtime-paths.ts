@@ -62,7 +62,6 @@ export function registerNativeModuleSearchPaths(
     }
 ): string[] {
     const env = options?.env ?? process.env;
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const moduleApi =
         options?.moduleApi ??
         (require('module') as NodeModuleApi);
