@@ -22,9 +22,18 @@
 app-live-edge-button {
     position: absolute;
     right: 12px;
-    bottom: 56px;
+
+    /* ArtPlayer's vendor bottom stack is taller than the other players:
+       46px controls + progress bar + gap. Keep ~12px clearance above it. */
+    bottom: 72px;
     z-index: 20;
     transition: opacity 200ms ease;
+}
+
+/* The shared controls bar replaces the vendor stack; align with the HTML5
+   player's offset. */
+.art-player-shell--shared-controls app-live-edge-button {
+    bottom: 56px;
 }
 
 /* Fade the LIVE button out together with the ArtPlayer control bar.
