@@ -155,13 +155,16 @@ function redactUrlStrings(
     value: string,
     sanitizeValue: (value: string) => string
 ): string {
-    return value.replace(/https?:\/\/[^\s"'<>]+/giu, (candidate) => {
-        try {
-            return redactUrl(new URL(candidate), sanitizeValue);
-        } catch {
-            return candidate;
+    return value.replace(
+        /[a-z][a-z0-9+.-]*:\/\/[^\s"'<>]+/giu,
+        (candidate) => {
+            try {
+                return redactUrl(new URL(candidate), sanitizeValue);
+            } catch {
+                return candidate;
+            }
         }
-    });
+    );
 }
 
 function looksLikeSearchParams(value: string): boolean {
@@ -196,7 +199,7 @@ export function redactSensitiveData(
             }
         }
 
-        if (/^https?:\/\//iu.test(trimmed)) {
+        if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(trimmed)) {
             try {
                 return truncateString(
                     redactUrl(new URL(trimmed), (entry) =>
@@ -321,7 +324,9 @@ export function redactSensitiveData(
                 return visitError(input, depth);
             }
             if (input instanceof Date) {
-                return input.toISOString();
+                return Number.isNaN(input.getTime())
+                    ? '[Invalid Date]'
+                    : input.toISOString();
             }
             if (Array.isArray(input)) {
                 const output = input

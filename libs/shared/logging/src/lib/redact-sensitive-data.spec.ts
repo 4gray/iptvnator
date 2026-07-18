@@ -100,6 +100,25 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('401');
     });
 
+    it('redacts credentials in non-HTTP stream URL strings', () => {
+        const username = 'rtsp-user-secret';
+        const password = 'rtsp-password-secret';
+        const token = 'rtmp-token-secret';
+
+        const output = serialized(
+            redactSensitiveData([
+                `rtsp://${username}:${password}@stream.example/live?token=${token}&channel=news`,
+                `Playback failed: rtmp://stream.example/live?password=${password}&channel=sports`,
+            ])
+        );
+
+        expect(output).not.toContain(username);
+        expect(output).not.toContain(password);
+        expect(output).not.toContain(token);
+        expect(output).toContain('channel=news');
+        expect(output).toContain('channel=sports');
+    });
+
     it('redacts a credential from a single-parameter string', () => {
         const password = 'single-param-password-secret';
         const token = 'single-param-token-secret';
@@ -219,6 +238,13 @@ describe('redactSensitiveData', () => {
         expect(() => serialized(result)).not.toThrow();
         expect(serialized(result)).not.toContain(TEST_SECRETS[2]);
         expect(serialized(result)).toContain('[Truncated');
+    });
+
+    it('serializes invalid dates without throwing', () => {
+        const invalidDate = new Date(Number.NaN);
+
+        expect(() => redactSensitiveData(invalidDate)).not.toThrow();
+        expect(redactSensitiveData([invalidDate])).toEqual(['[Invalid Date]']);
     });
 
     it('preserves repeated non-circular references while still redacting them', () => {
