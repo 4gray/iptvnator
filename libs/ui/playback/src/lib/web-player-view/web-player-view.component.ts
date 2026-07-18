@@ -27,10 +27,14 @@ import {
     normalizeLocalTimeshiftSettings,
 } from '@iptvnator/shared/interfaces';
 import type { ExternalPlayerName } from '@iptvnator/shared/interfaces';
-import { RuntimeCapabilitiesService } from '@iptvnator/services';
+import { RuntimeCapabilitiesService, SettingsStore } from '@iptvnator/services';
 import { ArtPlayerComponent } from '../art-player/art-player.component';
 import { EmbeddedMpvPlayerComponent } from '../embedded-mpv-player/embedded-mpv-player.component';
 import { HtmlVideoPlayerComponent } from '../html-video-player/html-video-player.component';
+import {
+    WEB_PLAYER_SHARED_CONTROLS,
+    WEB_PLAYER_SHARED_CONTROLS_ENABLED,
+} from '../player-controls';
 import {
     type PlaybackDiagnostic,
     PlaybackDiagnosticCode,
@@ -55,6 +59,13 @@ type PlaybackDiagnosticDetail = {
     readonly value: string;
 };
 
+function resolveWebPlayerSharedControls(): boolean {
+    const storedValue = inject(SettingsStore).webPlayerSharedControls?.();
+    return typeof storedValue === 'boolean'
+        ? storedValue
+        : WEB_PLAYER_SHARED_CONTROLS_ENABLED;
+}
+
 @Component({
     selector: 'app-web-player-view',
     templateUrl: './web-player-view.component.html',
@@ -74,7 +85,13 @@ type PlaybackDiagnosticDetail = {
         TranslatePipe,
         VjsPlayerComponent,
     ],
-    providers: [LocalTimeshiftCoordinator],
+    providers: [
+        LocalTimeshiftCoordinator,
+        {
+            provide: WEB_PLAYER_SHARED_CONTROLS,
+            useFactory: resolveWebPlayerSharedControls,
+        },
+    ],
     encapsulation: ViewEncapsulation.None,
 })
 export class WebPlayerViewComponent {

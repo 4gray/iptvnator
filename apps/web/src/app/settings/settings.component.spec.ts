@@ -84,6 +84,7 @@ export class MockRouter {
 
 const DEFAULT_SETTINGS = {
     player: VideoPlayer.VideoJs,
+    webPlayerSharedControls: false,
     streamFormat: StreamFormat.AutoStreamFormat,
     openStreamOnDoubleClick: false,
     language: Language.ENGLISH,
@@ -664,6 +665,19 @@ describe('SettingsComponent', () => {
                 ...DEFAULT_SETTINGS,
                 ...settings,
             });
+        });
+
+        it('hydrates the shared web controls setting from the settings store', () => {
+            const mockStore = settingsStore as unknown as MockSettingsStore;
+            mockStore._setSettings({
+                webPlayerSharedControls: true,
+            });
+
+            component.setSettings();
+
+            expect(
+                component.settingsForm.get('webPlayerSharedControls')?.value
+            ).toBe(true);
         });
 
         it('hides the embedded mpv option when the desktop support probe reports unsupported', async () => {
@@ -1399,6 +1413,21 @@ describe('SettingsComponent', () => {
             trustedPrivateNetworkEpgUrls: [],
             trustedInsecureTlsHosts: [],
         });
+    });
+
+    it('saves the shared web controls setting on submit', async () => {
+        const mockStore = settingsStore as unknown as MockSettingsStore;
+        mockStore.updateSettings.mockResolvedValue(undefined);
+        component.settingsForm.get('webPlayerSharedControls')?.setValue(true);
+
+        component.onSubmit();
+        await fixture.whenStable();
+
+        expect(mockStore.updateSettings).toHaveBeenCalledWith(
+            expect.objectContaining({
+                webPlayerSharedControls: true,
+            })
+        );
     });
 
     it('clears external player paths in Electron when saved as empty', async () => {

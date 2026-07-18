@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Очистка…",
         "EPG_URL_ERROR": "Введенное значение не является URL-адресом.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбрать стандартный видео плеер",
+        "WEB_PLAYER_SHARED_CONTROLS": "Единые элементы управления для веб-плееров (экспериментально)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Использовать общие элементы управления IPTVnator в HTML5, Video.js и ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Выбрать формат потока по умолчанию (Xtream)",
         "LANGUAGE_DESCRIPTION": "Выбрать язык приложения",
         "THEME_DESCRIPTION": "Выбрать визуальную тему оформления",
@@ -497,6 +499,8 @@
             "RECORDING_FAILED_TO_START": "Не удалось начать запись.",
             "RECORDING_FAILED_TO_STOP": "Не удалось остановить запись.",
             "SAVED_TO": "Сохранено в {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Включить режим «картинка в картинке»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйти из режима «картинка в картинке»",
             "ENTER_FULLSCREEN": "Во весь экран",
             "EXIT_FULLSCREEN": "Выйти из полноэкранного режима"
         }

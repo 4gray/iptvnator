@@ -33,6 +33,7 @@ export function createSettingsForm(
 ) {
     return formBuilder.group({
         player: [VideoPlayer.VideoJs],
+        webPlayerSharedControls: false,
         ...(supportsEpg
             ? { epgUrl: new FormArray<FormControl<string | null>>([]) }
             : {}),
@@ -129,6 +130,7 @@ export function createSettingsFromFormValue(
 
     return {
         player: value.player ?? VideoPlayer.VideoJs,
+        webPlayerSharedControls: value.webPlayerSharedControls ?? false,
         streamFormat: value.streamFormat ?? StreamFormat.AutoStreamFormat,
         openStreamOnDoubleClick: value.openStreamOnDoubleClick ?? false,
         language: value.language ?? Language.ENGLISH,

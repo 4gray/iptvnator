@@ -154,7 +154,9 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
             currentTime: 20,
             volume: 0.5,
         });
-        adapter.attach(video);
+        const getDuration = jest.fn(() => 100);
+        adapter.attach(video, { getDuration });
+        getDuration.mockClear();
 
         adapter.commands.seekTo(NaN);
         adapter.commands.seekTo(Infinity);
@@ -164,6 +166,7 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
 
         expect(video.currentTime).toBe(20);
         expect(video.volume).toBe(0.5);
+        expect(getDuration).not.toHaveBeenCalled();
     });
 
     it('swallows native media setter exceptions', () => {
@@ -309,6 +312,40 @@ describe('WebVideoControlsAdapter (commands & edge branches)', () => {
         adapter.attach(createVideo({ duration: 42, seekableLength: 1 }));
         expect(adapter.state().isLive).toBe(false);
         expect(adapter.state().durationSeconds).toBe(42);
+    });
+
+    it('preserves the options receiver when reading corrected duration', () => {
+        const options = {
+            correctedDuration: 84,
+            getDuration() {
+                return this.correctedDuration;
+            },
+        };
+
+        adapter.attach(
+            createVideo({ duration: Infinity, seekableLength: 1 }),
+            options
+        );
+
+        expect(adapter.state().durationSeconds).toBe(84);
+        expect(adapter.state().isLive).toBe(false);
+    });
+
+    it('preserves the options receiver when reading live classification', () => {
+        const options = {
+            live: true,
+            isLive() {
+                return this.live;
+            },
+        };
+
+        adapter.attach(
+            createVideo({ duration: 84, seekableLength: 1 }),
+            options
+        );
+
+        expect(adapter.state().isLive).toBe(true);
+        expect(adapter.capabilities().seek).toBe(false);
     });
 
     it('normalizes a zero duration to null', () => {

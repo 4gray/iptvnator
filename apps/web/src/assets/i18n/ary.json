@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "جاري المسح…",
         "EPG_URL_ERROR": "القيمة ماشي رابط صحيح",
         "VIDEO_PLAYER_DESCRIPTION": "اختار مشغل الفيديو الافتراضي",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحدة لمشغلات الويب (تجريبية)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استعمل عناصر التحكم المشتركة ديال IPTVnator مع HTML5 وVideo.js وArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "اختار صيغة البث الافتراضية (xtream)",
         "LANGUAGE_DESCRIPTION": "اختار لغة التطبيق",
         "THEME_DESCRIPTION": "اختار المظهر المرئي للتطبيق",
@@ -497,6 +499,8 @@
             "RECORDING_FAILED_TO_START": "التسجيل ما قدرش يبدا.",
             "RECORDING_FAILED_TO_STOP": "التسجيل ما قدرش يتوقف.",
             "SAVED_TO": "تحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "شغّل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "خرج من صورة داخل صورة",
             "ENTER_FULLSCREEN": "دخل لملء الشاشة",
             "EXIT_FULLSCREEN": "خرج من ملء الشاشة"
         }

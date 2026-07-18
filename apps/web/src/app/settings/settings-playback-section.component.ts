@@ -60,6 +60,15 @@ export class SettingsPlaybackSectionComponent {
     readonly supportsExternalPlayerPathSettings = input(false);
     readonly selectRecordingFolder = output<void>();
 
+    isWebPlayerSelected(): boolean {
+        const player = this.form().value.player;
+        return (
+            player === VideoPlayer.VideoJs ||
+            player === VideoPlayer.Html5Player ||
+            player === VideoPlayer.ArtPlayer
+        );
+    }
+
     isExternalPlayerSelected(): boolean {
         const player = this.form().value.player;
         return player === VideoPlayer.MPV || player === VideoPlayer.VLC;

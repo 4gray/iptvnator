@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Ачышчаецца...",
         "EPG_URL_ERROR": "Уведзенае значэнне не з'яўляецца URL-адрасам.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбраць стандартны відэапрайгравальнік",
+        "WEB_PLAYER_SHARED_CONTROLS": "Адзіныя элементы кіравання для вэб-прайгравальнікаў (эксперыментальна)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Выкарыстоўваць агульныя элементы кіравання IPTVnator у HTML5, Video.js і ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Выберыце фармат патоку па змаўчанні (xtream)",
         "LANGUAGE_DESCRIPTION": "Выбраць мову праграмы",
         "THEME_DESCRIPTION": "Выбраць візуальную тэму афармлення",
@@ -497,6 +499,8 @@
             "RECORDING_FAILED_TO_START": "Не ўдалося пачаць запіс.",
             "RECORDING_FAILED_TO_STOP": "Не ўдалося спыніць запіс.",
             "SAVED_TO": "Захавана ў {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Уключыць рэжым «выява ў выяве»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйсці з рэжыму «выява ў выяве»",
             "ENTER_FULLSCREEN": "Увайсці ў поўнаэкранны рэжым",
             "EXIT_FULLSCREEN": "Выйсці з поўнаэкраннага рэжыму"
         }

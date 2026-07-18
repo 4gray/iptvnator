@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Czyszczenie…",
         "EPG_URL_ERROR": "Wartość nie jest prawidłowym URL",
         "VIDEO_PLAYER_DESCRIPTION": "Wybierz domyślny odtwarzacz wideo",
+        "WEB_PLAYER_SHARED_CONTROLS": "Ujednolicone sterowanie odtwarzaczami internetowymi (eksperymentalne)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Używaj wspólnych elementów sterowania IPTVnator w HTML5, Video.js i ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Wybierz domyślny format strumienia (xtream)",
         "LANGUAGE_DESCRIPTION": "Wybierz język aplikacji",
         "THEME_DESCRIPTION": "Wybierz motyw wizualny aplikacji",
@@ -497,6 +499,8 @@
             "RECORDING_FAILED_TO_START": "Nie udało się rozpocząć nagrywania.",
             "RECORDING_FAILED_TO_STOP": "Nie udało się zatrzymać nagrywania.",
             "SAVED_TO": "Zapisano w {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Włącz obraz w obrazie",
+            "EXIT_PICTURE_IN_PICTURE": "Wyłącz obraz w obrazie",
             "ENTER_FULLSCREEN": "Włącz pełny ekran",
             "EXIT_FULLSCREEN": "Wyłącz pełny ekran"
         }

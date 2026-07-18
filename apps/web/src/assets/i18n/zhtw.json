@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "正在清除…",
         "EPG_URL_ERROR": "該值不是有效的網址",
         "VIDEO_PLAYER_DESCRIPTION": "選擇預設影片播放器",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器統一控制項（實驗性）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共用控制項。",
         "STREAM_FORMAT_DESCRIPTION": "選擇預設串流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "選擇應用程式語言",
         "THEME_DESCRIPTION": "選擇應用程式視覺主題",
@@ -497,6 +499,8 @@
             "RECORDING_FAILED_TO_START": "無法開始錄製。",
             "RECORDING_FAILED_TO_STOP": "無法停止錄製。",
             "SAVED_TO": "已儲存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "進入子母畫面",
+            "EXIT_PICTURE_IN_PICTURE": "退出子母畫面",
             "ENTER_FULLSCREEN": "進入全螢幕",
             "EXIT_FULLSCREEN": "離開全螢幕"
         }

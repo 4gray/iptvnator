@@ -17,6 +17,7 @@ export interface PlayerControlsCapabilities {
     playbackSpeed: boolean;
     aspectRatio: boolean;
     recording: boolean;
+    pictureInPicture: boolean;
     fullscreen: boolean;
     seriesNavigation: boolean;
 }
@@ -61,6 +62,8 @@ export interface PlayerControlsState {
     aspectRatio: string;
     aspectPresets: ReadonlyArray<PlayerPreset<string>>;
     recording: PlayerRecordingState;
+    pictureInPictureActive: boolean;
+    canPictureInPicture: boolean;
     canPreviousEpisode: boolean;
     canNextEpisode: boolean;
 }
@@ -76,6 +79,7 @@ export interface PlayerControlsCommands {
     setPlaybackSpeed(speed: number): void;
     setAspectRatio(value: string): void;
     toggleRecording(): void;
+    togglePictureInPicture(): void;
 }
 
 /**

@@ -33,6 +33,7 @@ function createFakeController(): FakeController {
         setPlaybackSpeed: jest.fn(),
         setAspectRatio: jest.fn(),
         toggleRecording: jest.fn(),
+        togglePictureInPicture: jest.fn(),
     };
     return {
         controller: { capabilities, state, commands },

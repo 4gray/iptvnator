@@ -116,6 +116,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
             playbackSpeed: optionalCapabilities?.playbackSpeed ?? false,
             aspectRatio: optionalCapabilities?.aspectOverride ?? false,
             recording: optionalCapabilities?.recording ?? false,
+            pictureInPicture: false,
             fullscreen: true,
             seriesNavigation: !isLive && context.seriesNavigation() !== null,
         };
@@ -193,6 +194,8 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
                 ),
                 transitionKey: this.recordingTransitionKey(),
             },
+            pictureInPictureActive: false,
+            canPictureInPicture: false,
             canPreviousEpisode:
                 hasSeriesNavigation && seriesNavigation?.canPrevious === true,
             canNextEpisode:
@@ -210,6 +213,7 @@ export class EmbeddedMpvControlsAdapter implements PlayerController {
         setPlaybackSpeed: (speed) => void this.controller.setSpeed(speed),
         setAspectRatio: (value) => void this.controller.setAspect(value),
         toggleRecording: () => void this.toggleRecording(),
+        togglePictureInPicture: () => undefined,
     };
 
     constructor() {

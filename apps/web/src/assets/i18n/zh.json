@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "清除中…",
         "EPG_URL_ERROR": "该值不是有效的 URL",
         "VIDEO_PLAYER_DESCRIPTION": "选择默认视频播放器",
+        "WEB_PLAYER_SHARED_CONTROLS": "Web 播放器统一控件（实验性）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "在 HTML5、Video.js 和 ArtPlayer 中使用 IPTVnator 的共享控件。",
         "STREAM_FORMAT_DESCRIPTION": "选择默认的流格式（xtream）",
         "LANGUAGE_DESCRIPTION": "选择应用程序的语言",
         "THEME_DESCRIPTION": "选择应用程序的视觉主题",
@@ -497,6 +499,8 @@
             "RECORDING_FAILED_TO_START": "录制启动失败。",
             "RECORDING_FAILED_TO_STOP": "录制停止失败。",
             "SAVED_TO": "已保存至 {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "进入画中画",
+            "EXIT_PICTURE_IN_PICTURE": "退出画中画",
             "ENTER_FULLSCREEN": "进入全屏",
             "EXIT_FULLSCREEN": "退出全屏"
         }
