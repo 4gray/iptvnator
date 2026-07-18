@@ -13,6 +13,8 @@ const SENSITIVE_KEY_NAMES = new Set([
     'authorization',
     'cookie',
     'credentials',
+    'deviceid',
+    'deviceid2',
     'login',
     'mac',
     'macaddress',
@@ -21,6 +23,9 @@ const SENSITIVE_KEY_NAMES = new Set([
     'pwd',
     'secret',
     'setcookie',
+    'signature',
+    'signature2',
+    'sn',
     'token',
     'username',
 ]);
@@ -127,7 +132,7 @@ function redactUrl(
     }
 
     const pathSegments = redacted.pathname.split('/');
-    for (let index = 0; index < pathSegments.length - 3; index += 1) {
+    for (let index = 0; index < pathSegments.length - 2; index += 1) {
         if (XTREAM_CREDENTIAL_PATH_SEGMENTS.has(pathSegments[index])) {
             pathSegments[index + 1] = REDACTED_VALUE;
             pathSegments[index + 2] = REDACTED_VALUE;
@@ -158,7 +163,7 @@ function redactUrlStrings(
 }
 
 function looksLikeSearchParams(value: string): boolean {
-    return /^[^=&\s]+=[^&]*(?:&[^=&\s]+=[^&]*)+$/u.test(value);
+    return /^[^=&\s]+=[^&]*(?:&[^=&\s]+=[^&]*)*$/u.test(value);
 }
 
 export function redactSensitiveData(

@@ -48,6 +48,29 @@ describe('redactSensitiveData', () => {
         });
     });
 
+    it('redacts Stalker identity credentials while retaining request diagnostics', () => {
+        const identitySecrets = {
+            sn: 'stalker-sn-secret',
+            device_id: 'stalker-device-id-secret',
+            device_id2: 'stalker-device-id2-secret',
+            signature: 'stalker-signature-secret',
+            signature2: 'stalker-signature2-secret',
+        };
+
+        const result = redactSensitiveData({
+            action: 'get_profile',
+            requestId: 'stalker-request-id',
+            params: identitySecrets,
+        });
+        const output = serialized(result);
+
+        for (const secret of Object.values(identitySecrets)) {
+            expect(output).not.toContain(secret);
+        }
+        expect(output).toContain('get_profile');
+        expect(output).toContain('stalker-request-id');
+    });
+
     it('redacts credentials embedded in URL, URLSearchParams, errors, and serialized strings', () => {
         const url = new URL(
             `https://user:pass@example.com/live?password=${TEST_SECRETS[6]}&token=${TEST_SECRETS[7]}&action=get_live_streams`
@@ -75,6 +98,23 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('category=news');
         expect(output).toContain('status');
         expect(output).toContain('401');
+    });
+
+    it('redacts a credential from a single-parameter string', () => {
+        const password = 'single-param-password-secret';
+        const token = 'single-param-token-secret';
+
+        const output = serialized(
+            redactSensitiveData([
+                `password=${password}`,
+                `token=${token}`,
+                'operation=get_profile',
+            ])
+        );
+
+        expect(output).not.toContain(password);
+        expect(output).not.toContain(token);
+        expect(output).toContain('get_profile');
     });
 
     it('does not repeat a redacted Error message secret in its stack', () => {
@@ -137,6 +177,20 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('404.ts');
         expect(output).toContain('505.m3u8');
         expect(output).toContain(ordinaryLiveUrl);
+    });
+
+    it('redacts Xtream path credentials when no resource segment follows', () => {
+        const username = 'terminal-xtream-user-secret';
+        const password = 'terminal-xtream-password-secret';
+
+        const output = serialized(
+            redactSensitiveData(
+                new URL(`https://example.com/live/${username}/${password}`)
+            )
+        );
+
+        expect(output).not.toContain(username);
+        expect(output).not.toContain(password);
     });
 
     it('does not mutate input and safely bounds cycles, depth, arrays, objects, and strings', () => {
