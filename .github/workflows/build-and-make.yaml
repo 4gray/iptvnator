@@ -880,6 +880,7 @@ jobs:
                   echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.state')" >> "${GITHUB_OUTPUT}"
 
             - name: Create Draft Release
+              id: draft-release
               if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
               uses: softprops/action-gh-release@v2
               with:
@@ -914,6 +915,26 @@ jobs:
                       artifacts/windows-artifacts/*.blockmap
               env:
                   GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+            # Rare action-gh-release path: when the release listing transiently
+            # misses the rolling draft, the action creates a duplicate, deletes
+            # it in favor of the canonical (oldest) draft, and uploads assets
+            # there WITHOUT refreshing that draft's metadata. Re-assert the
+            # composed title and commitish on whatever release the action ended
+            # up using; the body is left alone to preserve generated notes.
+            - name: Ensure draft metadata is current
+              if: steps.draft-release.outputs.id != ''
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+                  RELEASE_NAME: ${{ steps.release-meta.outputs.name }}
+                  RELEASE_COMMITISH: ${{ steps.release-meta.outputs.commitish }}
+              run: |
+                  set -euo pipefail
+
+                  gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
+                      -f name="${RELEASE_NAME}" \
+                      -f target_commitish="${RELEASE_COMMITISH}" > /dev/null
 
     publish-snap:
         name: Publish to Snapcraft Store
