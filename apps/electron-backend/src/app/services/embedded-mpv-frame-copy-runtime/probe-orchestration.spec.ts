@@ -90,6 +90,7 @@ describe('embedded-mpv frame-copy runtime probe orchestration', () => {
                 timeout: 3000,
                 killSignal: 'SIGKILL',
                 windowsHide: true,
+                maxBuffer: 16 * 1024 * 1024,
                 env: {
                     PATH: '/usr/bin',
                     LIBGL_ALWAYS_SOFTWARE: '1',
@@ -171,6 +172,11 @@ describe('embedded-mpv frame-copy runtime probe orchestration', () => {
         });
 
         const virtualSnapRoot = '/snap/iptvnator/42';
+        const linuxTriplet = 'x86_64-linux-gnu';
+        const snapLibraries = (...relativePaths: string[]): string[] =>
+            relativePaths.map((relativePath) =>
+                path.join(virtualSnapRoot, relativePath)
+            );
         const virtualNativeDir = path.join(
             virtualSnapRoot,
             'resources',
@@ -231,6 +237,8 @@ describe('embedded-mpv frame-copy runtime probe orchestration', () => {
                     virtualSnapRoot,
                     'gnome-platform'
                 ),
+                SNAP_LIBRARY_PATH:
+                    '/var/lib/snapd/lib/gl:/var/lib/snapd/lib/gl/nvidia',
             },
             fileSystem: virtualFileSystem,
         });
@@ -248,9 +256,28 @@ describe('embedded-mpv frame-copy runtime probe orchestration', () => {
             expect.objectContaining({
                 env: expect.objectContaining({
                     SNAP: virtualSnapRoot,
-                    LD_LIBRARY_PATH: expect.stringContaining(
-                        path.join(virtualNativeDir, 'lib')
-                    ),
+                    LD_LIBRARY_PATH: [
+                        path.join(virtualNativeDir, 'lib'),
+                        '/var/lib/snapd/lib/gl',
+                        '/var/lib/snapd/lib/gl/nvidia',
+                        ...snapLibraries(
+                            `graphics/usr/lib/${linuxTriplet}`,
+                            `graphics/usr/lib/${linuxTriplet}/vdpau`
+                        ),
+                        '/usr/lib/x86_64-linux-gnu',
+                        ...snapLibraries(
+                            `gnome-platform/lib/${linuxTriplet}`,
+                            `gnome-platform/usr/lib/${linuxTriplet}`,
+                            `gnome-platform/usr/lib/${linuxTriplet}/mesa`,
+                            `gnome-platform/usr/lib/${linuxTriplet}/mesa-egl`,
+                            `gnome-platform/usr/lib/${linuxTriplet}/dri`,
+                            `gnome-platform/usr/lib/${linuxTriplet}/pulseaudio`,
+                            'lib',
+                            'usr/lib',
+                            `lib/${linuxTriplet}`,
+                            `usr/lib/${linuxTriplet}`
+                        ),
+                    ].join(':'),
                 }),
             })
         );

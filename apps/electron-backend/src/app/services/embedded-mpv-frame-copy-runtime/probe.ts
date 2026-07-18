@@ -3,6 +3,7 @@ import * as nodeFileSystem from 'fs';
 import path from 'path';
 import {
     RUNTIME_MANIFEST_NAME,
+    RUNTIME_PROBE_MAX_BUFFER_BYTES,
     RUNTIME_PROBE_PROTOCOL,
     RUNTIME_PROBE_TIMEOUT_MS,
 } from './contracts';
@@ -180,6 +181,7 @@ function runHelperProbe(
             timeout: RUNTIME_PROBE_TIMEOUT_MS,
             killSignal: 'SIGKILL',
             windowsHide: true,
+            maxBuffer: RUNTIME_PROBE_MAX_BUFFER_BYTES,
             env: launch.env,
         });
     } catch {

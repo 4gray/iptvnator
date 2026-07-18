@@ -282,12 +282,15 @@ allowlisted helper reason as `helperReason`. An optional `helperDetail` is
 copied only from the same exact line when it contains 1–1024 printable ASCII
 characters; an invalid detail rejects both helper fields. Malformed,
 multi-line, wrong-protocol, or unknown failure output never reaches either
-field. When `IPTVNATOR_TRACE_PLAYER=1`, the probe also emits non-empty captured
-helper stderr separately as one JSON line. JSON escaping keeps embedded
-newlines on that single line, the `stderr` field is limited to the first 16,384
-characters, and the `truncated` boolean is always present. A missing flag,
-empty capture, or trace-writer failure produces no trace and never changes the
-cached availability result or the application diagnostic's stdout protocol.
+field. Every probe uses the same explicit 16 MiB per-stream child-capture
+ceiling, independent of tracing, so verbose diagnostics do not fall back to
+Node's smaller implicit buffer. When `IPTVNATOR_TRACE_PLAYER=1`, the probe also
+emits non-empty captured helper stderr separately as one JSON line. JSON
+escaping keeps embedded newlines on that single line, the `stderr` field is
+limited to the first 16,384 characters, and the `truncated` boolean is always
+present. A missing flag, empty capture, or trace-writer failure produces no
+trace and never changes the cached availability result or the application
+diagnostic's stdout protocol.
 
 The startup probe and every playback helper session use the same sanitized
 loader environment selected by the validated manifest's cached `runtimeMode`.

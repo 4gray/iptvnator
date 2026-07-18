@@ -239,12 +239,14 @@ application diagnostic retains `helper-probe-failed` as the top-level reason
 for nonzero helper exits and adds `helperReason` only when the helper emitted
 one exact protocol-v1 line with a fixed allowlisted reason. Its optional
 `helperDetail` is restricted to 1–1024 printable ASCII characters; invalid
-detail suppresses both helper fields. With `IPTVNATOR_TRACE_PLAYER=1`, non-empty
-captured helper stderr is written separately as one JSON-escaped stderr line:
-its `stderr` field contains at most the first 16,384 characters and its
-`truncated` boolean is always explicit. Empty captures, disabled tracing, and
-trace-writer failures do not emit a record or alter availability. The
-installed-Snap probe therefore tests the private shared-memory confinement
+detail suppresses both helper fields. Every probe has the same explicit 16 MiB
+per-stream child-capture ceiling, regardless of tracing. With
+`IPTVNATOR_TRACE_PLAYER=1`, non-empty captured helper stderr is written
+separately as one JSON-escaped stderr line: its `stderr` field contains at most
+the first 16,384 characters and its `truncated` boolean is always explicit.
+Empty captures, disabled tracing, and trace-writer failures do not emit a
+record or alter availability. The installed-Snap probe therefore tests the
+private shared-memory confinement
 needed by playback rather than only loader and graphics startup.
 Packaging CI invokes the same gate through
 `snap run iptvnator --embedded-mpv-runtime-probe`. This packaging-only

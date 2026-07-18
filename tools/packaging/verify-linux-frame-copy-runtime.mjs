@@ -23,6 +23,7 @@ const {
     resolveLinuxFrameCopyProfile,
 } = require('./linux-frame-copy-profile.cjs');
 const {
+    RUNTIME_PROBE_MAX_BUFFER_BYTES,
     RUNTIME_PROBE_TIMEOUT_MS,
 } = require('../embedded-mpv/runtime-probe-contract.cjs');
 
@@ -71,6 +72,7 @@ function defaultRunCommand(command, args, options = {}) {
         stdio: 'pipe',
         timeout: options.timeout,
         killSignal: options.killSignal,
+        maxBuffer: options.maxBuffer,
         windowsHide: true,
     });
 }
@@ -1611,6 +1613,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
             encoding: 'utf8',
             env: probeEnvironment,
             killSignal: 'SIGKILL',
+            maxBuffer: RUNTIME_PROBE_MAX_BUFFER_BYTES,
             timeout: RUNTIME_PROBE_TIMEOUT_MS,
             windowsHide: true,
         }

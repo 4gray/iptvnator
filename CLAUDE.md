@@ -673,9 +673,10 @@ engine` (restart required) or
   helper exit keeps top-level reason `helper-probe-failed`; `helperReason` is
   present only for an exact protocol-v1 line carrying a fixed allowlisted
   reason, and its optional `helperDetail` must be 1–1024 printable ASCII
-  characters. Invalid detail suppresses both helper fields. With
-  `IPTVNATOR_TRACE_PLAYER=1`, non-empty helper stderr is emitted separately as
-  one JSON-escaped stderr line with a 16,384-character `stderr` limit and an
+  characters. Invalid detail suppresses both helper fields. Every probe uses
+  an explicit 16 MiB per-stream child-capture ceiling independent of tracing.
+  With `IPTVNATOR_TRACE_PLAYER=1`, non-empty helper stderr is emitted separately
+  as one JSON-escaped stderr line with a 16,384-character `stderr` limit and an
   explicit `truncated` field; trace-write failure cannot change availability.
   Installed-Snap CI enables Mesa EGL/GL diagnostics through this bounded
   channel. The exact packaged Flatpak `/app` context reconstructs only

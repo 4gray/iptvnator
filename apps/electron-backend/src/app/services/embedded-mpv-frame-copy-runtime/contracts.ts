@@ -12,7 +12,8 @@ export const FRAME_COPY_ADDON_NAME = 'embedded_mpv.node';
 export const FRAME_COPY_READER_NAME = 'embedded_mpv_frame_reader.node';
 export const FRAME_COPY_HELPER_NAME = 'iptvnator_mpv_helper';
 export const RUNTIME_PROBE_PROTOCOL = 1;
-export const { RUNTIME_PROBE_TIMEOUT_MS } = runtimeProbeContract;
+export const { RUNTIME_PROBE_MAX_BUFFER_BYTES, RUNTIME_PROBE_TIMEOUT_MS } =
+    runtimeProbeContract;
 export const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 export const SAFE_RUNTIME_NAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 export const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;

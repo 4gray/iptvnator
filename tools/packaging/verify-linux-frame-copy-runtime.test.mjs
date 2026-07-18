@@ -91,7 +91,7 @@ const DEB_SYSTEM_PACKAGE_DEPENDENCIES = [
     'libgbm1',
 ];
 
-test('uses the shared frozen 3000 ms runtime probe timeout contract', async () => {
+test('uses the shared frozen runtime probe resource contract', async () => {
     assert.equal(
         fs.existsSync(runtimeProbeContractUrl),
         true,
@@ -108,9 +108,17 @@ test('uses the shared frozen 3000 ms runtime probe timeout contract', async () =
     );
     assert.equal(Object.isFrozen(runtimeProbeContract), true);
     assert.equal(runtimeProbeContract.RUNTIME_PROBE_TIMEOUT_MS, 3000);
+    assert.equal(
+        runtimeProbeContract.RUNTIME_PROBE_MAX_BUFFER_BYTES,
+        16 * 1024 * 1024
+    );
     assert.match(
         fs.readFileSync(runtimeProbeContractTypesUrl, 'utf8'),
         /readonly RUNTIME_PROBE_TIMEOUT_MS: 3000/
+    );
+    assert.match(
+        fs.readFileSync(runtimeProbeContractTypesUrl, 'utf8'),
+        /readonly RUNTIME_PROBE_MAX_BUFFER_BYTES: 16777216/
     );
 
     const verifierSource = fs.readFileSync(verifierUrl, 'utf8');
@@ -133,7 +141,7 @@ test('uses the shared frozen 3000 ms runtime probe timeout contract', async () =
     );
     assert.match(
         backendContractsSource,
-        /export const \{ RUNTIME_PROBE_TIMEOUT_MS \} = runtimeProbeContract/
+        /export const \{\s*RUNTIME_PROBE_MAX_BUFFER_BYTES,\s*RUNTIME_PROBE_TIMEOUT_MS,?\s*\}\s*=\s*runtimeProbeContract/
     );
     assert.doesNotMatch(
         backendContractsSource,
@@ -784,6 +792,7 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             encoding: 'utf8',
             env: { PATH: '/usr/bin' },
             killSignal: 'SIGKILL',
+            maxBuffer: 16 * 1024 * 1024,
             timeout: 3000,
             windowsHide: true,
         });
