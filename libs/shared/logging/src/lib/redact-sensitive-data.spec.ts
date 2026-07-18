@@ -105,6 +105,40 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('profile');
     });
 
+    it('redacts Xtream credentials in playback URL paths', () => {
+        const username = 'xtream-path-user-secret';
+        const password = 'xtream-path-password-secret';
+        const urls = [
+            new URL(
+                `https://example.com/base/live/${username}/${password}/101.ts`
+            ),
+            new URL(
+                `https://example.com/movie/${username}/${password}/202.mkv`
+            ),
+            new URL(
+                `https://example.com/series/${username}/${password}/303.mp4`
+            ),
+            new URL(
+                `https://example.com/timeshift/${username}/${password}/60/2026-07-18:12-00/404.ts`
+            ),
+        ];
+        const embedded = `Playback failed for https://example.com/live/${username}/${password}/505.m3u8`;
+        const ordinaryLiveUrl = 'https://example.com/live/channel.m3u8';
+
+        const output = serialized(
+            redactSensitiveData({ urls, embedded, ordinaryLiveUrl })
+        );
+
+        expect(output).not.toContain(username);
+        expect(output).not.toContain(password);
+        expect(output).toContain('101.ts');
+        expect(output).toContain('202.mkv');
+        expect(output).toContain('303.mp4');
+        expect(output).toContain('404.ts');
+        expect(output).toContain('505.m3u8');
+        expect(output).toContain(ordinaryLiveUrl);
+    });
+
     it('does not mutate input and safely bounds cycles, depth, arrays, objects, and strings', () => {
         const input: Record<string, unknown> = {
             status: 'ok',

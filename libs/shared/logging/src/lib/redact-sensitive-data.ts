@@ -37,6 +37,13 @@ const SENSITIVE_KEY_SUFFIXES = [
     'username',
 ];
 
+const XTREAM_CREDENTIAL_PATH_SEGMENTS = new Set([
+    'live',
+    'movie',
+    'series',
+    'timeshift',
+]);
+
 export interface RedactionOptions {
     maxDepth?: number;
     maxArrayItems?: number;
@@ -118,6 +125,15 @@ function redactUrl(
     if (redacted.password) {
         redacted.password = REDACTED_VALUE;
     }
+
+    const pathSegments = redacted.pathname.split('/');
+    for (let index = 0; index < pathSegments.length - 3; index += 1) {
+        if (XTREAM_CREDENTIAL_PATH_SEGMENTS.has(pathSegments[index])) {
+            pathSegments[index + 1] = REDACTED_VALUE;
+            pathSegments[index + 2] = REDACTED_VALUE;
+        }
+    }
+    redacted.pathname = pathSegments.join('/');
 
     const search = redactSearchParams(
         redacted.searchParams,
