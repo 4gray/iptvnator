@@ -98,3 +98,12 @@ playable. MPEG-TS is preferred before HLS when the provider allows it because
 some portals return a valid HLS manifest while the first media segment fails in
 Chromium/video.js. PWA fallback keeps the REST MPEG-TS URL when no Electron
 probe API is available.
+
+Catch-up is offered from the Xtream Live TV tab and from the unified
+collection surfaces (per-playlist and global Favorites and Recent). The
+`tv_archive` / `tv_archive_duration` columns are carried through the
+favorites and recently-viewed DB projections and mapped onto
+`UnifiedCollectionItem.tvArchive` / `tvArchiveDuration` so the shared live
+tab can gate the timeline's archive window. `tv_archive_duration` is
+interpreted as **days** everywhere, matching
+`live-stream-layout.controlledArchiveDays` (issue #1138).

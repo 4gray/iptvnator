@@ -363,7 +363,8 @@ activation, and the details dialog behave identically to the timeline.
   no-EPG-anywhere states and while loading. Return-to-live is a playback control
   (`!isLivePlayback()`) and is independent of EPG state.
 - **State-driven affordances.** Blocks are coloured past / now / future, with a
-  red "now" playhead. Catch-up "Watch" appears on past blocks only when
+  red "now" playhead. Catch-up "Watch" appears on past blocks — and as a
+  start-over replay button on the currently-airing block — only when
   `archivePlaybackAvailable` (Xtream `tv_archive`, M3U `catchup-*`); Stalker is
   schedule-only (dimmed past + a notice, no false buttons). The "i" button opens
   the shared `app-epg-item-description` dialog with a state-aware action.
