@@ -546,6 +546,19 @@ function inspectLibplaceboSourceSnapshot(
         path.join(os.tmpdir(), 'iptvnator-libplacebo-source-verifier-')
     );
     try {
+        const memberListPath = path.join(
+            temporaryRoot,
+            'libplacebo-members.txt'
+        );
+        fs.writeFileSync(
+            memberListPath,
+            `${sourceMembers.map(({ rawName }) => rawName).join('\n')}\n`,
+            {
+                encoding: 'utf8',
+                flag: 'wx',
+                mode: 0o600,
+            }
+        );
         runCommand(
             'tar',
             [
@@ -558,14 +571,10 @@ function inspectLibplaceboSourceSnapshot(
                 '--no-same-owner',
                 '--no-same-permissions',
                 '-T',
-                '/dev/stdin',
+                memberListPath,
             ],
             {
                 encoding: 'utf8',
-                input: Buffer.from(
-                    `${sourceMembers.map(({ rawName }) => rawName).join('\n')}\n`,
-                    'utf8'
-                ),
                 maxBuffer: COMMAND_OUTPUT_MAX_BUFFER_BYTES,
             }
         );

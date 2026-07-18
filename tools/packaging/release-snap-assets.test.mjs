@@ -904,6 +904,45 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
     assert.equal(tarResult.error, undefined);
     assert.equal(tarResult.status, 0, tarResult.stderr);
 
+    let observedTarFilesFromFile = false;
+    const runCommand = (command, args, options = {}) => {
+        if (command === 'tar' && args.includes('-T')) {
+            const filesFromPath = args[args.indexOf('-T') + 1];
+            assert.equal(path.isAbsolute(filesFromPath), true);
+            assert.equal(fs.lstatSync(filesFromPath).isFile(), true);
+            assert.equal(
+                fs.lstatSync(filesFromPath).mode & 0o077,
+                0,
+                'tar files-from input must not be group/world accessible'
+            );
+            assert.match(
+                fs.readFileSync(filesFromPath, 'utf8'),
+                /git\/libplacebo\/README\.md/
+            );
+            observedTarFilesFromFile = true;
+        }
+        const result = childProcess.spawnSync(command, args, {
+            encoding:
+                options.encoding === undefined ? 'utf8' : options.encoding,
+            input: options.input,
+            killSignal: 'SIGKILL',
+            maxBuffer: options.maxBuffer,
+            stdio: 'pipe',
+            timeout: options.timeout,
+            windowsHide: true,
+        });
+        if (result.error) {
+            throw result.error;
+        }
+        if (result.status !== 0) {
+            throw new Error(
+                `${command} exited with status ${String(result.status)}: ${
+                    result.stderr ?? ''
+                }`
+            );
+        }
+        return result.stdout;
+    };
     const sourceArchive = sourceArchiveContract.createLinuxSourceArchiveBinding(
         {
             archivePath: sourceArchivePath,
@@ -911,15 +950,20 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
         }
     );
     assert.throws(
-        () => sourceBindingHelper.inspectSourceArchive(sourceArchivePath),
+        () =>
+            sourceBindingHelper.inspectSourceArchive(sourceArchivePath, {
+                runCommand,
+            }),
         /snapshot digest mismatch/i
     );
     const sourceInspection = sourceBindingHelper.inspectSourceArchive(
         sourceArchivePath,
         {
             expectedSourceSnapshotSha256: fixture.expectedSourceSnapshotSha256,
+            runCommand,
         }
     );
+    assert.equal(observedTarFilesFromFile, true);
     assert.equal(sourceInspection.archiveSha256, sourceArchive.sha256);
     assert.deepEqual(sourceInspection.archiveFiles, sourceIndex.archives);
 
