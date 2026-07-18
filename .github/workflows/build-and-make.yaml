@@ -1524,11 +1524,16 @@ jobs:
                       -f target_commitish="${RELEASE_COMMITISH}" \
                       --jq '.body' || true)"
 
+                  # tag_name MUST be included in every PATCH: updating a draft
+                  # without it makes GitHub drop the pending tag (the draft
+                  # becomes "untagged-<hash>"), which breaks the rolling-draft
+                  # lookup on the next run.
                   if [ -z "${GENERATED_NOTES}" ]; then
                       jq -n \
+                          --arg tag "${RELEASE_TAG}" \
                           --arg name "${RELEASE_NAME}" \
                           --arg commitish "${RELEASE_COMMITISH}" \
-                          '{name: $name, target_commitish: $commitish}' |
+                          '{tag_name: $tag, name: $name, target_commitish: $commitish}' |
                           gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null
                       exit 0
                   fi
@@ -1540,8 +1545,9 @@ jobs:
                   fi
 
                   jq -n \
+                      --arg tag "${RELEASE_TAG}" \
                       --arg name "${RELEASE_NAME}" \
                       --arg commitish "${RELEASE_COMMITISH}" \
                       --arg body "${FULL_BODY}" \
-                      '{name: $name, target_commitish: $commitish, body: ($body | .[0:120000])}' |
+                      '{tag_name: $tag, name: $name, target_commitish: $commitish, body: ($body | .[0:120000])}' |
                       gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null
