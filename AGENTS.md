@@ -266,9 +266,11 @@ Key files:
 - The probe and playback helper share one sanitized loader environment:
   ambient audit, preload, library, graphics-driver, and shell-startup overrides
   are removed; the validated private closure wins; trusted Snap GL,
-  `graphics-core22`, and exact GNOME-platform roots precede generic in-snap
-  roots. The extracted-artifact verifier removes the identical unsafe
-  loader/graphics/shell set before direct helper smoke while preserving
+  `graphics-core22`, the core22 base x64 root, and exact GNOME-platform roots
+  precede generic in-snap roots. The core22 base must precede GNOME so its
+  `libedit.so.2` cannot be replaced by the older copy requiring
+  `libtinfo.so.5`. The extracted-artifact verifier removes the identical
+  unsafe loader/graphics/shell set before direct helper smoke while preserving
   feature/debug selectors such as `LIBGL_ALWAYS_SOFTWARE`. Snap fixes the
   wrapper `PATH`, removes exported `BASH_FUNC_*` functions, and launches
   probe/playback through the regular executable

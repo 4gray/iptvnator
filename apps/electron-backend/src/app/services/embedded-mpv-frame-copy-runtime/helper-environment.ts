@@ -7,6 +7,7 @@ const TRUSTED_SNAP_EGL_VENDOR_ROOT = '/var/lib/snapd/lib/glvnd/egl_vendor.d';
 const SNAP_DESKTOP_RUNTIME_DIRECTORY = 'gnome-platform';
 const SNAP_GRAPHICS_RUNTIME_DIRECTORY = 'graphics';
 const SNAP_X64_LIBRARY_TRIPLET = 'x86_64-linux-gnu';
+const TRUSTED_SNAP_BASE_LIBRARY_ROOT = '/usr/lib/x86_64-linux-gnu';
 const TRUSTED_SNAP_HELPER_PATH = '/usr/sbin:/usr/bin:/sbin:/bin';
 const TRUSTED_FLATPAK_APP_ID = 'com.fourgray.iptvnator';
 const TRUSTED_FLATPAK_APP_ROOT = '/app';
@@ -84,6 +85,8 @@ function getTrustedSnapLibraryPaths(
         ...snapLibraryPaths,
         graphicsLibraryRoot,
         path.join(graphicsLibraryRoot, 'vdpau'),
+        // The core22 libedit ABI must win over gnome-3-28's libtinfo5 build.
+        TRUSTED_SNAP_BASE_LIBRARY_ROOT,
         ...desktopLibraryPaths,
         path.join(snapRoot, 'lib'),
         path.join(snapRoot, 'usr', 'lib'),

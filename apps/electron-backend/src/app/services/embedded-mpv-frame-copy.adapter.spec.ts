@@ -351,6 +351,7 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
                             'x86_64-linux-gnu',
                             'vdpau'
                         ),
+                        '/usr/lib/x86_64-linux-gnu',
                         path.join(
                             snapRoot,
                             'gnome-platform',

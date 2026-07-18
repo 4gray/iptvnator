@@ -167,11 +167,14 @@ therefore invokes `flatpak run com.fourgray.iptvnator
 --embedded-mpv-runtime-probe` instead of executing the helper around the
 application gate. In a genuine Snap mount, filtered `SNAP_LIBRARY_PATH` GL roots
 under `/var/lib/snapd/lib/gl` come next, then the fixed x64
-`$SNAP/graphics` roots, then exact `$SNAP/gnome-platform` graphics/audio roots,
-and finally generic `$SNAP` library roots. The helper rebuilds GBM, GL/VA
-driver, EGL vendor/platform, and Vulkan layer variables from those trusted
-locations. A Linux session without the validated cached mode is rejected
-before spawn.
+`$SNAP/graphics` roots, then the core22 base
+`/usr/lib/x86_64-linux-gnu`, exact `$SNAP/gnome-platform` graphics/audio roots,
+and finally generic `$SNAP` library roots. Keeping the base ABI ahead of the
+older GNOME content runtime prevents its `libedit.so.2` from injecting an
+unavailable `libtinfo.so.5` dependency into mesa-core22's software renderer.
+The helper rebuilds GBM, GL/VA driver, EGL vendor/platform, and Vulkan layer
+variables from those trusted locations. A Linux session without the validated
+cached mode is rejected before spawn.
 Both the bounded probe and playback execute through
 `$SNAP/graphics/bin/graphics-core22-provider-wrapper`. The graphics mount must
 be a real directory and the wrapper a regular, non-symlinked, readable

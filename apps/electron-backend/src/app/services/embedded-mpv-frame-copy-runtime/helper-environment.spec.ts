@@ -74,7 +74,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
         ).toEqual(GRAPHICS_SELECTOR_ENVIRONMENT);
     });
 
-    it('keeps trusted Snap GL roots ahead of generic Snap libraries', () => {
+    it('keeps trusted Snap GL and core22 roots ahead of older and generic libraries', () => {
         const snapRoot = '/snap/iptvnator/42';
         const nativeDir = path.join(
             snapRoot,
@@ -220,6 +220,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
                     'x86_64-linux-gnu',
                     'vdpau'
                 ),
+                '/usr/lib/x86_64-linux-gnu',
                 path.join(
                     snapRoot,
                     'gnome-platform',
@@ -324,6 +325,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
                     'x86_64-linux-gnu',
                     'vdpau'
                 ),
+                '/usr/lib/x86_64-linux-gnu',
                 path.join(snapRoot, 'lib'),
                 path.join(snapRoot, 'usr', 'lib'),
                 path.join(snapRoot, 'lib', 'x86_64-linux-gnu'),

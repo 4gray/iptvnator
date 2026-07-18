@@ -316,12 +316,15 @@ ambient-path assertions and fail-closed application gate stay active.
 Inside a genuine Snap mount, filtered absolute `SNAP_LIBRARY_PATH` entries below
 `/var/lib/snapd/lib/gl` follow `native/lib`. The exact
 `$SNAP/graphics/usr/lib/x86_64-linux-gnu` content-provider roots come next,
-followed by the GNOME platform's fixed x64 library, Mesa, DRI, and PulseAudio
-roots only when `SNAP_DESKTOP_RUNTIME` resolves exactly to
-`$SNAP/gnome-platform`; generic `$SNAP` roots remain last. The helper also
-rebuilds the GBM, GL/VA driver, EGL vendor/platform, and Vulkan layer variables
-from those trusted roots. Caller-provided triplets, graphics-driver paths, and
-out-of-root loader entries are ignored.
+followed by the core22 base `/usr/lib/x86_64-linux-gnu`, then the GNOME
+platform's fixed x64 library, Mesa, DRI, and PulseAudio roots only when
+`SNAP_DESKTOP_RUNTIME` resolves exactly to `$SNAP/gnome-platform`; generic
+`$SNAP` roots remain last. Core22 must precede that older desktop content
+runtime so its compatible `libedit.so.2` wins instead of the GNOME copy that
+requires unavailable `libtinfo.so.5`. The helper also rebuilds the GBM, GL/VA
+driver, EGL vendor/platform, and Vulkan layer variables from those trusted
+roots. Caller-provided triplets, graphics-driver paths, and out-of-root loader
+entries are ignored.
 Both the bounded probe and playback execute the helper through
 `$SNAP/graphics/bin/graphics-core22-provider-wrapper`. Before either launch,
 the app requires the mounted graphics root to be a real directory and the

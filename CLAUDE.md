@@ -657,10 +657,12 @@ engine` (restart required) or
   links `libGL.so.1`, and probe/playback share a sanitized loader environment
   in which ambient audit, preload, library, graphics-driver, and shell-startup
   overrides are removed; the validated private closure plus trusted host GL,
-  graphics-content, and exact GNOME-platform roots have explicit precedence.
-  The extracted-artifact verifier removes the identical unsafe
-  loader/graphics/shell set before direct helper smoke while preserving
-  selectors such as `LIBGL_ALWAYS_SOFTWARE`. Snap fixes the wrapper `PATH`,
+  graphics-content, core22 base x64, and exact GNOME-platform roots have
+  explicit precedence. The core22 base stays ahead of GNOME so the older
+  `libedit.so.2` requiring `libtinfo.so.5` cannot shadow the base ABI. The
+  extracted-artifact verifier removes the identical unsafe loader/graphics/
+  shell set before direct helper smoke while preserving selectors such as
+  `LIBGL_ALWAYS_SOFTWARE`. Snap fixes the wrapper `PATH`,
   removes exported `BASH_FUNC_*` functions, and
   launches probe/playback through the regular executable
   `$SNAP/graphics/bin/graphics-core22-provider-wrapper`; a missing or
