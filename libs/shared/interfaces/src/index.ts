@@ -1,3 +1,4 @@
+export * from './lib/channel-drm.interface';
 export * from './lib/channel.interface';
 export * from './lib/channel.model';
 export * from './lib/dev-logger.util';

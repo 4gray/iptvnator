@@ -240,6 +240,47 @@ describe('playlist utils', () => {
         expect(playlist.epgUrls).toEqual(epgUrls.slice(0, 5));
     });
 
+    it('attaches ClearKey DRM extracted from raw KODIPROP lines and leaves other channels untouched', () => {
+        const kid = '9eb4050de44b4802932e27d75083e266';
+        const key = '166634c675823c235a4a9446fad52e4d';
+        const baseItem = {
+            tvg: { id: '', name: '', url: '', logo: '', rec: '' },
+            group: { title: 'DASH' },
+            http: { referrer: '', 'user-agent': '' },
+        };
+        const playlist = createPlaylistObject('DRM playlist', {
+            header: { attrs: {}, raw: '#EXTM3U' },
+            items: [
+                {
+                    ...baseItem,
+                    name: 'Encrypted DASH',
+                    url: 'https://example.com/enc.mpd',
+                    raw: [
+                        '#EXTINF:-1,Encrypted DASH',
+                        '#KODIPROP:inputstream.adaptive.license_type=clearkey',
+                        `#KODIPROP:inputstream.adaptive.license_key=${kid}:${key}`,
+                        'https://example.com/enc.mpd',
+                    ].join('\r\n'),
+                },
+                {
+                    ...baseItem,
+                    name: 'Plain HLS',
+                    url: 'https://example.com/live.m3u8',
+                    raw: '#EXTINF:-1,Plain HLS\r\nhttps://example.com/live.m3u8',
+                },
+            ],
+        });
+
+        const [encrypted, plain] = playlist.playlist.items;
+        expect(encrypted.drm).toEqual({
+            licenseType: 'clearkey',
+            supported: true,
+            clearKeys: { [kid]: key },
+        });
+        expect(plain.drm).toBeUndefined();
+        expect('drm' in plain).toBe(false);
+    });
+
     it('keeps disabled playlist EPG sources out while preserving manually enabled URLs', () => {
         expect(
             resolvePlaylistEpgSourceState({

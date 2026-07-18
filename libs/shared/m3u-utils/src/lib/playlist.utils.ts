@@ -5,6 +5,7 @@ import {
     Playlist,
 } from '@iptvnator/shared/interfaces';
 import { v4 as uuidv4 } from 'uuid';
+import { extractDrmFromRaw } from './kodiprop.utils';
 
 /**
  * Aggregates favorite channels as objects from all available playlists
@@ -392,10 +393,14 @@ export const createPlaylistObject = (
         count: playlist.items.length,
         playlist: {
             ...playlist,
-            items: playlist.items.map((item: ParsedPlaylistItem) => ({
-                ...item,
-                id: uuidv4(),
-            })),
+            items: playlist.items.map((item: ParsedPlaylistItem) => {
+                const drm = extractDrmFromRaw(item.raw);
+                return {
+                    ...item,
+                    id: uuidv4(),
+                    ...(drm ? { drm } : {}),
+                };
+            }),
         },
         importDate: new Date().toISOString(),
         lastUsage: new Date().toISOString(),

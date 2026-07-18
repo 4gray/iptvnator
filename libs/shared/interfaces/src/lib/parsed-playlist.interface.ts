@@ -1,3 +1,5 @@
+import { ChannelDrm } from './channel-drm.interface';
+
 export interface ParsedPlaylist {
     header: {
         attrs: Record<string, string | undefined>;
@@ -31,4 +33,5 @@ export interface ParsedPlaylistItem {
     };
     timeshift?: string;
     radio?: string;
+    drm?: ChannelDrm;
 }

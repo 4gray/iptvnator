@@ -1,3 +1,4 @@
+import { ChannelDrm } from './channel-drm.interface';
 import { PlaybackPositionData } from './playback-position.interface';
 
 export interface PlayerContentInfo extends Omit<
@@ -18,4 +19,5 @@ export interface ResolvedPortalPlayback {
     userAgent?: string;
     referer?: string;
     origin?: string;
+    drm?: ChannelDrm;
 }
