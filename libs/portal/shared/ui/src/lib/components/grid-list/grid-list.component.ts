@@ -2,6 +2,7 @@ import {
     ChangeDetectionStrategy,
     Component,
     computed,
+    inject,
     input,
     output,
     signal,
@@ -11,6 +12,8 @@ import { MatIcon } from '@angular/material/icon';
 import { MatPaginatorModule, PageEvent } from '@angular/material/paginator';
 import { MatTooltip } from '@angular/material/tooltip';
 import { TranslatePipe } from '@ngx-translate/core';
+import { applyChannelNameStrip } from '@iptvnator/shared/m3u-utils';
+import { SettingsStore } from '@iptvnator/services';
 import {
     ProgressCapsuleComponent,
     WatchedBadgeComponent,
@@ -164,10 +167,9 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
                                 <mat-icon>star</mat-icon>{{ rating }}
                             </div>
                         }
-                        @let title = i.title ?? i.o_name ?? i.name;
                         <mat-card-actions>
                             <div class="title">
-                                {{ title || 'No name' }}
+                                {{ channelTitle(i) }}
                             </div>
                         </mat-card-actions>
                     </mat-card>
@@ -229,6 +231,7 @@ function normalizeArtworkUrl(value: string | undefined): string | undefined {
 })
 export class GridListComponent {
     private readonly failedArtworkUrls = signal<ReadonlySet<string>>(new Set());
+    private readonly settingsStore = inject(SettingsStore);
 
     readonly items = input<GridListItem[]>([]);
     readonly isLoading = input<boolean>(false);
@@ -253,6 +256,18 @@ export class GridListComponent {
     protected readonly hasActiveSearch = computed(
         () => (this.searchTerm() ?? '').trim().length > 0
     );
+    /** Prefix stripping applies to channel grids only, never VOD/series. */
+    private readonly isLiveGrid = computed(() =>
+        ['live', 'itv', 'radio'].includes(this.type())
+    );
+    protected readonly channelTitle = (item: GridListItem): string => {
+        const raw = item.title ?? item.o_name ?? item.name ?? '';
+        const stripped = applyChannelNameStrip(
+            raw,
+            this.isLiveGrid() && this.settingsStore.stripCountryPrefix?.()
+        );
+        return stripped || 'No name';
+    };
 
     readonly skeletonRows = computed(() => {
         const preferredCount = this.limit() ?? 12;

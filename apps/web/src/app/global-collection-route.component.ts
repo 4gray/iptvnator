@@ -24,6 +24,7 @@ import {
 import {
     CollectionScope,
     PortalProvider,
+    SeriesResumeTarget,
     UnifiedCollectionItem,
 } from '@iptvnator/portal/shared/util';
 import { WORKSPACE_SHELL_ACTIONS } from '@iptvnator/workspace/shell/util';
@@ -68,6 +69,7 @@ function providerToPortalType(provider: PortalProvider): UnifiedPortalType {
 })
 export class GlobalCollectionDetailHostComponent implements OnDestroy {
     readonly item = input<UnifiedCollectionItem | null>(null);
+    readonly seriesResume = input<SeriesResumeTarget | null>(null);
     readonly closeRequested = output<void>();
 
     private readonly viewContainer = inject(ViewContainerRef);
@@ -78,9 +80,10 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
     constructor() {
         effect(() => {
             const item = this.item();
+            const seriesResume = this.seriesResume();
 
             untracked(() => {
-                void this.renderDetail(item);
+                void this.renderDetail(item, seriesResume);
             });
         });
     }
@@ -91,7 +94,8 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
     }
 
     private async renderDetail(
-        item: UnifiedCollectionItem | null
+        item: UnifiedCollectionItem | null,
+        seriesResume: SeriesResumeTarget | null
     ): Promise<void> {
         const requestId = ++this.renderRequestId;
         this.clearDetail();
@@ -109,6 +113,9 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
             environmentInjector: this.environmentInjector,
         });
         componentRef.setInput('item', item);
+        if (item.sourceType === 'xtream') {
+            componentRef.setInput('seriesResume', seriesResume);
+        }
         this.subscribeToClose(componentRef.instance);
     }
 
@@ -175,9 +182,17 @@ export class GlobalCollectionDetailHostComponent implements OnDestroy {
                 [portalType]="activePortalType() ?? undefined"
                 [defaultScope]="effectiveDefaultScope()"
             >
-                <ng-template unifiedCollectionDetail let-item let-close="close">
+                <ng-template
+                    unifiedCollectionDetail
+                    let-item
+                    let-seriesResume="seriesResume"
+                    let-close="close"
+                >
                     @if (item.sourceType === 'xtream') {
-                        <app-global-collection-detail-host [item]="item" />
+                        <app-global-collection-detail-host
+                            [item]="item"
+                            [seriesResume]="seriesResume"
+                        />
                     } @else if (item.sourceType === 'stalker') {
                         <app-global-collection-detail-host
                             [item]="item"

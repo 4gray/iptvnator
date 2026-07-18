@@ -447,6 +447,9 @@ importers:
       typescript-eslint:
         specifier: ^8.46.2
         version: 8.51.0(eslint@9.39.2(jiti@1.21.7))(typescript@5.9.3)
+      yaml:
+        specifier: 2.8.2
+        version: 2.8.2
 
 packages:
 

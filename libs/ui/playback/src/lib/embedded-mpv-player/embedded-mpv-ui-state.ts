@@ -97,6 +97,14 @@ export class EmbeddedMpvFeedback {
         }, durationMs);
     }
 
+    clear(): void {
+        if (this.timer !== null) {
+            clearTimeout(this.timer);
+            this.timer = null;
+        }
+        this.current.set(null);
+    }
+
     dispose(): void {
         if (this.timer !== null) {
             clearTimeout(this.timer);

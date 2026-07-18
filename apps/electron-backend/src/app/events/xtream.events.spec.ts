@@ -86,6 +86,45 @@ describe('XtreamEvents session cancellation', () => {
         expect(requestedUrl.searchParams.get('username')).toBe('user');
     });
 
+    it('sends a player-style User-Agent instead of a truncated browser string', async () => {
+        // Regression: some Xtream panels sit behind a WAF (e.g. Cloudflare)
+        // that challenges generic/incomplete browser User-Agents but
+        // allowlists known IPTV player clients. The previous hardcoded
+        // 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        // string was rejected by such panels even though curl/Safari worked.
+        const requestHandler = registeredHandlers.get('XTREAM_REQUEST');
+        expect(requestHandler).toBeDefined();
+
+        axiosMock.mockResolvedValue({
+            status: 200,
+            data: { user_info: { auth: 1, status: 'Active' } },
+            headers: {},
+        });
+
+        await requestHandler?.(
+            {},
+            {
+                url: 'https://example.com',
+                params: {
+                    action: 'get_account_info',
+                    password: 'pass',
+                    username: 'user',
+                },
+                suppressErrorLog: true,
+            }
+        );
+
+        const requestConfig = axiosMock.mock.calls[0][0] as {
+            headers?: Record<string, string>;
+        };
+        const userAgent = requestConfig.headers?.['User-Agent'];
+        expect(userAgent).toBeDefined();
+        expect(userAgent).not.toBe(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        );
+        expect(userAgent).not.toMatch(/^Mozilla\/5\.0 /);
+    });
+
     it('follows validated redirects for range GET media probes', async () => {
         const probeHandler = registeredHandlers.get('XTREAM_PROBE_URL');
         const destroyProbeBody = jest.fn();
@@ -128,6 +167,9 @@ describe('XtreamEvents session cancellation', () => {
         expect(firstRequest.method).toBe('GET');
         expect(firstRequest.headers).toEqual(
             expect.objectContaining({ Range: 'bytes=0-4095' })
+        );
+        expect(firstRequest.headers?.['User-Agent']).not.toBe(
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         );
         expect(firstRequest.maxRedirects).toBe(0);
         expect(firstRequest.responseType).toBe('stream');

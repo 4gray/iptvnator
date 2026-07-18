@@ -10,6 +10,7 @@ import { PlaylistsService } from '@iptvnator/services';
 import { Playlist } from '@iptvnator/shared/interfaces';
 import { firstValueFrom, of } from 'rxjs';
 import { SerialDetailsComponent } from './serial-details/serial-details.component';
+import { XTREAM_SERIES_RESUME_TARGET } from './serial-details/serial-details-resume-target.token';
 import { XtreamCollectionDetailComponent } from './xtream-collection-detail.component';
 
 describe('XtreamCollectionDetailComponent', () => {
@@ -105,19 +106,23 @@ describe('XtreamCollectionDetailComponent', () => {
     });
 
     it('opens Xtream series favorites with the serial detail route context', async () => {
-        fixture.componentRef.setInput(
-            'item',
-            {
-                uid: 'xtream::xtream-1::series:103',
-                name: 'Series One',
-                contentType: 'series',
-                sourceType: 'xtream',
-                playlistId: 'xtream-1',
-                playlistName: 'Xtream Portal',
-                xtreamId: 103,
-                categoryId: 3,
-            } satisfies UnifiedCollectionItem
-        );
+        const seriesResume = {
+            seriesXtreamId: 103,
+            contentXtreamId: 2001,
+            seasonNumber: 2,
+            episodeNumber: 1,
+        };
+        fixture.componentRef.setInput('item', {
+            uid: 'xtream::xtream-1::series:103',
+            name: 'Series One',
+            contentType: 'series',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream Portal',
+            xtreamId: 103,
+            categoryId: 3,
+        } satisfies UnifiedCollectionItem);
+        fixture.componentRef.setInput('seriesResume', seriesResume);
 
         fixture.detectChanges();
         await fixture.whenStable();
@@ -140,9 +145,17 @@ describe('XtreamCollectionDetailComponent', () => {
         // toSignal(), so the fake route must expose the observable too —
         // otherwise the inline detail crashes on construction.
         expect(route?.params).toBeDefined();
-        await expect(firstValueFrom(route!.params)).resolves.toEqual({
+        if (!route) {
+            throw new Error('expected an inline ActivatedRoute');
+        }
+        await expect(firstValueFrom(route.params)).resolves.toEqual({
             categoryId: '3',
             serialId: '103',
         });
+        expect(
+            fixture.componentInstance
+                .detailInjector()
+                ?.get(XTREAM_SERIES_RESUME_TARGET)()
+        ).toEqual(seriesResume);
     });
 });

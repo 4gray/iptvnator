@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "جارٍ المسح…",
         "EPG_URL_ERROR": "القيمة ليست رابطًا صالحًا",
         "VIDEO_PLAYER_DESCRIPTION": "اختر مشغل الفيديو الافتراضي",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحّدة لمشغلات الويب (تجريبي)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استخدم عناصر التحكم المشتركة في IPTVnator مع HTML5 وVideo.js وArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "اختر تنسيق البث الافتراضي (xtream)",
         "LANGUAGE_DESCRIPTION": "اختر لغة التطبيق",
         "THEME_DESCRIPTION": "اختر السمة البصرية للتطبيق",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "عرض أو إخفاء الترجمات افتراضيًا",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "عرض شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "إبقاء شريط حالة المشغل الخارجي مرئيًا في أسفل مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "إزالة بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "يزيل بادئات البلد/المجموعة مثل \"US | \" أو \"UK - \" من أسماء قنوات البث المباشر في جميع أنحاء التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي للتطبيق",
         "ABOUT_SUBTITLE": "الإصدار وروابط المشروع وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "بيئة تشغيل MPV المضمّنة",
@@ -428,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "يُرسم الفيديو على لوحة التطبيق بحيث تظهر القوائم ومربعات الحوار فوقه.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "يسري المفعول بعد إعادة تشغيل التطبيق."
     },
     "THEMES": {
         "DARK_THEME": "داكن",
@@ -459,6 +466,7 @@
             "BACK_10_SECONDS": "رجوع 10 ثوانٍ",
             "FORWARD_10_SECONDS": "تقديم 10 ثوانٍ",
             "LIVE_STREAM": "بث مباشر",
+            "PLAYBACK_POSITION": "موضع التشغيل",
             "MUTE": "كتم الصوت",
             "UNMUTE": "إلغاء كتم الصوت",
             "MUTED": "الصوت مكتوم",
@@ -483,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "فشل بدء التسجيل.",
             "RECORDING_FAILED_TO_STOP": "فشل إيقاف التسجيل.",
             "SAVED_TO": "تم الحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "تشغيل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "إنهاء صورة داخل صورة",
             "ENTER_FULLSCREEN": "ملء الشاشة",
             "EXIT_FULLSCREEN": "الخروج من ملء الشاشة"
         }
@@ -779,6 +789,7 @@
         "RESTART": "البدء من جديد",
         "CONTINUE_WATCHING": "متابعة المشاهدة",
         "PLAY_FIRST_EPISODE": "تشغيل الحلقة الأولى",
+        "PLAY_EPISODE": "تشغيل الحلقة {{episode}}",
         "RESUME_EPISODE": "استئناف الحلقة",
         "PLAY_NEXT_EPISODE": "تشغيل الحلقة التالية",
         "SERIES_WATCHED": "تمت مشاهدة المسلسل",

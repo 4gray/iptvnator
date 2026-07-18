@@ -18,6 +18,15 @@ Source files for the embedded MPV integration:
 - `libs/shared/interfaces/src/lib/embedded-mpv-session.interface.ts` defines the shared session and audio-track contract.
 - `libs/ui/playback/src/lib/embedded-mpv-player/` owns the Angular UI and controls.
 
+Frame-copy engine sources (experimental, macOS Apple Silicon, Linux x64, and
+Windows — see the "Frame-Copy Engine" section below):
+
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper` process (`mpv_frame_helper.cpp`, `frame_helper_render.h`, `frame_helper_gl.h`, `frame_helper_io.h`, `frame_shm.h`).
+- `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API shm frame reader used by the preload frame pump.
+- `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` — helper-process adapter behind the `NativeEmbeddedMpvAddon` surface.
+- `apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts` — preload frame pump (shm → WebGL canvas).
+- `spikes/mpv-frame-copy/` — standalone spike, measurement log (RESULTS.md), integration design (DESIGN.md), and the original analysis (ANALYSIS.md).
+
 Generated native-addon build output:
 
 - `apps/electron-backend/native/build/`
@@ -26,13 +35,24 @@ The build directory contains files such as `Makefile`, `binding.Makefile`, `conf
 
 ## How It Is Embedded
 
-The embedded player renders MPV frames into an app-owned native video surface. macOS uses the libmpv render API in an `NSOpenGLView` because the mpv `wid` path produced a black video surface inside Electron. Windows loads `libmpv` through the native Node addon and uses mpv's `wid` option against an IPTVnator-owned child `HWND`. Linux creates an IPTVnator-owned X11/Xwayland child `Window` and starts an out-of-process `mpv --wid=<window>` instance for that child window.
+Embedded MPV has two rendering paths. The native-view engine renders into an
+app-owned platform video surface: macOS uses the libmpv render API in an
+`NSOpenGLView` because the mpv `wid` path produced a black video surface inside
+Electron; Windows loads `libmpv` through the native Node addon and uses mpv's
+`wid` option against an IPTVnator-owned child `HWND`; Linux creates an
+IPTVnator-owned X11/Xwayland child `Window` and starts an out-of-process
+`mpv --wid=<window>` instance for that child window. The frame-copy engine
+instead uploads helper-produced frames to a Chromium-owned DOM canvas.
 
 Windows packaged runtimes must preserve the MPV DLL basename referenced by the
 import library used at native-addon link time. For example, an archive that
 ships `libmpv.dll.a` and `libmpv-2.dll` must package `libmpv-2.dll`; renaming it
 to `mpv-2.dll` leaves `embedded_mpv.node` with an unresolved DLL dependency at
-startup, so the Settings support probe hides the Embedded MPV option.
+startup, so the Settings support probe hides the Embedded MPV option. The
+frame-copy helper is a separate executable and resolves that same import from
+its own directory. Package validation therefore reads the helper's PE import
+table and requires the exact referenced MPV DLL beside
+`iptvnator_mpv_helper.exe`, not only under `native/lib/`.
 
 On Linux, `embedded_mpv.node` must not link directly to `libmpv` or load libmpv in-process. Electron loads its own `libffmpeg` and Chromium graphics stack; in-process libmpv can resolve FFmpeg/GL symbols against incompatible Electron symbols, while isolated dynamic-loader namespaces introduce thread/runtime ownership problems. The Linux addon therefore owns only the X11 child-window embedding, process lifecycle, and a private MPV JSON IPC socket. It starts `mpv --wid=<window> --input-ipc-server=<socket>`, polls `time-pos`, `duration`, `volume`, and `pause`, and forwards pause/seek/volume/audio-track commands through that socket. The Linux MPV JSON IPC polling runs on an addon-owned background thread; `getSessionSnapshot()` returns the last cached snapshot and must not perform socket round trips on Electron's main thread. Linux MPV process teardown sends `SIGTERM` on the caller path, then waits and escalates to `SIGKILL` on a detached cleanup thread. A healthy Linux build lists X11/Xext as addon dependencies, but `ldd apps/electron-backend/native/build/Release/embedded_mpv.node` must not list `libmpv`. Runtime support also requires an `mpv` executable on `PATH`.
 
@@ -40,18 +60,76 @@ Linux native Wayland embedding is not implemented. When Electron is started on X
 
 ## Linux Support Matrix
 
-Embedded MPV on Linux is supported only for x64 desktop builds where Electron runs under X11 or Xwayland and an `mpv` executable is available on `PATH`. Native Wayland embedding is not supported in this implementation. Packaged Linux launchers pass `--ozone-platform=x11` so Wayland desktops use Xwayland when it is available, and `main.ts` appends the same switch on Linux when it is absent so direct binary/AppImage launches from a terminal behave like launcher starts. Explicit user intent is never overridden: both a user-provided `--ozone-platform` switch and the `ELECTRON_OZONE_PLATFORM_HINT` environment variable suppress the fallback.
+Official Linux frame-copy packaging is x64-only. The native-view and frame-copy
+engines have different runtime requirements:
 
-When the `mpv` executable probe fails inside a Flatpak or Snap sandbox (`FLATPAK_ID`/`SNAP` env present), the support reason explains that sandboxed packages cannot access a system mpv instead of asking the user to install it.
+| Engine      | Display path                  | MPV runtime                                                                |
+| ----------- | ----------------------------- | -------------------------------------------------------------------------- |
+| native-view | X11 or Xwayland               | An `mpv` executable on `PATH`; playback is an isolated `mpv --wid` process |
+| frame-copy  | Headless EGL; no window embed | A separately linked and capability-probed `iptvnator_mpv_helper`           |
 
-Current release-announcement wording should stay close to this:
+Native Wayland embedding is not implemented for native-view. Frame-copy itself
+does not embed a window and can render through EGL on a native Wayland desktop,
+although packaged launchers still default Electron to X11/Xwayland unless the
+user explicitly supplies an Ozone choice. A user-provided `--ozone-platform`
+or `ELECTRON_OZONE_PLATFORM_HINT` is never overridden.
 
-- Supported display path: X11 or Xwayland.
-- Not supported: native Wayland embedding.
-- Validated locally: Ubuntu 24.04 GNOME Wayland session with Electron forced to X11/Xwayland and system `mpv`.
-- Validated in CI: Ubuntu 22.04 standard Linux package build and Ubuntu 24.04 Flatpak package build.
-- Expected standard packages: `.deb` on Ubuntu/Debian, `pacman` on Arch/Manjaro, `.rpm` on RPM-based distributions, and AppImage on x64 glibc systems, all with system `mpv` installed.
-- Sandbox caveat: Flatpak and Snap packages build and continue to support the normal inline/external-player flows, but embedded MPV is not announced as supported there yet because the Linux backend launches `mpv --wid` and those sandboxed formats do not expose the host `mpv` executable to the app by default.
+Linux packages are built in separate passes because Electron Builder reuses
+one unpacked application layout per pass:
+
+| Profile    | Formats          | Frame-copy runtime strategy                                                                              |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `system`   | DEB, RPM, Pacman | System `libmpv.so.2` plus the helper's direct EGL/GL/GBM interfaces; exact dependencies are listed below |
+| `portable` | AppImage, Snap   | Bundled pinned LGPL-compatible runtime under `native/lib`                                                |
+| `flatpak`  | Flatpak          | The same bundled pinned LGPL-compatible runtime under `native/lib`                                       |
+
+System package dependencies are fail-closed and format-specific:
+
+- DEB: `libmpv2`, `libegl1`, `libgl1`, `libgbm1`
+- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-glx`, `mesa-libgbm`
+- Pacman: `mpv`, `libglvnd`, `mesa`
+
+The DEB contract deliberately names `libmpv2`, not a loose `libmpv`
+alternative, and explicitly names the GLVND `libGL.so.1` interface because
+`libmpv2` does not pull it in for the helper. The helper uses `-lGL`, not
+`-lOpenGL`; this matches the graphics interface supplied by distributions and
+Snap's `mesa-core22`. Release CI verifies that contract on Ubuntu 24.04
+(Noble). Ubuntu 22.04 (Jammy) provides `libmpv1`, so its DEB cannot enable this
+system-runtime frame-copy path; use the x64 AppImage there instead.
+
+Every x64 layout contains the addon, frame reader, helper, and a normalized
+`embedded-mpv-runtime.json`. The Electron executable, Electron libraries,
+`embedded_mpv.node`, and the frame reader must not link libmpv; only the helper
+may do so. AppImage, Snap, and Flatpak retain dynamically linked, replaceable
+runtime libraries and ship the corresponding source/build metadata. Their
+native directory also contains hash-validated `embedded-mpv-notices.json`,
+`THIRD_PARTY_NOTICES.txt`, and `licenses/<package>/**`. DEB, RPM, Pacman, and
+marker-only packages intentionally contain neither a private `native/lib`
+directory nor the bundled-runtime legal payload.
+
+The build-time `electron-backend/native` tree is excluded from `app.asar`.
+`afterPack` is the only owner of
+`resources/app.asar.unpacked/electron-backend/native`, so each profile receives
+exactly its normalized payload and ARM packages cannot retain a hidden x64
+helper, runtime, manifest, or notice copy in the archive. Both unpacked-layout
+and final Linux artifact verification enumerate `app.asar` and fail if any
+entry remains below `/electron-backend/native/`.
+
+The pristine `afterPack` and unpacked-layout checks recursively inspect
+Electron-owned shared libraries. An extracted Snap has already overlaid its
+package-manager `lib/**` and `usr/lib/**` runtime trees onto that same payload
+root, so the post-target verifier excludes exactly those two target-provided
+trees while continuing to scan every other directory recursively. Electron
+libraries are still required to be regular files and free of libmpv linkage;
+Snap runtime symlinks are outside that ownership boundary.
+
+ARM Linux packages remain marker-only. They never borrow x64 native artifacts,
+even when build environment variables claim a matching staged architecture.
+Consequently frame-copy is not advertised there, and the normal inline/external
+players remain available. On x64, any missing or unusable frame-copy dependency
+falls back to native-view without crashing; if native-view also lacks X11 or a
+system `mpv` executable, Embedded MPV is reported unavailable with a stable
+diagnostic reason.
 
 The flow is:
 
@@ -61,10 +139,24 @@ The flow is:
 4. The component asks the preload API to create an embedded MPV session with the current viewport bounds and initial volume.
 5. The Electron preload forwards calls through IPC to the main process.
 6. `EmbeddedMpvNativeService` owns sessions, polls snapshots, and emits session updates to the renderer.
-7. The native addon creates an app-owned platform video host inside the Electron window.
-8. On macOS the addon configures `vo=libmpv`, creates a `mpv_render_context`, and draws into the OpenGL surface. On Windows it creates an `mpv_handle`, disables MPV's own OSC/input handling, and passes the child-window id through `wid`. On Linux it starts `mpv --wid=<x11-window>` in a separate process with a private JSON IPC socket and tracks that process until playback replacement or dispose.
-9. Resize, scroll, and fullscreen changes are measured in Angular and sent back to the addon as native bounds so the platform video host stays aligned with the Angular layout.
-10. Playback controls remain IPTVnator-owned Angular UI. MPV receives commands only through the controlled IPC surface.
+7. For the native-view engine, the addon creates an app-owned platform video
+   host inside the Electron window. For frame-copy, the preload frame pump
+   attaches the session's shared-memory reader to
+   `<canvas data-embedded-mpv-frame>`.
+8. On macOS native-view, the addon configures `vo=libmpv`, creates a
+   `mpv_render_context`, and draws into the OpenGL surface. On Windows
+   native-view, it creates an `mpv_handle`, disables MPV's own OSC/input
+   handling, and passes the child-window id through `wid`. On Linux
+   native-view, it starts `mpv --wid=<x11-window>` in a separate process with a
+   private JSON IPC socket. Frame-copy instead uses the per-session helper
+   described below.
+9. Resize, scroll, and fullscreen changes are measured in Angular and sent
+   through bounds sync. Native-view uses them to align the platform host;
+   frame-copy uses them to resize helper rendering and the canvas frame source.
+10. Playback controls remain IPTVnator-owned Angular UI. Frame-copy uses the
+    shared `app-player-controls` overlay through
+    `EmbeddedMpvControlsAdapter`; native-view keeps its compositor-safe fixed
+    dock. MPV receives commands only through the controlled IPC surface.
 
 The renderer never gets direct native-module access. It can only call the preload contract:
 
@@ -81,13 +173,287 @@ The renderer never gets direct native-module access. It can only call the preloa
 - dispose session
 - subscribe to session updates
 
-Settings uses the preload support API as an availability and capability check. Unsupported paths return before loading the addon when platform, experiment gating, addon presence, bundled runtime presence, or the Linux `mpv` executable check fails. Supported paths load `embedded_mpv.node` so the renderer can receive capability flags from the actual addon binary. Avoid calling this support API from global workspace startup paths; use an explicit user action or idle preparation path when a renderer surface only needs to reveal optional Embedded MPV UI.
+Settings uses the preload support API as an availability and capability check.
+Unsupported paths return before loading the addon when platform, experiment
+gating, native artifacts, the packaged runtime manifest, the Linux helper
+probe, or the native-view `mpv` executable check fails. Support diagnostics
+include a stable `frameCopyUnavailableReason`; it is tracing/support data, not
+user-facing copy. Supported paths load `embedded_mpv.node` so the renderer can
+receive capability flags from the actual addon binary. Avoid calling this
+support API from global workspace startup paths; use an explicit user action
+or idle preparation path when a renderer surface only needs to reveal optional
+Embedded MPV UI.
 
 When `embedded-mpv` is the saved player, the settings store schedules an idle `prepareEmbeddedMpv()` call. This intentionally moves the first native addon load away from the click-to-play path. It can still block the Electron main process briefly because Node native addon loading is synchronous, but doing it during idle is less visible than doing it when the user clicks a video. Actual MPV session creation still happens on playback because it needs the current Electron window handle and viewport bounds.
 
-The MPV video surface is a native platform view/window, not a normal DOM element. Do not place critical Angular overlays on top of the video viewport and expect CSS `z-index` to win. The embedded MPV controls use a compositor-safe control dock below the native viewport instead of a true overlay on top of the native video surface.
+For the native-view engine, the MPV video surface is a platform view/window,
+not a normal DOM element. Do not place critical Angular overlays on top of that
+video viewport and expect CSS `z-index` to win. Native-view controls use a
+compositor-safe dock below the viewport instead of a true overlay.
 
-The dock has a stable reserved height while embedded controls are enabled. Controls fade in and out inside that fixed dock, so normal show/hide behavior does not resize the native MPV viewport or make the video jump. Volume and audio-track panels replace the default transport controls inside the same dock and provide a back button to return to the default controls. Popovers and menus must stay inside that dock unless the native layering strategy changes. The native MPV view deliberately ignores hit testing so mouse movement passes through to Chromium and can reveal Angular controls even when the pointer moves quickly across the video area.
+The native-view dock has a stable reserved height while embedded controls are
+enabled. Controls fade in and out inside that fixed dock, so normal show/hide
+behavior does not resize the native MPV viewport or make the video jump. Volume
+and audio-track panels replace the default transport controls inside the same
+dock and provide a back button to return to the default controls. Popovers and
+menus must stay inside that dock unless the native layering strategy changes.
+The native MPV view deliberately ignores hit testing so mouse movement passes
+through to Chromium and can reveal Angular controls even when the pointer moves
+quickly across the video area. None of these compositor restrictions applies to
+the frame-copy canvas.
+
+## Frame-Copy Engine (Experimental, Apple Silicon, Linux and Windows)
+
+`IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1` (on top of the regular
+embedded MPV experiment flag) switches macOS/arm64, Linux and Windows to a
+second rendering engine that replaces the native-view compositing entirely
+(gate: `isFrameCopyPlatformSupported()` in
+`embedded-mpv-frame-copy-platform.util.ts`, shared by `main.ts`, the
+service and the adapter):
+
+- `apps/electron-backend/native/helper/` — `iptvnator_mpv_helper`, a
+  one-process-per-session libmpv host. It decodes (hwdec), renders
+  offscreen at viewport size (async PBO readback ring over a headless GL
+  context — `frame_helper_gl.h`: CGL on macOS; on Linux EGL, acquiring a
+  display in order surfaceless-Mesa → default display → GBM render node;
+  every tier must complete config/context/bind validation, hardware rendering
+  is preferred, and a software tier is retained only as the final fallback;
+  on Windows WGL against a hidden window, bootstrapping a 3.2 core context
+  through `wglCreateContextAttribsARB`), publishes BGRA frames into a shm
+  seqlock ring (`frame_shm.h`, 3 slots, resize creates a new `-g<N>`
+  generation — POSIX shm on macOS/Linux, a `Local\` named file mapping on
+  Windows; the protocol carries POSIX-style `/impv-*` names everywhere and
+  the native sides derive the mapping name), and plays audio directly.
+  Control protocol: tab-separated commands on stdin, JSON events on stdout;
+  the `snapshot` event mirrors `NativeEmbeddedMpvSessionSnapshot`. Status
+  semantics are ported from `embedded_mpv.mm`.
+- `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts` —
+  implements the same `NativeEmbeddedMpvAddon` surface over the helper
+  process, so `EmbeddedMpvNativeService` (polling, diffing, power blocker,
+  recording paths) is reused unchanged. The flag routes `getAddon()` to the
+  adapter and support reports `engine: 'frame-copy'`.
+- `apps/electron-backend/native/src/embedded_mpv_frame_reader.c` — N-API
+  shm reader loaded by the preload frame pump
+  (`apps/electron-backend/src/app/api/embedded-mpv-frame-pump.ts`): copy
+  the newest complete frame into a reused ArrayBuffer once per rAF and
+  upload it to a WebGL2 texture on the renderer's
+  `<canvas data-embedded-mpv-frame>` (BGRA swizzle in the shader). Frame
+  copies whose post-copy seqlock check reports a writer race are discarded
+  without advancing the consumed sequence, so the next rAF retries instead
+  of uploading partial pixels. Frame data never crosses the contextBridge;
+  the bridge only exposes
+  `attachEmbeddedMpvFrameView`/`detachEmbeddedMpvFrameView`.
+- Renderer: `EmbeddedMpvPlayerComponent` renders the canvas when
+  `support.engine === 'frame-copy'` and skips the compositor workarounds —
+  no `HIDDEN_BOUNDS` when dialogs open, no popover bottom cutout; dialogs
+  and the shared `app-player-controls` overlay stack above the canvas as
+  ordinary DOM. The canvas fills the player root; the native dock's reserved
+  controls height is not applied. Legacy embedded-MPV pointer/click,
+  double-click, shortcut, cursor, menu, and recording-feedback ownership is
+  disabled for this engine. Bounds sync still runs: the helper re-renders at
+  the new viewport size (device pixels via the display scale factor), including
+  a forced current-frame render when a paused resize creates a fresh
+  shared-memory generation. Shared fullscreen uses the DOM Fullscreen API on
+  the player root, and the component's fullscreen listener still requests
+  bounds sync.
+
+Enabling it: the `Settings > Playback > Embedded MPV: frame-copy engine`
+checkbox (shown only when support reports `frameCopyAvailable`) persists to
+the main-process config store (`electron-conf`), which `main.ts` reads before
+creating the window and translates into the env flag; an explicitly set env
+var (including `0`) wins over the stored preference, but cannot bypass the
+platform/runtime safety gate. Frame-copy can relax the window sandbox only
+when embedded MPV itself is enabled for the current run (packaged app or the
+regular development experiment flag) and one process-wide capability decision
+has succeeded. On Linux x64 that decision validates the profile manifest,
+regular-file/access modes, the complete declared bundled closure and hashes,
+then runs `iptvnator_mpv_helper --runtime-probe` with a three-second timeout.
+The probe loads dependencies through the normal ELF loader, initializes an
+idle libmpv client, creates EGL/OpenGL plus mpv render contexts, then
+creates, maps, validates, and destroys a minimal `16x16` shared-memory ring
+named `/impv-fc-runtime-probe-<pid>`. It never opens media or enters the media
+or command loops. Shared-memory creation/mapping and header-initialization
+failures emit the stable helper reasons `shared-memory-create-failed` and
+`shared-memory-initialize-failed`. The probe must emit exactly one protocol-v1
+JSON line and return zero. When the helper exits nonzero with an otherwise
+exact failure line, the application availability diagnostic keeps the
+fail-closed top-level reason `helper-probe-failed` and may add only the
+allowlisted helper reason as `helperReason`. An optional `helperDetail` is
+copied only from the same exact line when it contains 1–1024 printable ASCII
+characters; an invalid detail rejects both helper fields. Malformed,
+multi-line, wrong-protocol, or unknown failure output never reaches either
+field. Every probe uses the same explicit 16 MiB aggregate captured-output
+ceiling, independent of tracing, so verbose diagnostics do not fall back to
+Node's smaller implicit buffer. When `IPTVNATOR_TRACE_PLAYER=1`, the probe also
+emits non-empty captured helper stderr separately as one JSON line. JSON
+escaping keeps embedded newlines on that single line, the `stderr` field is
+limited to the first 16,384 characters, and the `truncated` boolean is always
+present. A missing flag, empty capture, or trace-writer failure produces no
+trace and never changes the cached availability result or the application
+diagnostic's stdout protocol.
+
+The startup probe and every playback helper session use the same sanitized
+loader environment selected by the validated manifest's cached `runtimeMode`.
+Both remove ambient ELF audit/preload/origin/library overrides, direct
+EGL/GBM/GL/VA/Vulkan driver and layer paths, shell startup/options, tracing
+hooks, and exported Bash functions. The extracted-artifact verifier applies
+the same deny-set before its direct helper smoke, while preserving
+feature/debug selectors such as `LIBGL_ALWAYS_SOFTWARE`. The system profile
+then uses the default system loader without a private path. Bundled profiles
+put the validated packaged `native/lib` first. AppImage and Flatpak resolve the
+declared external graphics/audio interfaces through their normal host or
+sandbox loader.
+For the exact `com.fourgray.iptvnator` Flatpak payload under `/app`, the helper
+reconstructs Freedesktop Platform 24.08's immutable
+`__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS` value:
+`/etc/egl/egl_external_platform.d:/usr/lib/x86_64-linux-gnu/GL/egl/egl_external_platform.d:/usr/share/egl/egl_external_platform.d`.
+All ambient EGL/GBM/GL/VA/Vulkan path overrides remain removed. Freedesktop's
+GL extension `add-ld-path` is supplied through the sandbox loader cache, so no
+ambient `LD_LIBRARY_PATH` is needed. Flatpak CI runs the application-level
+`--embedded-mpv-runtime-probe`; direct helper execution is only a package
+layout check and cannot substitute for the real gate.
+The installed-Snap smoke enables `IPTVNATOR_TRACE_PLAYER=1`,
+`EGL_LOG_LEVEL=debug`, and `LIBGL_DEBUG=verbose`, so GLVND/Mesa loader failures
+remain observable through the bounded stderr record while the same hostile
+ambient-path assertions and fail-closed application gate stay active.
+Inside a genuine Snap mount, filtered absolute `SNAP_LIBRARY_PATH` entries below
+`/var/lib/snapd/lib/gl` follow `native/lib`. The exact
+`$SNAP/graphics/usr/lib/x86_64-linux-gnu` content-provider roots come next,
+followed by the core22 base `/usr/lib/x86_64-linux-gnu`, then the GNOME
+platform's fixed x64 library, Mesa, DRI, and PulseAudio roots only when
+`SNAP_DESKTOP_RUNTIME` resolves exactly to `$SNAP/gnome-platform`; generic
+`$SNAP` roots remain last. Core22 must precede that older desktop content
+runtime so its compatible `libedit.so.2` wins instead of the GNOME copy that
+requires unavailable `libtinfo.so.5`. The helper also rebuilds the GBM, GL/VA
+driver, EGL vendor/platform, and Vulkan layer variables from those trusted
+roots. Caller-provided triplets, graphics-driver paths, and out-of-root loader
+entries are ignored.
+Both the bounded probe and playback execute the helper through
+`$SNAP/graphics/bin/graphics-core22-provider-wrapper`. Before either launch,
+the app requires the mounted graphics root to be a real directory and the
+wrapper to be a regular, non-symlinked, readable executable. A missing or
+disconnected provider therefore reports the stable
+`snap-graphics-provider-unavailable` reason instead of attempting a partial
+loader setup. Because that provider wrapper is a non-interactive Bash script,
+the child environment also removes shell startup/options, exported
+`BASH_FUNC_*` functions, and tracing hooks, and fixes `PATH` to core22 system
+directories. This prevents ambient shell configuration from replacing the
+probe or its `dirname` lookup before the helper executes.
+
+The Snap is `base: core22` with strict confinement. It keeps Electron Builder's
+default plugs and adds an auto-connected private `shared-memory` plug plus the
+`graphics-core22` content plug targeting a real empty mode-0755
+`$SNAP/graphics`, with `mesa-core22` as default provider. `mesa-core22`
+supplies the shared
+EGL/GL/GLX/GBM/DRM/VA userspace; the existing GNOME content runtime supplies
+ALSA/PulseAudio. These providers are external shared snaps, so their binaries,
+source, notices, and installed bytes are not part of the IPTVnator Snap or its
+compliance archive. CI installs and explicitly connects both providers for a
+locally installed `--dangerous` artifact, then runs the application-level
+probe under strict confinement.
+
+The package carries the empty content target itself because core22 does not
+create `$SNAP` content targets while packing. Metadata verification rejects a
+missing, non-directory, symlinked, non-empty, or incorrectly permissioned
+target. It also requires exactly the canonical provider-data layouts:
+`/usr/share/libdrm` binds from `$SNAP/graphics/libdrm`, and
+`/usr/share/drirc.d` symlinks to `$SNAP/graphics/drirc.d`. No additional or
+duplicate layout entry is accepted.
+
+Private shared memory gives the app a confined, snap-specific POSIX shm
+namespace rather than global cross-snap access. The packaging-only
+`--embedded-mpv-runtime-probe` application switch invokes the same complete
+manifest, mode, hash, linkage, environment, and bounded helper probe used at
+startup before any BrowserWindow is created. It writes exactly one availability
+JSON line and exits zero only when frame-copy is usable. Consequently the
+installed-Snap smoke validates the actual confinement and shared-memory
+lifecycle required by playback, not only direct helper execution. The smoke
+first disconnects `graphics-core22` and requires the application diagnostic to
+emit `usable:false` with reason `snap-graphics-provider-unavailable` and
+controlled exit code `1`; it then reconnects the provider and requires the
+same diagnostic to succeed.
+Packaged addon, frame-reader, and helper discovery is limited to package-owned
+`app.asar.unpacked` resource locations and never falls through to writable
+cwd/dist development paths. Those fallbacks are development-only. A disabled
+base experiment or any failed capability check keeps the renderer sandbox
+enabled and falls back to the native engine. The result is cached by
+helper/manifest identity for the process lifetime, so the startup and service
+gates cannot disagree.
+Changing the toggle requires an app restart because web preferences are fixed
+at window creation.
+
+Rendering size: the helper renders at the **aspect-fit** size of the video
+(observed `dwidth`/`dheight`) inside the requested viewport and bumps a shm
+generation when it changes — letterbox bars are never baked into frames,
+frames stay as small as possible, and the canvas letterboxes with a
+transparent background (app surface shows at the sides; fullscreen keeps a
+black backdrop). Snapshots carry `videoWidth`/`videoHeight`.
+`IPTVNATOR_EMBEDDED_MPV_AUDIO_DELAY=<seconds>` passes through to mpv's
+`audio-delay` for lip-sync tuning until a calibration flow exists.
+
+Lifecycle safety: `EmbeddedMpvNativeService` watches the main window for
+`render-process-gone` and `did-navigate` (full reloads) and disposes every
+session — Angular teardown never runs on a renderer crash/hard reload, and
+without the watch helper processes (or native mpv handles) would leak until
+app shutdown. Unexpected helper exits surface as a session `error`. macOS
+and Windows package validation requires the helper
+(`iptvnator_mpv_helper` / `iptvnator_mpv_helper.exe`) and
+`embedded_mpv_frame_reader.node` next to the addon whenever the addon
+ships; on Windows the bundled mpv DLL is also copied beside the helper so
+the executable resolves it from its own directory. The after-pack hook
+restores the POSIX helper's executable mode after the asset copy, and
+optional/skipped native rebuilds remove stale helper/reader artifacts before
+reporting frame-copy availability. This cleanup prevents known leftover build
+output; the manifest and runtime probe are the compatibility check for a
+complete Linux runtime. Linux x64 packages retain the helper and frame reader:
+system packages resolve the declared `libmpv.so.2` through their package
+manager, while portable and sandboxed profiles resolve the source-built closure
+through `$ORIGIN/lib`. Foreign-architecture packages remove all native
+artifacts and contain only the unavailable marker.
+
+Trade-offs and constraints:
+
+- The frame-copy experiment flag can relax the BrowserWindow sandbox only
+  while the base embedded-MPV feature is enabled (preload must
+  `require` the reader addon); `contextIsolation` and
+  `nodeIntegration:false` stay on. The sandbox story must be revisited
+  before this engine can become a default — candidates: utilityProcess +
+  MessagePort (costs one extra copy + GC churn since Electron ports clone
+  ArrayBuffers) or a WebCodecs-based path.
+- Scope: on macOS Apple Silicon only by owner decision (2026-07-10);
+  Intel Macs keep the native-view engine. Official Linux frame-copy is x64 —
+  headless EGL, works under native Wayland since nothing embeds into a
+  window; local system builds need `libmpv-dev`, `libegl-dev`, `libgl-dev`,
+  and `libgbm-dev`. The helper links libmpv, which is legal
+  out-of-process; the in-process-libmpv ban still binds the addon and frame
+  reader. The helper logs the chosen EGL display tier and the GL renderer
+  string to stderr. If an early tier selects Mesa software rendering (for
+  example, while a proprietary NVIDIA driver is reachable through the default
+  display or GBM), it probes the remaining tiers and uses software only when
+  no hardware-backed context works. Windows (any arch with a helper, in
+  practice x64) is ported: WGL renders offscreen against a hidden window,
+  the shm ring is a session-local named file mapping, and the reader addon
+  compiles as C++ there (MSVC has no C11 `<stdatomic.h>`). The helper
+  links the vendored libmpv import library and loads the DLL from its own
+  directory. Windows 11 Smart App Control blocks unsigned locally-built
+  executables — turn it off on dev machines or the helper cannot spawn
+  (the support probe still reports available; the session errors).
+  Runtime trait, not frame-copy-specific: the vendored mpv-winbuild
+  libmpv routes http(s) through mpv's curl stream backend and ships no CA
+  bundle, so https streams currently fail TLS verification (`mpv/curl`
+  errors in the helper log); the in-process native engine links the same
+  DLL and shares the trait. Resolving the CA story belongs to Windows
+  runtime packaging, not to either engine.
+- Measured baseline (M1 Pro, spikes/mpv-frame-copy/RESULTS.md): 4K60 HEVC
+  sustained end to end, ~1.2 ms shm copy + ~3.5 ms texture upload, ~10 ms
+  produce-to-upload latency, zero torn frames over a 10-minute run.
+  Linux (i7-1165G7/Iris Xe, same RESULTS.md): 1080p60 sustained with
+  ~1.2 ms copies; the 4K rows are limited by software decode/source
+  generation on that hardware, not by the copy path; zero torn frames
+  everywhere.
+- Helper crash isolation: an unexpected helper exit surfaces as a session
+  `error` (renderer falls back); it can never take down the Electron main
+  process, unlike in-process libmpv.
 
 ## Resume And Track Handling
 
@@ -121,7 +487,14 @@ Async command/property replies are reconciled against pending request IDs on all
 
 The native addon also observes mpv's `eof-reached` property and maps a true value to `ended`. This is required because embedded sessions run with `keep-open=yes`; MPV can pause at EOF while keeping the file loaded, so relying only on `MPV_EVENT_END_FILE` can leave the renderer in a paused-at-end state and block series autoplay.
 
-Series episode navigation is owned by the portal feature components and passed through the shared inline player to `EmbeddedMpvPlayerComponent`. The embedded MPV controls show `skip_previous` and `skip_next` buttons only for non-live series playback. The shared navigation payload contains `canPrevious`, `canNext`, and `autoplayEnabled`; the component disables previous/next at the current-season boundaries and guards the output handlers as well as the button disabled state.
+Series episode navigation is owned by the portal feature components and passed
+through the shared inline player to `EmbeddedMpvPlayerComponent`. Frame-copy
+projects that state through `EmbeddedMpvControlsAdapter` and emits the shared
+controls' previous/next outputs; native-view keeps the equivalent buttons in
+its legacy dock. Both paths show navigation only for non-live series playback.
+The navigation payload contains `canPrevious`, `canNext`, and
+`autoplayEnabled`; the component guards the output handlers as well as the
+button disabled state at current-season boundaries.
 
 Autoplay is enabled by default for series playback in embedded MPV. On `ended`, Xtream and Stalker series detail views start the next episode only when the current episode has a next item in the same season. Playback stops on the last episode of the current season. Previous always switches to the previous episode in the current season; it does not implement a restart-threshold behavior.
 
@@ -137,30 +510,121 @@ Recording is session-scoped:
 - Loading a replacement stream or disposing the embedded session stops any active recording before the MPV handle is reused or destroyed.
 - `EmbeddedMpvSession.recording` carries `{ active, targetPath, startedAt, error }` so the renderer can show active elapsed time, final save path, or a failure.
 
+For frame-copy shared controls, recording command completion and session
+snapshot delivery are independent asynchronous signals. The component-scoped
+recording coordinator permits one pending toggle, ignores the pre-command
+baseline snapshot, and correlates only fresh observations from the same
+playback identity and session. It waits for command settlement and the expected
+active state before completing a successful transition, preserves addon error
+text, and uses a bounded failure timeout. Playback replacement, session
+replacement, engine handoff, or component destruction cancels pending
+ownership, timers, and stale feedback. Native-view retains its existing
+recording UI and timer path.
+
 The default recording folder is `app.getPath('downloads')`, matching the desktop download manager's fallback. Users can override it in Settings through `Settings.recordingFolder`; an empty setting means system Downloads. Recordings are intentionally not inserted into the Downloads database or queue in v1 because MPV writes from the active playback session while the download manager owns independent backend download jobs.
 
 mpv's own caveats apply: the output container is inferred from the target extension, and seeking or switching streams while recording can produce broken output. IPTVnator limits the UI to live streams and stops recording on playback replacement to avoid the most obvious corruption path, but the feature should still be treated as an experimental embedded MPV capability.
 
 ## Renderer Architecture And Reactivity
 
-The Angular side of the embedded MPV player is intentionally split so the player component stays a view-only orchestrator. The renderer files live under `libs/ui/playback/src/lib/embedded-mpv-player/`:
+The Angular side of the embedded MPV player is intentionally split so the
+player component stays a view-oriented orchestrator and engine-specific
+controls host. The renderer files live under
+`libs/ui/playback/src/lib/embedded-mpv-player/`:
 
 - `embedded-mpv-format.utils.ts` — pure helpers (`formatTime`, `audioTrackLabel`, `subtitleTrackLabel`, `speedLabel`, `aspectLabel`, `volumeIcon`, `volumeLabel`, `readStoredVolume`, `persistVolume`, `measureBounds`) and preset constants (`SPEED_PRESETS`, `ASPECT_PRESETS`, `HIDDEN_BOUNDS`, `MENU_OPEN_BOTTOM_CUTOUT_PX`).
-- `embedded-mpv-shortcuts.ts` — `EmbeddedMpvShortcuts` class with `attach(handlers)` / `detach()`. Owns the document keydown listener and routes through a callback interface; the component supplies the callbacks. Listens for Space/K (toggle), F (fullscreen), arrow keys (seek/volume), M (mute), Escape (close popovers).
-- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/`afterAllClosed` for dialog-shaped overlays and falls back to a `MutationObserver` on the CDK overlay container for any remaining backdrop-bearing CDK overlays. The native MPV video host is hidden off-screen while a modal is open so DOM dialogs can paint above it.
-- `embedded-mpv-ui-state.ts` — `EmbeddedMpvMenuState` (single-open popover state machine with `volumeOpen`, `audioOpen`, `subtitleOpen`, `speedOpen`, `aspectOpen` signals plus `anyOpen` computed; `toggle`/`open`/`close`/`closeAll` helpers) and `EmbeddedMpvFeedback` (transient overlay that auto-clears after a configurable delay; used for keypress feedback).
-- `embedded-mpv-session-controller.ts` — component-scoped `Injectable` service that owns the `support`, `session`, `sessionId`, `stalled`, and `retryToken` signals. Subscribes to `onEmbeddedMpvSessionUpdate`, runs the polling-driven `stalled` timer, owns bounds-sync (resize, scroll, overlay state), and exposes the imperative IPC surface (`startSession`, `togglePaused`, `seekBy`/`seekTo`, `applyVolume`, `setAudioTrack`, `setSubtitleTrack`, `setSpeed`, `setAspect`, `startRecording`, `stopRecording`, `retry`).
-- `embedded-mpv-player.component.ts` — view-only shell. Holds view children, derived `computed` signals, DOM event listeners (pointermove, pointerdown, fullscreenchange, dblclick), and three `effect()`s.
+- `embedded-mpv-controls.adapter.ts` — component-scoped `PlayerController`
+  adapter for frame-copy. Maps session/support/playback signals to shared
+  controls state and capabilities, delegates commands to
+  `EmbeddedMpvSessionController`, and projects series navigation and recording.
+- `embedded-mpv-controls-recording.ts` — frame-copy shared-controls recording
+  coordinator. Serializes toggles, correlates command settlement with fresh
+  same-owner snapshots, and cancels pending state on ownership or engine
+  changes.
+- `embedded-mpv-controls-recording-feedback.ts` — semantic raw/translated
+  recording feedback values and late translation resolution.
+- `embedded-mpv-controls-recording-timers.ts` — frame-copy recording feedback
+  signal plus acknowledgement and message-dismiss timer ownership. Keeps
+  transient timing lifecycle out of the recording correlation state machine.
+- `embedded-mpv-legacy-interactions.ts` — native-view-only pointer listeners,
+  click/double-click arbitration, popover closing, controls auto-hide, and
+  volume-close timers. An engine handoff cancels its pending legacy
+  interactions before frame-copy takes ownership.
+- `embedded-mpv-shortcuts.ts` — native-view-only `EmbeddedMpvShortcuts` class
+  with `attach(handlers)` / `detach()`. Owns the legacy document keydown
+  listener and routes through a callback interface; the component supplies
+  callbacks for Space/K, F, arrow keys, M, and Escape.
+- `embedded-mpv-overlay-visibility.service.ts` — singleton service that exposes
+  `overlayActive: signal<boolean>`. Tracks `MatDialog.afterOpened`/
+  `afterAllClosed` for dialog-shaped overlays and falls back to a
+  `MutationObserver` on the CDK overlay container for remaining
+  backdrop-bearing CDK overlays. Native-view uses it to move the platform host
+  off-screen; frame-copy uses it to gate shared playback shortcuts.
+- `embedded-mpv-ui-state.ts` — legacy native-view
+  `EmbeddedMpvMenuState` (single-open popover state machine) and
+  `EmbeddedMpvFeedback` (transient keypress feedback). They are not the
+  frame-copy shared-controls state.
+- `embedded-mpv-command-runner.ts` — transport/track/recording IPC delegation; contains addon-side throws; reconciles a returned snapshot only when the current canonical session id and returned snapshot id both match the captured command session id.
+- `embedded-mpv-session-factory.ts` — side-effect-free loading/error placeholder factories plus `waitForStartupPaint`.
+- `embedded-mpv-stalled-tracker.ts` — owns the 30-second loading timer and `stalled` signal.
+- `embedded-mpv-session-controller.ts` — component-scoped lifecycle coordinator. It exposes `support`, `session`, `sessionId`, `stalled`, and `retryToken`; subscribes to native updates; coordinates prepare/create/load/dispose, frame-copy attachment, and bounds sync; and delegates commands, placeholders, and stalled timing.
+- `embedded-mpv-player.component.ts` — view shell and engine-specific controls
+  host. It mounts shared controls only for frame-copy and the legacy dock only
+  for native-view; holds view children, derived `computed` signals, DOM event
+  handling for fullscreen, and effects for session lifecycle, bounds sync,
+  session fan-out, playback-ended emission, engine handoff, and native-only
+  recording ticks.
 
 ### Bounds compositing strategy
 
-The native video host paints outside the normal DOM stacking model, so any DOM region it covers cannot reliably receive pointer events and any CSS `z-index` competition is unwinnable. The component compensates with a single `boundsProvider(host)` closure on the controller that returns one of three bound shapes, evaluated each time the active bounds-sync runs:
+The following cutout strategy applies only to the native-view engine. Its video
+host paints outside the normal DOM stacking model, so any DOM region it covers
+cannot reliably receive pointer events and any CSS `z-index` competition is
+unwinnable. The component compensates with a single `boundsProvider(host)`
+closure on the controller that returns one of three bound shapes, evaluated
+each time the active bounds-sync runs:
 
 - **Modal overlay open** (any MatDialog, including the command palette) → `HIDDEN_BOUNDS`. The MPV video host moves off-screen so the dialog has the full window.
 - **Control popover open** (any of the menu states above) → host bounds with `MENU_OPEN_BOTTOM_CUTOUT_PX` (300 px) removed from the bottom. The popover region becomes DOM-receiving while video keeps playing in the upper region.
 - **Idle** → full host bounds.
 
 The viewport DOM element also reserves `--embedded-mpv-controls-height` (64 px) at the bottom when controls are enabled, so the controls strip itself is always DOM and always reachable for hover-to-reveal even before the popover-cutout takes effect.
+
+For frame-copy, `boundsProvider` always returns the measured full host bounds:
+there is no `HIDDEN_BOUNDS`, popover cutout, or reserved dock height. Dialogs
+and controls layer naturally over the canvas, while bounds sync still updates
+the helper's render size.
+
+### Controls ownership by engine
+
+`EmbeddedMpvPlayerComponent` selects one control owner from
+`support.engine`:
+
+- **Frame-copy** mounts `app-player-controls` with the component-scoped
+  `EmbeddedMpvControlsAdapter`. The shared layer owns surface pointer/click/
+  double-click behavior, document playback shortcuts, cursor hiding, menus,
+  recording feedback, and DOM fullscreen. Setting `showControls` to false
+  detaches the shared surface and playback shortcuts. A modal/backdrop overlay
+  disables shared playback shortcuts.
+- **Native-view** mounts the legacy fixed dock. Its existing component
+  handlers, `EmbeddedMpvShortcuts`, menu state, cursor logic, recording
+  feedback, and recording elapsed timer stay authoritative. The shared
+  recording adapter is inert outside frame-copy.
+
+An engine handoff asks `EmbeddedMpvLegacyInteractions` to clear native
+controls-hide/click/volume timers and close native menus when frame-copy takes
+ownership. Legacy feedback is cleared on each engine transition and its overlay
+is never rendered for frame-copy, so a late native command completion cannot
+paint above shared controls. The handoff also changes the shared recording
+owner, which cancels pending operations, acknowledgement/message timers, and
+feedback. This prevents both systems from acting on the same session.
+
+Both engines keep the component's `fullscreenchange` listener because
+fullscreen changes require bounds sync. Frame-copy's shared
+`ControlsFullscreen` additionally synchronizes when its DOM surface attaches or
+changes, including when the root is already fullscreen. Native-view does not
+gain a transparent-window, native-fullscreen, or native-surface overlay path
+from this integration.
 
 ### Reactivity rules (signals and effects)
 
@@ -175,15 +639,18 @@ Concrete bugs from the audit, recorded so they don't get reintroduced:
 - **Infinite session-create loop.** `EmbeddedMpvSessionController.startSession` once wrote `this.support.set(prepared)` after the `prepareEmbeddedMpv` round-trip. The component's session-creation effect tracks `this.support()`, so the write fired the effect → cleanup disposed the session → new session was created → prepare ran again → support was set again. Symptom: endless "Loading stream…" spinner. Fix: do not write `support` inside `startSession`; the constructor's `loadSupport()` already populates it including capabilities.
 - **Stream restart on volume change.** The session-creation effect once read `this.volume()` directly to pass to `startSession`'s `initialVolume`. Each volume tick re-ran the effect, disposing and recreating the session — for VOD/series this restarted playback from the beginning. Fix: read it via `untracked(() => this.volume())`. Subsequent volume changes flow through `controller.applyVolume()`, never through the effect graph.
 - **Spurious `timeUpdate` re-emits and `volume.set` calls.** The session-fan-out effect calls `scheduleControlsHide()`, which reads `isPlaying`, `menus.anyOpen`, `statusLabel`, and `controlsVisible`. Those reads became tracked deps, so opening any popover, pausing, or hovering re-ran the body. No loop in isolation, but a parent that wires `timeUpdate` back into `playback.startTime` would have hit the volume-restart bug class. Fix: wrap the side-effect block in `untracked()` so the effect listens only to session changes.
-- **2 Hz no-op stalled-tracker re-runs.** The controller's stalled effect tracked the full `session` signal, which updates on every position-poll snapshot. `handleStalledTracking` is a no-op for non-loading status, so the re-runs cost nothing useful. Fix: track a `sessionStatus = computed(() => this.session()?.status ?? null)` instead so the effect fires only on real status transitions.
+- **2 Hz no-op stalled-tracker re-runs.** Position polling updates `session` around 2 Hz. Tracking the full session would re-run stalled logic for snapshots with unchanged status, so the controller tracks only `sessionStatus` and invokes `EmbeddedMpvStalledTracker.track` inside `untracked()`, avoiding full-session reruns.
 
 When adding a new effect, audit it the same way: list every tracked signal read explicitly, justify each one as a _re-trigger source_, and wrap everything else in `untracked()`. When extending an existing helper that is called from inside an effect, treat the helper's signal reads as if they were inline in the effect.
 
 ### IPC safety
 
-Renderer-side IPC methods on the controller use the canonical `sessionId()` signal as the gate, **not** `session()?.id`. The session payload during the loading window carries a placeholder id (`embedded-mpv-starting`) set by `createLoadingSession()`; pushing that placeholder to the addon would hit `getSessionOrThrow` for a session that does not exist. The native side throws `Napi::Error` rather than `std::runtime_error` so that misuse surfaces as a JS exception rather than a process abort, but the renderer should still gate properly so the addon never sees the placeholder.
+Renderer command IPC in `EmbeddedMpvCommandRunner` uses the canonical `sessionId()` signal as the gate, **not** `session()?.id`. The session payload during the loading window carries a placeholder id (`embedded-mpv-starting`) set by `createLoadingSession()`; pushing that placeholder to the addon would hit `getSessionOrThrow` for a session that does not exist. The native side throws `Napi::Error` rather than `std::runtime_error` so that misuse surfaces as a JS exception rather than a process abort, but the renderer should still gate properly so the addon never sees the placeholder.
 
-Every IPC call goes through a `guardIpc` helper that swallows addon-side throws — sessions can be torn down while a call is in flight, and snapshot polling will resync state on the next tick.
+- **Playback-load teardown.** If teardown happens while `loadEmbeddedMpvPlayback` is in flight, the asynchronous startup task exits immediately after the load resolves, before frame attachment or bounds scheduling. The teardown path owns disposal of that session.
+- **Command identity.** Renderer commands capture the canonical `sessionId` before starting IPC. Default recording-folder resolution is asynchronous preflight before the recording-command IPC. The runner revalidates the captured id immediately after that preflight and skips IPC when it no longer matches, preventing a late recording command from being issued against the superseded session.
+- **Reply reconciliation.** `EmbeddedMpvCommandRunner` applies a returned snapshot only when both the current canonical `sessionId` and the returned snapshot id match the captured command session id. Late or mismatched replies are ignored. Its `guardIpc` helper contains addon-side errors, and the next broadcast session update resynchronizes state.
+- **Frame-attachment teardown.** If teardown happens during asynchronous frame attachment, the asynchronous startup task exits immediately after the attachment await, before bounds scheduling. The preload detach/attachment epochs abort pending frame setup, so the teardown's detach is not followed by a second late global detach.
 
 ### Power management
 
@@ -194,39 +661,82 @@ The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-
 Current development behavior:
 
 - The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
-- The build script first looks for a staged runtime at `vendor/embedded-mpv/<platform>-<arch>/`.
-- The staged runtime/build inputs must contain `include/mpv/client.h` and `runtime-manifest.json`. macOS and Windows staging also contains the platform runtime files that are bundled into the app.
+- The build script first looks for staged inputs at `vendor/embedded-mpv/<platform>-<arch>/`. On Linux, local development can fall back to distribution `libmpv-dev` headers and libraries. `LIBMPV_INCLUDE_DIR` overrides the header root. `LINUX_NATIVE_LIBRARY_DIR` is a link-time override and must name a directory already visible to the system dynamic loader; it is never inherited as helper `LD_LIBRARY_PATH`.
+- When the staged-input path is used, it must contain `include/mpv/client.h`,
+  `runtime-manifest.json`, and the platform runtime/build files. The Linux
+  source builder also stages the complete declared `.so` closure.
 - The compiled `.node` addon is copied into `dist/apps/electron-backend/native/embedded_mpv.node`.
-- Bundled runtime files are copied into `dist/apps/electron-backend/native/lib/` for macOS and Windows. macOS copies `.dylib` and non-`.dylib` Mach-O dependencies; Windows copies the staged `mpv-2.dll`/`libmpv-2.dll`/`mpv.dll`/`libmpv.dll` runtime name plus import libraries. Linux writes an `external-mpv-process` manifest and intentionally leaves `libmpv.so` out of the package.
-- Linux does not bundle or load `libmpv` in the Electron process. Its native addon still requires staged MPV headers, but runtime support depends on the X11/Xwayland window handle plus an `mpv` executable on `PATH`.
+- Bundled runtime files are copied into
+  `dist/apps/electron-backend/native/lib/`. macOS copies `.dylib` and
+  non-`.dylib` Mach-O dependencies; Windows copies the staged
+  `mpv-2.dll`/`libmpv-2.dll`/`mpv.dll`/`libmpv.dll` runtime name plus import
+  libraries. Linux source-runtime builds copy only the manifest-declared
+  closure.
+- Linux never bundles or loads libmpv in the Electron process. The native-view
+  addon remains X11/process-only; the inverse rule applies to frame-copy:
+  `iptvnator_mpv_helper` must link exactly the declared `libmpv.so.2`, while
+  the addon and frame reader must not.
 - `afterPack` copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` on macOS, Windows, and Linux so the addon, manifest, and runtime libraries are filesystem-addressable.
+- Electron Builder excludes `electron-backend/native{,/**/*}` from `app.asar`;
+  package verification rejects any archived native entry so `afterPack`
+  remains the single profile-aware owner.
 
-Current release caveat:
+Linux release profiles:
 
-- Release packaging requires a `vendored-lgpl` runtime manifest on macOS and Windows, and an `external-mpv-process` manifest on Linux.
-- The Linux addon is built once per CI host architecture (x64). Linux packages for other architectures (arm64, armv7l) must not ship that foreign addon: `afterPack` replaces the native directory with an `embedded-mpv-unavailable.txt` marker explaining that embedded MPV is not bundled for that architecture, and package-layout verification rejects a foreign-architecture `embedded_mpv.node` while requiring the marker.
+- `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=system` builds DEB, RPM, and Pacman.
+  `afterPack` removes the private `lib` directory, writes a
+  `system-libmpv-frame-copy` manifest, and package metadata requires the exact
+  libmpv plus EGL/GL/GBM package set listed above. The DEB path is verified
+  on Ubuntu 24.04+; Ubuntu 22.04 users need the x64 AppImage because Jammy only
+  provides `libmpv1`.
+- `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=portable` builds AppImage and Snap with
+  the pinned source-built closure and a `bundled-lgpl-frame-copy` manifest.
+- `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=flatpak` builds Flatpak with the same
+  source-built closure and manifest origin. Its app-level probe reconstructs
+  only the exact Freedesktop 24.08 EGL external-platform search path inside the
+  trusted `/app` payload.
+- The three profiles are separate packaging passes; mixing target sets fails
+  closed. Linux packages for other architectures (arm64, armv7l) must not ship
+  x64 native artifacts. `afterPack` replaces the native directory with
+  `embedded-mpv-unavailable.txt`, and package verification requires that
+  marker.
+- Every packaged manifest names its exact artifacts, profile/targets, libmpv
+  SONAME, loader closure, byte sizes, SHA-256 hashes, package dependencies, and
+  native-view fallback. Artifact modes and ELF dependency isolation are
+  verified after packaging.
 - macOS release packaging rejects embedded MPV binaries linked to `/opt/homebrew` or `/usr/local`.
-- Windows release packaging verifies that the platform runtime file is present when Embedded MPV is required. Linux release packaging verifies that the addon and manifest are present and that no bundled `libmpv.so` files slipped into the package.
+- Windows release packaging verifies that the platform runtime file is present
+  when Embedded MPV is required.
 - Local development can opt into Homebrew `libmpv` only by setting `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1`; packaged release validation rejects that runtime origin.
 
-Before public release, packaging must:
+Release packaging must:
 
-- stage an LGPL-compatible `libmpv` runtime for each macOS/Windows release platform/architecture, and stage Linux MPV headers/build metadata for Linux
+- stage an LGPL-compatible libmpv runtime for each bundled release
+  platform/architecture, including the pinned Linux x64 source runtime
 - collect indirect macOS dependencies expressed as absolute paths, `@loader_path`, or `@rpath`
 - rewrite macOS install names and dependency paths to app-relative paths such as `@loader_path`
 - code-sign and notarize the full macOS dependency set
 - ensure Windows runtime staging includes both the DLL and the import library used by `node-gyp`
-- ensure Linux native builds do not gain a direct `libmpv` dependency; the runtime playback path is `mpv --wid` in a separate process
-- publish the corresponding FFmpeg/libmpv source and build metadata for bundled macOS/Windows runtimes; Linux should document the distribution package versions used as build inputs
+- ensure Linux Electron/addon/reader binaries do not gain a direct libmpv
+  dependency and the helper does
+- execute the helper capability probe in each intended x64 package environment
+- publish corresponding source archives, git/submodule records, checksums,
+  exact flags, local patches, and build scripts for every bundled runtime
 
-Users on macOS and Windows do not need the MPV GUI application for this architecture. Linux currently requires an `mpv` executable because the supported backend is process-isolated. If the native addon/runtime prerequisites or Linux `mpv` executable are missing, embedded MPV is hidden/unsupported and the existing inline/external players remain available.
+Users on macOS and Windows do not need the MPV GUI application for this
+architecture. Linux native-view still requires an `mpv` executable. Linux
+frame-copy system packages need their declared libmpv and EGL/GL/GBM
+packages, while AppImage, Snap, and Flatpak carry their own runtime closure.
+If frame-copy prerequisites are missing, x64 falls back to native-view; if all
+Embedded MPV prerequisites are unavailable, the existing inline/external
+players remain available.
 
 ## Runtime Staging
 
 Runtime staging tooling lives in:
 
-- `/Users/4gray/Code/iptvnator/tools/embedded-mpv/`
-- `/Users/4gray/Code/iptvnator/vendor/embedded-mpv/`
+- `tools/embedded-mpv/`
+- `vendor/embedded-mpv/`
 
 Release runtime policy:
 
@@ -250,11 +760,83 @@ pnpm embedded-mpv:build-runtime -- arm64 /tmp/embedded-mpv-prefix
 pnpm embedded-mpv:stage-runtime -- darwin arm64 /tmp/embedded-mpv-prefix
 ```
 
-During temporary PR and `master` artifact testing, CI can restore an exact-keyed GitHub Actions cache for the staged `vendor/embedded-mpv/<platform>-<arch>/` runtime and skip the expensive source build or archive staging path where one exists. The cache only contains `include/`, `lib/`, and `runtime-manifest.json`; it never contains the compiled `embedded_mpv.node` addon because that target depends on Electron headers, ABI, architecture, and build environment. Runtime cache entries are saved only from trusted repository refs, and tagged public macOS release builds continue to rebuild from pinned sources until a dedicated signed and attested runtime artifact flow exists. Windows CI uses a checksum-pinned `win32-x64` runtime archive configured through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256` repository variables or secrets on cache miss. Non-tag artifact builds have a pinned `zhongfly/mpv-winbuild` `mpv-dev-lgpl-x86_64` fallback so PR builds can produce a Windows embedded MPV artifact before repository variables are configured; tagged releases still require explicit repository configuration. The Windows archive helper accepts normal `lib/` + `bin/` prefixes and common `mpv-dev-lgpl` flat archives, including `libmpv-2.dll` names, and preserves the DLL basename expected by the import library; when the archive does not include `runtime-manifest.json`, it generates a minimal manifest from the archive URL/path and checksum. Linux stages Ubuntu package build inputs only; adding pinned source builders for Windows and Linux remains a separate release-hardening task.
+Linux x64 builds the release runtime from pinned source inputs and stages it
+before compiling the helper:
 
-The CI builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`, libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, and HarfBuzz `8.5.0`. FFmpeg disables autodetected external libraries so Homebrew libraries cannot silently enter the runtime. Libplacebo is checked out from git with the submodules required by its Meson build because the generated GitHub archive does not include submodule contents. Even with Vulkan disabled, libplacebo still compiles Vulkan stubs and needs `3rdparty/Vulkan-Headers`. The generated manifest records source URLs, archive SHA-256 values where applicable, libplacebo git commit/submodule metadata, FFmpeg configure flags, and mpv Meson flags. The staging step normalizes macOS/Windows manifests to `origin: vendored-lgpl`, which release package validation requires on those platforms.
+```bash
+pnpm embedded-mpv:build-runtime:linux -- /tmp/embedded-mpv-linux-prefix
+pnpm embedded-mpv:stage-runtime -- linux x64 /tmp/embedded-mpv-linux-prefix
+```
 
-The Electron backend build consumes the staged runtime/build inputs and copies macOS/Windows runtime files into the native build output. Linux consumes the staged MPV headers, writes an `external-mpv-process` manifest, and does not copy `libmpv.so` into the package. macOS additionally rewrites Mach-O paths so `embedded_mpv.node` loads `@loader_path/lib/libmpv.2.dylib` instead of a machine-local Homebrew path. After `install_name_tool` rewrites any addon or runtime binary, the build re-signs that binary with an ad-hoc signature for local development. Release packaging still performs the normal app signing and notarization later.
+The Linux builder is intentionally host-restricted to Linux x64. It checks
+minimum build-tool versions, uses an owned staging directory plus atomic
+publish, rejects host pkg-config/runtime leakage, rewrites every bundled
+library to an `$ORIGIN` RUNPATH, and enforces the portable ABI ceilings
+`GLIBC_2.35` and `GLIBCXX_3.4.30`. It also verifies the exact libmpv SONAME,
+complete dependency closure, and absence of build-prefix paths.
+
+CI may restore exact-keyed caches for staged
+`vendor/embedded-mpv/<platform>-<arch>/` runtimes. The Linux cache contains
+only generated headers, libraries, the runtime manifest, and immutable source
+inputs: exact archives, a clean recursive libplacebo checkout, and collected
+license inputs. It never contains `embedded_mpv.node`, generated notices, or
+the finished source-compliance archive. Runtime cache entries are saved only
+from trusted repository refs. The Linux cache key covers the builder/stager,
+notice generator, pinned sources, and toolchain. On every run, including a
+cache hit, CI validates the cached hashes and clean checkout, regenerates the
+notices for the current runtime manifest, converts libplacebo into a
+VCS-metadata-free working-tree snapshot while retaining the validated
+commit/submodule record, and creates
+`linux-frame-copy-runtime-sources.tar.xz` for the current repository revision
+and binary diff with normalized tar metadata.
+
+The workflow keeps the macOS/Windows package matrix independent from the Linux
+runtime prerequisite. Only the three Linux profile jobs depend on the runtime
+builder; both matrices reuse one YAML-anchored step list to prevent packaging
+logic drift. Draft release assembly still requires both matrices, so a public
+release cannot silently omit a promised platform.
+
+Windows CI uses a checksum-pinned `win32-x64` runtime archive configured
+through `IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_URL` and
+`IPTVNATOR_WINDOWS_EMBEDDED_MPV_RUNTIME_SHA256`. Non-tag artifact builds have
+a pinned `zhongfly/mpv-winbuild` `mpv-dev-lgpl-x86_64` fallback; tagged
+releases require explicit repository configuration. Upstream retains only its
+latest 30 daily builds, so the fallback and any repository-variable copy must
+be refreshed as one URL/checksum pair before expiry. A long-lived mirror must
+publish the matching source/build records and license notices with the binary.
+The archive helper accepts normal `lib/` + `bin/` prefixes and common flat
+archives, preserves the DLL basename encoded by the import library, and
+generates minimal build metadata only when the archive lacks it.
+
+The Linux builder pins FFmpeg `8.1`, mpv `0.41.0`, libplacebo `7.360.1`,
+libass `0.17.3`, FreeType `2.13.3`, FriBidi `1.0.16`, HarfBuzz `8.5.0`,
+Expat `2.8.2`, Fontconfig `2.16.0`, OpenSSL `3.5.7`, hwdata `0.409`, and
+libdisplay-info `0.1.1`. FFmpeg disables autodetected external libraries.
+Libplacebo is checked out at an exact git commit with all required submodules.
+The hwdata archive and its `pnp.ids` build input are pinned so
+libdisplay-info cannot silently consume `/usr/share/hwdata` from the builder.
+The generated manifest records source URLs/checksums or git commits,
+submodules, licenses, exact flags, build-host/toolchain data, runtime hashes,
+and the dynamic closure. FFmpeg/mpv remain LGPL-compatible and dynamically
+linked; codecs outside that build configuration are not implied.
+
+`generate-linux-runtime-notices.cjs` collects the exact upstream license files
+for every pinned package and all recursive libplacebo submodules. Generation
+is fail-closed for a missing, undeclared, symlinked, size-mismatched, or
+hash-mismatched file. Portable and Flatpak package hooks copy only the
+validated notice manifest, aggregate notice, and per-package license tree;
+package-layout verification revalidates that legal payload against the
+embedded source-runtime manifest.
+
+The Electron backend build consumes the staged runtime/build inputs. On Linux
+it links the helper against the verified staged `libmpv.so.2`, never against a
+generic host `-lmpv`, then verifies the helper's `DT_NEEDED` and
+`$ORIGIN/lib` RUNPATH with `readelf`. The addon and frame reader are checked
+for the opposite invariant. The profile-aware packaging hook later retains or
+removes the private closure. Local Linux builds may still use distribution
+headers/libraries, but a required package build must use the staged manifest.
+macOS additionally rewrites Mach-O paths and re-signs modified local binaries;
+release signing/notarization still happens later.
 
 For local development before the vendored runtime exists, Homebrew can be used explicitly:
 
@@ -296,7 +878,88 @@ For tagged macOS builds, CI must:
 
 For Windows builds, CI must restore the `win32-x64` staged runtime cache or stage the checksum-pinned runtime archive before `pnpm run build:backend`. The Windows job must set `IPTVNATOR_EMBEDDED_MPV_PLATFORM=win32`, `IPTVNATOR_EMBEDDED_MPV_ARCH=x64`, and `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for backend build, package make, and package-layout verification. CI narrows `electron-builder.json` to x64 Windows targets while only a `win32-x64` runtime is available. The Windows job is pinned to `windows-2022` until the Electron `node-gyp` toolchain can identify Visual Studio 18 from `windows-latest`.
 
-For Linux builds, CI must set `IPTVNATOR_EMBEDDED_MPV_PLATFORM=linux`, `IPTVNATOR_EMBEDDED_MPV_ARCH=x64`, and `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` after staging the Ubuntu package build inputs. Linux package verification checks the `external-mpv-process` manifest and confirms that no bundled `libmpv.so` files are present.
+For Linux builds, CI first builds or restores the pinned x64 source runtime and
+stages it under `vendor/embedded-mpv/linux-x64`. It then runs three isolated
+packaging passes with `IPTVNATOR_EMBEDDED_MPV_PLATFORM=linux`,
+`IPTVNATOR_EMBEDDED_MPV_ARCH=x64`,
+`IPTVNATOR_REQUIRE_EMBEDDED_MPV=1`, and one exact
+`IPTVNATOR_LINUX_FRAME_COPY_PROFILE`. Each produced artifact is extracted and
+verified, and the x64 helper probe runs in the intended runtime environment.
+The packaged x64 Playwright smoke first runs its fixture-contract target and
+passes Chromium `--ignore-gpu-blocklist` so Mesa llvmpipe can expose WebGL2 in
+CI. That launch-only flag does not bypass any manifest, hash, loader, or helper
+capability check; `--no-sandbox` is added only when the runner is root.
+Bundled package layouts must include the generated notices and exact license
+tree. The separately uploaded
+`linux-frame-copy-runtime-sources.tar.xz` contains the exact archive set,
+the VCS-metadata-free libplacebo working tree plus the exact pinned commit and
+six recursive submodule records, notice/license inputs, runtime metadata,
+current revision/diff, and build tooling. Each submodule record is canonical
+`full-commit safe/path`; clone-depth-dependent `git describe` annotations are
+discarded. The source index also records a
+globally sorted exact inventory
+of every libplacebo directory, regular file, and symlink. File hashes, sizes,
+normalized executable bits, link targets, aggregate counts/bytes, and the
+canonical inventory digest must match the trusted pinned v7.360.1 checkout;
+an arbitrary or incomplete self-declared tree is rejected. Its tar metadata is
+normalized, its member/type layout is exact, and
+`metadata/archive-sha256.txt` must describe the actual source archive bytes.
+Tar listing continues past every end marker, so concatenated xz/tar streams
+cannot hide undeclared members. ARM artifacts are independently verified as
+marker-only and never run the x64 helper.
+
+After constructing the final
+`linux-frame-copy-runtime-sources.tar.xz`, CI hashes its exact bytes and stages
+`source-archive-binding.json` beside the x64 runtime. AppImage, Snap, and
+Flatpak manifests copy that binding unchanged as `sourceArchive`, including the
+SHA-256 and repository revision. System-package manifests and marker-only
+non-x64 packages must not carry it, so a portable package cannot advertise
+source correspondence inherited from another profile or architecture.
+
+The build workflow creates a draft GitHub release but never publishes Snap in
+parallel with that draft. The separate Snap workflow runs only for a public
+`release.published` event whose tag starts with `v`; before any Store upload it
+requires at least one exact `.snap` asset and exactly one non-empty
+`linux-frame-copy-runtime-sources.tar.xz` in that public release. It hashes and
+safely inspects the bounded downloaded archive, requires regular metadata,
+archive, legal, and tooling member/type set, validates link targets and the
+archive checksum metadata, and requires the clean checkout and source index to
+match the released tag. It verifies the actual pinned source-member hashes,
+the six recursive libplacebo submodule records, license-input and notice
+hashes, the exact VCS-free libplacebo tree inventory/digest, and byte-identical
+tooling from the released tag. Checkout and both artifact-transfer actions use
+full pinned commits, and checkout sets `persist-credentials: false`.
+The bounded SquashFS preflight and extraction then require the canonical
+`/usr/lib/iptvnator` layout and reuse the static package validator for every
+selected Snap. The public-release verifier separately reapplies the exact
+strict `meta/snap.yaml` graphics/shared-memory/layout contract and enumerates
+the extracted `resources/app.asar`; any archived
+`electron-backend/native/**` entry fails before Store publication. The bounded
+ASAR header reader uses only Node built-ins plus released local tooling, keeping
+this check runnable from the clean tag checkout without `node_modules`. Exactly
+one x64 Snap must contain a bundled portable manifest
+whose exact `sourceArchive` and `sourceRuntime` match the archive; non-x64
+Snaps must remain marker-only. Repository credentials are scoped to the two
+GitHub asset steps. The secretless verification job copies downloaded files
+through no-follow descriptors into a private snapshot, hashes them before and
+after inspection, writes an exact receipt, root-seals the snapshot, and reruns
+the complete source/package verifier against those bytes. It then transfers
+only the sealed data through the pinned artifact service, publishes the exact
+receipt digest separately as a job output, and terminates.
+
+The dependent publish job runs on a bounded GitHub-hosted `ubuntu-latest`
+runner with no checkout or release-tag code. It requires the separately
+transmitted receipt digest, validates the exact receipt schema and every asset
+size/hash, accepts only the expected regular `.snap`, source archive, and
+receipt layout, rejects links and extra entries, and root-seals the transferred
+files again before installing the official stable Snapcraft snap.
+Only its final fixed shell step receives the Store credential. That step uses a
+bounded Bash glob, resolves no PATH command, executes no released code, and
+passes the credential only to each exact
+`/snap/bin/snapcraft upload --release=edge` process. Any verification or
+transfer mismatch aborts before Store credentials are available.
+Candidate/stable promotion is manual after installed-Snap frame-copy and
+missing-runtime fallback smoke; GitHub Actions never promotes automatically.
 
 During temporary artifact tests, CI may also set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for PR and `master` push jobs where a runtime is known to exist. After the artifacts are manually validated, remove temporary conditions so ordinary development builds leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. This keeps the native feature in-tree without making every non-release build depend on runtime artifacts.
 
@@ -308,7 +971,8 @@ The feature is still experimental. The largest risks are native-process risks, n
 - packaging can fail if `libmpv` or one of its platform runtime dependencies is missing, unsigned where signing applies, or linked to the wrong runtime path
 - macOS graphics behavior can vary across Intel, Apple Silicon, external displays, fullscreen transitions, and hardware decoding paths
 - Windows `HWND` and Linux X11/Xwayland embedding need packaged-app smoke coverage for focus, resize, and fullscreen behavior
-- Linux native Wayland is unsupported until a dedicated Wayland embedding path exists
+- Linux native-view remains unsupported on native Wayland; frame-copy has no
+  window-embedding dependency but still requires a working EGL probe
 - Homebrew `libmpv` builds can target a newer macOS version than IPTVnator's declared deployment target
 
 It is reasonable to ship the code in-tree behind the current experiment flag. It is not yet safe to make it the default player. It can be exposed as desktop experimental if support detection is strict, the UI clearly labels it experimental, and fallback to Video.js or external MPV/VLC stays available.
@@ -319,8 +983,18 @@ If an embedded session fails to initialize, the app should keep the user in cont
 
 Do not expose embedded MPV broadly until these pass on every supported target:
 
-- macOS/Windows packaged app starts without system `mpv` installed; Linux reports Embedded MPV unsupported with a clear message when system `mpv` is missing
-- bundled `libmpv` and dependent runtime files pass macOS/Windows package validation; Linux package validation confirms the external-process manifest and absence of bundled `libmpv.so`
+- macOS/Windows packaged apps start without system `mpv`; Linux x64
+  frame-copy starts in each declared package profile, and a missing frame-copy
+  dependency falls back without crashing
+- bundled libmpv and dependent runtime files pass package validation;
+  DEB/RPM/Pacman contain no private closure and declare the exact system
+  dependency
+- Electron, its shipped libraries, `embedded_mpv.node`, and the frame reader
+  have no direct libmpv `DT_NEEDED`; the helper resolves the exact declared
+  libmpv runtime
+- AppImage, DEB, RPM, Pacman, Snap, and Flatpak payloads pass extraction,
+  manifest/mode/ELF checks and the applicable helper probe; ARM payloads are
+  marker-only
 - macOS bundled `libmpv` and dependent dylibs pass code signing and notarization
 - VOD resume starts near the saved offset
 - series EOF emits `ended` and embedded MPV auto-continues only inside the current season

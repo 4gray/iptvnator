@@ -1,4 +1,6 @@
 const mockClearStorageData = jest.fn();
+const mockIsFrameCopyRuntimeUsable = jest.fn<boolean, []>();
+const mockIsEmbeddedMpvFeatureEnabled = jest.fn<boolean, []>();
 
 jest.mock('electron', () => ({
     app: {
@@ -30,6 +32,14 @@ jest.mock('./services/store.service', () => ({
         set: jest.fn(),
     },
     WINDOW_BOUNDS: 'windowBounds',
+}));
+
+jest.mock('./services/embedded-mpv-frame-copy-platform.util', () => ({
+    isFrameCopyRuntimeUsable: mockIsFrameCopyRuntimeUsable,
+}));
+
+jest.mock('./services/embedded-mpv-runtime-policy.util', () => ({
+    isEmbeddedMpvFeatureEnabled: mockIsEmbeddedMpvFeatureEnabled,
 }));
 
 import {
@@ -93,6 +103,10 @@ describe('Electron app security helpers', () => {
     beforeEach(() => {
         jest.clearAllMocks();
         delete process.env.ELECTRON_IS_DEV;
+        delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
+        delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+        mockIsEmbeddedMpvFeatureEnabled.mockReturnValue(false);
+        mockIsFrameCopyRuntimeUsable.mockReturnValue(false);
         const appInternals = getAppInternals();
         appInternals.loadedMainWindow = null;
         appInternals.mainWindow = null;
@@ -115,6 +129,53 @@ describe('Electron app security helpers', () => {
                 backgroundThrottling: false,
             })
         );
+    });
+
+    it('keeps the renderer sandboxed when frame-copy is requested without a usable runtime', () => {
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+        mockIsEmbeddedMpvFeatureEnabled.mockReturnValue(true);
+
+        expect(getMainWindowWebPreferences()?.sandbox).toBe(true);
+        expect(mockIsFrameCopyRuntimeUsable).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([undefined, '0'])(
+        'does not probe frame-copy runtime for an inactive %s opt-in',
+        (explicitFrameCopy) => {
+            mockIsEmbeddedMpvFeatureEnabled.mockReturnValue(true);
+            if (explicitFrameCopy === undefined) {
+                delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+            } else {
+                process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY =
+                    explicitFrameCopy;
+            }
+
+            expect(getMainWindowWebPreferences()?.sandbox).toBe(true);
+            expect(mockIsFrameCopyRuntimeUsable).not.toHaveBeenCalled();
+        }
+    );
+
+    it('probes frame-copy runtime for an explicit opt-in', () => {
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+        mockIsEmbeddedMpvFeatureEnabled.mockReturnValue(true);
+
+        expect(getMainWindowWebPreferences()?.sandbox).toBe(true);
+        expect(mockIsFrameCopyRuntimeUsable).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps the renderer sandboxed when frame-copy is requested but embedded MPV is disabled', () => {
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+        mockIsFrameCopyRuntimeUsable.mockReturnValue(true);
+
+        expect(getMainWindowWebPreferences()?.sandbox).toBe(true);
+    });
+
+    it('relaxes the renderer sandbox only when embedded MPV and a usable frame-copy runtime are enabled', () => {
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+        mockIsEmbeddedMpvFeatureEnabled.mockReturnValue(true);
+        mockIsFrameCopyRuntimeUsable.mockReturnValue(true);
+
+        expect(getMainWindowWebPreferences()?.sandbox).toBe(false);
     });
 
     it('treats only http and https URLs as external browser URLs', () => {
@@ -180,9 +241,9 @@ describe('Electron app security helpers', () => {
         expect(mainWindow.loadFile).toHaveBeenCalledWith(
             expect.stringContaining('index.html')
         );
-        expect(
-            mockClearStorageData.mock.invocationCallOrder[0]
-        ).toBeLessThan(mainWindow.loadFile.mock.invocationCallOrder[0]);
+        expect(mockClearStorageData.mock.invocationCallOrder[0]).toBeLessThan(
+            mainWindow.loadFile.mock.invocationCallOrder[0]
+        );
     });
 
     it('continues packaged renderer loading when Electron service worker cleanup fails', async () => {

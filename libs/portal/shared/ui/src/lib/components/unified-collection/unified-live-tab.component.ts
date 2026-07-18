@@ -15,6 +15,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
 import { TranslatePipe, TranslateService } from '@ngx-translate/core';
 import {
+    applyChannelNameStrip,
     getM3uArchiveDays,
     isM3uCatchupPlaybackSupported,
     resolveM3uCatchupUrl,
@@ -188,11 +189,12 @@ export class UnifiedLiveTabComponent {
             ? this.currentM3uPrograms()
             : this.currentPortalEpgPrograms()
     );
-    readonly timelineChannelName = computed(
-        () =>
+    readonly timelineChannelName = computed(() =>
+        applyChannelNameStrip(
             this.currentM3uChannel()?.name ??
-            this.activeDetail()?.playback?.title ??
-            ''
+                this.activeDetail()?.playback?.title,
+            this.settingsStore.stripCountryPrefix?.()
+        )
     );
     readonly timelineChannelLogo = computed(
         () =>

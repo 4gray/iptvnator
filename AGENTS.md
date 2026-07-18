@@ -70,7 +70,7 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
     - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
     - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
-    - `IPTVNATOR_TRACE_PLAYER=1` traces external-player launch/reuse/polling debug output
+    - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
 
 - GPU/compositor debugging:
@@ -127,6 +127,231 @@ Key files:
 - `libs/ui/playback/src/lib/audio-player/audio-player.component.scss` — cinematic hero styling
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
+
+## Shared Player Controls
+
+- `libs/ui/playback/src/lib/player-controls/` contains the additive,
+  engine-neutral `PlayerController` contract, standalone
+  `app-player-controls`, generic web-video adapter/helper, and component-scoped
+  `WEB_PLAYER_SHARED_CONTROLS` rollout token.
+- Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
+  appears only when HTML5, Video.js, or ArtPlayer is selected.
+  `WebPlayerViewComponent` snapshots the preference into
+  `WEB_PLAYER_SHARED_CONTROLS` for each new player host. The parent `/workspace`
+  route awaits the initial `SettingsStore` load, including cold-start direct
+  links, before this snapshot can occur. Saving applies to the next host without
+  an application restart; an existing session never changes controls mode in
+  place.
+- Embedded MPV ignores the web-player preference. Frame-copy always uses shared
+  DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
+  native-view retains the legacy compositor-safe dock and external MPV/VLC
+  retain their own UI. The host must render exactly one controls system for the
+  reported Embedded MPV engine.
+- Frame-copy shared controls own DOM surface interactions, shortcuts,
+  fullscreen, and recording feedback. `showControls=false` detaches the shared
+  surface, modal overlays gate playback shortcuts, fullscreen still triggers
+  bounds sync, and a playback/session transition key prevents engine or session
+  handoff from presenting stale recording feedback while timers and pending
+  commands are cancelled. Same-session IPC replies also yield to a broadcast
+  snapshot received while the command was pending, preventing a successful
+  recording acknowledgement from being rolled back by a stale reply.
+- The built-in HTML5/hls.js player is the second guarded consumer.
+  `HtmlVideoPlayerComponent` provides a component-scoped
+  `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared
+  with ArtPlayer and owns HLS/native tracks, MPEG-TS VOD duration correction,
+  caption preference, and source cleanup.
+  `HtmlVideoElementSession` owns native video-event lifecycle, persisted
+  volume, start-time/time/ended propagation, and legacy post-play caption
+  suppression.
+  `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
+  metadata, while a visible playback diagnostic disables both shared surface
+  interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
+  diagnostic actions remain visible. The preference-off path keeps native
+  controls and legacy series navigation unchanged.
+- Video.js is the third guarded consumer. `VjsPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; its bridge binds the current Tech
+  video, rebinds after `playerreset`, exposes source-stable audio/subtitle IDs,
+  preserves caption preference and explicit subtitle-off state, and reads
+  duration from Video.js. Reset-driven raw MPEG-TS changes pause first,
+  coalesce to the latest desired source, preserve actual volume across
+  Video.js's reset, and restart when authoritative live/VOD metadata changes.
+  The shared-controls path disables native controls, Video.js
+  click/double-click/hotkey actions, and spatial navigation;
+  diagnostic gating and owned-fullscreen exit match HTML5. The preference-off
+  path keeps the existing Video.js skin and legacy series navigation unchanged.
+- ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
+  HLS/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
+  a destroyed-session guard for delayed `customType` callbacks, while
+  `ArtPlayerVideoSession` owns native media/ArtPlayer events. Shared mode uses
+  authoritative live/VOD metadata, HLS/native tracks and caption preference,
+  MPEG-TS VOD duration correction, and reapplies app volume directly after
+  ArtPlayer restores its own stored volume. Vendor chrome/hotkeys are disabled,
+  and a transparent capture layer gives shared controls exclusive click and
+  double-click ownership. Diagnostic interaction gating and owned-fullscreen
+  exit match the other web players. The preference-off path keeps the legacy
+  ArtPlayer skin, source behavior, and series navigation unchanged.
+- Shared web picture-in-picture stays inside that default-off rollout.
+  `PlayerController` exposes capability `pictureInPicture`, state
+  `pictureInPictureActive`/`canPictureInPicture`, and command
+  `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard
+  element PiP from the adapter's attached video; shared ArtPlayer keeps vendor
+  `pip: false`, while preference-off native/vendor paths remain unchanged. The
+  capability-gated button sits before fullscreen and uses active enter/exit
+  semantics; entry is disabled until metadata, and the action is disabled while
+  an operation is pending. Embedded MPV reports capability/state false with a
+  no-op command and has no popup/mini-window.
+- `WebVideoControlsAdapter` supplies its current video and binding generation to
+  `WebVideoPictureInPictureController`; the controller reads the video's
+  `ownerDocument`, while browser enter/leave events remain authoritative.
+  Exact-owner exit stays available if request support changes. Request/exit
+  invocation remains synchronous for user activation, one operation is
+  serialized, and binding generation plus exact video identity protects
+  replacement and teardown from stale completion. Video.js Tech reset and
+  ArtPlayer rebuild rebind with exact-owner cleanup; HTML5 source changes on a
+  retained target preserve PiP.
+  Standard PiP shows the browser/OS video surface without Angular control
+  chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
+  keyboard shortcut, and Embedded MPV popup/native support are out of scope.
+- Canonical docs: `docs/architecture/player-controls-contract.md` and
+  `docs/architecture/embedded-mpv-native.md`
+
+## Linux Embedded MPV Packaging
+
+- Official Linux frame-copy artifacts are x64-only. AppImage, DEB, RPM,
+  Pacman, Snap, and Flatpak are supported; non-x64 Linux packages must remain
+  marker-only and must never inherit x64 native artifacts from environment
+  overrides.
+- Packaging runs three isolated profiles:
+    - `system`: DEB/RPM/Pacman, no private `native/lib`, with package
+      dependencies DEB=`libmpv2,libegl1,libgl1,libgbm1`,
+      RPM=`mpv-libs,libglvnd-egl,libglvnd-glx,mesa-libgbm`, and
+      Pacman=`mpv,libglvnd,mesa`
+    - `portable`: AppImage/Snap with the pinned LGPL-compatible closure
+    - `flatpak`: Flatpak with the same pinned closure
+- The DEB system-runtime contract is Ubuntu 24.04+ (`libmpv2`). Ubuntu 22.04
+  provides `libmpv1`, so use the x64 AppImage on Jammy instead of weakening the
+  package dependency or advertising frame-copy without a compatible runtime.
+- Only `iptvnator_mpv_helper` may link libmpv. The Electron executable,
+  Electron libraries, `embedded_mpv.node`, and
+  `embedded_mpv_frame_reader.node` must not load or link it. Preserve this
+  process-isolation contract in build, package, and smoke checks.
+- `electron-backend/native{,/**/*}` is excluded from `app.asar`; `afterPack`
+  exclusively writes the profile-normalized unpacked native tree. Layout and
+  final-artifact checks must reject every archived
+  `/electron-backend/native/**` entry so system and marker-only packages cannot
+  hide stale x64 artifacts.
+- Packaged addon, frame-reader, and helper discovery is package-owned
+  `app.asar.unpacked` only. Writable cwd/dist candidates are development-only
+  and must never satisfy packaged native-view support or the frame-copy gate.
+- Pristine afterPack/unpacked layouts scan Electron libraries recursively.
+  Extracted Snap payloads exclude only the package-manager `lib/**` and
+  `usr/lib/**` trees that Snap overlays into the same root; every other
+  directory remains recursive, and Electron-library symlinks still fail
+  closed.
+- Linux frame-copy availability is fail-closed. The packaged manifest,
+  artifact modes, declared bundled hashes/closure, and bounded
+  `--runtime-probe` must all succeed before frame-copy can relax the renderer
+  sandbox. Any failure reports a stable reason and falls back to native-view
+  without crashing; an environment flag never bypasses this gate.
+- Snap is `core22`/strict and uses an exact private `shared-memory` plug plus
+  the `graphics-core22` content plug at an empty mode-0755 `$SNAP/graphics`,
+  with `mesa-core22` as default provider. It declares only the canonical
+  provider layouts: `/usr/share/libdrm` binds from
+  `$SNAP/graphics/libdrm`, and `/usr/share/drirc.d` symlinks to
+  `$SNAP/graphics/drirc.d`. The provider is external shared content, not part
+  of IPTVnator's package size, source archive, or notices. Installed-Snap CI
+  must prove controlled unavailable exit after disconnect, then reconnect and
+  prove success. The helper links `libGL.so.1` rather than `libOpenGL.so.0`.
+- The probe and playback helper share one sanitized loader environment:
+  ambient audit, preload, library, graphics-driver, and shell-startup overrides
+  are removed; the validated private closure wins; trusted Snap GL,
+  `graphics-core22`, the core22 base x64 root, and exact GNOME-platform roots
+  precede generic in-snap roots. The core22 base must precede GNOME so its
+  `libedit.so.2` cannot be replaced by the older copy requiring
+  `libtinfo.so.5`. The extracted-artifact verifier removes the identical
+  unsafe loader/graphics/shell set before direct helper smoke while preserving
+  feature/debug selectors such as `LIBGL_ALWAYS_SOFTWARE`. Snap fixes the
+  wrapper `PATH`, removes exported `BASH_FUNC_*` functions, and launches
+  probe/playback through the regular executable
+  `$SNAP/graphics/bin/graphics-core22-provider-wrapper`; a missing or
+  disconnected provider returns `snap-graphics-provider-unavailable` before
+  helper spawn. The packaging-only `--embedded-mpv-runtime-probe` app switch
+  runs the complete cached manifest/hash/helper gate before BrowserWindow
+  startup and exits with one availability JSON line. A nonzero helper exit
+  keeps top-level reason `helper-probe-failed`; `helperReason` is present only
+  for an exact protocol-v1 line carrying a fixed allowlisted reason, and its
+  optional `helperDetail` must be 1–1024 printable ASCII characters. Invalid
+  detail suppresses both helper fields. Every probe uses an explicit 16 MiB
+  aggregate captured-output ceiling independent of tracing. With
+  `IPTVNATOR_TRACE_PLAYER=1`, a non-empty helper stderr capture is emitted
+  separately as one JSON-escaped stderr line whose `stderr` field is limited
+  to 16,384 characters and whose `truncated` field is always explicit;
+  trace-write failure cannot change the capability result. Installed-Snap CI
+  enables Mesa EGL/GL diagnostics through this bounded channel. Any loader
+  failure remains a stable native-view fallback, never a flag-enabled success.
+- In the exact packaged Flatpak `/app` context, reconstruct only Freedesktop
+  Platform 24.08's immutable `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its GL
+  extension loader path comes from the sandbox cache. Flatpak CI must invoke
+  the application-level `--embedded-mpv-runtime-probe`, not a direct helper
+  probe that bypasses capability detection.
+- The packaged x64 Playwright smoke runs its fixture-contract target first and
+  passes Chromium `--ignore-gpu-blocklist` so CI llvmpipe can expose WebGL2.
+  This launch-only flag does not bypass the manifest, hash, loader, or helper
+  capability gate; `--no-sandbox` remains root-only.
+- Bundled Linux releases must publish the exact source archives/git records,
+  checksums, licenses, flags, patches, build scripts, and the pinned hwdata
+  `pnp.ids` input. Each bundled package carries
+  `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and the exact
+  `licenses/**` files. CI may cache immutable source inputs, but regenerates
+  notices and a VCS-metadata-free
+  `linux-frame-copy-runtime-sources.tar.xz` for the current checkout on every
+  run while retaining the exact pinned six recursive libplacebo submodule
+  records. Each record is canonical `full-commit safe/path`; clone-depth
+  dependent `git describe` annotations are discarded and never form part of
+  the provenance identity. Its source index carries the globally sorted libplacebo
+  directory/file/symlink inventory; file hashes, sizes, executable bits, link
+  targets, aggregates, and canonical tree digest must match the trusted pinned
+  checkout. The archive has an exact member/type layout and its
+  `metadata/archive-sha256.txt` records must match the actual source archives.
+  Concatenated tar/xz streams are inspected past every end marker. The final
+  archive's SHA-256 and repository revision are copied into every bundled x64
+  package manifest; system and marker-only packages carry no source-archive
+  binding.
+  Automated Snap Store publication is allowed only after a public `v*` GitHub
+  release contains both the Snap assets and exactly one matching source
+  archive. Before any upload, the workflow hashes and inspects that archive,
+  verifies its exact member/type set and size bounds, clean tag revision,
+  pinned sources including the six recursive submodule records and exact
+  libplacebo tree digest, legal files, and exact released tooling, then
+  performs bounded extraction and static package validation for every Snap.
+  That public-release boundary independently revalidates the exact strict
+  `meta/snap.yaml` graphics/shared-memory contract and enumerates
+  `resources/app.asar`, rejecting any archived
+  `electron-backend/native/**` payload before publication. Its bounded ASAR
+  header reader uses only Node built-ins and released local tooling, so the
+  clean tag checkout does not require `node_modules`.
+  Exactly one x64 Snap must have matching
+  `sourceArchive` and `sourceRuntime`; any non-x64 Snap must remain
+  marker-only. Checkout and the artifact-transfer actions are pinned to full
+  commits; checkout does not persist credentials, and repository credentials
+  are limited to download steps. A secretless verification job copies assets
+  through no-follow descriptors, checks pre/post hashes, writes an exact
+  receipt, repeats the complete source/package verification on a root-owned
+  read-only snapshot, and transfers only that data through the pinned artifact
+  service while its receipt digest travels separately through a job output.
+  The dependent publish job runs on a bounded `ubuntu-latest` runner with no
+  checkout or release-tag code, verifies that digest plus the exact receipt,
+  asset hashes, and file-only layout, root-seals the data again, and installs
+  Snapcraft directly. Store credentials exist only in its final fixed shell
+  step, which resolves no PATH command, executes no released code, and exposes
+  the credential only to each exact
+  `/snap/bin/snapcraft upload --release=edge` process.
+  Candidate/stable promotion is manual after installed-Snap frame-copy and
+  missing-runtime fallback smoke; GitHub Actions never promotes automatically.
+  Canonical maintenance docs:
+  `docs/architecture/embedded-mpv-native.md` and
+  `tools/embedded-mpv/README.md`.
 
 ## Repo Skills
 

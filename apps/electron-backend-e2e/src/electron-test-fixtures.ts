@@ -9,14 +9,18 @@ import {
 } from '@playwright/test';
 import { createServer, Server } from 'http';
 import {
+    accessSync,
+    constants as fsConstants,
     existsSync,
     mkdtempSync,
+    readdirSync,
     readFileSync,
     rmSync,
+    statSync,
     writeFileSync,
 } from 'fs';
 import { tmpdir } from 'os';
-import { join, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 
 export const workspaceRoot = resolve(__dirname, '../../..');
 export const electronMainPath = join(
@@ -70,7 +74,7 @@ type ElectronFixtures = {
     dataDir: string;
 };
 
-type LaunchElectronAppOptions = {
+export type LaunchElectronAppOptions = {
     env?: Record<string, string | undefined>;
 };
 
@@ -171,7 +175,142 @@ export async function launchElectronApp(
     };
 }
 
-function attachElectronProcessDiagnostics(electronApp: ElectronApplication): void {
+/**
+ * Resolve the x64 unpacked Linux executable produced by electron-builder.
+ * An explicit path wins so CI can point at an AppImage/Flatpak extraction
+ * without relying on electron-builder's local output directory names.
+ */
+export function resolvePackagedLinuxExecutable(
+    explicitPath = process.env['IPTVNATOR_E2E_PACKAGED_EXECUTABLE']
+): string | undefined {
+    if (explicitPath?.trim()) {
+        return resolve(explicitPath.trim());
+    }
+
+    const executablesRoot = join(workspaceRoot, 'dist', 'executables');
+    if (!existsSync(executablesRoot)) {
+        return undefined;
+    }
+
+    const unpackedDirectories = readdirSync(executablesRoot, {
+        withFileTypes: true,
+    })
+        .filter(
+            (entry) =>
+                entry.isDirectory() &&
+                entry.name.startsWith('linux') &&
+                entry.name.endsWith('-unpacked') &&
+                !entry.name.includes('arm')
+        )
+        .sort((left, right) => {
+            const leftPriority = left.name === 'linux-unpacked' ? 0 : 1;
+            const rightPriority = right.name === 'linux-unpacked' ? 0 : 1;
+            return (
+                leftPriority - rightPriority ||
+                left.name.localeCompare(right.name)
+            );
+        });
+
+    for (const directory of unpackedDirectories) {
+        for (const executableName of ['IPTVnator', 'iptvnator']) {
+            const candidate = join(
+                executablesRoot,
+                directory.name,
+                executableName
+            );
+            try {
+                accessSync(candidate, fsConstants.X_OK);
+                if (statSync(candidate).isFile()) {
+                    return candidate;
+                }
+            } catch {
+                // Keep looking for the next unpacked x64 layout.
+            }
+        }
+    }
+
+    return undefined;
+}
+
+export function getPackagedLinuxNativeDir(executablePath: string): string {
+    return join(
+        dirname(resolve(executablePath)),
+        'resources',
+        'app.asar.unpacked',
+        'electron-backend',
+        'native'
+    );
+}
+
+export function resolvePackagedElectronLaunchArgs(
+    getuid: (() => number) | undefined
+): string[] {
+    const args = ['--ignore-gpu-blocklist'];
+    if (typeof getuid === 'function' && getuid() === 0) {
+        args.push('--no-sandbox');
+    }
+    return args;
+}
+
+/**
+ * Launch a real packaged Linux executable. Unlike the regular source E2E
+ * launcher, this deliberately keeps Chromium's GPU path enabled and ignores
+ * its GPU blocklist: the frame-copy smoke sets LIBGL_ALWAYS_SOFTWARE=1, and
+ * CI's llvmpipe WebGL2 context must prove that the shared-memory frame reaches
+ * the renderer canvas.
+ */
+export async function launchPackagedElectronApp(
+    executablePath: string,
+    dataDir: string,
+    options: LaunchElectronAppOptions = {}
+): Promise<LaunchedElectronApp> {
+    if (process.platform !== 'linux') {
+        throw new Error(
+            'The packaged embedded-MPV launcher is available on Linux only.'
+        );
+    }
+
+    const resolvedExecutablePath = resolve(executablePath);
+    try {
+        accessSync(resolvedExecutablePath, fsConstants.X_OK);
+        if (!statSync(resolvedExecutablePath).isFile()) {
+            throw new Error('not a regular file');
+        }
+    } catch (error) {
+        throw new Error(
+            `Packaged Linux executable is not a regular executable file at ${resolvedExecutablePath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+    }
+
+    const electronApp = await electron.launch({
+        executablePath: resolvedExecutablePath,
+        args: resolvePackagedElectronLaunchArgs(process.getuid),
+        env: {
+            ...process.env,
+            IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS:
+                process.env['IPTVNATOR_ALLOW_PRIVATE_NETWORK_URLS'] ?? '1',
+            ...options.env,
+            ELECTRON_IS_DEV: '0',
+            IPTVNATOR_E2E_DATA_DIR: dataDir,
+            NODE_ENV: 'test',
+        },
+    });
+    attachElectronProcessDiagnostics(electronApp);
+
+    const mainWindow = await findMainWindow(electronApp);
+    await waitForAppReady(mainWindow);
+
+    return {
+        electronApp,
+        mainWindow,
+    };
+}
+
+function attachElectronProcessDiagnostics(
+    electronApp: ElectronApplication
+): void {
     if (!process.env['CI']) {
         return;
     }
@@ -235,10 +374,7 @@ async function waitForPromiseWithTimeout(
         return await Promise.race([
             promise.then(() => true),
             new Promise<boolean>((resolvePromise) => {
-                timeoutId = setTimeout(
-                    () => resolvePromise(false),
-                    timeoutMs
-                );
+                timeoutId = setTimeout(() => resolvePromise(false), timeoutMs);
             }),
         ]);
     } finally {
@@ -297,11 +433,11 @@ async function waitForAppReady(page: Page): Promise<void> {
     } catch (error) {
         const diagnostics = await page.evaluate(() => ({
             appRootLength:
-                document.querySelector('app-root')?.innerHTML.trim().length ?? 0,
+                document.querySelector('app-root')?.innerHTML.trim().length ??
+                0,
             baseHref:
-                document
-                    .querySelector('base')
-                    ?.getAttribute('href') ?? '<missing>',
+                document.querySelector('base')?.getAttribute('href') ??
+                '<missing>',
             readyState: document.readyState,
             title: document.title,
             url: location.href,
@@ -357,7 +493,7 @@ export async function importM3uPlaylistFromNativeDialog(
     const fileInput = dialog.locator('input[type="file"][name="playlist"]');
 
     await fileInput.evaluate((element, selectedFilePath) => {
-        (element as HTMLInputElement).dataset.filePathOverride =
+        (element as HTMLInputElement).dataset['filePathOverride'] =
             selectedFilePath;
     }, filePath);
     await fileInput.setInputFiles(filePath);
@@ -501,15 +637,17 @@ async function clickDialogMethodOption(
     label: RegExp,
     legacySelector?: string
 ): Promise<void> {
-    const optionByRadio = dialog
-        .getByRole('radio', { name: label })
-        .first();
+    const optionByRadio = dialog.getByRole('radio', { name: label }).first();
     if ((await optionByRadio.count()) > 0) {
         await optionByRadio.click();
         return;
     }
 
-    for (const tablistLabel of ['Source method', 'Playlist category', 'M3U source']) {
+    for (const tablistLabel of [
+        'Source method',
+        'Playlist category',
+        'M3U source',
+    ]) {
         const tablist = dialog
             .locator(`[role="tablist"][aria-label="${tablistLabel}"]`)
             .first();
@@ -541,9 +679,7 @@ async function clickDialogMethodOption(
     }
 
     if (!legacySelector) {
-        throw new Error(
-            `Could not find dialog option matching ${label}.`
-        );
+        throw new Error(`Could not find dialog option matching ${label}.`);
     }
 
     await dialog.locator(legacySelector).click();
@@ -632,8 +768,23 @@ export async function enableRemoteControl(
 export async function saveSettings(page: Page): Promise<void> {
     const saveButton = page.getByTestId('save-settings');
 
-    await saveButton.click();
+    // The save control is a native form submit (`<button type="submit">`
+    // inside `<form (ngSubmit)="onSubmit()">`). Clicking it makes Chromium
+    // register a form-submission navigation, which Angular's `ngSubmit`
+    // handler immediately cancels via `preventDefault()` — no real navigation
+    // ever happens. Playwright's default post-click "wait for signals" barrier
+    // still observes that requested-then-cancelled navigation and waits for it
+    // to settle; on slow/loaded CI runners that wait can stall for the full
+    // timeout ("waiting for scheduled navigations to finish"). We never depend
+    // on a navigation here, so opt out of the barrier and instead assert the
+    // deterministic post-save state below.
+    await saveButton.click({ noWaitAfter: true });
+    // `onSubmit()` calls `applyChangedSettings()` -> `markAsPristine()` once the
+    // settings write resolves, which disables the button. Awaiting that is a
+    // stronger, race-free confirmation that the save actually committed.
     await expect(saveButton).toBeDisabled();
+    // Let the fire-and-forget `window.electron.updateSettings(...)` IPC flush to
+    // the main process before callers may relaunch the app to assert persistence.
     await page.waitForTimeout(300);
 }
 
@@ -689,9 +840,7 @@ export function buildM3uContent(channels: M3uTestChannel[]): string {
         const attributes = [
             channel.tvgId ? `tvg-id="${channel.tvgId}"` : '',
             channel.tvgCountry ? `tvg-country="${channel.tvgCountry}"` : '',
-            channel.tvgLanguage
-                ? `tvg-language="${channel.tvgLanguage}"`
-                : '',
+            channel.tvgLanguage ? `tvg-language="${channel.tvgLanguage}"` : '',
             channel.tvgName ? `tvg-name="${channel.tvgName}"` : '',
             channel.logo ? `tvg-logo="${channel.logo}"` : '',
             channel.groupTitle ? `group-title="${channel.groupTitle}"` : '',
@@ -874,9 +1023,7 @@ export async function switchUnifiedCollectionContent(
     await clickButtonToggleOption(toggleGroup, contentLabel);
 }
 
-export async function clearCurrentUnifiedCollection(
-    page: Page
-): Promise<void> {
+export async function clearCurrentUnifiedCollection(page: Page): Promise<void> {
     await page
         .getByRole('button', {
             name: /Clear .* (favorites|recently viewed)/i,

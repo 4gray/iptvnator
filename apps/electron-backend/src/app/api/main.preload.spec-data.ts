@@ -34,7 +34,9 @@ const streams = [{ stream_id: 42, name: 'Channel' }];
 const favorites = [{ contentId: 1, playlistId }];
 const recentlyViewed = [{ contentId: 2, playlistId }];
 const categoryIds = [10, 11];
-const reorderUpdates = [{ content_id: 12, position: 1 }];
+const reorderUpdates = [
+    { content_id: 12, playlist_id: 'playlist-1', position: 1 },
+];
 const recentItemsBatch = [{ contentId: 13, playlistId }];
 const playbackData = {
     contentXtreamId: 42,

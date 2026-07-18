@@ -811,12 +811,17 @@ export class UnifiedFavoritesDataService {
     }
 
     private buildXtreamPositionUpdates(items: UnifiedCollectionItem[]) {
-        const updates: { content_id: number; position: number }[] = [];
+        const updates: {
+            content_id: number;
+            playlist_id: string;
+            position: number;
+        }[] = [];
 
         for (const item of items) {
             if (item.sourceType === 'xtream' && item.contentId != null) {
                 updates.push({
                     content_id: item.contentId,
+                    playlist_id: item.playlistId,
                     position: updates.length,
                 });
             }

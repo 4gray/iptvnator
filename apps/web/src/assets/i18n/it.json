@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Cancellazione…",
         "EPG_URL_ERROR": "Il valore non è una URL valida",
         "VIDEO_PLAYER_DESCRIPTION": "Seleziona lettore video predefinito",
+        "WEB_PLAYER_SHARED_CONTROLS": "Controlli unificati per i player web (sperimentale)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa i controlli condivisi di IPTVnator in HTML5, Video.js e ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Seleziona il formato di streaming predefinito (xtream)",
         "LANGUAGE_DESCRIPTION": "Seleziona la lingua dell'applicazione",
         "THEME_DESCRIPTION": "Seleziona il tema visivo dell'applicazione",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Visualizza/nascondi i sottotitoli per impostazione predefinita",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Mostra footer In riproduzione",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Mantieni visibile la barra di stato del lettore esterno in fondo all'area di lavoro su desktop.",
+        "STRIP_COUNTRY_PREFIX": "Rimuovi i prefissi del paese dai nomi dei canali",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Rimuove i prefissi di paese/gruppo come \"US | \" o \"UK - \" dai nomi dei canali live in tutta l'app.",
         "VERSION_DESCRIPTION": "Versione attuale dell'applicazione",
         "ABOUT_SUBTITLE": "Versione, link al progetto e modi per supportare IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Runtime MPV integrato",
@@ -428,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: motore frame-copy (sperimentale)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Il video viene disegnato sul canvas dell'app, così menu e finestre di dialogo appaiono sopra di esso.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Ha effetto dopo il riavvio dell'app."
     },
     "THEMES": {
         "DARK_THEME": "Scuro",
@@ -459,6 +466,7 @@
             "BACK_10_SECONDS": "Indietro di 10 secondi",
             "FORWARD_10_SECONDS": "Avanti di 10 secondi",
             "LIVE_STREAM": "Stream in diretta",
+            "PLAYBACK_POSITION": "Posizione di riproduzione",
             "MUTE": "Disattiva audio",
             "UNMUTE": "Attiva audio",
             "MUTED": "Audio disattivato",
@@ -483,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Impossibile avviare la registrazione.",
             "RECORDING_FAILED_TO_STOP": "Impossibile interrompere la registrazione.",
             "SAVED_TO": "Salvato in {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Attiva Picture-in-Picture",
+            "EXIT_PICTURE_IN_PICTURE": "Esci da Picture-in-Picture",
             "ENTER_FULLSCREEN": "Attiva schermo intero",
             "EXIT_FULLSCREEN": "Esci dallo schermo intero"
         }
@@ -779,6 +789,7 @@
         "RESTART": "Ricomincia",
         "CONTINUE_WATCHING": "Continua a guardare",
         "PLAY_FIRST_EPISODE": "Riproduci primo episodio",
+        "PLAY_EPISODE": "Riproduci episodio {{episode}}",
         "RESUME_EPISODE": "Riprendi episodio",
         "PLAY_NEXT_EPISODE": "Riproduci episodio successivo",
         "SERIES_WATCHED": "Serie vista",

@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Ачышчаецца...",
         "EPG_URL_ERROR": "Уведзенае значэнне не з'яўляецца URL-адрасам.",
         "VIDEO_PLAYER_DESCRIPTION": "Выбраць стандартны відэапрайгравальнік",
+        "WEB_PLAYER_SHARED_CONTROLS": "Адзіныя элементы кіравання для вэб-прайгравальнікаў (эксперыментальна)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Выкарыстоўваць агульныя элементы кіравання IPTVnator у HTML5, Video.js і ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Выберыце фармат патоку па змаўчанні (xtream)",
         "LANGUAGE_DESCRIPTION": "Выбраць мову праграмы",
         "THEME_DESCRIPTION": "Выбраць візуальную тэму афармлення",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Паказаць або схаваць субтытры па змаўчанні.",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Паказаць ніжнюю панэль прайгравання",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Пакідаць панэль стану знешняга прайгравальніка бачнай унізе працоўнай прасторы на дэсктопе.",
+        "STRIP_COUNTRY_PREFIX": "Выдаляць прэфіксы краін з назваў каналаў",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Выдаляе прэфіксы краін/груп, такія як \"US | \" або \"UK - \", з назваў каналаў прамых трансляцый ва ўсёй праграме.",
         "VERSION_DESCRIPTION": "Бягучая версія праграмы",
         "ABOUT_SUBTITLE": "Версія, спасылкі праекта і спосабы падтрымаць IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Асяроддзе ўбудаванага MPV",
@@ -428,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: рухавік frame-copy (эксперыментальна)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Відэа малюецца на канвасе праграмы, таму меню і дыялогі паказваюцца па-над ім.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Пачне дзейнічаць пасля перазапуску праграмы."
     },
     "THEMES": {
         "DARK_THEME": "Цёмная",
@@ -459,6 +466,7 @@
             "BACK_10_SECONDS": "Назад на 10 секунд",
             "FORWARD_10_SECONDS": "Наперад на 10 секунд",
             "LIVE_STREAM": "Прамая трансляцыя",
+            "PLAYBACK_POSITION": "Пазіцыя прайгравання",
             "MUTE": "Адключыць гук",
             "UNMUTE": "Уключыць гук",
             "MUTED": "Гук адключаны",
@@ -483,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Не ўдалося пачаць запіс.",
             "RECORDING_FAILED_TO_STOP": "Не ўдалося спыніць запіс.",
             "SAVED_TO": "Захавана ў {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Уключыць рэжым «выява ў выяве»",
+            "EXIT_PICTURE_IN_PICTURE": "Выйсці з рэжыму «выява ў выяве»",
             "ENTER_FULLSCREEN": "Увайсці ў поўнаэкранны рэжым",
             "EXIT_FULLSCREEN": "Выйсці з поўнаэкраннага рэжыму"
         }
@@ -779,6 +789,7 @@
         "RESTART": "Спачатку",
         "CONTINUE_WATCHING": "Працягнуць прагляд",
         "PLAY_FIRST_EPISODE": "Прайграць першы эпізод",
+        "PLAY_EPISODE": "Прайграць эпізод {{episode}}",
         "RESUME_EPISODE": "Працягнуць эпізод",
         "PLAY_NEXT_EPISODE": "Прайграць наступны эпізод",
         "SERIES_WATCHED": "Серыял прагледжаны",

@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "지우는 중…",
         "EPG_URL_ERROR": "값이 유효한 URL이 아닙니다.",
         "VIDEO_PLAYER_DESCRIPTION": "기본 비디오 플레이어 선택",
+        "WEB_PLAYER_SHARED_CONTROLS": "웹 플레이어 통합 컨트롤(실험적)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5, Video.js 및 ArtPlayer에서 IPTVnator 공통 컨트롤을 사용합니다.",
         "STREAM_FORMAT_DESCRIPTION": "기본 스트림 형식 선택 (xtream)",
         "LANGUAGE_DESCRIPTION": "애플리케이션 언어 선택",
         "THEME_DESCRIPTION": "애플리케이션의 시각적 테마 선택",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "기본적으로 자막 표시 또는 숨기기",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "지금 재생 중 표시줄 표시",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "데스크톱의 작업 공간 하단에 외부 플레이어 상태 표시줄을 계속 표시합니다.",
+        "STRIP_COUNTRY_PREFIX": "채널 이름에서 국가 접두사 제거",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "라이브 채널 이름에서 \"US | \" 또는 \"UK - \"와 같은 국가/그룹 접두사를 앱 전체에서 제거합니다.",
         "VERSION_DESCRIPTION": "애플리케이션의 현재 버전",
         "ABOUT_SUBTITLE": "버전, 프로젝트 링크 및 IPTVnator를 후원하는 방법.",
         "EMBEDDED_MPV_NOTICE_TITLE": "내장 MPV 런타임",
@@ -428,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "내장 MPV: 프레임 복사 엔진(실험적)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "비디오를 앱 캔버스에 렌더링하여 메뉴와 대화 상자가 그 위에 표시됩니다.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "앱을 다시 시작한 후 적용됩니다."
     },
     "THEMES": {
         "DARK_THEME": "어둡게",
@@ -459,6 +466,7 @@
             "BACK_10_SECONDS": "10초 뒤로",
             "FORWARD_10_SECONDS": "10초 앞으로",
             "LIVE_STREAM": "라이브 스트림",
+            "PLAYBACK_POSITION": "재생 위치",
             "MUTE": "음소거",
             "UNMUTE": "음소거 해제",
             "MUTED": "음소거됨",
@@ -483,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "녹화를 시작하지 못했습니다.",
             "RECORDING_FAILED_TO_STOP": "녹화를 중지하지 못했습니다.",
             "SAVED_TO": "{{path}}에 저장되었습니다",
+            "ENTER_PICTURE_IN_PICTURE": "PIP 모드 시작",
+            "EXIT_PICTURE_IN_PICTURE": "PIP 모드 종료",
             "ENTER_FULLSCREEN": "전체 화면",
             "EXIT_FULLSCREEN": "전체 화면 종료"
         }
@@ -779,6 +789,7 @@
         "RESTART": "처음부터 보기",
         "CONTINUE_WATCHING": "이어서 시청",
         "PLAY_FIRST_EPISODE": "첫 에피소드 재생",
+        "PLAY_EPISODE": "에피소드 {{episode}} 재생",
         "RESUME_EPISODE": "에피소드 이어 보기",
         "PLAY_NEXT_EPISODE": "다음 에피소드 재생",
         "SERIES_WATCHED": "시리즈 시청 완료",

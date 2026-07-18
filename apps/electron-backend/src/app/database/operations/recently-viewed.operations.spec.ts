@@ -214,8 +214,8 @@ describe('recently-viewed.operations', () => {
             expect(transaction).not.toHaveBeenCalled();
         });
 
-        it('executes one prepared placeholder delete per item inside a transaction', async () => {
-            const { db, deleteExecute, deletePrepare, transaction } =
+        it('runs one prepared placeholder delete per item inside a transaction', async () => {
+            const { db, deleteRun, deleteExecute, deletePrepare, transaction } =
                 createDbMock();
 
             await expect(
@@ -229,11 +229,16 @@ describe('recently-viewed.operations', () => {
             expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('contentId');
             expect(mockDrizzle.sql.placeholder).toHaveBeenCalledWith('playlistId');
             expect(transaction).toHaveBeenCalledTimes(1);
-            expect(deleteExecute).toHaveBeenNthCalledWith(1, {
+            // Regression (issue #1137): the prepared delete must be dispatched
+            // with synchronous `.run()`. `.execute()` defers to a promise that
+            // never settles inside the synchronous transaction callback, so the
+            // batch delete would silently no-op.
+            expect(deleteExecute).not.toHaveBeenCalled();
+            expect(deleteRun).toHaveBeenNthCalledWith(1, {
                 contentId: 1,
                 playlistId: 'playlist-1',
             });
-            expect(deleteExecute).toHaveBeenNthCalledWith(2, {
+            expect(deleteRun).toHaveBeenNthCalledWith(2, {
                 contentId: 2,
                 playlistId: 'playlist-2',
             });

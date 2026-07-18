@@ -3,15 +3,21 @@ import { createRequire } from 'module';
 import path from 'path';
 
 import { buildElectronBuilderMetadata } from './generate-electron-builder-metadata.mjs';
-import { inspectPackagedDependencyClosure } from './asar-dependency-closure.mjs';
+import {
+    collectEmbeddedMpvNativeArchiveEntries,
+    inspectPackagedDependencyClosure,
+} from './asar-dependency-closure.mjs';
 
 const require = createRequire(import.meta.url);
 const { extractFile, listPackage } = require('@electron/asar');
 const {
-    getEmbeddedMpvAddonArch,
     linuxUnpackedDirArch,
+    resolveConfiguredLinuxTargetNames,
     validatePackagedEmbeddedMpv,
 } = require('./embedded-mpv-packaging.cjs');
+const {
+    validateLinuxProfileTargets,
+} = require('./linux-frame-copy-profile.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -53,6 +59,8 @@ const snapConfigInspection = loadSnapConfigInspection();
 const embeddedMpvRequired = isTruthy(
     process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV
 );
+const linuxFrameCopyProfile =
+    process.env.IPTVNATOR_LINUX_FRAME_COPY_PROFILE?.trim() || undefined;
 const workerRelativeDir = path.join(
     'dist',
     'apps',
@@ -601,7 +609,9 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
     }
 
     const details = missing
-        .map((entry) => `- ${entry.dependency} (required by ${entry.requiredBy})`)
+        .map(
+            (entry) => `- ${entry.dependency} (required by ${entry.requiredBy})`
+        )
         .join('\n');
 
     errors.push(
@@ -614,9 +624,37 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
     );
 }
 
-// The embedded MPV addon is built once per CI host (x64), but electron-builder
-// emits arm64/armv7l Linux output directories from the same dist tree. Those
-// must carry the unavailable marker instead of a foreign-architecture addon.
+function verifyNoEmbeddedMpvNativeArchiveEntries(resourceDir, errors) {
+    const asarPath = path.join(resourceDir, 'app.asar');
+    if (!fileExists(asarPath)) {
+        // Missing archive is already reported by verifyPackagedPackageMetadata.
+        return;
+    }
+
+    let nativeEntries;
+    try {
+        nativeEntries = collectEmbeddedMpvNativeArchiveEntries(
+            listPackage(asarPath)
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to inspect embedded MPV archive ownership in ${asarPath}: ${error.message}`
+        );
+        return;
+    }
+
+    if (nativeEntries.length > 0) {
+        errors.push(
+            [
+                `Packaged app.asar must not contain embedded MPV native payloads; afterPack exclusively owns the profile-specific unpacked directory in ${asarPath}.`,
+                ...nativeEntries.map((entry) => `- ${entry}`),
+            ].join('\n')
+        );
+    }
+}
+
+// Official Linux frame-copy support is x64-only. Every arm64/armv7l output
+// must carry the unavailable marker instead of native frame-copy artifacts.
 function isForeignArchLinuxResourceDir(resourceDir) {
     if (platform !== 'linux') {
         return false;
@@ -625,7 +663,7 @@ function isForeignArchLinuxResourceDir(resourceDir) {
     const dirArch = linuxUnpackedDirArch(
         path.basename(path.dirname(resourceDir))
     );
-    return Boolean(dirArch) && dirArch !== getEmbeddedMpvAddonArch();
+    return Boolean(dirArch) && dirArch !== 'x64';
 }
 
 function verifyResourceDir(resourceDir) {
@@ -642,9 +680,11 @@ function verifyResourceDir(resourceDir) {
     );
 
     const errors = [];
+    let linuxTargetNames;
 
     verifyPackagedPackageMetadata(resourceDir, errors);
     verifyPackagedDependencyClosure(resourceDir, errors);
+    verifyNoEmbeddedMpvNativeArchiveEntries(resourceDir, errors);
 
     if (missingWorkers.length > 0) {
         errors.push(
@@ -663,6 +703,28 @@ function verifyResourceDir(resourceDir) {
     }
 
     if (platform === 'linux') {
+        const resourceArch =
+            linuxUnpackedDirArch(path.basename(path.dirname(resourceDir))) ||
+            arch;
+        try {
+            linuxTargetNames = resolveConfiguredLinuxTargetNames(
+                electronBuilderConfig.linux?.target,
+                resourceArch
+            );
+            if (linuxFrameCopyProfile) {
+                errors.push(
+                    ...validateLinuxProfileTargets(
+                        linuxFrameCopyProfile,
+                        linuxTargetNames
+                    )
+                );
+            }
+        } catch (error) {
+            errors.push(
+                `Unable to resolve selected Linux package targets: ${error.message}`
+            );
+            linuxTargetNames = [];
+        }
         if (!fileExists(flatpakMetainfoPath)) {
             errors.push(
                 `Missing Flatpak metainfo file: ${flatpakMetainfoPath}`
@@ -679,6 +741,9 @@ function verifyResourceDir(resourceDir) {
             platform,
             required: embeddedMpvRequired,
             foreignArch: isForeignArchLinuxResourceDir(resourceDir),
+            profile: linuxFrameCopyProfile,
+            targetNames: linuxTargetNames,
+            executableName: linuxExecutableName,
         })
     );
 

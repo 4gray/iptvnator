@@ -211,6 +211,7 @@
                 [pageSizeOptions]="pageSizeOptions"
                 [showPaginator]="false"
                 [searchTerm]="searchTerm()"
+                [type]="contentType() ?? ''"
                 (pageChange)="onPageChange($event)"
             />
         </div>

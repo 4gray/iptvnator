@@ -1,4 +1,4 @@
-import { app, dialog, powerSaveBlocker } from 'electron';
+import { app, dialog, powerSaveBlocker, screen } from 'electron';
 import { spawnSync } from 'child_process';
 import {
     closeSync,
@@ -20,12 +20,27 @@ import {
     EmbeddedMpvSession,
     EmbeddedMpvSessionStatus,
     EmbeddedMpvSubtitleTrack,
+    EmbeddedMpvEngine,
+    EmbeddedMpvFrameSource,
     EmbeddedMpvSupport,
+    EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
     EMBEDDED_MPV_SESSION_UPDATE,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
+import { EmbeddedMpvFrameCopyAdapter } from './embedded-mpv-frame-copy.adapter';
+import {
+    getFrameCopyRuntimeAvailability,
+    getEmbeddedMpvAddonCandidatePaths,
+    isFrameCopyRuntimeUsable,
+    resolveFrameCopyHelperPath,
+} from './embedded-mpv-frame-copy-platform.util';
+import type { EmbeddedMpvFrameCopyRuntimeMode } from './embedded-mpv-frame-copy-runtime';
+import {
+    EMBEDDED_MPV_EXPERIMENT_ENV,
+    isEmbeddedMpvFeatureEnabled,
+} from './embedded-mpv-runtime-policy.util';
 
-interface NativeEmbeddedMpvSessionSnapshot {
+export interface NativeEmbeddedMpvSessionSnapshot {
     status: EmbeddedMpvSessionStatus;
     positionSeconds: number;
     durationSeconds: number | null;
@@ -37,11 +52,13 @@ interface NativeEmbeddedMpvSessionSnapshot {
     selectedSubtitleTrackId?: number | null;
     playbackSpeed?: number;
     aspectOverride?: string;
+    videoWidth?: number;
+    videoHeight?: number;
     recording?: EmbeddedMpvRecordingState;
     error?: string;
 }
 
-interface NativeEmbeddedMpvAddon {
+export interface NativeEmbeddedMpvAddon {
     isSupported(): boolean;
     createSession(
         windowHandle: Buffer,
@@ -76,18 +93,12 @@ interface EmbeddedMpvRuntimeSession {
     lastStatus: EmbeddedMpvSessionStatus | null;
 }
 
-const EMBEDDED_MPV_EXPERIMENT_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT';
+const EMBEDDED_MPV_FRAME_COPY_ENV = 'IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY';
 const SUPPORTED_EMBEDDED_MPV_PLATFORMS = new Set<NodeJS.Platform>([
     'darwin',
     'win32',
     'linux',
 ]);
-
-function dedupePaths(paths: Array<string | undefined>): string[] {
-    return [
-        ...new Set(paths.filter((value): value is string => Boolean(value))),
-    ];
-}
 
 export class EmbeddedMpvNativeService {
     private addon: NativeEmbeddedMpvAddon | null = null;
@@ -98,8 +109,108 @@ export class EmbeddedMpvNativeService {
     private powerBlockerId: number | null = null;
     private readonly loadAddonModule = createRequire(__filename);
     private cachedLinuxMpvExecutableReason: string | null | undefined;
+    private frameCopyAdapter: EmbeddedMpvFrameCopyAdapter | null = null;
+
+    /**
+     * Frame-copy engine: helper process + shm ring + renderer canvas.
+     * Experimental, macOS Apple Silicon (owner decision 2026-07-10), Linux
+     * x64 and Windows, opted into with
+     * IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY=1 on top of the regular
+     * embedded MPV experiment flag.
+     */
+    private isFrameCopyEngineRequested(): boolean {
+        return ['1', 'true', 'yes', 'on'].includes(
+            (process.env[EMBEDDED_MPV_FRAME_COPY_ENV] ?? '')
+                .trim()
+                .toLowerCase()
+        );
+    }
+
+    private isFrameCopyEngineActive(): boolean {
+        // Requires the helper binary too: a stale opt-in (cleaned native
+        // build, bad install) must fall back to the native engine instead
+        // of leaving embedded MPV unsupported with no way to recover.
+        return this.isFrameCopyEngineRequested() && isFrameCopyRuntimeUsable();
+    }
+
+    getActiveEngine(): EmbeddedMpvEngine {
+        return this.isFrameCopyEngineActive() ? 'frame-copy' : 'native';
+    }
+
+    isFrameCopyAvailable(): boolean {
+        return isFrameCopyRuntimeUsable();
+    }
+
+    private getFrameCopySupportDetails(): Pick<
+        EmbeddedMpvSupport,
+        'frameCopyAvailable' | 'frameCopyUnavailableReason'
+    > {
+        const availability = getFrameCopyRuntimeAvailability();
+        if (!('reason' in availability)) {
+            return { frameCopyAvailable: true };
+        }
+        return {
+            frameCopyAvailable: false,
+            frameCopyUnavailableReason: availability.reason,
+        };
+    }
+
+    private resolveFrameCopyRuntimeMode(): EmbeddedMpvFrameCopyRuntimeMode | null {
+        if (process.platform !== 'linux') {
+            return null;
+        }
+        const availability = getFrameCopyRuntimeAvailability();
+        return availability.usable && 'runtimeMode' in availability
+            ? availability.runtimeMode
+            : null;
+    }
+
+    getFrameSource(sessionId: string): EmbeddedMpvFrameSource | null {
+        return this.frameCopyAdapter?.getFrameSource(sessionId) ?? null;
+    }
+
+    private getFrameCopyAdapter(): EmbeddedMpvFrameCopyAdapter {
+        if (!this.frameCopyAdapter) {
+            this.frameCopyAdapter = new EmbeddedMpvFrameCopyAdapter({
+                resolveHelperPath: resolveFrameCopyHelperPath,
+                resolveRuntimeMode: () => this.resolveFrameCopyRuntimeMode(),
+                getScaleFactor: () => this.getMainWindowScaleFactor(),
+                onFrameSourceChanged: (sessionId, source) => {
+                    if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+                        return;
+                    }
+                    App.mainWindow.webContents.send(
+                        EMBEDDED_MPV_FRAME_SOURCE_CHANGED,
+                        { sessionId, source }
+                    );
+                },
+            });
+        }
+        return this.frameCopyAdapter;
+    }
+
+    private getMainWindowScaleFactor(): number {
+        try {
+            if (!App.mainWindow || App.mainWindow.isDestroyed()) {
+                return 1;
+            }
+            return screen.getDisplayMatching(App.mainWindow.getBounds())
+                .scaleFactor;
+        } catch {
+            return 1;
+        }
+    }
 
     private detectCapabilities(): EmbeddedMpvCapabilities {
+        if (this.isFrameCopyEngineActive()) {
+            return {
+                subtitles: true,
+                playbackSpeed: true,
+                aspectOverride: true,
+                screenshot: false,
+                recording: true,
+            };
+        }
         const addon = this.addon;
         return {
             subtitles: typeof addon?.setSubtitleTrack === 'function',
@@ -121,19 +232,42 @@ export class EmbeddedMpvNativeService {
             };
         }
 
-        if (this.isUnsupportedLinuxDisplayServer()) {
+        // The frame-copy engine renders offscreen (headless EGL on Linux,
+        // WGL on Windows) into a renderer canvas: the Linux X11/Xwayland and
+        // system-mpv requirements below only bind the native --wid engine. Both
+        // native-engine failure returns still advertise frameCopyAvailable
+        // so the Settings toggle stays reachable — otherwise the states the
+        // frame-copy engine exists to fix would hide the way to enable it.
+        if (
+            this.isUnsupportedLinuxDisplayServer() &&
+            !this.isFrameCopyEngineActive()
+        ) {
             return {
                 supported: false,
                 platform: process.platform,
                 reason: 'Embedded MPV on Linux currently requires X11 or Xwayland. Native Wayland embedding is not supported yet.',
+                ...this.getFrameCopySupportDetails(),
             };
         }
 
-        if (!this.isEmbeddedMpvEnabled()) {
+        if (!isEmbeddedMpvFeatureEnabled()) {
             return {
                 supported: false,
                 platform: process.platform,
                 reason: `Embedded MPV is an experimental desktop player. Set ${EMBEDDED_MPV_EXPERIMENT_ENV}=1 to enable it for local development builds, or use a packaged build with the bundled runtime.`,
+            };
+        }
+
+        // A requested-but-unavailable frame-copy engine (wrong platform or
+        // missing helper) intentionally falls through to the native path so
+        // embedded MPV keeps working and Settings can clear the opt-in.
+        if (this.isFrameCopyEngineActive()) {
+            return {
+                supported: true,
+                platform: process.platform,
+                engine: 'frame-copy',
+                ...this.getFrameCopySupportDetails(),
+                capabilities: this.detectCapabilities(),
             };
         }
 
@@ -144,6 +278,7 @@ export class EmbeddedMpvNativeService {
                 supported: false,
                 platform: process.platform,
                 reason: missingLinuxMpvExecutableReason,
+                ...this.getFrameCopySupportDetails(),
             };
         }
 
@@ -160,6 +295,8 @@ export class EmbeddedMpvNativeService {
                 return {
                     supported: true,
                     platform: process.platform,
+                    engine: this.getActiveEngine(),
+                    ...this.getFrameCopySupportDetails(),
                     capabilities: this.detectCapabilities(),
                 };
             } catch (error) {
@@ -224,6 +361,8 @@ export class EmbeddedMpvNativeService {
             return {
                 supported: true,
                 platform: process.platform,
+                engine: this.getActiveEngine(),
+                ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -254,6 +393,8 @@ export class EmbeddedMpvNativeService {
             return {
                 supported: true,
                 platform: process.platform,
+                engine: this.getActiveEngine(),
+                ...this.getFrameCopySupportDetails(),
                 capabilities: this.detectCapabilities(),
             };
         } catch (error) {
@@ -272,7 +413,16 @@ export class EmbeddedMpvNativeService {
     ): EmbeddedMpvSession {
         this.assertEmbeddedMpvEnabled();
         const addon = this.getAddon();
-        const windowHandle = this.getMainWindowHandle();
+        // The frame-copy adapter ignores the native window handle (frames go
+        // through shm to a DOM canvas), so skip resolving it — under native
+        // Wayland the handle assertion would reject an engine that does not
+        // embed into the window at all. Derive the skip from the dispatched
+        // addon rather than re-evaluating the engine gate, so the two
+        // decisions cannot disagree.
+        const windowHandle =
+            this.frameCopyAdapter && addon === this.frameCopyAdapter
+                ? Buffer.alloc(0)
+                : this.getMainWindowHandle();
         const startedAt = new Date().toISOString();
         const sessionId = addon.createSession(
             windowHandle,
@@ -292,6 +442,7 @@ export class EmbeddedMpvNativeService {
         });
 
         this.ensurePolling();
+        this.ensureRendererLifecycleWatch();
         return (
             this.refreshSession(sessionId) ?? {
                 id: sessionId,
@@ -541,6 +692,51 @@ export class EmbeddedMpvNativeService {
         }, 500);
     }
 
+    /**
+     * Sessions are torn down by the renderer's Angular lifecycle, which
+     * never runs when the renderer crashes or hard-reloads (dev-server HMR,
+     * Cmd+R). Without this watch, native mpv handles or frame-copy helper
+     * processes leak until app shutdown.
+     */
+    private rendererWatchInstalled = false;
+
+    private ensureRendererLifecycleWatch(): void {
+        if (
+            this.rendererWatchInstalled ||
+            !App.mainWindow ||
+            App.mainWindow.isDestroyed()
+        ) {
+            return;
+        }
+        this.rendererWatchInstalled = true;
+
+        const disposeAll = (reason: string) => {
+            if (this.sessions.size === 0) {
+                return;
+            }
+            console.warn(
+                `[Embedded MPV] Disposing ${this.sessions.size} session(s): renderer ${reason}`
+            );
+            [...this.sessions.keys()].forEach((sessionId) => {
+                try {
+                    this.disposeSession(sessionId);
+                } catch {
+                    // best-effort reaping; polling cleanup handles the rest
+                }
+            });
+        };
+
+        App.mainWindow.webContents.on(
+            'render-process-gone',
+            (_event, details) => disposeAll(`process gone (${details.reason})`)
+        );
+        // Full navigations/reloads only — in-app Angular routing emits
+        // did-navigate-in-page and must not kill the active session.
+        App.mainWindow.webContents.on('did-navigate', () =>
+            disposeAll('reloaded')
+        );
+    }
+
     private stopPollingIfIdle(): void {
         if (this.sessions.size > 0 || !this.pollingTimer) {
             return;
@@ -595,6 +791,13 @@ export class EmbeddedMpvNativeService {
                 typeof snapshot.aspectOverride === 'string'
                     ? snapshot.aspectOverride
                     : 'no',
+            ...(typeof snapshot.videoWidth === 'number' &&
+            typeof snapshot.videoHeight === 'number'
+                ? {
+                      videoWidth: snapshot.videoWidth,
+                      videoHeight: snapshot.videoHeight,
+                  }
+                : {}),
             recording: snapshot.recording ?? { active: false },
             startedAt: session.startedAt,
             updatedAt: new Date().toISOString(),
@@ -757,20 +960,8 @@ export class EmbeddedMpvNativeService {
         return `${parts[0]}${parts[1]}${parts[2]}-${parts[3]}${parts[4]}${parts[5]}`;
     }
 
-    private isExperimentEnabled(): boolean {
-        return ['1', 'true', 'yes', 'on'].includes(
-            (process.env[EMBEDDED_MPV_EXPERIMENT_ENV] ?? '')
-                .trim()
-                .toLowerCase()
-        );
-    }
-
-    private isEmbeddedMpvEnabled(): boolean {
-        return app.isPackaged || this.isExperimentEnabled();
-    }
-
     private assertEmbeddedMpvEnabled(): void {
-        if (!this.isEmbeddedMpvEnabled()) {
+        if (!isEmbeddedMpvFeatureEnabled()) {
             throw new Error(
                 `Embedded MPV is disabled. Set ${EMBEDDED_MPV_EXPERIMENT_ENV}=1 to enable the local desktop harness, or use a packaged build with the bundled runtime.`
             );
@@ -841,6 +1032,10 @@ export class EmbeddedMpvNativeService {
     }
 
     private getAddon(): NativeEmbeddedMpvAddon {
+        if (this.isFrameCopyEngineActive()) {
+            return this.getFrameCopyAdapter();
+        }
+
         if (this.addon) {
             return this.addon;
         }
@@ -893,47 +1088,7 @@ export class EmbeddedMpvNativeService {
     }
 
     private getAddonCandidatePaths(): string[] {
-        const localBuildAddonPath = path.resolve(
-            process.cwd(),
-            'apps/electron-backend/native/build/Release/embedded_mpv.node'
-        );
-        const distAddonPaths = [
-            path.resolve(__dirname, 'native/embedded_mpv.node'),
-            path.resolve(__dirname, '../../native/embedded_mpv.node'),
-        ];
-        const packagedAddonPaths = [
-            path.resolve(
-                (process as NodeJS.Process & { resourcesPath?: string })
-                    .resourcesPath ?? '',
-                'app.asar.unpacked',
-                'electron-backend',
-                'native',
-                'embedded_mpv.node'
-            ),
-            app.getAppPath()
-                ? path.join(
-                      path.dirname(app.getAppPath()),
-                      'app.asar.unpacked',
-                      'electron-backend',
-                      'native',
-                      'embedded_mpv.node'
-                  )
-                : undefined,
-        ];
-
-        return dedupePaths(
-            app.isPackaged
-                ? [
-                      ...packagedAddonPaths,
-                      ...distAddonPaths,
-                      localBuildAddonPath,
-                  ]
-                : [
-                      localBuildAddonPath,
-                      ...distAddonPaths,
-                      ...packagedAddonPaths,
-                  ]
-        );
+        return getEmbeddedMpvAddonCandidatePaths();
     }
 
     private readUnavailableReason(candidatePaths: string[]): string | null {

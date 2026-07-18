@@ -1,7 +1,9 @@
+import { signal } from '@angular/core';
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { By } from '@angular/platform-browser';
 import { TranslatePipe } from '@ngx-translate/core';
 import { MockPipe } from 'ng-mocks';
+import { SettingsStore } from '@iptvnator/services';
 import {
     formatGridRating,
     GridListComponent,
@@ -158,5 +160,79 @@ describe('GridListComponent', () => {
         expect(placeholderIcon.nativeElement.textContent.trim()).toBe(
             'live_tv'
         );
+    });
+
+    it('renders raw titles while prefix stripping is disabled', () => {
+        fixture.componentRef.setInput('items', [{ name: 'US | CNN' }]);
+        fixture.componentRef.setInput('type', 'live');
+
+        fixture.detectChanges();
+
+        const title = fixture.debugElement.query(By.css('.title'));
+        expect(title.nativeElement.textContent.trim()).toBe('US | CNN');
+    });
+
+    it('falls back to a placeholder title for items without a name', () => {
+        fixture.componentRef.setInput('items', [{}]);
+
+        fixture.detectChanges();
+
+        const title = fixture.debugElement.query(By.css('.title'));
+        expect(title.nativeElement.textContent.trim()).toBe('No name');
+    });
+});
+
+describe('GridListComponent with strip country prefix enabled', () => {
+    let fixture: ComponentFixture<GridListComponent>;
+
+    beforeEach(async () => {
+        await TestBed.configureTestingModule({
+            imports: [GridListComponent],
+            providers: [
+                {
+                    provide: SettingsStore,
+                    useValue: { stripCountryPrefix: signal(true) },
+                },
+            ],
+        })
+            .overrideComponent(GridListComponent, {
+                remove: { imports: [TranslatePipe] },
+                add: {
+                    imports: [
+                        MockPipe(
+                            TranslatePipe,
+                            (value: string | null | undefined) => value ?? ''
+                        ),
+                    ],
+                },
+            })
+            .compileComponents();
+
+        fixture = TestBed.createComponent(GridListComponent);
+    });
+
+    const renderedTitle = () =>
+        fixture.debugElement
+            .query(By.css('.title'))
+            .nativeElement.textContent.trim();
+
+    it('strips prefixes from live grid titles', () => {
+        fixture.componentRef.setInput('items', [{ name: 'US | CNN' }]);
+        fixture.componentRef.setInput('type', 'live');
+
+        fixture.detectChanges();
+
+        expect(renderedTitle()).toBe('CNN');
+    });
+
+    it('keeps VOD titles untouched', () => {
+        fixture.componentRef.setInput('items', [
+            { title: 'US | Some Movie' },
+        ]);
+        fixture.componentRef.setInput('type', 'vod');
+
+        fixture.detectChanges();
+
+        expect(renderedTitle()).toBe('US | Some Movie');
     });
 });

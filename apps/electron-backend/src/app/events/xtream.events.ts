@@ -14,6 +14,11 @@ import { emitPortalDebugEvent } from './portal-debug.events';
 import { UnsafeUrlError } from './url-safety';
 import { requestWithValidatedRedirects } from '../util/validated-axios';
 
+// Some Xtream panels sit behind Cloudflare (or similar WAFs) configured to
+// challenge generic browser-looking User-Agents while allowlisting known
+// IPTV player clients. A VLC-style User-Agent reliably passes those checks.
+const XTREAM_CLIENT_USER_AGENT = 'VLC/3.0.18 LibVLC/3.0.18';
+
 export default class XtreamEvents {
     static bootstrapXtreamEvents(): Electron.IpcMain {
         return ipcMain;
@@ -119,8 +124,7 @@ ipcMain.handle(
                 method: 'GET',
                 url: apiUrl.toString(),
                 headers: {
-                    'User-Agent':
-                        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                    'User-Agent': XTREAM_CLIENT_USER_AGENT,
                     Accept: 'application/json',
                 },
                 timeout: 30000, // 30 seconds timeout for Xtream API
@@ -194,8 +198,7 @@ ipcMain.handle(
                         method: 'GET',
                         url: apiUrl,
                         headers: {
-                            'User-Agent':
-                                'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                            'User-Agent': XTREAM_CLIENT_USER_AGENT,
                             Accept: 'application/json',
                         },
                         timeout: 30000,
@@ -304,8 +307,7 @@ ipcMain.handle(
             method,
             url: payload.url,
             headers: {
-                'User-Agent':
-                    'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+                'User-Agent': XTREAM_CLIENT_USER_AGENT,
                 ...(method === 'GET' ? { Range: 'bytes=0-4095' } : {}),
             },
             timeout: 10000,

@@ -223,6 +223,12 @@
             overflow-x: auto;
             padding-bottom: 8px;
             scrollbar-width: thin;
+            scrollbar-color: color-mix(
+                    in srgb,
+                    var(--app-muted-color) 55%,
+                    transparent
+                )
+                transparent;
         }
 
         &__similar-card {

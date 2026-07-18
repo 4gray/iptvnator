@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Czyszczenie…",
         "EPG_URL_ERROR": "Wartość nie jest prawidłowym URL",
         "VIDEO_PLAYER_DESCRIPTION": "Wybierz domyślny odtwarzacz wideo",
+        "WEB_PLAYER_SHARED_CONTROLS": "Ujednolicone sterowanie odtwarzaczami internetowymi (eksperymentalne)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Używaj wspólnych elementów sterowania IPTVnator w HTML5, Video.js i ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Wybierz domyślny format strumienia (xtream)",
         "LANGUAGE_DESCRIPTION": "Wybierz język aplikacji",
         "THEME_DESCRIPTION": "Wybierz motyw wizualny aplikacji",
@@ -315,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Domyślnie pokaż lub ukryj napisy",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Pokaż stopkę „teraz odtwarzane”",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Pozostaw pasek statusu zewnętrznego odtwarzacza widoczny u dołu obszaru roboczego na komputerze.",
+        "STRIP_COUNTRY_PREFIX": "Usuń prefiksy krajów z nazw kanałów",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Usuwa prefiksy kraju/grupy, takie jak \"US | \" lub \"UK - \", z nazw kanałów na żywo w całej aplikacji.",
         "VERSION_DESCRIPTION": "Aktualna wersja aplikacji",
         "ABOUT_SUBTITLE": "Wersja, linki do projektu i sposoby wsparcia IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Środowisko wbudowanego MPV",
@@ -428,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: silnik frame-copy (eksperymentalny)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "Wideo jest rysowane na kanwie aplikacji, dzięki czemu menu i okna dialogowe wyświetlają się nad nim.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Zacznie działać po ponownym uruchomieniu aplikacji."
     },
     "THEMES": {
         "DARK_THEME": "Ciemny",
@@ -459,6 +466,7 @@
             "BACK_10_SECONDS": "Cofnij o 10 sekund",
             "FORWARD_10_SECONDS": "Do przodu o 10 sekund",
             "LIVE_STREAM": "Transmisja na żywo",
+            "PLAYBACK_POSITION": "Pozycja odtwarzania",
             "MUTE": "Wycisz",
             "UNMUTE": "Wyłącz wyciszenie",
             "MUTED": "Wyciszono",
@@ -483,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Nie udało się rozpocząć nagrywania.",
             "RECORDING_FAILED_TO_STOP": "Nie udało się zatrzymać nagrywania.",
             "SAVED_TO": "Zapisano w {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Włącz obraz w obrazie",
+            "EXIT_PICTURE_IN_PICTURE": "Wyłącz obraz w obrazie",
             "ENTER_FULLSCREEN": "Włącz pełny ekran",
             "EXIT_FULLSCREEN": "Wyłącz pełny ekran"
         }
@@ -779,6 +789,7 @@
         "RESTART": "Zacznij od nowa",
         "CONTINUE_WATCHING": "Kontynuuj oglądanie",
         "PLAY_FIRST_EPISODE": "Odtwórz pierwszy odcinek",
+        "PLAY_EPISODE": "Odtwórz odcinek {{episode}}",
         "RESUME_EPISODE": "Wznów odcinek",
         "PLAY_NEXT_EPISODE": "Odtwórz następny odcinek",
         "SERIES_WATCHED": "Serial obejrzany",

@@ -136,6 +136,7 @@ describe('UnifiedLiveTabComponent', () => {
     let component: UnifiedLiveTabComponent;
     let player: ReturnType<typeof signal<VideoPlayer>>;
     let epgViewMode: ReturnType<typeof signal<'timeline' | 'list'>>;
+    let stripCountryPrefix: ReturnType<typeof signal<boolean>>;
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
@@ -173,6 +174,7 @@ describe('UnifiedLiveTabComponent', () => {
         };
         player = signal(VideoPlayer.VideoJs);
         epgViewMode = signal<'timeline' | 'list'>('timeline');
+        stripCountryPrefix = signal(false);
         portalPlayer = {
             isEmbeddedPlayer: jest.fn().mockReturnValue(false),
             openResolvedPlayback: jest.fn(),
@@ -198,6 +200,7 @@ describe('UnifiedLiveTabComponent', () => {
                     useValue: {
                         openStreamOnDoubleClick: signal(false),
                         player,
+                        stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
                     },
                 },
@@ -1163,6 +1166,35 @@ describe('UnifiedLiveTabComponent', () => {
 
             expect(component.activeTimeshift()).toBeNull();
             expect(snackBar.open).toHaveBeenCalledTimes(1);
+        });
+    });
+
+    describe('timeline channel name', () => {
+        it('strips the country prefix when the setting is enabled', () => {
+            stripCountryPrefix.set(true);
+            component.activeDetail.set({
+                epgMode: 'portal',
+                playback: {
+                    streamUrl: 'https://example.com/live.m3u8',
+                    title: 'US | CNN',
+                },
+                epgItems: [],
+            } as never);
+
+            expect(component.timelineChannelName()).toBe('CNN');
+        });
+
+        it('prefers the M3U channel name and keeps it raw while disabled', () => {
+            component.activeDetail.set({
+                epgMode: 'm3u',
+                channel: { name: 'US | CNN' },
+                playback: {
+                    streamUrl: 'https://example.com/live.m3u8',
+                    title: 'Fallback Title',
+                },
+            } as never);
+
+            expect(component.timelineChannelName()).toBe('US | CNN');
         });
     });
 });
