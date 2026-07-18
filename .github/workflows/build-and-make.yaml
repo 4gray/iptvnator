@@ -947,22 +947,51 @@ jobs:
             # Rare action-gh-release path: when the release listing transiently
             # misses the rolling draft, the action creates a duplicate, deletes
             # it in favor of the canonical (oldest) draft, and uploads assets
-            # there WITHOUT refreshing that draft's metadata. Re-assert the
-            # composed title and commitish on whatever release the action ended
-            # up using; the body is left alone to preserve generated notes.
+            # there WITHOUT refreshing that draft's metadata. Rebuild the full
+            # metadata (title, commitish, and body = context header + notes
+            # from the same generate-notes API the action uses) on the release
+            # id the action actually used, so the draft ends up correct no
+            # matter which internal path ran. If notes generation fails, the
+            # body is left as the action set it and only title/commitish are
+            # re-asserted.
             - name: Ensure draft metadata is current
               if: steps.draft-release.outputs.id != ''
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   RELEASE_ID: ${{ steps.draft-release.outputs.id }}
+                  RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
                   RELEASE_NAME: ${{ steps.release-meta.outputs.name }}
                   RELEASE_COMMITISH: ${{ steps.release-meta.outputs.commitish }}
+                  RELEASE_BODY: ${{ steps.release-meta.outputs.body }}
               run: |
                   set -euo pipefail
 
-                  gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" \
-                      -f name="${RELEASE_NAME}" \
-                      -f target_commitish="${RELEASE_COMMITISH}" > /dev/null
+                  GENERATED_NOTES="$(gh api -X POST "repos/${GITHUB_REPOSITORY}/releases/generate-notes" \
+                      -f tag_name="${RELEASE_TAG}" \
+                      -f target_commitish="${RELEASE_COMMITISH}" \
+                      --jq '.body' || true)"
+
+                  if [ -z "${GENERATED_NOTES}" ]; then
+                      jq -n \
+                          --arg name "${RELEASE_NAME}" \
+                          --arg commitish "${RELEASE_COMMITISH}" \
+                          '{name: $name, target_commitish: $commitish}' |
+                          gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null
+                      exit 0
+                  fi
+
+                  if [ -n "${RELEASE_BODY}" ]; then
+                      FULL_BODY="$(printf '%s\n\n%s' "${RELEASE_BODY}" "${GENERATED_NOTES}")"
+                  else
+                      FULL_BODY="${GENERATED_NOTES}"
+                  fi
+
+                  jq -n \
+                      --arg name "${RELEASE_NAME}" \
+                      --arg commitish "${RELEASE_COMMITISH}" \
+                      --arg body "${FULL_BODY}" \
+                      '{name: $name, target_commitish: $commitish, body: ($body | .[0:120000])}' |
+                      gh api -X PATCH "repos/${GITHUB_REPOSITORY}/releases/${RELEASE_ID}" --input - > /dev/null
 
     publish-snap:
         name: Publish to Snapcraft Store
