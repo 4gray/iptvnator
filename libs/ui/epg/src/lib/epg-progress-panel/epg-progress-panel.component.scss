@@ -120,6 +120,8 @@
     overflow-y: auto;
     padding: 4px 0;
     scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--app-muted-color) 55%, transparent)
+        transparent;
 }
 
 .import-item {

@@ -25,7 +25,7 @@
             }
         },
         "lint": {
-            "command": "eslint libs/shared/database/**/*.ts"
+            "command": "eslint \"libs/shared/database/**/*.ts\""
         }
     }
 }

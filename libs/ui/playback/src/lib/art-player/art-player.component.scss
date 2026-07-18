@@ -2,6 +2,8 @@
     display: block;
     width: 100%;
     height: 100%;
+    min-height: 0;
+    overflow: hidden;
 }
 
 .art-player-shell {
@@ -15,4 +17,41 @@
 .artplayer-container {
     width: 100%;
     height: 100%;
+}
+
+.art-player-shell--shared-controls {
+    isolation: isolate;
+
+    .artplayer-container {
+        position: relative;
+        z-index: 0;
+        isolation: isolate;
+    }
+
+    .art-player-interaction-capture {
+        position: absolute;
+        z-index: 1;
+        inset: 0;
+        pointer-events: auto;
+    }
+
+    // ArtPlayer's flags remove optional widgets, but its core mask, bottom bar,
+    // menus, notices and loading layer remain mounted. Scope all suppression to
+    // the rollout class so the default-off vendor skin is untouched.
+    ::ng-deep .art-video-player {
+        .art-bottom,
+        .art-mask,
+        .art-settings,
+        .art-contextmenus,
+        .art-info,
+        .art-notice,
+        .art-loading,
+        .art-layers {
+            display: none !important;
+        }
+
+        &.art-control-show .art-subtitle {
+            bottom: var(--art-subtitle-bottom);
+        }
+    }
 }

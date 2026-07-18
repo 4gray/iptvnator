@@ -52,7 +52,16 @@
                             ".deps/**",
                             "obj.target/**",
                             "**/.deps/**",
-                            "**/obj.target/**"
+                            "**/obj.target/**",
+                            "obj/**",
+                            "**/obj/**",
+                            "**/*.pdb",
+                            "**/*.iobj",
+                            "**/*.ipdb",
+                            "**/*.ilk",
+                            "**/*.exp",
+                            "**/*.lib",
+                            "**/*.dll.a"
                         ]
                     }
                 ]
@@ -105,7 +114,16 @@
                             ".deps/**",
                             "obj.target/**",
                             "**/.deps/**",
-                            "**/obj.target/**"
+                            "**/obj.target/**",
+                            "obj/**",
+                            "**/obj/**",
+                            "**/*.pdb",
+                            "**/*.iobj",
+                            "**/*.ipdb",
+                            "**/*.ilk",
+                            "**/*.exp",
+                            "**/*.lib",
+                            "**/*.dll.a"
                         ]
                     }
                 ]

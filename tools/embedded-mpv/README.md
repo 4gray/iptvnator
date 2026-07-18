@@ -1,6 +1,6 @@
 # Embedded MPV Runtime
 
-This folder contains tooling for preparing MPV runtime/build inputs for IPTVnator's experimental embedded MPV player. macOS and Windows bundle `libmpv`; Linux uses staged MPV headers for compilation and launches the system `mpv` executable at runtime.
+This folder contains tooling for preparing MPV runtime/build inputs for IPTVnator's experimental embedded MPV player. macOS and Windows bundle `libmpv`; Linux uses staged MPV headers for compilation and launches the system `mpv` executable at runtime. On Linux, `apps/electron-backend/build-embedded-mpv.js` also falls back to system headers when nothing is staged (`libmpv-dev`; override with `LIBMPV_INCLUDE_DIR`/`LINUX_NATIVE_LIBRARY_DIR`), so a plain distro dev setup builds without staging. The frame-copy helper (`iptvnator_mpv_helper`) additionally needs `libegl-dev`, `libgl-dev`, `libopengl-dev` (for the unversioned glvnd `libOpenGL.so` the linker resolves `-lOpenGL` against), and `libgbm-dev`, and links the system `libmpv` — allowed because it is a separate process; the in-process-libmpv ban still binds the addon. On Windows the same binding.gyp run builds `iptvnator_mpv_helper.exe` against the staged vendored runtime (import library + DLL, resolved from the helper's own directory at runtime) plus `opengl32.lib`; no toolchain beyond the MSVC workload and Windows SDK that node-gyp already requires.
 
 ## Runtime Policy
 
@@ -110,7 +110,10 @@ libmpv import library, and `mpv-2.dll`/`mpv.dll` or
 (`lib/` and `bin/`) or the common `mpv-dev-lgpl` flat layout with the import
 library and DLL in the archive root. The staged runtime preserves the DLL
 basename from the archive because Windows import libraries encode the DLL name
-that `embedded_mpv.node` must load at runtime. If
+that native binaries must load at runtime. Package validation reads the
+frame-copy helper's PE imports and requires that exact DLL basename beside
+`iptvnator_mpv_helper.exe`; a different accepted MPV DLL name or a copy only
+under `native/lib/` is not sufficient. If
 `runtime-manifest.json` is missing, CI generates a minimal manifest from the
 archive URL/path and checksum; release-ready runtime archives should still
 provide full source/build metadata.
@@ -128,7 +131,7 @@ The build manifest records source URLs, downloaded archive SHA-256 values where 
 
 ## Build Integration
 
-`apps/electron-backend/build-embedded-mpv.js` builds the native addon against the staged runtime/build inputs, copies macOS/Windows runtime libraries into `apps/electron-backend/native/build/Release/lib/`, rewrites macOS Mach-O paths to `@loader_path`, and writes `embedded-mpv-runtime.json`. Linux builds use the staged MPV headers and system X11 development libraries, write an `external-mpv-process` manifest, and must not copy or link directly to `libmpv`; CI validates this with package checks and `ldd`.
+`apps/electron-backend/build-embedded-mpv.js` builds the native addon against the staged runtime/build inputs, copies macOS/Windows runtime libraries into `apps/electron-backend/native/build/Release/lib/`, rewrites macOS Mach-O paths to `@loader_path`, and writes `embedded-mpv-runtime.json`. Linux builds use the staged (or system) MPV headers and system X11 development libraries, write an `external-mpv-process` manifest, and the addon must not copy or link directly to `libmpv`; CI validates this with package checks and `ldd`. The frame-copy helper executable built by the same run is the inverse: CI verifies it DOES link `libmpv` (separate process).
 
 For local macOS development with Homebrew `mpv`, use:
 
@@ -138,7 +141,7 @@ pnpm run serve:backend:embedded-mpv
 
 The script rebuilds the native addon with `IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1` before starting Electron with the experimental player enabled. Use this only for local testing; release packaging rejects the resulting `homebrew-dev` runtime manifest.
 
-The `afterPack` hook copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` so the addon, runtime manifest, and runtime libraries are available as real files where needed. Linux packages include the addon and manifest, but no bundled `libmpv.so`.
+The `afterPack` hook copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` so the addon, runtime manifest, and runtime libraries are available as real files where needed. Linux packages include the addon and manifest, but no bundled `libmpv.so`, and the hook strips `iptvnator_mpv_helper` from Linux packages (it links the build host's system libmpv; the frame-copy engine stays dev-build-only on Linux until bundled-runtime staging lands).
 
 During release packaging, `tools/packaging/electron-after-pack.cjs` verifies that macOS/Windows packages use a `vendored-lgpl` runtime/build input set. macOS artifacts additionally verify that Mach-O dependencies have no `/opt/homebrew` or `/usr/local` dynamic links for embedded MPV. Linux artifacts verify that the addon and `external-mpv-process` manifest are present, that no bundled `libmpv.so` files are present, and the runtime support check verifies that `mpv` is available on `PATH`.
 
@@ -147,5 +150,5 @@ Set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` when packaging a release artifact that mu
 ## Platform Notes
 
 - macOS keeps the existing libmpv render-context backend because mpv `wid` stays black inside Electron on macOS.
-- Windows uses an embedded child `HWND` and passes it to mpv through `wid`.
-- Linux uses an X11 child window and starts a system `mpv --wid` process for that window. Native Wayland is not supported in v1; run under X11/Xwayland so `DISPLAY` is set and `mpv` can honor the X11 window id.
+- Windows uses an embedded child `HWND` and passes it to mpv through `wid`. The experimental frame-copy engine instead renders offscreen through WGL into the app canvas (no child window) and shares frames over a session-local named file mapping.
+- Linux uses an X11 child window and starts a system `mpv --wid` process for that window. Native Wayland is not supported in v1; run under X11/Xwayland so `DISPLAY` is set and `mpv` can honor the X11 window id. The experimental frame-copy engine has no window embedding at all (offscreen EGL into a renderer canvas) and therefore works under native Wayland — dev builds only for now.

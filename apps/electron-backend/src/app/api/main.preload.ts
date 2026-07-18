@@ -7,6 +7,10 @@ import {
     APP_UPDATE_INSTALL,
     APP_UPDATE_STATUS_CHANGED,
 } from '@iptvnator/shared/interfaces/ipc-commands';
+import {
+    attachEmbeddedMpvFrameView,
+    detachEmbeddedMpvFrameView,
+} from './embedded-mpv-frame-pump';
 import type {
     EmbeddedMpvBounds,
     EmbeddedMpvRecordingStartOptions,
@@ -484,6 +488,9 @@ const electronApi: ElectronBridgeApi = {
         sessionId: string
     ): Promise<EmbeddedMpvSession | null> =>
         ipcRenderer.invoke('EMBEDDED_MPV_DISPOSE_SESSION', sessionId),
+    attachEmbeddedMpvFrameView: (sessionId: string): Promise<boolean> =>
+        attachEmbeddedMpvFrameView(sessionId),
+    detachEmbeddedMpvFrameView: (): void => detachEmbeddedMpvFrameView(),
     autoUpdatePlaylists: (
         playlists: Playlist[],
         options?: ElectronBridgeTrustOptions
@@ -710,7 +717,7 @@ const electronApi: ElectronBridgeApi = {
     dbGetAllGlobalFavorites: () =>
         ipcRenderer.invoke('DB_GET_ALL_GLOBAL_FAVORITES'),
     dbReorderGlobalFavorites: (
-        updates: { content_id: number; position: number }[]
+        updates: { content_id: number; playlist_id: string; position: number }[]
     ) => ipcRenderer.invoke('DB_REORDER_GLOBAL_FAVORITES', updates),
     // Recently viewed (playlist-specific)
     dbGetRecentItems: (playlistId: string) =>

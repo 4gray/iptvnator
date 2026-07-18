@@ -1,6 +1,6 @@
 import { Injector } from '@angular/core';
 import { StorageMap } from '@ngx-pwa/local-storage';
-import { of } from 'rxjs';
+import { of, Subject } from 'rxjs';
 import {
     DashboardRailsSettings,
     Language,
@@ -53,6 +53,58 @@ describe('SettingsStore dashboard rail settings', () => {
         });
     });
 
+    it('shares the pending initial settings load across startup waiters', async () => {
+        const pendingSettings = new Subject<Partial<Settings> | null>();
+        storage.get.mockReturnValue(pendingSettings.asObservable());
+        const store = injector.get(SettingsStore);
+
+        const firstWaiter = store.loadSettings();
+        const secondWaiter = store.loadSettings();
+        const allWaiters = Promise.all([firstWaiter, secondWaiter]);
+        let waitersResolved = false;
+        void allWaiters.then(() => {
+            waitersResolved = true;
+        });
+
+        await Promise.resolve();
+
+        expect(waitersResolved).toBe(false);
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+
+        pendingSettings.next({ webPlayerSharedControls: true });
+        pendingSettings.complete();
+        await allWaiters;
+
+        expect(storage.get).toHaveBeenCalledTimes(1);
+        expect(firstWaiter).toBe(secondWaiter);
+        expect(waitersResolved).toBe(true);
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
+    });
+
+    it('retries the initial settings load after a storage error', async () => {
+        const failingSettings = new Subject<Partial<Settings> | null>();
+        storage.get
+            .mockReturnValueOnce(failingSettings.asObservable())
+            .mockReturnValueOnce(of({ webPlayerSharedControls: true }));
+        const consoleError = jest
+            .spyOn(console, 'error')
+            .mockImplementation(() => undefined);
+
+        try {
+            const store = injector.get(SettingsStore);
+            const initialLoad = store.loadSettings();
+
+            failingSettings.error(new Error('storage unavailable'));
+            await initialLoad;
+            await store.loadSettings();
+
+            expect(storage.get).toHaveBeenCalledTimes(2);
+            expect(store.getSettings().webPlayerSharedControls).toBe(true);
+        } finally {
+            consoleError.mockRestore();
+        }
+    });
+
     it('uses enabled dashboard rail defaults when no settings are stored', async () => {
         const store = injector.get(SettingsStore);
 
@@ -61,6 +113,69 @@ describe('SettingsStore dashboard rail settings', () => {
         expect(store.getSettings().streamFormat).toBe('auto');
         expect(store.getSettings().dashboardRails).toEqual(
             expectedDashboardRails()
+        );
+    });
+
+    it('defaults shared web controls to false when the stored field is missing', async () => {
+        storedSettings = {};
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+    });
+
+    it('restores a persisted true shared web controls preference', async () => {
+        storedSettings = {
+            webPlayerSharedControls: true,
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.getSettings().webPlayerSharedControls).toBe(true);
+    });
+
+    it('normalizes a persisted string "true" shared web controls preference to false', async () => {
+        storedSettings = {
+            webPlayerSharedControls: 'true' as unknown as boolean,
+        };
+        const store = injector.get(SettingsStore);
+
+        await store.loadSettings();
+
+        expect(store.webPlayerSharedControls?.()).toBe(false);
+        expect(store.getSettings().webPlayerSharedControls).toBe(false);
+    });
+
+    it('persists an updated true shared web controls preference', async () => {
+        const store = injector.get(SettingsStore);
+
+        await store.updateSettings({
+            webPlayerSharedControls: true,
+        });
+
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                webPlayerSharedControls: true,
+            })
+        );
+    });
+
+    it('serializes a malformed string "true" shared web controls update as false', async () => {
+        const store = injector.get(SettingsStore);
+
+        await store.updateSettings({
+            webPlayerSharedControls: 'true' as unknown as boolean,
+        });
+
+        expect(store.webPlayerSharedControls?.()).toBe(false);
+        expect(storage.set).toHaveBeenCalledWith(
+            STORE_KEY.Settings,
+            expect.objectContaining({
+                webPlayerSharedControls: false,
+            })
         );
     });
 

@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Limpando…",
         "EPG_URL_ERROR": "O valor não é uma URL válida",
         "VIDEO_PLAYER_DESCRIPTION": "Selecionar reprodutor de vídeo padrão",
+        "WEB_PLAYER_SHARED_CONTROLS": "Controlos unificados para leitores web (experimental)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Usa os controlos partilhados do IPTVnator em HTML5, Video.js e ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Selecionar formato de stream padrão (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecionar idioma do aplicativo",
         "THEME_DESCRIPTION": "Selecionar tema visual do aplicativo",
@@ -430,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: motor frame-copy (experimental)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "O vídeo é desenhado na tela da aplicação, para que menus e diálogos fiquem por cima.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Entra em vigor após reiniciar a aplicação."
     },
     "THEMES": {
         "DARK_THEME": "Escuro",
@@ -461,6 +466,7 @@
             "BACK_10_SECONDS": "Voltar 10 segundos",
             "FORWARD_10_SECONDS": "Avançar 10 segundos",
             "LIVE_STREAM": "Transmissão ao vivo",
+            "PLAYBACK_POSITION": "Posição de reprodução",
             "MUTE": "Silenciar",
             "UNMUTE": "Ativar som",
             "MUTED": "Silenciado",
@@ -485,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Falha ao iniciar a gravação.",
             "RECORDING_FAILED_TO_STOP": "Falha ao parar a gravação.",
             "SAVED_TO": "Salvo em {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Ativar imagem em imagem",
+            "EXIT_PICTURE_IN_PICTURE": "Sair de imagem em imagem",
             "ENTER_FULLSCREEN": "Entrar em tela cheia",
             "EXIT_FULLSCREEN": "Sair da tela cheia"
         }

@@ -128,6 +128,94 @@ Key files:
 - `libs/playlist/m3u/feature-player/src/lib/video-player/video-player.component.html` — template conditionals for radio vs video
 - `libs/shared/interfaces/src/lib/channel.interface.ts` — `radio: string` field on Channel interface
 
+## Shared Player Controls
+
+- `libs/ui/playback/src/lib/player-controls/` contains the additive,
+  engine-neutral `PlayerController` contract, standalone
+  `app-player-controls`, generic web-video adapter/helper, and component-scoped
+  `WEB_PLAYER_SHARED_CONTROLS` rollout token.
+- Persisted `Settings.webPlayerSharedControls` is default-off, and its checkbox
+  appears only when HTML5, Video.js, or ArtPlayer is selected.
+  `WebPlayerViewComponent` snapshots the preference into
+  `WEB_PLAYER_SHARED_CONTROLS` for each new player host. The parent `/workspace`
+  route awaits the initial `SettingsStore` load, including cold-start direct
+  links, before this snapshot can occur. Saving applies to the next host without
+  an application restart; an existing session never changes controls mode in
+  place.
+- Embedded MPV ignores the web-player preference. Frame-copy always uses shared
+  DOM controls through its component-scoped `EmbeddedMpvControlsAdapter`, while
+  native-view retains the legacy compositor-safe dock and external MPV/VLC
+  retain their own UI. The host must render exactly one controls system for the
+  reported Embedded MPV engine.
+- Frame-copy shared controls own DOM surface interactions, shortcuts,
+  fullscreen, and recording feedback. `showControls=false` detaches the shared
+  surface, modal overlays gate playback shortcuts, fullscreen still triggers
+  bounds sync, and a playback/session transition key prevents engine or session
+  handoff from presenting stale recording feedback while timers and pending
+  commands are cancelled. Same-session IPC replies also yield to a broadcast
+  snapshot received while the command was pending, preventing a successful
+  recording acknowledgement from being rolled back by a stale reply.
+- The built-in HTML5/hls.js player is the second guarded consumer.
+  `HtmlVideoPlayerComponent` provides a component-scoped
+  `WebVideoControlsAdapter`; its neutral `web-video-support` bridge is shared
+  with ArtPlayer and owns HLS/native tracks, MPEG-TS VOD duration correction,
+  caption preference, and source cleanup.
+  `HtmlVideoElementSession` owns native video-event lifecycle, persisted
+  volume, start-time/time/ended propagation, and legacy post-play caption
+  suppression.
+  `WebPlayerViewComponent.resolvedIsLive` supplies authoritative live/VOD
+  metadata, while a visible playback diagnostic disables both shared surface
+  interaction and shortcuts and exits the HTML5 shell's own fullscreen so the
+  diagnostic actions remain visible. The preference-off path keeps native
+  controls and legacy series navigation unchanged.
+- Video.js is the third guarded consumer. `VjsPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; its bridge binds the current Tech
+  video, rebinds after `playerreset`, exposes source-stable audio/subtitle IDs,
+  preserves caption preference and explicit subtitle-off state, and reads
+  duration from Video.js. Reset-driven raw MPEG-TS changes pause first,
+  coalesce to the latest desired source, preserve actual volume across
+  Video.js's reset, and restart when authoritative live/VOD metadata changes.
+  The shared-controls path disables native controls, Video.js
+  click/double-click/hotkey actions, and spatial navigation;
+  diagnostic gating and owned-fullscreen exit match HTML5. The preference-off
+  path keeps the existing Video.js skin and legacy series navigation unchanged.
+- ArtPlayer is the fourth guarded consumer. `ArtPlayerComponent` provides a
+  component-scoped `WebVideoControlsAdapter`; `ArtPlayerSourceSession` owns
+  HLS/MPEG-TS/native sources, the neutral web-video bridge, exact cleanup, and
+  a destroyed-session guard for delayed `customType` callbacks, while
+  `ArtPlayerVideoSession` owns native media/ArtPlayer events. Shared mode uses
+  authoritative live/VOD metadata, HLS/native tracks and caption preference,
+  MPEG-TS VOD duration correction, and reapplies app volume directly after
+  ArtPlayer restores its own stored volume. Vendor chrome/hotkeys are disabled,
+  and a transparent capture layer gives shared controls exclusive click and
+  double-click ownership. Diagnostic interaction gating and owned-fullscreen
+  exit match the other web players. The preference-off path keeps the legacy
+  ArtPlayer skin, source behavior, and series navigation unchanged.
+- Shared web picture-in-picture stays inside that default-off rollout.
+  `PlayerController` exposes capability `pictureInPicture`, state
+  `pictureInPictureActive`/`canPictureInPicture`, and command
+  `togglePictureInPicture()`. HTML5, Video.js, and ArtPlayer use standard
+  element PiP from the adapter's attached video; shared ArtPlayer keeps vendor
+  `pip: false`, while preference-off native/vendor paths remain unchanged. The
+  capability-gated button sits before fullscreen and uses active enter/exit
+  semantics; entry is disabled until metadata, and the action is disabled while
+  an operation is pending. Embedded MPV reports capability/state false with a
+  no-op command and has no popup/mini-window.
+- `WebVideoControlsAdapter` supplies its current video and binding generation to
+  `WebVideoPictureInPictureController`; the controller reads the video's
+  `ownerDocument`, while browser enter/leave events remain authoritative.
+  Exact-owner exit stays available if request support changes. Request/exit
+  invocation remains synchronous for user activation, one operation is
+  serialized, and binding generation plus exact video identity protects
+  replacement and teardown from stale completion. Video.js Tech reset and
+  ArtPlayer rebuild rebind with exact-owner cleanup; HTML5 source changes on a
+  retained target preserve PiP.
+  Standard PiP shows the browser/OS video surface without Angular control
+  chrome, with browser-dependent subtitles. AirPlay, Cast, Document PiP, a PiP
+  keyboard shortcut, and Embedded MPV popup/native support are out of scope.
+- Canonical docs: `docs/architecture/player-controls-contract.md` and
+  `docs/architecture/embedded-mpv-native.md`
+
 ## Repo Skills
 
 - `iptvnator-ui-design`

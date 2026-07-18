@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "Wissen…",
         "EPG_URL_ERROR": "De opgegeven waarde is geen geldige URL.",
         "VIDEO_PLAYER_DESCRIPTION": "Selecteer de standaard videospeler",
+        "WEB_PLAYER_SHARED_CONTROLS": "Uniforme bediening voor webspelers (experimenteel)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "Gebruik de gedeelde IPTVnator-bediening in HTML5, Video.js en ArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "Selecteer het standaard streamformaat (xtream)",
         "LANGUAGE_DESCRIPTION": "Selecteer de taal van de applicatie",
         "THEME_DESCRIPTION": "Kies het visuele thema van de applicatie",
@@ -430,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "Embedded MPV: frame-copy-engine (experimenteel)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "De video wordt op het app-canvas getekend zodat menu's en dialoogvensters erboven verschijnen.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "Wordt van kracht na het herstarten van de app."
     },
     "THEMES": {
         "DARK_THEME": "Donker",
@@ -461,6 +466,7 @@
             "BACK_10_SECONDS": "10 seconden terug",
             "FORWARD_10_SECONDS": "10 seconden vooruit",
             "LIVE_STREAM": "Live stream",
+            "PLAYBACK_POSITION": "Afspeelpositie",
             "MUTE": "Dempen",
             "UNMUTE": "Dempen opheffen",
             "MUTED": "Gedempt",
@@ -485,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "Opname kon niet worden gestart.",
             "RECORDING_FAILED_TO_STOP": "Opname kon niet worden gestopt.",
             "SAVED_TO": "Opgeslagen in {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "Beeld-in-beeld starten",
+            "EXIT_PICTURE_IN_PICTURE": "Beeld-in-beeld sluiten",
             "ENTER_FULLSCREEN": "Volledig scherm openen",
             "EXIT_FULLSCREEN": "Volledig scherm sluiten"
         }

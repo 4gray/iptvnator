@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "クリア中…",
         "EPG_URL_ERROR": "有効なURLではありません",
         "VIDEO_PLAYER_DESCRIPTION": "デフォルトのビデオプレーヤーを選択",
+        "WEB_PLAYER_SHARED_CONTROLS": "Webプレーヤーの統一コントロール（試験的）",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "HTML5、Video.js、ArtPlayerでIPTVnator共通のコントロールを使用します。",
         "STREAM_FORMAT_DESCRIPTION": "デフォルトのストリーム形式を選択（Xtream）",
         "LANGUAGE_DESCRIPTION": "アプリケーションの言語を選択",
         "THEME_DESCRIPTION": "アプリケーションの視覚テーマを選択",
@@ -430,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "埋め込みMPV：フレームコピーエンジン（実験的）",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "映像をアプリのキャンバスに描画するため、メニューやダイアログをその上に表示できます。",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "アプリの再起動後に有効になります。"
     },
     "THEMES": {
         "DARK_THEME": "ダーク",
@@ -461,6 +466,7 @@
             "BACK_10_SECONDS": "10秒戻る",
             "FORWARD_10_SECONDS": "10秒進む",
             "LIVE_STREAM": "ライブストリーム",
+            "PLAYBACK_POSITION": "再生位置",
             "MUTE": "ミュート",
             "UNMUTE": "ミュート解除",
             "MUTED": "ミュート中",
@@ -485,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "録画を開始できませんでした。",
             "RECORDING_FAILED_TO_STOP": "録画を停止できませんでした。",
             "SAVED_TO": "{{path}}に保存しました",
+            "ENTER_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを開始",
+            "EXIT_PICTURE_IN_PICTURE": "ピクチャーインピクチャーを終了",
             "ENTER_FULLSCREEN": "全画面表示",
             "EXIT_FULLSCREEN": "全画面表示を終了"
         }

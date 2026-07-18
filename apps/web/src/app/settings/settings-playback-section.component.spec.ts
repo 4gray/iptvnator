@@ -14,9 +14,14 @@ const VLC_PATH_DESCRIPTION =
 const MPV_ARGUMENTS_PLACEHOLDER =
     '--ontop\n--autofit=640x360\n--geometry=+80+80';
 const VLC_ARGUMENTS_PLACEHOLDER = '--video-on-top\n--width=640\n--height=360';
+const WEB_PLAYER_SHARED_CONTROLS_LABEL =
+    'Unified controls for web players (experimental)';
 
 describe('SettingsPlaybackSectionComponent', () => {
     let fixture: ComponentFixture<SettingsPlaybackSectionComponent>;
+
+    const queryByTestId = (testId: string): Element | null =>
+        fixture.nativeElement.querySelector(`[data-test-id="${testId}"]`);
 
     beforeEach(async () => {
         await TestBed.configureTestingModule({
@@ -36,6 +41,8 @@ describe('SettingsPlaybackSectionComponent', () => {
                     MPV_PLAYER_PATH_DESCRIPTION: MPV_PATH_DESCRIPTION,
                     MPV_COMPATIBLE_PLAYER_TIP: MPV_COMPATIBLE_PLAYER_TIP,
                     VLC_PLAYER_PATH_DESCRIPTION: VLC_PATH_DESCRIPTION,
+                    WEB_PLAYER_SHARED_CONTROLS:
+                        WEB_PLAYER_SHARED_CONTROLS_LABEL,
                 },
             },
             true
@@ -65,9 +72,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="external-player-double-click-setting"]'
-            )
+            queryByTestId('external-player-double-click-setting')
         ).toBeNull();
         expect(fixture.nativeElement.textContent).not.toContain(
             'SETTINGS.OPEN_STREAM_ON_DOUBLE_CLICK'
@@ -80,9 +85,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="external-player-double-click-setting"]'
-            )
+            queryByTestId('external-player-double-click-setting')
         ).toBeNull();
     });
 
@@ -98,9 +101,7 @@ describe('SettingsPlaybackSectionComponent', () => {
             fixture.detectChanges();
 
             expect(
-                fixture.nativeElement.querySelector(
-                    '[data-test-id="external-player-double-click-setting"]'
-                )
+                queryByTestId('external-player-double-click-setting')
             ).not.toBeNull();
             expect(fixture.nativeElement.textContent).toContain(
                 'SETTINGS.OPEN_EXTERNAL_PLAYER_ON_DOUBLE_CLICK'
@@ -116,18 +117,14 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="external-player-double-click-setting"]'
-            )
+            queryByTestId('external-player-double-click-setting')
         ).toBeNull();
 
         form.controls['player'].setValue(VideoPlayer.MPV);
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="external-player-double-click-setting"]'
-            )
+            queryByTestId('external-player-double-click-setting')
         ).not.toBeNull();
     });
 
@@ -146,6 +143,56 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(option?.textContent).toContain('auto');
     });
 
+    it.each([
+        VideoPlayer.VideoJs,
+        VideoPlayer.Html5Player,
+        VideoPlayer.ArtPlayer,
+    ])('shows shared web controls for %s', (player) => {
+        fixture.componentRef.setInput('form', createForm(player));
+        fixture.detectChanges();
+
+        expect(
+            queryByTestId('web-player-shared-controls-setting')
+        ).not.toBeNull();
+    });
+
+    it.each([VideoPlayer.EmbeddedMpv, VideoPlayer.MPV, VideoPlayer.VLC])(
+        'hides shared web controls for %s',
+        (player) => {
+            fixture.componentRef.setInput('form', createForm(player));
+            fixture.detectChanges();
+
+            expect(
+                queryByTestId('web-player-shared-controls-setting')
+            ).toBeNull();
+        }
+    );
+
+    it('binds the shared web controls checkbox to the settings form', () => {
+        const form = createForm();
+        form.controls['webPlayerSharedControls'].setValue(true);
+        fixture.componentRef.setInput('form', form);
+        fixture.detectChanges();
+
+        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        );
+
+        expect(checkbox?.checked).toBe(true);
+    });
+
+    it('labels the rendered native shared web controls checkbox', () => {
+        fixture.detectChanges();
+
+        const checkbox = fixture.nativeElement.querySelector<HTMLInputElement>(
+            '[data-test-id="web-player-shared-controls-toggle"] input[type="checkbox"]'
+        );
+
+        expect(checkbox?.getAttribute('aria-label')).toBe(
+            WEB_PLAYER_SHARED_CONTROLS_LABEL
+        );
+    });
+
     it('keeps the double-click option visible when path settings are unavailable', () => {
         fixture.componentRef.setInput('form', createForm(VideoPlayer.MPV));
         fixture.componentRef.setInput('isDesktop', true);
@@ -157,38 +204,46 @@ describe('SettingsPlaybackSectionComponent', () => {
         fixture.detectChanges();
 
         expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="external-player-double-click-setting"]'
-            )
+            queryByTestId('external-player-double-click-setting')
         ).not.toBeNull();
         expect(fixture.nativeElement.textContent).not.toContain(
             MPV_PATH_DESCRIPTION
         );
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-compatible-player-tip"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('mpv-compatible-player-tip')).toBeNull();
     });
+
+    it.each<[string, boolean, boolean, boolean, boolean]>([
+        ['shows the available desktop engine', true, true, false, true],
+        ['keeps a stale desktop opt-in clearable', true, false, true, true],
+        ['hides a stale opt-in in the PWA', false, false, true, false],
+    ])(
+        '%s',
+        (_description, isDesktop, frameCopyAvailable, stored, expected) => {
+            const form = createForm();
+            form.controls['embeddedMpvFrameCopy'].setValue(stored);
+            fixture.componentRef.setInput('form', form);
+            fixture.componentRef.setInput('isDesktop', isDesktop);
+            fixture.componentRef.setInput(
+                'frameCopyAvailable',
+                frameCopyAvailable
+            );
+            fixture.detectChanges();
+
+            const setting = queryByTestId('embedded-mpv-frame-copy-setting');
+            expect(Boolean(setting)).toBe(expected);
+        }
+    );
 
     it('shows the recording folder setting only in desktop builds', () => {
         fixture.componentRef.setInput('isDesktop', true);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="recording-folder-setting"]'
-            )
-        ).not.toBeNull();
+        expect(queryByTestId('recording-folder-setting')).not.toBeNull();
 
         fixture.componentRef.setInput('isDesktop', false);
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="recording-folder-setting"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('recording-folder-setting')).toBeNull();
     });
 
     it('shows MPV bundle guidance and the IINA executable tip for desktop MPV playback', () => {
@@ -203,11 +258,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             MPV_PATH_DESCRIPTION
         );
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-compatible-player-tip"]'
-            )
-        ).not.toBeNull();
+        expect(queryByTestId('mpv-compatible-player-tip')).not.toBeNull();
         expect(fixture.nativeElement.textContent).toContain(
             MPV_COMPATIBLE_PLAYER_TIP
         );
@@ -229,11 +280,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).not.toContain(
             MPV_COMPATIBLE_PLAYER_TIP
         );
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-compatible-player-tip"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('mpv-compatible-player-tip')).toBeNull();
     });
 
     it('shows VLC bundle guidance without the IINA tip for desktop VLC playback', () => {
@@ -248,11 +295,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).toContain(
             VLC_PATH_DESCRIPTION
         );
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-compatible-player-tip"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('mpv-compatible-player-tip')).toBeNull();
         expect(fixture.nativeElement.textContent).not.toContain(
             MPV_COMPATIBLE_PLAYER_TIP
         );
@@ -271,11 +314,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).not.toContain(
             VLC_PATH_DESCRIPTION
         );
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-compatible-player-tip"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('mpv-compatible-player-tip')).toBeNull();
     });
 
     it('does not show external-player path guidance for embedded players', () => {
@@ -292,11 +331,7 @@ describe('SettingsPlaybackSectionComponent', () => {
         expect(fixture.nativeElement.textContent).not.toContain(
             VLC_PATH_DESCRIPTION
         );
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-compatible-player-tip"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('mpv-compatible-player-tip')).toBeNull();
     });
 
     it('shows MPV command-line arguments only when MPV is selected', () => {
@@ -308,16 +343,8 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-player-arguments-setting"]'
-            )
-        ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="vlc-player-arguments-setting"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('mpv-player-arguments-setting')).not.toBeNull();
+        expect(queryByTestId('vlc-player-arguments-setting')).toBeNull();
         expect(fixture.nativeElement.textContent).toContain(
             'SETTINGS.MPV_PLAYER_ARGUMENTS_LABEL'
         );
@@ -337,16 +364,8 @@ describe('SettingsPlaybackSectionComponent', () => {
         );
         fixture.detectChanges();
 
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="vlc-player-arguments-setting"]'
-            )
-        ).not.toBeNull();
-        expect(
-            fixture.nativeElement.querySelector(
-                '[data-test-id="mpv-player-arguments-setting"]'
-            )
-        ).toBeNull();
+        expect(queryByTestId('vlc-player-arguments-setting')).not.toBeNull();
+        expect(queryByTestId('mpv-player-arguments-setting')).toBeNull();
         expect(fixture.nativeElement.textContent).toContain(
             'SETTINGS.VLC_PLAYER_ARGUMENTS_LABEL'
         );
@@ -361,9 +380,11 @@ describe('SettingsPlaybackSectionComponent', () => {
 function createForm(player = VideoPlayer.VideoJs): FormGroup {
     return new FormGroup({
         player: new FormControl(player),
+        webPlayerSharedControls: new FormControl(false),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
+        embeddedMpvFrameCopy: new FormControl(false),
         mpvPlayerPath: new FormControl(''),
         mpvPlayerArguments: new FormControl(''),
         mpvReuseInstance: new FormControl(false),

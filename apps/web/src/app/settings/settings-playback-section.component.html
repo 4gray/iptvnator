@@ -69,6 +69,34 @@
         </div>
     </div>
 
+    @if (isWebPlayerSelected()) {
+        <div
+            class="setting-item"
+            data-test-id="web-player-shared-controls-setting"
+        >
+            <div class="setting-item__meta">
+                <h4>
+                    {{ 'SETTINGS.WEB_PLAYER_SHARED_CONTROLS' | translate }}
+                </h4>
+                <p>
+                    {{
+                        'SETTINGS.WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION'
+                            | translate
+                    }}
+                </p>
+            </div>
+            <div class="setting-item__control setting-item__toggle">
+                <mat-checkbox
+                    [aria-label]="
+                        'SETTINGS.WEB_PLAYER_SHARED_CONTROLS' | translate
+                    "
+                    formControlName="webPlayerSharedControls"
+                    data-test-id="web-player-shared-controls-toggle"
+                ></mat-checkbox>
+            </div>
+        </div>
+    }
+
     @if (supportsManagedExternalPlayers() && isExternalPlayerSelected()) {
         <div
             class="setting-item"
@@ -114,6 +142,42 @@
             </div>
         </div>
 
+        @if (frameCopyAvailable() || form().value.embeddedMpvFrameCopy) {
+            <div
+                class="setting-item"
+                data-test-id="embedded-mpv-frame-copy-setting"
+            >
+                <div class="setting-item__meta">
+                    <h4>
+                        {{ 'SETTINGS.EMBEDDED_MPV_FRAME_COPY' | translate }}
+                    </h4>
+                    <p>
+                        {{
+                            'SETTINGS.EMBEDDED_MPV_FRAME_COPY_DESCRIPTION'
+                                | translate
+                        }}
+                        @if (
+                            form().value.embeddedMpvFrameCopy !==
+                            frameCopyActive()
+                        ) {
+                            <strong>
+                                {{
+                                    'SETTINGS.EMBEDDED_MPV_FRAME_COPY_RESTART'
+                                        | translate
+                                }}
+                            </strong>
+                        }
+                    </p>
+                </div>
+                <div class="setting-item__control setting-item__toggle">
+                    <mat-checkbox
+                        formControlName="embeddedMpvFrameCopy"
+                        data-test-id="embedded-mpv-frame-copy-toggle"
+                    ></mat-checkbox>
+                </div>
+            </div>
+        }
+
         <div class="setting-item" data-test-id="recording-folder-setting">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.RECORDING_FOLDER_LABEL' | translate }}</h4>
@@ -148,7 +212,9 @@
         </div>
     }
 
-    @if (supportsExternalPlayerPathSettings() && form().value.player === 'mpv') {
+    @if (
+        supportsExternalPlayerPathSettings() && form().value.player === 'mpv'
+    ) {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.MPV_PLAYER_PATH_LABEL' | translate }}</h4>
@@ -220,7 +286,9 @@
         </div>
     }
 
-    @if (supportsExternalPlayerPathSettings() && form().value.player === 'vlc') {
+    @if (
+        supportsExternalPlayerPathSettings() && form().value.player === 'vlc'
+    ) {
         <div class="setting-item">
             <div class="setting-item__meta">
                 <h4>{{ 'SETTINGS.VLC_PLAYER_PATH_LABEL' | translate }}</h4>

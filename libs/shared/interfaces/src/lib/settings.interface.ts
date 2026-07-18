@@ -78,6 +78,11 @@ export function normalizeDashboardRailsSettings(
  */
 export interface Settings {
     player: VideoPlayer;
+    /**
+     * Use IPTVnator's shared controls in HTML5, Video.js, and ArtPlayer.
+     * Missing values remain off for compatibility with older saved settings.
+     */
+    webPlayerSharedControls?: boolean;
     epgUrl: string[];
     streamFormat: StreamFormat;
     openStreamOnDoubleClick: boolean;
@@ -110,6 +115,12 @@ export interface Settings {
     downloadFolder?: string;
     /** Custom live recording folder path (uses system Downloads folder if not set) */
     recordingFolder?: string;
+    /**
+     * Embedded MPV frame-copy engine (experimental, macOS Apple Silicon and Linux).
+     * Applied on the next app start — the engine relaxes the window sandbox
+     * for its preload frame pump, which is fixed at window creation.
+     */
+    embeddedMpvFrameCopy?: boolean;
     /** Cover/poster sizing preset applied across grids and rails */
     coverSize?: CoverSize;
     /** Live EPG panel layout: horizontal timeline (default) or vertical list */

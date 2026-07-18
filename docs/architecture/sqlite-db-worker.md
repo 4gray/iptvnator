@@ -496,6 +496,50 @@ A running Electron app keeps using the worker bundle it already loaded at
 startup. This is a common reason a worker fix appears "not working" in manual
 verification even when the source patch is correct.
 
+## Gotchas
+
+### Prepared-statement writes inside a transaction must use `.run()`, not `.execute()`
+
+Drizzle's `PreparedQuery.execute()` on the `better-sqlite3` driver returns a
+**promise** and defers the actual SQL to a microtask. Our bulk writers run their
+statements inside a **synchronous** `db.transaction(() => { ... })` callback,
+which cannot `await`. If the statement is dispatched with `.execute()`, the
+transaction commits before the deferred promise settles, so the write is a
+**silent no-op** — no error, no rows changed.
+
+Always call the synchronous `.run(placeholderValues)` on prepared statements
+executed inside a synchronous transaction callback:
+
+```ts
+// favorites is playlist-scoped: filter by (contentId, playlistId), otherwise
+// a same-contentId favorite in another playlist gets rewritten too.
+const stmt = db.update(schema.favorites)
+    .set({ position: sql<number>`${sql.placeholder('position')}` })
+    .where(
+        and(
+            eq(schema.favorites.contentId, sql.placeholder('contentId')),
+            eq(schema.favorites.playlistId, sql.placeholder('playlistId'))
+        )
+    )
+    .prepare();
+
+db.transaction(() => {
+    for (const { content_id, playlist_id, position } of chunk) {
+        // NOT .execute()
+        stmt.run({ position, contentId: content_id, playlistId: playlist_id });
+    }
+});
+```
+
+This bit `reorderGlobalFavorites` and `removeRecentItemsBatch` (issue #1137):
+custom favorites drag-and-drop order silently never persisted for the
+per-playlist ("this playlist") view. Global ("all playlists") favorites masked
+it because that path also persists an order to the `appState`
+`global-favorites-channel-order-v1` key and re-applies it on read, independent
+of the DB `position` column. The mocked operations specs did not catch it —
+a jest mock records an `.execute()` call the same as a `.run()` call, so the
+regression tests explicitly assert `.run()` is used and `.execute()` is not.
+
 ## Testing
 
 ### Unit coverage added

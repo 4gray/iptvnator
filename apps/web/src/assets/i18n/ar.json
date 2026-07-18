@@ -296,6 +296,8 @@
         "CLEARING_EPG_DATA": "جارٍ المسح…",
         "EPG_URL_ERROR": "القيمة ليست رابطًا صالحًا",
         "VIDEO_PLAYER_DESCRIPTION": "اختر مشغل الفيديو الافتراضي",
+        "WEB_PLAYER_SHARED_CONTROLS": "عناصر تحكم موحّدة لمشغلات الويب (تجريبي)",
+        "WEB_PLAYER_SHARED_CONTROLS_DESCRIPTION": "استخدم عناصر التحكم المشتركة في IPTVnator مع HTML5 وVideo.js وArtPlayer.",
         "STREAM_FORMAT_DESCRIPTION": "اختر تنسيق البث الافتراضي (xtream)",
         "LANGUAGE_DESCRIPTION": "اختر لغة التطبيق",
         "THEME_DESCRIPTION": "اختر السمة البصرية للتطبيق",
@@ -430,7 +432,10 @@
         "APP_UPDATE_DOWNLOAD": "Update",
         "APP_UPDATE_INSTALL": "Restart application",
         "APP_UPDATE_OPEN_RELEASE": "Open GitHub release",
-        "APP_UPDATE_RELEASE_NOTES": "What's new"
+        "APP_UPDATE_RELEASE_NOTES": "What's new",
+        "EMBEDDED_MPV_FRAME_COPY": "MPV المدمج: محرك نسخ الإطارات (تجريبي)",
+        "EMBEDDED_MPV_FRAME_COPY_DESCRIPTION": "يُرسم الفيديو على لوحة التطبيق بحيث تظهر القوائم ومربعات الحوار فوقه.",
+        "EMBEDDED_MPV_FRAME_COPY_RESTART": "يسري المفعول بعد إعادة تشغيل التطبيق."
     },
     "THEMES": {
         "DARK_THEME": "داكن",
@@ -461,6 +466,7 @@
             "BACK_10_SECONDS": "رجوع 10 ثوانٍ",
             "FORWARD_10_SECONDS": "تقديم 10 ثوانٍ",
             "LIVE_STREAM": "بث مباشر",
+            "PLAYBACK_POSITION": "موضع التشغيل",
             "MUTE": "كتم الصوت",
             "UNMUTE": "إلغاء كتم الصوت",
             "MUTED": "الصوت مكتوم",
@@ -485,6 +491,8 @@
             "RECORDING_FAILED_TO_START": "فشل بدء التسجيل.",
             "RECORDING_FAILED_TO_STOP": "فشل إيقاف التسجيل.",
             "SAVED_TO": "تم الحفظ في {{path}}",
+            "ENTER_PICTURE_IN_PICTURE": "تشغيل صورة داخل صورة",
+            "EXIT_PICTURE_IN_PICTURE": "إنهاء صورة داخل صورة",
             "ENTER_FULLSCREEN": "ملء الشاشة",
             "EXIT_FULLSCREEN": "الخروج من ملء الشاشة"
         }

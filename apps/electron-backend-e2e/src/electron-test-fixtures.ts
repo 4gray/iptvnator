@@ -632,8 +632,23 @@ export async function enableRemoteControl(
 export async function saveSettings(page: Page): Promise<void> {
     const saveButton = page.getByTestId('save-settings');
 
-    await saveButton.click();
+    // The save control is a native form submit (`<button type="submit">`
+    // inside `<form (ngSubmit)="onSubmit()">`). Clicking it makes Chromium
+    // register a form-submission navigation, which Angular's `ngSubmit`
+    // handler immediately cancels via `preventDefault()` — no real navigation
+    // ever happens. Playwright's default post-click "wait for signals" barrier
+    // still observes that requested-then-cancelled navigation and waits for it
+    // to settle; on slow/loaded CI runners that wait can stall for the full
+    // timeout ("waiting for scheduled navigations to finish"). We never depend
+    // on a navigation here, so opt out of the barrier and instead assert the
+    // deterministic post-save state below.
+    await saveButton.click({ noWaitAfter: true });
+    // `onSubmit()` calls `applyChangedSettings()` -> `markAsPristine()` once the
+    // settings write resolves, which disables the button. Awaiting that is a
+    // stronger, race-free confirmation that the save actually committed.
     await expect(saveButton).toBeDisabled();
+    // Let the fire-and-forget `window.electron.updateSettings(...)` IPC flush to
+    // the main process before callers may relaunch the app to assert persistence.
     await page.waitForTimeout(300);
 }
 

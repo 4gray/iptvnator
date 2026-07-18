@@ -4,6 +4,10 @@ const eqMock = jest.fn((left: unknown, right: unknown) => ({
     right,
 }));
 const whereMock = jest.fn();
+const placeholderMock = jest.fn((name: string) => ({
+    kind: 'placeholder',
+    name,
+}));
 
 jest.mock('drizzle-orm', () => ({
     and: jest.fn((...conditions: unknown[]) => ({ kind: 'and', conditions })),
@@ -11,11 +15,22 @@ jest.mock('drizzle-orm', () => ({
     desc: jest.fn((value: unknown) => ({ kind: 'desc', value })),
     eq: (left: unknown, right: unknown) => eqMock(left, right),
     inArray: jest.fn(),
-    sql: jest.fn(),
+    sql: Object.assign(
+        jest.fn((strings: TemplateStringsArray, ...values: unknown[]) => ({
+            kind: 'sql',
+            strings: Array.from(strings ?? []),
+            values,
+        })),
+        { placeholder: (name: string) => placeholderMock(name) }
+    ),
 }));
 
 import type { AppDatabase } from '../database.types';
-import { getGlobalFavorites } from './favorites.operations';
+import { createDbMock } from './operations.test-helpers';
+import {
+    getGlobalFavorites,
+    reorderGlobalFavorites,
+} from './favorites.operations';
 
 function createGlobalFavoritesDbMock(rows: unknown[]) {
     const query = {
@@ -48,6 +63,7 @@ describe('favorites.operations', () => {
     beforeEach(() => {
         eqMock.mockClear();
         whereMock.mockClear();
+        placeholderMock.mockClear();
     });
 
     it('filters live global favorites after scanning the small favorites set', async () => {
@@ -75,5 +91,62 @@ describe('favorites.operations', () => {
                 type: 'live',
             }),
         ]);
+    });
+
+    describe('reorderGlobalFavorites', () => {
+        it('short-circuits without touching the db when there are no updates', async () => {
+            const { db, update, transaction } = createDbMock();
+
+            await expect(reorderGlobalFavorites(db, [])).resolves.toEqual({
+                success: true,
+            });
+
+            expect(update).not.toHaveBeenCalled();
+            expect(transaction).not.toHaveBeenCalled();
+        });
+
+        it('runs (not executes) the prepared position update per favorite inside a transaction', async () => {
+            const { db, updateRun, updateExecute, updatePrepare, transaction } =
+                createDbMock();
+
+            await expect(
+                reorderGlobalFavorites(db, [
+                    { content_id: 30, playlist_id: 'p1', position: 0 },
+                    { content_id: 10, playlist_id: 'p1', position: 1 },
+                    { content_id: 20, playlist_id: 'p2', position: 2 },
+                ])
+            ).resolves.toEqual({ success: true });
+
+            expect(updatePrepare).toHaveBeenCalledTimes(1);
+            expect(placeholderMock).toHaveBeenCalledWith('position');
+            expect(placeholderMock).toHaveBeenCalledWith('contentId');
+            // Regression: favorites are playlist-scoped, so the UPDATE must
+            // filter by playlistId too — otherwise a same-contentId favorite
+            // in another playlist gets its position silently rewritten.
+            expect(placeholderMock).toHaveBeenCalledWith('playlistId');
+            expect(transaction).toHaveBeenCalledTimes(1);
+
+            // Regression (issue #1137): the prepared UPDATE must be dispatched
+            // with synchronous `.run()`. On the better-sqlite3 driver
+            // `.execute()` defers the write to a promise that never settles
+            // inside the synchronous transaction callback, so favorites
+            // positions silently never persist and the custom order is lost.
+            expect(updateExecute).not.toHaveBeenCalled();
+            expect(updateRun).toHaveBeenNthCalledWith(1, {
+                position: 0,
+                contentId: 30,
+                playlistId: 'p1',
+            });
+            expect(updateRun).toHaveBeenNthCalledWith(2, {
+                position: 1,
+                contentId: 10,
+                playlistId: 'p1',
+            });
+            expect(updateRun).toHaveBeenNthCalledWith(3, {
+                position: 2,
+                contentId: 20,
+                playlistId: 'p2',
+            });
+        });
     });
 });

@@ -68,7 +68,7 @@ jobs:
               if: matrix.os == 'linux'
               run: |
                   sudo apt-get update
-                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev libmpv-dev mpv pkg-config
+                  sudo apt-get install --no-install-recommends -y rpm libarchive-tools flatpak flatpak-builder appstream libx11-dev libxext-dev libmpv-dev mpv pkg-config libegl-dev libgl-dev libopengl-dev libgbm-dev
 
                   # Configure Flatpak
                   # 1. Add the Flathub repository (source of runtimes)
@@ -323,6 +323,12 @@ jobs:
                       ;;
                     win32)
                       test -f dist/apps/electron-backend/native/lib/mpv-2.dll || test -f dist/apps/electron-backend/native/lib/libmpv-2.dll || test -f dist/apps/electron-backend/native/lib/mpv.dll || test -f dist/apps/electron-backend/native/lib/libmpv.dll
+                      # Frame-copy engine artifacts ship on Windows. The helper
+                      # resolves the mpv DLL from its own directory, so the DLL
+                      # must sit beside it at the native/ top level too.
+                      test -f dist/apps/electron-backend/native/iptvnator_mpv_helper.exe
+                      test -f dist/apps/electron-backend/native/embedded_mpv_frame_reader.node
+                      find dist/apps/electron-backend/native -maxdepth 1 \( -name 'mpv-2.dll' -o -name 'libmpv-2.dll' -o -name 'mpv.dll' -o -name 'libmpv.dll' \) -print -quit | grep -q .
                       ;;
                     linux)
                       node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'external-mpv-process') { throw new Error('Linux embedded MPV manifest must use external-mpv-process origin.'); }"
@@ -334,6 +340,18 @@ jobs:
                       if ldd dist/apps/electron-backend/native/embedded_mpv.node | grep -q 'libmpv'; then
                           echo "::error::Linux embedded MPV addon must not link directly to libmpv"
                           ldd dist/apps/electron-backend/native/embedded_mpv.node
+                          exit 1
+                      fi
+                      # The frame-copy helper is the inverse: a separate process
+                      # that MUST link libmpv (dev-mode engine; stripped from
+                      # packages until the bundled-runtime staging lands).
+                      # test -f, not -x: the webpack dist asset copy drops file
+                      # modes; consumers restore the bit (after-pack) or require
+                      # it via the X_OK support probe.
+                      test -f dist/apps/electron-backend/native/iptvnator_mpv_helper
+                      if ! ldd dist/apps/electron-backend/native/iptvnator_mpv_helper | grep -q 'libmpv'; then
+                          echo "::error::Linux frame-copy helper must link libmpv"
+                          ldd dist/apps/electron-backend/native/iptvnator_mpv_helper
                           exit 1
                       fi
                       ;;

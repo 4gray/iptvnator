@@ -414,6 +414,8 @@ export interface ElectronBridgeGlobalRecentlyAddedItem extends ElectronBridgeXtr
 
 export interface ElectronBridgeFavoriteReorderUpdate {
     content_id: number;
+    /** Favorites are playlist-scoped — scope the position write per playlist */
+    playlist_id: string;
     position: number;
 }
 
@@ -907,6 +909,14 @@ export interface ElectronBridgeApi {
     disposeEmbeddedMpvSession: (
         sessionId: string
     ) => Promise<EmbeddedMpvSession | null>;
+    /**
+     * Frame-copy engine only: start/stop the preload frame pump that
+     * uploads helper frames onto the renderer's
+     * `<canvas data-embedded-mpv-frame>` element. Optional because older
+     * preload builds do not ship the pump.
+     */
+    attachEmbeddedMpvFrameView?: (sessionId: string) => Promise<boolean>;
+    detachEmbeddedMpvFrameView?: () => void;
     downloadsStart: (
         data: ElectronBridgeDownloadStartPayload
     ) => Promise<ElectronBridgeDownloadStartResult>;

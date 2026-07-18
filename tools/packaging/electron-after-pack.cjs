@@ -6,6 +6,9 @@ const {
 } = require('./embedded-mpv-packaging.cjs');
 const fs = require('fs');
 const path = require('path');
+const {
+    preparePackagedFrameCopyArtifacts,
+} = require('./embedded-mpv-frame-copy-files.cjs');
 
 function log(message) {
     console.log(`  - ${message}`);
@@ -19,7 +22,7 @@ function isTruthy(value) {
     );
 }
 
-function copyEmbeddedMpvNativeOutput(resourceDir, projectDir) {
+function copyEmbeddedMpvNativeOutput(resourceDir, projectDir, platform) {
     const sourceDir = path.join(
         projectDir,
         'dist',
@@ -41,6 +44,8 @@ function copyEmbeddedMpvNativeOutput(resourceDir, projectDir) {
 
     fs.rmSync(destinationDir, { recursive: true, force: true });
     fs.cpSync(sourceDir, destinationDir, { recursive: true });
+
+    preparePackagedFrameCopyArtifacts(destinationDir, platform);
 }
 
 function writeEmbeddedMpvUnavailableMarker(resourceDir, targetArch) {
@@ -85,7 +90,8 @@ async function afterPackHook(params) {
     } else {
         copyEmbeddedMpvNativeOutput(
             resourceDir,
-            params.packager.projectDir ?? process.cwd()
+            params.packager.projectDir ?? process.cwd(),
+            params.electronPlatformName
         );
     }
 

@@ -3,7 +3,14 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
+import {
+    chmodSync,
+    existsSync,
+    mkdirSync,
+    mkdtempSync,
+    rmSync,
+    writeFileSync,
+} from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
@@ -34,13 +41,14 @@ jest.mock('electron', () => ({
 }));
 
 const mainWindowSendMock = jest.fn();
+const mainWindowWebContentsOnMock = jest.fn();
 const mainWindowGetNativeWindowHandleMock = jest.fn<Buffer, []>(() =>
     Buffer.alloc(8)
 );
 const mainWindowMock = {
     isDestroyed: () => false,
     getNativeWindowHandle: mainWindowGetNativeWindowHandleMock,
-    webContents: { send: mainWindowSendMock },
+    webContents: { send: mainWindowSendMock, on: mainWindowWebContentsOnMock },
 };
 
 jest.mock('../app', () => ({
@@ -112,7 +120,9 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     let addon: MockAddon;
     let nextBlockerId: number;
     let originalPlatform: NodeJS.Platform;
+    let originalArch: string;
     let originalDisplay: string | undefined;
+    let originalExperiment: string | undefined;
     let originalOzonePlatformHint: string | undefined;
     let originalWaylandDisplay: string | undefined;
     let tempDirs: string[];
@@ -131,16 +141,22 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         mainWindowGetNativeWindowHandleMock.mockReset();
         mainWindowGetNativeWindowHandleMock.mockReturnValue(Buffer.alloc(8));
         mainWindowSendMock.mockReset();
+        mainWindowWebContentsOnMock.mockReset();
+        appMock.isPackaged = true;
 
         tempDirs = [];
         nextBlockerId = 1;
         powerSaveBlockerMock.start.mockImplementation(() => nextBlockerId++);
         powerSaveBlockerMock.isStarted.mockReturnValue(true);
         originalPlatform = process.platform;
+        originalArch = process.arch;
         Object.defineProperty(process, 'platform', {
             value: 'darwin',
         });
+        Object.defineProperty(process, 'arch', { value: 'arm64' });
         originalDisplay = process.env.DISPLAY;
+        originalExperiment =
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
         originalOzonePlatformHint = process.env.ELECTRON_OZONE_PLATFORM_HINT;
         originalWaylandDisplay = process.env.WAYLAND_DISPLAY;
 
@@ -162,7 +178,12 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         Object.defineProperty(process, 'platform', {
             value: originalPlatform,
         });
+        Object.defineProperty(process, 'arch', { value: originalArch });
         restoreEnv('DISPLAY', originalDisplay);
+        restoreEnv(
+            'IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT',
+            originalExperiment
+        );
         restoreEnv('ELECTRON_OZONE_PLATFORM_HINT', originalOzonePlatformHint);
         restoreEnv('WAYLAND_DISPLAY', originalWaylandDisplay);
     });
@@ -204,9 +225,249 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         };
     }
 
+    it('falls back to the native engine when frame-copy is requested without a helper binary', () => {
+        // A stale opt-in (cleaned native build) must not brick embedded MPV:
+        // no helper on disk => the engine env flag is ignored, native keeps
+        // working, and support does not advertise frame-copy.
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+        jest.spyOn(
+            service as unknown as {
+                resolveFrameCopyHelperPath: () => string | null;
+            },
+            'resolveFrameCopyHelperPath'
+        ).mockReturnValue(null);
+        try {
+            expect(service.getActiveEngine()).toBe('native');
+            const support = service.getSupport();
+            expect(support.engine).not.toBe('frame-copy');
+            startSession('s-fallback', snapshot('loading'));
+            expect(addon.createSession).toHaveBeenCalled();
+        } finally {
+            delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+        }
+    });
+
+    it('requires the base embedded-MPV opt-in for unpackaged runs', () => {
+        appMock.isPackaged = false;
+        delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT;
+
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({ supported: false })
+        );
+
+        process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_EXPERIMENT = '1';
+        expect(service.getSupport()).toEqual(
+            expect.objectContaining({ supported: true })
+        );
+    });
+
+    (process.platform === 'win32' ? it.skip : it)(
+        'falls back to the native engine when the frame-copy helper is not executable',
+        () => {
+            const tempDir = createTempDir();
+            const releaseDir = path.join(
+                tempDir,
+                'apps',
+                'electron-backend',
+                'native',
+                'build',
+                'Release'
+            );
+            const helperPath = path.join(
+                releaseDir,
+                'iptvnator_mpv_helper'
+            );
+            mkdirSync(releaseDir, { recursive: true });
+            writeFileSync(helperPath, '#!/bin/sh\n');
+            chmodSync(helperPath, 0o644);
+            writeFileSync(
+                path.join(releaseDir, 'embedded_mpv_frame_reader.node'),
+                'reader'
+            );
+            const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tempDir);
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+
+            try {
+                expect(service.getActiveEngine()).toBe('native');
+                expect(service.isFrameCopyAvailable()).toBe(false);
+            } finally {
+                delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+                cwdSpy.mockRestore();
+            }
+        }
+    );
+
+    describe('frame-copy platform gate', () => {
+        const originalArch = process.arch;
+
+        function mockHelperPresent(): void {
+            jest.spyOn(
+                service as unknown as {
+                    resolveFrameCopyHelperPath: () => string | null;
+                },
+                'resolveFrameCopyHelperPath'
+            ).mockReturnValue('/native/iptvnator_mpv_helper');
+        }
+
+        afterEach(() => {
+            Object.defineProperty(process, 'arch', { value: originalArch });
+            delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
+        });
+
+        it('activates the frame-copy engine on Linux, even under native Wayland', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            // Native Wayland session (no X11 ozone): blocks the --wid native
+            // engine, but the frame-copy helper renders offscreen into shm
+            // and must stay available.
+            process.env.DISPLAY = ':0';
+            process.env.WAYLAND_DISPLAY = 'wayland-0';
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockHelperPresent();
+
+            expect(service.getActiveEngine()).toBe('frame-copy');
+            expect(service.isFrameCopyAvailable()).toBe(true);
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: true,
+                    engine: 'frame-copy',
+                    frameCopyAvailable: true,
+                })
+            );
+        });
+
+        it('advertises frame-copy availability while native Wayland blocks the native engine', () => {
+            // Pre-opt-in discoverability: without frameCopyAvailable on the
+            // unsupported payload the Settings toggle never appears in
+            // exactly the states the frame-copy engine exists to fix.
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            process.env.WAYLAND_DISPLAY = 'wayland-0';
+            mockHelperPresent();
+
+            const support = service.getSupport();
+            expect(support.supported).toBe(false);
+            expect(support.reason).toContain('Native Wayland embedding');
+            expect(support.frameCopyAvailable).toBe(true);
+        });
+
+        it('advertises frame-copy availability when the system mpv executable is missing', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockHelperPresent();
+
+            const support = service.getSupport();
+            expect(support.supported).toBe(false);
+            expect(support.frameCopyAvailable).toBe(true);
+        });
+
+        it('keeps frame-copy supported on Linux without a system mpv executable', () => {
+            // The helper links libmpv itself; the mpv-on-PATH probe only
+            // binds the native --wid engine.
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.DISPLAY = ':0';
+            delete process.env.WAYLAND_DISPLAY;
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockSpawnSync.mockReturnValue({ status: 1 });
+            mockHelperPresent();
+
+            expect(service.getSupport()).toEqual(
+                expect.objectContaining({
+                    supported: true,
+                    engine: 'frame-copy',
+                })
+            );
+        });
+
+        it('activates the frame-copy engine on macOS arm64', () => {
+            Object.defineProperty(process, 'arch', { value: 'arm64' });
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockHelperPresent();
+
+            expect(service.getActiveEngine()).toBe('frame-copy');
+            expect(service.isFrameCopyAvailable()).toBe(true);
+        });
+
+        it('keeps the frame-copy engine Apple-Silicon-only on macOS', () => {
+            Object.defineProperty(process, 'arch', { value: 'x64' });
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockHelperPresent();
+
+            expect(service.getActiveEngine()).toBe('native');
+            expect(service.isFrameCopyAvailable()).toBe(false);
+        });
+
+        it('skips the native window handle when creating a frame-copy session', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
+            mockHelperPresent();
+            const frameCopyAddon = createMockAddon();
+            frameCopyAddon.createSession.mockReturnValueOnce('s-fc');
+            frameCopyAddon.getSessionSnapshot.mockReturnValueOnce(
+                snapshot('loading')
+            );
+            (
+                service as unknown as { frameCopyAdapter: MockAddon }
+            ).frameCopyAdapter = frameCopyAddon;
+
+            service.createSession(BOUNDS, '', 1);
+
+            expect(mainWindowGetNativeWindowHandleMock).not.toHaveBeenCalled();
+            expect(frameCopyAddon.createSession).toHaveBeenCalledWith(
+                Buffer.alloc(0),
+                BOUNDS,
+                '',
+                1
+            );
+
+            // Dispose while the frame-copy env is still set so teardown
+            // dispatches to the adapter that owns the session, not the
+            // native addon the outer afterEach shutdown would pick.
+            service.disposeSession('s-fc');
+            expect(frameCopyAddon.disposeSession).toHaveBeenCalledWith(
+                's-fc'
+            );
+        });
+    });
+
     it('does not acquire a blocker for a loading session', () => {
         startSession('s1', snapshot('loading'));
         expect(powerSaveBlockerMock.start).not.toHaveBeenCalled();
+    });
+
+    it('disposes sessions when the renderer reloads or crashes', () => {
+        // Angular teardown never runs on a renderer crash or hard reload, so
+        // the main process must reap sessions itself — otherwise native mpv
+        // handles / frame-copy helper processes leak until app shutdown.
+        startSession('s1', snapshot('playing'));
+        addon.getSessionSnapshot.mockReturnValue(snapshot('playing'));
+
+        const handlers = new Map<string, (...args: unknown[]) => void>(
+            mainWindowWebContentsOnMock.mock.calls.map(
+                ([event, handler]: [string, (...args: unknown[]) => void]) => [
+                    event,
+                    handler,
+                ]
+            )
+        );
+        expect([...handlers.keys()]).toEqual(
+            expect.arrayContaining(['render-process-gone', 'did-navigate'])
+        );
+
+        const consoleWarnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation();
+        handlers.get('did-navigate')?.();
+        expect(addon.disposeSession).toHaveBeenCalledWith('s1');
+
+        // A crash after everything is already disposed must be a no-op.
+        addon.disposeSession.mockClear();
+        handlers.get('render-process-gone')?.(undefined, {
+            reason: 'crashed',
+        });
+        expect(addon.disposeSession).not.toHaveBeenCalled();
+        consoleWarnSpy.mockRestore();
     });
 
     it('keeps the polling timer alive when refreshing a session throws', () => {
