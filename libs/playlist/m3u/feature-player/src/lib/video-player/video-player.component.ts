@@ -24,6 +24,7 @@ import { ResizableDirective } from '@iptvnator/ui/components';
 import {
     applyChannelNameStrip,
     getM3uArchiveDays,
+    isDashChannel,
     isM3uCatchupPlaybackSupported,
 } from '@iptvnator/shared/m3u-utils';
 import { PlaylistContextFacade } from '@iptvnator/playlist/shared/util';
@@ -173,6 +174,21 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     readonly archivePlaybackAvailable = computed(() =>
         isM3uCatchupPlaybackSupported(this.activeChannel())
     );
+    /** DASH (.mpd) channels always play inline via the Shaka engine. */
+    readonly activeChannelIsDash = computed(() =>
+        isDashChannel(this.activeChannel())
+    );
+    /**
+     * Player forced for DASH channels: ArtPlayer keeps ArtPlayer (it has a
+     * Shaka source engine); every other choice — Video.js (no DASH bridge),
+     * embedded/external MPV and VLC (no KODIPROP ClearKey support) — falls
+     * back to the HTML5 player.
+     */
+    readonly dashPlayerOverride = computed<VideoPlayer>(() =>
+        this.settingsStore.player() === VideoPlayer.ArtPlayer
+            ? VideoPlayer.ArtPlayer
+            : VideoPlayer.Html5Player
+    );
     /** Full multi-day programme window for the active channel (timeline). */
     readonly epgPrograms = toSignal(this.epgService.currentEpgPrograms$, {
         initialValue: [] as EpgProgram[],
@@ -280,6 +296,7 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
             userAgent: http['user-agent'] || undefined,
             referer: http.referrer || undefined,
             origin: http.origin || undefined,
+            drm: playbackTarget.drm,
         };
     });
     readonly sidebarStorageKey = computed(() =>
@@ -990,6 +1007,12 @@ export class VideoPlayerComponent implements OnInit, OnDestroy {
     shouldShowInlinePlayer(channel: Channel | null | undefined): boolean {
         if (!channel) {
             return false;
+        }
+
+        // DASH channels bypass the external-player setting (radio precedent):
+        // MPV/VLC cannot receive the KODIPROP ClearKey configuration.
+        if (isDashChannel(channel)) {
+            return true;
         }
 
         return !this.isExternalPlayer(this.playerSettings.player);

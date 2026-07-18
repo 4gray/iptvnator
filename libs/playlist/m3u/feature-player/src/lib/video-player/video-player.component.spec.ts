@@ -627,6 +627,70 @@ describe('VideoPlayerComponent', () => {
         ).toBe(false);
     });
 
+    it('keeps DASH channels inline on the HTML5 player even when MPV is configured', () => {
+        syncStoreState({
+            ...sampleChannel,
+            url: 'http://localhost/live.mpd',
+        } as Channel);
+        player.set(VideoPlayer.MPV);
+
+        fixture.detectChanges();
+
+        const playerView = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        );
+        expect(playerView).not.toBeNull();
+        const stub =
+            playerView.componentInstance as StubWebPlayerViewComponent;
+        expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
+        expect(dataServiceMock.sendIpcEvent).not.toHaveBeenCalled();
+    });
+
+    it('keeps ArtPlayer for DASH channels and forwards the ClearKey DRM config', () => {
+        const drm = {
+            licenseType: 'clearkey',
+            supported: true,
+            clearKeys: { '11223344556677889900aabbccddeeff': 'f'.repeat(32) },
+        };
+        syncStoreState({
+            ...sampleChannel,
+            url: 'http://localhost/live.mpd',
+            drm,
+        } as Channel);
+        player.set(VideoPlayer.ArtPlayer);
+
+        fixture.detectChanges();
+
+        const stub = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        expect(stub.playerOverride()).toBe(VideoPlayer.ArtPlayer);
+        expect(stub.playback()).toEqual(expect.objectContaining({ drm }));
+    });
+
+    it('routes Video.js users to the HTML5 player only for DASH channels', () => {
+        syncStoreState({
+            ...sampleChannel,
+            url: 'http://localhost/live.mpd',
+        } as Channel);
+        player.set(VideoPlayer.VideoJs);
+
+        fixture.detectChanges();
+
+        let stub = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        expect(stub.playerOverride()).toBe(VideoPlayer.Html5Player);
+
+        syncStoreState(sampleChannel);
+        fixture.detectChanges();
+
+        stub = fixture.debugElement.query(
+            By.directive(StubWebPlayerViewComponent)
+        ).componentInstance as StubWebPlayerViewComponent;
+        expect(stub.playerOverride()).toBe(VideoPlayer.VideoJs);
+    });
+
     it('passes remote volume changes to the radio audio player', () => {
         const radioChannel = {
             ...sampleChannel,
