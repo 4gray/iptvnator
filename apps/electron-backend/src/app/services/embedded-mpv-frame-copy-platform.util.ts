@@ -82,7 +82,7 @@ export function getEmbeddedMpvAddonCandidatePaths(): string[] {
 
     return dedupeDefinedPaths(
         app.isPackaged
-            ? [...packagedAddonPaths, ...distAddonPaths, localBuildAddonPath]
+            ? packagedAddonPaths
             : [localBuildAddonPath, ...distAddonPaths, ...packagedAddonPaths]
     );
 }

@@ -19,6 +19,29 @@ import path from 'node:path';
 
 const PACKAGE_MANIFEST = 'package.json';
 const NODE_MODULES_SEGMENT = '/node_modules/';
+const EMBEDDED_MPV_NATIVE_ARCHIVE_ROOT = '/electron-backend/native';
+
+/**
+ * Embedded MPV's native payload is profile-specific and is written only by
+ * afterPack. Any copy retained in app.asar predates that mutation and can leak
+ * x64 helpers, runtimes, manifests, or notices into marker-only/system builds.
+ */
+export function collectEmbeddedMpvNativeArchiveEntries(
+    asarEntries,
+    pathSep = path.sep
+) {
+    const toPosix = (value) =>
+        pathSep === '\\' ? value.replaceAll('\\', '/') : value;
+
+    return asarEntries
+        .map(toPosix)
+        .map((entry) => (entry.startsWith('/') ? entry : `/${entry}`))
+        .filter(
+            (entry) =>
+                entry === EMBEDDED_MPV_NATIVE_ARCHIVE_ROOT ||
+                entry.startsWith(`${EMBEDDED_MPV_NATIVE_ARCHIVE_ROOT}/`)
+        );
+}
 
 /**
  * A genuine installed package lives directly under a node_modules directory as
@@ -70,7 +93,11 @@ export function collectAsarPackageDirs(asarEntries) {
  * as `/electron-backend/node_modules/foo`. Returns the resolved package
  * directory or null when the dependency is absent.
  */
-export function resolvePackagedDependency(fromDir, dependencyName, packageDirs) {
+export function resolvePackagedDependency(
+    fromDir,
+    dependencyName,
+    packageDirs
+) {
     let current = fromDir;
 
     while (true) {

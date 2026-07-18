@@ -77,8 +77,8 @@ const SYSTEM_MANIFEST = {
     nativeViewFallback: 'process-isolated mpv --wid',
     libmpvSoname: 'libmpv.so.2',
     packageDependencies: {
-        deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
-        rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-opengl', 'mesa-libgbm'],
+        deb: ['libmpv2', 'libegl1', 'libgl1', 'libgbm1'],
+        rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-glx', 'mesa-libgbm'],
         pacman: ['mpv', 'libglvnd', 'mesa'],
     },
     runtimeFiles: [],
@@ -87,7 +87,7 @@ const SYSTEM_MANIFEST = {
 const DEB_SYSTEM_PACKAGE_DEPENDENCIES = [
     'libmpv2',
     'libegl1',
-    'libopengl0',
+    'libgl1',
     'libgbm1',
 ];
 
@@ -624,7 +624,7 @@ test('requires every direct helper runtime dependency for DEB, RPM, and Pacman',
         validateSystemPackageDependencies('deb', [
             'libmpv2 (>= 0.35)',
             'libegl1',
-            'libopengl0',
+            'libgl1',
             'libgbm1',
             'libc6',
         ]),
@@ -634,7 +634,7 @@ test('requires every direct helper runtime dependency for DEB, RPM, and Pacman',
         validateSystemPackageDependencies('rpm', [
             'mpv-libs',
             'libglvnd-egl',
-            'libglvnd-opengl',
+            'libglvnd-glx',
             'mesa-libgbm',
             'glibc',
         ]),
@@ -655,7 +655,7 @@ test('requires every direct helper runtime dependency for DEB, RPM, and Pacman',
             'libegl1',
             'libgbm1',
         ])[0],
-        /libopengl0/
+        /libgl1/
     );
 });
 
@@ -758,7 +758,7 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             packageDependencies: [
                 'libmpv2 (>= 0.35)',
                 'libegl1',
-                'libopengl0',
+                'libgl1',
                 'libgbm1',
             ],
             elfInspector: validElfInspector,
@@ -787,6 +787,32 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             timeout: 3000,
             windowsHide: true,
         });
+    } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test('rejects any stale embedded MPV native payload hidden inside app.asar', () => {
+    const fixture = createSystemPayload();
+    fs.writeFileSync(path.join(fixture.resourceDir, 'app.asar'), 'fixture');
+    try {
+        const errors = verifyExtractedLinuxFrameCopyRuntime({
+            resourceDir: fixture.resourceDir,
+            artifactFormat: 'deb',
+            profileName: 'system',
+            packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
+            elfInspector: validElfInspector,
+            probeRunner: successfulProbeRunner,
+            asarListPackage: () => [
+                '/electron-backend/main.js',
+                '/electron-backend/native/iptvnator_mpv_helper',
+                '/electron-backend/native/lib/libmpv.so.2',
+            ],
+        });
+        assert.match(
+            errors.join('\n'),
+            /app\.asar must not contain embedded MPV native payloads.*iptvnator_mpv_helper.*libmpv\.so\.2/s
+        );
     } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });
     }
@@ -969,27 +995,42 @@ test('rejects helper probes terminated by a signal or hard timeout', () => {
     }
 });
 
-test('requires a private top-level shared-memory plug used by the Snap app', () => {
+test('requires exact Snap graphics layouts and plugs used by the app', () => {
     const root = fs.mkdtempSync(
         path.join(os.tmpdir(), 'iptvnator-verifier-snap-metadata-')
     );
     const snapYamlPath = path.join(root, 'meta', 'snap.yaml');
     fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+    fs.mkdirSync(path.join(root, 'graphics'));
 
     const validSnapYaml = [
         'name: iptvnator',
+        'base: core22',
+        'confinement: strict',
         'summary: "*literal &anchor !tag <<: is quoted"',
         '# *commented-alias &commented-anchor !commented-tag',
         'apps:',
         '  iptvnator:',
         '    command: iptvnator',
+        '    environment:',
+        '      SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform',
         '    plugs:',
         '      - desktop',
         '      - shared-memory',
+        '      - graphics-core22',
         'plugs:',
         '  shared-memory:',
         '    interface: shared-memory',
         '    private: true',
+        '  graphics-core22:',
+        '    interface: content',
+        '    target: $SNAP/graphics',
+        '    default-provider: mesa-core22',
+        'layout:',
+        '  /usr/share/libdrm:',
+        '    bind: $SNAP/graphics/libdrm',
+        '  /usr/share/drirc.d:',
+        '    symlink: $SNAP/graphics/drirc.d',
         '',
     ].join('\n');
 
@@ -997,7 +1038,111 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
         fs.writeFileSync(snapYamlPath, validSnapYaml);
         assert.deepEqual(validateExtractedSnapMetadata(root), []);
 
+        fs.rmSync(path.join(root, 'graphics'), { recursive: true });
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /empty graphics content mount directory/i
+        );
+        fs.mkdirSync(path.join(root, 'graphics'));
+        fs.writeFileSync(path.join(root, 'graphics', 'unexpected'), 'data');
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /graphics content mount directory must be empty/i
+        );
+        fs.rmSync(path.join(root, 'graphics'), { recursive: true });
+        const outsideGraphics = path.join(root, 'outside-graphics');
+        fs.mkdirSync(outsideGraphics);
+        fs.symlinkSync(outsideGraphics, path.join(root, 'graphics'), 'dir');
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /graphics content mount.*real directory/i
+        );
+        fs.rmSync(path.join(root, 'graphics'));
+        fs.mkdirSync(path.join(root, 'graphics'));
+        fs.chmodSync(path.join(root, 'graphics'), 0o700);
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /graphics content mount directory must have mode 0755/i
+        );
+        fs.chmodSync(path.join(root, 'graphics'), 0o755);
+
         for (const [mutate, expected] of [
+            [
+                (contents) => contents.replace('base: core22', 'base: core20'),
+                /base: core22/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        'confinement: strict',
+                        'confinement: classic'
+                    ),
+                /confinement: strict/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        'layout:\n  /usr/share/libdrm:\n    bind: $SNAP/graphics/libdrm\n  /usr/share/drirc.d:\n    symlink: $SNAP/graphics/drirc.d\n',
+                        ''
+                    ),
+                /exact Snap graphics layout contract/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '  /usr/share/drirc.d:\n',
+                        '  /usr/share/extra:\n    bind: $SNAP/graphics/extra\n  /usr/share/drirc.d:\n'
+                    ),
+                /exactly the libdrm and drirc.d entries/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '  /usr/share/drirc.d:\n',
+                        '  /usr/share/libdrm:\n    bind: $SNAP/graphics/libdrm\n  /usr/share/drirc.d:\n'
+                    ),
+                /layout paths must be unique/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    bind: $SNAP/graphics/libdrm',
+                        '    bind: $SNAP/graphics/wrong-libdrm'
+                    ),
+                /libdrm.*bind: \$SNAP\/graphics\/libdrm/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    symlink: $SNAP/graphics/drirc.d',
+                        '    symlink: $SNAP/graphics/wrong-drirc.d'
+                    ),
+                /drirc.d.*symlink: \$SNAP\/graphics\/drirc.d/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    bind: $SNAP/graphics/libdrm\n',
+                        '    bind: $SNAP/graphics/libdrm\n    type: directory\n'
+                    ),
+                /libdrm layout.*exactly bind/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '      SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform\n',
+                        ''
+                    ),
+                /SNAP_DESKTOP_RUNTIME.*\$SNAP\/gnome-platform/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '$SNAP/gnome-platform',
+                        '$SNAP/hostile-platform'
+                    ),
+                /SNAP_DESKTOP_RUNTIME.*\$SNAP\/gnome-platform/i,
+            ],
             [
                 (contents) =>
                     contents.replace('    private: true', '    private: false'),
@@ -1008,12 +1153,89 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
                 /app.*shared-memory plug/i,
             ],
             [
+                (contents) => contents.replace('      - graphics-core22\n', ''),
+                /app.*graphics-core22 plug/i,
+            ],
+            [
                 (contents) =>
                     contents.replace(
                         '  shared-memory:\n    interface: shared-memory\n    private: true\n',
                         ''
                     ),
                 /top-level shared-memory plug/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '  graphics-core22:\n    interface: content\n    target: $SNAP/graphics\n    default-provider: mesa-core22\n',
+                        ''
+                    ),
+                /top-level graphics-core22 plug/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    interface: content',
+                        '    interface: opengl'
+                    ),
+                /graphics-core22.*interface: content/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    target: $SNAP/graphics',
+                        '    target: $SNAP/wrong-graphics'
+                    ),
+                /graphics-core22.*target: \$SNAP\/graphics/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    default-provider: mesa-core22',
+                        '    default-provider: wrong-provider'
+                    ),
+                /graphics-core22.*default-provider: mesa-core22/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '    default-provider: mesa-core22\n',
+                        '    default-provider: mesa-core22\n    source: graphics-core22\n'
+                    ),
+                /graphics-core22 plug.*exactly interface, target, and default-provider/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '\nplugs:\n',
+                        [
+                            '',
+                            'plugs:',
+                            '  duplicate-graphics:',
+                            '    interface: content',
+                            '    target: $SNAP/graphics',
+                            '    default-provider: mesa-core22',
+                            '',
+                        ].join('\n')
+                    ),
+                /exactly one plug.*graphics-core22 contract/i,
+            ],
+            [
+                (contents) =>
+                    contents.replace(
+                        '\nplugs:\n',
+                        [
+                            '',
+                            'plugs:',
+                            '  competing-graphics:',
+                            '    interface: content',
+                            '    target: $SNAP/graphics',
+                            '    default-provider: hostile-provider',
+                            '    content: alternate-graphics',
+                            '',
+                        ].join('\n')
+                    ),
+                /exactly one plug.*target \$SNAP\/graphics/i,
             ],
             [
                 (contents) =>
@@ -1150,18 +1372,32 @@ test('requires a private top-level shared-memory plug used by the Snap app', () 
 
 const SNAP_METADATA_WITH_LITERAL_HASHES = [
     'name: iptvnator',
+    'base: core22',
+    'confinement: strict',
     'summary: "quoted # is scalar data"',
     'description: | # block scalar header comment',
     '  Block scalar # stays literal.',
     'apps:',
     '  iptvnator:',
     '    command: iptvnator',
+    '    environment:',
+    '      SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform',
     '    plugs:',
     '      - shared-memory',
+    '      - graphics-core22',
     'plugs:',
     '  shared-memory:',
     '    interface: shared-memory',
     '    private: true',
+    '  graphics-core22:',
+    '    interface: content',
+    '    target: $SNAP/graphics',
+    '    default-provider: mesa-core22',
+    'layout:',
+    '  /usr/share/libdrm:',
+    '    bind: $SNAP/graphics/libdrm',
+    '  /usr/share/drirc.d:',
+    '    symlink: $SNAP/graphics/drirc.d',
     '',
 ].join('\n');
 
@@ -1194,6 +1430,7 @@ for (const [kind, mutate, expected] of [
         );
         const snapYamlPath = path.join(root, 'meta', 'snap.yaml');
         fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+        fs.mkdirSync(path.join(root, 'graphics'));
 
         try {
             fs.writeFileSync(snapYamlPath, SNAP_METADATA_WITH_LITERAL_HASHES);
@@ -1213,82 +1450,131 @@ for (const [kind, mutate, expected] of [
     });
 }
 
-test('artifact verification rejects Snap metadata before accepting its payload', () => {
-    const fixture = createSystemPayload();
-    const artifactPath = path.join(fixture.root, 'package.snap');
-    const snapYamlPath = path.join(fixture.root, 'meta', 'snap.yaml');
-    fs.writeFileSync(artifactPath, 'fixture');
-    fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
-    fs.writeFileSync(
-        snapYamlPath,
-        [
-            'name: iptvnator',
-            'apps:',
-            '  iptvnator:',
-            '    command: iptvnator',
-            '    plugs:',
-            '      - desktop',
-            'plugs:',
-            '  shared-memory:',
-            '    interface: shared-memory',
-            '    private: true',
-            '',
-        ].join('\n')
-    );
-    let payloadVerifierCalls = 0;
-
-    const verify = () =>
-        verifyLinuxFrameCopyArtifact({
-            artifactPath,
-            profileName: 'portable',
-            extractArtifact() {
-                return fixture.root;
-            },
-            metadataReader() {
-                return { declaredArch: 'x64', dependencies: [] };
-            },
-            payloadVerifier() {
-                payloadVerifierCalls += 1;
-                return [];
-            },
-        });
-
-    try {
-        assert.throws(verify, /app.*shared-memory plug/i);
-        assert.equal(payloadVerifierCalls, 0);
-
+test('artifact verification enforces Snap metadata for x64 and ARM payloads', () => {
+    for (const architecture of ['x64', 'arm64', 'armv7l']) {
+        const fixture = createSystemPayload({ architecture });
+        const artifactPath = path.join(fixture.root, 'package.snap');
+        const snapYamlPath = path.join(fixture.root, 'meta', 'snap.yaml');
+        fs.writeFileSync(artifactPath, 'fixture');
+        fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+        fs.mkdirSync(path.join(fixture.root, 'graphics'));
         fs.writeFileSync(
             snapYamlPath,
-            fs
-                .readFileSync(snapYamlPath, 'utf8')
-                .replace('      - desktop\n', '      - shared-memory\n')
+            [
+                'name: iptvnator',
+                'base: core22',
+                'confinement: strict',
+                'apps:',
+                '  iptvnator:',
+                '    command: iptvnator',
+                '    environment:',
+                '      SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform',
+                '    plugs:',
+                '      - desktop',
+                '      - graphics-core22',
+                'plugs:',
+                '  shared-memory:',
+                '    interface: shared-memory',
+                '    private: true',
+                '  graphics-core22:',
+                '    interface: content',
+                '    target: $SNAP/graphics',
+                '    default-provider: mesa-core22',
+                'layout:',
+                '  /usr/share/libdrm:',
+                '    bind: $SNAP/graphics/libdrm',
+                '  /usr/share/drirc.d:',
+                '    symlink: $SNAP/graphics/drirc.d',
+                '',
+            ].join('\n')
         );
-        assert.deepEqual(verify(), {
-            artifactPath,
-            format: 'snap',
-            profileName: 'portable',
-            architecture: 'x64',
-        });
-        assert.equal(payloadVerifierCalls, 1);
-    } finally {
-        fs.rmSync(fixture.root, { recursive: true, force: true });
+        let payloadVerifierCalls = 0;
+
+        const verify = () =>
+            verifyLinuxFrameCopyArtifact({
+                artifactPath,
+                profileName: 'portable',
+                extractArtifact() {
+                    return fixture.root;
+                },
+                metadataReader() {
+                    return { declaredArch: architecture, dependencies: [] };
+                },
+                payloadVerifier() {
+                    payloadVerifierCalls += 1;
+                    return [];
+                },
+            });
+
+        try {
+            assert.throws(verify, /app.*shared-memory plug/i);
+            assert.equal(payloadVerifierCalls, 0);
+
+            fs.writeFileSync(
+                snapYamlPath,
+                fs
+                    .readFileSync(snapYamlPath, 'utf8')
+                    .replace('      - desktop\n', '      - shared-memory\n')
+            );
+            assert.deepEqual(verify(), {
+                artifactPath,
+                format: 'snap',
+                profileName: 'portable',
+                architecture,
+            });
+            assert.equal(payloadVerifierCalls, 1);
+        } finally {
+            fs.rmSync(fixture.root, { recursive: true, force: true });
+        }
     }
 });
 
-test('bundled probes use only the packaged library directory', () => {
+test('bundled probes remove ambient loader paths and use only packaged libraries', () => {
     assert.deepEqual(
         createRuntimeProbeEnvironment({
             environment: {
                 PATH: '/usr/bin',
+                BASH_ENV: '/host/hostile-bash-env',
+                ENV: '/host/hostile-shell-env',
+                BASHOPTS: 'extdebug',
+                SHELLOPTS: 'xtrace',
+                PS4: '$(/host/hostile-trace-hook)',
+                BASH_XTRACEFD: '9',
+                CDPATH: '/host/hostile-cdpath',
+                'BASH_FUNC_dirname%%':
+                    '() { printf /host/hostile-provider-root; }',
                 LD_AUDIT: '/host/can-inject-audit.so',
                 LD_LIBRARY_PATH: '/host/can-mask-missing-dependencies',
+                LD_ORIGIN_PATH: '/host/can-change-origin',
                 LD_PRELOAD: '/host/can-inject.so',
+                __EGL_EXTERNAL_PLATFORM_CONFIG_DIRS:
+                    '/host/egl/external-platform',
+                __EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES:
+                    '/host/egl/external-platform.json',
+                __EGL_VENDOR_LIBRARY_DIRS: '/host/egl/vendor',
+                __EGL_VENDOR_LIBRARY_FILENAMES: '/host/egl/vendor/host.json',
+                GBM_BACKEND: 'host-gbm',
+                GBM_BACKENDS_PATH: '/host/gbm',
+                LIBGL_DRIVERS_PATH: '/host/dri',
+                MESA_LOADER_DRIVER_OVERRIDE: 'host-dri',
+                LIBVA_DRIVER_NAME: 'host-va',
+                LIBVA_DRIVERS_PATH: '/host/va',
+                VDPAU_DRIVER_PATH: '/host/vdpau',
+                VK_DRIVER_FILES: '/host/vulkan/driver.json',
+                VK_ICD_FILENAMES: '/host/vulkan/icd.json',
+                VK_ADD_DRIVER_FILES: '/host/vulkan/add-driver.json',
+                VK_ADD_LAYER_PATH: '/host/vulkan/add-layer',
+                VK_IMPLICIT_LAYER_PATH: '/host/vulkan/implicit-layer',
+                VK_ADD_IMPLICIT_LAYER_PATH: '/host/vulkan/add-implicit-layer',
+                VK_LAYER_PATH: '/host/vulkan/layer',
+                LIBGL_ALWAYS_SOFTWARE: '1',
             },
             nativeDir: '/package/resources/native',
             runtimeMode: 'bundled',
         }),
         {
             PATH: '/usr/bin',
+            LIBGL_ALWAYS_SOFTWARE: '1',
             LD_LIBRARY_PATH: '/package/resources/native/lib',
         }
     );

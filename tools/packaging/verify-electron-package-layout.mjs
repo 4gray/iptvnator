@@ -3,7 +3,10 @@ import { createRequire } from 'module';
 import path from 'path';
 
 import { buildElectronBuilderMetadata } from './generate-electron-builder-metadata.mjs';
-import { inspectPackagedDependencyClosure } from './asar-dependency-closure.mjs';
+import {
+    collectEmbeddedMpvNativeArchiveEntries,
+    inspectPackagedDependencyClosure,
+} from './asar-dependency-closure.mjs';
 
 const require = createRequire(import.meta.url);
 const { extractFile, listPackage } = require('@electron/asar');
@@ -621,6 +624,35 @@ function verifyPackagedDependencyClosure(resourceDir, errors) {
     );
 }
 
+function verifyNoEmbeddedMpvNativeArchiveEntries(resourceDir, errors) {
+    const asarPath = path.join(resourceDir, 'app.asar');
+    if (!fileExists(asarPath)) {
+        // Missing archive is already reported by verifyPackagedPackageMetadata.
+        return;
+    }
+
+    let nativeEntries;
+    try {
+        nativeEntries = collectEmbeddedMpvNativeArchiveEntries(
+            listPackage(asarPath)
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to inspect embedded MPV archive ownership in ${asarPath}: ${error.message}`
+        );
+        return;
+    }
+
+    if (nativeEntries.length > 0) {
+        errors.push(
+            [
+                `Packaged app.asar must not contain embedded MPV native payloads; afterPack exclusively owns the profile-specific unpacked directory in ${asarPath}.`,
+                ...nativeEntries.map((entry) => `- ${entry}`),
+            ].join('\n')
+        );
+    }
+}
+
 // Official Linux frame-copy support is x64-only. Every arm64/armv7l output
 // must carry the unavailable marker instead of native frame-copy artifacts.
 function isForeignArchLinuxResourceDir(resourceDir) {
@@ -652,6 +684,7 @@ function verifyResourceDir(resourceDir) {
 
     verifyPackagedPackageMetadata(resourceDir, errors);
     verifyPackagedDependencyClosure(resourceDir, errors);
+    verifyNoEmbeddedMpvNativeArchiveEntries(resourceDir, errors);
 
     if (missingWorkers.length > 0) {
         errors.push(

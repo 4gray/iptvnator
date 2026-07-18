@@ -739,9 +739,7 @@ describe('Embedded MPV native source recording invariants', () => {
         expect(buildAndMakeWorkflowSource).toContain(
             'Download pinned Linux Embedded MPV runtime'
         );
-        expect(buildAndMakeWorkflowSource).not.toContain(
-            'libmpv-dev mpv pkg-config libegl-dev libgl-dev libopengl-dev libgbm-dev'
-        );
+        expect(buildAndMakeWorkflowSource).not.toContain('libopengl-dev');
         expect(buildAndMakeWorkflowSource).not.toContain(
             'Stage Linux embedded MPV build inputs'
         );
@@ -795,9 +793,16 @@ describe('Embedded MPV native source recording invariants', () => {
         );
     });
 
-    it('keeps Electron Builder defaults and requests private Snap shared memory', () => {
+    it('keeps Electron Builder defaults and exact Snap runtime plugs', () => {
         expect(electronBuilderConfig.snap?.plugs).toEqual([
             'default',
+            {
+                'graphics-core22': {
+                    interface: 'content',
+                    target: '$SNAP/graphics',
+                    'default-provider': 'mesa-core22',
+                },
+            },
             {
                 'shared-memory': {
                     interface: 'shared-memory',
@@ -1048,8 +1053,9 @@ describe('Embedded MPV native build configuration', () => {
         expect(linuxAddonConfig?.libraries).not.toContain('-lmpv');
         expect(JSON.stringify(linuxAddonConfig)).not.toContain('-lmpv');
         expect(linuxHelperConfig?.libraries).toEqual(
-            expect.arrayContaining(['-lEGL', '-lOpenGL', '-lgbm', '-ldl'])
+            expect.arrayContaining(['-lEGL', '-lGL', '-lgbm', '-ldl'])
         );
+        expect(linuxHelperConfig?.libraries).not.toContain('-lOpenGL');
         expect(linuxHelperConfig?.libraries).not.toContain('-lmpv');
         expect(
             linuxHelperConfig?.libraries.find((library: string) =>

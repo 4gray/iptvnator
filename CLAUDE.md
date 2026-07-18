@@ -631,21 +631,46 @@ engine` (restart required) or
   Electron libraries recursively; extracted Snap payloads exclude only the
   package-manager `lib/**` and `usr/lib/**` trees overlaid into the same root.
   Every other directory remains recursive, and Electron-library symlinks still
-  fail closed. Official x64 packages use three separate profiles:
+  fail closed. `electron-backend/native{,/**/*}` is excluded from `app.asar`;
+  `afterPack` alone owns the profile-normalized unpacked native tree, and
+  package checks reject every archived `/electron-backend/native/**` entry.
+  Packaged addon, frame-reader, and helper discovery uses only package-owned
+  `app.asar.unpacked` paths; cwd/dist candidates remain development-only.
+  Official x64 packages use three separate profiles:
   DEB/RPM/Pacman depend on system libmpv plus the helper's direct
-  EGL/OpenGL/GBM interfaces, AppImage/Snap bundle the pinned LGPL closure, and
+  EGL/GL/GBM interfaces, AppImage/Snap bundle the pinned LGPL closure, and
   Flatpak bundles the same closure. Exact system dependencies are
-  DEB=`libmpv2,libegl1,libopengl0,libgbm1`,
-  RPM=`mpv-libs,libglvnd-egl,libglvnd-opengl,mesa-libgbm`, and
+  DEB=`libmpv2,libegl1,libgl1,libgbm1`,
+  RPM=`mpv-libs,libglvnd-egl,libglvnd-glx,mesa-libgbm`, and
   Pacman=`mpv,libglvnd,mesa`. The DEB contract is verified on Ubuntu 24.04+;
   Ubuntu 22.04 users need the x64 AppImage because Jammy provides `libmpv1`.
   ARM packages are marker-only. Stored or explicit opt-ins cannot bypass the
   fail-closed packaged manifest/file/hash gate and bounded `--runtime-probe`;
   any failure keeps the sandbox enabled, records a stable reason, and falls
-  back to native-view without crashing. Snap uses an exact private
-  `shared-memory` plug; probe and playback share a sanitized loader environment in which
-  ambient audit, preload, and library paths are removed and the validated
-  private closure and trusted Snap GL roots have explicit precedence. Bundled
+  back to native-view without crashing. Snap is `core22`/strict and uses an
+  exact private `shared-memory` plug plus the `graphics-core22` content plug at
+  a real empty mode-0755 `$SNAP/graphics`, with external `mesa-core22` as the
+  default provider. Its only provider-data layouts bind `/usr/share/libdrm`
+  from `$SNAP/graphics/libdrm` and symlink `/usr/share/drirc.d` to
+  `$SNAP/graphics/drirc.d`. Installed-Snap CI requires controlled unavailable
+  status after disconnect, then reconnects and requires success. The helper
+  links `libGL.so.1`, and probe/playback share a sanitized loader environment
+  in which ambient audit, preload, library, graphics-driver, and shell-startup
+  overrides are removed; the validated private closure plus trusted host GL,
+  graphics-content, and exact GNOME-platform roots have explicit precedence.
+  The extracted-artifact verifier removes the identical unsafe
+  loader/graphics/shell set before direct helper smoke while preserving
+  selectors such as `LIBGL_ALWAYS_SOFTWARE`. Snap fixes the wrapper `PATH`,
+  removes exported `BASH_FUNC_*` functions, and
+  launches probe/playback through the regular executable
+  `$SNAP/graphics/bin/graphics-core22-provider-wrapper`; a missing or
+  disconnected provider returns `snap-graphics-provider-unavailable` before
+  helper spawn. The packaging-only
+  `--embedded-mpv-runtime-probe` app switch runs the complete packaged gate
+  before BrowserWindow startup and emits one availability JSON line. The exact
+  packaged Flatpak `/app` context reconstructs only Freedesktop Platform
+  24.08's immutable `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its CI smoke invokes
+  that application-level probe instead of the helper directly. Bundled
   Linux packages carry hash-validated
   `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and `licenses/**`.
   CI caches the staged runtime plus immutable source inputs, never finished

@@ -11,7 +11,7 @@
  * earlier software renderer is recreated only if no hardware tier works.
  * Each tier uses a desktop-GL 3.2 core context bound surfaceless (1x1 pbuffer
  * fallback for drivers without EGL_KHR_surfaceless_context). The helper's
- * own GL calls resolve at link time through libOpenGL (glvnd); mpv resolves
+ * own GL calls resolve at link time through libGL (glvnd); mpv resolves
  * core symbols from that linked library and falls back to eglGetProcAddress
  * for extensions.
  *

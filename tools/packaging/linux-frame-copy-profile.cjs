@@ -34,11 +34,11 @@ const SUPPORTED_PROFILE_NAMES = Object.freeze(
 );
 
 const LINUX_SYSTEM_PACKAGE_DEPENDENCIES = Object.freeze({
-    deb: Object.freeze(['libmpv2', 'libegl1', 'libopengl0', 'libgbm1']),
+    deb: Object.freeze(['libmpv2', 'libegl1', 'libgl1', 'libgbm1']),
     rpm: Object.freeze([
         'mpv-libs',
         'libglvnd-egl',
-        'libglvnd-opengl',
+        'libglvnd-glx',
         'mesa-libgbm',
     ]),
     pacman: Object.freeze(['mpv', 'libglvnd', 'mesa']),

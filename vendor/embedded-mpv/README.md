@@ -26,10 +26,17 @@ Linux package profiles consume that one staged x64 source runtime differently:
 - AppImage/Snap/Flatpak retain the manifest-declared closure under
   `app.asar.unpacked/electron-backend/native/lib/` and flatten the validated
   notice manifest, aggregate notice, and `licenses/**` tree beside it.
+- The strict Snap resolves the helper's remaining graphics interfaces through
+  the external `mesa-core22` content provider at `$SNAP/graphics`; that shared
+  provider is not staged below `vendor/embedded-mpv/`, bundled into IPTVnator,
+  or included in IPTVnator's source/notices archive.
 - DEB/RPM/Pacman and marker-only packages do not retain bundled-runtime
   notices or license files.
 - Non-x64 Linux packages retain no native artifacts and ship only the
   unavailable marker.
+- Electron Builder excludes the staged native tree from `app.asar`; only
+  `afterPack` writes the profile-specific unpacked payload, and package
+  verification rejects archived native entries.
 
 The DEB dependency is specifically `libmpv2` (verified on Ubuntu 24.04+).
 Ubuntu 22.04 provides `libmpv1`; use the x64 AppImage there.

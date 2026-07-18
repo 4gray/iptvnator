@@ -162,6 +162,30 @@ function resolveLinuxFrameCopyPackagingContext(
     };
 }
 
+function ensureSnapGraphicsContentMount(appOutDir, targetNames) {
+    if (!targetNames.includes('snap')) {
+        return null;
+    }
+
+    const mountPath = path.join(appOutDir, 'graphics');
+    if (!fs.existsSync(mountPath)) {
+        fs.mkdirSync(mountPath, { mode: 0o755 });
+    }
+    const stat = fs.lstatSync(mountPath);
+    if (!stat.isDirectory() || stat.isSymbolicLink()) {
+        throw new Error(
+            `Snap graphics content mount must be a real empty directory: ${mountPath}`
+        );
+    }
+    if (fs.readdirSync(mountPath).length > 0) {
+        throw new Error(
+            `Snap graphics content mount directory must be empty: ${mountPath}`
+        );
+    }
+    fs.chmodSync(mountPath, 0o755);
+    return mountPath;
+}
+
 async function afterPackHook(params) {
     const requireEmbeddedMpv = isTruthy(
         process.env.IPTVNATOR_REQUIRE_EMBEDDED_MPV
@@ -175,6 +199,17 @@ async function afterPackHook(params) {
     );
 
     await linuxAfterPack(params);
+    if (linuxPackagingContext) {
+        const graphicsMountPath = ensureSnapGraphicsContentMount(
+            params.appOutDir,
+            linuxPackagingContext.targetNames
+        );
+        if (graphicsMountPath) {
+            log(
+                `prepared empty Snap graphics content mount at ${graphicsMountPath}`
+            );
+        }
+    }
 
     log(
         requireEmbeddedMpv
@@ -251,6 +286,7 @@ function getResourceDir(params) {
 }
 
 module.exports = afterPackHook;
+module.exports.ensureSnapGraphicsContentMount = ensureSnapGraphicsContentMount;
 module.exports.resolveLinuxFrameCopyPackagingContext =
     resolveLinuxFrameCopyPackagingContext;
 module.exports.writeEmbeddedMpvUnavailableMarker =

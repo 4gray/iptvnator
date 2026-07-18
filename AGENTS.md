@@ -224,8 +224,8 @@ Key files:
   overrides.
 - Packaging runs three isolated profiles:
     - `system`: DEB/RPM/Pacman, no private `native/lib`, with package
-      dependencies DEB=`libmpv2,libegl1,libopengl0,libgbm1`,
-      RPM=`mpv-libs,libglvnd-egl,libglvnd-opengl,mesa-libgbm`, and
+      dependencies DEB=`libmpv2,libegl1,libgl1,libgbm1`,
+      RPM=`mpv-libs,libglvnd-egl,libglvnd-glx,mesa-libgbm`, and
       Pacman=`mpv,libglvnd,mesa`
     - `portable`: AppImage/Snap with the pinned LGPL-compatible closure
     - `flatpak`: Flatpak with the same pinned closure
@@ -236,6 +236,14 @@ Key files:
   Electron libraries, `embedded_mpv.node`, and
   `embedded_mpv_frame_reader.node` must not load or link it. Preserve this
   process-isolation contract in build, package, and smoke checks.
+- `electron-backend/native{,/**/*}` is excluded from `app.asar`; `afterPack`
+  exclusively writes the profile-normalized unpacked native tree. Layout and
+  final-artifact checks must reject every archived
+  `/electron-backend/native/**` entry so system and marker-only packages cannot
+  hide stale x64 artifacts.
+- Packaged addon, frame-reader, and helper discovery is package-owned
+  `app.asar.unpacked` only. Writable cwd/dist candidates are development-only
+  and must never satisfy packaged native-view support or the frame-copy gate.
 - Pristine afterPack/unpacked layouts scan Electron libraries recursively.
   Extracted Snap payloads exclude only the package-manager `lib/**` and
   `usr/lib/**` trees that Snap overlays into the same root; every other
@@ -246,10 +254,35 @@ Key files:
   `--runtime-probe` must all succeed before frame-copy can relax the renderer
   sandbox. Any failure reports a stable reason and falls back to native-view
   without crashing; an environment flag never bypasses this gate.
-- Snap uses an exact private `shared-memory` plug. The probe and playback
-  helper share one sanitized loader environment: ambient audit, preload, and
-  library paths are removed, the validated private closure wins, and trusted
-  Snap GL roots precede generic in-snap library roots.
+- Snap is `core22`/strict and uses an exact private `shared-memory` plug plus
+  the `graphics-core22` content plug at an empty mode-0755 `$SNAP/graphics`,
+  with `mesa-core22` as default provider. It declares only the canonical
+  provider layouts: `/usr/share/libdrm` binds from
+  `$SNAP/graphics/libdrm`, and `/usr/share/drirc.d` symlinks to
+  `$SNAP/graphics/drirc.d`. The provider is external shared content, not part
+  of IPTVnator's package size, source archive, or notices. Installed-Snap CI
+  must prove controlled unavailable exit after disconnect, then reconnect and
+  prove success. The helper links `libGL.so.1` rather than `libOpenGL.so.0`.
+- The probe and playback helper share one sanitized loader environment:
+  ambient audit, preload, library, graphics-driver, and shell-startup overrides
+  are removed; the validated private closure wins; trusted Snap GL,
+  `graphics-core22`, and exact GNOME-platform roots precede generic in-snap
+  roots. The extracted-artifact verifier removes the identical unsafe
+  loader/graphics/shell set before direct helper smoke while preserving
+  feature/debug selectors such as `LIBGL_ALWAYS_SOFTWARE`. Snap fixes the
+  wrapper `PATH`, removes exported `BASH_FUNC_*` functions, and launches
+  probe/playback through the regular executable
+  `$SNAP/graphics/bin/graphics-core22-provider-wrapper`; a missing or
+  disconnected provider returns `snap-graphics-provider-unavailable` before
+  helper spawn. The packaging-only `--embedded-mpv-runtime-probe` app switch
+  runs the complete cached manifest/hash/helper gate before BrowserWindow
+  startup and exits with one availability JSON line. Any loader failure remains
+  a stable native-view fallback, never a flag-enabled success.
+- In the exact packaged Flatpak `/app` context, reconstruct only Freedesktop
+  Platform 24.08's immutable `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its GL
+  extension loader path comes from the sandbox cache. Flatpak CI must invoke
+  the application-level `--embedded-mpv-runtime-probe`, not a direct helper
+  probe that bypasses capability detection.
 - Bundled Linux releases must publish the exact source archives/git records,
   checksums, licenses, flags, patches, build scripts, and the pinned hwdata
   `pnp.ids` input. Each bundled package carries

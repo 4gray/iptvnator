@@ -77,24 +77,25 @@ or `ELECTRON_OZONE_PLATFORM_HINT` is never overridden.
 Linux packages are built in separate passes because Electron Builder reuses
 one unpacked application layout per pass:
 
-| Profile    | Formats          | Frame-copy runtime strategy                                                                                  |
-| ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
-| `system`   | DEB, RPM, Pacman | System `libmpv.so.2` plus the helper's direct EGL/OpenGL/GBM interfaces; exact dependencies are listed below |
-| `portable` | AppImage, Snap   | Bundled pinned LGPL-compatible runtime under `native/lib`                                                    |
-| `flatpak`  | Flatpak          | The same bundled pinned LGPL-compatible runtime under `native/lib`                                           |
+| Profile    | Formats          | Frame-copy runtime strategy                                                                              |
+| ---------- | ---------------- | -------------------------------------------------------------------------------------------------------- |
+| `system`   | DEB, RPM, Pacman | System `libmpv.so.2` plus the helper's direct EGL/GL/GBM interfaces; exact dependencies are listed below |
+| `portable` | AppImage, Snap   | Bundled pinned LGPL-compatible runtime under `native/lib`                                                |
+| `flatpak`  | Flatpak          | The same bundled pinned LGPL-compatible runtime under `native/lib`                                       |
 
 System package dependencies are fail-closed and format-specific:
 
-- DEB: `libmpv2`, `libegl1`, `libopengl0`, `libgbm1`
-- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-opengl`, `mesa-libgbm`
+- DEB: `libmpv2`, `libegl1`, `libgl1`, `libgbm1`
+- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-glx`, `mesa-libgbm`
 - Pacman: `mpv`, `libglvnd`, `mesa`
 
 The DEB contract deliberately names `libmpv2`, not a loose `libmpv`
-alternative, and explicitly names the GLVND OpenGL interface because
-`libmpv2` does not pull it in for the helper. Release CI verifies that contract
-on Ubuntu 24.04 (Noble). Ubuntu 22.04 (Jammy) provides `libmpv1`, so its DEB
-cannot enable this system-runtime frame-copy path; use the x64 AppImage there
-instead.
+alternative, and explicitly names the GLVND `libGL.so.1` interface because
+`libmpv2` does not pull it in for the helper. The helper uses `-lGL`, not
+`-lOpenGL`; this matches the graphics interface supplied by distributions and
+Snap's `mesa-core22`. Release CI verifies that contract on Ubuntu 24.04
+(Noble). Ubuntu 22.04 (Jammy) provides `libmpv1`, so its DEB cannot enable this
+system-runtime frame-copy path; use the x64 AppImage there instead.
 
 Every x64 layout contains the addon, frame reader, helper, and a normalized
 `embedded-mpv-runtime.json`. The Electron executable, Electron libraries,
@@ -105,6 +106,14 @@ native directory also contains hash-validated `embedded-mpv-notices.json`,
 `THIRD_PARTY_NOTICES.txt`, and `licenses/<package>/**`. DEB, RPM, Pacman, and
 marker-only packages intentionally contain neither a private `native/lib`
 directory nor the bundled-runtime legal payload.
+
+The build-time `electron-backend/native` tree is excluded from `app.asar`.
+`afterPack` is the only owner of
+`resources/app.asar.unpacked/electron-backend/native`, so each profile receives
+exactly its normalized payload and ARM packages cannot retain a hidden x64
+helper, runtime, manifest, or notice copy in the archive. Both unpacked-layout
+and final Linux artifact verification enumerate `app.asar` and fail if any
+entry remains below `/electron-backend/native/`.
 
 The pristine `afterPack` and unpacked-layout checks recursively inspect
 Electron-owned shared libraries. An extracted Snap has already overlaid its
@@ -270,29 +279,84 @@ JSON line and return zero.
 
 The startup probe and every playback helper session use the same sanitized
 loader environment selected by the validated manifest's cached `runtimeMode`.
-Both remove ambient `LD_AUDIT`, `LD_PRELOAD`, and `LD_LIBRARY_PATH`; the system
-profile then uses the default system loader without a private path. Bundled
-profiles put the validated packaged `native/lib` first. AppImage and Flatpak
-resolve the declared external graphics/audio interfaces through their normal
-host or sandbox loader.
+Both remove ambient ELF audit/preload/origin/library overrides, direct
+EGL/GBM/GL/VA/Vulkan driver and layer paths, shell startup/options, tracing
+hooks, and exported Bash functions. The extracted-artifact verifier applies
+the same deny-set before its direct helper smoke, while preserving
+feature/debug selectors such as `LIBGL_ALWAYS_SOFTWARE`. The system profile
+then uses the default system loader without a private path. Bundled profiles
+put the validated packaged `native/lib` first. AppImage and Flatpak resolve the
+declared external graphics/audio interfaces through their normal host or
+sandbox loader.
+For the exact `com.fourgray.iptvnator` Flatpak payload under `/app`, the helper
+reconstructs Freedesktop Platform 24.08's immutable
+`__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS` value:
+`/etc/egl/egl_external_platform.d:/usr/lib/x86_64-linux-gnu/GL/egl/egl_external_platform.d:/usr/share/egl/egl_external_platform.d`.
+All ambient EGL/GBM/GL/VA/Vulkan path overrides remain removed. Freedesktop's
+GL extension `add-ld-path` is supplied through the sandbox loader cache, so no
+ambient `LD_LIBRARY_PATH` is needed. Flatpak CI runs the application-level
+`--embedded-mpv-runtime-probe`; direct helper execution is only a package
+layout check and cannot substitute for the real gate.
 Inside a genuine Snap mount, filtered absolute `SNAP_LIBRARY_PATH` entries below
-`/var/lib/snapd/lib/gl` follow `native/lib` and precede the generic
-`$SNAP/lib`, `$SNAP/usr/lib`, and x64 multiarch roots. This preserves the pinned
-runtime closure while ensuring the host GL/NVIDIA dispatch libraries win over
-generic GL libraries staged in the snap. Out-of-root entries are discarded, and
-the adapter refuses to start a Linux helper without the validated cached mode.
+`/var/lib/snapd/lib/gl` follow `native/lib`. The exact
+`$SNAP/graphics/usr/lib/x86_64-linux-gnu` content-provider roots come next,
+followed by the GNOME platform's fixed x64 library, Mesa, DRI, and PulseAudio
+roots only when `SNAP_DESKTOP_RUNTIME` resolves exactly to
+`$SNAP/gnome-platform`; generic `$SNAP` roots remain last. The helper also
+rebuilds the GBM, GL/VA driver, EGL vendor/platform, and Vulkan layer variables
+from those trusted roots. Caller-provided triplets, graphics-driver paths, and
+out-of-root loader entries are ignored.
+Both the bounded probe and playback execute the helper through
+`$SNAP/graphics/bin/graphics-core22-provider-wrapper`. Before either launch,
+the app requires the mounted graphics root to be a real directory and the
+wrapper to be a regular, non-symlinked, readable executable. A missing or
+disconnected provider therefore reports the stable
+`snap-graphics-provider-unavailable` reason instead of attempting a partial
+loader setup. Because that provider wrapper is a non-interactive Bash script,
+the child environment also removes shell startup/options, exported
+`BASH_FUNC_*` functions, and tracing hooks, and fixes `PATH` to core22 system
+directories. This prevents ambient shell configuration from replacing the
+probe or its `dirname` lookup before the helper executes.
 
-The strict Snap keeps Electron Builder's default plugs and adds an
-auto-connected private `shared-memory` plug. Private shared memory gives the
-app a confined, snap-specific POSIX shm namespace rather than global
-cross-snap access. Consequently the installed-Snap `--runtime-probe` validates
-the actual confinement and shm lifecycle required by frame-copy, not only the
-loader and graphics contexts.
-Packaged discovery is limited to packaged resource locations and never falls
-through to writable cwd/dist development paths. A disabled base experiment or
-any failed capability check keeps the renderer sandbox enabled and falls back
-to the native engine. The result is cached by helper/manifest identity for the
-process lifetime, so the startup and service gates cannot disagree.
+The Snap is `base: core22` with strict confinement. It keeps Electron Builder's
+default plugs and adds an auto-connected private `shared-memory` plug plus the
+`graphics-core22` content plug targeting a real empty mode-0755
+`$SNAP/graphics`, with `mesa-core22` as default provider. `mesa-core22`
+supplies the shared
+EGL/GL/GLX/GBM/DRM/VA userspace; the existing GNOME content runtime supplies
+ALSA/PulseAudio. These providers are external shared snaps, so their binaries,
+source, notices, and installed bytes are not part of the IPTVnator Snap or its
+compliance archive. CI installs and explicitly connects both providers for a
+locally installed `--dangerous` artifact, then runs the application-level
+probe under strict confinement.
+
+The package carries the empty content target itself because core22 does not
+create `$SNAP` content targets while packing. Metadata verification rejects a
+missing, non-directory, symlinked, non-empty, or incorrectly permissioned
+target. It also requires exactly the canonical provider-data layouts:
+`/usr/share/libdrm` binds from `$SNAP/graphics/libdrm`, and
+`/usr/share/drirc.d` symlinks to `$SNAP/graphics/drirc.d`. No additional or
+duplicate layout entry is accepted.
+
+Private shared memory gives the app a confined, snap-specific POSIX shm
+namespace rather than global cross-snap access. The packaging-only
+`--embedded-mpv-runtime-probe` application switch invokes the same complete
+manifest, mode, hash, linkage, environment, and bounded helper probe used at
+startup before any BrowserWindow is created. It writes exactly one availability
+JSON line and exits zero only when frame-copy is usable. Consequently the
+installed-Snap smoke validates the actual confinement and shared-memory
+lifecycle required by playback, not only direct helper execution. The smoke
+first disconnects `graphics-core22` and requires the application diagnostic to
+emit `usable:false` with reason `snap-graphics-provider-unavailable` and
+controlled exit code `1`; it then reconnects the provider and requires the
+same diagnostic to succeed.
+Packaged addon, frame-reader, and helper discovery is limited to package-owned
+`app.asar.unpacked` resource locations and never falls through to writable
+cwd/dist development paths. Those fallbacks are development-only. A disabled
+base experiment or any failed capability check keeps the renderer sandbox
+enabled and falls back to the native engine. The result is cached by
+helper/manifest identity for the process lifetime, so the startup and service
+gates cannot disagree.
 Changing the toggle requires an app restart because web preferences are fixed
 at window creation.
 
@@ -338,7 +402,7 @@ Trade-offs and constraints:
   Intel Macs keep the native-view engine. Official Linux frame-copy is x64 —
   headless EGL, works under native Wayland since nothing embeds into a
   window; local system builds need `libmpv-dev`, `libegl-dev`, `libgl-dev`,
-  `libopengl-dev` and `libgbm-dev`. The helper links libmpv, which is legal
+  and `libgbm-dev`. The helper links libmpv, which is legal
   out-of-process; the in-process-libmpv ban still binds the addon and frame
   reader. The helper logs the chosen EGL display tier and the GL renderer
   string to stderr. If an early tier selects Mesa software rendering (for
@@ -591,19 +655,24 @@ Current development behavior:
   `iptvnator_mpv_helper` must link exactly the declared `libmpv.so.2`, while
   the addon and frame reader must not.
 - `afterPack` copies `dist/apps/electron-backend/native/` into `app.asar.unpacked/electron-backend/native/` on macOS, Windows, and Linux so the addon, manifest, and runtime libraries are filesystem-addressable.
+- Electron Builder excludes `electron-backend/native{,/**/*}` from `app.asar`;
+  package verification rejects any archived native entry so `afterPack`
+  remains the single profile-aware owner.
 
 Linux release profiles:
 
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=system` builds DEB, RPM, and Pacman.
   `afterPack` removes the private `lib` directory, writes a
   `system-libmpv-frame-copy` manifest, and package metadata requires the exact
-  libmpv plus EGL/OpenGL/GBM package set listed above. The DEB path is verified
+  libmpv plus EGL/GL/GBM package set listed above. The DEB path is verified
   on Ubuntu 24.04+; Ubuntu 22.04 users need the x64 AppImage because Jammy only
   provides `libmpv1`.
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=portable` builds AppImage and Snap with
   the pinned source-built closure and a `bundled-lgpl-frame-copy` manifest.
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=flatpak` builds Flatpak with the same
-  source-built closure and manifest origin.
+  source-built closure and manifest origin. Its app-level probe reconstructs
+  only the exact Freedesktop 24.08 EGL external-platform search path inside the
+  trusted `/app` payload.
 - The three profiles are separate packaging passes; mixing target sets fails
   closed. Linux packages for other architectures (arm64, armv7l) must not ship
   x64 native artifacts. `afterPack` replaces the native directory with
@@ -634,7 +703,7 @@ Release packaging must:
 
 Users on macOS and Windows do not need the MPV GUI application for this
 architecture. Linux native-view still requires an `mpv` executable. Linux
-frame-copy system packages need their declared libmpv and EGL/OpenGL/GBM
+frame-copy system packages need their declared libmpv and EGL/GL/GBM
 packages, while AppImage, Snap, and Flatpak carry their own runtime closure.
 If frame-copy prerequisites are missing, x64 falls back to native-view; if all
 Embedded MPV prerequisites are unavailable, the existing inline/external

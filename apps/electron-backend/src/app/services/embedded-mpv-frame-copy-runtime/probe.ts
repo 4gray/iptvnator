@@ -6,7 +6,7 @@ import {
     RUNTIME_PROBE_PROTOCOL,
     RUNTIME_PROBE_TIMEOUT_MS,
 } from './contracts';
-import { createLinuxFrameCopyHelperEnvironment } from './helper-environment';
+import { createLinuxFrameCopyHelperLaunch } from './helper-launch';
 import { validatePackage } from './package-validator';
 import type {
     EmbeddedMpvFrameCopyManifestContract,
@@ -78,25 +78,26 @@ function runHelperProbe(
     runtimePackage: ValidatedPackage,
     dependencies: EmbeddedMpvFrameCopyRuntimeDependencies
 ): EmbeddedMpvFrameCopyRuntimeResult {
-    const probeEnvironment = createLinuxFrameCopyHelperEnvironment(
-        dependencies.env,
-        runtimePackage.nativeDir,
-        runtimePackage.manifest.runtimeMode
-    );
+    const launch = createLinuxFrameCopyHelperLaunch({
+        environment: dependencies.env,
+        helperPath: runtimePackage.helperPath,
+        helperArgs: ['--runtime-probe'],
+        runtimeMode: runtimePackage.manifest.runtimeMode,
+        fileSystem: dependencies.fileSystem,
+    });
+    if (launch.usable === false) {
+        return failure(launch.reason);
+    }
 
     let result: ReturnType<typeof nodeSpawnSync>;
     try {
-        result = dependencies.spawnSync(
-            runtimePackage.helperPath,
-            ['--runtime-probe'],
-            {
-                encoding: 'utf8',
-                timeout: RUNTIME_PROBE_TIMEOUT_MS,
-                killSignal: 'SIGKILL',
-                windowsHide: true,
-                env: probeEnvironment,
-            }
-        );
+        result = dependencies.spawnSync(launch.command, launch.args, {
+            encoding: 'utf8',
+            timeout: RUNTIME_PROBE_TIMEOUT_MS,
+            killSignal: 'SIGKILL',
+            windowsHide: true,
+            env: launch.env,
+        });
     } catch {
         return failure('helper-probe-spawn-error');
     }

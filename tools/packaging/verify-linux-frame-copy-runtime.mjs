@@ -7,7 +7,10 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
+import { collectEmbeddedMpvNativeArchiveEntries } from './asar-dependency-closure.mjs';
+
 const require = createRequire(import.meta.url);
+const { listPackage: defaultListAsarPackage } = require('@electron/asar');
 const {
     parseReadelfDynamic,
 } = require('../embedded-mpv/build-linux-runtime.cjs');
@@ -25,6 +28,40 @@ const {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const LIBMPV_DEPENDENCY_PATTERN = /^libmpv\.so(?:\.|$)/;
+// Keep this set identical to the packaged helper sanitizer in
+// embedded-mpv-frame-copy-runtime/helper-environment.ts. Feature/debug
+// selectors such as LIBGL_ALWAYS_SOFTWARE remain intentionally available.
+const UNSAFE_RUNTIME_PROBE_ENVIRONMENT_VARIABLES = [
+    'BASH_ENV',
+    'ENV',
+    'BASHOPTS',
+    'SHELLOPTS',
+    'PS4',
+    'BASH_XTRACEFD',
+    'CDPATH',
+    'LD_AUDIT',
+    'LD_LIBRARY_PATH',
+    'LD_ORIGIN_PATH',
+    'LD_PRELOAD',
+    '__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS',
+    '__EGL_EXTERNAL_PLATFORM_CONFIG_FILENAMES',
+    '__EGL_VENDOR_LIBRARY_DIRS',
+    '__EGL_VENDOR_LIBRARY_FILENAMES',
+    'GBM_BACKEND',
+    'GBM_BACKENDS_PATH',
+    'LIBGL_DRIVERS_PATH',
+    'MESA_LOADER_DRIVER_OVERRIDE',
+    'LIBVA_DRIVER_NAME',
+    'LIBVA_DRIVERS_PATH',
+    'VDPAU_DRIVER_PATH',
+    'VK_DRIVER_FILES',
+    'VK_ICD_FILENAMES',
+    'VK_ADD_DRIVER_FILES',
+    'VK_ADD_LAYER_PATH',
+    'VK_IMPLICIT_LAYER_PATH',
+    'VK_ADD_IMPLICIT_LAYER_PATH',
+    'VK_LAYER_PATH',
+];
 
 function defaultRunCommand(command, args, options = {}) {
     return spawnSync(command, args, {
@@ -464,6 +501,50 @@ function directYamlMappingEntries(lines, parent, indent) {
     return entries;
 }
 
+function directYamlAbsolutePathMappingEntries(lines, parent, indent) {
+    const entries = [];
+    for (let index = parent.index + 1; index < parent.end; index += 1) {
+        const line = lines[index];
+        if (!line.trim() || line.trimStart().startsWith('#')) {
+            continue;
+        }
+        const lineIndent = line.length - line.trimStart().length;
+        if (lineIndent !== indent) {
+            continue;
+        }
+        const match = line
+            .slice(indent)
+            .match(/^(\/[A-Za-z0-9._/-]+):(?:\s*(.*))?$/);
+        if (!match) {
+            return null;
+        }
+        let blockEnd = parent.end;
+        for (
+            let candidateIndex = index + 1;
+            candidateIndex < parent.end;
+            candidateIndex += 1
+        ) {
+            const candidate = lines[candidateIndex];
+            if (!candidate.trim() || candidate.trimStart().startsWith('#')) {
+                continue;
+            }
+            const candidateIndent =
+                candidate.length - candidate.trimStart().length;
+            if (candidateIndent <= indent) {
+                blockEnd = candidateIndex;
+                break;
+            }
+        }
+        entries.push({
+            key: match[1],
+            value: stripYamlTrailingComment(match[2] ?? ''),
+            index,
+            end: blockEnd,
+        });
+    }
+    return entries;
+}
+
 function yamlScalarEquals(value, expected) {
     return (
         value === expected ||
@@ -617,12 +698,149 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         ];
     }
     const errors = [];
+    const graphicsMountPath = path.join(extractionRoot, 'graphics');
+    let graphicsMountStat;
+    try {
+        graphicsMountStat = fs.lstatSync(graphicsMountPath);
+    } catch {
+        errors.push(
+            `Extracted Snap must contain an empty graphics content mount directory: ${graphicsMountPath}`
+        );
+    }
+    if (
+        graphicsMountStat &&
+        (!graphicsMountStat.isDirectory() || graphicsMountStat.isSymbolicLink())
+    ) {
+        errors.push(
+            `Extracted Snap graphics content mount must be a real directory: ${graphicsMountPath}`
+        );
+    } else if (graphicsMountStat) {
+        if ((graphicsMountStat.mode & 0o777) !== 0o755) {
+            errors.push(
+                `Extracted Snap graphics content mount directory must have mode 0755: ${graphicsMountPath}`
+            );
+        }
+        try {
+            if (fs.readdirSync(graphicsMountPath).length > 0) {
+                errors.push(
+                    `Extracted Snap graphics content mount directory must be empty: ${graphicsMountPath}`
+                );
+            }
+        } catch (error) {
+            errors.push(
+                `Unable to inspect extracted Snap graphics content mount at ${graphicsMountPath}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+        }
+    }
+    const base = singleYamlMappingEntry(lines, 'base', 0, 0, lines.length);
+    if (!base || !yamlScalarEquals(base.value, 'core22')) {
+        errors.push('Extracted Snap metadata must declare base: core22.');
+    }
+    const confinement = singleYamlMappingEntry(
+        lines,
+        'confinement',
+        0,
+        0,
+        lines.length
+    );
+    if (!confinement || !yamlScalarEquals(confinement.value, 'strict')) {
+        errors.push(
+            'Extracted Snap metadata must declare confinement: strict.'
+        );
+    }
+    const layout = singleYamlMappingEntry(lines, 'layout', 0, 0, lines.length);
+    if (!layout || layout.value) {
+        errors.push(
+            'Extracted Snap metadata must declare the exact Snap graphics layout contract.'
+        );
+    } else {
+        const layoutEntries = directYamlAbsolutePathMappingEntries(
+            lines,
+            layout,
+            2
+        );
+        const expectedLayouts = [
+            {
+                path: '/usr/share/libdrm',
+                field: 'bind',
+                target: '$SNAP/graphics/libdrm',
+                label: 'libdrm',
+            },
+            {
+                path: '/usr/share/drirc.d',
+                field: 'symlink',
+                target: '$SNAP/graphics/drirc.d',
+                label: 'drirc.d',
+            },
+        ];
+        if (
+            layoutEntries &&
+            new Set(layoutEntries.map(({ key }) => key)).size !==
+                layoutEntries.length
+        ) {
+            errors.push('Extracted Snap layout paths must be unique.');
+        }
+        if (
+            !layoutEntries ||
+            layoutEntries.length !== expectedLayouts.length ||
+            expectedLayouts.some(
+                ({ path: expectedPath }) =>
+                    layoutEntries.filter(({ key }) => key === expectedPath)
+                        .length !== 1
+            )
+        ) {
+            errors.push(
+                'Extracted Snap graphics layout must contain exactly the libdrm and drirc.d entries.'
+            );
+        }
+        for (const expected of expectedLayouts) {
+            const entry = layoutEntries?.find(
+                ({ key }) => key === expected.path
+            );
+            const fields =
+                entry && !entry.value
+                    ? directYamlMappingEntries(lines, entry, 4)
+                    : null;
+            if (
+                !fields ||
+                fields.length !== 1 ||
+                fields[0].key !== expected.field
+            ) {
+                errors.push(
+                    `Extracted Snap ${expected.label} layout must contain exactly ${expected.field}.`
+                );
+            }
+            if (
+                !fields ||
+                fields.filter(
+                    ({ key, value }) =>
+                        key === expected.field &&
+                        yamlScalarEquals(value, expected.target)
+                ).length !== 1
+            ) {
+                errors.push(
+                    `Extracted Snap ${expected.label} layout must declare ${expected.field}: ${expected.target}.`
+                );
+            }
+        }
+    }
     const plugs = singleYamlMappingEntry(lines, 'plugs', 0, 0, lines.length);
     const sharedMemory =
         plugs &&
         singleYamlMappingEntry(
             lines,
             'shared-memory',
+            2,
+            plugs.index + 1,
+            plugs.end
+        );
+    const graphicsCore22 =
+        plugs &&
+        singleYamlMappingEntry(
+            lines,
+            'graphics-core22',
             2,
             plugs.index + 1,
             plugs.end
@@ -701,6 +919,116 @@ export function validateExtractedSnapMetadata(extractionRoot) {
         }
     }
 
+    if (!plugs || plugs.value || !graphicsCore22 || graphicsCore22.value) {
+        errors.push(
+            'Extracted Snap metadata must declare exactly one top-level graphics-core22 plug.'
+        );
+    } else {
+        const fields = directYamlMappingEntries(lines, graphicsCore22, 4);
+        const interfaceEntries =
+            fields?.filter(({ key }) => key === 'interface') ?? [];
+        const targetEntries =
+            fields?.filter(({ key }) => key === 'target') ?? [];
+        const providerEntries =
+            fields?.filter(({ key }) => key === 'default-provider') ?? [];
+        const interfaceEntry = interfaceEntries[0];
+        const targetEntry = targetEntries[0];
+        const providerEntry = providerEntries[0];
+        if (
+            !fields ||
+            fields.length !== 3 ||
+            interfaceEntries.length !== 1 ||
+            targetEntries.length !== 1 ||
+            providerEntries.length !== 1
+        ) {
+            errors.push(
+                'Extracted Snap graphics-core22 plug must contain exactly interface, target, and default-provider.'
+            );
+        }
+        if (
+            !interfaceEntry ||
+            !yamlScalarEquals(interfaceEntry.value, 'content')
+        ) {
+            errors.push(
+                'Extracted Snap graphics-core22 plug must declare interface: content.'
+            );
+        }
+        if (
+            !targetEntry ||
+            !yamlScalarEquals(targetEntry.value, '$SNAP/graphics')
+        ) {
+            errors.push(
+                'Extracted Snap graphics-core22 plug must declare target: $SNAP/graphics.'
+            );
+        }
+        if (
+            !providerEntry ||
+            !yamlScalarEquals(providerEntry.value, 'mesa-core22')
+        ) {
+            errors.push(
+                'Extracted Snap graphics-core22 plug must declare default-provider: mesa-core22.'
+            );
+        }
+
+        const plugEntries = directYamlMappingEntries(lines, plugs, 2);
+        const graphicsContracts =
+            plugEntries?.filter((plugEntry) => {
+                const plugFields = directYamlMappingEntries(
+                    lines,
+                    plugEntry,
+                    4
+                );
+                if (!plugFields || plugFields.length !== 3) {
+                    return false;
+                }
+                return [
+                    ['interface', 'content'],
+                    ['target', '$SNAP/graphics'],
+                    ['default-provider', 'mesa-core22'],
+                ].every(
+                    ([key, expected]) =>
+                        plugFields.filter(
+                            ({ key: fieldKey, value }) =>
+                                fieldKey === key &&
+                                yamlScalarEquals(value, expected)
+                        ).length === 1
+                );
+            }) ?? [];
+        if (
+            !plugEntries ||
+            graphicsContracts.length !== 1 ||
+            graphicsContracts[0].key !== 'graphics-core22'
+        ) {
+            errors.push(
+                'Extracted Snap metadata must declare exactly one plug with the graphics-core22 contract.'
+            );
+        }
+        const graphicsTargets =
+            plugEntries?.filter((plugEntry) => {
+                const plugFields = directYamlMappingEntries(
+                    lines,
+                    plugEntry,
+                    4
+                );
+                return (
+                    plugFields?.some(
+                        ({ key, value }) =>
+                            key === 'target' &&
+                            yamlScalarEquals(value, '$SNAP/graphics')
+                    ) ?? false
+                );
+            }) ?? [];
+        if (
+            !plugEntries ||
+            graphicsTargets.length !== 1 ||
+            graphicsTargets[0].key !== 'graphics-core22'
+        ) {
+            errors.push(
+                'Extracted Snap metadata must declare exactly one plug with target $SNAP/graphics.'
+            );
+        }
+    }
+
     const slotsEntries = yamlMappingEntries(lines, 'slots', 0, 0, lines.length);
     let hasSharedMemorySlot = slotsEntries.length > 1;
     let invalidSlotsShape = slotsEntries.some(({ value }) => value.length > 0);
@@ -743,6 +1071,18 @@ export function validateExtractedSnapMetadata(extractionRoot) {
     const appPlugs =
         app &&
         singleYamlMappingEntry(lines, 'plugs', 4, app.index + 1, app.end);
+    const appEnvironment =
+        app &&
+        singleYamlMappingEntry(lines, 'environment', 4, app.index + 1, app.end);
+    const snapDesktopRuntime =
+        appEnvironment &&
+        singleYamlMappingEntry(
+            lines,
+            'SNAP_DESKTOP_RUNTIME',
+            6,
+            appEnvironment.index + 1,
+            appEnvironment.end
+        );
     if (
         !apps ||
         apps.value ||
@@ -753,6 +1093,28 @@ export function validateExtractedSnapMetadata(extractionRoot) {
     ) {
         errors.push(
             'Extracted Snap iptvnator app scalar sequence must contain the shared-memory plug.'
+        );
+    }
+    if (
+        !apps ||
+        apps.value ||
+        !app ||
+        app.value ||
+        !appPlugs ||
+        !yamlSequenceIncludes(lines, appPlugs, 'graphics-core22')
+    ) {
+        errors.push(
+            'Extracted Snap iptvnator app scalar sequence must contain the graphics-core22 plug.'
+        );
+    }
+    if (
+        !appEnvironment ||
+        appEnvironment.value ||
+        !snapDesktopRuntime ||
+        !yamlScalarEquals(snapDesktopRuntime.value, '$SNAP/gnome-platform')
+    ) {
+        errors.push(
+            'Extracted Snap iptvnator app environment must declare SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform.'
         );
     }
     return errors;
@@ -1104,13 +1466,50 @@ export function createRuntimeProbeEnvironment({
     runtimeMode,
 }) {
     const probeEnvironment = { ...(environment ?? {}) };
-    delete probeEnvironment.LD_AUDIT;
-    delete probeEnvironment.LD_LIBRARY_PATH;
-    delete probeEnvironment.LD_PRELOAD;
+    for (const variableName of UNSAFE_RUNTIME_PROBE_ENVIRONMENT_VARIABLES) {
+        delete probeEnvironment[variableName];
+    }
+    for (const variableName of Object.keys(probeEnvironment)) {
+        if (variableName.startsWith('BASH_FUNC_')) {
+            delete probeEnvironment[variableName];
+        }
+    }
     if (runtimeMode === 'bundled') {
         probeEnvironment.LD_LIBRARY_PATH = path.join(nativeDir, 'lib');
     }
     return probeEnvironment;
+}
+
+function validateNoEmbeddedMpvNativeArchiveEntries(
+    resourceDir,
+    asarListPackage
+) {
+    const asarPath = path.join(resourceDir, 'app.asar');
+    if (!fs.existsSync(asarPath)) {
+        return [];
+    }
+
+    let nativeEntries;
+    try {
+        nativeEntries = collectEmbeddedMpvNativeArchiveEntries(
+            asarListPackage(asarPath)
+        );
+    } catch (error) {
+        return [
+            `Unable to inspect embedded MPV archive ownership in ${asarPath}: ${
+                error instanceof Error ? error.message : String(error)
+            }`,
+        ];
+    }
+    if (nativeEntries.length === 0) {
+        return [];
+    }
+    return [
+        [
+            `Packaged app.asar must not contain embedded MPV native payloads; afterPack exclusively owns the profile-specific unpacked directory in ${asarPath}.`,
+            ...nativeEntries.map((entry) => `- ${entry}`),
+        ].join('\n'),
+    ];
 }
 
 export function verifyExtractedLinuxFrameCopyRuntime({
@@ -1122,6 +1521,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
     elfInspector = defaultElfInspector,
     probeRunner = defaultRunCommand,
     environment = process.env,
+    asarListPackage = defaultListAsarPackage,
 }) {
     const errors = [];
     let profile;
@@ -1135,13 +1535,22 @@ export function verifyExtractedLinuxFrameCopyRuntime({
             `Linux frame-copy profile "${profile.name}" does not include target "${artifactFormat}".`,
         ];
     }
+    errors.push(
+        ...validateNoEmbeddedMpvNativeArchiveEntries(
+            resourceDir,
+            asarListPackage
+        )
+    );
 
     const electronPath = path.join(path.dirname(resourceDir), 'iptvnator.bin');
     let packageArch;
     try {
         packageArch = readElfArchitecture(electronPath);
     } catch (error) {
-        return [error instanceof Error ? error.message : String(error)];
+        return [
+            ...errors,
+            error instanceof Error ? error.message : String(error),
+        ];
     }
     const foreignArch = packageArch !== 'x64';
     if (declaredArch && declaredArch !== packageArch) {

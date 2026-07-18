@@ -53,13 +53,13 @@ test('configures an x64-only system pass with exact package dependencies', () =>
     assert.deepEqual(configured.deb.fpm, [
         '--depends=libmpv2',
         '--depends=libegl1',
-        '--depends=libopengl0',
+        '--depends=libgl1',
         '--depends=libgbm1',
     ]);
     assert.deepEqual(configured.rpm.fpm, [
         '--depends=mpv-libs',
         '--depends=libglvnd-egl',
-        '--depends=libglvnd-opengl',
+        '--depends=libglvnd-glx',
         '--depends=mesa-libgbm',
     ]);
     assert.deepEqual(configured.pacman.fpm, [
@@ -84,8 +84,25 @@ test('configures portable and flatpak passes without mixing targets', () => {
     assert.deepEqual(configuredTargets(flatpak), [
         { target: 'flatpak', arch: ['x64'] },
     ]);
+    assert.equal(portable.snap.base, 'core22');
+    assert.equal(portable.snap.confinement, 'strict');
+    assert.deepEqual(portable.snap.layout, {
+        '/usr/share/libdrm': {
+            bind: '$SNAP/graphics/libdrm',
+        },
+        '/usr/share/drirc.d': {
+            symlink: '$SNAP/graphics/drirc.d',
+        },
+    });
     assert.deepEqual(portable.snap.plugs, [
         'default',
+        {
+            'graphics-core22': {
+                interface: 'content',
+                target: '$SNAP/graphics',
+                'default-provider': 'mesa-core22',
+            },
+        },
         {
             'shared-memory': {
                 interface: 'shared-memory',
@@ -257,7 +274,7 @@ test('preserves unrelated fpm dependencies and normalizes only frame-copy depend
             '--depends=unrelated-runtime',
             '--depends=mesa',
             '--depends=libmpv2 >= 2',
-            '--depends=libopengl0',
+            '--depends=libgl1',
         ],
     };
     const system = configureLinuxFrameCopyBuild(customized, {
@@ -268,7 +285,7 @@ test('preserves unrelated fpm dependencies and normalizes only frame-copy depend
         '--depends=mesa',
         '--depends=libmpv2',
         '--depends=libegl1',
-        '--depends=libopengl0',
+        '--depends=libgl1',
         '--depends=libgbm1',
     ]);
 
@@ -458,6 +475,10 @@ test('Linux runtime toolchain installs fontconfig generators without network wra
 });
 
 test('Linux CI verifies every package family and exercises intended environments', () => {
+    const flatpakVerificationStep = workflowStep(
+        'Verify Flatpak payload, launcher, and sandboxed runtime'
+    );
+
     for (const suffix of [
         'AppImage',
         'deb',
@@ -477,10 +498,22 @@ test('Linux CI verifies every package family and exercises intended environments
     assert.match(buildWorkflow, /ubuntu:24\.04/);
     assert.match(buildWorkflow, /fedora:latest/);
     assert.match(buildWorkflow, /archlinux:latest/);
-    assert.match(buildWorkflow, /snap run --shell iptvnator/);
+    assert.match(
+        buildWorkflow,
+        /snap run iptvnator --embedded-mpv-runtime-probe/
+    );
+    assert.doesNotMatch(buildWorkflow, /snap run --shell iptvnator/);
     assert.match(
         buildWorkflow,
         /flatpak run --command=sh com\.fourgray\.iptvnator/
+    );
+    assert.match(
+        flatpakVerificationStep,
+        /flatpak run\s+\\\s+--env=LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+com\.fourgray\.iptvnator\s+\\\s+--embedded-mpv-runtime-probe/
+    );
+    assert.doesNotMatch(
+        flatpakVerificationStep,
+        /HELPER_PATH=.*iptvnator_mpv_helper/
     );
     assert.doesNotMatch(buildWorkflow, /\bldd\b/);
 });
@@ -523,7 +556,7 @@ test('foreign DEB CI explicitly selects both marker-only ARM architectures', () 
 
 test('system package smoke environments install every direct helper runtime dependency', () => {
     const debStep = workflowStep('Verify DEB payloads and x64 system runtime');
-    for (const dependency of ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1']) {
+    for (const dependency of ['libmpv2', 'libegl1', 'libgl1', 'libgbm1']) {
         assert.match(debStep, new RegExp(`\\b${dependency}\\b`));
     }
 
@@ -531,7 +564,7 @@ test('system package smoke environments install every direct helper runtime depe
     for (const dependency of [
         'mpv-libs',
         'libglvnd-egl',
-        'libglvnd-opengl',
+        'libglvnd-glx',
         'mesa-libgbm',
     ]) {
         assert.match(rpmStep, new RegExp(`\\b${dependency}\\b`));
@@ -564,15 +597,116 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
         snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'") <
             snapStep.indexOf('sudo snap install --dangerous')
     );
+    assert.match(
+        snapStep,
+        /snap list mesa-core22 >\/dev\/null 2>&1 \|\| sudo snap install mesa-core22/
+    );
+    assert.match(
+        snapStep,
+        /snap list gnome-3-28-1804 >\/dev\/null 2>&1 \|\| sudo snap install gnome-3-28-1804/
+    );
+    assert.ok(
+        snapStep.indexOf('sudo snap install mesa-core22') <
+            snapStep.indexOf('sudo snap install --dangerous')
+    );
+    assert.ok(
+        snapStep.indexOf('sudo snap install gnome-3-28-1804') <
+            snapStep.indexOf('sudo snap install --dangerous')
+    );
     assert.ok(
         snapStep.indexOf('sudo snap install --dangerous') <
             snapStep.indexOf('installed_x64=true')
     );
+    assert.match(
+        snapStep,
+        /sudo snap connect iptvnator:graphics-core22 mesa-core22:graphics-core22/
+    );
+    assert.match(
+        snapStep,
+        /sudo snap connect iptvnator:gnome-3-28-1804 gnome-3-28-1804:gnome-3-28-1804/
+    );
+    assert.match(
+        snapStep,
+        /\$2 == "iptvnator:graphics-core22" && \$3 == "mesa-core22:graphics-core22"/
+    );
+    assert.match(
+        snapStep,
+        /\$2 == "iptvnator:gnome-3-28-1804" && \$3 == "gnome-3-28-1804:gnome-3-28-1804"/
+    );
+    assert.match(
+        snapStep,
+        /sudo snap disconnect iptvnator:graphics-core22 mesa-core22:graphics-core22/
+    );
+    assert.match(
+        snapStep,
+        /\$2 == "iptvnator:graphics-core22" && \$3 == "-" \{ found=1 \} END \{ exit !found \}/
+    );
+    assert.match(snapStep, /disconnected_probe="\$\(/);
+    assert.match(snapStep, /disconnected_status=\$\?/);
+    assert.match(snapStep, /test "\$\{disconnected_status\}" -eq 1/);
+    assert.ok(
+        snapStep.includes(
+            `grep -Fx '{"usable":false,"reason":"snap-graphics-provider-unavailable"}'`
+        )
+    );
+    const firstGraphicsConnect = snapStep.indexOf(
+        'sudo snap connect iptvnator:graphics-core22'
+    );
+    const graphicsDisconnect = snapStep.indexOf(
+        'sudo snap disconnect iptvnator:graphics-core22'
+    );
+    const secondGraphicsConnect = snapStep.indexOf(
+        'sudo snap connect iptvnator:graphics-core22',
+        firstGraphicsConnect + 1
+    );
+    assert.ok(firstGraphicsConnect < graphicsDisconnect);
+    assert.ok(graphicsDisconnect < snapStep.indexOf('disconnected_probe="$('));
+    assert.ok(
+        snapStep.indexOf('test "${disconnected_status}" -eq 1') <
+            secondGraphicsConnect
+    );
+    const firstRuntimeProbe = snapStep.indexOf(
+        'snap run iptvnator --embedded-mpv-runtime-probe'
+    );
+    const successfulRuntimeProbe = snapStep.lastIndexOf(
+        'snap run iptvnator --embedded-mpv-runtime-probe'
+    );
+    assert.ok(firstRuntimeProbe < secondGraphicsConnect);
+    assert.ok(firstRuntimeProbe < successfulRuntimeProbe);
+    assert.ok(secondGraphicsConnect < successfulRuntimeProbe);
+    assert.match(snapStep, /snap run iptvnator --embedded-mpv-runtime-probe/);
+    for (const hostileOverride of [
+        '__EGL_VENDOR_LIBRARY_FILENAMES',
+        'GBM_BACKEND',
+        'MESA_LOADER_DRIVER_OVERRIDE',
+        'LIBVA_DRIVER_NAME',
+        'VDPAU_DRIVER_PATH',
+        'VK_DRIVER_FILES',
+        'VK_ICD_FILENAMES',
+        'VK_ADD_DRIVER_FILES',
+        'VK_ADD_LAYER_PATH',
+        'VK_IMPLICIT_LAYER_PATH',
+        'VK_ADD_IMPLICIT_LAYER_PATH',
+        'XDG_CONFIG_HOME',
+        'XDG_CONFIG_DIRS',
+        'XDG_DATA_HOME',
+        'XDG_DATA_DIRS',
+    ]) {
+        assert.match(
+            snapStep.slice(secondGraphicsConnect),
+            new RegExp(`${hostileOverride}=/tmp/hostile`)
+        );
+    }
+    assert.doesNotMatch(snapStep, /snap run --shell/);
+    assert.doesNotMatch(snapStep, /iptvnator_mpv_helper/);
+    assert.doesNotMatch(snapStep, /LD_LIBRARY_PATH/);
 });
 
 test('dedicated packaged x64 smoke cannot silently skip', () => {
     const linuxDependencies = workflowStep('Install Linux system dependencies');
     assert.match(linuxDependencies, /--no-install-recommends/);
+    assert.match(linuxDependencies, /^\s+libgl-dev\s*\\?$/m);
+    assert.doesNotMatch(linuxDependencies, /\blibopengl-dev\b/);
     assert.match(linuxDependencies, /^\s+xauth\s*\\?$/m);
     assert.match(linuxDependencies, /^\s+xvfb\s*\\?$/m);
     const packagedSmoke = workflowStep(

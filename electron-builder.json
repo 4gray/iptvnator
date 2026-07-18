@@ -20,6 +20,7 @@
             "filter": ["**/*"]
         },
         "electron-backend/**/*",
+        "!electron-backend/native{,/**/*}",
         "web/**/*",
         "!**/*.map"
     ],
@@ -133,6 +134,13 @@
         "plugs": [
             "default",
             {
+                "graphics-core22": {
+                    "interface": "content",
+                    "target": "$SNAP/graphics",
+                    "default-provider": "mesa-core22"
+                }
+            },
+            {
                 "shared-memory": {
                     "interface": "shared-memory",
                     "private": true
@@ -141,6 +149,14 @@
         ],
         "environment": {
             "DISABLE_WAYLAND": "1"
+        },
+        "layout": {
+            "/usr/share/libdrm": {
+                "bind": "$SNAP/graphics/libdrm"
+            },
+            "/usr/share/drirc.d": {
+                "symlink": "$SNAP/graphics/drirc.d"
+            }
         }
     },
     "win": {

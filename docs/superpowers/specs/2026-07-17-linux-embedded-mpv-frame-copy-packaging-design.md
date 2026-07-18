@@ -57,12 +57,14 @@ profile.
 
 System package dependencies are:
 
-- DEB: `libmpv2`, `libegl1`, `libopengl0`, `libgbm1`
-- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-opengl`, `mesa-libgbm`
+- DEB: `libmpv2`, `libegl1`, `libgl1`, `libgbm1`
+- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-glx`, `mesa-libgbm`
 - Pacman: `mpv`, `libglvnd`, `mesa`
 
 These names match the current Debian, Fedora, and Arch package databases and
-cover every direct helper interface: libmpv, EGL, OpenGL, and GBM. System
+cover every direct helper interface: libmpv, EGL, GL, and GBM. The helper
+links `libGL.so.1` rather than `libOpenGL.so.0`, matching both the distro
+contracts and Snap's graphics provider. System
 packages do not copy libmpv into IPTVnator. The helper keeps an `$ORIGIN/lib`
 RUNPATH first for a consistent binary, but naturally resolves the system SONAME
 when the private directory is absent.
@@ -85,6 +87,21 @@ unrecorded host data. The runtime manifest records this build-input
 relationship. Release source bundles must include the exact hwdata archive and
 its dual-license notice (`GPL-2.0-or-later OR XFree86-1.0`) alongside the
 MIT-licensed libdisplay-info source.
+
+The strict Snap uses `base: core22`, a private `shared-memory` plug, and an
+exact `graphics-core22` content plug targeting a real empty mode-0755
+`$SNAP/graphics` with external `mesa-core22` as default provider. The graphics provider supplies
+EGL/GL/GLX/GBM/DRM/VA; Electron Builder's GNOME content runtime supplies
+ALSA/PulseAudio. Those shared providers are not copied into IPTVnator's Snap or
+source/notices archive. Because core22 does not synthesize `$SNAP` content
+targets, the package hook creates the empty directory and extracted-artifact
+validation checks its type and emptiness. The metadata also declares exactly
+the canonical graphics layouts: `/usr/share/libdrm` binds from
+`$SNAP/graphics/libdrm`, and `/usr/share/drirc.d` symlinks to
+`$SNAP/graphics/drirc.d`. Locally installed `--dangerous` artifacts explicitly
+install and connect both providers in CI, disconnect `graphics-core22` to
+require an unavailable application diagnostic with exit code `1`, then
+reconnect it and require success.
 
 ## Runtime Layout And Linkage
 
@@ -117,7 +134,10 @@ they may not retain build-prefix paths.
 `embedded_mpv.node`, the Electron executable (`iptvnator.bin`), and Electron's
 shipped libraries must not have a direct `DT_NEEDED` entry for libmpv.
 `iptvnator_mpv_helper` must have one. Process isolation is an invariant, not a
-profile-specific choice. The pristine Electron tree is scanned recursively
+profile-specific choice. The source `electron-backend/native{,/**/*}` tree is
+excluded from `app.asar`; `afterPack` is the sole owner of the normalized
+unpacked native directory, and package checks reject every archived native
+entry. The pristine Electron tree is scanned recursively
 before target packaging. Because Snap later overlays package-manager
 `lib/**`/`usr/lib/**` trees into the payload root, its extracted-target scan
 excludes exactly those two target-provided trees while remaining recursive
@@ -143,15 +163,28 @@ The helper gains a side-effect-free `--runtime-probe` mode. It must:
    dependencies resolve;
 2. create and initialize an idle libmpv handle with `vo=libmpv`;
 3. create the platform render pipeline far enough to prove EGL/OpenGL/GBM
-   availability without opening media or shared memory;
-4. emit one versioned JSON result and exit promptly with status zero only on
+   availability without opening media;
+4. create, map, validate, and destroy the minimal shared-memory ring required
+   by playback;
+5. emit one versioned JSON result and exit promptly with status zero only on
    success.
 
 The main process invokes this probe synchronously with a bounded timeout before
 BrowserWindow creation. Probe success is cached for the process lifetime.
 The probe environment prepends the packaged `native/lib` directory only when
 the manifest declares a bundled runtime. The system profile does not inject a
-private loader path.
+private loader path. Snap additionally rebuilds its loader and graphics-driver
+variables from validated host GL, `$SNAP/graphics`, exact GNOME-platform, and
+generic core22 roots; ambient preload/audit/library/driver overrides and
+caller-provided architecture triplets are not inherited. The direct provider
+wrapper launch also removes shell startup/options, tracing hooks, and exported
+functions and fixes `PATH` to immutable core22 system directories.
+
+Packaging CI invokes the full main-process gate with the exact
+`--embedded-mpv-runtime-probe` application switch. It executes before
+BrowserWindow startup, writes one availability JSON line, and exits zero only
+for a usable runtime. CI does not treat a direct helper invocation or an
+environment opt-in as proof of packaged capability.
 
 Frame-copy is usable only when all of the following are true:
 
@@ -181,6 +214,8 @@ Unit and packaging tests cover:
   malformed/incomplete manifests;
 - capability probe timeout, nonzero exit, invalid JSON, manifest mismatch,
   missing dependency, and successful result caching;
+- exclusion of all native payloads from `app.asar`, including marker-only ARM
+  and system-package stale x64 artifacts;
 - helper probe protocol and failure behavior;
 - package metadata dependencies for DEB/RPM/Pacman.
 
@@ -193,8 +228,9 @@ Linux CI must:
 4. package the three profiles independently;
 5. unpack or mount each produced format and validate its real payload, modes,
    manifest, RPATH, dependency closure, and profile;
-6. install/run a lightweight helper probe inside the actual Snap and Flatpak
-   sandboxes and from AppImage;
+6. install/run the application-level packaged gate inside the actual Snap and
+   Flatpak (with the exact Freedesktop 24.08 EGL external-platform path
+   reconstructed inside `/app`), and probe the AppImage payload;
 7. install system packages in matching disposable distro containers and run
    the helper probe after the declared libmpv dependency is installed;
 8. run a packaged Electron smoke test that confirms frame-copy capability,
@@ -221,5 +257,7 @@ archives/metadata required by the recorded LGPL source-distribution statement.
 The libplacebo payload is a VCS-metadata-free working-tree snapshot with exact
 commit/submodule records, so clone-local `.git` state cannot perturb the
 compliance tar. Automated Snap publication must wait for a public `v*` release
-that already contains both the Snap assets and the exact source archive. No
-publication, push, pull request, or merge is part of this task.
+that already contains both the Snap assets and the exact source archive. Snap
+Store publication remains outside this implementation and requires its
+separate release workflow; repository integration follows explicit maintainer
+authorization.

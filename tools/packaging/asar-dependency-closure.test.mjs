@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+    collectEmbeddedMpvNativeArchiveEntries,
     collectAsarPackageDirs,
     findMissingPackagedDependencies,
     inspectPackagedDependencyClosure,
@@ -15,6 +16,34 @@ import {
 function manifestReader(manifests) {
     return (packageDir) => manifests[packageDir] ?? null;
 }
+
+test('collectEmbeddedMpvNativeArchiveEntries finds stale native payloads on every host separator', () => {
+    assert.deepEqual(
+        collectEmbeddedMpvNativeArchiveEntries(
+            [
+                '/electron-backend/main.js',
+                '/electron-backend/native/iptvnator_mpv_helper',
+                '/electron-backend/native/lib/libmpv.so.2',
+                '/web/index.html',
+            ],
+            '/'
+        ),
+        [
+            '/electron-backend/native/iptvnator_mpv_helper',
+            '/electron-backend/native/lib/libmpv.so.2',
+        ]
+    );
+    assert.deepEqual(
+        collectEmbeddedMpvNativeArchiveEntries(
+            [
+                '\\electron-backend\\native\\embedded-mpv-unavailable.txt',
+                '\\electron-backend\\node_modules\\package.json',
+            ],
+            '\\'
+        ),
+        ['/electron-backend/native/embedded-mpv-unavailable.txt']
+    );
+});
 
 test('collectAsarPackageDirs keeps only genuine package roots', () => {
     const dirs = collectAsarPackageDirs([

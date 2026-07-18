@@ -60,8 +60,8 @@ test('defines the exact immutable Linux frame-copy profile matrix', () => {
 
 test('defines immutable system-package helper runtime dependencies', () => {
     assert.deepEqual(LINUX_SYSTEM_PACKAGE_DEPENDENCIES, {
-        deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
-        rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-opengl', 'mesa-libgbm'],
+        deb: ['libmpv2', 'libegl1', 'libgl1', 'libgbm1'],
+        rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-glx', 'mesa-libgbm'],
         pacman: ['mpv', 'libglvnd', 'mesa'],
     });
     assert.equal(Object.isFrozen(LINUX_SYSTEM_PACKAGE_DEPENDENCIES), true);

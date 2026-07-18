@@ -14,6 +14,7 @@ export type EmbeddedMpvFrameCopyRuntimeFailureReason =
     | 'runtime-library-invalid'
     | 'runtime-library-size-mismatch'
     | 'runtime-library-hash-mismatch'
+    | 'snap-graphics-provider-unavailable'
     | 'helper-probe-timeout'
     | 'helper-probe-spawn-error'
     | 'helper-probe-signaled'

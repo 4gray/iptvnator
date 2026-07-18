@@ -31,13 +31,14 @@ const {
     generateLinuxRuntimeNotices,
 } = require('../embedded-mpv/generate-linux-runtime-notices.cjs');
 const {
+    ensureSnapGraphicsContentMount,
     resolveLinuxFrameCopyPackagingContext,
 } = require('./electron-after-pack.cjs');
 
 const X64_ADDON_ENV = { IPTVNATOR_EMBEDDED_MPV_ARCH: 'x64' };
 const SYSTEM_PACKAGE_DEPENDENCIES = {
-    deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
-    rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-opengl', 'mesa-libgbm'],
+    deb: ['libmpv2', 'libegl1', 'libgl1', 'libgbm1'],
+    rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-glx', 'mesa-libgbm'],
     pacman: ['mpv', 'libglvnd', 'mesa'],
 };
 const FRAME_COPY_ARTIFACTS = {
@@ -452,6 +453,68 @@ test('validates a provided Linux profile even when embedded MPV is optional', ()
                 }
             ),
         /cannot build target "deb"/
+    );
+});
+
+test('creates an exact empty Snap graphics content mount directory', (t) => {
+    const fixtureRoot = fs.mkdtempSync(
+        join(os.tmpdir(), 'iptvnator-snap-graphics-mount-')
+    );
+    t.after(() => fs.rmSync(fixtureRoot, { recursive: true, force: true }));
+
+    assert.equal(
+        ensureSnapGraphicsContentMount(fixtureRoot, ['appimage']),
+        null
+    );
+    assert.equal(fs.existsSync(join(fixtureRoot, 'graphics')), false);
+
+    const mountPath = ensureSnapGraphicsContentMount(fixtureRoot, [
+        'appimage',
+        'snap',
+    ]);
+    assert.equal(mountPath, join(fixtureRoot, 'graphics'));
+    const mountStat = fs.lstatSync(mountPath);
+    assert.equal(mountStat.isDirectory(), true);
+    assert.equal(mountStat.isSymbolicLink(), false);
+    assert.equal(mountStat.mode & 0o777, 0o755);
+    assert.deepEqual(fs.readdirSync(mountPath), []);
+
+    fs.chmodSync(mountPath, 0o700);
+    assert.equal(
+        ensureSnapGraphicsContentMount(fixtureRoot, ['snap']),
+        mountPath
+    );
+    assert.equal(fs.lstatSync(mountPath).mode & 0o777, 0o755);
+});
+
+test('rejects a non-empty or redirected Snap graphics content mount', (t) => {
+    const fixtureRoot = fs.mkdtempSync(
+        join(os.tmpdir(), 'iptvnator-snap-graphics-invalid-')
+    );
+    t.after(() => fs.rmSync(fixtureRoot, { recursive: true, force: true }));
+    const mountPath = join(fixtureRoot, 'graphics');
+
+    fs.writeFileSync(mountPath, 'not a directory');
+    assert.throws(
+        () => ensureSnapGraphicsContentMount(fixtureRoot, ['snap']),
+        /real empty directory/
+    );
+
+    fs.rmSync(mountPath);
+    fs.mkdirSync(mountPath);
+    fs.writeFileSync(join(mountPath, 'unexpected'), 'not empty');
+    assert.throws(
+        () => ensureSnapGraphicsContentMount(fixtureRoot, ['snap']),
+        /must be empty/
+    );
+
+    fs.rmSync(mountPath, { recursive: true });
+    const outsidePath = join(fixtureRoot, 'outside');
+    fs.mkdirSync(outsidePath);
+    fs.symlinkSync(outsidePath, mountPath, 'dir');
+    assert.throws(
+        () => ensureSnapGraphicsContentMount(fixtureRoot, ['snap']),
+        /real empty directory/
     );
 });
 

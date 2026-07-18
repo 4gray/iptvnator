@@ -10,6 +10,7 @@ const mockElectronApp = {
 jest.mock('electron', () => ({ app: mockElectronApp }));
 
 import {
+    getEmbeddedMpvAddonCandidatePaths,
     getFrameCopyRuntimeAvailability,
     isFrameCopyPlatformSupported,
     isFrameCopyRuntimeUsable,
@@ -157,6 +158,28 @@ describe('embedded-mpv-frame-copy-platform.util', () => {
             );
 
             expect(resolveFrameCopyHelperPath()).toBe(packagedHelper);
+        });
+
+        it('limits packaged native-view addon discovery to package-owned paths', () => {
+            mockElectronApp.isPackaged = true;
+            const resourcesPath = path.join(tempDir, 'IPTVnator', 'Resources');
+            Object.defineProperty(process, 'resourcesPath', {
+                configurable: true,
+                value: resourcesPath,
+            });
+            mockElectronApp.getAppPath.mockReturnValue(
+                path.join(resourcesPath, 'app.asar')
+            );
+
+            expect(getEmbeddedMpvAddonCandidatePaths()).toEqual([
+                path.join(
+                    resourcesPath,
+                    'app.asar.unpacked',
+                    'electron-backend',
+                    'native',
+                    'embedded_mpv.node'
+                ),
+            ]);
         });
     });
 

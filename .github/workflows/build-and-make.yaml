@@ -339,7 +339,6 @@ jobs:
                       libegl-dev \
                       libgbm-dev \
                       libgl-dev \
-                      libopengl-dev \
                       libx11-dev \
                       libxext-dev \
                       mpv \
@@ -872,7 +871,7 @@ jobs:
                                   bash -euo pipefail -c '
                                       apt-get update
                                       DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-                                          binutils libegl1 libgbm1 libgl1-mesa-dri libmpv2 libopengl0 \
+                                          binutils libegl1 libgbm1 libgl1 libgl1-mesa-dri libmpv2 \
                                           nodejs squashfs-tools xauth xvfb
                                       xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
                                           node tools/packaging/verify-linux-frame-copy-runtime.mjs \
@@ -906,7 +905,7 @@ jobs:
                       fedora:latest \
                       bash -euo pipefail -c '
                           dnf install -y \
-                              binutils bsdtar libglvnd-egl libglvnd-opengl mesa-dri-drivers \
+                              binutils bsdtar libglvnd-egl libglvnd-glx mesa-dri-drivers \
                               mesa-libgbm mpv-libs nodejs rpm xorg-x11-server-Xvfb \
                               xorg-x11-xauth
                           xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
@@ -970,19 +969,53 @@ jobs:
                                   2>&1 | tee /dev/stderr
                       )"
                       if printf '%s\n' "${verification}" | grep -Fq 'Verified snap x64 Linux'; then
+                          snap list mesa-core22 >/dev/null 2>&1 || sudo snap install mesa-core22
+                          snap list gnome-3-28-1804 >/dev/null 2>&1 || sudo snap install gnome-3-28-1804
                           sudo snap install --dangerous "${artifact}"
                           installed_x64=true
                       fi
                   done
                   test "${found}" = true
                   test "${installed_x64}" = true
-                  xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
-                      snap run --shell iptvnator -c '
-                          set -euo pipefail
-                          helper="$(find "${SNAP}" -type f -path "*/app.asar.unpacked/electron-backend/native/iptvnator_mpv_helper" -print -quit)"
-                          test -n "${helper}"
-                          "${helper}" --runtime-probe
-                      '
+                  sudo snap connect iptvnator:graphics-core22 mesa-core22:graphics-core22
+                  sudo snap connect iptvnator:gnome-3-28-1804 gnome-3-28-1804:gnome-3-28-1804
+                  sudo snap disconnect iptvnator:graphics-core22 mesa-core22:graphics-core22
+                  snap connections iptvnator | awk \
+                      '$2 == "iptvnator:graphics-core22" && $3 == "-" { found=1 } END { exit !found }'
+                  set +e
+                  disconnected_probe="$(
+                      xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
+                          snap run iptvnator --embedded-mpv-runtime-probe 2>&1
+                  )"
+                  disconnected_status=$?
+                  set -e
+                  printf '%s\n' "${disconnected_probe}"
+                  test "${disconnected_status}" -eq 1
+                  printf '%s\n' "${disconnected_probe}" | \
+                      grep -Fx '{"usable":false,"reason":"snap-graphics-provider-unavailable"}'
+                  sudo snap connect iptvnator:graphics-core22 mesa-core22:graphics-core22
+                  snap connections iptvnator | awk \
+                      '$2 == "iptvnator:graphics-core22" && $3 == "mesa-core22:graphics-core22" { found=1 } END { exit !found }'
+                  snap connections iptvnator | awk \
+                      '$2 == "iptvnator:gnome-3-28-1804" && $3 == "gnome-3-28-1804:gnome-3-28-1804" { found=1 } END { exit !found }'
+                  xvfb-run -a env \
+                      LIBGL_ALWAYS_SOFTWARE=1 \
+                      __EGL_VENDOR_LIBRARY_FILENAMES=/tmp/hostile-egl-vendor.json \
+                      GBM_BACKEND=/tmp/hostile-gbm \
+                      MESA_LOADER_DRIVER_OVERRIDE=/tmp/hostile-dri \
+                      LIBVA_DRIVER_NAME=/tmp/hostile-va \
+                      VDPAU_DRIVER_PATH=/tmp/hostile-vdpau \
+                      VK_DRIVER_FILES=/tmp/hostile-vulkan-driver.json \
+                      VK_ICD_FILENAMES=/tmp/hostile-vulkan-icd.json \
+                      VK_ADD_DRIVER_FILES=/tmp/hostile-vulkan-add-driver.json \
+                      VK_ADD_LAYER_PATH=/tmp/hostile-vulkan-layers \
+                      VK_IMPLICIT_LAYER_PATH=/tmp/hostile-vulkan-implicit-layers \
+                      VK_ADD_IMPLICIT_LAYER_PATH=/tmp/hostile-vulkan-add-implicit-layers \
+                      XDG_CONFIG_HOME=/tmp/hostile-xdg-config-home \
+                      XDG_CONFIG_DIRS=/tmp/hostile-xdg-config-dirs \
+                      XDG_DATA_HOME=/tmp/hostile-xdg-data-home \
+                      XDG_DATA_DIRS=/tmp/hostile-xdg-data-dirs \
+                      snap run iptvnator --embedded-mpv-runtime-probe
 
             - name: Run packaged x64 frame-copy and fallback smoke
               if: matrix.os == 'linux' && matrix.linux_profile == 'portable'
@@ -1053,10 +1086,11 @@ jobs:
                       test -f "${LAUNCHER_PATH}.bin"
                       grep -q '\''readlink -f "$SCRIPT_PATH"'\'' "${LAUNCHER_PATH}"
                       grep -q '\''exec "$SCRIPT_DIR/iptvnator.bin"'\'' "${LAUNCHER_PATH}"
-                      HELPER_PATH="$(find /app -type f -path '\''*/app.asar.unpacked/electron-backend/native/iptvnator_mpv_helper'\'' -print -quit)"
-                      test -n "${HELPER_PATH}"
-                      "${HELPER_PATH}" --runtime-probe
                   '
+                  xvfb-run -a flatpak run \
+                      --env=LIBGL_ALWAYS_SOFTWARE=1 \
+                      com.fourgray.iptvnator \
+                      --embedded-mpv-runtime-probe
 
             - name: Upload artifacts (macOS)
               if: matrix.os == 'macos'

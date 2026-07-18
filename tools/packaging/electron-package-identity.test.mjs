@@ -340,6 +340,19 @@ test('embedded MPV runtime binaries are unpacked on every supported desktop plat
     }
 });
 
+test('embedded MPV native payload is owned exclusively by afterPack outside app.asar', () => {
+    assert.ok(
+        electronBuilderConfig.files.includes(
+            '!electron-backend/native{,/**/*}'
+        ),
+        'electron-builder files must exclude the entire pre-afterPack native payload from app.asar'
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /collectEmbeddedMpvNativeArchiveEntries/
+    );
+});
+
 test('embedded MPV package validation accepts Windows runtime files and Linux process isolation', () => {
     const tempDir = fs.mkdtempSync(join(os.tmpdir(), 'iptvnator-mpv-package-'));
 
