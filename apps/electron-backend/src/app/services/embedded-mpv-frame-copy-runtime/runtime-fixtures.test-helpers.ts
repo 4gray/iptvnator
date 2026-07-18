@@ -30,11 +30,6 @@ function createSourceRuntime(
     runtimeDependencyClosure: Record<string, unknown>
 ): Record<string, unknown> {
     const packages = cloneManifest(PINNED_SOURCE_PACKAGE_IDENTITIES);
-    (
-        packages.libplacebo as typeof packages.libplacebo & {
-            sourceSubmodules: string[];
-        }
-    ).sourceSubmodules = [`${'a'.repeat(40)} 3rdparty/example`];
     return {
         schemaVersion: 1,
         origin: 'vendored-lgpl-source-build',
@@ -114,6 +109,12 @@ export function createFixture(
         runtimeFiles,
         runtimeDependencyClosure
     );
+    const sourceArchive = {
+        schemaVersion: 1,
+        name: 'linux-frame-copy-runtime-sources.tar.xz',
+        sha256: '7'.repeat(64),
+        repositoryRevision: '8'.repeat(40),
+    };
     const manifest: Record<string, unknown> = {
         schemaVersion: 1,
         origin: bundled
@@ -178,6 +179,7 @@ export function createFixture(
             ? {
                   runtimeDependencyClosure,
                   externalSystemLibraries,
+                  sourceArchive,
                   sourceRuntime,
               }
             : {}),
@@ -253,6 +255,9 @@ export function createDevelopmentFixture(
         libmpvSoname: bundled ? 'libmpv.so.2' : null,
         runtimeFiles: fixture.manifest.runtimeFiles,
         runtimeTotalBytes: fixture.manifest.runtimeTotalBytes,
+        sourceArchive: bundled
+            ? cloneManifest(fixture.manifest.sourceArchive)
+            : null,
         sourceRuntime,
     };
     fixture.manifest = manifest;

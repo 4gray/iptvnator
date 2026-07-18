@@ -344,6 +344,15 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
         complianceStep,
         /tar[\s\S]*linux-frame-copy-runtime-sources\.tar\.xz/
     );
+    assert.match(
+        complianceStep,
+        /linux-source-archive-contract\.cjs create[\s\S]*source-archive-binding\.json/
+    );
+    assert.ok(
+        complianceStep.indexOf(
+            '--file dist/compliance/linux-frame-copy-runtime-sources.tar.xz'
+        ) < complianceStep.indexOf('linux-source-archive-contract.cjs create')
+    );
     assert.match(complianceStep, /source-index\.json/);
     assert.match(complianceStep, /THIRD_PARTY_NOTICES\.txt/);
     assert.match(complianceStep, /embedded-mpv-notices\.json/);
@@ -386,6 +395,10 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
         buildWorkflow,
         /hashFiles\([^\n]*prepare-linux-runtime-source-snapshot\.cjs/
     );
+    assert.match(
+        buildWorkflow,
+        /hashFiles\([^\n]*linux-source-archive-contract\.cjs/
+    );
 
     const buildStep = workflowStep('Build and stage pinned LGPL Linux runtime');
     assert.match(buildStep, /generate-linux-runtime-notices\.cjs collect/);
@@ -412,6 +425,13 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
     assert.match(buildWorkflow, /linux-frame-copy-runtime-sources\.tar\.xz/);
     assert.match(buildWorkflow, /name: linux-frame-copy-runtime-sources/);
     assert.match(buildWorkflow, /sourceSha256[\s\S]*source-index\.json/);
+    assert.match(
+        buildWorkflow,
+        /sourceArchive\?\.name[\s\S]*sourceArchive\?\.sha256/
+    );
+    assert.match(buildWorkflow, /sourceArchive\?\.schemaVersion/);
+    assert.match(buildWorkflow, /sourceArchive\?\.repositoryRevision/);
+    assert.match(buildWorkflow, /execFileSync\('git', \['rev-parse', 'HEAD'\]/);
 });
 
 test('keeps non-Linux builds independent from the Linux runtime prerequisite', () => {
@@ -747,6 +767,21 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
 });
 
 test('dedicated packaged x64 smoke cannot silently skip', () => {
+    const e2eProject = JSON.parse(
+        fs.readFileSync(
+            path.join(
+                workspaceRoot,
+                'apps',
+                'electron-backend-e2e',
+                'project.json'
+            ),
+            'utf8'
+        )
+    );
+    assert.deepEqual(
+        e2eProject.targets?.['packaged-frame-copy-smoke']?.dependsOn,
+        ['test-packaged-frame-copy-fixtures']
+    );
     const linuxDependencies = workflowStep('Install Linux system dependencies');
     assert.match(linuxDependencies, /--no-install-recommends/);
     assert.match(linuxDependencies, /^\s+libgl-dev\s*\\?$/m);

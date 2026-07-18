@@ -39,7 +39,7 @@ function runtimeManifest() {
                         : {
                               sourceGitCommit: sourcePackage.expectedGitCommit,
                               sourceSubmodules: [
-                                  `${'a'.repeat(40)} 3rdparty/example`,
+                                  ...sourcePackage.expectedSubmodules,
                               ],
                           }),
                     license: sourcePackage.license,

@@ -156,6 +156,113 @@ test('publishes Snap only after a public v-tag release contains binary and sourc
     assertBuildSnapWorkflowPolicy(buildWorkflow);
 });
 
+test('isolates released verification from the fresh credentialed upload runner', () => {
+    const workflowText = fs.readFileSync(publishWorkflowPath, 'utf8');
+    const workflow = parse(workflowText);
+    assert.deepEqual(Object.keys(workflow.jobs), [
+        'verify-snap',
+        'publish-snap',
+    ]);
+
+    const verifyJob = workflow.jobs['verify-snap'];
+    const publishJob = workflow.jobs['publish-snap'];
+    assert.equal(publishJob.needs, 'verify-snap');
+    assert.deepEqual(verifyJob.outputs, {
+        'receipt-sha256': '${{ steps.bind-transfer.outputs.receipt-sha256 }}',
+    });
+    assert.equal(JSON.stringify(verifyJob).includes('snapcraft_token'), false);
+    assert.deepEqual(
+        verifyJob.steps.filter((step) => step.uses).map((step) => step.uses),
+        [
+            'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5',
+            'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02',
+        ]
+    );
+    assert.deepEqual(
+        publishJob.steps.filter((step) => step.uses).map((step) => step.uses),
+        ['actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093']
+    );
+
+    const bindingStep = verifyJob.steps.find(
+        (step) => step.name === 'Bind verified release transfer'
+    );
+    assert.equal(bindingStep.id, 'bind-transfer');
+    assert.match(
+        bindingStep.run,
+        /\/usr\/bin\/sha256sum --binary[\s\S]*receipt-sha256/
+    );
+    const transferredSealStep = publishJob.steps.find(
+        (step) => step.name === 'Seal transferred public release assets'
+    );
+    assert.deepEqual(transferredSealStep.env, {
+        EXPECTED_RECEIPT_SHA256:
+            '${{ needs.verify-snap.outputs.receipt-sha256 }}',
+    });
+    assert.match(
+        transferredSealStep.run,
+        /\/usr\/bin\/sha256sum --binary[\s\S]*EXPECTED_RECEIPT_SHA256/
+    );
+    assert.match(
+        transferredSealStep.run,
+        /\/usr\/bin\/jq --exit-status[\s\S]*\/usr\/bin\/sha256sum --strict --check/
+    );
+    assert.match(
+        transferredSealStep.run,
+        /\/usr\/bin\/jq --raw-output[\s\S]*@tsv[\s\S]*while IFS=\$'\\t' read -r ASSET_NAME EXPECTED_SIZE[\s\S]*\/usr\/bin\/stat --format=%s -- "\$\{ASSET_PATH\}"[\s\S]*test "\$\{ACTUAL_SIZE\}" = "\$\{EXPECTED_SIZE\}"/
+    );
+
+    const uploadJobCommands = publishJob.steps
+        .map((step) => step.run ?? '')
+        .join('\n');
+    assert.doesNotMatch(uploadJobCommands, /\bnode\b/);
+    assert.doesNotMatch(uploadJobCommands, /release-snap-assets\.cjs/);
+    const uploadStep = publishJob.steps.at(-1);
+    assert.deepEqual(uploadStep.env, {
+        SNAPCRAFT_STORE_CREDENTIALS: '${{ secrets.snapcraft_token }}',
+    });
+    assert.match(uploadStep.run, /shopt -s nullglob dotglob/);
+    assert.match(
+        uploadStep.run,
+        /SNAP_FILES=\("\$\{VERIFIED_ASSET_DIRECTORY\}"\/\*\.snap\)/
+    );
+    assert.match(
+        uploadStep.run,
+        /SNAPCRAFT_STORE_CREDENTIALS="\$\{STORE_CREDENTIALS\}" \/snap\/bin\/snapcraft upload --release=edge/
+    );
+    assert.doesNotMatch(uploadStep.run, /\bfind\b|\bsort\b|\bnode\b/);
+    assertPublishSnapWorkflowPolicy(workflowText);
+});
+
+test('rejects environment and execution-surface expansion on the fresh publish runner', () => {
+    const workflowText = fs.readFileSync(publishWorkflowPath, 'utf8');
+    for (const mutatedWorkflow of [
+        workflowText.replace(
+            '    publish-snap:\n',
+            '    publish-snap:\n        env:\n            BASH_ENV: /tmp/release-hook\n'
+        ),
+        workflowText.replace(
+            '        runs-on: ubuntu-latest\n        timeout-minutes: 20',
+            '        runs-on: ubuntu-latest\n        container: ubuntu:latest\n        timeout-minutes: 20'
+        ),
+        workflowText.replace(
+            'permissions:\n    contents: read',
+            'env:\n    BASH_ENV: /tmp/release-hook\n\npermissions:\n    contents: read'
+        ),
+        workflowText.replaceAll(
+            'runs-on: ubuntu-latest',
+            'runs-on: self-hosted'
+        ),
+        workflowText.replace(
+            '        timeout-minutes: 20',
+            '        timeout-minutes: 120'
+        ),
+    ]) {
+        assert.notEqual(mutatedWorkflow, workflowText);
+        assert.doesNotThrow(() => parse(mutatedWorkflow));
+        assert.throws(() => assertPublishSnapWorkflowPolicy(mutatedWorkflow));
+    }
+});
+
 test('rejects Snap uploads that target candidate or stable channels', () => {
     const workflowText = fs.readFileSync(publishWorkflowPath, 'utf8');
     for (const forbiddenReleaseArgument of [
@@ -178,7 +285,8 @@ test('rejects Snap uploads that target candidate or stable channels', () => {
 
 test('rejects edge upload text in non-executing shell contexts', () => {
     const workflowText = fs.readFileSync(publishWorkflowPath, 'utf8');
-    const edgeUpload = 'snapcraft upload --release=edge "${SNAP_FILE}"';
+    const edgeUpload =
+        'SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${SNAP_FILE}"';
     const blockIndent = ' '.repeat(18);
     for (const replacement of [
         `cat <<123\n${edgeUpload}\n123`,

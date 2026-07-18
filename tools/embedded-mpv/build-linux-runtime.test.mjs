@@ -64,7 +64,7 @@ function createPinnedSourceRecords() {
                     ? {
                           sourceGitCommit: sourcePackage.expectedGitCommit,
                           sourceSubmodules: [
-                              `${'a'.repeat(40)} 3rdparty/example`,
+                              ...sourcePackage.expectedSubmodules,
                           ],
                       }
                     : {

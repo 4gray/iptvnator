@@ -13,6 +13,7 @@ import {
     parseVerifierArguments,
     readLinuxArtifactMetadata,
     readElfArchitecture,
+    runVerifierCommand,
     validateSystemPackageDependencies,
     validateExtractedSnapMetadata,
     verifyExtractedLinuxFrameCopyRuntime,
@@ -33,6 +34,10 @@ const verifierUrl = new URL(
 );
 const backendRuntimeContractsUrl = new URL(
     '../../apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/contracts.ts',
+    import.meta.url
+);
+const backendRuntimeProbeUrl = new URL(
+    '../../apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/probe.ts',
     import.meta.url
 );
 const electronBackendProjectUrl = new URL(
@@ -147,6 +152,30 @@ test('uses the shared frozen runtime probe resource contract', async () => {
         backendContractsSource,
         /RUNTIME_PROBE_TIMEOUT_MS\s*=\s*3000/
     );
+    for (const sourceUrl of [verifierUrl, backendRuntimeProbeUrl]) {
+        assert.match(
+            fs.readFileSync(sourceUrl, 'utf8'),
+            /maxBuffer:\s*RUNTIME_PROBE_MAX_BUFFER_BYTES/
+        );
+    }
+});
+
+test('preserves the child-process default unless an explicit capture bound is requested', () => {
+    const outputScript = 'process.stdout.write("x".repeat(2 * 1024 * 1024))';
+    const defaultCapture = runVerifierCommand(process.execPath, [
+        '-e',
+        outputScript,
+    ]);
+    assert.equal(defaultCapture.error?.code, 'ENOBUFS');
+
+    const explicitCapture = runVerifierCommand(
+        process.execPath,
+        ['-e', outputScript],
+        { maxBuffer: 3 * 1024 * 1024 }
+    );
+    assert.equal(explicitCapture.error, undefined);
+    assert.equal(explicitCapture.status, 0);
+    assert.equal(explicitCapture.stdout.length, 2 * 1024 * 1024);
 });
 
 test('tracks the shared probe contract in cached backend targets and runtime lint', () => {

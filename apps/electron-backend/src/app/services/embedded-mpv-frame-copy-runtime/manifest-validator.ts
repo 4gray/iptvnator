@@ -8,6 +8,7 @@ import {
     EXPECTED_DEVELOPMENT_PROCESS_ISOLATION,
     EXPECTED_PROCESS_ISOLATION,
     PROFILE_CONTRACTS,
+    validateLinuxSourceArchiveBinding,
     SYSTEM_PACKAGE_DEPENDENCIES,
     VERSIONED_LIBMPV_PATTERN,
 } from './contracts';
@@ -102,6 +103,8 @@ export function validatePackagedManifest(
             manifest.libmpvSoname,
             manifest.externalSystemLibraries
         ) ||
+        validateLinuxSourceArchiveBinding(manifest.sourceArchive).length !==
+            0 ||
         !validateSourceRuntimePolicy(
             manifest.sourceRuntime,
             runtimeFiles,
@@ -198,6 +201,7 @@ export function validateDevelopmentManifest(
             manifest.libmpvSoname !== null ||
             !isDeepStrictEqual(manifest.runtimeFiles, []) ||
             manifest.runtimeTotalBytes !== 0 ||
+            manifest.sourceArchive !== null ||
             !validateSystemDevelopmentSource(
                 manifest.sourceRuntime,
                 buildInputMode
@@ -234,6 +238,9 @@ export function validateDevelopmentManifest(
                 0
             ) ||
         !isObject(sourceRuntime) ||
+        (manifest.sourceArchive !== null &&
+            validateLinuxSourceArchiveBinding(manifest.sourceArchive).length !==
+                0) ||
         !validateRuntimeClosure(
             sourceRuntime.runtimeDependencyClosure,
             runtimeFiles,

@@ -43,7 +43,7 @@ jobs:
                       echo 'meson=1.7.2'
                   } > "${RUNNER_TEMP}/linux-runtime-toolchain.txt"
                   TOOLCHAIN_SHA256="$(sha256sum "${RUNNER_TEMP}/linux-runtime-toolchain.txt" | cut -d ' ' -f 1)"
-                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/stage-runtime.mjs', 'tools/packaging/prepare-linux-runtime-source-snapshot.cjs') }}"
+                  SOURCE_SHA256="${{ hashFiles('tools/embedded-mpv/build-linux-runtime.cjs', 'tools/embedded-mpv/build-linux-runtime.mjs', 'tools/embedded-mpv/generate-linux-runtime-notices.cjs', 'tools/embedded-mpv/linux-runtime-manifest.cjs', 'tools/embedded-mpv/linux-source-archive-contract.cjs', 'tools/embedded-mpv/stage-runtime.mjs', 'tools/packaging/prepare-linux-runtime-source-snapshot.cjs') }}"
                   echo "toolchain-sha256=${TOOLCHAIN_SHA256}" >> "${GITHUB_OUTPUT}"
                   echo "key=linux-frame-copy-runtime-v5-ubuntu-22.04-${TOOLCHAIN_SHA256}-${SOURCE_SHA256}" >> "${GITHUB_OUTPUT}"
 
@@ -162,6 +162,7 @@ jobs:
                       tools/embedded-mpv/build-linux-runtime.mjs \
                       tools/embedded-mpv/generate-linux-runtime-notices.cjs \
                       tools/embedded-mpv/linux-runtime-manifest.cjs \
+                      tools/embedded-mpv/linux-source-archive-contract.cjs \
                       tools/embedded-mpv/stage-runtime.mjs \
                       tools/packaging/prepare-linux-runtime-source-snapshot.cjs \
                       "${SOURCE_BUNDLE_ROOT}/tooling/"
@@ -173,6 +174,10 @@ jobs:
                   const crypto = require('node:crypto');
                   const fs = require('node:fs');
                   const path = require('node:path');
+                  const {
+                    EXPECTED_LIBPLACEBO_V7_360_1_SOURCE_SNAPSHOT_SHA256,
+                    validateLinuxRuntimeSourceSnapshot,
+                  } = require('./tools/packaging/prepare-linux-runtime-source-snapshot.cjs');
 
                   const manifest = JSON.parse(
                     fs.readFileSync(path.join(process.env.RUNTIME_ROOT, 'runtime-manifest.json'), 'utf8')
@@ -211,6 +216,10 @@ jobs:
                   ) {
                     throw new Error('Prepared libplacebo source identity does not match the runtime manifest.');
                   }
+                  validateLinuxRuntimeSourceSnapshot(libplacebo.sourceSnapshot, {
+                    expectedSha256:
+                      EXPECTED_LIBPLACEBO_V7_360_1_SOURCE_SNAPSHOT_SHA256,
+                  });
 
                   const notices = JSON.parse(
                     fs.readFileSync(
@@ -232,7 +241,7 @@ jobs:
                     path.join(process.env.SOURCE_BUNDLE_ROOT, 'metadata', 'source-index.json'),
                     `${JSON.stringify(
                       {
-                        schemaVersion: 2,
+                        schemaVersion: 3,
                         repositoryRevision,
                         sourcePackages: manifest.packages,
                         archives,
@@ -268,6 +277,12 @@ jobs:
                       --file dist/compliance/linux-frame-copy-runtime-sources.tar.xz \
                       --directory "${SOURCE_BUNDLE_ROOT}" \
                       .
+                  rm -f "${RUNTIME_ROOT}/source-archive-binding.json"
+                  node tools/embedded-mpv/linux-source-archive-contract.cjs create \
+                      --archive dist/compliance/linux-frame-copy-runtime-sources.tar.xz \
+                      --repository-revision "$(git rev-parse HEAD)" \
+                      --output "${RUNTIME_ROOT}/source-archive-binding.json"
+                  test -s "${RUNTIME_ROOT}/source-archive-binding.json"
 
             - name: Upload staged Linux runtime
               uses: actions/upload-artifact@v4
@@ -569,7 +584,7 @@ jobs:
                       find dist/apps/electron-backend/native -maxdepth 1 \( -name 'mpv-2.dll' -o -name 'libmpv-2.dll' -o -name 'mpv.dll' -o -name 'libmpv.dll' \) -print -quit | grep -q .
                       ;;
                     linux)
-                      node -e "const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); if (manifest.origin !== 'linux-frame-copy-build' || manifest.sourceRuntimeValidated !== true) { throw new Error('Linux embedded MPV build manifest must describe the validated source runtime.'); }"
+                      node -e "const { execFileSync } = require('node:child_process'); const manifest = require('./dist/apps/electron-backend/native/embedded-mpv-runtime.json'); const revision = execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(); if (manifest.origin !== 'linux-frame-copy-build' || manifest.sourceRuntimeValidated !== true || manifest.sourceArchive?.schemaVersion !== 1 || manifest.sourceArchive?.name !== 'linux-frame-copy-runtime-sources.tar.xz' || !/^[a-f0-9]{64}$/.test(manifest.sourceArchive?.sha256 ?? '') || manifest.sourceArchive?.repositoryRevision !== revision) { throw new Error('Linux embedded MPV build manifest must describe the validated source runtime and exact source archive.'); }"
                       test -f dist/apps/electron-backend/native/lib/libmpv.so.2
                       test -f dist/apps/electron-backend/native/iptvnator_mpv_helper
                       test -f dist/apps/electron-backend/native/embedded_mpv_frame_reader.node

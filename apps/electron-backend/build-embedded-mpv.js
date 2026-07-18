@@ -17,6 +17,10 @@ const {
     validateLinuxSystemBuildInputManifest,
 } = require('../../tools/embedded-mpv/linux-runtime-manifest.cjs');
 const {
+    SOURCE_ARCHIVE_BINDING_NAME,
+    validateLinuxSourceArchiveBinding,
+} = require('../../tools/embedded-mpv/linux-source-archive-contract.cjs');
+const {
     resolveLinuxFrameCopyLinkageInputs,
     resolveVerifiedLinuxLibMpvSoname,
     runWithCleanup,
@@ -125,6 +129,34 @@ function readRuntimeManifest(runtimeRoot) {
     return JSON.parse(fs.readFileSync(manifestPath, 'utf8'));
 }
 
+function readLinuxSourceArchiveBinding(runtimeRoot, errors) {
+    const bindingPath = path.join(runtimeRoot, SOURCE_ARCHIVE_BINDING_NAME);
+    if (!fs.existsSync(bindingPath)) {
+        return null;
+    }
+    let binding;
+    try {
+        const stat = fs.lstatSync(bindingPath);
+        if (!stat.isFile() || stat.isSymbolicLink()) {
+            throw new Error('binding must be a regular file');
+        }
+        binding = JSON.parse(fs.readFileSync(bindingPath, 'utf8'));
+    } catch (error) {
+        errors.push(
+            `source archive binding is invalid: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return null;
+    }
+    errors.push(
+        ...validateLinuxSourceArchiveBinding(binding).map(
+            (error) => `source archive binding is invalid: ${error}`
+        )
+    );
+    return binding;
+}
+
 function validatedLinuxSourceRuntime(runtimeRoot) {
     const stagedManifest = readRuntimeManifest(runtimeRoot);
     if (
@@ -162,6 +194,7 @@ function validatedLinuxSourceRuntime(runtimeRoot) {
 
     const systemBuildInputs = isLinuxSystemBuildInputManifest(stagedManifest);
     let buildInputMode;
+    let sourceArchive = null;
     let sourceRuntimeManifest;
     if (systemBuildInputs) {
         buildInputMode = 'system-build-inputs';
@@ -185,6 +218,10 @@ function validatedLinuxSourceRuntime(runtimeRoot) {
         }
     } else {
         buildInputMode = 'bundled-runtime';
+        sourceArchive = readLinuxSourceArchiveBinding(
+            runtimeRoot,
+            envelopeErrors
+        );
         const sourceBuildOrigin = stagedManifest.sourceBuildOrigin;
         const sourceMetadata = { ...stagedManifest };
         delete sourceMetadata.sourceBuildOrigin;
@@ -238,6 +275,7 @@ function validatedLinuxSourceRuntime(runtimeRoot) {
 
     return {
         buildInputMode,
+        sourceArchive,
         sourceRuntimeManifest,
         sourceRuntimeValidated: buildInputMode === 'bundled-runtime',
     };
@@ -449,6 +487,7 @@ function assertRequiredLinuxFrameCopyRuntime(runtime) {
     if (
         runtime.buildInputMode !== 'bundled-runtime' ||
         runtime.sourceRuntimeValidated !== true ||
+        !runtime.sourceArchive ||
         !hasStagedLinuxLibMpvLinkerInput(runtime)
     ) {
         cleanOutput();
@@ -564,6 +603,7 @@ function writeLinuxFrameCopyBuildManifest(runtime) {
             (total, runtimeFile) => total + runtimeFile.size,
             0
         ),
+        sourceArchive: runtime.sourceArchive ?? null,
         sourceRuntime: runtime.sourceRuntimeManifest,
     };
 

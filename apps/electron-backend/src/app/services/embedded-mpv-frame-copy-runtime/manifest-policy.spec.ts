@@ -43,6 +43,7 @@ describe('embedded-mpv frame-copy packaged manifest policy', () => {
         ['arch', 'arm64'],
         ['runtimeMode', 'system'],
         ['targets', ['deb']],
+        ['sourceArchive', null],
         ['unexpectedField', true],
     ])('rejects a bundled profile mismatch in %s', (field, value) => {
         const fixture = createFixture(context.rootDir, 'portable');

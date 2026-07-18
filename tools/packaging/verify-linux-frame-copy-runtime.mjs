@@ -64,17 +64,20 @@ const UNSAFE_RUNTIME_PROBE_ENVIRONMENT_VARIABLES = [
     'VK_LAYER_PATH',
 ];
 
-function defaultRunCommand(command, args, options = {}) {
-    return spawnSync(command, args, {
+export function runVerifierCommand(command, args, options = {}) {
+    const spawnOptions = {
         cwd: options.cwd,
         env: options.env,
         encoding: 'utf8',
         stdio: 'pipe',
         timeout: options.timeout,
         killSignal: options.killSignal,
-        maxBuffer: options.maxBuffer,
         windowsHide: true,
-    });
+    };
+    if (options.maxBuffer !== undefined) {
+        spawnOptions.maxBuffer = options.maxBuffer;
+    }
+    return spawnSync(command, args, spawnOptions);
 }
 
 function assertCommandSucceeded(command, args, result) {
@@ -219,7 +222,7 @@ export function extractLinuxArtifact({
     artifactPath,
     format,
     destination,
-    runCommand = defaultRunCommand,
+    runCommand = runVerifierCommand,
 }) {
     fs.rmSync(destination, { recursive: true, force: true });
     fs.mkdirSync(path.dirname(destination), { recursive: true });
@@ -1210,7 +1213,7 @@ export function readLinuxArtifactMetadata({
     artifactPath,
     format,
     extractionRoot,
-    runCommand = defaultRunCommand,
+    runCommand = runVerifierCommand,
 }) {
     const run = (command, args) =>
         assertCommandSucceeded(command, args, runCommand(command, args));
@@ -1396,7 +1399,7 @@ function defaultElfInspector(binaryPath) {
     const result = assertCommandSucceeded(
         'readelf',
         ['-d', binaryPath],
-        defaultRunCommand('readelf', ['-d', binaryPath])
+        runVerifierCommand('readelf', ['-d', binaryPath])
     );
     return parseReadelfDynamic(result.stdout);
 }
@@ -1521,7 +1524,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
     packageDependencies = [],
     declaredArch = null,
     elfInspector = defaultElfInspector,
-    probeRunner = defaultRunCommand,
+    probeRunner = runVerifierCommand,
     environment = process.env,
     asarListPackage = defaultListAsarPackage,
 }) {
@@ -1625,12 +1628,12 @@ export function verifyExtractedLinuxFrameCopyRuntime({
 export function verifyLinuxFrameCopyArtifact({
     artifactPath,
     profileName,
-    runCommand = defaultRunCommand,
+    runCommand = runVerifierCommand,
     extractArtifact = extractLinuxArtifact,
     metadataReader = readLinuxArtifactMetadata,
     payloadVerifier = verifyExtractedLinuxFrameCopyRuntime,
     elfInspector = defaultElfInspector,
-    probeRunner = defaultRunCommand,
+    probeRunner = runVerifierCommand,
     environment = process.env,
 }) {
     const resolvedArtifactPath = path.resolve(artifactPath);

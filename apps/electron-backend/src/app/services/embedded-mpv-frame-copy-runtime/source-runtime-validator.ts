@@ -57,10 +57,12 @@ function validatesPinnedSourceIdentity(
         );
     }
     return (
+        'sourceSubmodules' in expected &&
         candidate.sourceGitCommit === expected.sourceGitCommit &&
         GIT_COMMIT_PATTERN.test(candidate.sourceGitCommit) &&
         candidate.sourceSha256 === undefined &&
-        validatesGitSubmoduleRecords(candidate.sourceSubmodules)
+        validatesGitSubmoduleRecords(candidate.sourceSubmodules) &&
+        isDeepStrictEqual(candidate.sourceSubmodules, expected.sourceSubmodules)
     );
 }
 

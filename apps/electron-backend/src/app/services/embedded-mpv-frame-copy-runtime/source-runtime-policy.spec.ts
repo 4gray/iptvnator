@@ -90,6 +90,19 @@ describe('embedded-mpv frame-copy source runtime policy', () => {
             },
         },
         {
+            label: 'unpinned git submodule commit',
+            mutate(sourceRuntime: Record<string, unknown>) {
+                const packages = sourceRuntime.packages as Record<
+                    string,
+                    Record<string, unknown>
+                >;
+                packages.libplacebo.sourceSubmodules = [
+                    `${'f'.repeat(40)} 3rdparty/Vulkan-Headers (v1.4.337)`,
+                    `${'e'.repeat(40)} 3rdparty/fast_float (v6.1.0-275-g97b54ca)`,
+                ];
+            },
+        },
+        {
             label: 'portable ABI baseline',
             mutate(sourceRuntime: Record<string, unknown>) {
                 const runtimeAbi = sourceRuntime.runtimeAbi as {

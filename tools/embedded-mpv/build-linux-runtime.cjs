@@ -3,12 +3,21 @@
 const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
+const { isDeepStrictEqual } = require('node:util');
 
 const HWDATA_BUILD_INPUT = Object.freeze({
     consumer: 'libdisplay-info',
     relativePath: 'pnp.ids',
     purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
 });
+const EXPECTED_LIBPLACEBO_V7_360_1_SOURCE_SUBMODULES = Object.freeze([
+    '450bd2232225d6c7728a4108055ac2e37cef6475 3rdparty/Vulkan-Headers (v1.4.337)',
+    '97b54ca9e75f5303507699d27c6b4f4efe4641a1 3rdparty/fast_float (v6.1.0-275-g97b54ca)',
+    '73db193f853e2ee079bf3ca8a64aa2eaf6459043 3rdparty/glad (v0.1.11a-302-g73db193)',
+    '15206881c006c79667fe5154fe80c01c65410679 3rdparty/jinja (3.1.6)',
+    '297fc8e356e6836a62087949245d09a28e9f1b13 3rdparty/markupsafe (3.0.3)',
+    '242f35efa067a46c595645eeda7b1771ea1f83b1 demos/3rdparty/nuklear (4.12.8)',
+]);
 
 const SOURCE_PACKAGES = Object.freeze(
     [
@@ -98,6 +107,7 @@ const SOURCE_PACKAGES = Object.freeze(
             sourceUrl: 'https://github.com/haasn/libplacebo.git',
             sourceTag: 'v7.360.1',
             expectedGitCommit: 'cee9b076f2c63104ccfd497fa79c39a867293ec4',
+            expectedSubmodules: EXPECTED_LIBPLACEBO_V7_360_1_SOURCE_SUBMODULES,
             license: 'LGPL-2.1-or-later',
         },
         {
@@ -589,6 +599,16 @@ function assertGitCommitMatchesPin(sourcePackage, actualGitCommit) {
     if (actualGitCommit !== sourcePackage.expectedGitCommit) {
         throw new Error(
             `${sourcePackage.id} git commit mismatch: expected ${sourcePackage.expectedGitCommit}, received ${actualGitCommit}.`
+        );
+    }
+}
+
+function assertGitSubmodulesMatchPin(sourcePackage, actualSubmodules) {
+    if (
+        !isDeepStrictEqual(actualSubmodules, sourcePackage.expectedSubmodules)
+    ) {
+        throw new Error(
+            `${sourcePackage.id} git submodules do not match the exact pinned recursive records.`
         );
     }
 }
@@ -1508,6 +1528,10 @@ function createLinuxRuntimeManifest({
                 sourcePackage,
                 sourceRecord.sourceGitCommit
             );
+            assertGitSubmodulesMatchPin(
+                sourcePackage,
+                sourceRecord.sourceSubmodules
+            );
         }
         packages[sourcePackage.id] = sourceManifestMetadata(sourceRecord);
     }
@@ -1570,6 +1594,7 @@ module.exports = {
     BUILD_ORDER,
     DEFAULT_SYSTEM_PKG_CONFIG_DIRS,
     EXTERNAL_SYSTEM_LIBRARIES,
+    EXPECTED_LIBPLACEBO_V7_360_1_SOURCE_SUBMODULES,
     EXPECTED_SYSTEM_PKG_CONFIG_PACKAGES,
     FFMPEG_CONFIGURE_FLAGS,
     GLIBC_TOOLCHAIN_ALLOWLIST,
@@ -1582,6 +1607,7 @@ module.exports = {
     SOURCE_PACKAGES,
     assertArchiveMatchesPin,
     assertGitCommitMatchesPin,
+    assertGitSubmodulesMatchPin,
     assertMinimumToolVersions,
     assertOwnedOutputDestination,
     assertPortableAbiRecords,

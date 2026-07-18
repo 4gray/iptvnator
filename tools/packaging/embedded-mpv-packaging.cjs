@@ -13,6 +13,9 @@ const {
     validateLinuxRuntimeManifest,
 } = require('../embedded-mpv/linux-runtime-manifest.cjs');
 const {
+    validateLinuxSourceArchiveBinding,
+} = require('../embedded-mpv/linux-source-archive-contract.cjs');
+const {
     NOTICE_MANIFEST,
     THIRD_PARTY_NOTICES,
     validateLinuxRuntimeNotices,
@@ -1088,6 +1091,7 @@ function validateSystemLinuxRuntime(nativeDir, manifest, errors) {
     for (const forbiddenField of [
         'runtimeDependencyClosure',
         'externalSystemLibraries',
+        'sourceArchive',
         'sourceRuntime',
     ]) {
         if (Object.hasOwn(manifest, forbiddenField)) {
@@ -1125,6 +1129,11 @@ function validateBundledLinuxRuntime(nativeDir, manifest, errors) {
     errors.push(
         ...sourceRuntimeErrors.map(
             (error) => `Invalid packaged Linux source runtime: ${error}`
+        )
+    );
+    errors.push(
+        ...validateLinuxSourceArchiveBinding(manifest.sourceArchive).map(
+            (error) => `Invalid packaged Linux source archive binding: ${error}`
         )
     );
     errors.push(

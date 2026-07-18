@@ -62,7 +62,7 @@ function sourcePackageRecord(sourcePackage) {
             ? { sourceSha256: sourcePackage.expectedSha256 }
             : {
                   sourceGitCommit: sourcePackage.expectedGitCommit,
-                  sourceSubmodules: [`${'a'.repeat(40)} 3rdparty/example`],
+                  sourceSubmodules: [...sourcePackage.expectedSubmodules],
               }),
         license: sourcePackage.license,
     };
@@ -172,6 +172,12 @@ function createBuildManifest(runtimeContents) {
         libmpvSoname: 'libmpv.so.2',
         runtimeFiles: sourceRuntime.runtimeFiles.map((entry) => ({ ...entry })),
         runtimeTotalBytes: sourceRuntime.runtimeTotalBytes,
+        sourceArchive: {
+            schemaVersion: 1,
+            name: 'linux-frame-copy-runtime-sources.tar.xz',
+            sha256: '7'.repeat(64),
+            repositoryRevision: '8'.repeat(40),
+        },
         sourceRuntime,
     };
 }
@@ -245,6 +251,7 @@ function createNativeFixture({
     fs.cpSync(noticeSourceDir, nativeDir, { recursive: true });
     fs.writeFileSync(join(appOutDir, 'iptvnator.bin'), 'electron');
     return {
+        buildManifest,
         fixtureRoot,
         resourceDir,
         appOutDir,
@@ -549,6 +556,7 @@ test('prepares a normalized system profile with no private runtime', (t) => {
     assert.equal(manifest.libmpvSoname, 'libmpv.so.2');
     assert.deepEqual(manifest.runtimeFiles, []);
     assert.equal(manifest.runtimeTotalBytes, 0);
+    assert.equal(Object.hasOwn(manifest, 'sourceArchive'), false);
     assert.equal(fs.existsSync(join(fixture.nativeDir, 'lib')), false);
     assert.equal(
         fs.statSync(join(fixture.nativeDir, FRAME_COPY_ARTIFACTS.helper)).mode &
@@ -645,6 +653,10 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
         'vendored-lgpl-source-build'
     );
     assert.ok(portableManifest.sourceRuntime.packages.ffmpeg.sourceSha256);
+    assert.deepEqual(
+        portableManifest.sourceArchive,
+        portable.buildManifest.sourceArchive
+    );
     assert.ok(
         portableManifest.sourceRuntime.ffmpeg.configureFlags.includes(
             '--disable-gpl'
@@ -667,6 +679,10 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
     assert.equal(flatpakManifest.profile, 'flatpak');
     assert.equal(flatpakManifest.runtimeMode, 'bundled');
     assert.equal(flatpakManifest.origin, 'bundled-lgpl-frame-copy');
+    assert.deepEqual(
+        flatpakManifest.sourceArchive,
+        flatpak.buildManifest.sourceArchive
+    );
     assert.deepEqual(
         validatePackagedEmbeddedMpv(
             portable.resourceDir,
@@ -781,6 +797,15 @@ test('rejects invalid build provenance and incomplete bundled runtime input', (t
     const wrongSoname = createNativeFixture({
         buildManifest: wrongSonameManifest,
     });
+    const wrongSourceArchiveManifest = createBuildManifest({
+        'libavcodec.so.61': 'libavcodec-runtime',
+        'libmpv.so': 'libmpv-runtime',
+        'libmpv.so.2': 'libmpv-runtime',
+    });
+    wrongSourceArchiveManifest.sourceArchive.sha256 = 'not-a-digest';
+    const wrongSourceArchive = createNativeFixture({
+        buildManifest: wrongSourceArchiveManifest,
+    });
     t.after(() => {
         for (const fixture of [
             extra,
@@ -788,6 +813,7 @@ test('rejects invalid build provenance and incomplete bundled runtime input', (t
             invalid,
             unexpectedMode,
             wrongSoname,
+            wrongSourceArchive,
         ]) {
             fs.rmSync(fixture.fixtureRoot, { recursive: true, force: true });
         }
@@ -838,6 +864,18 @@ test('rejects invalid build provenance and incomplete bundled runtime input', (t
                 targetNames: ['appimage'],
             }),
         /derived from.*SONAME/i
+    );
+    assert.throws(
+        () =>
+            preparePackagedFrameCopyArtifacts(
+                wrongSourceArchive.nativeDir,
+                'linux',
+                {
+                    profile: 'portable',
+                    targetNames: ['snap'],
+                }
+            ),
+        /source archive binding.*sha256/i
     );
 });
 

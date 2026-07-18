@@ -240,7 +240,7 @@ for nonzero helper exits and adds `helperReason` only when the helper emitted
 one exact protocol-v1 line with a fixed allowlisted reason. Its optional
 `helperDetail` is restricted to 1–1024 printable ASCII characters; invalid
 detail suppresses both helper fields. Every probe has the same explicit 16 MiB
-per-stream child-capture ceiling, regardless of tracing. With
+aggregate captured-output ceiling, regardless of tracing. With
 `IPTVNATOR_TRACE_PLAYER=1`, non-empty captured helper stderr is written
 separately as one JSON-escaped stderr line: its `stderr` field contains at most
 the first 16,384 characters and its `truncated` boolean is always explicit.
@@ -290,19 +290,65 @@ entry removed; the validated main/submodule commits remain in the source
 index.
 
 That source-compliance archive uses normalized tar metadata and contains the
-exact unique archive hash set, VCS-free libplacebo sources and recursive
-submodules, license inputs, generated notices, runtime/source index metadata,
-and the builder, stager, manifest, notice-generator, and source-snapshot code.
+exact unique archive hash set, VCS-free libplacebo sources and the exact pinned
+six recursive submodule records, license inputs, generated notices,
+runtime/source index metadata, and the builder, stager, manifest,
+notice-generator, and source-snapshot code.
+The source index carries a globally sorted inventory of every libplacebo
+directory, file, and symlink. Regular-file hashes, sizes, normalized executable
+bits, exact safe link targets, aggregate counts/bytes, and the canonical
+inventory digest are checked against the trusted pinned v7.360.1 checkout. The
+tar has an exact member/type layout, and `metadata/archive-sha256.txt` is
+checked against the actual source archive bytes. Listing continues past every
+tar end marker so concatenated xz streams cannot hide undeclared members.
 The notice generator rejects missing, undeclared, symlinked, size-mismatched,
 or hash-mismatched license files.
+
+Once CI creates the final `linux-frame-copy-runtime-sources.tar.xz`, it writes
+`source-archive-binding.json` beside the staged runtime with the archive's
+SHA-256 and repository revision. Bundled x64 AppImage, Snap, and Flatpak
+manifests copy that exact object as `sourceArchive`; system packages and
+marker-only non-x64 packages omit it.
+
+The packaged x64 Playwright smoke depends on its fixture-contract target and
+passes Chromium `--ignore-gpu-blocklist` so Mesa llvmpipe can provide WebGL2 in
+CI. This affects only Chromium's software-renderer admission; the manifest,
+hash, loader, and helper probes still fail closed, and `--no-sandbox` remains
+root-only.
 
 Snap publication is a separate `release.published` workflow for public `v*`
 GitHub releases. It verifies that the public release already contains at least
 one Snap and exactly one non-empty
 `linux-frame-copy-runtime-sources.tar.xz` before uploading anything. The
-workflow uploads only to the Store's edge channel.
-Candidate/stable promotion is manual after installed-Snap frame-copy and
-missing-runtime fallback smoke; GitHub Actions never promotes automatically.
+release verifier hashes the downloaded archive, checks its clean released
+revision, exact member/type layout and safe link targets, source checksum
+metadata, source index, actual pinned source-member hashes, six recursive
+libplacebo submodule records, legal payload, exact trusted libplacebo tree
+inventory/digest, released tooling, and runtime manifest. Checkout and both
+artifact-transfer actions use full pinned commits, and checkout does not
+persist its repository credential. The verifier bounds
+source members, the archive, SquashFS listing, extracted size, entry count,
+command time, and job time; every Snap must use the canonical
+`/usr/lib/iptvnator` layout and pass the existing static package validator.
+Exactly one x64 Snap is accepted, and only when its exact `sourceArchive` and
+`sourceRuntime` match the downloaded archive; any non-x64 Snap must be
+marker-only. A secretless job copies each asset through a no-follow descriptor,
+checks hashes before and after inspection, writes an exact receipt, fully
+reverifies a root-owned read-only snapshot, and transfers only that data
+through the pinned artifact service while publishing the exact receipt digest
+separately as a job output.
+
+The dependent publish job runs on a bounded GitHub-hosted `ubuntu-latest`
+runner with no checkout or release-tag code. It verifies that separate digest,
+the exact receipt schema, every asset size/hash, and the expected regular-file
+layout, rejects links and extras, root-seals the transferred data again, and
+installs the official stable Snapcraft snap. Only its final fixed shell step
+receives the Store credential; it executes no released code, resolves no PATH
+command, and passes the credential only to each exact
+`/snap/bin/snapcraft upload --release=edge` process. GitHub credentials remain
+scoped to asset selection/download. Candidate/stable
+promotion is manual after installed-Snap frame-copy and missing-runtime
+fallback smoke; GitHub Actions never promotes automatically.
 
 Windows CI stages a checksum-pinned x64 LGPL archive. The DLL basename encoded
 in its import library is preserved and must be present beside

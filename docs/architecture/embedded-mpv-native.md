@@ -282,7 +282,7 @@ allowlisted helper reason as `helperReason`. An optional `helperDetail` is
 copied only from the same exact line when it contains 1–1024 printable ASCII
 characters; an invalid detail rejects both helper fields. Malformed,
 multi-line, wrong-protocol, or unknown failure output never reaches either
-field. Every probe uses the same explicit 16 MiB per-stream child-capture
+field. Every probe uses the same explicit 16 MiB aggregate captured-output
 ceiling, independent of tracing, so verbose diagnostics do not fall back to
 Node's smaller implicit buffer. When `IPTVNATOR_TRACE_PLAYER=1`, the probe also
 emits non-empty captured helper stderr separately as one JSON line. JSON
@@ -885,22 +885,73 @@ packaging passes with `IPTVNATOR_EMBEDDED_MPV_PLATFORM=linux`,
 `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1`, and one exact
 `IPTVNATOR_LINUX_FRAME_COPY_PROFILE`. Each produced artifact is extracted and
 verified, and the x64 helper probe runs in the intended runtime environment.
+The packaged x64 Playwright smoke first runs its fixture-contract target and
+passes Chromium `--ignore-gpu-blocklist` so Mesa llvmpipe can expose WebGL2 in
+CI. That launch-only flag does not bypass any manifest, hash, loader, or helper
+capability check; `--no-sandbox` is added only when the runner is root.
 Bundled package layouts must include the generated notices and exact license
 tree. The separately uploaded
 `linux-frame-copy-runtime-sources.tar.xz` contains the exact archive set,
-the VCS-metadata-free libplacebo working tree plus exact commit/submodule
-records, notice/license inputs, runtime metadata, current revision/diff, and
-build tooling. Its tar metadata is normalized. ARM artifacts are independently
-verified as marker-only and never run the x64 helper.
+the VCS-metadata-free libplacebo working tree plus the exact pinned commit and
+six recursive submodule records, notice/license inputs, runtime metadata,
+current revision/diff, and build tooling. The source index also records a
+globally sorted exact inventory
+of every libplacebo directory, regular file, and symlink. File hashes, sizes,
+normalized executable bits, link targets, aggregate counts/bytes, and the
+canonical inventory digest must match the trusted pinned v7.360.1 checkout;
+an arbitrary or incomplete self-declared tree is rejected. Its tar metadata is
+normalized, its member/type layout is exact, and
+`metadata/archive-sha256.txt` must describe the actual source archive bytes.
+Tar listing continues past every end marker, so concatenated xz/tar streams
+cannot hide undeclared members. ARM artifacts are independently verified as
+marker-only and never run the x64 helper.
+
+After constructing the final
+`linux-frame-copy-runtime-sources.tar.xz`, CI hashes its exact bytes and stages
+`source-archive-binding.json` beside the x64 runtime. AppImage, Snap, and
+Flatpak manifests copy that binding unchanged as `sourceArchive`, including the
+SHA-256 and repository revision. System-package manifests and marker-only
+non-x64 packages must not carry it, so a portable package cannot advertise
+source correspondence inherited from another profile or architecture.
 
 The build workflow creates a draft GitHub release but never publishes Snap in
 parallel with that draft. The separate Snap workflow runs only for a public
 `release.published` event whose tag starts with `v`; before any Store upload it
 requires at least one exact `.snap` asset and exactly one non-empty
-`linux-frame-copy-runtime-sources.tar.xz` in that public release. The workflow
-uploads only to the Store's edge channel. Candidate/stable promotion is manual
-after installed-Snap frame-copy and missing-runtime fallback smoke; GitHub
-Actions never promotes automatically.
+`linux-frame-copy-runtime-sources.tar.xz` in that public release. It hashes and
+safely inspects the bounded downloaded archive, requires regular metadata,
+archive, legal, and tooling member/type set, validates link targets and the
+archive checksum metadata, and requires the clean checkout and source index to
+match the released tag. It verifies the actual pinned source-member hashes,
+the six recursive libplacebo submodule records, license-input and notice
+hashes, the exact VCS-free libplacebo tree inventory/digest, and byte-identical
+tooling from the released tag. Checkout and both artifact-transfer actions use
+full pinned commits, and checkout sets `persist-credentials: false`.
+The bounded SquashFS preflight and extraction then require the canonical
+`/usr/lib/iptvnator` layout and reuse the static package validator for every
+selected Snap. Exactly one x64 Snap must contain a bundled portable manifest
+whose exact `sourceArchive` and `sourceRuntime` match the archive; non-x64
+Snaps must remain marker-only. Repository credentials are scoped to the two
+GitHub asset steps. The secretless verification job copies downloaded files
+through no-follow descriptors into a private snapshot, hashes them before and
+after inspection, writes an exact receipt, root-seals the snapshot, and reruns
+the complete source/package verifier against those bytes. It then transfers
+only the sealed data through the pinned artifact service, publishes the exact
+receipt digest separately as a job output, and terminates.
+
+The dependent publish job runs on a bounded GitHub-hosted `ubuntu-latest`
+runner with no checkout or release-tag code. It requires the separately
+transmitted receipt digest, validates the exact receipt schema and every asset
+size/hash, accepts only the expected regular `.snap`, source archive, and
+receipt layout, rejects links and extra entries, and root-seals the transferred
+files again before installing the official stable Snapcraft snap.
+Only its final fixed shell step receives the Store credential. That step uses a
+bounded Bash glob, resolves no PATH command, executes no released code, and
+passes the credential only to each exact
+`/snap/bin/snapcraft upload --release=edge` process. Any verification or
+transfer mismatch aborts before Store credentials are available.
+Candidate/stable promotion is manual after installed-Snap frame-copy and
+missing-runtime fallback smoke; GitHub Actions never promotes automatically.
 
 During temporary artifact tests, CI may also set `IPTVNATOR_REQUIRE_EMBEDDED_MPV=1` for PR and `master` push jobs where a runtime is known to exist. After the artifacts are manually validated, remove temporary conditions so ordinary development builds leave `IPTVNATOR_REQUIRE_EMBEDDED_MPV` unset or `0`. This keeps the native feature in-tree without making every non-release build depend on runtime artifacts.
 

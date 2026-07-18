@@ -1,4 +1,5 @@
 import runtimeProbeContract = require('../../../../../../tools/embedded-mpv/runtime-probe-contract.cjs');
+import sourceArchiveContract = require('../../../../../../tools/embedded-mpv/linux-source-archive-contract.cjs');
 import type { EmbeddedMpvFrameCopyRuntimeMode, RuntimeProfile } from './types';
 
 interface RuntimeProfileContract {
@@ -14,9 +15,22 @@ export const FRAME_COPY_HELPER_NAME = 'iptvnator_mpv_helper';
 export const RUNTIME_PROBE_PROTOCOL = 1;
 export const { RUNTIME_PROBE_MAX_BUFFER_BYTES, RUNTIME_PROBE_TIMEOUT_MS } =
     runtimeProbeContract;
+export const {
+    SOURCE_ARCHIVE_BINDING_SCHEMA_VERSION,
+    SOURCE_ARCHIVE_NAME,
+    validateLinuxSourceArchiveBinding,
+} = sourceArchiveContract;
 export const VERSIONED_LIBMPV_PATTERN = /^libmpv\.so\.\d+(?:\.\d+)*$/;
 export const SAFE_RUNTIME_NAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 export const SHARED_LIBRARY_PATTERN = /\.so(?:\.\d+)*$/;
+export const PINNED_LIBPLACEBO_SOURCE_SUBMODULES = [
+    '450bd2232225d6c7728a4108055ac2e37cef6475 3rdparty/Vulkan-Headers (v1.4.337)',
+    '97b54ca9e75f5303507699d27c6b4f4efe4641a1 3rdparty/fast_float (v6.1.0-275-g97b54ca)',
+    '73db193f853e2ee079bf3ca8a64aa2eaf6459043 3rdparty/glad (v0.1.11a-302-g73db193)',
+    '15206881c006c79667fe5154fe80c01c65410679 3rdparty/jinja (3.1.6)',
+    '297fc8e356e6836a62087949245d09a28e9f1b13 3rdparty/markupsafe (3.0.3)',
+    '242f35efa067a46c595645eeda7b1771ea1f83b1 demos/3rdparty/nuklear (4.12.8)',
+] as const;
 export const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 export const GIT_COMMIT_PATTERN = /^[a-f0-9]{40,64}$/;
 export const SUBMODULE_RECORD_PATTERN =
@@ -167,6 +181,7 @@ export const PINNED_SOURCE_PACKAGE_IDENTITIES = {
         sourceUrl: 'https://github.com/haasn/libplacebo.git',
         sourceTag: 'v7.360.1',
         sourceGitCommit: 'cee9b076f2c63104ccfd497fa79c39a867293ec4',
+        sourceSubmodules: PINNED_LIBPLACEBO_SOURCE_SUBMODULES,
         license: 'LGPL-2.1-or-later',
     },
     hwdata: {
@@ -254,6 +269,7 @@ export const DEVELOPMENT_MANIFEST_FIELDS = [
     'runtimeFiles',
     'runtimeTotalBytes',
     'schemaVersion',
+    'sourceArchive',
     'sourceRuntime',
     'sourceRuntimeValidated',
 ] as const;
@@ -309,5 +325,6 @@ export const BUNDLED_MANIFEST_FIELDS = [
     ...BASE_MANIFEST_FIELDS,
     'externalSystemLibraries',
     'runtimeDependencyClosure',
+    'sourceArchive',
     'sourceRuntime',
 ] as const;

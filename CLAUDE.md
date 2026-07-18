@@ -674,7 +674,7 @@ engine` (restart required) or
   present only for an exact protocol-v1 line carrying a fixed allowlisted
   reason, and its optional `helperDetail` must be 1–1024 printable ASCII
   characters. Invalid detail suppresses both helper fields. Every probe uses
-  an explicit 16 MiB per-stream child-capture ceiling independent of tracing.
+  an explicit 16 MiB aggregate captured-output ceiling independent of tracing.
   With `IPTVNATOR_TRACE_PLAYER=1`, non-empty helper stderr is emitted separately
   as one JSON-escaped stderr line with a 16,384-character `stderr` limit and an
   explicit `truncated` field; trace-write failure cannot change availability.
@@ -682,19 +682,51 @@ engine` (restart required) or
   channel. The exact packaged Flatpak `/app` context reconstructs only
   Freedesktop Platform 24.08's immutable
   `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its CI smoke invokes that
-  application-level probe instead of the helper directly. Bundled
-  Linux packages carry hash-validated
+  application-level probe instead of the helper directly. The packaged x64
+  Playwright smoke runs its fixture-contract target first and passes Chromium
+  `--ignore-gpu-blocklist` so CI llvmpipe exposes WebGL2; this does not bypass
+  the runtime gate, and `--no-sandbox` remains root-only. Bundled Linux
+  packages carry hash-validated
   `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and `licenses/**`.
   CI caches the staged runtime plus immutable source inputs, never finished
   notices or the compliance tarball; it regenerates those notices and the
   VCS-metadata-free `linux-frame-copy-runtime-sources.tar.xz` for the current
-  checkout while preserving exact commit/submodule records. Snap Store
+  checkout while preserving the exact pinned six recursive libplacebo
+  submodule records. Its source index carries the globally sorted libplacebo
+  directory/file/symlink inventory; file hashes, sizes, executable bits, link
+  targets, aggregates, and canonical tree digest must match the trusted pinned
+  checkout. The archive has an exact member/type layout and its
+  `metadata/archive-sha256.txt` records must match the actual source archives.
+  Concatenated tar/xz streams are inspected past every end marker. Every
+  bundled x64 package manifest binds the final archive's SHA-256 and repository
+  revision; system and marker-only packages do not carry that binding. Snap
+  Store
   publication runs only from a public `v*` GitHub release that already
-  contains the Snap assets and exactly one source archive. The workflow uploads
-  only to the Store's edge channel. Candidate/stable promotion is manual after
-  installed-Snap frame-copy and missing-runtime fallback smoke; GitHub Actions
-  never promotes automatically. On Windows, package validation requires the
-  exact MPV DLL named by the helper's PE import table beside the executable.
+  contains the Snap assets and exactly one source archive. Before any upload,
+  the workflow hashes and checks the archive's exact member/type set and size
+  bounds, verifies its clean tag revision, pinned sources including the six
+  recursive submodule records and exact libplacebo tree digest, legal payload,
+  and exact released tooling, then performs bounded extraction and static
+  validation for every Snap. Exactly one x64 Snap must have matching
+  `sourceArchive` and `sourceRuntime`; any non-x64 Snap remains marker-only.
+  Checkout and artifact-transfer actions are pinned to full commits; checkout
+  does not persist credentials, and repository credentials are scoped to
+  download steps. A secretless verification job copies assets through
+  no-follow descriptors, checks them before and after inspection, writes an
+  exact receipt, fully reverifies a root-owned read-only snapshot, and
+  transfers only that data through the pinned artifact service while passing
+  the receipt digest separately through a job output. The dependent publish
+  job uses a bounded `ubuntu-latest` runner with no checkout or release-tag
+  code, verifies that digest plus the exact receipt, asset hashes, and
+  file-only layout, root-seals the data again, and installs Snapcraft directly.
+  Its final fixed shell step alone receives the Store credential, resolves no
+  PATH command, executes no released code, and exposes that credential only to
+  each exact
+  `/snap/bin/snapcraft upload --release=edge` process. Candidate/stable
+  promotion is manual after installed-Snap frame-copy and missing-runtime
+  fallback smoke; GitHub Actions never promotes automatically. On Windows,
+  package validation requires the exact MPV DLL named by the helper's PE import
+  table beside the executable.
   Backend adapter:
   `apps/electron-backend/src/app/services/embedded-mpv-frame-copy.adapter.ts`;
   shared-controls adapter:

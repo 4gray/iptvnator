@@ -8,6 +8,9 @@ const {
     validateLinuxRuntimeManifest,
 } = require('../embedded-mpv/linux-runtime-manifest.cjs');
 const {
+    validateLinuxSourceArchiveBinding,
+} = require('../embedded-mpv/linux-source-archive-contract.cjs');
+const {
     NOTICE_MANIFEST,
     THIRD_PARTY_NOTICES,
     validateLinuxRuntimeNotices,
@@ -192,6 +195,11 @@ function validateLinuxFrameCopyBuildManifest(manifest) {
     errors.push(
         ...sourceErrors.map(
             (error) => `Invalid bundled source runtime: ${error}`
+        )
+    );
+    errors.push(
+        ...validateLinuxSourceArchiveBinding(manifest.sourceArchive).map(
+            (error) => `Invalid Linux source archive binding: ${error}`
         )
     );
     if (
@@ -444,6 +452,7 @@ function createPackagedManifest(buildManifest, profile, targetNames) {
                       buildManifest.sourceRuntime.externalSystemLibraries.map(
                           (entry) => ({ ...entry })
                       ),
+                  sourceArchive: structuredClone(buildManifest.sourceArchive),
                   sourceRuntime: structuredClone(buildManifest.sourceRuntime),
               }
             : {}),

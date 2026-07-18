@@ -245,16 +245,19 @@ export function getPackagedLinuxNativeDir(executablePath: string): string {
 export function resolvePackagedElectronLaunchArgs(
     getuid: (() => number) | undefined
 ): string[] {
-    return typeof getuid === 'function' && getuid() === 0
-        ? ['--no-sandbox']
-        : [];
+    const args = ['--ignore-gpu-blocklist'];
+    if (typeof getuid === 'function' && getuid() === 0) {
+        args.push('--no-sandbox');
+    }
+    return args;
 }
 
 /**
  * Launch a real packaged Linux executable. Unlike the regular source E2E
- * launcher, this deliberately keeps Chromium's GPU path enabled: the
- * frame-copy smoke sets LIBGL_ALWAYS_SOFTWARE=1 and needs WebGL2 to prove
- * that the shared-memory frame reaches the renderer canvas.
+ * launcher, this deliberately keeps Chromium's GPU path enabled and ignores
+ * its GPU blocklist: the frame-copy smoke sets LIBGL_ALWAYS_SOFTWARE=1, and
+ * CI's llvmpipe WebGL2 context must prove that the shared-memory frame reaches
+ * the renderer canvas.
  */
 export async function launchPackagedElectronApp(
     executablePath: string,

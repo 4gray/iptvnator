@@ -1,9 +1,16 @@
 import assert from 'node:assert/strict';
 import { parse } from 'yaml';
 
+const PINNED_CHECKOUT_ACTION =
+    'actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5';
+const PINNED_UPLOAD_ARTIFACT_ACTION =
+    'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02';
+const PINNED_DOWNLOAD_ARTIFACT_ACTION =
+    'actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093';
 const PUBLISH_ACTION_ALLOWLIST = Object.freeze([
-    'actions/checkout@v4',
-    'samuelmeuli/action-snapcraft@v3',
+    PINNED_CHECKOUT_ACTION,
+    PINNED_DOWNLOAD_ARTIFACT_ACTION,
+    PINNED_UPLOAD_ARTIFACT_ACTION,
 ]);
 const BUILD_ACTION_ALLOWLIST = Object.freeze([
     'actions/cache/restore@v4',
@@ -16,26 +23,213 @@ const BUILD_ACTION_ALLOWLIST = Object.freeze([
     'pnpm/action-setup@v4',
     'softprops/action-gh-release@v2',
 ]);
+const VERIFY_JOB_ID = 'verify-snap';
 const PUBLISH_JOB_ID = 'publish-snap';
-const PUBLISH_JOB_CONDITION =
+const VERIFY_JOB_CONDITION =
     "${{ startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}";
+const PUBLISH_JOB_CONDITION =
+    "${{ needs.verify-snap.result == 'success' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}";
+const VERIFIED_RELEASE_ARTIFACT_NAME = 'verified-snap-release-assets';
 const PUBLISH_STEP_NAME = 'Publish all public-release snaps to edge';
-const PUBLISH_STEP_CONTRACT = Object.freeze({
-    name: PUBLISH_STEP_NAME,
+const PUBLISH_CHECKOUT_STEP_NAME = 'Checkout released tooling';
+const PUBLISH_CHECKOUT_STEP_CONTRACT = Object.freeze({
+    name: PUBLISH_CHECKOUT_STEP_NAME,
+    uses: PINNED_CHECKOUT_ACTION,
+    with: {
+        ref: '${{ github.event.release.tag_name }}',
+        'persist-credentials': false,
+    },
+});
+const PUBLISH_SNAPCRAFT_SETUP_STEP_NAME = 'Install Snapcraft';
+const PUBLISH_SNAPCRAFT_SETUP_STEP_CONTRACT = Object.freeze({
+    name: PUBLISH_SNAPCRAFT_SETUP_STEP_NAME,
     shell: 'bash',
     run: [
         'set -euo pipefail',
         '',
-        'node -e \\',
-        `    "const fs=require('node:fs'); const selected=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); for (const asset of selected.snapAssets) console.log(asset.name);" \\`,
-        '    "${RUNNER_TEMP}/selected-snap-release-assets.json" |',
-        '    while IFS= read -r SNAP_NAME; do',
-        '        SNAP_FILE="${RUNNER_TEMP}/snap-release-downloads/${SNAP_NAME}"',
-        '        echo "Publishing public release asset: ${SNAP_NAME}"',
-        '        # Candidate/stable promotion is manual after installed-Snap frame-copy and missing-runtime fallback smoke.',
-        '        # GitHub Actions never promotes automatically.',
-        '        snapcraft upload --release=edge "${SNAP_FILE}"',
-        '    done',
+        'sudo snap install snapcraft --classic --channel=stable',
+        '',
+    ].join('\n'),
+});
+const VERIFY_ARTIFACT_UPLOAD_STEP_NAME = 'Transfer verified release assets';
+const VERIFY_ARTIFACT_UPLOAD_STEP_CONTRACT = Object.freeze({
+    name: VERIFY_ARTIFACT_UPLOAD_STEP_NAME,
+    uses: PINNED_UPLOAD_ARTIFACT_ACTION,
+    with: {
+        name: VERIFIED_RELEASE_ARTIFACT_NAME,
+        path: '/var/lib/iptvnator-snap-release/assets',
+        'if-no-files-found': 'error',
+        'retention-days': 1,
+        'compression-level': 0,
+        'include-hidden-files': true,
+    },
+});
+const PUBLISH_ARTIFACT_DOWNLOAD_STEP_NAME = 'Download verified release assets';
+const PUBLISH_ARTIFACT_DOWNLOAD_STEP_CONTRACT = Object.freeze({
+    name: PUBLISH_ARTIFACT_DOWNLOAD_STEP_NAME,
+    uses: PINNED_DOWNLOAD_ARTIFACT_ACTION,
+    with: {
+        name: VERIFIED_RELEASE_ARTIFACT_NAME,
+        path: '${{ runner.temp }}/verified-snap-release-assets',
+    },
+});
+const PUBLISH_SEALED_VERIFY_STEP_NAME = 'Reverify sealed public release assets';
+const PUBLISH_SEALED_VERIFY_STEP_CONTRACT = Object.freeze({
+    name: PUBLISH_SEALED_VERIFY_STEP_NAME,
+    shell: 'bash',
+    run: [
+        'set -euo pipefail',
+        '',
+        'VERIFIED_ASSET_DIRECTORY="/var/lib/iptvnator-snap-release/assets"',
+        'node tools/packaging/release-snap-assets.cjs verify-sealed \\',
+        '    --manifest "${RUNNER_TEMP}/selected-snap-release-assets.json" \\',
+        '    --directory "${VERIFIED_ASSET_DIRECTORY}" \\',
+        '    --receipt "${VERIFIED_ASSET_DIRECTORY}/verified-release-assets.json" \\',
+        '    --repository-revision "$(git rev-parse HEAD)"',
+        '',
+    ].join('\n'),
+});
+const VERIFY_TRANSFER_BINDING_STEP_NAME = 'Bind verified release transfer';
+const VERIFY_TRANSFER_BINDING_STEP_CONTRACT = Object.freeze({
+    name: VERIFY_TRANSFER_BINDING_STEP_NAME,
+    id: 'bind-transfer',
+    shell: 'bash',
+    run: [
+        'set -euo pipefail',
+        '',
+        'RECEIPT_PATH="/var/lib/iptvnator-snap-release/assets/verified-release-assets.json"',
+        'RECEIPT_RECORD="$(/usr/bin/sha256sum --binary "${RECEIPT_PATH}")"',
+        'RECEIPT_SHA256="${RECEIPT_RECORD%% *}"',
+        '[[ "${RECEIPT_SHA256}" =~ ^[a-f0-9]{64}$ ]]',
+        `printf 'receipt-sha256=%s\\n' "\${RECEIPT_SHA256}" >> "\${GITHUB_OUTPUT}"`,
+        '',
+    ].join('\n'),
+});
+const PUBLISH_TRANSFER_VERIFY_STEP_NAME =
+    'Seal transferred public release assets';
+const PUBLISH_TRANSFER_VERIFY_STEP_CONTRACT = Object.freeze({
+    name: PUBLISH_TRANSFER_VERIFY_STEP_NAME,
+    shell: 'bash',
+    env: {
+        EXPECTED_RECEIPT_SHA256:
+            '${{ needs.verify-snap.outputs.receipt-sha256 }}',
+    },
+    run: [
+        'set -euo pipefail',
+        '',
+        'TRANSFERRED_ASSET_DIRECTORY="${RUNNER_TEMP}/verified-snap-release-assets"',
+        'SEALED_ASSET_PARENT="/var/lib/iptvnator-snap-release"',
+        'SEALED_ASSET_DIRECTORY="${SEALED_ASSET_PARENT}/assets"',
+        'test -d "${TRANSFERRED_ASSET_DIRECTORY}"',
+        'test ! -L "${TRANSFERRED_ASSET_DIRECTORY}"',
+        'shopt -s nullglob dotglob',
+        'TRANSFERRED_FILES=("${TRANSFERRED_ASSET_DIRECTORY}"/*)',
+        'TRANSFERRED_SNAPS=("${TRANSFERRED_ASSET_DIRECTORY}"/*.snap)',
+        'test "${#TRANSFERRED_SNAPS[@]}" -gt 0',
+        'test "${#TRANSFERRED_FILES[@]}" -eq "$(( ${#TRANSFERRED_SNAPS[@]} + 2 ))"',
+        'test -f "${TRANSFERRED_ASSET_DIRECTORY}/linux-frame-copy-runtime-sources.tar.xz"',
+        'test ! -L "${TRANSFERRED_ASSET_DIRECTORY}/linux-frame-copy-runtime-sources.tar.xz"',
+        'test -f "${TRANSFERRED_ASSET_DIRECTORY}/verified-release-assets.json"',
+        'test ! -L "${TRANSFERRED_ASSET_DIRECTORY}/verified-release-assets.json"',
+        'for ASSET_FILE in "${TRANSFERRED_FILES[@]}"; do',
+        '    test -f "${ASSET_FILE}"',
+        '    test ! -L "${ASSET_FILE}"',
+        'done',
+        'RECEIPT_PATH="${TRANSFERRED_ASSET_DIRECTORY}/verified-release-assets.json"',
+        'RECEIPT_RECORD="$(/usr/bin/sha256sum --binary "${RECEIPT_PATH}")"',
+        'ACTUAL_RECEIPT_SHA256="${RECEIPT_RECORD%% *}"',
+        '[[ "${EXPECTED_RECEIPT_SHA256}" =~ ^[a-f0-9]{64}$ ]]',
+        'test "${ACTUAL_RECEIPT_SHA256}" = "${EXPECTED_RECEIPT_SHA256}"',
+        "/usr/bin/jq --exit-status '",
+        '    type == "object" and',
+        '    (keys == ["assets", "repositoryRevision", "schemaVersion"]) and',
+        '    (.schemaVersion == 1) and',
+        '    (.repositoryRevision |',
+        '        type == "string" and test("^[a-f0-9]{40,64}$")) and',
+        '    (.assets | type == "array" and length >= 2) and',
+        '    (.assets | all(.[];',
+        '        type == "object" and',
+        '        (keys == ["id", "name", "sha256", "size"]) and',
+        '        (.id |',
+        '            type == "number" and . > 0 and',
+        '            . <= 9007199254740991 and . == floor) and',
+        '        (.name |',
+        '            type == "string" and length > 0 and',
+        '            . != "." and . != ".." and',
+        '            (contains("/") | not) and',
+        '            (contains("\\\\") | not) and',
+        '            (explode | all(.[]; . > 31 and . != 127))) and',
+        '        (.sha256 |',
+        '            type == "string" and test("^[a-f0-9]{64}$")) and',
+        '        (.size |',
+        '            type == "number" and . > 0 and',
+        '            . <= 9007199254740991 and . == floor))) and',
+        '    ([.assets[].name] | length == (unique | length)) and',
+        '    ([.assets[] |',
+        '        select(.name == "linux-frame-copy-runtime-sources.tar.xz")] |',
+        '        length == 1) and',
+        '    ([.assets[] | select(.name | endswith(".snap"))] |',
+        '        length >= 1) and',
+        '    (.assets | all(.[];',
+        '        .name == "linux-frame-copy-runtime-sources.tar.xz" or',
+        '        (.name | endswith(".snap"))))',
+        '\' "${RECEIPT_PATH}" > /dev/null',
+        `RECEIPT_ASSET_COUNT="$(/usr/bin/jq --raw-output '.assets | length' "\${RECEIPT_PATH}")"`,
+        'test "${RECEIPT_ASSET_COUNT}" -eq "$(( ${#TRANSFERRED_SNAPS[@]} + 1 ))"',
+        'SIZE_MANIFEST="${RUNNER_TEMP}/verified-release-asset-sizes.tsv"',
+        'CHECKSUM_MANIFEST="${RUNNER_TEMP}/verified-release-asset-checksums.txt"',
+        'umask 077',
+        '/usr/bin/jq --raw-output \\',
+        `    '.assets[] | [.name, (.size | tostring)] | @tsv' \\`,
+        '    "${RECEIPT_PATH}" > "${SIZE_MANIFEST}"',
+        `while IFS=$'\\t' read -r ASSET_NAME EXPECTED_SIZE; do`,
+        '    ASSET_PATH="${TRANSFERRED_ASSET_DIRECTORY}/${ASSET_NAME}"',
+        '    ACTUAL_SIZE="$(/usr/bin/stat --format=%s -- "${ASSET_PATH}")"',
+        '    test "${ACTUAL_SIZE}" = "${EXPECTED_SIZE}"',
+        'done < "${SIZE_MANIFEST}"',
+        '/usr/bin/jq --raw-output \\',
+        `    '.assets[] | "\\(.sha256)  \\(.name)"' \\`,
+        '    "${RECEIPT_PATH}" > "${CHECKSUM_MANIFEST}"',
+        '(',
+        '    cd "${TRANSFERRED_ASSET_DIRECTORY}"',
+        '    /usr/bin/sha256sum --strict --check "${CHECKSUM_MANIFEST}"',
+        ')',
+        'rm -f "${SIZE_MANIFEST}" "${CHECKSUM_MANIFEST}"',
+        'shopt -u nullglob dotglob',
+        'sudo test ! -e "${SEALED_ASSET_PARENT}"',
+        'sudo install -d -m 0700 -o root -g root "${SEALED_ASSET_PARENT}"',
+        'sudo mv "${TRANSFERRED_ASSET_DIRECTORY}" "${SEALED_ASSET_DIRECTORY}"',
+        'sudo chown -R root:root "${SEALED_ASSET_DIRECTORY}"',
+        'sudo find "${SEALED_ASSET_DIRECTORY}" -type d -exec chmod 0555 {} +',
+        'sudo find "${SEALED_ASSET_DIRECTORY}" -type f -exec chmod 0444 {} +',
+        'sudo chmod 0555 "${SEALED_ASSET_PARENT}"',
+        '',
+    ].join('\n'),
+});
+const PUBLISH_STEP_CONTRACT = Object.freeze({
+    name: PUBLISH_STEP_NAME,
+    shell: 'bash',
+    env: {
+        SNAPCRAFT_STORE_CREDENTIALS: '${{ secrets.snapcraft_token }}',
+    },
+    run: [
+        'set -euo pipefail',
+        '',
+        'VERIFIED_ASSET_DIRECTORY="/var/lib/iptvnator-snap-release/assets"',
+        'STORE_CREDENTIALS="${SNAPCRAFT_STORE_CREDENTIALS}"',
+        'unset SNAPCRAFT_STORE_CREDENTIALS',
+        'shopt -s nullglob dotglob',
+        'SNAP_FILES=("${VERIFIED_ASSET_DIRECTORY}"/*.snap)',
+        'test "${#SNAP_FILES[@]}" -gt 0',
+        'for SNAP_FILE in "${SNAP_FILES[@]}"; do',
+        '    SNAP_NAME="${SNAP_FILE##*/}"',
+        '    echo "Publishing public release asset: ${SNAP_NAME}"',
+        '    # Candidate/stable promotion is manual after installed-Snap frame-copy and missing-runtime fallback smoke.',
+        '    # GitHub Actions never promotes automatically.',
+        '    SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${SNAP_FILE}"',
+        'done',
+        'unset STORE_CREDENTIALS',
+        'shopt -u nullglob dotglob',
         '',
     ].join('\n'),
 });
@@ -213,26 +407,143 @@ export function assertPublishSnapWorkflowPolicy(workflowText) {
         'the publish workflow must retain its exact release trigger'
     );
     assert.deepEqual(
+        Object.keys(workflow).sort(),
+        ['jobs', 'name', 'on', 'permissions'],
+        'the publish workflow must not add global execution or environment surfaces'
+    );
+    assert.deepEqual(
+        workflow.permissions,
+        { contents: 'read' },
+        'the publish workflow must retain read-only repository permissions'
+    );
+    assert.deepEqual(
         [...actions].sort(),
         [...PUBLISH_ACTION_ALLOWLIST].sort(),
         'the publish workflow must use exactly the allowlisted actions'
     );
+    assert.deepEqual(
+        Object.keys(workflow.jobs),
+        [VERIFY_JOB_ID, PUBLISH_JOB_ID],
+        'the publish workflow must isolate verification and credentialed upload on two exact jobs'
+    );
+    const verifyJob = workflow.jobs[VERIFY_JOB_ID];
     const publishJob = workflow.jobs[PUBLISH_JOB_ID];
+    assert.ok(isRecord(verifyJob), 'the canonical verification job must exist');
     assert.ok(isRecord(publishJob), 'the canonical publish job must exist');
+    assert.deepEqual(
+        Object.keys(verifyJob).sort(),
+        ['env', 'if', 'name', 'outputs', 'runs-on', 'steps', 'timeout-minutes'],
+        'the verification job must retain its exact execution surface'
+    );
+    assert.deepEqual(
+        verifyJob.env,
+        {
+            SOURCE_ARCHIVE_NAME: 'linux-frame-copy-runtime-sources.tar.xz',
+        },
+        'the verification job must expose only the fixed source archive name'
+    );
+    assert.deepEqual(
+        verifyJob.outputs,
+        {
+            'receipt-sha256':
+                '${{ steps.bind-transfer.outputs.receipt-sha256 }}',
+        },
+        'the verification job must expose only the separately bound receipt digest'
+    );
+    assert.deepEqual(
+        Object.keys(publishJob).sort(),
+        ['if', 'name', 'needs', 'runs-on', 'steps', 'timeout-minutes'],
+        'the fresh credentialed job must retain its exact execution surface'
+    );
+    assert.equal(
+        verifyJob['runs-on'],
+        'ubuntu-latest',
+        'the verification job must use a fresh GitHub-hosted runner'
+    );
+    assert.equal(
+        publishJob['runs-on'],
+        'ubuntu-latest',
+        'the credentialed job must use a separate fresh GitHub-hosted runner'
+    );
+    assert.equal(
+        verifyJob['timeout-minutes'],
+        45,
+        'the verification job must retain its bounded timeout'
+    );
+    assert.equal(
+        publishJob['timeout-minutes'],
+        20,
+        'the credentialed job must retain its bounded timeout'
+    );
+    assert.equal(
+        verifyJob.if,
+        VERIFY_JOB_CONDITION,
+        'the verification job must retain its exact release condition'
+    );
+    assert.equal(
+        publishJob.needs,
+        VERIFY_JOB_ID,
+        'the publish job must depend on successful isolated verification'
+    );
     assert.equal(
         publishJob.if,
         PUBLISH_JOB_CONDITION,
-        'the publish job must retain its exact release condition'
+        'the publish job must retain its exact verified-release condition'
     );
     assert.deepEqual(
-        publishJob.steps.filter((step) => step.name === PUBLISH_STEP_NAME),
-        [PUBLISH_STEP_CONTRACT],
-        'the publish workflow must retain the exact reviewed publication step'
+        verifyJob.steps.filter(
+            (step) => step.name === PUBLISH_CHECKOUT_STEP_NAME
+        ),
+        [PUBLISH_CHECKOUT_STEP_CONTRACT],
+        'the publish workflow must checkout released tooling without persisting repository credentials'
+    );
+    assert.deepEqual(
+        verifyJob.steps.filter(
+            (step) => step.name === PUBLISH_SEALED_VERIFY_STEP_NAME
+        ),
+        [PUBLISH_SEALED_VERIFY_STEP_CONTRACT],
+        'the verification job must fully verify root-sealed assets before transfer'
+    );
+    assert.deepEqual(
+        verifyJob.steps.filter(
+            (step) => step.name === VERIFY_ARTIFACT_UPLOAD_STEP_NAME
+        ),
+        [VERIFY_ARTIFACT_UPLOAD_STEP_CONTRACT],
+        'the verification job must transfer only the root-sealed verified data artifact'
+    );
+    assert.deepEqual(
+        verifyJob.steps.filter(
+            (step) => step.name === VERIFY_TRANSFER_BINDING_STEP_NAME
+        ),
+        [VERIFY_TRANSFER_BINDING_STEP_CONTRACT],
+        'the verification job must bind the exact receipt outside artifact transport'
+    );
+    assert.deepEqual(
+        publishJob.steps,
+        [
+            PUBLISH_ARTIFACT_DOWNLOAD_STEP_CONTRACT,
+            PUBLISH_TRANSFER_VERIFY_STEP_CONTRACT,
+            PUBLISH_SNAPCRAFT_SETUP_STEP_CONTRACT,
+            PUBLISH_STEP_CONTRACT,
+        ],
+        'the fresh publish runner must only download, validate, seal, install Snapcraft, and upload'
+    );
+    assert.equal(
+        JSON.stringify(verifyJob).includes('snapcraft_token'),
+        false,
+        'the release-tag verification job must never receive the Store credential'
+    );
+    assert.equal(
+        publishJob.steps
+            .slice(0, -1)
+            .some((step) => JSON.stringify(step).includes('snapcraft_token')),
+        false,
+        'only the final credentialed upload step may receive the Store credential'
     );
     assert.equal(
         literalSnapcraftTokens(commandSource).length,
-        1,
-        'the publish workflow must contain exactly one literal Snapcraft command'
+        2,
+        'the publish workflow must contain exactly the reviewed install and upload Snapcraft commands'
     );
 }
 

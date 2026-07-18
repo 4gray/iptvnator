@@ -13,6 +13,7 @@
             "dependsOn": ["electron-backend:build-e2e"]
         },
         "packaged-frame-copy-smoke": {
+            "dependsOn": ["test-packaged-frame-copy-fixtures"],
             "executor": "nx:run-commands",
             "cache": false,
             "outputs": [

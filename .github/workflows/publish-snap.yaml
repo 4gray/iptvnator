@@ -9,23 +9,38 @@ permissions:
     contents: read
 
 jobs:
-    publish-snap:
-        name: Publish public-release Snap to edge
+    verify-snap:
+        name: Verify public-release Snap assets
         if: ${{ startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}
         runs-on: ubuntu-latest
+        timeout-minutes: 45
         env:
-            GH_TOKEN: ${{ github.token }}
-            SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.snapcraft_token }}
             SOURCE_ARCHIVE_NAME: linux-frame-copy-runtime-sources.tar.xz
+        outputs:
+            receipt-sha256: ${{ steps.bind-transfer.outputs.receipt-sha256 }}
 
         steps:
             - name: Checkout released tooling
-              uses: actions/checkout@v4
+              uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5
               with:
                   ref: ${{ github.event.release.tag_name }}
+                  persist-credentials: false
+
+            - name: Install release source verifier
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  sudo apt-get update
+                  sudo apt-get install --no-install-recommends -y \
+                      binutils \
+                      squashfs-tools \
+                      xz-utils
 
             - name: Select exact public release assets
               shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
 
@@ -40,6 +55,8 @@ jobs:
 
             - name: Download exact public release assets
               shell: bash
+              env:
+                  GH_TOKEN: ${{ github.token }}
               run: |
                   set -euo pipefail
 
@@ -61,26 +78,192 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  VERIFIED_ASSET_STAGING="${RUNNER_TEMP}/verified-snap-release-assets"
+                  SEALED_ASSET_PARENT="/var/lib/iptvnator-snap-release"
+                  SEALED_ASSET_DIRECTORY="${SEALED_ASSET_PARENT}/assets"
                   test -s "${RUNNER_TEMP}/snap-release-downloads/${SOURCE_ARCHIVE_NAME}"
+                  test ! -e "${VERIFIED_ASSET_STAGING}"
+                  sudo test ! -e "${SEALED_ASSET_PARENT}"
                   node tools/packaging/release-snap-assets.cjs verify \
                       --manifest "${RUNNER_TEMP}/selected-snap-release-assets.json" \
-                      --directory "${RUNNER_TEMP}/snap-release-downloads"
+                      --directory "${RUNNER_TEMP}/snap-release-downloads" \
+                      --repository-revision "$(git rev-parse HEAD)" \
+                      --verified-directory "${VERIFIED_ASSET_STAGING}"
+                  sudo install -d -m 0700 -o root -g root "${SEALED_ASSET_PARENT}"
+                  sudo mv "${VERIFIED_ASSET_STAGING}" "${SEALED_ASSET_DIRECTORY}"
+                  sudo chown -R root:root "${SEALED_ASSET_DIRECTORY}"
+                  sudo find "${SEALED_ASSET_DIRECTORY}" -type d -exec chmod 0555 {} +
+                  sudo find "${SEALED_ASSET_DIRECTORY}" -type f -exec chmod 0444 {} +
+                  sudo chmod 0555 "${SEALED_ASSET_PARENT}"
 
-            - name: Setup Snapcraft
-              uses: samuelmeuli/action-snapcraft@v3
-
-            - name: Publish all public-release snaps to edge
+            - name: Reverify sealed public release assets
               shell: bash
               run: |
                   set -euo pipefail
 
-                  node -e \
-                      "const fs=require('node:fs'); const selected=JSON.parse(fs.readFileSync(process.argv[1],'utf8')); for (const asset of selected.snapAssets) console.log(asset.name);" \
-                      "${RUNNER_TEMP}/selected-snap-release-assets.json" |
-                      while IFS= read -r SNAP_NAME; do
-                          SNAP_FILE="${RUNNER_TEMP}/snap-release-downloads/${SNAP_NAME}"
-                          echo "Publishing public release asset: ${SNAP_NAME}"
-                          # Candidate/stable promotion is manual after installed-Snap frame-copy and missing-runtime fallback smoke.
-                          # GitHub Actions never promotes automatically.
-                          snapcraft upload --release=edge "${SNAP_FILE}"
-                      done
+                  VERIFIED_ASSET_DIRECTORY="/var/lib/iptvnator-snap-release/assets"
+                  node tools/packaging/release-snap-assets.cjs verify-sealed \
+                      --manifest "${RUNNER_TEMP}/selected-snap-release-assets.json" \
+                      --directory "${VERIFIED_ASSET_DIRECTORY}" \
+                      --receipt "${VERIFIED_ASSET_DIRECTORY}/verified-release-assets.json" \
+                      --repository-revision "$(git rev-parse HEAD)"
+
+            - name: Bind verified release transfer
+              id: bind-transfer
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  RECEIPT_PATH="/var/lib/iptvnator-snap-release/assets/verified-release-assets.json"
+                  RECEIPT_RECORD="$(/usr/bin/sha256sum --binary "${RECEIPT_PATH}")"
+                  RECEIPT_SHA256="${RECEIPT_RECORD%% *}"
+                  [[ "${RECEIPT_SHA256}" =~ ^[a-f0-9]{64}$ ]]
+                  printf 'receipt-sha256=%s\n' "${RECEIPT_SHA256}" >> "${GITHUB_OUTPUT}"
+
+            - name: Transfer verified release assets
+              uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+              with:
+                  name: verified-snap-release-assets
+                  path: /var/lib/iptvnator-snap-release/assets
+                  if-no-files-found: error
+                  retention-days: 1
+                  compression-level: 0
+                  include-hidden-files: true
+
+    publish-snap:
+        name: Publish verified public-release Snap to edge
+        needs: verify-snap
+        if: ${{ needs.verify-snap.result == 'success' && startsWith(github.event.release.tag_name, 'v') && github.event.release.draft == false }}
+        runs-on: ubuntu-latest
+        timeout-minutes: 20
+
+        steps:
+            - name: Download verified release assets
+              uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093
+              with:
+                  name: verified-snap-release-assets
+                  path: ${{ runner.temp }}/verified-snap-release-assets
+
+            - name: Seal transferred public release assets
+              shell: bash
+              env:
+                  EXPECTED_RECEIPT_SHA256: ${{ needs.verify-snap.outputs.receipt-sha256 }}
+              run: |
+                  set -euo pipefail
+
+                  TRANSFERRED_ASSET_DIRECTORY="${RUNNER_TEMP}/verified-snap-release-assets"
+                  SEALED_ASSET_PARENT="/var/lib/iptvnator-snap-release"
+                  SEALED_ASSET_DIRECTORY="${SEALED_ASSET_PARENT}/assets"
+                  test -d "${TRANSFERRED_ASSET_DIRECTORY}"
+                  test ! -L "${TRANSFERRED_ASSET_DIRECTORY}"
+                  shopt -s nullglob dotglob
+                  TRANSFERRED_FILES=("${TRANSFERRED_ASSET_DIRECTORY}"/*)
+                  TRANSFERRED_SNAPS=("${TRANSFERRED_ASSET_DIRECTORY}"/*.snap)
+                  test "${#TRANSFERRED_SNAPS[@]}" -gt 0
+                  test "${#TRANSFERRED_FILES[@]}" -eq "$(( ${#TRANSFERRED_SNAPS[@]} + 2 ))"
+                  test -f "${TRANSFERRED_ASSET_DIRECTORY}/linux-frame-copy-runtime-sources.tar.xz"
+                  test ! -L "${TRANSFERRED_ASSET_DIRECTORY}/linux-frame-copy-runtime-sources.tar.xz"
+                  test -f "${TRANSFERRED_ASSET_DIRECTORY}/verified-release-assets.json"
+                  test ! -L "${TRANSFERRED_ASSET_DIRECTORY}/verified-release-assets.json"
+                  for ASSET_FILE in "${TRANSFERRED_FILES[@]}"; do
+                      test -f "${ASSET_FILE}"
+                      test ! -L "${ASSET_FILE}"
+                  done
+                  RECEIPT_PATH="${TRANSFERRED_ASSET_DIRECTORY}/verified-release-assets.json"
+                  RECEIPT_RECORD="$(/usr/bin/sha256sum --binary "${RECEIPT_PATH}")"
+                  ACTUAL_RECEIPT_SHA256="${RECEIPT_RECORD%% *}"
+                  [[ "${EXPECTED_RECEIPT_SHA256}" =~ ^[a-f0-9]{64}$ ]]
+                  test "${ACTUAL_RECEIPT_SHA256}" = "${EXPECTED_RECEIPT_SHA256}"
+                  /usr/bin/jq --exit-status '
+                      type == "object" and
+                      (keys == ["assets", "repositoryRevision", "schemaVersion"]) and
+                      (.schemaVersion == 1) and
+                      (.repositoryRevision |
+                          type == "string" and test("^[a-f0-9]{40,64}$")) and
+                      (.assets | type == "array" and length >= 2) and
+                      (.assets | all(.[];
+                          type == "object" and
+                          (keys == ["id", "name", "sha256", "size"]) and
+                          (.id |
+                              type == "number" and . > 0 and
+                              . <= 9007199254740991 and . == floor) and
+                          (.name |
+                              type == "string" and length > 0 and
+                              . != "." and . != ".." and
+                              (contains("/") | not) and
+                              (contains("\\") | not) and
+                              (explode | all(.[]; . > 31 and . != 127))) and
+                          (.sha256 |
+                              type == "string" and test("^[a-f0-9]{64}$")) and
+                          (.size |
+                              type == "number" and . > 0 and
+                              . <= 9007199254740991 and . == floor))) and
+                      ([.assets[].name] | length == (unique | length)) and
+                      ([.assets[] |
+                          select(.name == "linux-frame-copy-runtime-sources.tar.xz")] |
+                          length == 1) and
+                      ([.assets[] | select(.name | endswith(".snap"))] |
+                          length >= 1) and
+                      (.assets | all(.[];
+                          .name == "linux-frame-copy-runtime-sources.tar.xz" or
+                          (.name | endswith(".snap"))))
+                  ' "${RECEIPT_PATH}" > /dev/null
+                  RECEIPT_ASSET_COUNT="$(/usr/bin/jq --raw-output '.assets | length' "${RECEIPT_PATH}")"
+                  test "${RECEIPT_ASSET_COUNT}" -eq "$(( ${#TRANSFERRED_SNAPS[@]} + 1 ))"
+                  SIZE_MANIFEST="${RUNNER_TEMP}/verified-release-asset-sizes.tsv"
+                  CHECKSUM_MANIFEST="${RUNNER_TEMP}/verified-release-asset-checksums.txt"
+                  umask 077
+                  /usr/bin/jq --raw-output \
+                      '.assets[] | [.name, (.size | tostring)] | @tsv' \
+                      "${RECEIPT_PATH}" > "${SIZE_MANIFEST}"
+                  while IFS=$'\t' read -r ASSET_NAME EXPECTED_SIZE; do
+                      ASSET_PATH="${TRANSFERRED_ASSET_DIRECTORY}/${ASSET_NAME}"
+                      ACTUAL_SIZE="$(/usr/bin/stat --format=%s -- "${ASSET_PATH}")"
+                      test "${ACTUAL_SIZE}" = "${EXPECTED_SIZE}"
+                  done < "${SIZE_MANIFEST}"
+                  /usr/bin/jq --raw-output \
+                      '.assets[] | "\(.sha256)  \(.name)"' \
+                      "${RECEIPT_PATH}" > "${CHECKSUM_MANIFEST}"
+                  (
+                      cd "${TRANSFERRED_ASSET_DIRECTORY}"
+                      /usr/bin/sha256sum --strict --check "${CHECKSUM_MANIFEST}"
+                  )
+                  rm -f "${SIZE_MANIFEST}" "${CHECKSUM_MANIFEST}"
+                  shopt -u nullglob dotglob
+                  sudo test ! -e "${SEALED_ASSET_PARENT}"
+                  sudo install -d -m 0700 -o root -g root "${SEALED_ASSET_PARENT}"
+                  sudo mv "${TRANSFERRED_ASSET_DIRECTORY}" "${SEALED_ASSET_DIRECTORY}"
+                  sudo chown -R root:root "${SEALED_ASSET_DIRECTORY}"
+                  sudo find "${SEALED_ASSET_DIRECTORY}" -type d -exec chmod 0555 {} +
+                  sudo find "${SEALED_ASSET_DIRECTORY}" -type f -exec chmod 0444 {} +
+                  sudo chmod 0555 "${SEALED_ASSET_PARENT}"
+
+            - name: Install Snapcraft
+              shell: bash
+              run: |
+                  set -euo pipefail
+
+                  sudo snap install snapcraft --classic --channel=stable
+
+            - name: Publish all public-release snaps to edge
+              shell: bash
+              env:
+                  SNAPCRAFT_STORE_CREDENTIALS: ${{ secrets.snapcraft_token }}
+              run: |
+                  set -euo pipefail
+
+                  VERIFIED_ASSET_DIRECTORY="/var/lib/iptvnator-snap-release/assets"
+                  STORE_CREDENTIALS="${SNAPCRAFT_STORE_CREDENTIALS}"
+                  unset SNAPCRAFT_STORE_CREDENTIALS
+                  shopt -s nullglob dotglob
+                  SNAP_FILES=("${VERIFIED_ASSET_DIRECTORY}"/*.snap)
+                  test "${#SNAP_FILES[@]}" -gt 0
+                  for SNAP_FILE in "${SNAP_FILES[@]}"; do
+                      SNAP_NAME="${SNAP_FILE##*/}"
+                      echo "Publishing public release asset: ${SNAP_NAME}"
+                      # Candidate/stable promotion is manual after installed-Snap frame-copy and missing-runtime fallback smoke.
+                      # GitHub Actions never promotes automatically.
+                      SNAPCRAFT_STORE_CREDENTIALS="${STORE_CREDENTIALS}" /snap/bin/snapcraft upload --release=edge "${SNAP_FILE}"
+                  done
+                  unset STORE_CREDENTIALS
+                  shopt -u nullglob dotglob

@@ -259,6 +259,15 @@ function validatePackages(errors, packages) {
             errors.push(
                 `Linux runtime manifest ${label}.sourceSubmodules must be a non-empty array of commit-and-path records.`
             );
+        } else if (
+            !isDeepStrictEqual(
+                packageMetadata.sourceSubmodules,
+                pinnedPackage.expectedSubmodules
+            )
+        ) {
+            errors.push(
+                `Linux runtime manifest ${label}.sourceSubmodules must equal the pinned records.`
+            );
         }
     }
 }

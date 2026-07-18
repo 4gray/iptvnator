@@ -10,27 +10,18 @@ import packagedPlaywrightConfig from '../playwright.packaged.config';
 const projectRoot = resolve(__dirname, '..');
 
 describe('packaged Electron launch arguments', () => {
-    it('disables the Chromium sandbox only when running as root', () => {
-        const originalCi = process.env['CI'];
-        process.env['CI'] = 'true';
-
-        try {
-            assert.deepEqual(
-                resolvePackagedElectronLaunchArgs(() => 1000),
-                []
-            );
-            assert.deepEqual(resolvePackagedElectronLaunchArgs(undefined), []);
-            assert.deepEqual(
-                resolvePackagedElectronLaunchArgs(() => 0),
-                ['--no-sandbox']
-            );
-        } finally {
-            if (originalCi === undefined) {
-                delete process.env['CI'];
-            } else {
-                process.env['CI'] = originalCi;
-            }
-        }
+    it('keeps WebGL enabled for software rendering while disabling the sandbox only as root', () => {
+        assert.deepEqual(
+            resolvePackagedElectronLaunchArgs(() => 1000),
+            ['--ignore-gpu-blocklist']
+        );
+        assert.deepEqual(resolvePackagedElectronLaunchArgs(undefined), [
+            '--ignore-gpu-blocklist',
+        ]);
+        assert.deepEqual(
+            resolvePackagedElectronLaunchArgs(() => 0),
+            ['--ignore-gpu-blocklist', '--no-sandbox']
+        );
     });
 });
 
@@ -182,7 +173,9 @@ describe('dedicated packaged smoke target', () => {
             throw new Error('The packaged frame-copy smoke target is missing.');
         }
         assert.equal(target.cache, false);
-        assert.equal(target.dependsOn, undefined);
+        assert.deepEqual(target.dependsOn, [
+            'test-packaged-frame-copy-fixtures',
+        ]);
         assert.match(
             target.options?.command ?? '',
             /playwright\.packaged\.config\.ts/

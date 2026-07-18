@@ -78,6 +78,26 @@ describe('embedded-mpv frame-copy development manifest', () => {
         expect(context.spawnRuntimeProbe).not.toHaveBeenCalled();
     });
 
+    it('accepts a local bundled runtime before a release source archive is assembled', () => {
+        const fixture = createDevelopmentFixture(
+            context.rootDir,
+            'bundled-runtime'
+        );
+        const manifest = cloneManifest(fixture.manifest);
+        manifest.sourceArchive = null;
+        writeManifest(fixture.manifestPath, manifest);
+
+        expect(
+            probeDevelopmentRuntime(context.createProbe(), fixture.helperPath)
+        ).toEqual(
+            expect.objectContaining({
+                usable: true,
+                runtimeMode: 'bundled',
+            })
+        );
+        expect(context.spawnRuntimeProbe).toHaveBeenCalled();
+    });
+
     it.each([
         {
             label: 'origin',
