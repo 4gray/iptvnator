@@ -18,6 +18,7 @@ const SENSITIVE_KEY_NAMES = new Set([
     'login',
     'mac',
     'macaddress',
+    'mpvplayerarguments',
     'passwd',
     'password',
     'pwd',
@@ -28,6 +29,7 @@ const SENSITIVE_KEY_NAMES = new Set([
     'sn',
     'token',
     'username',
+    'vlcplayerarguments',
 ]);
 
 const SENSITIVE_KEY_SUFFIXES = [

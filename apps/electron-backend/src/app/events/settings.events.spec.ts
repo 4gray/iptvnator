@@ -45,4 +45,26 @@ describe('SETTINGS_UPDATE logging', () => {
         expect(output).toContain('de');
         expect(output).toContain('enabled');
     });
+
+    it('does not print credentials embedded in external player arguments', () => {
+        const authorizationSecret = 'player-authorization-secret';
+        const cookieSecret = 'player-cookie-secret';
+        const handler = handlers.get('SETTINGS_UPDATE');
+
+        expect(handler).toBeDefined();
+        handler?.(
+            {},
+            {
+                language: 'de',
+                mpvPlayerArguments: `--http-header-fields=Authorization: Bearer ${authorizationSecret}`,
+                vlcPlayerArguments: `--http-referrer=https://example.com --http-cookie=Cookie: ${cookieSecret}`,
+            }
+        );
+
+        const output = JSON.stringify((console.log as jest.Mock).mock.calls);
+        expect(output).not.toContain(authorizationSecret);
+        expect(output).not.toContain(cookieSecret);
+        expect(output).toContain('language');
+        expect(output).toContain('de');
+    });
 });
