@@ -198,7 +198,9 @@ async function afterPackHook(params) {
         }
     );
 
-    await linuxAfterPack(params);
+    await linuxAfterPack(params, {
+        targetNames: linuxPackagingContext?.targetNames,
+    });
     if (linuxPackagingContext) {
         const graphicsMountPath = ensureSnapGraphicsContentMount(
             params.appOutDir,
