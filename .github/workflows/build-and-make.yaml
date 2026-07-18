@@ -879,6 +879,34 @@ jobs:
                   set -euo pipefail
                   echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.state')" >> "${GITHUB_OUTPUT}"
 
+            # The rolling draft keeps assets across runs and the release action
+            # only replaces same-name files. If the app version changes between
+            # pushes, old-version installers would linger beside the new set,
+            # so drop every existing asset first — the action re-uploads the
+            # full current set right after. Only drafts are pruned; published
+            # releases are never touched.
+            - name: Prune stale draft assets
+              if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  RELEASE_TAG: ${{ steps.release-meta.outputs.tag }}
+              run: |
+                  set -euo pipefail
+
+                  release_id="$(gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate |
+                      jq -s --arg tag "${RELEASE_TAG}" \
+                          'add | [.[] | select(.draft and .tag_name == $tag)][0].id // empty')"
+
+                  if [ -z "${release_id}" ]; then
+                      echo "No existing draft for ${RELEASE_TAG}; nothing to prune."
+                      exit 0
+                  fi
+
+                  gh api "repos/${GITHUB_REPOSITORY}/releases/${release_id}/assets?per_page=100" --paginate --jq '.[].id' |
+                      xargs -r -n1 -I{} gh api -X DELETE "repos/${GITHUB_REPOSITORY}/releases/assets/{}"
+
+                  echo "Pruned assets from draft ${release_id} (${RELEASE_TAG})."
+
             - name: Create Draft Release
               id: draft-release
               if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
