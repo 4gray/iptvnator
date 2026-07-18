@@ -70,7 +70,7 @@ IPTVNATOR_TRACE_STARTUP=1 nx serve electron-backend
     - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and request-scoped DB events
     - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in the main process and DB worker
     - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow lifecycle and unresponsive events
-    - `IPTVNATOR_TRACE_PLAYER=1` traces external-player launch/reuse/polling debug output
+    - `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
     - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console output into the Electron terminal
 
 - GPU/compositor debugging:
@@ -280,8 +280,13 @@ Key files:
   keeps top-level reason `helper-probe-failed`; `helperReason` is present only
   for an exact protocol-v1 line carrying a fixed allowlisted reason, and its
   optional `helperDetail` must be 1–1024 printable ASCII characters. Invalid
-  detail suppresses both helper fields. Any loader failure remains a stable
-  native-view fallback, never a flag-enabled success.
+  detail suppresses both helper fields. With `IPTVNATOR_TRACE_PLAYER=1`, a
+  non-empty helper stderr capture is emitted separately as one JSON-escaped
+  stderr line whose `stderr` field is limited to 16,384 characters and whose
+  `truncated` field is always explicit; trace-write failure cannot change the
+  capability result. Installed-Snap CI enables Mesa EGL/GL diagnostics through
+  this bounded channel. Any loader failure remains a stable native-view
+  fallback, never a flag-enabled success.
 - In the exact packaged Flatpak `/app` context, reconstruct only Freedesktop
   Platform 24.08's immutable `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its GL
   extension loader path comes from the sandbox cache. Flatpak CI must invoke

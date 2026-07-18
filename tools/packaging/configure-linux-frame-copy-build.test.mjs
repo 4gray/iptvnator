@@ -709,6 +709,16 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
     assert.ok(gnomeConnectionAssertion < sharedMemoryConnectionAssertion);
     assert.ok(sharedMemoryConnectionAssertion < successfulRuntimeProbe);
     assert.match(snapStep, /snap run iptvnator --embedded-mpv-runtime-probe/);
+    for (const traceSelector of [
+        'IPTVNATOR_TRACE_PLAYER=1',
+        'EGL_LOG_LEVEL=debug',
+        'LIBGL_DEBUG=verbose',
+    ]) {
+        assert.match(
+            snapStep.slice(secondGraphicsConnect),
+            new RegExp(traceSelector)
+        );
+    }
     for (const hostileOverride of [
         '__EGL_VENDOR_LIBRARY_FILENAMES',
         'GBM_BACKEND',

@@ -1003,6 +1003,9 @@ jobs:
                       '$1 == "shared-memory" && $2 == "iptvnator:shared-memory" && $3 == ":shared-memory" { found=1 } END { exit !found }'
                   xvfb-run -a env \
                       LIBGL_ALWAYS_SOFTWARE=1 \
+                      IPTVNATOR_TRACE_PLAYER=1 \
+                      EGL_LOG_LEVEL=debug \
+                      LIBGL_DEBUG=verbose \
                       __EGL_VENDOR_LIBRARY_FILENAMES=/tmp/hostile-egl-vendor.json \
                       GBM_BACKEND=/tmp/hostile-gbm \
                       MESA_LOADER_DRIVER_OVERRIDE=/tmp/hostile-dri \

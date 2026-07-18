@@ -30,6 +30,9 @@ import {
 const HELPER_RUNTIME_PROBE_FAILURE_REASON_ALLOWLIST = new Set<string>(
     Object.values(EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS)
 );
+const HELPER_RUNTIME_PROBE_STDERR_LIMIT = 16_384;
+const HELPER_RUNTIME_PROBE_STDERR_EVENT =
+    'embedded-mpv-helper-runtime-probe-stderr';
 
 interface ParsedFailedProbe {
     helperReason: EmbeddedMpvHelperRuntimeProbeFailureReason;
@@ -130,6 +133,31 @@ function parseSuccessfulProbe(
     };
 }
 
+function traceHelperProbeStderr(
+    stderr: unknown,
+    dependencies: EmbeddedMpvFrameCopyRuntimeDependencies
+): void {
+    if (
+        dependencies.env.IPTVNATOR_TRACE_PLAYER !== '1' ||
+        typeof stderr !== 'string' ||
+        stderr.length === 0
+    ) {
+        return;
+    }
+
+    const boundedStderr = stderr.slice(0, HELPER_RUNTIME_PROBE_STDERR_LIMIT);
+    const output = `${JSON.stringify({
+        event: HELPER_RUNTIME_PROBE_STDERR_EVENT,
+        stderr: boundedStderr,
+        truncated: stderr.length > boundedStderr.length,
+    })}\n`;
+    try {
+        dependencies.writeStderr(output);
+    } catch {
+        // Opt-in diagnostics must never change the fail-closed probe result.
+    }
+}
+
 function runHelperProbe(
     runtimePackage: ValidatedPackage,
     dependencies: EmbeddedMpvFrameCopyRuntimeDependencies
@@ -157,6 +185,7 @@ function runHelperProbe(
     } catch {
         return failure('helper-probe-spawn-error');
     }
+    traceHelperProbeStderr(result.stderr, dependencies);
 
     if (
         result.error &&
@@ -207,6 +236,9 @@ export function createEmbeddedMpvFrameCopyRuntimeProbe(
         env: process.env,
         fileSystem: defaultFileSystem,
         spawnSync: nodeSpawnSync,
+        writeStderr: (output) => {
+            nodeFileSystem.writeSync(process.stderr.fd, output);
+        },
         ...overrides,
     };
     const resultCache = new Map<string, EmbeddedMpvFrameCopyRuntimeResult>();

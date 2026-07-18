@@ -282,7 +282,12 @@ allowlisted helper reason as `helperReason`. An optional `helperDetail` is
 copied only from the same exact line when it contains 1–1024 printable ASCII
 characters; an invalid detail rejects both helper fields. Malformed,
 multi-line, wrong-protocol, or unknown failure output never reaches either
-field.
+field. When `IPTVNATOR_TRACE_PLAYER=1`, the probe also emits non-empty captured
+helper stderr separately as one JSON line. JSON escaping keeps embedded
+newlines on that single line, the `stderr` field is limited to the first 16,384
+characters, and the `truncated` boolean is always present. A missing flag,
+empty capture, or trace-writer failure produces no trace and never changes the
+cached availability result or the application diagnostic's stdout protocol.
 
 The startup probe and every playback helper session use the same sanitized
 loader environment selected by the validated manifest's cached `runtimeMode`.
@@ -304,6 +309,10 @@ GL extension `add-ld-path` is supplied through the sandbox loader cache, so no
 ambient `LD_LIBRARY_PATH` is needed. Flatpak CI runs the application-level
 `--embedded-mpv-runtime-probe`; direct helper execution is only a package
 layout check and cannot substitute for the real gate.
+The installed-Snap smoke enables `IPTVNATOR_TRACE_PLAYER=1`,
+`EGL_LOG_LEVEL=debug`, and `LIBGL_DEBUG=verbose`, so GLVND/Mesa loader failures
+remain observable through the bounded stderr record while the same hostile
+ambient-path assertions and fail-closed application gate stay active.
 Inside a genuine Snap mount, filtered absolute `SNAP_LIBRARY_PATH` entries below
 `/var/lib/snapd/lib/gl` follow `native/lib`. The exact
 `$SNAP/graphics/usr/lib/x86_64-linux-gnu` content-provider roots come next,

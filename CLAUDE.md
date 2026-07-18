@@ -127,7 +127,7 @@ Useful narrower flags:
 - `IPTVNATOR_TRACE_DB=1` traces DB worker requests and DB progress events
 - `IPTVNATOR_TRACE_SQL=1` traces SQLite statements in both main and worker connections
 - `IPTVNATOR_TRACE_WINDOW=1` traces BrowserWindow navigation/load lifecycle
-- `IPTVNATOR_TRACE_PLAYER=1` traces external-player launch/reuse/polling debug output
+- `IPTVNATOR_TRACE_PLAYER=1` traces external-player activity and bounded Embedded MPV runtime-probe stderr
 - `IPTVNATOR_TRACE_RENDERER_CONSOLE=1` mirrors renderer console logs into the Electron terminal
 
 For GPU/compositor debugging:
@@ -671,8 +671,13 @@ engine` (restart required) or
   helper exit keeps top-level reason `helper-probe-failed`; `helperReason` is
   present only for an exact protocol-v1 line carrying a fixed allowlisted
   reason, and its optional `helperDetail` must be 1–1024 printable ASCII
-  characters. Invalid detail suppresses both helper fields. The exact packaged
-  Flatpak `/app` context reconstructs only Freedesktop Platform 24.08's immutable
+  characters. Invalid detail suppresses both helper fields. With
+  `IPTVNATOR_TRACE_PLAYER=1`, non-empty helper stderr is emitted separately as
+  one JSON-escaped stderr line with a 16,384-character `stderr` limit and an
+  explicit `truncated` field; trace-write failure cannot change availability.
+  Installed-Snap CI enables Mesa EGL/GL diagnostics through this bounded
+  channel. The exact packaged Flatpak `/app` context reconstructs only
+  Freedesktop Platform 24.08's immutable
   `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its CI smoke invokes that
   application-level probe instead of the helper directly. Bundled
   Linux packages carry hash-validated

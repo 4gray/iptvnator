@@ -18,6 +18,7 @@ import { SUCCESS_OUTPUT } from './runtime.spec-data';
 export interface RuntimeTestContext {
     rootDir: string;
     spawnRuntimeProbe: jest.Mock;
+    writeRuntimeProbeStderr: jest.Mock<void, [string]>;
     fileSystem: EmbeddedMpvFrameCopyRuntimeDependencies['fileSystem'];
     createProbe(
         overrides?: Partial<EmbeddedMpvFrameCopyRuntimeDependencies>
@@ -33,6 +34,7 @@ export function createRuntimeTestContext(): RuntimeTestContext {
         stdout: SUCCESS_OUTPUT,
         stderr: '',
     }));
+    const writeRuntimeProbeStderr = jest.fn<void, [string]>();
     const fileSystem: EmbeddedMpvFrameCopyRuntimeDependencies['fileSystem'] = {
         accessSync: jest.fn((filePath: string, mode: number) =>
             accessSync(filePath, mode)
@@ -44,6 +46,7 @@ export function createRuntimeTestContext(): RuntimeTestContext {
     const context: RuntimeTestContext = {
         rootDir,
         spawnRuntimeProbe,
+        writeRuntimeProbeStderr,
         fileSystem,
         createProbe(
             overrides: Partial<EmbeddedMpvFrameCopyRuntimeDependencies> = {}
@@ -59,6 +62,7 @@ export function createRuntimeTestContext(): RuntimeTestContext {
                 },
                 fileSystem: context.fileSystem,
                 spawnSync: context.spawnRuntimeProbe as typeof spawnSync,
+                writeStderr: context.writeRuntimeProbeStderr,
                 ...overrides,
             });
         },

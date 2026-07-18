@@ -253,4 +253,86 @@ describe('embedded-mpv frame-copy helper failures', () => {
             });
         }
     );
+
+    it('does not trace helper stderr without the exact player trace flag', () => {
+        const fixture = createFixture(context.rootDir);
+        context.spawnRuntimeProbe.mockReturnValue({
+            status: 1,
+            signal: null,
+            stdout: '{"protocol":1,"usable":false,"reason":"gl-context-create-failed"}\n',
+            stderr: 'libEGL debug output\n',
+        });
+
+        expect(context.createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'helper-probe-failed',
+            helperReason: 'gl-context-create-failed',
+        });
+        expect(context.writeRuntimeProbeStderr).not.toHaveBeenCalled();
+    });
+
+    it('traces helper stderr as one JSON-escaped line when player tracing is enabled', () => {
+        const fixture = createFixture(context.rootDir);
+        const helperStderr =
+            'libEGL warning: vendor "mesa"\nfailed path: C:\\driver';
+        context.spawnRuntimeProbe.mockReturnValue({
+            status: 1,
+            signal: null,
+            stdout: '{"protocol":1,"usable":false,"reason":"gl-context-create-failed"}\n',
+            stderr: helperStderr,
+        });
+
+        expect(
+            context.createProbe({
+                env: {
+                    PATH: '/usr/bin',
+                    IPTVNATOR_TRACE_PLAYER: '1',
+                },
+            })(fixture.helperPath)
+        ).toEqual({
+            usable: false,
+            reason: 'helper-probe-failed',
+            helperReason: 'gl-context-create-failed',
+        });
+        expect(context.writeRuntimeProbeStderr).toHaveBeenCalledWith(
+            `${JSON.stringify({
+                event: 'embedded-mpv-helper-runtime-probe-stderr',
+                stderr: helperStderr,
+                truncated: false,
+            })}\n`
+        );
+        expect(context.writeRuntimeProbeStderr).toHaveBeenCalledTimes(1);
+        expect(
+            context.writeRuntimeProbeStderr.mock.calls[0][0].split('\n')
+        ).toHaveLength(2);
+    });
+
+    it('bounds traced helper stderr to 16384 characters and reports truncation', () => {
+        const fixture = createFixture(context.rootDir);
+        const helperStderr = `${'x'.repeat(16_384)}discarded`;
+        context.spawnRuntimeProbe.mockReturnValue({
+            status: 1,
+            signal: null,
+            stdout: '{"protocol":1,"usable":false,"reason":"gl-context-create-failed"}\n',
+            stderr: helperStderr,
+        });
+
+        context.createProbe({
+            env: {
+                PATH: '/usr/bin',
+                IPTVNATOR_TRACE_PLAYER: '1',
+            },
+        })(fixture.helperPath);
+
+        const trace = JSON.parse(
+            context.writeRuntimeProbeStderr.mock.calls[0][0]
+        );
+        expect(trace).toEqual({
+            event: 'embedded-mpv-helper-runtime-probe-stderr',
+            stderr: 'x'.repeat(16_384),
+            truncated: true,
+        });
+        expect(trace.stderr).toHaveLength(16_384);
+        expect(context.writeRuntimeProbeStderr).toHaveBeenCalledTimes(1);
+    });
 });

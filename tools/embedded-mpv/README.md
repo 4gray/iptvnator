@@ -236,14 +236,20 @@ application diagnostic retains `helper-probe-failed` as the top-level reason
 for nonzero helper exits and adds `helperReason` only when the helper emitted
 one exact protocol-v1 line with a fixed allowlisted reason. Its optional
 `helperDetail` is restricted to 1–1024 printable ASCII characters; invalid
-detail suppresses both helper fields. The
+detail suppresses both helper fields. With `IPTVNATOR_TRACE_PLAYER=1`, non-empty
+captured helper stderr is written separately as one JSON-escaped stderr line:
+its `stderr` field contains at most the first 16,384 characters and its
+`truncated` boolean is always explicit. Empty captures, disabled tracing, and
+trace-writer failures do not emit a record or alter availability. The
 installed-Snap probe therefore tests the private shared-memory confinement
 needed by playback rather than only loader and graphics startup.
 Packaging CI invokes the same gate through
 `snap run iptvnator --embedded-mpv-runtime-probe`. This packaging-only
 application switch runs before BrowserWindow startup, emits one availability
 JSON line, and returns zero only for a usable runtime; it never directly loads
-libmpv in Electron.
+libmpv in Electron. The installed-Snap smoke adds `EGL_LOG_LEVEL=debug` and
+`LIBGL_DEBUG=verbose` under that bounded trace channel to expose GLVND/Mesa
+loader failures without weakening the hostile-environment gate.
 
 Electron Builder excludes `electron-backend/native{,/**/*}` from `app.asar`.
 Only `afterPack` writes the profile-normalized

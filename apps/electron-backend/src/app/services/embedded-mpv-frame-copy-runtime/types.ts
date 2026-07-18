@@ -71,6 +71,7 @@ export interface EmbeddedMpvFrameCopyRuntimeDependencies {
     env: NodeJS.ProcessEnv;
     fileSystem: EmbeddedMpvFrameCopyRuntimeFileSystem;
     spawnSync: typeof nodeSpawnSync;
+    writeStderr(output: string): void;
 }
 
 export interface RuntimeFile {
