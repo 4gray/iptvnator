@@ -36,7 +36,11 @@
             "inputs": [
                 "production",
                 "^production",
-                "{workspaceRoot}/apps/electron-backend/native/build/Release/**"
+                "{workspaceRoot}/apps/electron-backend/native/build/Release/**",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
             ],
             "options": {
                 "outputPath": "dist/apps/electron-backend",
@@ -98,7 +102,11 @@
             "inputs": [
                 "production",
                 "^production",
-                "{workspaceRoot}/apps/electron-backend/native/build/Release/**"
+                "{workspaceRoot}/apps/electron-backend/native/build/Release/**",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
             ],
             "options": {
                 "outputPath": "dist/apps/electron-backend",
@@ -193,11 +201,27 @@
             }
         },
         "lint": {
-            "command": "eslint apps/electron-backend/**/*.ts"
+            "inputs": [
+                "default",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
+            ],
+            "command": "eslint apps/electron-backend/**/*.ts \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime.ts\" \"apps/electron-backend/src/app/services/embedded-mpv-frame-copy-runtime/**/*.ts\""
         },
         "test": {
             "executor": "@nx/jest:jest",
             "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+            "inputs": [
+                "default",
+                "^production",
+                "{workspaceRoot}/jest.preset.js",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/linux-source-archive-contract.d.cts",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.cjs",
+                "{workspaceRoot}/tools/embedded-mpv/runtime-probe-contract.d.cts"
+            ],
             "options": {
                 "jestConfig": "apps/electron-backend/jest.config.ts"
             }

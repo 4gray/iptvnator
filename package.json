@@ -46,6 +46,7 @@
         "verify:package-layout": "node tools/packaging/verify-electron-package-layout.mjs",
         "embedded-mpv:build-native:homebrew": "IPTVNATOR_EMBEDDED_MPV_ALLOW_HOMEBREW=1 nx run electron-backend:build-embedded-mpv",
         "embedded-mpv:build-runtime": "node tools/embedded-mpv/build-macos-runtime.mjs",
+        "embedded-mpv:build-runtime:linux": "node tools/embedded-mpv/build-linux-runtime.mjs",
         "embedded-mpv:stage-runtime": "node tools/embedded-mpv/stage-runtime.mjs",
         "embedded-mpv:stage-runtime:macos": "node tools/embedded-mpv/stage-macos-runtime.mjs",
         "embedded-mpv:stage-runtime:windows-archive": "node tools/embedded-mpv/stage-windows-runtime-archive.mjs",
@@ -211,7 +212,8 @@
         "tslib": "^2.8.1",
         "tsx": "4.21.0",
         "typescript": "5.9.3",
-        "typescript-eslint": "^8.46.2"
+        "typescript-eslint": "^8.46.2",
+        "yaml": "2.8.2"
     },
     "pnpm": {
         "overrides": {

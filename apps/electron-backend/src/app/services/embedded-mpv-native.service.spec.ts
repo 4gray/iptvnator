@@ -3,23 +3,29 @@ import type {
     EmbeddedMpvSessionStatus,
     ResolvedPortalPlayback,
 } from '@iptvnator/shared/interfaces';
-import {
-    chmodSync,
-    existsSync,
-    mkdirSync,
-    mkdtempSync,
-    rmSync,
-    writeFileSync,
-} from 'fs';
+import { existsSync, mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import path from 'path';
 import type { EmbeddedMpvNativeService as EmbeddedMpvNativeServiceType } from './embedded-mpv-native.service';
 
 const mockSpawnSync = jest.fn();
+const mockIsFrameCopyRuntimeUsable = jest.fn<boolean, []>();
+const mockGetFrameCopyRuntimeAvailability = jest.fn();
 
 jest.mock('child_process', () => ({
     spawnSync: mockSpawnSync,
 }));
+
+jest.mock('./embedded-mpv-frame-copy-platform.util', () => {
+    const actual = jest.requireActual(
+        './embedded-mpv-frame-copy-platform.util'
+    );
+    return {
+        ...actual,
+        getFrameCopyRuntimeAvailability: mockGetFrameCopyRuntimeAvailability,
+        isFrameCopyRuntimeUsable: mockIsFrameCopyRuntimeUsable,
+    };
+});
 
 const powerSaveBlockerMock = {
     start: jest.fn<number, [string]>(),
@@ -138,6 +144,13 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         mockSpawnSync.mockReturnValue({
             status: 0,
         });
+        mockIsFrameCopyRuntimeUsable.mockReset();
+        mockIsFrameCopyRuntimeUsable.mockReturnValue(false);
+        mockGetFrameCopyRuntimeAvailability.mockReset();
+        mockGetFrameCopyRuntimeAvailability.mockReturnValue({
+            usable: false,
+            reason: 'helper-probe-failed',
+        });
         mainWindowGetNativeWindowHandleMock.mockReset();
         mainWindowGetNativeWindowHandleMock.mockReturnValue(Buffer.alloc(8));
         mainWindowSendMock.mockReset();
@@ -230,14 +243,9 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         // no helper on disk => the engine env flag is ignored, native keeps
         // working, and support does not advertise frame-copy.
         process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
-        jest.spyOn(
-            service as unknown as {
-                resolveFrameCopyHelperPath: () => string | null;
-            },
-            'resolveFrameCopyHelperPath'
-        ).mockReturnValue(null);
         try {
             expect(service.getActiveEngine()).toBe('native');
+            expect(mockIsFrameCopyRuntimeUsable).toHaveBeenCalledWith();
             const support = service.getSupport();
             expect(support.engine).not.toBe('frame-copy');
             startSession('s-fallback', snapshot('loading'));
@@ -262,37 +270,23 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     });
 
     (process.platform === 'win32' ? it.skip : it)(
-        'falls back to the native engine when the frame-copy helper is not executable',
+        'falls back to the native engine when the frame-copy runtime probe fails',
         () => {
-            const tempDir = createTempDir();
-            const releaseDir = path.join(
-                tempDir,
-                'apps',
-                'electron-backend',
-                'native',
-                'build',
-                'Release'
-            );
-            const helperPath = path.join(
-                releaseDir,
-                'iptvnator_mpv_helper'
-            );
-            mkdirSync(releaseDir, { recursive: true });
-            writeFileSync(helperPath, '#!/bin/sh\n');
-            chmodSync(helperPath, 0o644);
-            writeFileSync(
-                path.join(releaseDir, 'embedded_mpv_frame_reader.node'),
-                'reader'
-            );
-            const cwdSpy = jest.spyOn(process, 'cwd').mockReturnValue(tempDir);
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
 
             try {
                 expect(service.getActiveEngine()).toBe('native');
                 expect(service.isFrameCopyAvailable()).toBe(false);
+                expect(mockIsFrameCopyRuntimeUsable).toHaveBeenCalledWith();
+                expect(service.getSupport()).toEqual(
+                    expect.objectContaining({
+                        engine: 'native',
+                        frameCopyAvailable: false,
+                        frameCopyUnavailableReason: 'helper-probe-failed',
+                    })
+                );
             } finally {
                 delete process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY;
-                cwdSpy.mockRestore();
             }
         }
     );
@@ -300,13 +294,11 @@ describe('EmbeddedMpvNativeService power blocker', () => {
     describe('frame-copy platform gate', () => {
         const originalArch = process.arch;
 
-        function mockHelperPresent(): void {
-            jest.spyOn(
-                service as unknown as {
-                    resolveFrameCopyHelperPath: () => string | null;
-                },
-                'resolveFrameCopyHelperPath'
-            ).mockReturnValue('/native/iptvnator_mpv_helper');
+        function mockRuntimeUsable(): void {
+            mockIsFrameCopyRuntimeUsable.mockReturnValue(true);
+            mockGetFrameCopyRuntimeAvailability.mockReturnValue({
+                usable: true,
+            });
         }
 
         afterEach(() => {
@@ -322,7 +314,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             process.env.DISPLAY = ':0';
             process.env.WAYLAND_DISPLAY = 'wayland-0';
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
-            mockHelperPresent();
+            mockRuntimeUsable();
 
             expect(service.getActiveEngine()).toBe('frame-copy');
             expect(service.isFrameCopyAvailable()).toBe(true);
@@ -342,7 +334,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             Object.defineProperty(process, 'platform', { value: 'linux' });
             process.env.DISPLAY = ':0';
             process.env.WAYLAND_DISPLAY = 'wayland-0';
-            mockHelperPresent();
+            mockRuntimeUsable();
 
             const support = service.getSupport();
             expect(support.supported).toBe(false);
@@ -355,7 +347,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             process.env.DISPLAY = ':0';
             delete process.env.WAYLAND_DISPLAY;
             mockSpawnSync.mockReturnValue({ status: 1 });
-            mockHelperPresent();
+            mockRuntimeUsable();
 
             const support = service.getSupport();
             expect(support.supported).toBe(false);
@@ -370,7 +362,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             delete process.env.WAYLAND_DISPLAY;
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
             mockSpawnSync.mockReturnValue({ status: 1 });
-            mockHelperPresent();
+            mockRuntimeUsable();
 
             expect(service.getSupport()).toEqual(
                 expect.objectContaining({
@@ -383,16 +375,35 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         it('activates the frame-copy engine on macOS arm64', () => {
             Object.defineProperty(process, 'arch', { value: 'arm64' });
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
-            mockHelperPresent();
+            mockRuntimeUsable();
 
             expect(service.getActiveEngine()).toBe('frame-copy');
             expect(service.isFrameCopyAvailable()).toBe(true);
         });
 
+        it('supplies the adapter with the runtime mode from the validated Linux capability', () => {
+            Object.defineProperty(process, 'platform', { value: 'linux' });
+            mockGetFrameCopyRuntimeAvailability.mockReturnValue({
+                usable: true,
+                profile: 'portable',
+                runtimeMode: 'bundled',
+                libmpv: '2.3',
+                renderApi: 'egl',
+            });
+
+            expect(
+                (
+                    service as unknown as {
+                        resolveFrameCopyRuntimeMode(): string | null;
+                    }
+                ).resolveFrameCopyRuntimeMode()
+            ).toBe('bundled');
+        });
+
         it('keeps the frame-copy engine Apple-Silicon-only on macOS', () => {
             Object.defineProperty(process, 'arch', { value: 'x64' });
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
-            mockHelperPresent();
+            mockIsFrameCopyRuntimeUsable.mockReturnValue(false);
 
             expect(service.getActiveEngine()).toBe('native');
             expect(service.isFrameCopyAvailable()).toBe(false);
@@ -401,7 +412,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
         it('skips the native window handle when creating a frame-copy session', () => {
             Object.defineProperty(process, 'platform', { value: 'linux' });
             process.env.IPTVNATOR_ENABLE_EMBEDDED_MPV_FRAME_COPY = '1';
-            mockHelperPresent();
+            mockRuntimeUsable();
             const frameCopyAddon = createMockAddon();
             frameCopyAddon.createSession.mockReturnValueOnce('s-fc');
             frameCopyAddon.getSessionSnapshot.mockReturnValueOnce(
@@ -425,9 +436,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             // dispatches to the adapter that owns the session, not the
             // native addon the outer afterEach shutdown would pick.
             service.disposeSession('s-fc');
-            expect(frameCopyAddon.disposeSession).toHaveBeenCalledWith(
-                's-fc'
-            );
+            expect(frameCopyAddon.disposeSession).toHaveBeenCalledWith('s-fc');
         });
     });
 
@@ -455,9 +464,7 @@ describe('EmbeddedMpvNativeService power blocker', () => {
             expect.arrayContaining(['render-process-gone', 'did-navigate'])
         );
 
-        const consoleWarnSpy = jest
-            .spyOn(console, 'warn')
-            .mockImplementation();
+        const consoleWarnSpy = jest.spyOn(console, 'warn').mockImplementation();
         handlers.get('did-navigate')?.();
         expect(addon.disposeSession).toHaveBeenCalledWith('s1');
 

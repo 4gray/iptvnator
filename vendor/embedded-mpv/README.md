@@ -11,10 +11,37 @@ Generated architecture folders are expected at:
 - `vendor/embedded-mpv/linux-x64/`
 
 Each generated folder must contain `include/mpv/client.h` and
-`runtime-manifest.json`. macOS and Windows folders also contain platform
-runtime/build inputs under `lib/` or `bin/`. The binary runtime directories are
-ignored by git by default; generate, stage, or restore them in release packaging
-jobs before building the Electron backend.
+`runtime-manifest.json`. Platform runtime/build inputs live under `lib/` or
+`bin/`. In particular, `linux-x64/lib/` contains the pinned, dynamically linked
+LGPL-compatible libmpv closure used to link the out-of-process frame-copy
+helper. `linux-x64/notices/` contains the generated
+`embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and exact
+`licenses/<package>/**` tree. The generated runtime directories are ignored by
+git; generate, stage, or restore them before building the Electron backend.
 
-Linux uses this directory for MPV headers and build metadata only. Linux
-packages launch the system `mpv` executable and must not bundle `libmpv.so`.
+Linux package profiles consume that one staged x64 source runtime differently:
+
+- DEB/RPM/Pacman remove the private closure and declare the system libmpv
+  dependency.
+- AppImage/Snap/Flatpak retain the manifest-declared closure under
+  `app.asar.unpacked/electron-backend/native/lib/` and flatten the validated
+  notice manifest, aggregate notice, and `licenses/**` tree beside it.
+- The strict Snap resolves the helper's remaining graphics interfaces through
+  the external `mesa-core22` content provider at `$SNAP/graphics`; that shared
+  provider is not staged below `vendor/embedded-mpv/`, bundled into IPTVnator,
+  or included in IPTVnator's source/notices archive.
+- DEB/RPM/Pacman and marker-only packages do not retain bundled-runtime
+  notices or license files.
+- Non-x64 Linux packages retain no native artifacts and ship only the
+  unavailable marker.
+- Electron Builder excludes the staged native tree from `app.asar`; only
+  `afterPack` writes the profile-specific unpacked payload, and package
+  verification rejects archived native entries.
+
+The DEB dependency is specifically `libmpv2` (verified on Ubuntu 24.04+).
+Ubuntu 22.04 provides `libmpv1`; use the x64 AppImage there.
+
+Only `iptvnator_mpv_helper` may link libmpv. Electron,
+`embedded_mpv.node`, and `embedded_mpv_frame_reader.node` must remain free of
+direct libmpv dependencies. See `tools/embedded-mpv/README.md` and
+`docs/architecture/embedded-mpv-native.md`.
