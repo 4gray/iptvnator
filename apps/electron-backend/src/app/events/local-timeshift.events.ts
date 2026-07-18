@@ -15,77 +15,84 @@ const publicSessions = new Map<string, LocalTimeshiftSession>();
 const publicSessionOwners = new Map<string, string>();
 const ownersWithCleanup = new WeakSet<WebContents>();
 
-service.setFailureHandler(({ sessionId, ownerId, error }) => {
-    const previous = publicSessions.get(sessionId);
-    publicSessions.delete(sessionId);
-    publicSessionOwners.delete(sessionId);
-    if (!previous) {
-        return;
-    }
-    const sender = webContents.fromId(Number(ownerId));
-    if (!sender || sender.isDestroyed()) {
-        return;
-    }
-    sender.send(LOCAL_TIMESHIFT_SESSION_UPDATE, {
-        ...previous,
-        status: 'error',
-        updatedAt: new Date().toISOString(),
-        error: error.message,
-    } satisfies LocalTimeshiftSession);
-});
-
 export default class LocalTimeshiftEvents {
     static bootstrapLocalTimeshiftEvents(): Electron.IpcMain {
+        service.setFailureHandler(({ sessionId, ownerId, error }) => {
+            const previous = publicSessions.get(sessionId);
+            publicSessions.delete(sessionId);
+            publicSessionOwners.delete(sessionId);
+            if (!previous) {
+                return;
+            }
+            const sender = webContents.fromId(Number(ownerId));
+            if (!sender || sender.isDestroyed()) {
+                return;
+            }
+            sender.send(LOCAL_TIMESHIFT_SESSION_UPDATE, {
+                ...previous,
+                status: 'error',
+                updatedAt: new Date().toISOString(),
+                error: error.message,
+            } satisfies LocalTimeshiftSession);
+        });
+
+        ipcMain.handle(LOCAL_TIMESHIFT_GET_SUPPORT, async () =>
+            service.getSupport()
+        );
+
+        ipcMain.handle(
+            LOCAL_TIMESHIFT_START,
+            async (event, request: StartLocalTimeshiftRequest) => {
+                validateStartRequest(request);
+                registerOwnerCleanup(event.sender);
+                const snapshot = await service.start({
+                    ownerId: String(event.sender.id),
+                    sourceUrl: request.playback.streamUrl,
+                    requestHeaders: playbackHeaders(request.playback),
+                    maxDurationMinutes: request.maxDurationMinutes,
+                    bufferDirectory:
+                        request.bufferDirectory?.trim() || undefined,
+                });
+                const session: LocalTimeshiftSession = snapshot;
+                publicSessions.set(session.id, session);
+                publicSessionOwners.set(session.id, String(event.sender.id));
+                return session;
+            }
+        );
+
+        ipcMain.handle(
+            LOCAL_TIMESHIFT_STOP,
+            async (event, sessionId?: string) => {
+                const ownerId = String(event.sender.id);
+                if (!sessionId) {
+                    // The renderer is abandoning everything it owns, so drop
+                    // its public session entries as well; otherwise every
+                    // channel change without a public id leaks one entry until
+                    // the renderer is destroyed.
+                    purgeOwnerSessions(ownerId);
+                    await service.stopForOwner(ownerId);
+                    return null;
+                }
+                const previous = await service.getSession(sessionId, ownerId);
+                if (!previous) {
+                    publicSessions.delete(sessionId);
+                    publicSessionOwners.delete(sessionId);
+                    return null;
+                }
+                await service.stop(sessionId, ownerId);
+                publicSessions.delete(sessionId);
+                publicSessionOwners.delete(sessionId);
+                return {
+                    ...previous,
+                    status: 'closed',
+                    updatedAt: new Date().toISOString(),
+                } satisfies LocalTimeshiftSession;
+            }
+        );
+
         return ipcMain;
     }
 }
-
-ipcMain.handle(LOCAL_TIMESHIFT_GET_SUPPORT, async () => service.getSupport());
-
-ipcMain.handle(
-    LOCAL_TIMESHIFT_START,
-    async (event, request: StartLocalTimeshiftRequest) => {
-        validateStartRequest(request);
-        registerOwnerCleanup(event.sender);
-        const snapshot = await service.start({
-            ownerId: String(event.sender.id),
-            sourceUrl: request.playback.streamUrl,
-            requestHeaders: playbackHeaders(request.playback),
-            maxDurationMinutes: request.maxDurationMinutes,
-            bufferDirectory: request.bufferDirectory?.trim() || undefined,
-        });
-        const session: LocalTimeshiftSession = snapshot;
-        publicSessions.set(session.id, session);
-        publicSessionOwners.set(session.id, String(event.sender.id));
-        return session;
-    }
-);
-
-ipcMain.handle(LOCAL_TIMESHIFT_STOP, async (event, sessionId?: string) => {
-    const ownerId = String(event.sender.id);
-    if (!sessionId) {
-        // The renderer is abandoning everything it owns, so drop its public
-        // session entries as well; otherwise every channel change without a
-        // public id leaks one entry until the renderer is destroyed.
-        purgeOwnerSessions(ownerId);
-        await service.stopForOwner(ownerId);
-        return null;
-    }
-    const previous = await service.getSession(sessionId, ownerId);
-    if (!previous) {
-        publicSessions.delete(sessionId);
-        publicSessionOwners.delete(sessionId);
-        return null;
-    }
-    await service.stop(sessionId, ownerId);
-    publicSessions.delete(sessionId);
-    publicSessionOwners.delete(sessionId);
-    return {
-        ...previous,
-        status: 'closed',
-        updatedAt: new Date().toISOString(),
-    } satisfies LocalTimeshiftSession;
-});
 
 function registerOwnerCleanup(sender: WebContents): void {
     if (ownersWithCleanup.has(sender)) {

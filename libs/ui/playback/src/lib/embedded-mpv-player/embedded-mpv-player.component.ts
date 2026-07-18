@@ -25,6 +25,7 @@ import {
 } from '@iptvnator/shared/interfaces';
 import { PlayerControlsComponent } from '../player-controls/player-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS } from '../timeshift/live-edge';
 import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
 import { EmbeddedMpvControlsAdapter } from './embedded-mpv-controls.adapter';
 import { EmbeddedMpvLegacyInteractions } from './embedded-mpv-legacy-interactions';
@@ -173,7 +174,7 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             (!this.isLivePlayback() || this.localTimeshiftActive()) &&
             (this.session()?.durationSeconds ?? 0) > 0
     );
-    /** Mirrors isMediaAtLiveEdge() for the mpv session (15s tolerance). */
+    /** Mirrors isMediaAtLiveEdge() for the mpv session. */
     readonly atLiveEdge = computed(() => {
         const session = this.session();
         if (session?.status !== 'playing') {
@@ -183,7 +184,10 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
         if (!Number.isFinite(duration) || duration <= 0) {
             return true;
         }
-        return duration - (session.positionSeconds ?? 0) <= 15;
+        return (
+            duration - (session.positionSeconds ?? 0) <=
+            DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS
+        );
     });
     readonly canFullscreen = computed(
         () =>

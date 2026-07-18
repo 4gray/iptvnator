@@ -69,8 +69,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     @Input() channel!: Channel;
     @Input() volume = 1;
     @Input() startTime = 0;
-    @Input() localTimeshiftActive = false;
     @Input() seriesNavigation: SeriesPlaybackNavigation | null = null;
+    readonly localTimeshiftActive = input(false);
     readonly isLive = input(true);
     readonly interactionEnabled = input(true);
     readonly showCaptions = input(false);
@@ -116,7 +116,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 adapter: this.controlsAdapter,
                 // A Timeshift playlist remains semantically live, but its
                 // sliding window must stay seekable in the shared controls.
-                isLive: () => this.isLive() && !this.localTimeshiftActive,
+                isLive: () => this.isLive() && !this.localTimeshiftActive(),
                 showCaptions: () => this.showCaptions(),
             });
             this.controlsBridge.attach();
@@ -125,7 +125,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             }
         }
         this.getVideoSession().attach();
-        this.liveEdge.sync(this.localTimeshiftActive);
+        this.liveEdge.sync(this.localTimeshiftActive());
     }
 
     /**
@@ -147,7 +147,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.controlsBridge?.refreshInputs();
         }
         if (changes['localTimeshiftActive']) {
-            this.liveEdge.sync(this.localTimeshiftActive);
+            this.liveEdge.sync(this.localTimeshiftActive());
         }
         if (changes['interactionEnabled']?.currentValue === false) {
             this.exitOwnedFullscreen();

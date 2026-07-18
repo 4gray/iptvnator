@@ -30,9 +30,11 @@ import {
     LOCAL_TIMESHIFT_START,
     LOCAL_TIMESHIFT_STOP,
 } from '@iptvnator/shared/interfaces';
-import './local-timeshift.events';
+import LocalTimeshiftEvents from './local-timeshift.events';
 
-// Captured before the beforeEach mock resets; registered once at module load.
+LocalTimeshiftEvents.bootstrapLocalTimeshiftEvents();
+
+// Captured before the beforeEach mock resets; registered once by bootstrap.
 const failureHandler = mockService.setFailureHandler.mock
     .calls[0][0] as (failure: {
     sessionId: string;

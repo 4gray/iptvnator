@@ -1,26 +1,14 @@
 import { spawn } from 'node:child_process';
-import { randomBytes } from 'node:crypto';
-import { mkdir, mkdtemp, rm } from 'node:fs/promises';
+import { rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import {
-    buildLocalTimeshiftFfmpegArgs,
-    resolveFfmpegCommand,
-} from './local-timeshift-ffmpeg';
+import { resolveFfmpegCommand } from './local-timeshift-ffmpeg';
 import { createLocalTimeshiftHttpServer } from './local-timeshift-http-server';
-import {
-    readTimeshiftBufferMetrics,
-    throwIfTimeshiftAborted,
-    waitForPlayableTimeshiftPlaylist,
-} from './local-timeshift-playlist';
-import {
-    observeLocalTimeshiftProcess,
-    terminateLocalTimeshiftProcess,
-    waitForLocalTimeshiftProcessSpawn,
-} from './local-timeshift-process';
+import { readTimeshiftBufferMetrics } from './local-timeshift-playlist';
+import { terminateLocalTimeshiftProcess } from './local-timeshift-process';
+import { LocalTimeshiftSessionStarter } from './local-timeshift-session-starter';
 import {
     assertLocalTimeshiftCanStart,
-    createActiveTimeshiftSession,
     createStartingTimeshiftOperation,
     sanitizeLocalTimeshiftStartError,
     type ActiveLocalTimeshiftSession,
@@ -66,6 +54,7 @@ export class LocalTimeshiftService {
     private readonly stopTimeoutMs: number;
     private readonly pollIntervalMs: number;
     private ffmpegCommand?: string;
+    private ffmpegResolved = false;
     private failureHandler?: LocalTimeshiftFailureHandler;
 
     constructor(options: LocalTimeshiftServiceOptions = {}) {
@@ -87,7 +76,10 @@ export class LocalTimeshiftService {
     }
 
     getSupport(): LocalTimeshiftSupport {
-        this.ffmpegCommand ??= this.resolveFfmpeg();
+        if (!this.ffmpegResolved) {
+            this.ffmpegCommand = this.resolveFfmpeg();
+            this.ffmpegResolved = true;
+        }
         return this.ffmpegCommand
             ? { supported: true, engine: 'ffmpeg' }
             : {
@@ -115,64 +107,38 @@ export class LocalTimeshiftService {
 
         const operation = createStartingTimeshiftOperation();
         this.startsByOwner.set(request.ownerId, operation);
-        let directory: string | undefined;
-        let session: ActiveLocalTimeshiftSession | undefined;
-        try {
-            const root =
-                request.bufferDirectory ?? this.defaultBufferDirectory();
-            await mkdir(root, { recursive: true });
-            throwIfTimeshiftAborted(operation.abortController.signal);
-            directory = await mkdtemp(join(root, 'session-'));
-            const token = randomBytes(24).toString('base64url');
-            const http = await this.createHttpServer(directory, token);
-            session = createActiveTimeshiftSession(request, directory, http);
-            this.sessions.set(session.id, session);
-            this.sessionIdsByOwner.set(session.ownerId, session.id);
-            throwIfTimeshiftAborted(operation.abortController.signal);
-
-            const args = buildLocalTimeshiftFfmpegArgs({
-                sourceUrl: request.sourceUrl,
-                requestHeaders: request.requestHeaders,
-                maxDurationMinutes: request.maxDurationMinutes,
-                outputDirectory: directory,
-            });
-            const child = this.spawnProcess(this.ffmpegCommand, args, {
-                shell: false,
-                detached: false,
-                stdio: 'ignore',
-                windowsHide: true,
-            });
-            session.process = child;
-            observeLocalTimeshiftProcess(session, child, (error) => {
+        const starter = new LocalTimeshiftSessionStarter({
+            ffmpegCommand: this.ffmpegCommand,
+            spawnProcess: this.spawnProcess,
+            createHttpServer: this.createHttpServer,
+            defaultBufferDirectory: this.defaultBufferDirectory,
+            startTimeoutMs: this.startTimeoutMs,
+            pollIntervalMs: this.pollIntervalMs,
+            registerSession: (session) => {
+                this.sessions.set(session.id, session);
+                this.sessionIdsByOwner.set(session.ownerId, session.id);
+            },
+            onUnexpectedExit: (session, error) => {
                 void this.handleUnexpectedExit(session, error);
-            });
-            await waitForLocalTimeshiftProcessSpawn(
-                child,
-                session.processFailure
+            },
+            toSnapshot: (session) => this.toSnapshot(session),
+        });
+        try {
+            return await starter.start(
+                request,
+                operation.abortController.signal
             );
-            await waitForPlayableTimeshiftPlaylist(
-                session,
-                operation.abortController.signal,
-                this.startTimeoutMs,
-                this.pollIntervalMs
-            );
-            throwIfTimeshiftAborted(operation.abortController.signal);
-            const snapshot = await this.toSnapshot(session);
-            if (session.processEnded) throw await session.processFailure;
-            throwIfTimeshiftAborted(operation.abortController.signal);
-            session.ready = true;
-            return snapshot;
         } catch (error) {
-            if (session) {
+            if (starter.session) {
                 await this.cleanupSession(
-                    session,
+                    starter.session,
                     true,
                     operation.abortController.signal.aborted
                         ? CANCELED_START_STOP_TIMEOUT_MS
                         : this.stopTimeoutMs
                 );
-            } else if (directory) {
-                await rm(directory, { recursive: true, force: true });
+            } else if (starter.directory) {
+                await rm(starter.directory, { recursive: true, force: true });
             }
             throw sanitizeLocalTimeshiftStartError(error);
         } finally {

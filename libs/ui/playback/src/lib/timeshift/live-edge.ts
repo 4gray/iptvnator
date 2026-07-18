@@ -19,7 +19,7 @@ export function getMediaLiveEdge(
 // hls.js keeps the live playhead ~3 target durations (12s with 4s segments)
 // behind the playlist end, and Video.js' liveTracker uses a 15s tolerance.
 // Anything within this window is considered "playing live".
-const DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS = 15;
+export const DEFAULT_LIVE_EDGE_TOLERANCE_SECONDS = 15;
 
 export function isMediaAtLiveEdge(
     media: Pick<
