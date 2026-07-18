@@ -307,7 +307,9 @@ Key files:
   notices and a VCS-metadata-free
   `linux-frame-copy-runtime-sources.tar.xz` for the current checkout on every
   run while retaining the exact pinned six recursive libplacebo submodule
-  records. Its source index carries the globally sorted libplacebo
+  records. Each record is canonical `full-commit safe/path`; clone-depth
+  dependent `git describe` annotations are discarded and never form part of
+  the provenance identity. Its source index carries the globally sorted libplacebo
   directory/file/symlink inventory; file hashes, sizes, executable bits, link
   targets, aggregates, and canonical tree digest must match the trusted pinned
   checkout. The archive has an exact member/type layout and its

@@ -294,6 +294,8 @@ exact unique archive hash set, VCS-free libplacebo sources and the exact pinned
 six recursive submodule records, license inputs, generated notices,
 runtime/source index metadata, and the builder, stager, manifest,
 notice-generator, and source-snapshot code.
+Submodule identity is canonicalized as `full-commit safe/path`; optional
+clone-depth-dependent `git describe` annotations are discarded.
 The source index carries a globally sorted inventory of every libplacebo
 directory, file, and symlink. Regular-file hashes, sizes, normalized executable
 bits, exact safe link targets, aggregate counts/bytes, and the canonical

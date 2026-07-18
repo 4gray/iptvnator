@@ -11,12 +11,12 @@ const HWDATA_BUILD_INPUT = Object.freeze({
     purpose: 'PNP vendor lookup table compiled into libdisplay-info.',
 });
 const EXPECTED_LIBPLACEBO_V7_360_1_SOURCE_SUBMODULES = Object.freeze([
-    '450bd2232225d6c7728a4108055ac2e37cef6475 3rdparty/Vulkan-Headers (v1.4.337)',
-    '97b54ca9e75f5303507699d27c6b4f4efe4641a1 3rdparty/fast_float (v6.1.0-275-g97b54ca)',
-    '73db193f853e2ee079bf3ca8a64aa2eaf6459043 3rdparty/glad (v0.1.11a-302-g73db193)',
-    '15206881c006c79667fe5154fe80c01c65410679 3rdparty/jinja (3.1.6)',
-    '297fc8e356e6836a62087949245d09a28e9f1b13 3rdparty/markupsafe (3.0.3)',
-    '242f35efa067a46c595645eeda7b1771ea1f83b1 demos/3rdparty/nuklear (4.12.8)',
+    '450bd2232225d6c7728a4108055ac2e37cef6475 3rdparty/Vulkan-Headers',
+    '97b54ca9e75f5303507699d27c6b4f4efe4641a1 3rdparty/fast_float',
+    '73db193f853e2ee079bf3ca8a64aa2eaf6459043 3rdparty/glad',
+    '15206881c006c79667fe5154fe80c01c65410679 3rdparty/jinja',
+    '297fc8e356e6836a62087949245d09a28e9f1b13 3rdparty/markupsafe',
+    '242f35efa067a46c595645eeda7b1771ea1f83b1 demos/3rdparty/nuklear',
 ]);
 
 const SOURCE_PACKAGES = Object.freeze(
@@ -611,6 +611,62 @@ function assertGitSubmodulesMatchPin(sourcePackage, actualSubmodules) {
             `${sourcePackage.id} git submodules do not match the exact pinned recursive records.`
         );
     }
+}
+
+function canonicalizeGitSubmoduleStatus(output) {
+    if (typeof output !== 'string') {
+        throw new Error('Git submodule status output must be a string.');
+    }
+    if (output.trim() === '') {
+        return [];
+    }
+
+    const records = [];
+    const seenRecords = new Set();
+    const seenPaths = new Set();
+    for (const rawLine of output.split(/\r?\n/)) {
+        const line = rawLine.trim();
+        if (line === '') {
+            continue;
+        }
+        if (/^[-+U]/.test(line)) {
+            throw new Error(
+                `Git submodule checkout is not clean: ${rawLine.trimEnd()}`
+            );
+        }
+        const match = line.match(
+            /^([a-f0-9]{40,64})\s+([A-Za-z0-9_+./-]+)(?:\s+\([^\r\n]*\))?$/
+        );
+        if (!match) {
+            throw new Error(
+                `Git submodule status contains an unsafe or malformed record: ${rawLine.trimEnd()}`
+            );
+        }
+        const submodulePath = match[2];
+        if (
+            path.posix.isAbsolute(submodulePath) ||
+            submodulePath
+                .split('/')
+                .some(
+                    (segment) =>
+                        segment === '' || segment === '.' || segment === '..'
+                )
+        ) {
+            throw new Error(
+                `Git submodule status contains an unsafe path: ${submodulePath}`
+            );
+        }
+        const record = `${match[1]} ${submodulePath}`;
+        if (seenRecords.has(record) || seenPaths.has(submodulePath)) {
+            throw new Error(
+                `Git submodule status contains a duplicate record: ${record}`
+            );
+        }
+        seenRecords.add(record);
+        seenPaths.add(submodulePath);
+        records.push(record);
+    }
+    return records;
 }
 
 function parseVersion(value) {
@@ -1613,6 +1669,7 @@ module.exports = {
     assertPortableAbiRecords,
     assertPortableBuildHostGlibc,
     assertUniqueMesonOptionAssignments,
+    canonicalizeGitSubmoduleStatus,
     compareVersions,
     createBuildEnvironment,
     createLinuxRuntimeManifest,

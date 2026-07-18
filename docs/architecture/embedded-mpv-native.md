@@ -894,7 +894,9 @@ tree. The separately uploaded
 `linux-frame-copy-runtime-sources.tar.xz` contains the exact archive set,
 the VCS-metadata-free libplacebo working tree plus the exact pinned commit and
 six recursive submodule records, notice/license inputs, runtime metadata,
-current revision/diff, and build tooling. The source index also records a
+current revision/diff, and build tooling. Each submodule record is canonical
+`full-commit safe/path`; clone-depth-dependent `git describe` annotations are
+discarded. The source index also records a
 globally sorted exact inventory
 of every libplacebo directory, regular file, and symlink. File hashes, sizes,
 normalized executable bits, link targets, aggregate counts/bytes, and the

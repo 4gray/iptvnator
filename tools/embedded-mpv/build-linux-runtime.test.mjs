@@ -34,6 +34,7 @@ const {
     assertPortableAbiRecords,
     assertPortableBuildHostGlibc,
     assertUniqueMesonOptionAssignments,
+    canonicalizeGitSubmoduleStatus,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
     createOwnedStagingPrefix,
@@ -78,6 +79,35 @@ function createPinnedSourceRecords() {
 test('provides the Linux source runtime builder entrypoint and helpers', () => {
     assert.equal(fs.existsSync(builderScript), true);
     assert.equal(fs.existsSync(builderHelpers), true);
+});
+
+test('canonicalizes exact submodule identities independently of clone depth', () => {
+    const commit = '450bd2232225d6c7728a4108055ac2e37cef6475';
+    const path = '3rdparty/Vulkan-Headers';
+    assert.deepEqual(
+        canonicalizeGitSubmoduleStatus(` ${commit} ${path} (v1.4.337)\n`),
+        [`${commit} ${path}`]
+    );
+    assert.deepEqual(
+        canonicalizeGitSubmoduleStatus(`${commit} ${path} (450bd22)`),
+        [`${commit} ${path}`]
+    );
+});
+
+test('rejects non-clean, unsafe, and duplicate submodule status records', () => {
+    const commit = 'a'.repeat(40);
+    for (const output of [
+        `-${commit} 3rdparty/missing`,
+        `+${commit} 3rdparty/moved`,
+        `U${commit} 3rdparty/conflicted`,
+        ` ${commit} ../outside`,
+        ` ${commit} 3rdparty/example\n ${commit} 3rdparty/example`,
+    ]) {
+        assert.throws(
+            () => canonicalizeGitSubmoduleStatus(output),
+            /not clean|unsafe|duplicate/i
+        );
+    }
 });
 
 test('pins the complete source stack and preserves dependency build order', () => {

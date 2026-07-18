@@ -692,7 +692,9 @@ engine` (restart required) or
   notices or the compliance tarball; it regenerates those notices and the
   VCS-metadata-free `linux-frame-copy-runtime-sources.tar.xz` for the current
   checkout while preserving the exact pinned six recursive libplacebo
-  submodule records. Its source index carries the globally sorted libplacebo
+  submodule records. Each record is canonical `full-commit safe/path`;
+  clone-depth dependent `git describe` annotations are discarded and never
+  form part of the provenance identity. Its source index carries the globally sorted libplacebo
   directory/file/symlink inventory; file hashes, sizes, executable bits, link
   targets, aggregates, and canonical tree digest must match the trusted pinned
   checkout. The archive has an exact member/type layout and its

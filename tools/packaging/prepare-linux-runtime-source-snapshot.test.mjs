@@ -4,9 +4,14 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
+import { createRequire } from 'node:module';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
+const require = createRequire(import.meta.url);
+const {
+    canonicalizeGitSubmoduleStatus,
+} = require('../embedded-mpv/build-linux-runtime.cjs');
 const helperPath = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     'prepare-linux-runtime-source-snapshot.cjs'
@@ -123,14 +128,9 @@ function createCheckoutWithSubmodule(root) {
         checkout,
         expected: {
             sourceGitCommit: runGit(checkout, ['rev-parse', 'HEAD']),
-            sourceSubmodules: runGit(checkout, [
-                'submodule',
-                'status',
-                '--recursive',
-            ])
-                .split(/\r?\n/)
-                .map((line) => line.trim())
-                .filter(Boolean),
+            sourceSubmodules: canonicalizeGitSubmoduleStatus(
+                runGit(checkout, ['submodule', 'status', '--recursive'])
+            ),
         },
     };
 }

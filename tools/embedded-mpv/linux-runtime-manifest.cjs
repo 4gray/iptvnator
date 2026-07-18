@@ -29,8 +29,7 @@ const ALLOWED_EXTERNAL_LIBRARY_NAMES = new Set([
     ...GLIBC_TOOLCHAIN_ALLOWLIST,
     ...EXTERNAL_SYSTEM_LIBRARIES.map(({ name }) => name),
 ]);
-const SUBMODULE_RECORD_PATTERN =
-    /^[a-f0-9]{40,64}\s+([A-Za-z0-9_+./-]+)(?:\s+\(.+\))?$/;
+const SUBMODULE_RECORD_PATTERN = /^[a-f0-9]{40,64}\s+([A-Za-z0-9_+./-]+)$/;
 const LINUX_SYSTEM_BACKEND = 'process-isolated mpv --wid';
 
 function isObject(value) {

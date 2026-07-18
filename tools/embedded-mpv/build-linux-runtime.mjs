@@ -24,6 +24,7 @@ const {
     assertPortableAbiRecords,
     assertPortableBuildHostGlibc,
     assertUniqueMesonOptionAssignments,
+    canonicalizeGitSubmoduleStatus,
     createBuildEnvironment,
     createLinuxRuntimeManifest,
     createOwnedStagingPrefix,
@@ -292,12 +293,7 @@ function cloneGitSource(sourcePackage, context) {
     return {
         ...sourcePackage,
         sourceGitCommit,
-        sourceSubmodules: submoduleOutput
-            ? submoduleOutput
-                  .split(/\r?\n/)
-                  .map((line) => line.trim())
-                  .filter(Boolean)
-            : [],
+        sourceSubmodules: canonicalizeGitSubmoduleStatus(submoduleOutput),
     };
 }
 

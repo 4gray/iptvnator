@@ -7,6 +7,9 @@ const crypto = require('node:crypto');
 const fs = require('node:fs');
 const path = require('node:path');
 const { isDeepStrictEqual } = require('node:util');
+const {
+    canonicalizeGitSubmoduleStatus,
+} = require('../embedded-mpv/build-linux-runtime.cjs');
 
 const GIT_COMMIT_PATTERN = /^[a-f0-9]{40,64}$/;
 const SHA256_PATTERN = /^[a-f0-9]{64}$/;
@@ -76,7 +79,7 @@ function assertCleanCheckout(checkoutPath, label) {
 }
 
 function sourceSubmoduleIdentity(record) {
-    const match = record.match(/^([a-f0-9]{40,64})\s+([^\s]+)(?:\s|$)/);
+    const match = record.match(/^([a-f0-9]{40,64})\s+([A-Za-z0-9_+./-]+)$/);
     if (!match) {
         throw new Error(`Invalid source submodule record: ${record}`);
     }
@@ -109,12 +112,7 @@ function inspectCleanGitSource(checkoutPath, expected) {
         'status',
         '--recursive'
     );
-    const sourceSubmodules = submoduleOutput
-        ? submoduleOutput
-              .split(/\r?\n/)
-              .map((line) => line.trim())
-              .filter(Boolean)
-        : [];
+    const sourceSubmodules = canonicalizeGitSubmoduleStatus(submoduleOutput);
     if (!isDeepStrictEqual(sourceSubmodules, expected.sourceSubmodules)) {
         throw new Error(
             'Source checkout submodules do not match the runtime manifest.'
