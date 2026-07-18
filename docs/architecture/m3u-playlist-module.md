@@ -663,6 +663,69 @@ class EpgService {
   for a programme the user clicked, both hosts surface a
   `EPG.TIMELINE.CATCHUP_FAILED` snackbar instead of doing nothing.
 
+### DASH + ClearKey Playback
+
+MPEG-DASH (`.mpd`) channels play through a Shaka Player *source engine* inside
+the existing built-in players — exactly like hls.js/mpegts.js. There is no new
+player in settings.
+
+**DRM data flow** (M3U module only; Xtream/Stalker have no DRM concept):
+
+1. The playlist parser fork does not understand `#KODIPROP:` lines, but keeps
+   every unknown line between `#EXTINF` and the stream URL in `item.raw` (the
+   dominant Kodi/TiviMate layout; `#KODIPROP` lines *before* `#EXTINF` are
+   dropped by the parser — fixing that requires a parser-fork patch and is
+   deferred).
+2. `extractDrmFromRaw()` (`libs/shared/m3u-utils/src/lib/kodiprop.utils.ts`)
+   post-processes `raw` inside `createPlaylistObject()` — the single funnel
+   for all four import paths (Electron URL/file import, refresh worker,
+   web-backend `/parse`, client-side upload). It reads
+   `inputstream.adaptive.license_type`, `license_key`, and the combined
+   `drm_legacy` property. ClearKey key formats: `kid:key` hex (single or
+   comma-separated), the W3C ClearKey license JSON, and a plain `{kid: key}`
+   JSON map. Unsupported license types (Widevine, PlayReady, license-server
+   URLs, malformed values) are preserved as `supported: false` — never a
+   throw.
+3. The typed result lands on `Channel.drm` (`ChannelDrm` in
+   `@iptvnator/shared/interfaces`), travels through
+   `ResolvedPortalPlayback.drm` into `WebPlayerViewComponent`'s synthetic
+   channel, and reaches the engine. Persistence is free (playlist JSON blob /
+   IndexedDB object).
+
+**Engine selection and routing:**
+
+- `ShakaVideoSession` (`libs/ui/playback/src/lib/shaka-engine/`) owns the
+  engine: lazy `import('shaka-player')` on first use (the module is a separate
+  lazy chunk, ~217 KB transfer), `drm.clearKeys` configuration, an operation
+  queue + generation guard against channel-switch races, and Shaka-error →
+  `PlaybackDiagnostic` classification (`PlaybackDiagnosticSource.Shaka`).
+  Channels with `drm.supported === false` emit a `DrmOrEncryption` diagnostic
+  without starting an engine.
+- HTML5 player: `extension === 'mpd'` branch in `playChannel()`. ArtPlayer:
+  `customType.mpd` in `ArtPlayerSourceSession`. Shared-controls bridge:
+  `WebVideoControlsSource` kind `'shaka'` + `WebVideoShakaControls`
+  (audio/text tracks via the Shaka 5 API — selecting a text track shows it,
+  `selectTextTrack(null)` hides).
+- DASH channels always play inline (radio precedent): `isDashChannel()` gates
+  `shouldShowInlinePlayer()`, the MPV/VLC auto-launch in `m3u-state` effects
+  (`shouldAutoLaunchExternalPlayer()`), and the `playerOverride` passed to
+  `app-web-player-view` — ArtPlayer stays ArtPlayer, every other configured
+  player (Video.js without a DASH bridge, embedded/external MPV, VLC) falls
+  back to the HTML5 player. External players cannot receive KODIPROP ClearKey
+  configuration (VLC upstream feature request #29465).
+- ClearKey EME works in stock Electron (`org.w3.clearkey`; no Widevine CDM
+  required) — EME needs a secure context, which `file://` (packaged) and
+  `http://localhost` (dev/PWA) both satisfy. Widevine/FairPlay are out of
+  scope (castLabs fork + VMP signing).
+
+**Testing:** offline VP9+Opus CENC fixtures in
+`apps/web-e2e/src/fixtures/dash/` (generated with ffmpeg + Shaka Packager —
+see the README there for why), e2e suites `web-e2e:src/dash-clearkey.e2e.ts`
+(Chromium; the Angular service worker is blocked because SW-routed requests
+bypass Playwright interception) and
+`electron-backend-e2e:src/dash-clearkey.e2e.ts` (real ClearKey EME in
+Electron).
+
 ## Interfaces
 
 ### Channel Interface
@@ -689,6 +752,8 @@ interface Channel {
         'user-agent': string;
         origin: string;
     };
+    /** ClearKey DRM extracted from #KODIPROP lines (DASH channels). */
+    drm?: ChannelDrm;
 }
 ```
 
