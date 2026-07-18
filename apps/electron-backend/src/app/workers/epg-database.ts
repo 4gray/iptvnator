@@ -11,7 +11,6 @@ export class EpgDatabase {
     private readonly knownChannelIds = new Set<string>();
     private readonly insertChannelStmt: BetterSqlite3.Statement;
     private readonly insertProgramStmt: BetterSqlite3.Statement;
-    private readonly deleteProgramsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteOrphanChannelsForSourceStmt: BetterSqlite3.Statement;
     private readonly deleteTodayAndFutureStmt: BetterSqlite3.Statement;
 
@@ -34,10 +33,6 @@ export class EpgDatabase {
         this.insertProgramStmt = this.db.prepare(`
             INSERT INTO epg_programs (channel_id, start, stop, title, description, category, icon_url, rating, episode_num, source_url)
             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        `);
-
-        this.deleteProgramsForSourceStmt = this.db.prepare(`
-            DELETE FROM epg_programs WHERE source_url = ?
         `);
 
         this.deleteOrphanChannelsForSourceStmt = this.db.prepare(`
@@ -134,14 +129,6 @@ export class EpgDatabase {
 
         insertMany(programs);
         return insertedCount;
-    }
-
-    deleteTodayAndFuturePrograms(sourceUrl: string): void {
-        try {
-            this.deleteTodayAndFutureStmt.run(sourceUrl);
-        } catch {
-            // Non-fatal; best-effort cleanup.
-        }
     }
 
     close(): void {

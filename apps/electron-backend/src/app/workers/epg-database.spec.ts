@@ -43,7 +43,7 @@ function createEpgDatabaseMock() {
 }
 
 describe('EpgDatabase', () => {
-    it('refreshes a source without cascading shared channel programs from other sources', () => {
+    it('refreshes a source selectively, keeping the recent past-programme archive', () => {
         const sourceUrl = 'https://example.com/playlist-guide.xml';
         const { Database, database, statements } = createEpgDatabaseMock();
         const epgDb = new EpgDatabase(Database);
@@ -62,8 +62,11 @@ describe('EpgDatabase', () => {
         const preparedSql = database.prepare.mock.calls.map(([sql]) =>
             normalizeSql(sql)
         );
-        const deleteProgramsSql =
-            'DELETE FROM epg_programs WHERE source_url = ?';
+        const deleteTodayAndFutureSql = normalizeSql(`
+            DELETE FROM epg_programs
+            WHERE source_url = ?
+              AND (start >= date('now') OR start < date('now', '-7 days'))
+        `);
         const deleteOrphanChannelsSql = normalizeSql(`
             DELETE FROM epg_channels
             WHERE source_url = ?
@@ -74,12 +77,18 @@ describe('EpgDatabase', () => {
               )
         `);
 
-        expect(preparedSql).toContain(deleteProgramsSql);
+        expect(preparedSql).toContain(deleteTodayAndFutureSql);
         expect(preparedSql).toContain(deleteOrphanChannelsSql);
+        // A refresh must not wipe the whole source: the last 7 days of
+        // programmes stay behind so catch-up remains browsable (#1138),
+        // and other sources' shared channels must not cascade away.
+        expect(preparedSql).not.toContain(
+            'DELETE FROM epg_programs WHERE source_url = ?'
+        );
         expect(preparedSql).not.toContain(
             'DELETE FROM epg_channels WHERE source_url = ?'
         );
-        expect(statements.get(deleteProgramsSql)).toHaveBeenCalledWith(
+        expect(statements.get(deleteTodayAndFutureSql)).toHaveBeenCalledWith(
             sourceUrl
         );
         expect(statements.get(deleteOrphanChannelsSql)).toHaveBeenCalledWith(
