@@ -7,7 +7,10 @@
     ></video>
 
     @if (localTimeshiftActive) {
-        <app-live-edge-button (goLive)="goLive()" />
+        <app-live-edge-button
+            [atLiveEdge]="liveEdge.atLiveEdge()"
+            (goLive)="goLive()"
+        />
     }
 
     @if (sharedControls) {

@@ -22,9 +22,24 @@
 
 app-live-edge-button {
     position: absolute;
-    right: 16px;
-    bottom: 64px;
+    right: 12px;
+    bottom: 42px;
     z-index: 20;
+    transition: opacity 200ms ease;
+}
+
+/* Fade the LIVE button out together with the Video.js control bar. */
+.vjs-player-shell:has(.video-js.vjs-has-started.vjs-user-inactive.vjs-playing)
+    app-live-edge-button {
+    opacity: 0;
+    pointer-events: none;
+}
+
+/* Same sync when the shared controls bar is hidden. */
+.vjs-player-shell:has(.player-controls__bar:not(.player-controls__bar--visible))
+    app-live-edge-button {
+    opacity: 0;
+    pointer-events: none;
 }
 
 /* Hide the captions settings item from the captions menu. */

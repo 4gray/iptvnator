@@ -61,6 +61,16 @@ button:focus-visible {
     animation: live-edge-pulse 1.8s ease-in-out infinite;
 }
 
+button.live-edge-button--behind {
+    color: var(--app-text-color, #c8cdd6);
+}
+
+button.live-edge-button--behind .live-edge-button__dot {
+    background: var(--app-muted-text-color, #8a919e);
+    box-shadow: none;
+    animation: none;
+}
+
 @keyframes live-edge-pulse {
     50% {
         box-shadow: 0 0 0 5px

@@ -173,6 +173,18 @@ export class EmbeddedMpvPlayerComponent implements OnDestroy {
             (!this.isLivePlayback() || this.localTimeshiftActive()) &&
             (this.session()?.durationSeconds ?? 0) > 0
     );
+    /** Mirrors isMediaAtLiveEdge() for the mpv session (15s tolerance). */
+    readonly atLiveEdge = computed(() => {
+        const session = this.session();
+        if (session?.status !== 'playing') {
+            return false;
+        }
+        const duration = session.durationSeconds ?? 0;
+        if (!Number.isFinite(duration) || duration <= 0) {
+            return true;
+        }
+        return duration - (session.positionSeconds ?? 0) <= 15;
+    });
     readonly canFullscreen = computed(
         () =>
             typeof document !== 'undefined' &&

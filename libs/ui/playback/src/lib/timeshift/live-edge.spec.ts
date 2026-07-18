@@ -1,4 +1,9 @@
-import { getMediaLiveEdge, seekMediaToLiveEdge } from './live-edge';
+import {
+    getMediaLiveEdge,
+    isMediaAtLiveEdge,
+    observeMediaLiveEdge,
+    seekMediaToLiveEdge,
+} from './live-edge';
 
 describe('live edge helpers', () => {
     it('uses the end of the latest seekable range', () => {
@@ -45,6 +50,59 @@ describe('live edge helpers', () => {
 
         expect(seekMediaToLiveEdge(media)).toBe(false);
         expect(play).not.toHaveBeenCalled();
+    });
+
+    it('reports at-live-edge only while playing within the tolerance', () => {
+        const seekable = createTimeRanges([[0, 100]]);
+        const base = { duration: Number.POSITIVE_INFINITY, seekable };
+
+        expect(
+            isMediaAtLiveEdge({ ...base, currentTime: 90, paused: false })
+        ).toBe(true);
+        expect(
+            isMediaAtLiveEdge({ ...base, currentTime: 40, paused: false })
+        ).toBe(false);
+        expect(
+            isMediaAtLiveEdge({ ...base, currentTime: 99, paused: true })
+        ).toBe(false);
+    });
+
+    it('treats an unknown live edge as live', () => {
+        expect(
+            isMediaAtLiveEdge({
+                duration: Number.POSITIVE_INFINITY,
+                seekable: createTimeRanges([]),
+                currentTime: 5,
+                paused: false,
+            })
+        ).toBe(true);
+    });
+
+    it('observes media events and stops after dispose', () => {
+        const media = document.createElement('video');
+        Object.defineProperty(media, 'seekable', {
+            configurable: true,
+            value: createTimeRanges([[0, 100]]),
+        });
+        Object.defineProperty(media, 'paused', {
+            configurable: true,
+            value: false,
+        });
+        media.currentTime = 95;
+
+        const changes: boolean[] = [];
+        const dispose = observeMediaLiveEdge(media, (atLiveEdge) =>
+            changes.push(atLiveEdge)
+        );
+        expect(changes).toEqual([true]);
+
+        media.currentTime = 40;
+        media.dispatchEvent(new Event('timeupdate'));
+        expect(changes).toEqual([true, false]);
+
+        dispose();
+        media.dispatchEvent(new Event('timeupdate'));
+        expect(changes).toEqual([true, false]);
     });
 });
 

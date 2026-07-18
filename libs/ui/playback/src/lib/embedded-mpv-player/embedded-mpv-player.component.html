@@ -106,6 +106,7 @@
         @if (showControls() && localTimeshiftActive()) {
             <app-live-edge-button
                 class="embedded-mpv-player__frame-copy-live-edge"
+                [atLiveEdge]="atLiveEdge()"
                 (goLive)="goLive()"
             />
         }
@@ -244,7 +245,10 @@
                                 formatTime(session()?.durationSeconds)
                             }}</span>
                             @if (localTimeshiftActive()) {
-                                <app-live-edge-button (goLive)="goLive()" />
+                                <app-live-edge-button
+                                    [atLiveEdge]="atLiveEdge()"
+                                    (goLive)="goLive()"
+                                />
                             }
                         </span>
                     } @else if (isLivePlayback()) {

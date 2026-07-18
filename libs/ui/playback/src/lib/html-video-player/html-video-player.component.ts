@@ -35,7 +35,12 @@ import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-play
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
 import { LiveEdgeButtonComponent } from '../timeshift/live-edge-button.component';
 import { seekMediaToLiveEdge } from '../timeshift/live-edge';
+import { LiveEdgeObserver } from '../timeshift/live-edge-observer';
 import { HtmlVideoElementSession } from './html-video-element-session';
+import {
+    clearNativeVideoSources,
+    replaceNativeVideoSource,
+} from './html-video-native-source.util';
 import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
@@ -80,6 +85,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
 
     readonly sharedControls = inject(WEB_PLAYER_SHARED_CONTROLS);
     readonly controlsAdapter = inject(WebVideoControlsAdapter);
+    readonly liveEdge = new LiveEdgeObserver(
+        () => this.videoPlayer?.nativeElement ?? null
+    );
     private readonly seriesNavigationSignal =
         signal<SeriesPlaybackNavigation | null>(null);
 
@@ -117,6 +125,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             }
         }
         this.getVideoSession().attach();
+        this.liveEdge.sync(this.localTimeshiftActive);
     }
 
     /**
@@ -136,6 +145,9 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             changes['showCaptions']
         ) {
             this.controlsBridge?.refreshInputs();
+        }
+        if (changes['localTimeshiftActive']) {
+            this.liveEdge.sync(this.localTimeshiftActive);
         }
         if (changes['interactionEnabled']?.currentValue === false) {
             this.exitOwnedFullscreen();
@@ -174,7 +186,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.clearControlsSource();
         this.destroyMpegtsPlayer();
         this.destroyHls();
-        this.clearNativeVideoSources(this.videoPlayer.nativeElement);
+        clearNativeVideoSources(this.videoPlayer.nativeElement);
         if (channel.url) {
             this.playbackIssue.emit(null);
             const url = channel.url + (channel.epgParams ?? '');
@@ -246,33 +258,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.handlePlayOperation();
             } else {
                 debugHtmlPlayer('Using native video player');
-                this.replaceNativeVideoSource(
+                replaceNativeVideoSource(
                     this.videoPlayer.nativeElement,
                     url,
-                    'video/mp4'
+                    'video/mp4',
+                    () => this.bindControlsSource({ kind: 'native' })
                 );
                 this.handlePlayOperation();
             }
         }
-    }
-
-    private clearNativeVideoSources(element: HTMLVideoElement): void {
-        element.removeAttribute('src');
-        element.replaceChildren();
-    }
-
-    private replaceNativeVideoSource(
-        element: HTMLVideoElement,
-        url: string,
-        type: string
-    ): void {
-        this.clearNativeVideoSources(element);
-        const source = document.createElement('source');
-        source.src = url;
-        source.type = type;
-        element.appendChild(source);
-        this.bindControlsSource({ kind: 'native' });
-        element.load();
     }
 
     private bindControlsSource(source: HtmlVideoControlsSource): void {
@@ -375,6 +369,7 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
      * Destroy hls instance on component destroy and clean up event listener
      */
     ngOnDestroy(): void {
+        this.liveEdge.disconnect();
         this.controlsBridge?.destroy();
         this.controlsBridge = null;
         this.controlsSource = null;
