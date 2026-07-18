@@ -518,6 +518,23 @@ test('Linux CI verifies every package family and exercises intended environments
     assert.doesNotMatch(buildWorkflow, /\bldd\b/);
 });
 
+test('Flatpak application runtime probe runs under an isolated D-Bus session', () => {
+    const installStep = workflowStep('Install Linux system dependencies');
+    const flatpakVerificationStep = workflowStep(
+        'Verify Flatpak payload, launcher, and sandboxed runtime'
+    );
+
+    assert.match(
+        flatpakVerificationStep,
+        /xvfb-run -a dbus-run-session -- flatpak run\s+\\\s+--env=LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+com\.fourgray\.iptvnator\s+\\\s+--embedded-mpv-runtime-probe/
+    );
+    assert.match(installStep, /^\s+dbus-daemon\s+\\$/m);
+    assert.match(
+        flatpakVerificationStep,
+        /xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1\s+\\\s+flatpak run --command=sh com\.fourgray\.iptvnator/
+    );
+});
+
 test('foreign DEB CI explicitly selects both marker-only ARM architectures', () => {
     const foreignDebStep = workflowStep(
         'Make marker-only foreign-architecture DEB packages'

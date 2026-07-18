@@ -123,4 +123,78 @@ describe('embedded-mpv frame-copy helper failures', () => {
             expect.objectContaining({ usable: false, reason })
         );
     });
+
+    it.each([
+        'mpv-create-failed',
+        'mpv-initialize-failed',
+        'gl-context-create-failed',
+        'gl-context-bind-failed',
+        'mpv-render-context-failed',
+        'shared-memory-create-failed',
+        'shared-memory-initialize-failed',
+    ])('preserves the allowlisted helper reason %s', (helperReason) => {
+        const fixture = createFixture(context.rootDir);
+        context.spawnRuntimeProbe.mockReturnValue({
+            status: 1,
+            signal: null,
+            stdout: `${JSON.stringify({
+                protocol: 1,
+                usable: false,
+                reason: helperReason,
+                ...(helperReason === 'mpv-create-failed'
+                    ? {}
+                    : {
+                          detail: 'diagnostic detail is intentionally not propagated',
+                      }),
+            })}\n`,
+            stderr: '',
+        });
+
+        expect(context.createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'helper-probe-failed',
+            helperReason,
+        });
+    });
+
+    it.each([
+        ['malformed JSON', 'not-json\n'],
+        [
+            'multiple lines',
+            '{"protocol":1,"usable":false,"reason":"mpv-create-failed"}\nignored\n',
+        ],
+        [
+            'wrong protocol',
+            '{"protocol":2,"usable":false,"reason":"mpv-create-failed"}\n',
+        ],
+        [
+            'wrong usable value',
+            '{"protocol":1,"usable":true,"reason":"mpv-create-failed"}\n',
+        ],
+        [
+            'non-allowlisted reason',
+            '{"protocol":1,"usable":false,"reason":"loader-injected"}\n',
+        ],
+        [
+            'unexpected field',
+            '{"protocol":1,"usable":false,"reason":"mpv-create-failed","extra":true}\n',
+        ],
+        [
+            'invalid detail',
+            '{"protocol":1,"usable":false,"reason":"mpv-create-failed","detail":1}\n',
+        ],
+    ])('does not propagate a helper reason from %s', (_label, stdout) => {
+        const fixture = createFixture(context.rootDir);
+        context.spawnRuntimeProbe.mockReturnValue({
+            status: 1,
+            signal: null,
+            stdout,
+            stderr: '',
+        });
+
+        expect(context.createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'helper-probe-failed',
+        });
+    });
 });

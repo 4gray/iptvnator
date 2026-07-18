@@ -1,6 +1,19 @@
 import type { spawnSync as nodeSpawnSync } from 'child_process';
 import type * as nodeFileSystem from 'fs';
 
+export const EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS = {
+    MPV_CREATE_FAILED: 'mpv-create-failed',
+    MPV_INITIALIZE_FAILED: 'mpv-initialize-failed',
+    GL_CONTEXT_CREATE_FAILED: 'gl-context-create-failed',
+    GL_CONTEXT_BIND_FAILED: 'gl-context-bind-failed',
+    MPV_RENDER_CONTEXT_FAILED: 'mpv-render-context-failed',
+    SHARED_MEMORY_CREATE_FAILED: 'shared-memory-create-failed',
+    SHARED_MEMORY_INITIALIZE_FAILED: 'shared-memory-initialize-failed',
+} as const;
+
+export type EmbeddedMpvHelperRuntimeProbeFailureReason =
+    (typeof EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS)[keyof typeof EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS];
+
 export type EmbeddedMpvFrameCopyRuntimeFailureReason =
     | 'unsupported-platform'
     | 'unsupported-architecture'
@@ -41,6 +54,7 @@ export type EmbeddedMpvFrameCopyRuntimeResult =
     | {
           usable: false;
           reason: EmbeddedMpvFrameCopyRuntimeFailureReason;
+          helperReason?: EmbeddedMpvHelperRuntimeProbeFailureReason;
       };
 
 export interface EmbeddedMpvFrameCopyRuntimeFileSystem {

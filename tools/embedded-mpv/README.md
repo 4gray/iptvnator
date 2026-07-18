@@ -232,6 +232,9 @@ shared-memory ring named `/impv-fc-runtime-probe-<pid>`. It does not open media
 or enter media/command loops. A timeout, loader failure, malformed protocol,
 missing file, hash mismatch, unusable graphics path, or shm lifecycle failure
 returns a stable reason and keeps the BrowserWindow sandbox enabled. The
+application diagnostic retains `helper-probe-failed` as the top-level reason
+for nonzero helper exits and adds `helperReason` only when the helper emitted
+one exact protocol-v1 line with a fixed allowlisted reason. The
 installed-Snap probe therefore tests the private shared-memory confinement
 needed by playback rather than only loader and graphics startup.
 Packaging CI invokes the same gate through

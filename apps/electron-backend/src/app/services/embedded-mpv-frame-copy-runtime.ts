@@ -11,5 +11,6 @@ export type {
     EmbeddedMpvFrameCopyRuntimeFileSystem,
     EmbeddedMpvFrameCopyRuntimeMode,
     EmbeddedMpvFrameCopyRuntimeResult,
+    EmbeddedMpvHelperRuntimeProbeFailureReason,
 } from './embedded-mpv-frame-copy-runtime/types';
 export type { LinuxFrameCopyHelperLaunchFileSystem } from './embedded-mpv-frame-copy-runtime/helper-launch';

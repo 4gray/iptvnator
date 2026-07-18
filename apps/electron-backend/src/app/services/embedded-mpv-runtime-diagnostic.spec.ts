@@ -86,10 +86,11 @@ describe('embedded MPV runtime diagnostic', () => {
         expect(harness.continueStartup).not.toHaveBeenCalled();
     });
 
-    it('prints the unavailable reason as one JSON line, exits nonzero, and skips startup', () => {
+    it('prints the unavailable helper reason as one JSON line, exits nonzero, and skips startup', () => {
         const availability: FrameCopyRuntimeAvailability = {
             usable: false,
             reason: 'helper-probe-failed',
+            helperReason: 'gl-context-create-failed',
         };
         const harness = createHarness(availability);
 
@@ -100,7 +101,7 @@ describe('embedded MPV runtime diagnostic', () => {
 
         expect(harness.getRuntimeAvailability).toHaveBeenCalledTimes(1);
         expect(harness.writeStdout).toHaveBeenCalledWith(
-            '{"usable":false,"reason":"helper-probe-failed"}\n'
+            '{"usable":false,"reason":"helper-probe-failed","helperReason":"gl-context-create-failed"}\n'
         );
         expect(harness.writeStdout).toHaveBeenCalledTimes(1);
         expect(harness.exit).toHaveBeenCalledWith(1);

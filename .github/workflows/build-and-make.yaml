@@ -333,6 +333,7 @@ jobs:
                   sudo apt-get install --no-install-recommends -y \
                       appstream \
                       binutils \
+                      dbus-daemon \
                       flatpak \
                       flatpak-builder \
                       libarchive-tools \
@@ -1087,7 +1088,7 @@ jobs:
                       grep -q '\''readlink -f "$SCRIPT_PATH"'\'' "${LAUNCHER_PATH}"
                       grep -q '\''exec "$SCRIPT_DIR/iptvnator.bin"'\'' "${LAUNCHER_PATH}"
                   '
-                  xvfb-run -a flatpak run \
+                  xvfb-run -a dbus-run-session -- flatpak run \
                       --env=LIBGL_ALWAYS_SOFTWARE=1 \
                       com.fourgray.iptvnator \
                       --embedded-mpv-runtime-probe

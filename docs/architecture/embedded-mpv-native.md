@@ -275,7 +275,11 @@ named `/impv-fc-runtime-probe-<pid>`. It never opens media or enters the media
 or command loops. Shared-memory creation/mapping and header-initialization
 failures emit the stable helper reasons `shared-memory-create-failed` and
 `shared-memory-initialize-failed`. The probe must emit exactly one protocol-v1
-JSON line and return zero.
+JSON line and return zero. When the helper exits nonzero with an otherwise
+exact failure line, the application availability diagnostic keeps the
+fail-closed top-level reason `helper-probe-failed` and may add only the
+allowlisted helper reason as `helperReason`; malformed, multi-line,
+wrong-protocol, or unknown failure output never reaches that field.
 
 The startup probe and every playback helper session use the same sanitized
 loader environment selected by the validated manifest's cached `runtimeMode`.

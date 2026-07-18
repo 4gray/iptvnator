@@ -8,11 +8,13 @@ import {
 } from './contracts';
 import { createLinuxFrameCopyHelperLaunch } from './helper-launch';
 import { validatePackage } from './package-validator';
+import { EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS } from './types';
 import type {
     EmbeddedMpvFrameCopyManifestContract,
     EmbeddedMpvFrameCopyRuntimeDependencies,
     EmbeddedMpvFrameCopyRuntimeFileSystem,
     EmbeddedMpvFrameCopyRuntimeResult,
+    EmbeddedMpvHelperRuntimeProbeFailureReason,
     ValidManifest,
     ValidatedPackage,
 } from './types';
@@ -24,6 +26,45 @@ import {
     isObject,
     isValidationFailure,
 } from './validation-primitives';
+
+const HELPER_RUNTIME_PROBE_FAILURE_REASON_ALLOWLIST = new Set<string>(
+    Object.values(EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS)
+);
+
+function parseFailedProbeReason(
+    stdout: unknown
+): EmbeddedMpvHelperRuntimeProbeFailureReason | null {
+    if (typeof stdout !== 'string' || !/^[^\r\n]+\n$/.test(stdout)) {
+        return null;
+    }
+
+    let parsed: unknown;
+    try {
+        parsed = JSON.parse(stdout.slice(0, -1));
+    } catch {
+        return null;
+    }
+    if (!isObject(parsed)) {
+        return null;
+    }
+
+    const hasDetail = Object.prototype.hasOwnProperty.call(parsed, 'detail');
+    const fields = hasDetail
+        ? ['detail', 'protocol', 'reason', 'usable']
+        : ['protocol', 'reason', 'usable'];
+    if (
+        !hasExactFields(parsed, fields) ||
+        parsed.protocol !== RUNTIME_PROBE_PROTOCOL ||
+        parsed.usable !== false ||
+        typeof parsed.reason !== 'string' ||
+        !HELPER_RUNTIME_PROBE_FAILURE_REASON_ALLOWLIST.has(parsed.reason) ||
+        (hasDetail &&
+            (typeof parsed.detail !== 'string' || parsed.detail.length === 0))
+    ) {
+        return null;
+    }
+    return parsed.reason as EmbeddedMpvHelperRuntimeProbeFailureReason;
+}
 
 function parseSuccessfulProbe(
     stdout: unknown,
@@ -116,7 +157,14 @@ function runHelperProbe(
         return failure('helper-probe-signaled');
     }
     if (result.status !== 0) {
-        return failure('helper-probe-failed');
+        const helperReason = parseFailedProbeReason(result.stdout);
+        return helperReason
+            ? {
+                  usable: false,
+                  reason: 'helper-probe-failed',
+                  helperReason,
+              }
+            : failure('helper-probe-failed');
     }
     return parseSuccessfulProbe(result.stdout, runtimePackage.manifest);
 }
