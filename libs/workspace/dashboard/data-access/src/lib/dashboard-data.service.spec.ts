@@ -1003,6 +1003,70 @@ describe('DashboardDataService', () => {
         });
     });
 
+    it('keeps legacy episode-keyed recents detail-only when the position row lacks the parent series id', async () => {
+        dbServiceMock.getGlobalRecentlyViewed.mockResolvedValue([
+            {
+                id: 103,
+                category_id: 19,
+                title: 'Legacy Orchard S02E04',
+                rating: '8.1',
+                viewed_at: '2026-04-22T10:00:00.000Z',
+                poster_url: 'https://example.com/legacy-orchard.png',
+                xtream_id: 909,
+                type: 'series',
+                playlist_id: 'xtream-L',
+                playlist_name: 'Xtream Legacy',
+            },
+        ]);
+
+        playlistsSignal.set([
+            ...playlistsSignal(),
+            {
+                _id: 'xtream-L',
+                title: 'Xtream Legacy',
+                count: 1,
+                importDate: '2026-01-01T00:00:00.000Z',
+                autoRefresh: false,
+                serverUrl: 'https://legacy.example.com',
+            },
+        ]);
+
+        // Rows saved before seriesXtreamId existed: keyed by the episode id
+        // with no pointer back to the parent series.
+        playbackPositionsMock.getAllPlaybackPositions.mockResolvedValue([
+            {
+                contentXtreamId: 909,
+                contentType: 'episode',
+                seasonNumber: 2,
+                episodeNumber: 4,
+                positionSeconds: 720,
+                durationSeconds: 1800,
+                playlistId: 'xtream-L',
+            } as PlaybackPositionData,
+        ]);
+
+        await service.reloadGlobalRecentItems();
+        await service.reloadPlaybackPositions();
+
+        const series = service
+            .globalRecentVodItems()
+            .find((item) => item.title === 'Legacy Orchard S02E04');
+        if (!series) {
+            throw new Error('expected the series recent item');
+        }
+
+        // The episode id must not be promoted to a series id: no resume
+        // target, and the detail item keeps its original identifier.
+        expect(service.getRecentItemNavigationState(series)).toEqual({
+            openCollectionDetailItem: {
+                item: expect.objectContaining({
+                    contentType: 'series',
+                    xtreamId: 909,
+                }),
+            },
+        });
+    });
+
     it('resolves the latest episode position for series whose recent_items row carries the series id', async () => {
         // The Xtream series landing page records the recent item with the
         // SERIES id, while each played episode saves its position keyed by

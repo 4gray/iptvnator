@@ -35,10 +35,12 @@ export class SerialDetailsPlaybackPositionState {
         const requestId = ++this.loadRequestId;
         this.loadedKey.set(null);
         let positions: PlaybackPositionData[] = [];
+        let loadSucceeded = true;
 
         try {
             positions = await loader();
         } catch (error) {
+            loadSucceeded = false;
             console.warn(
                 '[SerialDetailsPlayback] Failed to load series playback positions',
                 error
@@ -57,7 +59,12 @@ export class SerialDetailsPlaybackPositionState {
                 ])
             )
         );
-        this.loadedKey.set(this.createKey(playlistId, seriesXtreamId));
+        // A failed load must not mark the series resume-ready: without the
+        // persisted offsets a dashboard handoff would start the target
+        // episode from the beginning instead of its saved position.
+        if (loadSucceeded) {
+            this.loadedKey.set(this.createKey(playlistId, seriesXtreamId));
+        }
     }
 
     takeResumeEpisode(

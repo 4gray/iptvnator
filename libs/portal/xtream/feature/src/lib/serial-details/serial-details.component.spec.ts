@@ -518,6 +518,29 @@ describe('SerialDetailsComponent', () => {
         );
     });
 
+    it('does not auto-resume the dashboard episode when positions fail to load', async () => {
+        const warnSpy = jest
+            .spyOn(console, 'warn')
+            .mockImplementation(() => undefined);
+        getSeriesPlaybackPositions.mockRejectedValue(
+            new Error('storage unavailable')
+        );
+        seriesResumeTarget.set({
+            seriesXtreamId: 103,
+            contentXtreamId: 2001,
+            seasonNumber: 2,
+            episodeNumber: 1,
+        });
+
+        fixture.detectChanges();
+        await fixture.whenStable();
+        fixture.detectChanges();
+
+        expect(constructEpisodeStreamUrl).not.toHaveBeenCalled();
+        expect(openResolvedPlayback).not.toHaveBeenCalled();
+        warnSpy.mockRestore();
+    });
+
     it('passes inline episode metadata and autoplays only inside the current season', async () => {
         isEmbeddedPlayer.mockReturnValue(true);
         fixture.detectChanges();

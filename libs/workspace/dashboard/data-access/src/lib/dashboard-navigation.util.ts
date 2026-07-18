@@ -81,9 +81,10 @@ function buildRecentSeriesResumeTarget(
         return null;
     }
 
-    const seriesXtreamId = Number(
-        playbackPosition.seriesXtreamId ?? item.xtream_id
-    );
+    // Episode-keyed recent rows make item.xtream_id an episode id, so only a
+    // position row that names its parent series can produce a resume target;
+    // legacy rows without seriesXtreamId stay detail-only.
+    const seriesXtreamId = Number(playbackPosition.seriesXtreamId);
     const contentXtreamId = Number(playbackPosition.contentXtreamId);
     const seasonNumber = Number(playbackPosition.seasonNumber);
     const episodeNumber = Number(playbackPosition.episodeNumber);
