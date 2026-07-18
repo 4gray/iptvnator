@@ -362,6 +362,18 @@ test('Linux CI verifies every package family and exercises intended environments
     assert.doesNotMatch(buildWorkflow, /\bldd\b/);
 });
 
+test('foreign DEB CI explicitly selects both marker-only ARM architectures', () => {
+    const foreignDebStep = workflowStep(
+        'Make marker-only foreign-architecture DEB packages'
+    );
+
+    assert.match(foreignDebStep, /for foreign_arch in armv7l arm64; do/);
+    assert.match(foreignDebStep, /--arch="\$\{foreign_arch\}"/);
+    assert.match(foreignDebStep, /IPTVNATOR_LINUX_FRAME_COPY_PROFILE: ''/);
+    assert.match(foreignDebStep, /IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'/);
+    assert.doesNotMatch(foreignDebStep, /IPTVNATOR_REQUIRE_EMBEDDED_MPV: '0'/);
+});
+
 test('dedicated packaged x64 smoke cannot silently skip', () => {
     const linuxDependencies = workflowStep('Install Linux system dependencies');
     assert.match(linuxDependencies, /--no-install-recommends/);

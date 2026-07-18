@@ -604,7 +604,14 @@ describe('Embedded MPV native source recording invariants', () => {
             'SHA-256 mismatch for staged Linux runtime file'
         );
         expect(buildScriptSource).toContain(
-            'LINUX_VERIFIED_RUNTIME_LIBRARY_DIR: outputLibDir'
+            'resolveLinuxFrameCopyLinkageInputs({'
+        );
+        expect(buildScriptSource).toContain(
+            'LINUX_VERIFIED_RUNTIME_LIBRARY_DIR:\n' +
+                '                          linuxLinkageInputs.linkerLibraryDir'
+        );
+        expect(buildScriptSource).toContain(
+            'expectedLibmpvSoname: linuxLinkageInputs.expectedLibmpvSoname'
         );
         expect(buildScriptSource).not.toContain(
             'process.env.LINUX_NATIVE_LIBRARY_DIR || runtime.libDir'

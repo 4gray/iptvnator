@@ -8,6 +8,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
                 {
                     PATH: '/usr/bin',
                     HOME: '/home/user',
+                    LD_AUDIT: '/tmp/audit.so',
                     LD_LIBRARY_PATH: '/tmp/hostile-libs',
                     LD_PRELOAD: '/tmp/inject.so',
                 },
@@ -41,6 +42,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
                         '/var/lib/snapd/lib/gl/nvidia',
                         '/var/lib/snapd/lib/gl-evil',
                     ].join(':'),
+                    LD_AUDIT: '/tmp/audit.so',
                     LD_LIBRARY_PATH: '/tmp/hostile-libs',
                     LD_PRELOAD: '/tmp/inject.so',
                 },
@@ -75,6 +77,7 @@ describe('createLinuxFrameCopyHelperEnvironment', () => {
                     PATH: '/usr/bin',
                     SNAP: '/snap/iptvnator/42',
                     SNAP_LIBRARY_PATH: '/var/lib/snapd/lib/gl:/tmp/hostile-gl',
+                    LD_AUDIT: '/tmp/audit.so',
                     LD_LIBRARY_PATH: '/tmp/hostile-libs',
                     LD_PRELOAD: '/tmp/inject.so',
                 },

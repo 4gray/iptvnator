@@ -126,8 +126,9 @@ POSIX shm namespace without granting global cross-snap shared-memory access.
 
 The bounded probe and every playback helper share one sanitized loader
 environment derived from the validated, cached runtime mode. Ambient
-`LD_PRELOAD` and `LD_LIBRARY_PATH` are removed. System packages then use the
-default loader; bundled packages put their validated `native/lib` first.
+`LD_AUDIT`, `LD_PRELOAD`, and `LD_LIBRARY_PATH` are removed. System packages
+then use the default loader; bundled packages put their validated `native/lib`
+first.
 AppImage and Flatpak use normal host/sandbox lookup for the declared external
 interfaces. In a genuine Snap mount, filtered `SNAP_LIBRARY_PATH` GL roots
 under `/var/lib/snapd/lib/gl` come next, ahead of generic `$SNAP` library and
@@ -230,8 +231,10 @@ license notices with the binary.
 
 Linux can use distribution development packages for an unshipped local build
 (`libmpv-dev`, EGL/OpenGL/GBM development files, and X11 headers). Overrides:
-`LIBMPV_INCLUDE_DIR` and `LINUX_NATIVE_LIBRARY_DIR`. Required/release package
-builds must use the pinned staged runtime and manifest.
+`LIBMPV_INCLUDE_DIR` selects the header root. `LINUX_NATIVE_LIBRARY_DIR`
+selects a link-time library directory that must already be visible to the
+system dynamic loader; it is not inherited as a helper `LD_LIBRARY_PATH`.
+Required/release package builds must use the pinned staged runtime and manifest.
 
 On macOS:
 

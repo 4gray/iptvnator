@@ -179,7 +179,8 @@ export function extractLinuxArtifact({
     destination,
     runCommand = defaultRunCommand,
 }) {
-    fs.mkdirSync(destination, { recursive: true });
+    fs.rmSync(destination, { recursive: true, force: true });
+    fs.mkdirSync(path.dirname(destination), { recursive: true });
     const run = (command, args, options = {}) =>
         assertCommandSucceeded(
             command,
@@ -198,7 +199,6 @@ export function extractLinuxArtifact({
             const failures = [];
             for (const offset of squashfsOffsets) {
                 fs.rmSync(destination, { recursive: true, force: true });
-                fs.mkdirSync(destination, { recursive: true });
                 const args = [
                     '-no-progress',
                     '-offset',
@@ -226,10 +226,12 @@ export function extractLinuxArtifact({
             );
         }
         case 'deb':
+            fs.mkdirSync(destination, { recursive: true });
             run('dpkg-deb', ['--extract', artifactPath, destination]);
             return destination;
         case 'rpm':
         case 'pacman':
+            fs.mkdirSync(destination, { recursive: true });
             run('bsdtar', [
                 '--extract',
                 '--file',
@@ -247,9 +249,15 @@ export function extractLinuxArtifact({
             ]);
             return destination;
         case 'flatpak': {
+            fs.mkdirSync(destination, { recursive: true });
             const repository = path.join(destination, '.ostree-repository');
             const checkout = path.join(destination, 'checkout');
             fs.mkdirSync(repository, { recursive: true });
+            run('ostree', [
+                `--repo=${repository}`,
+                'init',
+                '--mode=archive-z2',
+            ]);
             run('flatpak', ['build-import-bundle', repository, artifactPath]);
             const refsResult = run('ostree', ['refs', `--repo=${repository}`]);
             const refs = String(refsResult.stdout ?? '')
@@ -265,6 +273,7 @@ export function extractLinuxArtifact({
             }
             run('ostree', [
                 'checkout',
+                '-U',
                 `--repo=${repository}`,
                 refs[0],
                 checkout,
@@ -1122,6 +1131,7 @@ export function createRuntimeProbeEnvironment({
     runtimeMode,
 }) {
     const probeEnvironment = { ...(environment ?? {}) };
+    delete probeEnvironment.LD_AUDIT;
     delete probeEnvironment.LD_LIBRARY_PATH;
     delete probeEnvironment.LD_PRELOAD;
     if (runtimeMode === 'bundled') {

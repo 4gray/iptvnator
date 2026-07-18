@@ -17,6 +17,7 @@ const {
     validateLinuxSystemBuildInputManifest,
 } = require('../../tools/embedded-mpv/linux-runtime-manifest.cjs');
 const {
+    resolveLinuxFrameCopyLinkageInputs,
     resolveVerifiedLinuxLibMpvSoname,
     runWithCleanup,
     validateLinuxFrameCopyLinkage,
@@ -316,9 +317,9 @@ function findWindowsLibMpv(runtimeRoot) {
 }
 
 /* Debian/Ubuntu install linker targets under the multiarch triple dir. The
- * compiler's built-in search paths cover it for -l resolution either way;
- * this keeps the -L flag and the helper's baked rpath pointing somewhere
- * real. */
+ * compiler's built-in search paths cover it for -l resolution either way.
+ * This directory is a link-time input only; the helper runtime intentionally
+ * stays on the sanitized system loader contract. */
 function defaultLinuxSystemLibDir() {
     const multiarchTriples = {
         arm: 'arm-linux-gnueabihf',
@@ -381,8 +382,9 @@ function resolveRuntime() {
     if (targetPlatform === 'linux') {
         // Dev-first Linux flow (frame-copy helper links system libmpv): a
         // distro libmpv-dev install is a full runtime — no staging needed.
-        // LIBMPV_INCLUDE_DIR / LINUX_NATIVE_LIBRARY_DIR override the system
-        // paths for machines with a local (non-root) libmpv prefix.
+        // LIBMPV_INCLUDE_DIR overrides the header path.
+        // LINUX_NATIVE_LIBRARY_DIR overrides the link-time library directory,
+        // which must already be visible to the system dynamic loader.
         const systemIncludeDir =
             process.env.LIBMPV_INCLUDE_DIR || '/usr/include';
         if (fs.existsSync(path.join(systemIncludeDir, 'mpv', 'client.h'))) {
@@ -765,6 +767,16 @@ function main() {
                 : targetPlatform === 'linux'
                   ? writeLinuxFrameCopyBuildManifest(runtime)
                   : copyGenericRuntimeToNativeBuild(runtime);
+        const linuxLinkageInputs =
+            targetPlatform === 'linux'
+                ? resolveLinuxFrameCopyLinkageInputs({
+                      buildInputMode: runtime.buildInputMode,
+                      outputLibDir,
+                      packagedLibmpvSoname: runtimeManifest.libmpvSoname,
+                      readDynamicSection: readLinuxDynamicSection,
+                      runtimeLibDir: runtime.libDir,
+                  })
+                : null;
 
         const electronPackageJson = require(
             path.join(workspaceRoot, 'node_modules', 'electron', 'package.json')
@@ -781,7 +793,8 @@ function main() {
             LIBMPV_INCLUDE_DIR: runtime.includeDir,
             ...(targetPlatform === 'linux'
                 ? {
-                      LINUX_VERIFIED_RUNTIME_LIBRARY_DIR: outputLibDir,
+                      LINUX_VERIFIED_RUNTIME_LIBRARY_DIR:
+                          linuxLinkageInputs.linkerLibraryDir,
                   }
                 : { LIBMPV_LIBRARY_DIR: outputLibDir }),
             ...(runtime.windowsImportLib
@@ -807,7 +820,7 @@ function main() {
 
         if (targetPlatform === 'linux') {
             validateLinuxFrameCopyLinkage({
-                expectedLibmpvSoname: runtimeManifest.libmpvSoname,
+                expectedLibmpvSoname: linuxLinkageInputs.expectedLibmpvSoname,
                 outputDir,
                 readDynamicSection: readLinuxDynamicSection,
             });

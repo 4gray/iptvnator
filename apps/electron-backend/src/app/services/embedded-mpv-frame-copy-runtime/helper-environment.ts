@@ -86,6 +86,7 @@ export function createLinuxFrameCopyHelperEnvironment(
     runtimeMode: EmbeddedMpvFrameCopyRuntimeMode
 ): NodeJS.ProcessEnv {
     const helperEnvironment = { ...environment };
+    delete helperEnvironment.LD_AUDIT;
     delete helperEnvironment.LD_LIBRARY_PATH;
     delete helperEnvironment.LD_PRELOAD;
 

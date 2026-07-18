@@ -53,6 +53,7 @@ export function createRuntimeTestContext(): RuntimeTestContext {
                 arch: 'x64',
                 env: {
                     PATH: '/usr/bin',
+                    LD_AUDIT: '/tmp/audit.so',
                     LD_LIBRARY_PATH: '/ambient/libs',
                     LD_PRELOAD: '/tmp/inject.so',
                 },

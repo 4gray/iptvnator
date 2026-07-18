@@ -254,10 +254,11 @@ JSON line and return zero.
 
 The startup probe and every playback helper session use the same sanitized
 loader environment selected by the validated manifest's cached `runtimeMode`.
-Both remove ambient `LD_PRELOAD` and `LD_LIBRARY_PATH`; the system profile then
-uses the default system loader without a private path. Bundled profiles put the
-validated packaged `native/lib` first. AppImage and Flatpak resolve the declared
-external graphics/audio interfaces through their normal host or sandbox loader.
+Both remove ambient `LD_AUDIT`, `LD_PRELOAD`, and `LD_LIBRARY_PATH`; the system
+profile then uses the default system loader without a private path. Bundled
+profiles put the validated packaged `native/lib` first. AppImage and Flatpak
+resolve the declared external graphics/audio interfaces through their normal
+host or sandbox loader.
 Inside a genuine Snap mount, filtered absolute `SNAP_LIBRARY_PATH` entries below
 `/var/lib/snapd/lib/gl` follow `native/lib` and precede the generic
 `$SNAP/lib`, `$SNAP/usr/lib`, and x64 multiarch roots. This preserves the pinned
@@ -558,7 +559,7 @@ The Electron main process holds an `electron.powerSaveBlocker` of type `prevent-
 Current development behavior:
 
 - The addon build supports `darwin`, `win32`, and `linux`; Windows and Linux builds require running on that target OS.
-- The build script first looks for staged inputs at `vendor/embedded-mpv/<platform>-<arch>/`. On Linux, local development can fall back to distribution `libmpv-dev` headers and libraries; `LIBMPV_INCLUDE_DIR` and `LINUX_NATIVE_LIBRARY_DIR` override the default system paths.
+- The build script first looks for staged inputs at `vendor/embedded-mpv/<platform>-<arch>/`. On Linux, local development can fall back to distribution `libmpv-dev` headers and libraries. `LIBMPV_INCLUDE_DIR` overrides the header root. `LINUX_NATIVE_LIBRARY_DIR` is a link-time override and must name a directory already visible to the system dynamic loader; it is never inherited as helper `LD_LIBRARY_PATH`.
 - When the staged-input path is used, it must contain `include/mpv/client.h`,
   `runtime-manifest.json`, and the platform runtime/build files. The Linux
   source builder also stages the complete declared `.so` closure.

@@ -827,9 +827,12 @@ jobs:
 
                   cp "${RUNNER_TEMP}/electron-builder.base.json" electron-builder.json
                   node tools/packaging/configure-linux-frame-copy-build.mjs --foreign-deb
-                  pnpm nx run electron-backend:make \
-                      --outputPath=dist/executables-linux-foreign \
-                      --publishPolicy=never
+                  for foreign_arch in armv7l arm64; do
+                      pnpm nx run electron-backend:make \
+                          --arch="${foreign_arch}" \
+                          --outputPath=dist/executables-linux-foreign \
+                          --publishPolicy=never
+                  done
                   find dist/executables-linux-foreign -maxdepth 1 -type f -name '*.deb' \
                       -exec mv '{}' dist/executables/ ';'
 

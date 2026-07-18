@@ -240,9 +240,9 @@ Key files:
   sandbox. Any failure reports a stable reason and falls back to native-view
   without crashing; an environment flag never bypasses this gate.
 - Snap uses an exact private `shared-memory` plug. The probe and playback
-  helper share one sanitized loader environment: ambient preload/library
-  paths are removed, the validated private closure wins, and trusted Snap GL
-  roots precede generic in-snap library roots.
+  helper share one sanitized loader environment: ambient audit, preload, and
+  library paths are removed, the validated private closure wins, and trusted
+  Snap GL roots precede generic in-snap library roots.
 - Bundled Linux releases must publish the exact source archives/git records,
   checksums, licenses, flags, patches, build scripts, and the pinned hwdata
   `pnp.ids` input. Each bundled package carries

@@ -201,6 +201,51 @@ function resolveVerifiedLinuxLibMpvSoname({
     return expectedSoname;
 }
 
+function resolveLinuxFrameCopyLinkageInputs({
+    buildInputMode,
+    outputLibDir,
+    packagedLibmpvSoname,
+    readDynamicSection,
+    runtimeLibDir,
+}) {
+    const systemDevelopment = buildInputMode === 'system-dev';
+    const linkerLibraryDir = systemDevelopment ? runtimeLibDir : outputLibDir;
+    if (
+        typeof linkerLibraryDir !== 'string' ||
+        linkerLibraryDir.trim().length === 0
+    ) {
+        throw new Error(
+            'Linux frame-copy linkage requires a non-empty linker library directory.'
+        );
+    }
+
+    if (!systemDevelopment) {
+        return {
+            expectedLibmpvSoname: packagedLibmpvSoname,
+            linkerLibraryDir,
+        };
+    }
+    if (typeof readDynamicSection !== 'function') {
+        throw new TypeError('Linux readelf dynamic reader is required.');
+    }
+
+    const linkerInputPath = path.join(linkerLibraryDir, 'libmpv.so');
+    const dynamic = parseReadelfDynamic(readDynamicSection(linkerInputPath));
+    if (
+        dynamic.soname.length !== 1 ||
+        !VERSIONED_LIBMPV_PATTERN.test(dynamic.soname[0])
+    ) {
+        throw new Error(
+            'The system-development libmpv linker input must contain exactly one versioned libmpv SONAME.'
+        );
+    }
+
+    return {
+        expectedLibmpvSoname: dynamic.soname[0],
+        linkerLibraryDir,
+    };
+}
+
 function assertRegularArtifact(filePath, label) {
     let stat;
     try {
@@ -288,6 +333,7 @@ function runWithCleanup(operation, cleanup) {
 
 module.exports = {
     parseReadelfDynamic,
+    resolveLinuxFrameCopyLinkageInputs,
     resolveVerifiedLinuxLibMpvSoname,
     runWithCleanup,
     validateLinuxFrameCopyLinkage,

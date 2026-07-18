@@ -52,6 +52,16 @@ function loadLinkageModule(): {
         runtimeDependencyClosure: SonameFixture['runtimeDependencyClosure'];
         runtimeFiles: RuntimeFileRecord[];
     }) => string;
+    resolveLinuxFrameCopyLinkageInputs: (options: {
+        buildInputMode: string;
+        outputLibDir: string;
+        packagedLibmpvSoname: string | null;
+        readDynamicSection: (filePath: string) => string;
+        runtimeLibDir: string;
+    }) => {
+        expectedLibmpvSoname: string | null;
+        linkerLibraryDir: string;
+    };
     runWithCleanup: <T>(operation: () => T, cleanup: () => void) => T;
     validateLinuxFrameCopyLinkage: (options: {
         expectedLibmpvSoname: string;
@@ -285,6 +295,93 @@ describe('Linux Embedded MPV linkage verification', () => {
                     readelfDynamic([['SONAME', 'libmpv.so.2']]),
             })
         ).toThrow(/size|SHA-256/i);
+    });
+
+    it('uses and identifies the unmanaged system libmpv only for system development', () => {
+        const { resolveLinuxFrameCopyLinkageInputs } = loadLinkageModule();
+        const readDynamicSection = jest.fn((filePath: string) => {
+            expect(filePath).toBe('/opt/libmpv/lib/libmpv.so');
+            return readelfDynamic([['SONAME', 'libmpv.so.2']]);
+        });
+
+        expect(
+            resolveLinuxFrameCopyLinkageInputs({
+                buildInputMode: 'system-dev',
+                outputLibDir: '/native/build/Release/lib',
+                packagedLibmpvSoname: null,
+                readDynamicSection,
+                runtimeLibDir: '/opt/libmpv/lib',
+            })
+        ).toEqual({
+            expectedLibmpvSoname: 'libmpv.so.2',
+            linkerLibraryDir: '/opt/libmpv/lib',
+        });
+        expect(readDynamicSection).toHaveBeenCalledTimes(1);
+    });
+
+    it('keeps bundled and untrusted build modes on the copied runtime directory', () => {
+        const { resolveLinuxFrameCopyLinkageInputs } = loadLinkageModule();
+        const readDynamicSection = jest.fn(() => {
+            throw new Error('must not inspect the ambient system runtime');
+        });
+
+        for (const buildInputMode of [
+            'bundled-runtime',
+            'system-build-inputs',
+            'unexpected-mode',
+        ]) {
+            expect(
+                resolveLinuxFrameCopyLinkageInputs({
+                    buildInputMode,
+                    outputLibDir: '/native/build/Release/lib',
+                    packagedLibmpvSoname:
+                        buildInputMode === 'bundled-runtime'
+                            ? 'libmpv.so.2'
+                            : null,
+                    readDynamicSection,
+                    runtimeLibDir: '/usr/lib/x86_64-linux-gnu',
+                })
+            ).toEqual({
+                expectedLibmpvSoname:
+                    buildInputMode === 'bundled-runtime' ? 'libmpv.so.2' : null,
+                linkerLibraryDir: '/native/build/Release/lib',
+            });
+        }
+        expect(readDynamicSection).not.toHaveBeenCalled();
+    });
+
+    it('rejects ambiguous or unversioned system-development libmpv identities', () => {
+        const { resolveLinuxFrameCopyLinkageInputs } = loadLinkageModule();
+        const options = {
+            buildInputMode: 'system-dev',
+            outputLibDir: '/native/build/Release/lib',
+            packagedLibmpvSoname: null,
+            runtimeLibDir: '/usr/lib/x86_64-linux-gnu',
+        };
+
+        expect(() =>
+            resolveLinuxFrameCopyLinkageInputs({
+                ...options,
+                readDynamicSection: () =>
+                    readelfDynamic([['SONAME', 'libmpv.so']]),
+            })
+        ).toThrow(/system-development.*exactly one versioned libmpv SONAME/i);
+        expect(() =>
+            resolveLinuxFrameCopyLinkageInputs({
+                ...options,
+                readDynamicSection: () => readelfDynamic([]),
+            })
+        ).toThrow(/system-development.*exactly one versioned libmpv SONAME/i);
+        expect(() =>
+            resolveLinuxFrameCopyLinkageInputs({
+                ...options,
+                readDynamicSection: () =>
+                    readelfDynamic([
+                        ['SONAME', 'libmpv.so.1'],
+                        ['SONAME', 'libmpv.so.2'],
+                    ]),
+            })
+        ).toThrow(/system-development.*exactly one versioned libmpv SONAME/i);
     });
 
     function createArtifactFixture(): {

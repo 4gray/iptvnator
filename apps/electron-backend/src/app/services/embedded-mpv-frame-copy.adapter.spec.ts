@@ -117,6 +117,7 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
                 environment: {
                     PATH: '/usr/bin',
                     HOME: '/home/user',
+                    LD_AUDIT: '/tmp/audit.so',
                     LD_LIBRARY_PATH: '/tmp/hostile-libs',
                     LD_PRELOAD: '/tmp/inject.so',
                 },
@@ -148,6 +149,7 @@ describe('EmbeddedMpvFrameCopyAdapter', () => {
                     PATH: '/snap/bin:/usr/bin',
                     SNAP: snapRoot,
                     SNAP_LIBRARY_PATH: '/var/lib/snapd/lib/gl:/tmp/hostile-gl',
+                    LD_AUDIT: '/tmp/audit.so',
                     LD_LIBRARY_PATH: '/tmp/hostile-libs',
                     LD_PRELOAD: '/tmp/inject.so',
                 },

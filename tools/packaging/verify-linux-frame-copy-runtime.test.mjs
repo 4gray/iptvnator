@@ -378,6 +378,7 @@ test('extracts every payload format with argument arrays and no shell', () => {
                 'bsdtar',
                 'bsdtar',
                 'unsquashfs',
+                'ostree',
                 'flatpak',
                 'ostree',
                 'ostree',
@@ -402,6 +403,142 @@ test('extracts every payload format with argument arrays and no shell', () => {
             '-no-progress',
             '-dest',
         ]);
+        assert.equal(invocations[5].args[1], 'init');
+        assert.ok(invocations[5].args.includes('--mode=archive-z2'));
+        assert.equal(invocations[8].args[0], 'checkout');
+        assert.ok(invocations[8].args.includes('-U'));
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
+test('gives unsquashfs a fresh destination for every AppImage and Snap extraction', () => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-verifier-unsquashfs-')
+    );
+    const appImagePath = path.join(root, 'IPTVnator.AppImage');
+    const snapPath = path.join(root, 'IPTVnator.snap');
+    const appImageDestination = path.join(root, 'appimage-payload');
+    const snapDestination = path.join(root, 'snap-payload');
+    fs.writeFileSync(
+        appImagePath,
+        Buffer.concat([
+            Buffer.alloc(128),
+            Buffer.from('hsqs'),
+            Buffer.alloc(64),
+            Buffer.from('hsqs'),
+        ])
+    );
+    fs.writeFileSync(snapPath, 'snap fixture');
+    fs.mkdirSync(appImageDestination);
+    fs.mkdirSync(snapDestination);
+    let appImageAttempt = 0;
+
+    try {
+        extractLinuxArtifact({
+            artifactPath: appImagePath,
+            format: 'appimage',
+            destination: appImageDestination,
+            runCommand: (command) => {
+                assert.equal(command, 'unsquashfs');
+                assert.equal(fs.existsSync(appImageDestination), false);
+                appImageAttempt += 1;
+                fs.mkdirSync(appImageDestination);
+                return {
+                    status: appImageAttempt === 1 ? 1 : 0,
+                    stdout: '',
+                    stderr: '',
+                };
+            },
+        });
+        assert.equal(appImageAttempt, 2);
+
+        extractLinuxArtifact({
+            artifactPath: snapPath,
+            format: 'snap',
+            destination: snapDestination,
+            runCommand: (command) => {
+                assert.equal(command, 'unsquashfs');
+                assert.equal(fs.existsSync(snapDestination), false);
+                fs.mkdirSync(snapDestination);
+                return { status: 0, stdout: '', stderr: '' };
+            },
+        });
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
+test('initializes a user-checkout OSTree repository before importing Flatpak bundles', () => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-verifier-flatpak-repo-')
+    );
+    const artifactPath = path.join(root, 'IPTVnator.flatpak');
+    const destination = path.join(root, 'flatpak-payload');
+    const invocations = [];
+    let initializedRepository = null;
+    fs.writeFileSync(artifactPath, 'flatpak fixture');
+
+    try {
+        extractLinuxArtifact({
+            artifactPath,
+            format: 'flatpak',
+            destination,
+            runCommand: (command, args) => {
+                invocations.push([command, ...args]);
+                if (command === 'ostree' && args.includes('init')) {
+                    initializedRepository = args
+                        .find((argument) => argument.startsWith('--repo='))
+                        ?.slice('--repo='.length);
+                    assert.ok(args.includes('--mode=archive-z2'));
+                    return { status: 0, stdout: '', stderr: '' };
+                }
+                if (command === 'flatpak') {
+                    assert.equal(args[0], 'build-import-bundle');
+                    assert.equal(args[1], initializedRepository);
+                    if (!initializedRepository) {
+                        return {
+                            status: 1,
+                            stdout: '',
+                            stderr: 'error: opening repo: opendir(objects): No such file or directory',
+                        };
+                    }
+                    return { status: 0, stdout: '', stderr: '' };
+                }
+                if (command === 'ostree' && args[0] === 'refs') {
+                    return {
+                        status: 0,
+                        stdout: 'app/com.fourgray.iptvnator/x86_64/stable\n',
+                        stderr: '',
+                    };
+                }
+                if (command === 'ostree' && args[0] === 'checkout') {
+                    assert.ok(args.includes('-U'));
+                    return { status: 0, stdout: '', stderr: '' };
+                }
+                throw new Error(`Unexpected command: ${command}`);
+            },
+        });
+
+        assert.deepEqual(
+            invocations.map(([command, ...args]) => [
+                command,
+                args.find((argument) =>
+                    [
+                        'init',
+                        'build-import-bundle',
+                        'refs',
+                        'checkout',
+                    ].includes(argument)
+                ),
+            ]),
+            [
+                ['ostree', 'init'],
+                ['flatpak', 'build-import-bundle'],
+                ['ostree', 'refs'],
+                ['ostree', 'checkout'],
+            ]
+        );
     } finally {
         fs.rmSync(root, { recursive: true, force: true });
     }
@@ -602,6 +739,7 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             },
             environment: {
                 PATH: '/usr/bin',
+                LD_AUDIT: '/host/can-inject-audit.so',
                 LD_LIBRARY_PATH: '/host/can-mask-missing-dependencies',
                 LD_PRELOAD: '/host/can-inject.so',
             },
@@ -976,6 +1114,7 @@ test('bundled probes use only the packaged library directory', () => {
         createRuntimeProbeEnvironment({
             environment: {
                 PATH: '/usr/bin',
+                LD_AUDIT: '/host/can-inject-audit.so',
                 LD_LIBRARY_PATH: '/host/can-mask-missing-dependencies',
                 LD_PRELOAD: '/host/can-inject.so',
             },
