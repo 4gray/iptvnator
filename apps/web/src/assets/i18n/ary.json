@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "وري ولا خفي الترجمة افتراضياً",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "وري شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "خلي شريط حالة المشغل الخارجي ظاهر في الأسفل ديال مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "حيد بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "كيحيد بادئات البلد/المجموعة بحال \"US | \" ولا \"UK - \" من أسماء قنوات البث المباشر فكامل التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي ديال التطبيق",
         "ABOUT_SUBTITLE": "الإصدار، روابط المشروع، وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "وقت تشغيل MPV المدمج",

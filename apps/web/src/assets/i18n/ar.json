@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "عرض أو إخفاء الترجمات افتراضيًا",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "عرض شريط التشغيل الحالي",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "إبقاء شريط حالة المشغل الخارجي مرئيًا في أسفل مساحة العمل على سطح المكتب.",
+        "STRIP_COUNTRY_PREFIX": "إزالة بادئات البلد من أسماء القنوات",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "يزيل بادئات البلد/المجموعة مثل \"US | \" أو \"UK - \" من أسماء قنوات البث المباشر في جميع أنحاء التطبيق.",
         "VERSION_DESCRIPTION": "الإصدار الحالي للتطبيق",
         "ABOUT_SUBTITLE": "الإصدار وروابط المشروع وطرق دعم IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "بيئة تشغيل MPV المضمّنة",

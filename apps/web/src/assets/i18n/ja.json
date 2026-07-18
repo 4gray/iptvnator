@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "デフォルトで字幕を表示/非表示",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "再生中フッターを表示",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "デスクトップでワークスペース下部に外部プレーヤーのステータスバーを表示し続けます。",
+        "STRIP_COUNTRY_PREFIX": "チャンネル名から国名プレフィックスを削除",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "アプリ全体で、ライブチャンネル名から \"US | \" や \"UK - \" のような国／グループのプレフィックスを削除します。",
         "VERSION_DESCRIPTION": "アプリケーションの現在のバージョン",
         "ABOUT_SUBTITLE": "バージョン、プロジェクトのリンク、IPTVnatorをサポートする方法。",
         "EMBEDDED_MPV_NOTICE_TITLE": "組み込みMPVランタイム",

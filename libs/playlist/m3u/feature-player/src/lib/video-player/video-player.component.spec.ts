@@ -191,6 +191,7 @@ describe('VideoPlayerComponent', () => {
 
     const player = signal<VideoPlayer>(VideoPlayer.VideoJs);
     const showCaptions = signal(false);
+    const stripCountryPrefix = signal(false);
     const epgViewMode = signal<'timeline' | 'list'>('timeline');
     const originalElectron = window.electron;
 
@@ -314,6 +315,7 @@ describe('VideoPlayerComponent', () => {
         localStorage.removeItem(LIVE_EPG_PANEL_STATE_STORAGE_KEY);
         player.set(VideoPlayer.VideoJs);
         showCaptions.set(false);
+        stripCountryPrefix.set(false);
         activePlaybackUrl.set(null);
         channelsLoading.set(false);
         currentEpgProgram.set(null);
@@ -389,6 +391,7 @@ describe('VideoPlayerComponent', () => {
                     useValue: {
                         player,
                         showCaptions,
+                        stripCountryPrefix,
                         resolvedEpgViewMode: epgViewMode,
                     },
                 },
@@ -454,6 +457,26 @@ describe('VideoPlayerComponent', () => {
 
         fixture.destroy();
         expect(headerContext.action()).toBeNull();
+    });
+
+    it('strips country prefixes from the timeline and player titles when enabled', () => {
+        stripCountryPrefix.set(true);
+        syncStoreState({ ...sampleChannel, name: 'US | CNN' } as Channel);
+
+        fixture.detectChanges();
+
+        expect(component.timelineChannelName()).toBe('CNN');
+        expect(component.displayChannelName()).toBe('CNN');
+        expect(component.inlinePlayerTitle()).toBe('CNN');
+    });
+
+    it('keeps raw channel names while prefix stripping is disabled', () => {
+        syncStoreState({ ...sampleChannel, name: 'US | CNN' } as Channel);
+
+        fixture.detectChanges();
+
+        expect(component.timelineChannelName()).toBe('US | CNN');
+        expect(component.displayChannelName()).toBe('US | CNN');
     });
 
     it('renders the inline player with the embedded EPG panel', () => {

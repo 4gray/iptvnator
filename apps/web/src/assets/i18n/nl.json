@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Standaard ondertiteling weergeven of verbergen",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Voettekst 'nu spelend' tonen",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Houd de statusbalk van de externe speler zichtbaar onderaan de werkruimte op desktop.",
+        "STRIP_COUNTRY_PREFIX": "Landprefixen uit kanaalnamen verwijderen",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Verwijdert land-/groepsprefixen zoals \"US | \" of \"UK - \" uit de namen van live-kanalen, overal in de app.",
         "VERSION_DESCRIPTION": "Huidige versie van de applicatie",
         "ABOUT_SUBTITLE": "Versie, projectlinks en manieren om IPTVnator te ondersteunen.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Ingebedde MPV-runtime",

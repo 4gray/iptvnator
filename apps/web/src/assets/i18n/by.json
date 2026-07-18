@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Паказаць або схаваць субтытры па змаўчанні.",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Паказаць ніжнюю панэль прайгравання",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Пакідаць панэль стану знешняга прайгравальніка бачнай унізе працоўнай прасторы на дэсктопе.",
+        "STRIP_COUNTRY_PREFIX": "Выдаляць прэфіксы краін з назваў каналаў",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Выдаляе прэфіксы краін/груп, такія як \"US | \" або \"UK - \", з назваў каналаў прамых трансляцый ва ўсёй праграме.",
         "VERSION_DESCRIPTION": "Бягучая версія праграмы",
         "ABOUT_SUBTITLE": "Версія, спасылкі праекта і спосабы падтрымаць IPTVnator.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Асяроддзе ўбудаванага MPV",

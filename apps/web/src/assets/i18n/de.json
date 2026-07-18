@@ -317,6 +317,8 @@
         "SHOW_CAPTIONS_DESCRIPTION": "Untertitel standardmäßig ein- oder ausblenden",
         "SHOW_EXTERNAL_PLAYBACK_BAR": "Now-Playing-Fußleiste anzeigen",
         "SHOW_EXTERNAL_PLAYBACK_BAR_DESCRIPTION": "Zeigt die Statusleiste für externe Player unten im Arbeitsbereich auf dem Desktop an.",
+        "STRIP_COUNTRY_PREFIX": "Länderpräfixe aus Sendernamen entfernen",
+        "STRIP_COUNTRY_PREFIX_DESCRIPTION": "Entfernt Länder-/Gruppenpräfixe wie \"US | \" oder \"UK - \" aus den Namen von Live-Sendern in der gesamten App.",
         "VERSION_DESCRIPTION": "Aktuelle Version der Anwendung",
         "ABOUT_SUBTITLE": "Version, Projekt-Links und Möglichkeiten, IPTVnator zu unterstützen.",
         "EMBEDDED_MPV_NOTICE_TITLE": "Eingebettete MPV-Laufzeit",
