@@ -11,15 +11,18 @@ on:
             - master
     workflow_dispatch:
 
-concurrency:
-    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
-
 jobs:
     build:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
         runs-on: ${{ matrix.runner }}
         timeout-minutes: 120
+        # Concurrency lives on the jobs, not the workflow: cancelling a whole
+        # run could interrupt action-gh-release mid-update and leave the
+        # rolling draft with missing assets. Build slots cancel superseded PR
+        # work; the release job below only serializes and is never cancelled.
+        concurrency:
+            group: ${{ github.workflow }}-build-${{ matrix.os }}-${{ matrix.arch }}${{ matrix.linux_profile }}-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: ${{ github.event_name == 'pull_request' }}
         strategy:
             matrix:
                 include:
@@ -669,6 +672,9 @@ jobs:
         needs: build
         if: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
         runs-on: ubuntu-latest
+        concurrency:
+            group: ${{ github.workflow }}-release-${{ github.event.pull_request.number || github.ref }}
+            cancel-in-progress: false
         permissions:
             contents: write
 
@@ -848,12 +854,33 @@ jobs:
                       echo "name=${NAME}"
                       echo "tag=${TAG}"
                       echo "commitish=${HEAD_SHA}"
-                      echo "body<<RELEASE_BODY_EOF"
-                      echo "${BODY}"
-                      echo "RELEASE_BODY_EOF"
                   } >> "${GITHUB_OUTPUT}"
 
+                  if [ -n "${BODY}" ]; then
+                      {
+                          echo "body<<RELEASE_BODY_EOF"
+                          echo "${BODY}"
+                          echo "RELEASE_BODY_EOF"
+                      } >> "${GITHUB_OUTPUT}"
+                  else
+                      echo "body=" >> "${GITHUB_OUTPUT}"
+                  fi
+
+            # A PR can be closed while this workflow is still running; the
+            # cleanup workflow deletes the PR draft on close. Re-check the live
+            # PR state right before touching the draft so a late-finishing run
+            # cannot recreate a draft for a closed PR.
+            - name: Check PR is still open
+              if: github.event_name == 'pull_request'
+              id: pr-state
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+              run: |
+                  set -euo pipefail
+                  echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${{ github.event.pull_request.number }}" --jq '.state')" >> "${GITHUB_OUTPUT}"
+
             - name: Create Draft Release
+              if: github.event_name != 'pull_request' || steps.pr-state.outputs.state == 'open'
               uses: softprops/action-gh-release@v2
               with:
                   draft: true

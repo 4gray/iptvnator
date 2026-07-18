@@ -12,6 +12,39 @@ jobs:
         name: Delete PR draft release
         runs-on: ubuntu-latest
         steps:
+            # A build for this PR may still be running and would recreate the
+            # rolling draft after we delete it. Cancel those runs (dead work
+            # for a closed PR anyway) and wait for them to wind down. The
+            # release job additionally re-checks the live PR state, so this
+            # wait is defense in depth, not the only guard.
+            - name: Cancel in-progress builds for the closed PR
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
+              run: |
+                  set -euo pipefail
+
+                  list_active_runs() {
+                      gh run list --repo "${GITHUB_REPOSITORY}" \
+                          --workflow 'Build and Make Electron App' \
+                          --branch "${HEAD_BRANCH}" \
+                          --json databaseId,status \
+                          --jq '.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending") | .databaseId'
+                  }
+
+                  for run_id in $(list_active_runs); do
+                      echo "Cancelling run ${run_id}"
+                      gh run cancel "${run_id}" --repo "${GITHUB_REPOSITORY}" || true
+                  done
+
+                  # Cancellation is asynchronous; poll until the runs settle.
+                  for _ in $(seq 1 18); do
+                      if [ -z "$(list_active_runs)" ]; then
+                          break
+                      fi
+                      sleep 10
+                  done
+
             # Draft releases have no real git tag, so a lookup via
             # releases/tags/<tag> returns 404. List releases and match the
             # draft by its stored tag_name (test-pr-<n>) instead.
