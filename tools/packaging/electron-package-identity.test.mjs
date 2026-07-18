@@ -314,6 +314,10 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
     );
     assert.match(
         packageLayoutVerifier,
+        /const\s*{\s*validateFlatpakLauncher\s*,?\s*}\s*=\s*require\(['"]\.\/flatpak-launcher-validation\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
         /function verifyLinuxLauncher\(\s*resourceDir,\s*targetNames,\s*errors\s*\)/
     );
     assert.match(
@@ -324,16 +328,6 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
         packageLayoutVerifier,
         /verifyLinuxLauncher\(\s*resourceDir,\s*linuxTargetNames,\s*errors\s*\)/
     );
-    assert.match(packageLayoutVerifier, /const elfMagic = Buffer\.alloc\(4\)/);
-    assert.match(
-        packageLayoutVerifier,
-        /fs\.openSync\(launcherPath,\s*['"]r['"]\)/
-    );
-    assert.match(
-        packageLayoutVerifier,
-        /fs\.readSync\(\s*descriptor,\s*elfMagic,\s*0,\s*elfMagic\.length,\s*0\s*\)/
-    );
-    assert.match(packageLayoutVerifier, /fs\.closeSync\(descriptor\)/);
 
     const launcherVerifier = packageLayoutVerifier.match(
         /function verifyLinuxLauncher\([\s\S]*?\n}\n\nfunction verifyFlatpakPermissions/
@@ -345,11 +339,7 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
     );
     assert.match(
         launcherVerifier,
-        /if \(!launcherLayout\.wrapperRequired\) \{[\s\S]*?return;[\s\S]*?\}\s*const launcherBinaryPath[\s\S]*?fs\.readFileSync\(launcherPath,\s*['"]utf8['"]\)/
-    );
-    assert.match(
-        launcherVerifier,
-        /fs\.existsSync\(flatpakBinarySiblingPath\)/
+        /if \(!launcherLayout\.wrapperRequired\) \{\s*errors\.push\(\s*\.\.\.validateFlatpakLauncher\(\s*appDir,\s*linuxExecutableName\s*\)\s*\);\s*return;\s*\}\s*const launcherBinaryPath[\s\S]*?fs\.readFileSync\(launcherPath,\s*['"]utf8['"]\)/
     );
 });
 

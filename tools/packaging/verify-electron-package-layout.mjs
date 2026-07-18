@@ -19,6 +19,9 @@ const {
     validateLinuxProfileTargets,
 } = require('./linux-frame-copy-profile.cjs');
 const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
+const {
+    validateFlatpakLauncher,
+} = require('./flatpak-launcher-validation.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -489,61 +492,7 @@ function verifyLinuxLauncher(resourceDir, targetNames, errors) {
     const launcherPath = path.join(appDir, linuxExecutableName);
 
     if (!launcherLayout.wrapperRequired) {
-        if (!fileExists(launcherPath)) {
-            errors.push(
-                `Missing Flatpak Electron ELF in ${appDir}: ${path.basename(launcherPath)}`
-            );
-            return;
-        }
-
-        const flatpakBinarySiblingPath = `${launcherPath}.bin`;
-        if (fs.existsSync(flatpakBinarySiblingPath)) {
-            errors.push(
-                `Flatpak Electron layout must not include a launcher binary sibling: ${flatpakBinarySiblingPath}`
-            );
-        }
-
-        const expectedElfMagic = Buffer.from([0x7f, 0x45, 0x4c, 0x46]);
-        const elfMagic = Buffer.alloc(4);
-        let descriptor;
-        try {
-            descriptor = fs.openSync(launcherPath, 'r');
-            const bytesRead = fs.readSync(
-                descriptor,
-                elfMagic,
-                0,
-                elfMagic.length,
-                0
-            );
-            if (
-                bytesRead !== expectedElfMagic.length ||
-                !elfMagic.equals(expectedElfMagic)
-            ) {
-                errors.push(
-                    `Flatpak Electron launcher must be an ELF binary: ${launcherPath}`
-                );
-            }
-        } catch (error) {
-            errors.push(
-                `Unable to inspect Flatpak Electron ELF at ${launcherPath}: ${
-                    error instanceof Error ? error.message : String(error)
-                }`
-            );
-        } finally {
-            if (descriptor !== undefined) {
-                try {
-                    fs.closeSync(descriptor);
-                } catch (error) {
-                    errors.push(
-                        `Unable to close Flatpak Electron ELF at ${launcherPath}: ${
-                            error instanceof Error
-                                ? error.message
-                                : String(error)
-                        }`
-                    );
-                }
-            }
-        }
+        errors.push(...validateFlatpakLauncher(appDir, linuxExecutableName));
         return;
     }
 
