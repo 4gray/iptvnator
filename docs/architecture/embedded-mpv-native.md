@@ -695,11 +695,13 @@ Linux release profiles:
   source-built closure and manifest origin. Its app-level probe reconstructs
   only the exact Freedesktop 24.08 EGL external-platform search path inside the
   trusted `/app` payload.
-- The three profiles are separate packaging passes; mixing target sets fails
-  closed. Linux packages for other architectures (arm64, armv7l) must not ship
-  x64 native artifacts. `afterPack` replaces the native directory with
-  `embedded-mpv-unavailable.txt`, and package verification requires that
-  marker.
+- Flatpak is an isolated packaging pass and keeps `iptvnator` as the real
+  Electron ELF so Electron Builder's `electron-wrapper` passes it directly to
+  Zypak. Other Linux targets retain the conditional `iptvnator` wrapper and
+  `iptvnator.bin`. Mixed Flatpak/non-Flatpak target sets fail before mutation.
+- Linux packages for other architectures (arm64, armv7l) must not ship x64
+  native artifacts. `afterPack` replaces the native directory with
+  `embedded-mpv-unavailable.txt`, and package verification requires that marker.
 - Every packaged manifest names its exact artifacts, profile/targets, libmpv
   SONAME, loader closure, byte sizes, SHA-256 hashes, package dependencies, and
   native-view fallback. Artifact modes and ELF dependency isolation are

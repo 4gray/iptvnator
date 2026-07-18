@@ -55,6 +55,11 @@ that the selected target set matches the runtime mode. It must fail closed if
 an official x64 package is requested with an absent, incomplete, or ambiguous
 profile.
 
+Flatpak is an isolated packaging pass and keeps `iptvnator` as the real
+Electron ELF so Electron Builder's `electron-wrapper` passes it directly to
+Zypak. Other Linux targets retain the conditional `iptvnator` wrapper and
+`iptvnator.bin`. Mixed Flatpak/non-Flatpak target sets fail before mutation.
+
 System package dependencies are:
 
 - DEB: `libmpv2`, `libegl1`, `libgl1`, `libgbm1`
@@ -131,8 +136,9 @@ the complete non-system dependency closure. ELF dependencies inside that
 closure and the helper use only SONAMEs plus `$ORIGIN`-relative RPATH/RUNPATH;
 they may not retain build-prefix paths.
 
-`embedded_mpv.node`, the Electron executable (`iptvnator.bin`), and Electron's
-shipped libraries must not have a direct `DT_NEEDED` entry for libmpv.
+`embedded_mpv.node`, the Electron executable (`iptvnator` for Flatpak;
+`iptvnator.bin` for other Linux targets), and Electron's shipped libraries must
+not have a direct `DT_NEEDED` entry for libmpv.
 `iptvnator_mpv_helper` must have one. Process isolation is an invariant, not a
 profile-specific choice. The source `electron-backend/native{,/**/*}` tree is
 excluded from `app.asar`; `afterPack` is the sole owner of the normalized

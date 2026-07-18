@@ -1104,14 +1104,38 @@ jobs:
 
                       LAUNCHER_PATH="$(readlink -f /app/bin/iptvnator)"
                       test -f "${LAUNCHER_PATH}"
-                      test -f "${LAUNCHER_PATH}.bin"
-                      grep -q '\''readlink -f "$SCRIPT_PATH"'\'' "${LAUNCHER_PATH}"
-                      grep -q '\''exec "$SCRIPT_DIR/iptvnator.bin"'\'' "${LAUNCHER_PATH}"
+                      test -x "${LAUNCHER_PATH}"
+                      if [ -e "${LAUNCHER_PATH}.bin" ] || [ -L "${LAUNCHER_PATH}.bin" ]; then
+                          echo "::error::Flatpak must not contain ${LAUNCHER_PATH}.bin"
+                          exit 1
+                      fi
+                      ELF_MAGIC="$(od -An -tx1 -N4 "${LAUNCHER_PATH}" | tr -d "[:space:]")"
+                      test "${ELF_MAGIC}" = "7f454c46"
                   '
-                  xvfb-run -a dbus-run-session -- flatpak run \
-                      --env=LIBGL_ALWAYS_SOFTWARE=1 \
-                      com.fourgray.iptvnator \
-                      --embedded-mpv-runtime-probe
+                  set +e
+                  PROBE_OUTPUT="$(
+                      xvfb-run -a dbus-run-session -- flatpak run \
+                          --env=LIBGL_ALWAYS_SOFTWARE=1 \
+                          com.fourgray.iptvnator \
+                          --embedded-mpv-runtime-probe 2>&1
+                  )"
+                  PROBE_STATUS=$?
+                  set -e
+
+                  PROBE_OUTPUT_LIMIT=16384
+                  printf '%s\n' "${PROBE_OUTPUT:0:PROBE_OUTPUT_LIMIT}"
+                  if [ "${#PROBE_OUTPUT}" -gt "${PROBE_OUTPUT_LIMIT}" ]; then
+                      echo "::warning::Flatpak runtime probe output was truncated to ${PROBE_OUTPUT_LIMIT} characters."
+                  fi
+                  if [[ "${PROBE_OUTPUT}" == *"not an ELF file"* ]] ||
+                      [[ "${PROBE_OUTPUT}" == *"Zypak needs to be called directly"* ]]; then
+                      echo "::error::Flatpak launched a wrapper instead of the Electron ELF."
+                      exit 1
+                  fi
+                  if [ "${PROBE_STATUS}" -ne 0 ]; then
+                      echo "::error::Flatpak application runtime probe failed with status ${PROBE_STATUS}."
+                      exit "${PROBE_STATUS}"
+                  fi
 
             - name: Upload artifacts (macOS)
               if: matrix.os == 'macos'

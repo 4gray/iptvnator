@@ -24,6 +24,7 @@ const {
     LINUX_SYSTEM_PACKAGE_DEPENDENCIES,
     resolveLinuxFrameCopyProfile,
 } = require('./linux-frame-copy-profile.cjs');
+const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
 const {
     RUNTIME_PROBE_MAX_BUFFER_BYTES,
     RUNTIME_PROBE_TIMEOUT_MS,
@@ -1350,9 +1351,14 @@ function dependencyFileName(dependencyName) {
     return String(dependencyName).replaceAll('\\', '/').split('/').at(-1) ?? '';
 }
 
+function resolveElectronBinaryPath(resourceDir, artifactFormat) {
+    const layout = resolveLinuxLauncherLayout([artifactFormat]);
+    return path.join(path.dirname(resourceDir), layout.electronBinaryName);
+}
+
 function validateElectronIsolation(resourceDir, artifactFormat, elfInspector) {
     const errors = [];
-    const electronPath = path.join(path.dirname(resourceDir), 'iptvnator.bin');
+    const electronPath = resolveElectronBinaryPath(resourceDir, artifactFormat);
     const binaries = [
         { label: 'Electron binary', binaryPath: electronPath },
         ...listElectronShippedLinuxLibraries(resourceDir, {
@@ -1557,7 +1563,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
         )
     );
 
-    const electronPath = path.join(path.dirname(resourceDir), 'iptvnator.bin');
+    const electronPath = resolveElectronBinaryPath(resourceDir, artifactFormat);
     let packageArch;
     try {
         packageArch = readElfArchitecture(electronPath);
@@ -1709,10 +1715,7 @@ export function verifyLinuxFrameCopyArtifact({
                 ].join('\n')
             );
         }
-        const electronPath = path.join(
-            path.dirname(resourceDir),
-            'iptvnator.bin'
-        );
+        const electronPath = resolveElectronBinaryPath(resourceDir, format);
         return {
             artifactPath: resolvedArtifactPath,
             format,
