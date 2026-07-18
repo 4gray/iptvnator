@@ -893,7 +893,10 @@ export class DashboardDataService {
     getRecentItemNavigationState(
         item: GlobalRecentItem
     ): WorkspaceNavigationTarget['state'] {
-        return getRecentItemNavigationStateUtil(item);
+        return getRecentItemNavigationStateUtil(
+            item,
+            this.getPlaybackPositionForItem(item)
+        );
     }
 
     async removeGlobalRecentItem(item: GlobalRecentItem): Promise<void> {

@@ -789,6 +789,7 @@
         "RESTART": "Από την αρχή",
         "CONTINUE_WATCHING": "Συνέχιση παρακολούθησης",
         "PLAY_FIRST_EPISODE": "Αναπαραγωγή πρώτου επεισοδίου",
+        "PLAY_EPISODE": "Αναπαραγωγή επεισοδίου {{episode}}",
         "RESUME_EPISODE": "Συνέχιση επεισοδίου",
         "PLAY_NEXT_EPISODE": "Αναπαραγωγή επόμενου επεισοδίου",
         "SERIES_WATCHED": "Η σειρά προβλήθηκε",

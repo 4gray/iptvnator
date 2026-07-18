@@ -789,6 +789,7 @@
         "RESTART": "Zacznij od nowa",
         "CONTINUE_WATCHING": "Kontynuuj oglądanie",
         "PLAY_FIRST_EPISODE": "Odtwórz pierwszy odcinek",
+        "PLAY_EPISODE": "Odtwórz odcinek {{episode}}",
         "RESUME_EPISODE": "Wznów odcinek",
         "PLAY_NEXT_EPISODE": "Odtwórz następny odcinek",
         "SERIES_WATCHED": "Serial obejrzany",

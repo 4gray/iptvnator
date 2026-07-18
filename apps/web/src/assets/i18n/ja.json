@@ -789,6 +789,7 @@
         "RESTART": "最初から再生",
         "CONTINUE_WATCHING": "視聴を再開",
         "PLAY_FIRST_EPISODE": "第1話を再生",
+        "PLAY_EPISODE": "第{{episode}}話を再生",
         "RESUME_EPISODE": "エピソードを再開",
         "PLAY_NEXT_EPISODE": "次のエピソードを再生",
         "SERIES_WATCHED": "シリーズ視聴済み",

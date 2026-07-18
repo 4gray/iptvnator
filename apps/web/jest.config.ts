@@ -39,6 +39,7 @@ export default {
     tslib: 'tslib/tslib.es6.js',
     '^iptv-playlist-parser$':
       '<rootDir>/src/test-stubs/iptv-playlist-parser.mjs',
+    '^video.js$': '<rootDir>/src/test-stubs/video-js.js',
     '^rxjs': '<rootDir>/../../node_modules/rxjs/dist/bundles/rxjs.umd.js',
     '^uuid$': '<rootDir>/../../node_modules/uuid/wrapper.mjs',
   },

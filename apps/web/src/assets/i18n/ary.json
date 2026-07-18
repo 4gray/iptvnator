@@ -789,6 +789,7 @@
         "RESTART": "بدا من الأول",
         "CONTINUE_WATCHING": "كمل المشاهدة",
         "PLAY_FIRST_EPISODE": "شغل الحلقة الأولى",
+        "PLAY_EPISODE": "شغل الحلقة {{episode}}",
         "RESUME_EPISODE": "كمل الحلقة",
         "PLAY_NEXT_EPISODE": "شغل الحلقة الجاية",
         "SERIES_WATCHED": "السلسلة متشافة",

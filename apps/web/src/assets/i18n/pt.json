@@ -789,6 +789,7 @@
         "RESTART": "Recomeçar",
         "CONTINUE_WATCHING": "Continuar assistindo",
         "PLAY_FIRST_EPISODE": "Reproduzir primeiro episódio",
+        "PLAY_EPISODE": "Reproduzir episódio {{episode}}",
         "RESUME_EPISODE": "Continuar episódio",
         "PLAY_NEXT_EPISODE": "Reproduzir próximo episódio",
         "SERIES_WATCHED": "Série assistida",

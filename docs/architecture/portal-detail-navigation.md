@@ -23,6 +23,12 @@ Related:
 - Dashboard `Global Favorites` and `Recently Watched` widgets hand off Xtream and
   Stalker movies/series into the matching global collection route with detail
   pre-opened.
+- Dashboard Continue Watching handoffs for Xtream series may additionally carry
+  a one-shot season/episode resume target. The collection-owned Xtream detail
+  consumes it after its episode positions load and starts that exact episode;
+  opening the series from the collection grid itself remains detail-only. If the
+  positions load fails, the target stays unconsumed and the handoff degrades to
+  detail-only rather than starting the episode at offset zero.
 - Do not force both portals into the same browse/detail behavior unless the full
   portal detail architecture is being changed.
 
@@ -73,6 +79,14 @@ Dashboard behavior to preserve:
   Xtream movie/series items into `/workspace/global-favorites` or
   `/workspace/global-recent` with collection detail pre-opened from navigation
   state.
+- When an Xtream series recent has a saved episode position, the dashboard hero
+  and Continue Watching card should include that exact series/episode target in
+  the navigation state. It is a one-shot playback request and must not leak into
+  normal favorites, search, category, or collection-grid navigation. Only
+  position rows that name their parent `seriesXtreamId` produce a target:
+  episode-keyed recents make `item.xtream_id` an episode id, so legacy rows
+  without the pointer stay detail-only instead of promoting the episode id to a
+  series id.
 - Back from the collection detail should return to the dashboard handoff state,
   not switch the active playlist.
 
