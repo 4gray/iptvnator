@@ -308,6 +308,49 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
     assert.match(packageLayoutVerifier, /dirArch !== 'x64'/);
     assert.doesNotMatch(packageLayoutVerifier, /getEmbeddedMpvAddonArch/);
     assert.match(electronAfterPackSource, /targetArch !== 'x64'/);
+    assert.match(
+        packageLayoutVerifier,
+        /const\s*{\s*resolveLinuxLauncherLayout\s*}\s*=\s*require\(['"]\.\/linux-launcher-layout\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /function verifyLinuxLauncher\(\s*resourceDir,\s*targetNames,\s*errors\s*\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /resolveLinuxLauncherLayout\(\s*targetNames,\s*linuxExecutableName\s*\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /verifyLinuxLauncher\(\s*resourceDir,\s*linuxTargetNames,\s*errors\s*\)/
+    );
+    assert.match(packageLayoutVerifier, /const elfMagic = Buffer\.alloc\(4\)/);
+    assert.match(
+        packageLayoutVerifier,
+        /fs\.openSync\(launcherPath,\s*['"]r['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /fs\.readSync\(\s*descriptor,\s*elfMagic,\s*0,\s*elfMagic\.length,\s*0\s*\)/
+    );
+    assert.match(packageLayoutVerifier, /fs\.closeSync\(descriptor\)/);
+
+    const launcherVerifier = packageLayoutVerifier.match(
+        /function verifyLinuxLauncher\([\s\S]*?\n}\n\nfunction verifyFlatpakPermissions/
+    )?.[0];
+    assert.ok(launcherVerifier);
+    assert.ok(
+        launcherVerifier.indexOf('resolveLinuxLauncherLayout(') <
+            launcherVerifier.indexOf('const launcherBinaryPath')
+    );
+    assert.match(
+        launcherVerifier,
+        /if \(!launcherLayout\.wrapperRequired\) \{[\s\S]*?return;[\s\S]*?\}\s*const launcherBinaryPath[\s\S]*?fs\.readFileSync\(launcherPath,\s*['"]utf8['"]\)/
+    );
+    assert.match(
+        launcherVerifier,
+        /fs\.existsSync\(flatpakBinarySiblingPath\)/
+    );
 });
 
 test('nx-electron packaging does not copy duplicate root package metadata', () => {

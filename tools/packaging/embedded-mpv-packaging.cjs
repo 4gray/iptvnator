@@ -25,6 +25,7 @@ const {
     resolveLinuxFrameCopyProfile,
     validateLinuxProfileTargets,
 } = require('./linux-frame-copy-profile.cjs');
+const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
 
 const forbiddenRuntimePathPrefixes = ['/opt/homebrew/', '/usr/local/'];
 const systemRuntimePathPrefixes = ['/System/Library/', '/usr/lib/'];
@@ -1380,9 +1381,26 @@ function inspectLinuxElfIsolation(
     resourceDir,
     nativeDir,
     manifest,
+    targetNames,
     options,
     errors
 ) {
+    const executableName = options.executableName ?? 'iptvnator';
+    let launcherLayout;
+    try {
+        launcherLayout = resolveLinuxLauncherLayout(
+            targetNames,
+            executableName
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to resolve Linux launcher layout: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return;
+    }
+
     const hostPlatform = options.hostPlatform ?? process.platform;
     let inspectElf = options.elfInspector;
     if (!inspectElf) {
@@ -1403,9 +1421,11 @@ function inspectLinuxElfIsolation(
         return;
     }
 
-    const executableName = options.executableName ?? 'iptvnator';
     const inspectedPaths = {
-        electron: path.join(path.dirname(resourceDir), `${executableName}.bin`),
+        electron: path.join(
+            path.dirname(resourceDir),
+            launcherLayout.electronBinaryName
+        ),
         addon: path.join(nativeDir, linuxFrameCopyArtifacts.addon.name),
         reader: path.join(nativeDir, linuxFrameCopyArtifacts.frameReader.name),
         helper: path.join(nativeDir, linuxFrameCopyArtifacts.helper.name),
@@ -1770,7 +1790,14 @@ function validateLinuxPackagedEmbeddedMpv(resourceDir, options) {
     } else {
         validateBundledLinuxRuntime(nativeDir, manifest, errors);
     }
-    inspectLinuxElfIsolation(resourceDir, nativeDir, manifest, options, errors);
+    inspectLinuxElfIsolation(
+        resourceDir,
+        nativeDir,
+        manifest,
+        targetNames,
+        options,
+        errors
+    );
     return errors;
 }
 

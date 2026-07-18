@@ -18,6 +18,7 @@ const {
 const {
     validateLinuxProfileTargets,
 } = require('./linux-frame-copy-profile.cjs');
+const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -468,10 +469,88 @@ function verifyPackagedPackageMetadata(resourceDir, errors) {
     }
 }
 
-function verifyLinuxLauncher(resourceDir, errors) {
+function verifyLinuxLauncher(resourceDir, targetNames, errors) {
+    let launcherLayout;
+    try {
+        launcherLayout = resolveLinuxLauncherLayout(
+            targetNames,
+            linuxExecutableName
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to resolve Linux launcher layout: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return;
+    }
+
     const appDir = path.dirname(resourceDir);
     const launcherPath = path.join(appDir, linuxExecutableName);
-    const launcherBinaryPath = `${launcherPath}.bin`;
+
+    if (!launcherLayout.wrapperRequired) {
+        if (!fileExists(launcherPath)) {
+            errors.push(
+                `Missing Flatpak Electron ELF in ${appDir}: ${path.basename(launcherPath)}`
+            );
+            return;
+        }
+
+        const flatpakBinarySiblingPath = `${launcherPath}.bin`;
+        if (fs.existsSync(flatpakBinarySiblingPath)) {
+            errors.push(
+                `Flatpak Electron layout must not include a launcher binary sibling: ${flatpakBinarySiblingPath}`
+            );
+        }
+
+        const expectedElfMagic = Buffer.from([0x7f, 0x45, 0x4c, 0x46]);
+        const elfMagic = Buffer.alloc(4);
+        let descriptor;
+        try {
+            descriptor = fs.openSync(launcherPath, 'r');
+            const bytesRead = fs.readSync(
+                descriptor,
+                elfMagic,
+                0,
+                elfMagic.length,
+                0
+            );
+            if (
+                bytesRead !== expectedElfMagic.length ||
+                !elfMagic.equals(expectedElfMagic)
+            ) {
+                errors.push(
+                    `Flatpak Electron launcher must be an ELF binary: ${launcherPath}`
+                );
+            }
+        } catch (error) {
+            errors.push(
+                `Unable to inspect Flatpak Electron ELF at ${launcherPath}: ${
+                    error instanceof Error ? error.message : String(error)
+                }`
+            );
+        } finally {
+            if (descriptor !== undefined) {
+                try {
+                    fs.closeSync(descriptor);
+                } catch (error) {
+                    errors.push(
+                        `Unable to close Flatpak Electron ELF at ${launcherPath}: ${
+                            error instanceof Error
+                                ? error.message
+                                : String(error)
+                        }`
+                    );
+                }
+            }
+        }
+        return;
+    }
+
+    const launcherBinaryPath = path.join(
+        appDir,
+        launcherLayout.electronBinaryName
+    );
 
     if (!fileExists(launcherBinaryPath)) {
         errors.push(
@@ -733,7 +812,7 @@ function verifyResourceDir(resourceDir) {
         verifyLinuxExecutableArgs(errors);
         verifyFlatpakPermissions(errors);
         verifySnapPackagingConfig(errors);
-        verifyLinuxLauncher(resourceDir, errors);
+        verifyLinuxLauncher(resourceDir, linuxTargetNames, errors);
     }
 
     errors.push(
