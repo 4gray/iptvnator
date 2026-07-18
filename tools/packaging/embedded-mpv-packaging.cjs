@@ -1320,9 +1320,18 @@ function dependencyFileName(dependencyName) {
     return dependencyName.replaceAll('\\', '/').split('/').at(-1) ?? '';
 }
 
-function listElectronShippedLinuxLibraries(resourceDir) {
+function listElectronShippedLinuxLibraries(resourceDir, options = {}) {
     const appDir = path.dirname(resourceDir);
     const normalizedResourceDir = path.resolve(resourceDir);
+    const excludedSnapLibraryRoots =
+        options.artifactFormat === 'snap'
+            ? new Set(
+                  [
+                      path.join(appDir, 'lib'),
+                      path.join(appDir, 'usr', 'lib'),
+                  ].map((directoryPath) => path.resolve(directoryPath))
+              )
+            : new Set();
     const libraries = [];
 
     function visit(directoryPath) {
@@ -1334,6 +1343,9 @@ function listElectronShippedLinuxLibraries(resourceDir) {
                 continue;
             }
             if (entry.isDirectory()) {
+                if (excludedSnapLibraryRoots.has(path.resolve(entryPath))) {
+                    continue;
+                }
                 visit(entryPath);
                 continue;
             }
@@ -1346,6 +1358,11 @@ function listElectronShippedLinuxLibraries(resourceDir) {
         }
     }
 
+    // afterPack and unpacked-layout checks see the pristine Electron tree, so
+    // recurse to catch future nested Electron libraries. An extracted Snap
+    // overlays package-manager lib/ and usr/lib/ trees onto that same root;
+    // exclude exactly those target-provided roots while scanning everything
+    // else recursively.
     visit(appDir);
     return libraries.sort();
 }
@@ -1385,7 +1402,8 @@ function inspectLinuxElfIsolation(
         helper: path.join(nativeDir, linuxFrameCopyArtifacts.helper.name),
     };
     for (const [index, libraryPath] of listElectronShippedLinuxLibraries(
-        resourceDir
+        resourceDir,
+        { artifactFormat: options.artifactFormat }
     ).entries()) {
         inspectedPaths[`electronLibrary:${index}`] = libraryPath;
     }
@@ -1918,6 +1936,7 @@ module.exports = {
     commandExists,
     copyRuntimeToNativeBuild,
     findLibMpv,
+    listElectronShippedLinuxLibraries,
     listRuntimeFiles,
     listDylibs,
     parseOtoolDependencies,

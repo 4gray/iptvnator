@@ -172,7 +172,11 @@ the bundled legal payload. AppImage, Snap, and Flatpak receive
 `embedded-mpv-notices.json`, `THIRD_PARTY_NOTICES.txt`, and
 `licenses/<package>/**`; DEB, RPM, Pacman, and marker-only packages must not
 retain them. Package validation also scans the Electron executable and all
-shipped Electron libraries for a direct libmpv dependency.
+shipped Electron libraries for a direct libmpv dependency. Before target
+packaging, that scan is recursive over the pristine Electron tree. After Snap
+has merged its template runtime into the payload root, the post-target scan
+excludes exactly its package-manager `lib/**` and `usr/lib/**` trees while
+remaining recursive everywhere else.
 
 At startup, Linux x64 frame-copy is advertised only after the main process
 validates that manifest/files and successfully executes:

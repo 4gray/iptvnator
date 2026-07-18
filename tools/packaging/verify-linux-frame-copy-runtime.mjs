@@ -11,7 +11,10 @@ const require = createRequire(import.meta.url);
 const {
     parseReadelfDynamic,
 } = require('../embedded-mpv/build-linux-runtime.cjs');
-const { validatePackagedEmbeddedMpv } = require('./embedded-mpv-packaging.cjs');
+const {
+    listElectronShippedLinuxLibraries,
+    validatePackagedEmbeddedMpv,
+} = require('./embedded-mpv-packaging.cjs');
 const {
     LINUX_SYSTEM_PACKAGE_DEPENDENCIES,
     resolveLinuxFrameCopyProfile,
@@ -970,42 +973,14 @@ function dependencyFileName(dependencyName) {
     return String(dependencyName).replaceAll('\\', '/').split('/').at(-1) ?? '';
 }
 
-function listElectronLibraries(resourceDir) {
-    const appDir = path.dirname(resourceDir);
-    const resolvedResourceDir = path.resolve(resourceDir);
-    const libraries = [];
-
-    function visit(directoryPath) {
-        for (const entry of fs.readdirSync(directoryPath, {
-            withFileTypes: true,
-        })) {
-            const entryPath = path.join(directoryPath, entry.name);
-            if (path.resolve(entryPath) === resolvedResourceDir) {
-                continue;
-            }
-            if (entry.isDirectory()) {
-                visit(entryPath);
-                continue;
-            }
-            if (
-                (entry.isFile() || entry.isSymbolicLink()) &&
-                /\.so(?:\.\d+)*$/.test(entry.name)
-            ) {
-                libraries.push(entryPath);
-            }
-        }
-    }
-
-    visit(appDir);
-    return libraries.sort();
-}
-
-function validateElectronIsolation(resourceDir, elfInspector) {
+function validateElectronIsolation(resourceDir, artifactFormat, elfInspector) {
     const errors = [];
     const electronPath = path.join(path.dirname(resourceDir), 'iptvnator.bin');
     const binaries = [
         { label: 'Electron binary', binaryPath: electronPath },
-        ...listElectronLibraries(resourceDir).map((binaryPath) => ({
+        ...listElectronShippedLinuxLibraries(resourceDir, {
+            artifactFormat,
+        }).map((binaryPath) => ({
             label: 'Electron library',
             binaryPath,
         })),
@@ -1196,12 +1171,15 @@ export function verifyExtractedLinuxFrameCopyRuntime({
             targetArch: packageArch,
             profile: profile.name,
             targetNames: profile.targets,
+            artifactFormat,
             hostPlatform: 'linux',
             executableName: 'iptvnator',
             elfInspector,
         })
     );
-    errors.push(...validateElectronIsolation(resourceDir, elfInspector));
+    errors.push(
+        ...validateElectronIsolation(resourceDir, artifactFormat, elfInspector)
+    );
     if (foreignArch || errors.length > 0) {
         return errors;
     }

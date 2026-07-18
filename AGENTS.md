@@ -236,6 +236,11 @@ Key files:
   Electron libraries, `embedded_mpv.node`, and
   `embedded_mpv_frame_reader.node` must not load or link it. Preserve this
   process-isolation contract in build, package, and smoke checks.
+- Pristine afterPack/unpacked layouts scan Electron libraries recursively.
+  Extracted Snap payloads exclude only the package-manager `lib/**` and
+  `usr/lib/**` trees that Snap overlays into the same root; every other
+  directory remains recursive, and Electron-library symlinks still fail
+  closed.
 - Linux frame-copy availability is fail-closed. The packaged manifest,
   artifact modes, declared bundled hashes/closure, and bounded
   `--runtime-probe` must all succeed before frame-copy can relax the renderer

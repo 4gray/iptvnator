@@ -106,6 +106,14 @@ native directory also contains hash-validated `embedded-mpv-notices.json`,
 marker-only packages intentionally contain neither a private `native/lib`
 directory nor the bundled-runtime legal payload.
 
+The pristine `afterPack` and unpacked-layout checks recursively inspect
+Electron-owned shared libraries. An extracted Snap has already overlaid its
+package-manager `lib/**` and `usr/lib/**` runtime trees onto that same payload
+root, so the post-target verifier excludes exactly those two target-provided
+trees while continuing to scan every other directory recursively. Electron
+libraries are still required to be regular files and free of libmpv linkage;
+Snap runtime symlinks are outside that ownership boundary.
+
 ARM Linux packages remain marker-only. They never borrow x64 native artifacts,
 even when build environment variables claim a matching staged architecture.
 Consequently frame-copy is not advertised there, and the normal inline/external

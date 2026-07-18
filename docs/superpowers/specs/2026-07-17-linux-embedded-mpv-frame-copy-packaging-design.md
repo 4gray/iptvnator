@@ -117,7 +117,11 @@ they may not retain build-prefix paths.
 `embedded_mpv.node`, the Electron executable (`iptvnator.bin`), and Electron's
 shipped libraries must not have a direct `DT_NEEDED` entry for libmpv.
 `iptvnator_mpv_helper` must have one. Process isolation is an invariant, not a
-profile-specific choice.
+profile-specific choice. The pristine Electron tree is scanned recursively
+before target packaging. Because Snap later overlays package-manager
+`lib/**`/`usr/lib/**` trees into the payload root, its extracted-target scan
+excludes exactly those two target-provided trees while remaining recursive
+everywhere else. Electron-library symlinks outside those roots fail closed.
 
 The manifest records:
 

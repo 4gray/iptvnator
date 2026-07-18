@@ -627,8 +627,12 @@ engine` (restart required) or
   `<canvas data-embedded-mpv-frame>`. Shared `app-player-controls` owns the DOM
   UI; native-view retains the legacy dock. On Linux, only
   `iptvnator_mpv_helper` may link libmpv; Electron, its shipped libraries, the
-  addon, and frame reader must not. Official x64 packages use three separate
-  profiles: DEB/RPM/Pacman depend on system libmpv plus the helper's direct
+  addon, and frame reader must not. Pristine afterPack/unpacked layouts scan
+  Electron libraries recursively; extracted Snap payloads exclude only the
+  package-manager `lib/**` and `usr/lib/**` trees overlaid into the same root.
+  Every other directory remains recursive, and Electron-library symlinks still
+  fail closed. Official x64 packages use three separate profiles:
+  DEB/RPM/Pacman depend on system libmpv plus the helper's direct
   EGL/OpenGL/GBM interfaces, AppImage/Snap bundle the pinned LGPL closure, and
   Flatpak bundles the same closure. Exact system dependencies are
   DEB=`libmpv2,libegl1,libopengl0,libgbm1`,

@@ -958,17 +958,29 @@ test('validates Linux ELF process isolation, helper linkage, and bundled closure
         []
     );
 
-    const addonLinkErrors = validatePackagedEmbeddedMpv(fixture.resourceDir, {
-        ...options,
-        elfInspector: validElfInspector(fixture.nativeDir, manifest, {
-            [FRAME_COPY_ARTIFACTS.addon]: {
-                needed: ['libmpv.so.2'],
-                rpath: [],
-                runpath: [],
-            },
-        }),
-    });
-    assert.match(addonLinkErrors.join('\n'), /must not link libmpv/);
+    for (const artifactName of [
+        FRAME_COPY_ARTIFACTS.addon,
+        FRAME_COPY_ARTIFACTS.frameReader,
+    ]) {
+        const isolationErrors = validatePackagedEmbeddedMpv(
+            fixture.resourceDir,
+            {
+                ...options,
+                elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+                    [artifactName]: {
+                        needed: ['libmpv.so.2'],
+                        rpath: [],
+                        runpath: [],
+                    },
+                }),
+            }
+        );
+        assert.match(
+            isolationErrors.join('\n'),
+            /must not link libmpv/,
+            `${artifactName} must remain process-isolated from libmpv`
+        );
+    }
 
     const pathBearingAddonLinkErrors = validatePackagedEmbeddedMpv(
         fixture.resourceDir,
@@ -1062,6 +1074,99 @@ test('validates Linux ELF process isolation, helper linkage, and bundled closure
     assert.match(
         electronLibraryErrors.join('\n'),
         /Linux Electron library must not link libmpv.*libelectron-extra\.so/
+    );
+});
+
+test('recursively validates pristine Electron libraries before target packaging', (t) => {
+    const fixture = createNativeFixture();
+    t.after(() =>
+        fs.rmSync(fixture.fixtureRoot, { recursive: true, force: true })
+    );
+    const manifest = preparePackagedFrameCopyArtifacts(
+        fixture.nativeDir,
+        'linux',
+        {
+            profile: 'portable',
+            targetNames: ['snap'],
+        }
+    );
+    const nestedElectronLibrary = join(
+        fixture.appOutDir,
+        'future-electron-runtime',
+        'libfuture-electron.so'
+    );
+    fs.mkdirSync(dirname(nestedElectronLibrary), { recursive: true });
+    fs.writeFileSync(nestedElectronLibrary, 'future electron library');
+
+    const validationOptions = {
+        platform: 'linux',
+        required: true,
+        foreignArch: false,
+        profile: 'portable',
+        targetNames: ['snap'],
+        hostPlatform: 'linux',
+    };
+    const errors = validatePackagedEmbeddedMpv(fixture.resourceDir, {
+        ...validationOptions,
+        elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+            'libfuture-electron.so': {
+                needed: ['libmpv.so.2'],
+                rpath: [],
+                runpath: [],
+            },
+        }),
+    });
+
+    assert.match(
+        errors.join('\n'),
+        /Linux Electron library must not link libmpv.*libfuture-electron\.so/
+    );
+
+    fs.rmSync(dirname(nestedElectronLibrary), {
+        recursive: true,
+        force: true,
+    });
+    for (const packageLibraryDir of [
+        join(fixture.appOutDir, 'lib', 'x86_64-linux-gnu'),
+        join(fixture.appOutDir, 'usr', 'lib', 'x86_64-linux-gnu'),
+    ]) {
+        const targetPath = join(packageLibraryDir, 'libpackage.so.1.0');
+        fs.mkdirSync(packageLibraryDir, { recursive: true });
+        fs.writeFileSync(targetPath, 'Snap template library');
+        fs.symlinkSync(
+            'libpackage.so.1.0',
+            join(packageLibraryDir, 'libpackage.so.1')
+        );
+    }
+
+    assert.deepEqual(
+        validatePackagedEmbeddedMpv(fixture.resourceDir, {
+            ...validationOptions,
+            artifactFormat: 'snap',
+            elfInspector: validElfInspector(fixture.nativeDir, manifest),
+        }),
+        []
+    );
+
+    fs.mkdirSync(dirname(nestedElectronLibrary), { recursive: true });
+    fs.writeFileSync(nestedElectronLibrary, 'future electron library');
+    const snapIsolationErrors = validatePackagedEmbeddedMpv(
+        fixture.resourceDir,
+        {
+            ...validationOptions,
+            artifactFormat: 'snap',
+            elfInspector: validElfInspector(fixture.nativeDir, manifest, {
+                'libfuture-electron.so': {
+                    needed: ['libmpv.so.2'],
+                    rpath: [],
+                    runpath: [],
+                },
+            }),
+        }
+    );
+    assert.match(
+        snapIsolationErrors.join('\n'),
+        /Linux Electron library must not link libmpv.*libfuture-electron\.so/
     );
 });
 

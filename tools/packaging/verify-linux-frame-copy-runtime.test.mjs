@@ -792,6 +792,143 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
     }
 });
 
+test('excludes only Snap template library roots from Electron isolation checks', () => {
+    const fixture = createSystemPayload({ architecture: 'arm64' });
+    const packageLibraryDirs = [
+        path.join(fixture.appDir, 'lib', 'x86_64-linux-gnu'),
+        path.join(fixture.appDir, 'usr', 'lib', 'x86_64-linux-gnu'),
+    ];
+    const electronLibrary = path.join(fixture.appDir, 'libelectron-extra.so');
+    for (const [index, packageLibraryDir] of packageLibraryDirs.entries()) {
+        const packageLibraryTarget = path.join(
+            packageLibraryDir,
+            `libpackage-${index}.so.0.12.2`
+        );
+        fs.mkdirSync(packageLibraryDir, { recursive: true });
+        fs.writeFileSync(packageLibraryTarget, 'package-managed library');
+        fs.symlinkSync(
+            path.basename(packageLibraryTarget),
+            path.join(packageLibraryDir, `libpackage-${index}.so.0`)
+        );
+    }
+    fs.writeFileSync(electronLibrary, 'electron library');
+
+    const inspectedPaths = [];
+    const isPackageLibraryPath = (binaryPath) =>
+        packageLibraryDirs.some((packageLibraryDir) =>
+            path
+                .resolve(binaryPath)
+                .startsWith(`${path.resolve(packageLibraryDir)}${path.sep}`)
+        );
+    const ownershipScopedElfInspector = (binaryPath) => {
+        inspectedPaths.push(binaryPath);
+        if (isPackageLibraryPath(binaryPath)) {
+            throw new Error(
+                'package-manager library tree crossed the Electron ownership boundary'
+            );
+        }
+        return validElfInspector(binaryPath);
+    };
+
+    try {
+        assert.deepEqual(
+            verifyExtractedLinuxFrameCopyRuntime({
+                resourceDir: fixture.resourceDir,
+                artifactFormat: 'snap',
+                profileName: 'portable',
+                packageDependencies: [],
+                elfInspector: ownershipScopedElfInspector,
+                probeRunner() {
+                    assert.fail('foreign-architecture Snap must not probe');
+                },
+            }),
+            []
+        );
+        assert.ok(inspectedPaths.includes(electronLibrary));
+        assert.equal(inspectedPaths.some(isPackageLibraryPath), false);
+
+        const isolationErrors = verifyExtractedLinuxFrameCopyRuntime({
+            resourceDir: fixture.resourceDir,
+            artifactFormat: 'snap',
+            profileName: 'portable',
+            packageDependencies: [],
+            elfInspector(binaryPath) {
+                if (binaryPath === electronLibrary) {
+                    return {
+                        soname: null,
+                        needed: ['libmpv.so.2'],
+                        rpath: [],
+                        runpath: [],
+                    };
+                }
+                return ownershipScopedElfInspector(binaryPath);
+            },
+            probeRunner() {
+                assert.fail('foreign-architecture Snap must not probe');
+            },
+        });
+        assert.match(
+            isolationErrors.join('\n'),
+            /Electron library must not link libmpv.*libelectron-extra\.so/
+        );
+
+        const nestedElectronLibrary = path.join(
+            fixture.appDir,
+            'future-electron-runtime',
+            'libfuture-electron.so'
+        );
+        fs.mkdirSync(path.dirname(nestedElectronLibrary), {
+            recursive: true,
+        });
+        fs.writeFileSync(nestedElectronLibrary, 'nested electron library');
+        const nestedIsolationErrors = verifyExtractedLinuxFrameCopyRuntime({
+            resourceDir: fixture.resourceDir,
+            artifactFormat: 'snap',
+            profileName: 'portable',
+            packageDependencies: [],
+            elfInspector(binaryPath) {
+                if (binaryPath === nestedElectronLibrary) {
+                    return {
+                        soname: null,
+                        needed: ['libmpv.so.2'],
+                        rpath: [],
+                        runpath: [],
+                    };
+                }
+                return ownershipScopedElfInspector(binaryPath);
+            },
+            probeRunner() {
+                assert.fail('foreign-architecture Snap must not probe');
+            },
+        });
+        assert.match(
+            nestedIsolationErrors.join('\n'),
+            /Electron library must not link libmpv.*libfuture-electron\.so/
+        );
+
+        fs.symlinkSync(
+            path.basename(electronLibrary),
+            path.join(fixture.appDir, 'libEGL.so')
+        );
+        const symlinkErrors = verifyExtractedLinuxFrameCopyRuntime({
+            resourceDir: fixture.resourceDir,
+            artifactFormat: 'snap',
+            profileName: 'portable',
+            packageDependencies: [],
+            elfInspector: ownershipScopedElfInspector,
+            probeRunner() {
+                assert.fail('foreign-architecture Snap must not probe');
+            },
+        });
+        assert.match(
+            symlinkErrors.join('\n'),
+            /Electron library must be a regular file: .*libEGL\.so/
+        );
+    } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+});
+
 test('rejects helper probes terminated by a signal or hard timeout', () => {
     for (const probeResult of [
         {
