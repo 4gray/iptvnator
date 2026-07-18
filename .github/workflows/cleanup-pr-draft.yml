@@ -4,12 +4,19 @@ on:
     pull_request:
         types: [closed]
 
+# contents: write — delete the draft release; actions: write — cancel the
+# closed PR's still-running build workflow before deleting.
 permissions:
+    actions: write
     contents: write
 
 jobs:
     delete-draft:
         name: Delete PR draft release
+        # Fork PRs never get a draft (the release job skips them) and their
+        # GITHUB_TOKEN is read-only regardless of the permissions block, so
+        # there is nothing to cancel or delete.
+        if: github.event.pull_request.head.repo.full_name == github.repository
         runs-on: ubuntu-latest
         steps:
             # A build for this PR may still be running and would recreate the
