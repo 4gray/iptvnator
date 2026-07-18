@@ -126,8 +126,8 @@ importers:
         specifier: 1.6.13
         version: 1.6.13
       iptv-playlist-parser:
-        specifier: github:4gray/iptv-playlist-parser
-        version: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/38a62d0b7c98f442bfa102ee8e1fe14169ae9386
+        specifier: github:4gray/iptv-playlist-parser#1b5cf3bd6131a07f57c339c4b74bfc4985b8adb3
+        version: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/1b5cf3bd6131a07f57c339c4b74bfc4985b8adb3
       marked:
         specifier: 18.0.5
         version: 18.0.5
@@ -7594,9 +7594,9 @@ packages:
     resolution: {integrity: sha512-Zv/pA+ciVFbCSBBjGfaKUya/CcGmUHzTydLMaTwrUUEM2DIEO3iZvueGxmacvmN50fGpGVKeTXpb2LcYQxeVdg==}
     engines: {node: '>= 10'}
 
-  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/38a62d0b7c98f442bfa102ee8e1fe14169ae9386:
-    resolution: {tarball: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/38a62d0b7c98f442bfa102ee8e1fe14169ae9386}
-    version: 0.12.2
+  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/1b5cf3bd6131a07f57c339c4b74bfc4985b8adb3:
+    resolution: {tarball: https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/1b5cf3bd6131a07f57c339c4b74bfc4985b8adb3}
+    version: 0.15.2
 
   iron-webcrypto@1.2.1:
     resolution: {integrity: sha512-feOM6FaSr6rEABp/eDfVseKyTMDt+KGpeB35SkVn9Tyn0CqvVsY3EwI0v5i8nMHyJnzCIQf7nsy3p41TPkJZhg==}
@@ -7663,10 +7663,6 @@ packages:
     engines: {node: ^12.20.0 || ^14.13.1 || >=16.0.0}
     hasBin: true
 
-  is-extglob@1.0.0:
-    resolution: {integrity: sha512-7Q+VbVafe6x2T+Tu6NcOf6sRklazEPmBoB3IWk3WdGZM2iGUwU/Oe3Wtq5lSEkDTTlpp8yx+5t4pzO/i9Ty1ww==}
-    engines: {node: '>=0.10.0'}
-
   is-extglob@2.1.1:
     resolution: {integrity: sha512-SbKbANkN603Vi4jEZv49LeVJMn4yGwsbzZworEoyEiutsN3nJYdbO36zfhGJ6QEDpOZIFkDtnq5JRxmvl3jsoQ==}
     engines: {node: '>=0.10.0'}
@@ -7694,10 +7690,6 @@ packages:
     resolution: {integrity: sha512-upqt1SkGkODW9tsGNG5mtXTXtECizwtS2kA161M+gJPc1xdb/Ax629af6YrTwcOeQHbewrPNlE5Dx7kzvXTizA==}
     engines: {node: '>= 0.4'}
 
-  is-glob@2.0.1:
-    resolution: {integrity: sha512-a1dBeB19NXsf/E0+FHqkagizel/LQw2DjSQpvQrj3zT+jYPpaUCryPnrQajXKFLCMuf4I6FhRpaGtw4lPrG6Eg==}
-    engines: {node: '>=0.10.0'}
-
   is-glob@4.0.3:
     resolution: {integrity: sha512-xelSayHH36ZgE7ZWhli7pW34hNbNl8Ojv5KVmkJD4hBdD3th8Tfk9vYasLM+mXWOZhFkgZfxhLSnrwRr4elSSg==}
     engines: {node: '>=0.10.0'}
@@ -7717,10 +7709,6 @@ packages:
   is-interactive@2.0.0:
     resolution: {integrity: sha512-qP1vozQRI+BMOPcjFzrjXuQvdak2pHNUMZoeG2eRbiSqyvbEf/wQtEOTOX1guk6E3t36RkaqiSt8A/6YElNxLQ==}
     engines: {node: '>=12'}
-
-  is-invalid-path@0.1.0:
-    resolution: {integrity: sha512-aZMG0T3F34mTg4eTdszcGXx54oiZ4NtHSft3hWNJMGJXUUqdIj3cOZuHcU0nCWWcY3jd7yRe/3AEm3vSNTpBGQ==}
-    engines: {node: '>=0.10.0'}
 
   is-lambda@1.0.1:
     resolution: {integrity: sha512-z7CMFGNrENq5iFB9Bqo64Xk6Y9sg+epq1myIcdHaGnbMTYOxvzsEtdYqQUylB7LxfkvgrrjP32T6Ywciio9UIQ==}
@@ -7818,10 +7806,6 @@ packages:
   is-unicode-supported@2.1.0:
     resolution: {integrity: sha512-mE00Gnza5EEB3Ds0HfMyllZzbBrmLOX3vfWoj9A9PEnTfratQ/BcaJOuMhnkhjXvb2+FkY3VuHqtAGpTPmglFQ==}
     engines: {node: '>=18'}
-
-  is-valid-path@0.1.1:
-    resolution: {integrity: sha512-+kwPrVDu9Ms03L90Qaml+79+6DZHqHyRoANI6IsZJ/g8frhnfchDOBCa0RbQ6/kdHt5CS5OeIEyrYznNuVN+8A==}
-    engines: {node: '>=0.10.0'}
 
   is-weakmap@2.0.2:
     resolution: {integrity: sha512-K5pXYOm9wqY1RgjpL3YTkF39tni1XajUIkawTLUo9EZEVUFga5gSQJF8nNS7ZwJQ02y+1YCNYcMh+HIf1ZqE+w==}
@@ -11543,10 +11527,6 @@ packages:
   validate-npm-package-name@7.0.2:
     resolution: {integrity: sha512-hVDIBwsRruT73PbK7uP5ebUt+ezEtCmzZz3F59BSr2F6OVFnJ/6h8liuvdLrQ88Xmnk6/+xGGuq+pG9WwTuy3A==}
     engines: {node: ^20.17.0 || >=22.9.0}
-
-  validator@13.15.26:
-    resolution: {integrity: sha512-spH26xU080ydGggxRyR1Yhcbgx+j3y5jbNXk/8L+iRvdIEQ4uTRH2Sgf2dokud6Q4oAtsbNvJ1Ft+9xmm6IZcA==}
-    engines: {node: '>= 0.10'}
 
   varint@6.0.0:
     resolution: {integrity: sha512-cXEIW6cfr15lFv563k4GuVuW/fiwjknytD37jIOLSdSWuOI6WnO/oKwmP2FQTU2l01LP8/M5TSAJpzUaGe3uWg==}
@@ -20610,10 +20590,7 @@ snapshots:
 
   ipaddr.js@2.3.0: {}
 
-  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/38a62d0b7c98f442bfa102ee8e1fe14169ae9386:
-    dependencies:
-      is-valid-path: 0.1.1
-      validator: 13.15.26
+  iptv-playlist-parser@https://codeload.github.com/4gray/iptv-playlist-parser/tar.gz/1b5cf3bd6131a07f57c339c4b74bfc4985b8adb3: {}
 
   iron-webcrypto@1.2.1: {}
 
@@ -20680,8 +20657,6 @@ snapshots:
 
   is-docker@3.0.0: {}
 
-  is-extglob@1.0.0: {}
-
   is-extglob@2.1.1: {}
 
   is-finalizationregistry@1.1.1:
@@ -20706,10 +20681,6 @@ snapshots:
       has-tostringtag: 1.0.2
       safe-regex-test: 1.1.0
 
-  is-glob@2.0.1:
-    dependencies:
-      is-extglob: 1.0.0
-
   is-glob@4.0.3:
     dependencies:
       is-extglob: 2.1.1
@@ -20723,10 +20694,6 @@ snapshots:
   is-interactive@1.0.0: {}
 
   is-interactive@2.0.0: {}
-
-  is-invalid-path@0.1.0:
-    dependencies:
-      is-glob: 2.0.1
 
   is-lambda@1.0.1: {}
 
@@ -20798,10 +20765,6 @@ snapshots:
   is-unicode-supported@0.1.0: {}
 
   is-unicode-supported@2.1.0: {}
-
-  is-valid-path@0.1.1:
-    dependencies:
-      is-invalid-path: 0.1.0
 
   is-weakmap@2.0.2: {}
 
@@ -25377,8 +25340,6 @@ snapshots:
       spdx-expression-parse: 3.0.1
 
   validate-npm-package-name@7.0.2: {}
-
-  validator@13.15.26: {}
 
   varint@6.0.0: {}
 

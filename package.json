@@ -97,7 +97,7 @@
         "epg-parser": "^0.1.6",
         "fix-path": "5.0.0",
         "hls.js": "1.6.13",
-        "iptv-playlist-parser": "github:4gray/iptv-playlist-parser",
+        "iptv-playlist-parser": "github:4gray/iptv-playlist-parser#1b5cf3bd6131a07f57c339c4b74bfc4985b8adb3",
         "marked": "18.0.5",
         "mpegts.js": "1.8.0",
         "ms": "2.1.3",

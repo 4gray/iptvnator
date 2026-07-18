@@ -898,9 +898,8 @@ export class PlaylistsService {
         path?: string
     ) {
         try {
-            // Dynamic import keeps the ~130KB validator dep (transitively pulled
-            // by iptv-playlist-parser) out of the eager bundle. parse() only runs
-            // on user-triggered imports.
+            // Dynamic import keeps the parser out of the eager bundle;
+            // parse() only runs on user-triggered imports.
             const parserModule = await import('iptv-playlist-parser');
             const parse = resolvePlaylistParser(parserModule);
             const parsedPlaylist = parse(playlist);
