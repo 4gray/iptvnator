@@ -257,11 +257,16 @@ export const DEVELOPMENT_MANIFEST_FIELDS = [
     'sourceRuntimeValidated',
 ] as const;
 
-export const SYSTEM_PACKAGE_DEPENDENCIES = {
-    deb: 'libmpv2',
-    rpm: 'mpv-libs',
-    pacman: 'mpv',
-};
+export const SYSTEM_PACKAGE_DEPENDENCIES = Object.freeze({
+    deb: Object.freeze(['libmpv2', 'libegl1', 'libopengl0', 'libgbm1']),
+    rpm: Object.freeze([
+        'mpv-libs',
+        'libglvnd-egl',
+        'libglvnd-opengl',
+        'mesa-libgbm',
+    ]),
+    pacman: Object.freeze(['mpv', 'libglvnd', 'mesa']),
+});
 
 export const PROFILE_CONTRACTS = {
     system: {

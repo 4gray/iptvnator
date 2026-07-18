@@ -42,26 +42,29 @@ function fpmDependencyName(option) {
 }
 
 function configureSystemDependencies(config) {
-    const frameCopyDependencies = new Set(
-        Object.values(LINUX_SYSTEM_PACKAGE_DEPENDENCIES)
-    );
-    for (const [format, dependency] of Object.entries(
+    for (const [format, dependencies] of Object.entries(
         LINUX_SYSTEM_PACKAGE_DEPENDENCIES
     )) {
+        const frameCopyDependencies = new Set(dependencies);
         const formatConfig = { ...(config[format] ?? {}) };
         const otherFpmOptions = (formatConfig.fpm ?? []).filter(
             (option) => !frameCopyDependencies.has(fpmDependencyName(option))
         );
-        formatConfig.fpm = [...otherFpmOptions, `--depends=${dependency}`];
+        formatConfig.fpm = [
+            ...otherFpmOptions,
+            ...dependencies.map((dependency) => `--depends=${dependency}`),
+        ];
         config[format] = formatConfig;
     }
 }
 
 function removeForeignFrameCopyDependency(config, format) {
-    const dependency = LINUX_SYSTEM_PACKAGE_DEPENDENCIES[format];
+    const dependencies = new Set(
+        LINUX_SYSTEM_PACKAGE_DEPENDENCIES[format] ?? []
+    );
     const formatConfig = { ...(config[format] ?? {}) };
     const retainedFpmOptions = (formatConfig.fpm ?? []).filter(
-        (option) => fpmDependencyName(option) !== dependency
+        (option) => !dependencies.has(fpmDependencyName(option))
     );
     if (retainedFpmOptions.length > 0) {
         formatConfig.fpm = retainedFpmOptions;
@@ -73,8 +76,9 @@ function removeForeignFrameCopyDependency(config, format) {
 
 export function configureLinuxFrameCopyBuild(
     electronBuilderConfig,
-    { profileName, foreignDeb = false } = {}
+    { profileName, foreignDeb = false, foreignArch } = {}
 ) {
+    const hasForeignArch = foreignArch !== undefined;
     if (
         !electronBuilderConfig ||
         typeof electronBuilderConfig !== 'object' ||
@@ -87,6 +91,11 @@ export function configureLinuxFrameCopyBuild(
     if (foreignDeb && profileName) {
         throw new Error(
             'The marker-only foreign DEB pass must not select a frame-copy profile.'
+        );
+    }
+    if (hasForeignArch && !foreignDeb) {
+        throw new Error(
+            'A marker-only foreign architecture requires --foreign-deb.'
         );
     }
     const configured = cloneJson(electronBuilderConfig);
@@ -116,7 +125,20 @@ export function configureLinuxFrameCopyBuild(
                 'Electron Builder DEB target has no foreign architectures.'
             );
         }
-        configuredDebTarget.arch = foreignArches;
+        if (
+            hasForeignArch &&
+            (typeof foreignArch !== 'string' ||
+                !foreignArches.includes(foreignArch))
+        ) {
+            throw new Error(
+                `Unsupported marker-only foreign DEB architecture "${foreignArch}". Expected one of: ${foreignArches.join(
+                    ', '
+                )}.`
+            );
+        }
+        configuredDebTarget.arch = hasForeignArch
+            ? [foreignArch]
+            : foreignArches;
         configured.linux.target = [configuredDebTarget];
         configured.directories = {
             ...(configured.directories ?? {}),
@@ -179,14 +201,31 @@ function parseArguments(argv) {
     let configPath = 'electron-builder.json';
     let profileName;
     let foreignDeb = false;
+    let foreignArch;
+    const nextValue = (flag, index) => {
+        const value = normalized[index + 1];
+        if (
+            typeof value !== 'string' ||
+            value.trim() === '' ||
+            value.startsWith('--')
+        ) {
+            throw new Error(`${flag} requires a value.`);
+        }
+        return value;
+    };
     for (let index = 0; index < normalized.length; index += 1) {
         const argument = normalized[index];
         if (argument === '--config') {
-            configPath = normalized[++index];
+            configPath = nextValue(argument, index);
+            index += 1;
         } else if (argument === '--profile') {
-            profileName = normalized[++index];
+            profileName = nextValue(argument, index);
+            index += 1;
         } else if (argument === '--foreign-deb') {
             foreignDeb = true;
+        } else if (argument === '--foreign-arch') {
+            foreignArch = nextValue(argument, index);
+            index += 1;
         } else {
             throw new Error(`Unsupported configurator argument: ${argument}`);
         }
@@ -198,6 +237,7 @@ function parseArguments(argv) {
         configPath: path.resolve(configPath),
         profileName,
         foreignDeb,
+        foreignArch,
     };
 }
 

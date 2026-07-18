@@ -1,5 +1,7 @@
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { parse as parseYaml } from 'yaml';
@@ -48,9 +50,23 @@ test('configures an x64-only system pass with exact package dependencies', () =>
         { target: 'rpm', arch: ['x64'] },
         { target: 'pacman', arch: ['x64'] },
     ]);
-    assert.deepEqual(configured.deb.fpm, ['--depends=libmpv2']);
-    assert.deepEqual(configured.rpm.fpm, ['--depends=mpv-libs']);
-    assert.deepEqual(configured.pacman.fpm, ['--depends=mpv']);
+    assert.deepEqual(configured.deb.fpm, [
+        '--depends=libmpv2',
+        '--depends=libegl1',
+        '--depends=libopengl0',
+        '--depends=libgbm1',
+    ]);
+    assert.deepEqual(configured.rpm.fpm, [
+        '--depends=mpv-libs',
+        '--depends=libglvnd-egl',
+        '--depends=libglvnd-opengl',
+        '--depends=mesa-libgbm',
+    ]);
+    assert.deepEqual(configured.pacman.fpm, [
+        '--depends=mpv',
+        '--depends=libglvnd',
+        '--depends=mesa',
+    ]);
 });
 
 test('configures portable and flatpak passes without mixing targets', () => {
@@ -99,6 +115,76 @@ test('configures a separate marker-only foreign DEB pass without libmpv metadata
     );
 });
 
+test('configures exactly one requested marker-only foreign DEB architecture', () => {
+    for (const foreignArch of ['armv7l', 'arm64']) {
+        const configured = configureLinuxFrameCopyBuild(electronBuilderConfig, {
+            foreignDeb: true,
+            foreignArch,
+        });
+
+        assert.deepEqual(configuredTargets(configured), [
+            { target: 'deb', arch: [foreignArch] },
+        ]);
+    }
+});
+
+test('CLI writes an exact marker-only foreign DEB architecture', (t) => {
+    const temporaryDirectory = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-linux-build-config-')
+    );
+    t.after(() =>
+        fs.rmSync(temporaryDirectory, { recursive: true, force: true })
+    );
+    const configPath = path.join(temporaryDirectory, 'electron-builder.json');
+    fs.writeFileSync(
+        configPath,
+        `${JSON.stringify(electronBuilderConfig, null, 4)}\n`
+    );
+
+    const result = spawnSync(
+        process.execPath,
+        [
+            path.join(
+                workspaceRoot,
+                'tools',
+                'packaging',
+                'configure-linux-frame-copy-build.mjs'
+            ),
+            '--config',
+            configPath,
+            '--foreign-deb',
+            '--foreign-arch',
+            'arm64',
+        ],
+        { encoding: 'utf8' }
+    );
+
+    assert.equal(result.status, 0, result.stderr);
+    assert.deepEqual(
+        configuredTargets(JSON.parse(fs.readFileSync(configPath, 'utf8'))),
+        [{ target: 'deb', arch: ['arm64'] }]
+    );
+
+    const missingValue = spawnSync(
+        process.execPath,
+        [
+            path.join(
+                workspaceRoot,
+                'tools',
+                'packaging',
+                'configure-linux-frame-copy-build.mjs'
+            ),
+            '--config',
+            configPath,
+            '--foreign-deb',
+            '--foreign-arch',
+        ],
+        { encoding: 'utf8' }
+    );
+    assert.notEqual(missingValue.status, 0);
+    assert.match(missingValue.stderr, /--foreign-arch requires a value/);
+});
+
 test('does not mutate the shared electron-builder configuration', () => {
     const before = JSON.stringify(electronBuilderConfig);
     configureLinuxFrameCopyBuild(electronBuilderConfig, {
@@ -123,6 +209,31 @@ test('rejects an unknown profile and conflicting foreign/profile modes', () => {
             }),
         /must not select a frame-copy profile/
     );
+    assert.throws(
+        () =>
+            configureLinuxFrameCopyBuild(electronBuilderConfig, {
+                foreignArch: 'arm64',
+            }),
+        /foreign architecture requires --foreign-deb/
+    );
+    assert.throws(
+        () =>
+            configureLinuxFrameCopyBuild(electronBuilderConfig, {
+                foreignDeb: true,
+                foreignArch: 'x64',
+            }),
+        /Unsupported marker-only foreign DEB architecture/
+    );
+    for (const foreignArch of ['', 64]) {
+        assert.throws(
+            () =>
+                configureLinuxFrameCopyBuild(electronBuilderConfig, {
+                    foreignDeb: true,
+                    foreignArch,
+                }),
+            /Unsupported marker-only foreign DEB architecture/
+        );
+    }
 });
 
 test('rejects duplicate profile targets even when target count looks complete', () => {
@@ -142,20 +253,32 @@ test('rejects duplicate profile targets even when target count looks complete', 
 test('preserves unrelated fpm dependencies and normalizes only frame-copy dependencies', () => {
     const customized = structuredClone(electronBuilderConfig);
     customized.deb = {
-        fpm: ['--depends=unrelated-runtime', '--depends=libmpv2 >= 2'],
+        fpm: [
+            '--depends=unrelated-runtime',
+            '--depends=mesa',
+            '--depends=libmpv2 >= 2',
+            '--depends=libopengl0',
+        ],
     };
     const system = configureLinuxFrameCopyBuild(customized, {
         profileName: 'system',
     });
     assert.deepEqual(system.deb.fpm, [
         '--depends=unrelated-runtime',
+        '--depends=mesa',
         '--depends=libmpv2',
+        '--depends=libegl1',
+        '--depends=libopengl0',
+        '--depends=libgbm1',
     ]);
 
     const foreign = configureLinuxFrameCopyBuild(customized, {
         foreignDeb: true,
     });
-    assert.deepEqual(foreign.deb.fpm, ['--depends=unrelated-runtime']);
+    assert.deepEqual(foreign.deb.fpm, [
+        '--depends=unrelated-runtime',
+        '--depends=mesa',
+    ]);
 });
 
 test('Linux CI builds one cached source runtime and packages three isolated profiles', () => {
@@ -173,7 +296,7 @@ test('Linux CI builds one cached source runtime and packages three isolated prof
     );
     assert.match(
         buildWorkflow,
-        /configure-linux-frame-copy-build\.mjs --foreign-deb/
+        /configure-linux-frame-copy-build\.mjs[\s\S]*--foreign-deb/
     );
     assert.match(
         buildWorkflow,
@@ -368,10 +491,83 @@ test('foreign DEB CI explicitly selects both marker-only ARM architectures', () 
     );
 
     assert.match(foreignDebStep, /for foreign_arch in armv7l arm64; do/);
+    assert.match(
+        foreignDebStep,
+        /--foreign-deb\s+\\\s+--foreign-arch "\$\{foreign_arch\}"/
+    );
     assert.match(foreignDebStep, /--arch="\$\{foreign_arch\}"/);
+    assert.match(
+        foreignDebStep,
+        /for foreign_arch[\s\S]*cp "\$\{RUNNER_TEMP\}\/electron-builder\.base\.json" electron-builder\.json[\s\S]*configure-linux-frame-copy-build\.mjs/
+    );
+    assert.match(foreignDebStep, /rm -rf dist\/executables-linux-foreign/);
+    assert.match(
+        foreignDebStep,
+        /mapfile -t foreign_debs < <\(\s*find dist\/executables-linux-foreign[\s\S]*-name '\*\.deb' -print\s*\)/
+    );
+    assert.match(foreignDebStep, /test "\$\{#foreign_debs\[@\]\}" -eq 1/);
+    assert.match(foreignDebStep, /armv7l\) expected_deb_arch=armhf/);
+    assert.match(foreignDebStep, /arm64\) expected_deb_arch=arm64/);
+    assert.match(
+        foreignDebStep,
+        /actual_deb_arch="\$\(dpkg-deb --field "\$\{foreign_debs\[0\]\}" Architecture\)"[\s\S]*test "\$\{actual_deb_arch\}" = "\$\{expected_deb_arch\}"/
+    );
+    assert.match(
+        foreignDebStep,
+        /mv "\$\{foreign_debs\[0\]\}" dist\/executables\//
+    );
     assert.match(foreignDebStep, /IPTVNATOR_LINUX_FRAME_COPY_PROFILE: ''/);
     assert.match(foreignDebStep, /IPTVNATOR_REQUIRE_EMBEDDED_MPV: '1'/);
     assert.doesNotMatch(foreignDebStep, /IPTVNATOR_REQUIRE_EMBEDDED_MPV: '0'/);
+});
+
+test('system package smoke environments install every direct helper runtime dependency', () => {
+    const debStep = workflowStep('Verify DEB payloads and x64 system runtime');
+    for (const dependency of ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1']) {
+        assert.match(debStep, new RegExp(`\\b${dependency}\\b`));
+    }
+
+    const rpmStep = workflowStep('Verify RPM payload and x64 system runtime');
+    for (const dependency of [
+        'mpv-libs',
+        'libglvnd-egl',
+        'libglvnd-opengl',
+        'mesa-libgbm',
+    ]) {
+        assert.match(rpmStep, new RegExp(`\\b${dependency}\\b`));
+    }
+
+    const pacmanStep = workflowStep(
+        'Verify Pacman payload and x64 system runtime'
+    );
+    for (const dependency of ['mpv', 'libglvnd', 'mesa']) {
+        assert.match(pacmanStep, new RegExp(`\\b${dependency}\\b`));
+    }
+});
+
+test('Snap verifier preserves fail-closed status while exposing captured diagnostics', () => {
+    const snapStep = workflowStep(
+        'Verify Snap payloads and strict-confinement runtime'
+    );
+
+    assert.match(snapStep, /set -euo pipefail/);
+    assert.match(snapStep, /2>&1 \| tee \/dev\/stderr/);
+    assert.doesNotMatch(
+        snapStep,
+        /^\s+printf '%s\\n' "\$\{verification\}"\s*$/m
+    );
+    assert.ok(
+        snapStep.indexOf('verification="$(') <
+            snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'")
+    );
+    assert.ok(
+        snapStep.indexOf("grep -Fq 'Verified snap x64 Linux'") <
+            snapStep.indexOf('sudo snap install --dangerous')
+    );
+    assert.ok(
+        snapStep.indexOf('sudo snap install --dangerous') <
+            snapStep.indexOf('installed_x64=true')
+    );
 });
 
 test('dedicated packaged x64 smoke cannot silently skip', () => {

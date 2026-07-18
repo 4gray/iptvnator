@@ -57,14 +57,15 @@ profile.
 
 System package dependencies are:
 
-- DEB: `libmpv2`
-- RPM: `mpv-libs`
-- Pacman: `mpv`
+- DEB: `libmpv2`, `libegl1`, `libopengl0`, `libgbm1`
+- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-opengl`, `mesa-libgbm`
+- Pacman: `mpv`, `libglvnd`, `mesa`
 
-These names match the current Debian, Fedora, and Arch package databases.
-System packages do not copy libmpv into IPTVnator. The helper keeps an
-`$ORIGIN/lib` RPATH first for a consistent binary, but naturally resolves the
-system SONAME when the private directory is absent.
+These names match the current Debian, Fedora, and Arch package databases and
+cover every direct helper interface: libmpv, EGL, OpenGL, and GBM. System
+packages do not copy libmpv into IPTVnator. The helper keeps an `$ORIGIN/lib`
+RUNPATH first for a consistent binary, but naturally resolves the system SONAME
+when the private directory is absent.
 
 Portable and sandboxed packages use a source-built runtime rather than copying
 the Ubuntu runner's mpv package. The runtime build is checksum/version pinned,

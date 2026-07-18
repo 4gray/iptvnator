@@ -628,15 +628,18 @@ engine` (restart required) or
   UI; native-view retains the legacy dock. On Linux, only
   `iptvnator_mpv_helper` may link libmpv; Electron, its shipped libraries, the
   addon, and frame reader must not. Official x64 packages use three separate
-  profiles: DEB/RPM/Pacman depend on system libmpv, AppImage/Snap bundle the
-  pinned LGPL closure, and Flatpak bundles the same closure. The DEB contract
-  requires `libmpv2` and is verified on Ubuntu 24.04+; Ubuntu 22.04 users need
-  the x64 AppImage because Jammy provides `libmpv1`. ARM packages are
-  marker-only. Stored or explicit opt-ins cannot bypass the fail-closed
-  packaged manifest/file/hash gate and bounded `--runtime-probe`; any failure
-  keeps the sandbox enabled, records a stable reason, and falls back to
-  native-view without crashing. Snap uses an exact private `shared-memory`
-  plug; probe and playback share a sanitized loader environment in which
+  profiles: DEB/RPM/Pacman depend on system libmpv plus the helper's direct
+  EGL/OpenGL/GBM interfaces, AppImage/Snap bundle the pinned LGPL closure, and
+  Flatpak bundles the same closure. Exact system dependencies are
+  DEB=`libmpv2,libegl1,libopengl0,libgbm1`,
+  RPM=`mpv-libs,libglvnd-egl,libglvnd-opengl,mesa-libgbm`, and
+  Pacman=`mpv,libglvnd,mesa`. The DEB contract is verified on Ubuntu 24.04+;
+  Ubuntu 22.04 users need the x64 AppImage because Jammy provides `libmpv1`.
+  ARM packages are marker-only. Stored or explicit opt-ins cannot bypass the
+  fail-closed packaged manifest/file/hash gate and bounded `--runtime-probe`;
+  any failure keeps the sandbox enabled, records a stable reason, and falls
+  back to native-view without crashing. Snap uses an exact private
+  `shared-memory` plug; probe and playback share a sanitized loader environment in which
   ambient audit, preload, and library paths are removed and the validated
   private closure and trusted Snap GL roots have explicit precedence. Bundled
   Linux packages carry hash-validated

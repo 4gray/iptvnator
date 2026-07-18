@@ -58,13 +58,18 @@ test('defines the exact immutable Linux frame-copy profile matrix', () => {
     }
 });
 
-test('defines immutable system-package libmpv dependencies', () => {
+test('defines immutable system-package helper runtime dependencies', () => {
     assert.deepEqual(LINUX_SYSTEM_PACKAGE_DEPENDENCIES, {
-        deb: 'libmpv2',
-        rpm: 'mpv-libs',
-        pacman: 'mpv',
+        deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
+        rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-opengl', 'mesa-libgbm'],
+        pacman: ['mpv', 'libglvnd', 'mesa'],
     });
     assert.equal(Object.isFrozen(LINUX_SYSTEM_PACKAGE_DEPENDENCIES), true);
+    for (const dependencies of Object.values(
+        LINUX_SYSTEM_PACKAGE_DEPENDENCIES
+    )) {
+        assert.equal(Object.isFrozen(dependencies), true);
+    }
 });
 
 test('resolves each supported profile as an immutable defensive value', () => {
@@ -158,7 +163,7 @@ test('rejects a non-array profile target list', () => {
 });
 
 test('keeps frame-copy package dependencies out of the base Electron Builder config', () => {
-    for (const [target, dependency] of Object.entries(
+    for (const [target, dependencies] of Object.entries(
         LINUX_SYSTEM_PACKAGE_DEPENDENCIES
     )) {
         assert.equal(
@@ -166,14 +171,16 @@ test('keeps frame-copy package dependencies out of the base Electron Builder con
             undefined,
             `${target}.depends must remain unset so electron-builder keeps its defaults`
         );
-        assert.equal(
-            hasSystemFrameCopyDependency(
-                electronBuilderConfig,
-                target,
-                dependency
-            ),
-            false
-        );
+        for (const dependency of dependencies) {
+            assert.equal(
+                hasSystemFrameCopyDependency(
+                    electronBuilderConfig,
+                    target,
+                    dependency
+                ),
+                false
+            );
+        }
     }
 });
 
@@ -191,13 +198,15 @@ test('keeps frame-copy package dependencies out of non-system passes', () => {
     ];
 
     for (const config of configs) {
-        for (const [format, dependency] of Object.entries(
+        for (const [format, dependencies] of Object.entries(
             LINUX_SYSTEM_PACKAGE_DEPENDENCIES
         )) {
-            assert.equal(
-                hasSystemFrameCopyDependency(config, format, dependency),
-                false
-            );
+            for (const dependency of dependencies) {
+                assert.equal(
+                    hasSystemFrameCopyDependency(config, format, dependency),
+                    false
+                );
+            }
         }
     }
 });

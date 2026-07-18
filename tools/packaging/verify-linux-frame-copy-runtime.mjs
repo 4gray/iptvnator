@@ -932,8 +932,8 @@ function dependencyMatches(dependency, expected) {
 }
 
 export function validateSystemPackageDependencies(format, dependencies) {
-    const expectedDependency = LINUX_SYSTEM_PACKAGE_DEPENDENCIES[format];
-    if (!expectedDependency) {
+    const expectedDependencies = LINUX_SYSTEM_PACKAGE_DEPENDENCIES[format];
+    if (!expectedDependencies) {
         return [];
     }
     if (!Array.isArray(dependencies)) {
@@ -941,31 +941,29 @@ export function validateSystemPackageDependencies(format, dependencies) {
             `Linux ${format} package dependency metadata must be an array.`,
         ];
     }
-    if (
-        !dependencies.some((dependency) =>
+    return expectedDependencies.flatMap((expectedDependency) =>
+        dependencies.some((dependency) =>
             dependencyMatches(String(dependency), expectedDependency)
         )
-    ) {
-        return [
-            `Linux x64 ${format} package must declare ${expectedDependency}.`,
-        ];
-    }
-    return [];
+            ? []
+            : [
+                  `Linux x64 ${format} package must declare ${expectedDependency}.`,
+              ]
+    );
 }
 
 function validateForeignPackageDependencies(format, dependencies) {
-    const forbiddenDependency = LINUX_SYSTEM_PACKAGE_DEPENDENCIES[format];
-    if (
-        forbiddenDependency &&
+    const forbiddenDependencies =
+        LINUX_SYSTEM_PACKAGE_DEPENDENCIES[format] ?? [];
+    return forbiddenDependencies.flatMap((forbiddenDependency) =>
         dependencies.some((dependency) =>
             dependencyMatches(String(dependency), forbiddenDependency)
         )
-    ) {
-        return [
-            `Linux foreign-architecture ${format} package must not declare frame-copy dependency ${forbiddenDependency}.`,
-        ];
-    }
-    return [];
+            ? [
+                  `Linux foreign-architecture ${format} package must not declare frame-copy dependency ${forbiddenDependency}.`,
+              ]
+            : []
+    );
 }
 
 function dependencyFileName(dependencyName) {

@@ -224,7 +224,9 @@ Key files:
   overrides.
 - Packaging runs three isolated profiles:
     - `system`: DEB/RPM/Pacman, no private `native/lib`, with package
-      dependencies `libmpv2`/`mpv-libs`/`mpv`
+      dependencies DEB=`libmpv2,libegl1,libopengl0,libgbm1`,
+      RPM=`mpv-libs,libglvnd-egl,libglvnd-opengl,mesa-libgbm`, and
+      Pacman=`mpv,libglvnd,mesa`
     - `portable`: AppImage/Snap with the pinned LGPL-compatible closure
     - `flatpak`: Flatpak with the same pinned closure
 - The DEB system-runtime contract is Ubuntu 24.04+ (`libmpv2`). Ubuntu 22.04

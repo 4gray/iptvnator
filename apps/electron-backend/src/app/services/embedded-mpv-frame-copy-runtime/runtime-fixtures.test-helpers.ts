@@ -160,9 +160,14 @@ export function createFixture(
         packageDependencies: bundled
             ? {}
             : {
-                  deb: 'libmpv2',
-                  rpm: 'mpv-libs',
-                  pacman: 'mpv',
+                  deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
+                  rpm: [
+                      'mpv-libs',
+                      'libglvnd-egl',
+                      'libglvnd-opengl',
+                      'mesa-libgbm',
+                  ],
+                  pacman: ['mpv', 'libglvnd', 'mesa'],
               },
         runtimeFiles,
         runtimeTotalBytes: runtimeFiles.reduce(

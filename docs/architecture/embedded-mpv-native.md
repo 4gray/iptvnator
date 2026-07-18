@@ -77,16 +77,24 @@ or `ELECTRON_OZONE_PLATFORM_HINT` is never overridden.
 Linux packages are built in separate passes because Electron Builder reuses
 one unpacked application layout per pass:
 
-| Profile    | Formats          | Frame-copy libmpv strategy                                                                    |
-| ---------- | ---------------- | --------------------------------------------------------------------------------------------- |
-| `system`   | DEB, RPM, Pacman | System `libmpv.so.2`; package dependencies are `libmpv2`, `mpv-libs`, and `mpv`, respectively |
-| `portable` | AppImage, Snap   | Bundled pinned LGPL-compatible runtime under `native/lib`                                     |
-| `flatpak`  | Flatpak          | The same bundled pinned LGPL-compatible runtime under `native/lib`                            |
+| Profile    | Formats          | Frame-copy runtime strategy                                                                                  |
+| ---------- | ---------------- | ------------------------------------------------------------------------------------------------------------ |
+| `system`   | DEB, RPM, Pacman | System `libmpv.so.2` plus the helper's direct EGL/OpenGL/GBM interfaces; exact dependencies are listed below |
+| `portable` | AppImage, Snap   | Bundled pinned LGPL-compatible runtime under `native/lib`                                                    |
+| `flatpak`  | Flatpak          | The same bundled pinned LGPL-compatible runtime under `native/lib`                                           |
+
+System package dependencies are fail-closed and format-specific:
+
+- DEB: `libmpv2`, `libegl1`, `libopengl0`, `libgbm1`
+- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-opengl`, `mesa-libgbm`
+- Pacman: `mpv`, `libglvnd`, `mesa`
 
 The DEB contract deliberately names `libmpv2`, not a loose `libmpv`
-alternative. Release CI verifies that contract on Ubuntu 24.04 (Noble).
-Ubuntu 22.04 (Jammy) provides `libmpv1`, so its DEB cannot enable this
-system-runtime frame-copy path; use the x64 AppImage there instead.
+alternative, and explicitly names the GLVND OpenGL interface because
+`libmpv2` does not pull it in for the helper. Release CI verifies that contract
+on Ubuntu 24.04 (Noble). Ubuntu 22.04 (Jammy) provides `libmpv1`, so its DEB
+cannot enable this system-runtime frame-copy path; use the x64 AppImage there
+instead.
 
 Every x64 layout contains the addon, frame reader, helper, and a normalized
 `embedded-mpv-runtime.json`. The Electron executable, Electron libraries,
@@ -580,10 +588,10 @@ Linux release profiles:
 
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=system` builds DEB, RPM, and Pacman.
   `afterPack` removes the private `lib` directory, writes a
-  `system-libmpv-frame-copy` manifest, and package metadata requires
-  `libmpv2`, `mpv-libs`, or `mpv`. The DEB path is verified on Ubuntu 24.04+;
-  Ubuntu 22.04 users need the x64 AppImage because Jammy only provides
-  `libmpv1`.
+  `system-libmpv-frame-copy` manifest, and package metadata requires the exact
+  libmpv plus EGL/OpenGL/GBM package set listed above. The DEB path is verified
+  on Ubuntu 24.04+; Ubuntu 22.04 users need the x64 AppImage because Jammy only
+  provides `libmpv1`.
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=portable` builds AppImage and Snap with
   the pinned source-built closure and a `bundled-lgpl-frame-copy` manifest.
 - `IPTVNATOR_LINUX_FRAME_COPY_PROFILE=flatpak` builds Flatpak with the same
@@ -618,10 +626,11 @@ Release packaging must:
 
 Users on macOS and Windows do not need the MPV GUI application for this
 architecture. Linux native-view still requires an `mpv` executable. Linux
-frame-copy system packages need the declared libmpv package, while AppImage,
-Snap, and Flatpak carry their own runtime closure. If frame-copy prerequisites
-are missing, x64 falls back to native-view; if all Embedded MPV prerequisites
-are unavailable, the existing inline/external players remain available.
+frame-copy system packages need their declared libmpv and EGL/OpenGL/GBM
+packages, while AppImage, Snap, and Flatpak carry their own runtime closure.
+If frame-copy prerequisites are missing, x64 falls back to native-view; if all
+Embedded MPV prerequisites are unavailable, the existing inline/external
+players remain available.
 
 ## Runtime Staging
 

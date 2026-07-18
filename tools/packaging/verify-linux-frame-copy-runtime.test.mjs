@@ -77,13 +77,19 @@ const SYSTEM_MANIFEST = {
     nativeViewFallback: 'process-isolated mpv --wid',
     libmpvSoname: 'libmpv.so.2',
     packageDependencies: {
-        deb: 'libmpv2',
-        rpm: 'mpv-libs',
-        pacman: 'mpv',
+        deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
+        rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-opengl', 'mesa-libgbm'],
+        pacman: ['mpv', 'libglvnd', 'mesa'],
     },
     runtimeFiles: [],
     runtimeTotalBytes: 0,
 };
+const DEB_SYSTEM_PACKAGE_DEPENDENCIES = [
+    'libmpv2',
+    'libegl1',
+    'libopengl0',
+    'libgbm1',
+];
 
 test('uses the shared frozen 3000 ms runtime probe timeout contract', async () => {
     assert.equal(
@@ -613,25 +619,43 @@ test('reads x64, arm64, and armv7 ELF architectures without host execution', () 
     }
 });
 
-test('requires the exact system package dependency for DEB, RPM, and Pacman', () => {
+test('requires every direct helper runtime dependency for DEB, RPM, and Pacman', () => {
     assert.deepEqual(
         validateSystemPackageDependencies('deb', [
             'libmpv2 (>= 0.35)',
+            'libegl1',
+            'libopengl0',
+            'libgbm1',
             'libc6',
         ]),
         []
     );
     assert.deepEqual(
-        validateSystemPackageDependencies('rpm', ['mpv-libs', 'glibc']),
+        validateSystemPackageDependencies('rpm', [
+            'mpv-libs',
+            'libglvnd-egl',
+            'libglvnd-opengl',
+            'mesa-libgbm',
+            'glibc',
+        ]),
         []
     );
     assert.deepEqual(
-        validateSystemPackageDependencies('pacman', ['mpv>=0.35', 'glibc']),
+        validateSystemPackageDependencies('pacman', [
+            'mpv>=0.35',
+            'libglvnd',
+            'mesa',
+            'glibc',
+        ]),
         []
     );
     assert.match(
-        validateSystemPackageDependencies('deb', ['libmpv1'])[0],
-        /libmpv2/
+        validateSystemPackageDependencies('deb', [
+            'libmpv2',
+            'libegl1',
+            'libgbm1',
+        ])[0],
+        /libopengl0/
     );
 });
 
@@ -731,7 +755,12 @@ test('validates an x64 system payload and executes one bounded helper probe', ()
             resourceDir: fixture.resourceDir,
             artifactFormat: 'deb',
             profileName: 'system',
-            packageDependencies: ['libmpv2 (>= 0.35)'],
+            packageDependencies: [
+                'libmpv2 (>= 0.35)',
+                'libegl1',
+                'libopengl0',
+                'libgbm1',
+            ],
             elfInspector: validElfInspector,
             probeRunner(command, args, options) {
                 probeCalls.push({ command, args, options });
@@ -787,7 +816,7 @@ test('rejects helper probes terminated by a signal or hard timeout', () => {
                 resourceDir: fixture.resourceDir,
                 artifactFormat: 'deb',
                 profileName: 'system',
-                packageDependencies: ['libmpv2'],
+                packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
                 elfInspector: validElfInspector,
                 probeRunner() {
                     return probeResult;
@@ -1142,7 +1171,7 @@ test('rejects helper probe framing and fields that runtime capability rejects', 
                 resourceDir: fixture.resourceDir,
                 artifactFormat: 'deb',
                 profileName: 'system',
-                packageDependencies: ['libmpv2'],
+                packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
                 elfInspector: validElfInspector,
                 probeRunner() {
                     return {
@@ -1219,7 +1248,7 @@ test('reports missing helper, wrong mode, wrong profile, isolation, and loader f
                 resourceDir: fixture.resourceDir,
                 artifactFormat: 'deb',
                 profileName: testCase.profileName ?? 'system',
-                packageDependencies: ['libmpv2'],
+                packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
                 elfInspector: testCase.elfInspector ?? validElfInspector,
                 probeRunner: testCase.probeRunner ?? successfulProbeRunner,
             });
@@ -1245,7 +1274,7 @@ test('rejects an x64 package manifest produced from a target subset', () => {
             resourceDir: fixture.resourceDir,
             artifactFormat: 'deb',
             profileName: 'system',
-            packageDependencies: ['libmpv2'],
+            packageDependencies: DEB_SYSTEM_PACKAGE_DEPENDENCIES,
             elfInspector: validElfInspector,
             probeRunner: successfulProbeRunner,
         });
@@ -1305,19 +1334,23 @@ test('requires marker-only foreign packages, scans Electron, and never probes', 
         );
         assert.equal(probeCalls, 0);
 
-        const dependencyErrors = verifyExtractedLinuxFrameCopyRuntime({
-            resourceDir: fixture.resourceDir,
-            artifactFormat: 'deb',
-            profileName: 'system',
-            packageDependencies: ['libmpv2', 'libc6'],
-            declaredArch: 'arm64',
-            elfInspector: validElfInspector,
-            probeRunner: successfulProbeRunner,
-        });
-        assert.match(
-            dependencyErrors.join('\n'),
-            /must not declare frame-copy dependency libmpv2/
-        );
+        for (const forbiddenDependency of DEB_SYSTEM_PACKAGE_DEPENDENCIES) {
+            const dependencyErrors = verifyExtractedLinuxFrameCopyRuntime({
+                resourceDir: fixture.resourceDir,
+                artifactFormat: 'deb',
+                profileName: 'system',
+                packageDependencies: [forbiddenDependency, 'libc6'],
+                declaredArch: 'arm64',
+                elfInspector: validElfInspector,
+                probeRunner: successfulProbeRunner,
+            });
+            assert.match(
+                dependencyErrors.join('\n'),
+                new RegExp(
+                    `must not declare frame-copy dependency ${forbiddenDependency}`
+                )
+            );
+        }
     } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });
     }

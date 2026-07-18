@@ -36,9 +36,9 @@ const {
 
 const X64_ADDON_ENV = { IPTVNATOR_EMBEDDED_MPV_ARCH: 'x64' };
 const SYSTEM_PACKAGE_DEPENDENCIES = {
-    deb: 'libmpv2',
-    rpm: 'mpv-libs',
-    pacman: 'mpv',
+    deb: ['libmpv2', 'libegl1', 'libopengl0', 'libgbm1'],
+    rpm: ['mpv-libs', 'libglvnd-egl', 'libglvnd-opengl', 'mesa-libgbm'],
+    pacman: ['mpv', 'libglvnd', 'mesa'],
 };
 const FRAME_COPY_ARTIFACTS = {
     addon: 'embedded_mpv.node',

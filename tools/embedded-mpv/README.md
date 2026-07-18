@@ -110,15 +110,25 @@ Before publication, the Linux builder verifies:
 
 Set one exact `IPTVNATOR_LINUX_FRAME_COPY_PROFILE` per packaging pass:
 
-| Profile    | Formats          | Runtime handling                                             |
-| ---------- | ---------------- | ------------------------------------------------------------ |
-| `system`   | DEB, RPM, Pacman | Remove `native/lib`; require `libmpv2`, `mpv-libs`, or `mpv` |
-| `portable` | AppImage, Snap   | Retain the pinned LGPL closure under `native/lib`            |
-| `flatpak`  | Flatpak          | Retain the same pinned LGPL closure under `native/lib`       |
+| Profile    | Formats          | Runtime handling                                                             |
+| ---------- | ---------------- | ---------------------------------------------------------------------------- |
+| `system`   | DEB, RPM, Pacman | Remove `native/lib`; require the format-specific system runtime listed below |
+| `portable` | AppImage, Snap   | Retain the pinned LGPL closure under `native/lib`                            |
+| `flatpak`  | Flatpak          | Retain the same pinned LGPL closure under `native/lib`                       |
 
-The DEB metadata requires `libmpv2` and is release-tested on Ubuntu 24.04
-(Noble). Ubuntu 22.04 (Jammy) only provides `libmpv1`; use the x64 AppImage on
-that distribution rather than relaxing the runtime contract.
+The system helper directly links libmpv, EGL, OpenGL, and GBM. Package metadata
+therefore declares the full interface set:
+
+- DEB: `libmpv2`, `libegl1`, `libopengl0`, `libgbm1`
+- RPM: `mpv-libs`, `libglvnd-egl`, `libglvnd-opengl`, `mesa-libgbm`
+- Pacman: `mpv`, `libglvnd`, `mesa`
+
+The DEB metadata is release-tested on Ubuntu 24.04 (Noble). Ubuntu 22.04
+(Jammy) only provides `libmpv1`; use the x64 AppImage on that distribution
+rather than relaxing the runtime contract. CI explicitly installs the distro
+Mesa software renderer for headless smoke. IPTVnator does not add DRI-driver
+packages as direct dependencies; any transitive graphics-driver stack remains
+under the distro's dependency policy.
 
 The strict Snap retains Electron Builder's default plugs and adds an
 auto-connected private `shared-memory` plug. This supplies a snap-specific

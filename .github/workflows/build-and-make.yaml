@@ -825,16 +825,32 @@ jobs:
               run: |
                   set -euo pipefail
 
-                  cp "${RUNNER_TEMP}/electron-builder.base.json" electron-builder.json
-                  node tools/packaging/configure-linux-frame-copy-build.mjs --foreign-deb
                   for foreign_arch in armv7l arm64; do
+                      rm -rf dist/executables-linux-foreign
+                      cp "${RUNNER_TEMP}/electron-builder.base.json" electron-builder.json
+                      node tools/packaging/configure-linux-frame-copy-build.mjs \
+                          --foreign-deb \
+                          --foreign-arch "${foreign_arch}"
                       pnpm nx run electron-backend:make \
                           --arch="${foreign_arch}" \
                           --outputPath=dist/executables-linux-foreign \
                           --publishPolicy=never
+                      mapfile -t foreign_debs < <(
+                          find dist/executables-linux-foreign -maxdepth 1 -type f -name '*.deb' -print
+                      )
+                      test "${#foreign_debs[@]}" -eq 1
+                      case "${foreign_arch}" in
+                          armv7l) expected_deb_arch=armhf ;;
+                          arm64) expected_deb_arch=arm64 ;;
+                          *)
+                              echo "::error::Unexpected foreign DEB build architecture ${foreign_arch}"
+                              exit 1
+                              ;;
+                      esac
+                      actual_deb_arch="$(dpkg-deb --field "${foreign_debs[0]}" Architecture)"
+                      test "${actual_deb_arch}" = "${expected_deb_arch}"
+                      mv "${foreign_debs[0]}" dist/executables/
                   done
-                  find dist/executables-linux-foreign -maxdepth 1 -type f -name '*.deb' \
-                      -exec mv '{}' dist/executables/ ';'
 
             - name: Verify DEB payloads and x64 system runtime
               if: matrix.os == 'linux' && matrix.linux_profile == 'system'
@@ -856,7 +872,8 @@ jobs:
                                   bash -euo pipefail -c '
                                       apt-get update
                                       DEBIAN_FRONTEND=noninteractive apt-get install --no-install-recommends -y \
-                                          binutils libegl1 libgl1-mesa-dri libmpv2 nodejs squashfs-tools xauth xvfb
+                                          binutils libegl1 libgbm1 libgl1-mesa-dri libmpv2 libopengl0 \
+                                          nodejs squashfs-tools xauth xvfb
                                       xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
                                           node tools/packaging/verify-linux-frame-copy-runtime.mjs \
                                               --artifact /artifact.deb --profile system
@@ -889,8 +906,9 @@ jobs:
                       fedora:latest \
                       bash -euo pipefail -c '
                           dnf install -y \
-                              binutils bsdtar mesa-dri-drivers mpv-libs nodejs rpm \
-                              xorg-x11-server-Xvfb xorg-x11-xauth
+                              binutils bsdtar libglvnd-egl libglvnd-opengl mesa-dri-drivers \
+                              mesa-libgbm mpv-libs nodejs rpm xorg-x11-server-Xvfb \
+                              xorg-x11-xauth
                           xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
                               node tools/packaging/verify-linux-frame-copy-runtime.mjs \
                                   --artifact /artifact.rpm --profile system
@@ -911,7 +929,8 @@ jobs:
                       archlinux:latest \
                       bash -euo pipefail -c '
                           pacman -Syu --noconfirm \
-                              binutils libarchive mesa mpv nodejs xorg-server-xvfb xorg-xauth
+                              binutils libarchive libglvnd mesa mpv nodejs xorg-server-xvfb \
+                              xorg-xauth
                           xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
                               node tools/packaging/verify-linux-frame-copy-runtime.mjs \
                                   --artifact /artifact.pacman --profile system
@@ -947,9 +966,9 @@ jobs:
                       verification="$(
                           xvfb-run -a env LIBGL_ALWAYS_SOFTWARE=1 \
                               node tools/packaging/verify-linux-frame-copy-runtime.mjs \
-                                  --artifact "${artifact}" --profile portable
+                                  --artifact "${artifact}" --profile portable \
+                                  2>&1 | tee /dev/stderr
                       )"
-                      printf '%s\n' "${verification}"
                       if printf '%s\n' "${verification}" | grep -Fq 'Verified snap x64 Linux'; then
                           sudo snap install --dangerous "${artifact}"
                           installed_x64=true
