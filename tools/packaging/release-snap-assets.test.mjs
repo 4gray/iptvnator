@@ -2,12 +2,15 @@ import assert from 'node:assert/strict';
 import childProcess from 'node:child_process';
 import crypto from 'node:crypto';
 import fs from 'node:fs';
+import { createRequire } from 'node:module';
 import os from 'node:os';
 import path from 'node:path';
 import test from 'node:test';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { parse } from 'yaml';
 
+const require = createRequire(import.meta.url);
+const { createPackage: createAsarPackage } = require('@electron/asar');
 const workspaceRoot = path.resolve(
     path.dirname(fileURLToPath(import.meta.url)),
     '..',
@@ -915,9 +918,15 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
                 0,
                 'tar files-from input must not be group/world accessible'
             );
+            const filesFromContents = fs.readFileSync(filesFromPath, 'utf8');
             assert.match(
-                fs.readFileSync(filesFromPath, 'utf8'),
-                /git\/libplacebo\/README\.md/
+                filesFromContents,
+                /(?:^|\n)\.\/git\/libplacebo\/README\.md(?:\n|$)/,
+                'tar files-from input must preserve the exact archive member names'
+            );
+            assert.ok(
+                args.includes('--no-recursion'),
+                'tar must not recursively consume descendants that are also listed explicitly'
             );
             observedTarFilesFromFile = true;
         }
@@ -1192,6 +1201,87 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
         path.join(nativeRoot, 'embedded-mpv-runtime.json'),
         `${JSON.stringify(packagedManifest)}\n`
     );
+    const snapYamlPath = path.join(snapSourceRoot, 'meta', 'snap.yaml');
+    fs.mkdirSync(path.dirname(snapYamlPath), { recursive: true });
+    const validSnapYaml = [
+        'name: iptvnator',
+        'base: core22',
+        'confinement: strict',
+        'apps:',
+        '  iptvnator:',
+        '    command: iptvnator',
+        '    environment:',
+        '      SNAP_DESKTOP_RUNTIME: $SNAP/gnome-platform',
+        '    plugs:',
+        '      - desktop',
+        '      - shared-memory',
+        '      - graphics-core22',
+        'plugs:',
+        '  shared-memory:',
+        '    interface: shared-memory',
+        '    private: true',
+        '  graphics-core22:',
+        '    interface: content',
+        '    target: $SNAP/graphics',
+        '    default-provider: mesa-core22',
+        'layout:',
+        '  /usr/share/libdrm:',
+        '    bind: $SNAP/graphics/libdrm',
+        '  /usr/share/drirc.d:',
+        '    symlink: $SNAP/graphics/drirc.d',
+        '',
+    ].join('\n');
+    fs.writeFileSync(snapYamlPath, validSnapYaml);
+    const graphicsRoot = path.join(snapSourceRoot, 'graphics');
+    fs.mkdirSync(graphicsRoot, { mode: 0o755 });
+    fs.chmodSync(graphicsRoot, 0o755);
+    const asarSourceRoot = path.join(temporaryRoot, 'asar-source');
+    const appAsarPath = path.join(appRoot, 'resources', 'app.asar');
+    fs.mkdirSync(asarSourceRoot);
+    fs.writeFileSync(
+        path.join(asarSourceRoot, 'main.js'),
+        'module.exports = {}'
+    );
+    await createAsarPackage(asarSourceRoot, appAsarPath);
+    const cleanReleaseCheckoutRoot = path.join(
+        temporaryRoot,
+        'clean-release-checkout'
+    );
+    const cleanReleaseToolsRoot = path.join(cleanReleaseCheckoutRoot, 'tools');
+    fs.mkdirSync(cleanReleaseToolsRoot, { recursive: true });
+    for (const toolDirectory of ['packaging', 'embedded-mpv']) {
+        fs.cpSync(
+            path.join(workspaceRoot, 'tools', toolDirectory),
+            path.join(cleanReleaseToolsRoot, toolDirectory),
+            { recursive: true }
+        );
+    }
+    const cleanReleaseBoundaryHelperPath = path.join(
+        cleanReleaseToolsRoot,
+        'packaging',
+        'validate-snap-release-boundary.mjs'
+    );
+    const dependencyFreeBoundaryResult = childProcess.spawnSync(
+        process.execPath,
+        [cleanReleaseBoundaryHelperPath, snapSourceRoot],
+        {
+            encoding: 'utf8',
+            env: {
+                ...process.env,
+                NODE_OPTIONS: '',
+                NODE_PATH: '',
+            },
+        }
+    );
+    assert.equal(
+        dependencyFreeBoundaryResult.status,
+        0,
+        dependencyFreeBoundaryResult.stderr
+    );
+    assert.deepEqual(JSON.parse(dependencyFreeBoundaryResult.stdout), {
+        schemaVersion: 1,
+        errors: [],
+    });
     const snapPath = path.join(temporaryRoot, 'IPTVnator-amd64.snap');
     fs.writeFileSync(snapPath, 'synthetic Snap bytes');
     const staticValidationCalls = [];
@@ -1240,6 +1330,79 @@ test('hashes the final source archive bytes and reads the exact packaged Snap bi
         targetArch: 'x64',
         targetNames: ['appimage', 'snap'],
     });
+
+    fs.writeFileSync(
+        snapYamlPath,
+        validSnapYaml.replace('      - shared-memory\n', '')
+    );
+    assert.throws(
+        () =>
+            sourceBindingHelper.inspectSnapPayload(
+                snapPath,
+                { id: 1, name: 'IPTVnator-amd64.snap' },
+                {
+                    runCommand: (command, args) => {
+                        assert.equal(command, 'unsquashfs');
+                        if (args[0] === '-lln') {
+                            return syntheticSquashfsListing();
+                        }
+                        const destinationIndex = args.indexOf('-dest') + 1;
+                        fs.cpSync(snapSourceRoot, args[destinationIndex], {
+                            recursive: true,
+                        });
+                        return '';
+                    },
+                    validatePackagedEmbeddedMpv: () => [],
+                }
+            ),
+        /shared-memory plug/i
+    );
+    fs.writeFileSync(snapYamlPath, validSnapYaml);
+
+    fs.rmSync(asarSourceRoot, { recursive: true });
+    const staleAsarNativeRoot = path.join(
+        asarSourceRoot,
+        'electron-backend',
+        'native'
+    );
+    fs.mkdirSync(staleAsarNativeRoot, { recursive: true });
+    fs.writeFileSync(
+        path.join(staleAsarNativeRoot, 'embedded-mpv-runtime.json'),
+        '{}\n'
+    );
+    fs.rmSync(appAsarPath);
+    await createAsarPackage(asarSourceRoot, appAsarPath);
+    assert.throws(
+        () =>
+            sourceBindingHelper.inspectSnapPayload(
+                snapPath,
+                { id: 1, name: 'IPTVnator-amd64.snap' },
+                {
+                    runCommand: (command, args) => {
+                        assert.equal(command, 'unsquashfs');
+                        if (args[0] === '-lln') {
+                            return syntheticSquashfsListing();
+                        }
+                        const destinationIndex = args.indexOf('-dest') + 1;
+                        fs.cpSync(snapSourceRoot, args[destinationIndex], {
+                            recursive: true,
+                        });
+                        return '';
+                    },
+                    validatePackagedEmbeddedMpv: () => [],
+                }
+            ),
+        /app\.asar.*embedded MPV native payload/i
+    );
+    fs.rmSync(asarSourceRoot, { recursive: true });
+    fs.mkdirSync(asarSourceRoot);
+    fs.writeFileSync(
+        path.join(asarSourceRoot, 'main.js'),
+        'module.exports = {}'
+    );
+    fs.rmSync(appAsarPath);
+    await createAsarPackage(asarSourceRoot, appAsarPath);
+
     assert.equal(
         sourceBindingHelper.verifySnapReleaseSourceBinding(
             {

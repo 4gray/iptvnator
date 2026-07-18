@@ -1076,6 +1076,13 @@ test('requires exact Snap graphics layouts and plugs used by the app', () => {
         fs.writeFileSync(snapYamlPath, validSnapYaml);
         assert.deepEqual(validateExtractedSnapMetadata(root), []);
 
+        fs.truncateSync(snapYamlPath, 256 * 1024 + 1);
+        assert.match(
+            validateExtractedSnapMetadata(root).join('\n'),
+            /Snap metadata exceeds.*size limit/i
+        );
+        fs.writeFileSync(snapYamlPath, validSnapYaml);
+
         fs.rmSync(path.join(root, 'graphics'), { recursive: true });
         assert.match(
             validateExtractedSnapMetadata(root).join('\n'),

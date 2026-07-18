@@ -325,6 +325,12 @@ Key files:
   pinned sources including the six recursive submodule records and exact
   libplacebo tree digest, legal files, and exact released tooling, then
   performs bounded extraction and static package validation for every Snap.
+  That public-release boundary independently revalidates the exact strict
+  `meta/snap.yaml` graphics/shared-memory contract and enumerates
+  `resources/app.asar`, rejecting any archived
+  `electron-backend/native/**` payload before publication. Its bounded ASAR
+  header reader uses only Node built-ins and released local tooling, so the
+  clean tag checkout does not require `node_modules`.
   Exactly one x64 Snap must have matching
   `sourceArchive` and `sourceRuntime`; any non-x64 Snap must remain
   marker-only. Checkout and the artifact-transfer actions are pinned to full

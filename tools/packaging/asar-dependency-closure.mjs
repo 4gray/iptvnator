@@ -15,11 +15,204 @@
  * so the core logic stays pure and unit-testable without a real archive.
  */
 
+import fs from 'node:fs';
 import path from 'node:path';
+import { TextDecoder } from 'node:util';
 
 const PACKAGE_MANIFEST = 'package.json';
 const NODE_MODULES_SEGMENT = '/node_modules/';
 const EMBEDDED_MPV_NATIVE_ARCHIVE_ROOT = '/electron-backend/native';
+const ASAR_SIZE_PREFIX_BYTES = 8;
+const ASAR_HEADER_MAX_BYTES = 32 * 1024 * 1024;
+const ASAR_ENTRY_LIMIT = 250_000;
+const ASAR_PATH_MAX_BYTES = 32 * 1024;
+const ASAR_LISTED_PATH_MAX_BYTES = 32 * 1024 * 1024;
+
+function isRecord(value) {
+    return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
+}
+
+function* ownRecordEntries(record) {
+    for (const name in record) {
+        if (Object.hasOwn(record, name)) {
+            yield [name, record[name]];
+        }
+    }
+}
+
+function readExactly(descriptor, buffer, position) {
+    let offset = 0;
+    while (offset < buffer.length) {
+        const bytesRead = fs.readSync(
+            descriptor,
+            buffer,
+            offset,
+            buffer.length - offset,
+            position + offset
+        );
+        if (bytesRead === 0) {
+            throw new Error('ASAR archive ended before its header was read.');
+        }
+        offset += bytesRead;
+    }
+}
+
+/**
+ * Lists an ASAR from its bounded Chromium-Pickle JSON header using only Node
+ * built-ins. Public-release verification runs from a clean tag checkout, so it
+ * cannot rely on the workspace-only `@electron/asar` development dependency.
+ */
+export function listAsarPackageEntries(
+    archivePath,
+    { maxListedPathBytes = ASAR_LISTED_PATH_MAX_BYTES } = {}
+) {
+    if (
+        !Number.isSafeInteger(maxListedPathBytes) ||
+        maxListedPathBytes <= 0 ||
+        maxListedPathBytes > ASAR_LISTED_PATH_MAX_BYTES
+    ) {
+        throw new Error('ASAR listed-path byte limit is invalid.');
+    }
+    const noFollow = fs.constants.O_NOFOLLOW ?? 0;
+    const descriptor = fs.openSync(
+        archivePath,
+        fs.constants.O_RDONLY | noFollow
+    );
+    let header;
+    try {
+        const archiveStat = fs.fstatSync(descriptor);
+        if (!archiveStat.isFile()) {
+            throw new Error('ASAR archive must be a regular file.');
+        }
+        const sizePrefix = Buffer.alloc(ASAR_SIZE_PREFIX_BYTES);
+        readExactly(descriptor, sizePrefix, 0);
+        if (sizePrefix.readUInt32LE(0) !== 4) {
+            throw new Error('ASAR size pickle is malformed.');
+        }
+        const headerSize = sizePrefix.readUInt32LE(4);
+        if (headerSize > ASAR_HEADER_MAX_BYTES) {
+            throw new Error(
+                `ASAR header exceeds the ${String(
+                    ASAR_HEADER_MAX_BYTES
+                )}-byte limit.`
+            );
+        }
+        if (
+            headerSize < 8 ||
+            headerSize + ASAR_SIZE_PREFIX_BYTES > archiveStat.size
+        ) {
+            throw new Error('ASAR header size is invalid.');
+        }
+        header = Buffer.alloc(headerSize);
+        readExactly(descriptor, header, ASAR_SIZE_PREFIX_BYTES);
+    } finally {
+        fs.closeSync(descriptor);
+    }
+
+    const payloadSize = header.readUInt32LE(0);
+    if (payloadSize + 4 !== header.length || payloadSize < 4) {
+        throw new Error('ASAR header pickle is malformed.');
+    }
+    const jsonLength = header.readInt32LE(4);
+    const alignedJsonLength =
+        jsonLength >= 0 ? Math.ceil(jsonLength / 4) * 4 : -1;
+    if (
+        jsonLength <= 0 ||
+        alignedJsonLength + 4 !== payloadSize ||
+        header
+            .subarray(8 + jsonLength, 8 + alignedJsonLength)
+            .some((byte) => byte !== 0)
+    ) {
+        throw new Error('ASAR header JSON framing is malformed.');
+    }
+
+    let parsedHeader;
+    try {
+        const headerJson = new TextDecoder('utf-8', { fatal: true }).decode(
+            header.subarray(8, 8 + jsonLength)
+        );
+        parsedHeader = JSON.parse(headerJson);
+    } catch (error) {
+        throw new Error(
+            `ASAR header JSON is invalid: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+    }
+    if (!isRecord(parsedHeader) || !isRecord(parsedHeader.files)) {
+        throw new Error('ASAR header must contain a files mapping.');
+    }
+
+    const entries = [];
+    let listedPathBytes = 0;
+    const pendingDirectories = [
+        {
+            entries: ownRecordEntries(parsedHeader.files),
+            parentPath: '',
+        },
+    ];
+    while (pendingDirectories.length > 0) {
+        const directory = pendingDirectories.at(-1);
+        const nextEntry = directory.entries.next();
+        if (nextEntry.done) {
+            pendingDirectories.pop();
+            continue;
+        }
+        const [name, node] = nextEntry.value;
+        const { parentPath } = directory;
+        if (
+            !name ||
+            name === '.' ||
+            name === '..' ||
+            name.includes('/') ||
+            name.includes('\0')
+        ) {
+            throw new Error('ASAR header contains an invalid path segment.');
+        }
+        if (!isRecord(node)) {
+            throw new Error('ASAR header contains an invalid filesystem node.');
+        }
+        const entryPath = `${parentPath}/${name}`;
+        const entryPathBytes = Buffer.byteLength(entryPath, 'utf8');
+        if (entryPathBytes > ASAR_PATH_MAX_BYTES) {
+            throw new Error('ASAR header contains an overlong entry path.');
+        }
+        if (entryPathBytes > maxListedPathBytes - listedPathBytes) {
+            throw new Error(
+                `Cumulative ASAR entry paths exceed the ${String(
+                    maxListedPathBytes
+                )}-byte limit.`
+            );
+        }
+        listedPathBytes += entryPathBytes;
+        entries.push(entryPath);
+        if (entries.length > ASAR_ENTRY_LIMIT) {
+            throw new Error(
+                `ASAR header exceeds the ${String(ASAR_ENTRY_LIMIT)}-entry limit.`
+            );
+        }
+
+        if (Object.hasOwn(node, 'files')) {
+            if (!isRecord(node.files)) {
+                throw new Error(
+                    'ASAR header contains an invalid directory mapping.'
+                );
+            }
+            pendingDirectories.push({
+                entries: ownRecordEntries(node.files),
+                parentPath: entryPath,
+            });
+        } else if (
+            !(
+                (Number.isSafeInteger(node.size) && node.size >= 0) ||
+                (typeof node.link === 'string' && node.link.length > 0)
+            )
+        ) {
+            throw new Error('ASAR header contains an invalid file node.');
+        }
+    }
+    return entries;
+}
 
 /**
  * Embedded MPV's native payload is profile-specific and is written only by

@@ -931,7 +931,13 @@ tooling from the released tag. Checkout and both artifact-transfer actions use
 full pinned commits, and checkout sets `persist-credentials: false`.
 The bounded SquashFS preflight and extraction then require the canonical
 `/usr/lib/iptvnator` layout and reuse the static package validator for every
-selected Snap. Exactly one x64 Snap must contain a bundled portable manifest
+selected Snap. The public-release verifier separately reapplies the exact
+strict `meta/snap.yaml` graphics/shared-memory/layout contract and enumerates
+the extracted `resources/app.asar`; any archived
+`electron-backend/native/**` entry fails before Store publication. The bounded
+ASAR header reader uses only Node built-ins plus released local tooling, keeping
+this check runnable from the clean tag checkout without `node_modules`. Exactly
+one x64 Snap must contain a bundled portable manifest
 whose exact `sourceArchive` and `sourceRuntime` match the archive; non-x64
 Snaps must remain marker-only. Repository credentials are scoped to the two
 GitHub asset steps. The secretless verification job copies downloaded files

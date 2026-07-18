@@ -709,7 +709,13 @@ engine` (restart required) or
   bounds, verifies its clean tag revision, pinned sources including the six
   recursive submodule records and exact libplacebo tree digest, legal payload,
   and exact released tooling, then performs bounded extraction and static
-  validation for every Snap. Exactly one x64 Snap must have matching
+  validation for every Snap. That public-release boundary independently
+  revalidates the exact strict `meta/snap.yaml` graphics/shared-memory
+  contract and enumerates `resources/app.asar`, rejecting any archived
+  `electron-backend/native/**` payload before publication. Its bounded ASAR
+  header reader uses only Node built-ins and released local tooling, so the
+  clean tag checkout does not require `node_modules`. Exactly one x64 Snap
+  must have matching
   `sourceArchive` and `sourceRuntime`; any non-x64 Snap remains marker-only.
   Checkout and artifact-transfer actions are pinned to full commits; checkout
   does not persist credentials, and repository credentials are scoped to

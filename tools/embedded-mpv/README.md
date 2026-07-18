@@ -332,6 +332,12 @@ persist its repository credential. The verifier bounds
 source members, the archive, SquashFS listing, extracted size, entry count,
 command time, and job time; every Snap must use the canonical
 `/usr/lib/iptvnator` layout and pass the existing static package validator.
+The public-release boundary also reapplies the exact strict
+`meta/snap.yaml` graphics/shared-memory/layout contract and enumerates the
+extracted `resources/app.asar`, rejecting any archived
+`electron-backend/native/**` payload. Its bounded ASAR header reader depends
+only on Node built-ins and released local tooling, so verification remains
+runnable in the clean tag checkout without `node_modules`.
 Exactly one x64 Snap is accepted, and only when its exact `sourceArchive` and
 `sourceRuntime` match the downloaded archive; any non-x64 Snap must be
 marker-only. A secretless job copies each asset through a no-follow descriptor,

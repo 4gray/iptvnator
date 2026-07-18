@@ -41,6 +41,11 @@ const SHA256_PATTERN = /^[a-f0-9]{64}$/;
 const SAFE_BASENAME_PATTERN = /^[A-Za-z0-9_+.-]+$/;
 const FRAME_COPY_MANIFEST_NAME = 'embedded-mpv-runtime.json';
 const FRAME_COPY_UNAVAILABLE_MARKER_NAME = 'embedded-mpv-unavailable.txt';
+const SNAP_RELEASE_BOUNDARY_SCHEMA_VERSION = 1;
+const SNAP_RELEASE_BOUNDARY_HELPER_PATH = path.join(
+    __dirname,
+    'validate-snap-release-boundary.mjs'
+);
 const NATIVE_PAYLOAD_SUFFIX = [
     'resources',
     'app.asar.unpacked',
@@ -570,6 +575,7 @@ function inspectLibplaceboSourceSnapshot(
                 temporaryRoot,
                 '--no-same-owner',
                 '--no-same-permissions',
+                '--no-recursion',
                 '-T',
                 memberListPath,
             ],
@@ -1018,6 +1024,51 @@ function inspectSquashfsListing(snapPath, runCommand) {
     }
 }
 
+function validateSnapReleaseBoundary(extractionRoot) {
+    const output = defaultRunCommand(
+        process.execPath,
+        [SNAP_RELEASE_BOUNDARY_HELPER_PATH, extractionRoot],
+        {
+            encoding: 'utf8',
+            maxBuffer: COMMAND_OUTPUT_MAX_BUFFER_BYTES,
+            timeout: COMMAND_TIMEOUT_MS,
+        }
+    );
+    if (typeof output !== 'string' || !/^[^\r\n]+\n$/.test(output)) {
+        throw new Error(
+            'Snap release-boundary validator must emit exactly one newline-terminated JSON line.'
+        );
+    }
+    let payload;
+    try {
+        payload = JSON.parse(output.slice(0, -1));
+    } catch {
+        throw new Error(
+            'Snap release-boundary validator emitted malformed JSON.'
+        );
+    }
+    if (
+        !isObject(payload) ||
+        !isDeepStrictEqual(Object.keys(payload).sort(), [
+            'errors',
+            'schemaVersion',
+        ]) ||
+        payload.schemaVersion !== SNAP_RELEASE_BOUNDARY_SCHEMA_VERSION ||
+        !Array.isArray(payload.errors) ||
+        payload.errors.some(
+            (error) =>
+                typeof error !== 'string' ||
+                error.length === 0 ||
+                error.length > 4096
+        )
+    ) {
+        throw new Error(
+            'Snap release-boundary validator emitted an invalid result.'
+        );
+    }
+    return payload.errors;
+}
+
 function inspectSnapPayload(
     snapPath,
     asset,
@@ -1077,6 +1128,14 @@ function inspectSnapPayload(
         ) {
             throw new Error(
                 `Snap ${asset.name} must contain exactly one canonical frame-copy manifest or unavailable marker.`
+            );
+        }
+        const boundaryErrors = validateSnapReleaseBoundary(extractionRoot);
+        if (boundaryErrors.length > 0) {
+            throw new Error(
+                `Snap ${asset.name} failed public-release boundary validation: ${boundaryErrors.join(
+                    '; '
+                )}`
             );
         }
         const payloadPath = canonicalPayloads[0];

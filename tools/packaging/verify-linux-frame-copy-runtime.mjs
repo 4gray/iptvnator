@@ -7,10 +7,12 @@ import { spawnSync } from 'node:child_process';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
 
-import { collectEmbeddedMpvNativeArchiveEntries } from './asar-dependency-closure.mjs';
+import {
+    collectEmbeddedMpvNativeArchiveEntries,
+    listAsarPackageEntries,
+} from './asar-dependency-closure.mjs';
 
 const require = createRequire(import.meta.url);
-const { listPackage: defaultListAsarPackage } = require('@electron/asar');
 const {
     parseReadelfDynamic,
 } = require('../embedded-mpv/build-linux-runtime.cjs');
@@ -29,6 +31,7 @@ const {
 
 const scriptPath = fileURLToPath(import.meta.url);
 const LIBMPV_DEPENDENCY_PATTERN = /^libmpv\.so(?:\.|$)/;
+const SNAP_METADATA_MAX_BYTES = 256 * 1024;
 // Keep this set identical to the packaged helper sanitizer in
 // embedded-mpv-frame-copy-runtime/helper-environment.ts. Feature/debug
 // selectors such as LIBGL_ALWAYS_SOFTWARE remain intentionally available.
@@ -678,6 +681,13 @@ export function validateExtractedSnapMetadata(extractionRoot) {
     if (!stat.isFile() || stat.isSymbolicLink()) {
         return [
             `Extracted Snap metadata must be a regular file: ${snapYamlPath}`,
+        ];
+    }
+    if (stat.size > SNAP_METADATA_MAX_BYTES) {
+        return [
+            `Extracted Snap metadata exceeds the ${String(
+                SNAP_METADATA_MAX_BYTES
+            )}-byte size limit: ${snapYamlPath}`,
         ];
     }
 
@@ -1526,7 +1536,7 @@ export function verifyExtractedLinuxFrameCopyRuntime({
     elfInspector = defaultElfInspector,
     probeRunner = runVerifierCommand,
     environment = process.env,
-    asarListPackage = defaultListAsarPackage,
+    asarListPackage = listAsarPackageEntries,
 }) {
     const errors = [];
     let profile;
