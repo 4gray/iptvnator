@@ -31,10 +31,13 @@ jobs:
               run: |
                   set -euo pipefail
 
+                  # --event pull_request: a manually dispatched build on the
+                  # same branch is not this PR's work and must not be cancelled.
                   list_active_runs() {
                       gh run list --repo "${GITHUB_REPOSITORY}" \
                           --workflow 'Build and Make Electron App' \
                           --branch "${HEAD_BRANCH}" \
+                          --event pull_request \
                           --json databaseId,status \
                           --jq '.[] | select(.status == "queued" or .status == "in_progress" or .status == "waiting" or .status == "requested" or .status == "pending") | .databaseId'
                   }
