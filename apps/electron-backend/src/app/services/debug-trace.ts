@@ -168,7 +168,7 @@ export function trace(scope: string, message: string, payload?: unknown): void {
 
     console.log(
         `${TRACE_PREFIX}[${scope}] ${message} ${safeStringifyForTrace(
-            summarizeForTrace(payload)
+            summarizeForTrace(redactSensitiveData(payload))
         )}`
     );
 }

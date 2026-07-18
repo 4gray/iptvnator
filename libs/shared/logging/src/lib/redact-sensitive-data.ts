@@ -239,7 +239,13 @@ export function redactSensitiveData(
         output['name'] = visitString(error.name, depth + 1);
         output['message'] = visitString(error.message, depth + 1);
         if (error.stack) {
-            output['stack'] = visitString(error.stack, depth + 1);
+            const [, ...stackFrames] = error.stack.split('\n');
+            output['stack'] = visitString(
+                [`${output['name']}: ${output['message']}`, ...stackFrames].join(
+                    '\n'
+                ),
+                depth + 1
+            );
         }
         if ('cause' in error) {
             output['cause'] = visit(error.cause, depth + 1);

@@ -27,4 +27,21 @@ describe('debug trace redaction', () => {
         expect(output).toContain('diagnostic-request-id');
         expect(output).toContain('get_profile');
     });
+
+    it('redacts serialized credentials before truncating trace strings', () => {
+        jest.spyOn(console, 'log').mockImplementation(() => undefined);
+        const secret = 'long-trace-json-password-secret';
+        const diagnostic = JSON.stringify({
+            password: secret,
+            operation: 'get_profile',
+            padding: 'x'.repeat(300),
+        });
+
+        trace('portal', 'request', { diagnostic });
+
+        const output = JSON.stringify((console.log as jest.Mock).mock.calls);
+        expect(output).not.toContain(secret);
+        expect(output).toContain('[Redacted]');
+        expect(output).toContain('get_profile');
+    });
 });

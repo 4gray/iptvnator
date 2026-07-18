@@ -77,6 +77,17 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('401');
     });
 
+    it('does not repeat a redacted Error message secret in its stack', () => {
+        const secret = 'error-stack-password-secret';
+        const error = new Error(`password=${secret}&operation=get_profile`);
+
+        const output = serialized(redactSensitiveData(error));
+
+        expect(output).not.toContain(secret);
+        expect(output).toContain(encodeURIComponent(REDACTED_VALUE));
+        expect(output).toContain('get_profile');
+    });
+
     it('redacts credentials nested inside non-sensitive query values', () => {
         const nestedUrl = `https://identity.example/callback?token=${TEST_SECRETS[3]}&step=authorize`;
         const url = new URL('https://example.com/portal');
