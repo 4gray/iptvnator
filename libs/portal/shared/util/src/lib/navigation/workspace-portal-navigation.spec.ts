@@ -1,5 +1,7 @@
+import { UnifiedCollectionItem } from '../collection/unified-collection-item.interface';
 import {
     buildCollectionViewState,
+    buildOpenCollectionDetailItemState,
     buildStalkerStateItem,
     buildXtreamItemLink,
     COLLECTION_VIEW_STATE_KEY,
@@ -195,6 +197,94 @@ describe('workspace-portal-navigation', () => {
         expect(getOpenCollectionDetailItemState(navigation.state)).toEqual(
             navigation.state?.[OPEN_COLLECTION_DETAIL_STATE_KEY]
         );
+    });
+
+    it('drops malformed or misplaced series resume state on read', () => {
+        const seriesItem = {
+            uid: 'xtream::xtream-1::series:103',
+            name: 'Series One',
+            contentType: 'series',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 103,
+            categoryId: 3,
+        };
+        const validResume = {
+            seriesXtreamId: 103,
+            contentXtreamId: 2001,
+            seasonNumber: 2,
+            episodeNumber: 1,
+        };
+        const readResume = (seriesResume: unknown, item: object = seriesItem) =>
+            getOpenCollectionDetailItemState({
+                [OPEN_COLLECTION_DETAIL_STATE_KEY]: { item, seriesResume },
+            })?.seriesResume;
+
+        expect(readResume(validResume)).toEqual(validResume);
+
+        expect(readResume('resume')).toBeUndefined();
+        expect(
+            readResume({ ...validResume, seriesXtreamId: 'x' })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, seriesXtreamId: 0 })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, contentXtreamId: 1.5 })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, contentXtreamId: -2 })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, seasonNumber: Number.NaN })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, seasonNumber: -1 })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, episodeNumber: 2.5 })
+        ).toBeUndefined();
+        expect(
+            readResume({ ...validResume, episodeNumber: -1 })
+        ).toBeUndefined();
+
+        // A valid target attached to a non-series item is discarded too.
+        expect(
+            readResume(validResume, {
+                ...seriesItem,
+                uid: 'xtream::xtream-1::movie:55',
+                contentType: 'movie',
+                xtreamId: 55,
+            })
+        ).toBeUndefined();
+    });
+
+    it('omits the resume key when building detail state without a valid target', () => {
+        const item: UnifiedCollectionItem = {
+            uid: 'xtream::xtream-1::series:103',
+            name: 'Series One',
+            contentType: 'series',
+            sourceType: 'xtream',
+            playlistId: 'xtream-1',
+            playlistName: 'Xtream One',
+            xtreamId: 103,
+            categoryId: 3,
+        };
+
+        expect(buildOpenCollectionDetailItemState(item)).toEqual({
+            item: expect.objectContaining({ xtreamId: 103 }),
+        });
+        expect(
+            buildOpenCollectionDetailItemState(item, {
+                seriesXtreamId: 0,
+                contentXtreamId: 2001,
+                seasonNumber: 2,
+                episodeNumber: 1,
+            })
+        ).toEqual({
+            item: expect.objectContaining({ xtreamId: 103 }),
+        });
     });
 
     it('matches collection live state against multiple live item identifiers', () => {

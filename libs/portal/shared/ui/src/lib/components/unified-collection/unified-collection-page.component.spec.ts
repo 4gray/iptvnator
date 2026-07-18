@@ -763,6 +763,55 @@ describe('UnifiedCollectionPageComponent', () => {
         hostFixture.destroy();
     });
 
+    it('redirects cross-provider detail selections with the resume target intact', async () => {
+        const originalUrl = router.url;
+        router.url = '/workspace/stalker/stalker-7/favorites';
+        try {
+            fixture.detectChanges();
+            await fixture.whenStable();
+            router.navigate.mockClear();
+
+            const seriesResume = {
+                seriesXtreamId: 103,
+                contentXtreamId: 2001,
+                seasonNumber: 2,
+                episodeNumber: 1,
+            };
+            fixture.componentInstance.selectedDetailSeriesResume.set(
+                seriesResume
+            );
+            fixture.componentInstance.selectedDetailItem.set({
+                uid: 'xtream::xtream-1::series:103',
+                name: 'Resume Series',
+                contentType: 'series',
+                sourceType: 'xtream',
+                playlistId: 'xtream-1',
+                playlistName: 'Xtream One',
+                xtreamId: 103,
+                categoryId: 3,
+            } satisfies UnifiedCollectionItem);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            expect(router.navigate).toHaveBeenCalledWith(
+                ['/workspace', 'global-favorites'],
+                {
+                    state: {
+                        [OPEN_COLLECTION_DETAIL_STATE_KEY]: {
+                            item: expect.objectContaining({ xtreamId: 103 }),
+                            seriesResume,
+                        },
+                    },
+                }
+            );
+            expect(
+                fixture.componentInstance.selectedDetailItem()
+            ).toBeNull();
+        } finally {
+            router.url = originalUrl;
+        }
+    });
+
     it('restores collection scope and selected content type from history state', async () => {
         setRouteParams({ id: 'playlist-1' });
         playlistsLoaded.set(true);
