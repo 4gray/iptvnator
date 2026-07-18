@@ -91,6 +91,7 @@ describe('embedded MPV runtime diagnostic', () => {
             usable: false,
             reason: 'helper-probe-failed',
             helperReason: 'gl-context-create-failed',
+            helperDetail: 'EGL initialization failed: display unavailable',
         };
         const harness = createHarness(availability);
 
@@ -101,7 +102,7 @@ describe('embedded MPV runtime diagnostic', () => {
 
         expect(harness.getRuntimeAvailability).toHaveBeenCalledTimes(1);
         expect(harness.writeStdout).toHaveBeenCalledWith(
-            '{"usable":false,"reason":"helper-probe-failed","helperReason":"gl-context-create-failed"}\n'
+            '{"usable":false,"reason":"helper-probe-failed","helperReason":"gl-context-create-failed","helperDetail":"EGL initialization failed: display unavailable"}\n'
         );
         expect(harness.writeStdout).toHaveBeenCalledTimes(1);
         expect(harness.exit).toHaveBeenCalledWith(1);

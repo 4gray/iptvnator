@@ -670,8 +670,9 @@ engine` (restart required) or
   before BrowserWindow startup and emits one availability JSON line. A nonzero
   helper exit keeps top-level reason `helper-probe-failed`; `helperReason` is
   present only for an exact protocol-v1 line carrying a fixed allowlisted
-  reason. The exact packaged Flatpak `/app` context reconstructs only
-  Freedesktop Platform 24.08's immutable
+  reason, and its optional `helperDetail` must be 1–1024 printable ASCII
+  characters. Invalid detail suppresses both helper fields. The exact packaged
+  Flatpak `/app` context reconstructs only Freedesktop Platform 24.08's immutable
   `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its CI smoke invokes that
   application-level probe instead of the helper directly. Bundled
   Linux packages carry hash-validated

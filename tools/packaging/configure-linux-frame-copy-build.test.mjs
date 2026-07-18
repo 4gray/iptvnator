@@ -652,6 +652,10 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
     );
     assert.match(
         snapStep,
+        /\$1 == "shared-memory" && \$2 == "iptvnator:shared-memory" && \$3 == ":shared-memory"/
+    );
+    assert.match(
+        snapStep,
         /sudo snap disconnect iptvnator:graphics-core22 mesa-core22:graphics-core22/
     );
     assert.match(
@@ -688,9 +692,22 @@ test('Snap verifier preserves fail-closed status while exposing captured diagnos
     const successfulRuntimeProbe = snapStep.lastIndexOf(
         'snap run iptvnator --embedded-mpv-runtime-probe'
     );
+    const graphicsConnectionAssertion = snapStep.indexOf(
+        '$2 == "iptvnator:graphics-core22" && $3 == "mesa-core22:graphics-core22"'
+    );
+    const gnomeConnectionAssertion = snapStep.indexOf(
+        '$2 == "iptvnator:gnome-3-28-1804" && $3 == "gnome-3-28-1804:gnome-3-28-1804"'
+    );
+    const sharedMemoryConnectionAssertion = snapStep.indexOf(
+        '$1 == "shared-memory" && $2 == "iptvnator:shared-memory" && $3 == ":shared-memory"'
+    );
     assert.ok(firstRuntimeProbe < secondGraphicsConnect);
     assert.ok(firstRuntimeProbe < successfulRuntimeProbe);
     assert.ok(secondGraphicsConnect < successfulRuntimeProbe);
+    assert.ok(secondGraphicsConnect < graphicsConnectionAssertion);
+    assert.ok(graphicsConnectionAssertion < gnomeConnectionAssertion);
+    assert.ok(gnomeConnectionAssertion < sharedMemoryConnectionAssertion);
+    assert.ok(sharedMemoryConnectionAssertion < successfulRuntimeProbe);
     assert.match(snapStep, /snap run iptvnator --embedded-mpv-runtime-probe/);
     for (const hostileOverride of [
         '__EGL_VENDOR_LIBRARY_FILENAMES',

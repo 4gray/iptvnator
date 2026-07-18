@@ -134,6 +134,10 @@ describe('embedded-mpv frame-copy helper failures', () => {
         'shared-memory-initialize-failed',
     ])('preserves the allowlisted helper reason %s', (helperReason) => {
         const fixture = createFixture(context.rootDir);
+        const helperDetail =
+            helperReason === 'mpv-create-failed'
+                ? undefined
+                : 'EGL initialization failed: display unavailable';
         context.spawnRuntimeProbe.mockReturnValue({
             status: 1,
             signal: null,
@@ -141,11 +145,7 @@ describe('embedded-mpv frame-copy helper failures', () => {
                 protocol: 1,
                 usable: false,
                 reason: helperReason,
-                ...(helperReason === 'mpv-create-failed'
-                    ? {}
-                    : {
-                          detail: 'diagnostic detail is intentionally not propagated',
-                      }),
+                ...(helperDetail ? { detail: helperDetail } : {}),
             })}\n`,
             stderr: '',
         });
@@ -154,6 +154,32 @@ describe('embedded-mpv frame-copy helper failures', () => {
             usable: false,
             reason: 'helper-probe-failed',
             helperReason,
+            ...(helperDetail ? { helperDetail } : {}),
+        });
+    });
+
+    it.each([
+        ['one printable ASCII character', 'x'],
+        ['1024 printable ASCII characters', 'x'.repeat(1024)],
+    ])('preserves %s as helper detail', (_label, helperDetail) => {
+        const fixture = createFixture(context.rootDir);
+        context.spawnRuntimeProbe.mockReturnValue({
+            status: 1,
+            signal: null,
+            stdout: `${JSON.stringify({
+                protocol: 1,
+                usable: false,
+                reason: 'gl-context-create-failed',
+                detail: helperDetail,
+            })}\n`,
+            stderr: '',
+        });
+
+        expect(context.createProbe()(fixture.helperPath)).toEqual({
+            usable: false,
+            reason: 'helper-probe-failed',
+            helperReason: 'gl-context-create-failed',
+            helperDetail,
         });
     });
 
@@ -197,4 +223,34 @@ describe('embedded-mpv frame-copy helper failures', () => {
             reason: 'helper-probe-failed',
         });
     });
+
+    it.each([
+        ['empty', ''],
+        ['control character', 'EGL\tfailure'],
+        ['trailing line feed', 'EGL failure\n'],
+        ['DEL character', `EGL${String.fromCharCode(0x7f)}failure`],
+        ['non-ASCII character', 'EGL échoué'],
+        ['1025 characters', 'x'.repeat(1025)],
+    ])(
+        'does not propagate any helper fields from %s detail',
+        (_label, detail) => {
+            const fixture = createFixture(context.rootDir);
+            context.spawnRuntimeProbe.mockReturnValue({
+                status: 1,
+                signal: null,
+                stdout: `${JSON.stringify({
+                    protocol: 1,
+                    usable: false,
+                    reason: 'gl-context-create-failed',
+                    detail,
+                })}\n`,
+                stderr: '',
+            });
+
+            expect(context.createProbe()(fixture.helperPath)).toEqual({
+                usable: false,
+                reason: 'helper-probe-failed',
+            });
+        }
+    );
 });

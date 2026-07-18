@@ -999,6 +999,8 @@ jobs:
                       '$2 == "iptvnator:graphics-core22" && $3 == "mesa-core22:graphics-core22" { found=1 } END { exit !found }'
                   snap connections iptvnator | awk \
                       '$2 == "iptvnator:gnome-3-28-1804" && $3 == "gnome-3-28-1804:gnome-3-28-1804" { found=1 } END { exit !found }'
+                  snap connections iptvnator | awk \
+                      '$1 == "shared-memory" && $2 == "iptvnator:shared-memory" && $3 == ":shared-memory" { found=1 } END { exit !found }'
                   xvfb-run -a env \
                       LIBGL_ALWAYS_SOFTWARE=1 \
                       __EGL_VENDOR_LIBRARY_FILENAMES=/tmp/hostile-egl-vendor.json \

@@ -31,9 +31,21 @@ const HELPER_RUNTIME_PROBE_FAILURE_REASON_ALLOWLIST = new Set<string>(
     Object.values(EMBEDDED_MPV_HELPER_RUNTIME_PROBE_FAILURE_REASONS)
 );
 
-function parseFailedProbeReason(
-    stdout: unknown
-): EmbeddedMpvHelperRuntimeProbeFailureReason | null {
+interface ParsedFailedProbe {
+    helperReason: EmbeddedMpvHelperRuntimeProbeFailureReason;
+    helperDetail?: string;
+}
+
+function isSafeHelperDetail(value: unknown): value is string {
+    return (
+        typeof value === 'string' &&
+        value.length >= 1 &&
+        value.length <= 1024 &&
+        !/[^\x20-\x7e]/.test(value)
+    );
+}
+
+function parseFailedProbe(stdout: unknown): ParsedFailedProbe | null {
     if (typeof stdout !== 'string' || !/^[^\r\n]+\n$/.test(stdout)) {
         return null;
     }
@@ -58,12 +70,15 @@ function parseFailedProbeReason(
         parsed.usable !== false ||
         typeof parsed.reason !== 'string' ||
         !HELPER_RUNTIME_PROBE_FAILURE_REASON_ALLOWLIST.has(parsed.reason) ||
-        (hasDetail &&
-            (typeof parsed.detail !== 'string' || parsed.detail.length === 0))
+        (hasDetail && !isSafeHelperDetail(parsed.detail))
     ) {
         return null;
     }
-    return parsed.reason as EmbeddedMpvHelperRuntimeProbeFailureReason;
+    return {
+        helperReason:
+            parsed.reason as EmbeddedMpvHelperRuntimeProbeFailureReason,
+        ...(hasDetail ? { helperDetail: parsed.detail as string } : {}),
+    };
 }
 
 function parseSuccessfulProbe(
@@ -157,12 +172,12 @@ function runHelperProbe(
         return failure('helper-probe-signaled');
     }
     if (result.status !== 0) {
-        const helperReason = parseFailedProbeReason(result.stdout);
-        return helperReason
+        const helperFailure = parseFailedProbe(result.stdout);
+        return helperFailure
             ? {
                   usable: false,
                   reason: 'helper-probe-failed',
-                  helperReason,
+                  ...helperFailure,
               }
             : failure('helper-probe-failed');
     }

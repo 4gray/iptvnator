@@ -278,8 +278,11 @@ failures emit the stable helper reasons `shared-memory-create-failed` and
 JSON line and return zero. When the helper exits nonzero with an otherwise
 exact failure line, the application availability diagnostic keeps the
 fail-closed top-level reason `helper-probe-failed` and may add only the
-allowlisted helper reason as `helperReason`; malformed, multi-line,
-wrong-protocol, or unknown failure output never reaches that field.
+allowlisted helper reason as `helperReason`. An optional `helperDetail` is
+copied only from the same exact line when it contains 1–1024 printable ASCII
+characters; an invalid detail rejects both helper fields. Malformed,
+multi-line, wrong-protocol, or unknown failure output never reaches either
+field.
 
 The startup probe and every playback helper session use the same sanitized
 loader environment selected by the validated manifest's cached `runtimeMode`.

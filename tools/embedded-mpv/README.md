@@ -234,7 +234,9 @@ missing file, hash mismatch, unusable graphics path, or shm lifecycle failure
 returns a stable reason and keeps the BrowserWindow sandbox enabled. The
 application diagnostic retains `helper-probe-failed` as the top-level reason
 for nonzero helper exits and adds `helperReason` only when the helper emitted
-one exact protocol-v1 line with a fixed allowlisted reason. The
+one exact protocol-v1 line with a fixed allowlisted reason. Its optional
+`helperDetail` is restricted to 1–1024 printable ASCII characters; invalid
+detail suppresses both helper fields. The
 installed-Snap probe therefore tests the private shared-memory confinement
 needed by playback rather than only loader and graphics startup.
 Packaging CI invokes the same gate through

@@ -278,8 +278,10 @@ Key files:
   runs the complete cached manifest/hash/helper gate before BrowserWindow
   startup and exits with one availability JSON line. A nonzero helper exit
   keeps top-level reason `helper-probe-failed`; `helperReason` is present only
-  for an exact protocol-v1 line carrying a fixed allowlisted reason. Any loader
-  failure remains a stable native-view fallback, never a flag-enabled success.
+  for an exact protocol-v1 line carrying a fixed allowlisted reason, and its
+  optional `helperDetail` must be 1–1024 printable ASCII characters. Invalid
+  detail suppresses both helper fields. Any loader failure remains a stable
+  native-view fallback, never a flag-enabled success.
 - In the exact packaged Flatpak `/app` context, reconstruct only Freedesktop
   Platform 24.08's immutable `__EGL_EXTERNAL_PLATFORM_CONFIG_DIRS`; its GL
   extension loader path comes from the sandbox cache. Flatpak CI must invoke

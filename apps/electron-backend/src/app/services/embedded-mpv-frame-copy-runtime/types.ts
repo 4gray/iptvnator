@@ -55,6 +55,7 @@ export type EmbeddedMpvFrameCopyRuntimeResult =
           usable: false;
           reason: EmbeddedMpvFrameCopyRuntimeFailureReason;
           helperReason?: EmbeddedMpvHelperRuntimeProbeFailureReason;
+          helperDetail?: string;
       };
 
 export interface EmbeddedMpvFrameCopyRuntimeFileSystem {
