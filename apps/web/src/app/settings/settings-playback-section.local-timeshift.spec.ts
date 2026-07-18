@@ -87,6 +87,7 @@ function createForm(player = VideoPlayer.VideoJs): FormGroup {
         player: new FormControl(player),
         streamFormat: new FormControl(StreamFormat.AutoStreamFormat),
         openStreamOnDoubleClick: new FormControl(false),
+        webPlayerSharedControls: new FormControl(false),
         showExternalPlaybackBar: new FormControl(true),
         mpvPlayerPath: new FormControl(''),
         mpvPlayerArguments: new FormControl(''),
