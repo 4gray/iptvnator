@@ -45,7 +45,7 @@ export function classifyNativePlaybackIssue(
         // Native MediaError details are often opaque for browser security
         // failures. Only classify browser access when the runtime exposes a
         // concrete CORS/mixed-content/CSP-style message.
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: isBrowserAccessFailure(lowerNativeErrorMessage)
                 ? DiagnosticCode.BrowserAccessError
                 : DiagnosticCode.NetworkError,
@@ -57,7 +57,7 @@ export function classifyNativePlaybackIssue(
     }
 
     if (nativeErrorCode === DECODE_ERROR_CODE) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.MediaDecodeError,
             source: DiagnosticSource.Native,
             metadata,
@@ -67,7 +67,7 @@ export function classifyNativePlaybackIssue(
     }
 
     if (nativeErrorCode === SOURCE_NOT_SUPPORTED_CODE) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: isLikelyContainerIssue(metadata)
                 ? DiagnosticCode.UnsupportedContainer
                 : DiagnosticCode.UnsupportedCodec,
@@ -78,7 +78,7 @@ export function classifyNativePlaybackIssue(
         });
     }
 
-    return createDiagnostic({
+    return createPlaybackDiagnostic({
         code: DiagnosticCode.UnknownPlaybackError,
         source: DiagnosticSource.Native,
         metadata,
@@ -100,7 +100,7 @@ export function classifyHlsPlaybackIssue(
     });
 
     if (isNetworkFailure(lowerType, lowerDetails)) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: isBrowserAccessFailure(lowerDetails)
                 ? DiagnosticCode.BrowserAccessError
                 : DiagnosticCode.NetworkError,
@@ -111,7 +111,7 @@ export function classifyHlsPlaybackIssue(
     }
 
     if (isDrmOrEncryptionFailure(lowerDetails)) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.DrmOrEncryption,
             source: DiagnosticSource.Hls,
             metadata: mergedMetadata,
@@ -120,7 +120,7 @@ export function classifyHlsPlaybackIssue(
     }
 
     if (isCodecFailure(lowerDetails)) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.UnsupportedCodec,
             source: DiagnosticSource.Hls,
             metadata: mergedMetadata,
@@ -129,7 +129,7 @@ export function classifyHlsPlaybackIssue(
     }
 
     if (lowerType.includes('media') || lowerType.includes('mux')) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.MediaDecodeError,
             source: DiagnosticSource.Hls,
             metadata: mergedMetadata,
@@ -137,7 +137,7 @@ export function classifyHlsPlaybackIssue(
         });
     }
 
-    return createDiagnostic({
+    return createPlaybackDiagnostic({
         code: DiagnosticCode.UnknownPlaybackError,
         source: DiagnosticSource.Hls,
         metadata: mergedMetadata,
@@ -154,7 +154,7 @@ export function classifyMpegTsPlaybackIssue(
     const lowerType = (error.type ?? '').toLowerCase();
 
     if (isEarlyEofFailure(lowerDetails)) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.MediaDecodeError,
             source: DiagnosticSource.MpegTs,
             metadata,
@@ -163,7 +163,7 @@ export function classifyMpegTsPlaybackIssue(
     }
 
     if (isNetworkFailure(lowerType, lowerDetails)) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: isBrowserAccessFailure(lowerDetails)
                 ? DiagnosticCode.BrowserAccessError
                 : DiagnosticCode.NetworkError,
@@ -174,7 +174,7 @@ export function classifyMpegTsPlaybackIssue(
     }
 
     if (lowerDetails.includes('codec')) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.UnsupportedCodec,
             source: DiagnosticSource.MpegTs,
             metadata,
@@ -183,7 +183,7 @@ export function classifyMpegTsPlaybackIssue(
     }
 
     if (lowerDetails.includes('format') || lowerDetails.includes('mse')) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.UnsupportedContainer,
             source: DiagnosticSource.MpegTs,
             metadata,
@@ -192,7 +192,7 @@ export function classifyMpegTsPlaybackIssue(
     }
 
     if (lowerType.includes('media')) {
-        return createDiagnostic({
+        return createPlaybackDiagnostic({
             code: DiagnosticCode.MediaDecodeError,
             source: DiagnosticSource.MpegTs,
             metadata,
@@ -200,7 +200,7 @@ export function classifyMpegTsPlaybackIssue(
         });
     }
 
-    return createDiagnostic({
+    return createPlaybackDiagnostic({
         code: DiagnosticCode.UnknownPlaybackError,
         source: DiagnosticSource.MpegTs,
         metadata,
@@ -222,7 +222,7 @@ export function classifyUnsupportedHlsManifestCodecs(
         return null;
     }
 
-    return createDiagnostic({
+    return createPlaybackDiagnostic({
         code: DiagnosticCode.UnsupportedCodec,
         source: DiagnosticSource.Source,
         metadata,
@@ -230,7 +230,7 @@ export function classifyUnsupportedHlsManifestCodecs(
     });
 }
 
-function createDiagnostic(options: {
+export function createPlaybackDiagnostic(options: {
     readonly code: PlaybackDiagnosticCode;
     readonly source: PlaybackDiagnosticSource;
     readonly metadata: PlaybackSourceMetadata;

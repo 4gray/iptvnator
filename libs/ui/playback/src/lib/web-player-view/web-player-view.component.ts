@@ -225,6 +225,7 @@ export class WebPlayerViewComponent {
                     '',
             },
             radio: 'false',
+            drm: playback.drm,
         };
     }
 
@@ -391,6 +392,8 @@ export class WebPlayerViewComponent {
                 return 'mpegts.js';
             case 'native':
                 return 'Native media element';
+            case 'shaka':
+                return 'Shaka Player';
             case 'source':
                 return 'Stream metadata';
             default:

@@ -2,6 +2,7 @@ import type Artplayer from 'artplayer';
 import type { Option } from 'artplayer';
 import Hls, { type ErrorData, type ManifestParsedData } from 'hls.js';
 import mpegts from 'mpegts.js';
+import type { ChannelDrm } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     type PlaybackDiagnostic,
@@ -11,6 +12,8 @@ import {
     createPlaybackSourceMetadata,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import type { WebVideoControlsAdapter } from '../player-controls';
+import type { ShakaModuleLoader } from '../shaka-engine/shaka-module.types';
+import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
 import {
     type WebVideoControlsSource,
     WebVideoSourceControlsBridge,
@@ -23,6 +26,10 @@ export interface ArtPlayerSourceSessionConfig {
     isLive: () => boolean;
     showCaptions: () => boolean;
     emitPlaybackIssue: (issue: PlaybackDiagnostic) => void;
+    /** DRM config of the active channel, used by the DASH (`mpd`) engine. */
+    getDrm?: () => ChannelDrm | undefined;
+    /** Test seam for the lazily imported shaka-player module. */
+    loadShaka?: ShakaModuleLoader;
 }
 
 /**
@@ -35,6 +42,7 @@ export interface ArtPlayerSourceSessionConfig {
 export class ArtPlayerSourceSession {
     readonly customType: NonNullable<Option['customType']> = {
         m3u8: (video, url, art) => this.startHls(video, url, art),
+        mpd: (video, url) => this.startDash(video, url),
         ts: (video, url) => this.startMpegTs(video, url),
         'video/matroska': (video, url) => this.startNative(video, url),
     };
@@ -53,6 +61,7 @@ export class ArtPlayerSourceSession {
     private mpegTsErrorListener:
         | ((type: string, details: string, info: unknown) => void)
         | null = null;
+    private shakaSession: ShakaVideoSession | null = null;
     private destroyed = false;
 
     constructor(private readonly config: ArtPlayerSourceSessionConfig) {}
@@ -99,6 +108,8 @@ export class ArtPlayerSourceSession {
         this.controlsBridge = null;
         this.destroyHls();
         this.destroyMpegTs();
+        this.shakaSession?.destroy();
+        this.shakaSession = null;
         this.player = null;
     }
 
@@ -181,6 +192,17 @@ export class ArtPlayerSourceSession {
         }
     }
 
+    private startDash(video: HTMLVideoElement, url: string): void {
+        if (this.destroyed) {
+            return;
+        }
+
+        this.prepareForSourceChange();
+        const session = this.getShakaSession();
+        this.bindControlsSource({ kind: 'shaka', session });
+        session.start(video, url, this.config.getDrm?.());
+    }
+
     private startNative(video: HTMLVideoElement, url: string): void {
         if (this.destroyed) {
             return;
@@ -195,6 +217,18 @@ export class ArtPlayerSourceSession {
         this.controlsBridge?.clearSource();
         this.destroyHls();
         this.destroyMpegTs();
+        this.shakaSession?.stop();
+    }
+
+    private getShakaSession(): ShakaVideoSession {
+        this.shakaSession ??= new ShakaVideoSession({
+            player: InlinePlaybackPlayer.ArtPlayer,
+            emitPlaybackIssue: (issue) =>
+                this.config.emitPlaybackIssue(issue),
+            showCaptions: this.config.showCaptions,
+            loadShaka: this.config.loadShaka,
+        });
+        return this.shakaSession;
     }
 
     private bindControlsSource(source: WebVideoControlsSource): void {

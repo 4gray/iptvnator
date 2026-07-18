@@ -21,6 +21,7 @@ export const PlaybackDiagnosticSource = {
     Native: 'native',
     Hls: 'hls',
     MpegTs: 'mpegts',
+    Shaka: 'shaka',
 } as const;
 
 export type PlaybackDiagnosticSource =

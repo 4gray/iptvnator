@@ -20,10 +20,6 @@ import { Channel, createDevLogger } from '@iptvnator/shared/interfaces';
 import {
     InlinePlaybackPlayer,
     PlaybackDiagnostic,
-    classifyHlsPlaybackIssue,
-    classifyMpegTsPlaybackIssue,
-    classifyUnsupportedHlsManifestCodecs,
-    createPlaybackSourceMetadata,
     getPlaybackMediaExtensionFromUrl,
 } from '../playback-diagnostics/playback-diagnostics.util';
 import {
@@ -33,7 +29,18 @@ import {
 } from '../player-controls';
 import { SeriesPlaybackNavigationControlsComponent } from '../portal-inline-player/series-playback-navigation-controls.component';
 import type { SeriesPlaybackNavigation } from '../portal-inline-player/series-playback-navigation';
+import { ShakaVideoSession } from '../shaka-engine/shaka-video-session';
+import { exitOwnedFullscreen } from '../web-video-support/exit-owned-fullscreen.util';
+import {
+    clearNativeVideoSources,
+    setNativeVideoSource,
+} from '../web-video-support/web-video-native-source.util';
 import { HtmlVideoElementSession } from './html-video-element-session';
+import {
+    emitFatalHlsPlaybackError,
+    emitMpegTsPlaybackError,
+    emitUnsupportedHlsManifestCodecs,
+} from './html-video-player-diagnostics';
 import {
     HtmlVideoPlayerControlsBridge,
     type HtmlVideoControlsSource,
@@ -88,6 +95,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
     hls: Hls | null = null;
     /** mpegts.js player for raw MPEG-TS streams */
     private mpegtsPlayer: mpegts.Player | null = null;
+    /** Shaka session for DASH (.mpd) streams, created on first use */
+    private shakaSession: ShakaVideoSession | null = null;
     private controlsSource: HtmlVideoControlsSource | null = null;
     private controlsBridge: HtmlVideoPlayerControlsBridge | null = null;
     private videoSession: HtmlVideoElementSession | null = null;
@@ -127,7 +136,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
             this.controlsBridge?.refreshInputs();
         }
         if (changes['interactionEnabled']?.currentValue === false) {
-            this.exitOwnedFullscreen();
+            exitOwnedFullscreen(
+                this.sharedControls,
+                this.playerRoot()?.nativeElement,
+                (error) =>
+                    debugHtmlPlayer(
+                        'Failed to exit HTML5 player fullscreen:',
+                        error
+                    )
+            );
         }
         if (changes['volume']?.currentValue !== undefined) {
             debugHtmlPlayer(
@@ -139,29 +156,6 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         }
     }
 
-    private exitOwnedFullscreen(): void {
-        if (
-            !this.sharedControls ||
-            document.fullscreenElement !== this.playerRoot()?.nativeElement ||
-            typeof document.exitFullscreen !== 'function'
-        ) {
-            return;
-        }
-
-        try {
-            void Promise.resolve(document.exitFullscreen()).catch(
-                (error: unknown) => {
-                    debugHtmlPlayer(
-                        'Failed to exit HTML5 player fullscreen:',
-                        error
-                    );
-                }
-            );
-        } catch (error: unknown) {
-            debugHtmlPlayer('Failed to exit HTML5 player fullscreen:', error);
-        }
-    }
-
     /**
      * Starts to play the given channel
      * @param channel given channel object
@@ -170,7 +164,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.clearControlsSource();
         this.destroyMpegtsPlayer();
         this.destroyHls();
-        this.clearNativeVideoSources(this.videoPlayer.nativeElement);
+        this.shakaSession?.stop();
+        clearNativeVideoSources(this.videoPlayer.nativeElement);
         if (channel.url) {
             this.playbackIssue.emit(null);
             const url = channel.url + (channel.epgParams ?? '');
@@ -189,7 +184,24 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                     );
                 });
 
-            if ((extension === 'ts' || !extension) && mpegts.isSupported()) {
+            if (extension === 'mpd') {
+                debugHtmlPlayer(
+                    'Using Shaka Player for DASH stream:',
+                    channel.name,
+                    url
+                );
+                const session = this.getShakaSession();
+                this.bindControlsSource({ kind: 'shaka', session });
+                session.start(
+                    this.videoPlayer.nativeElement,
+                    url,
+                    channel.drm
+                );
+                this.handlePlayOperation();
+            } else if (
+                (extension === 'ts' || !extension) &&
+                mpegts.isSupported()
+            ) {
                 debugHtmlPlayer(
                     'Using mpegts.js for TS stream:',
                     channel.name,
@@ -207,15 +219,10 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.mpegtsPlayer.on(
                     mpegts.Events.ERROR,
                     (type: string, details: string, info: unknown): void => {
-                        this.playbackIssue.emit(
-                            classifyMpegTsPlaybackIssue(
-                                {
-                                    type,
-                                    details,
-                                    info,
-                                },
-                                this.createSourceMetadata(url, 'video/mp2t')
-                            )
+                        emitMpegTsPlaybackError(
+                            url,
+                            { type, details, info },
+                            (issue) => this.playbackIssue.emit(issue)
                         );
                     }
                 );
@@ -242,33 +249,16 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
                 this.handlePlayOperation();
             } else {
                 debugHtmlPlayer('Using native video player');
-                this.replaceNativeVideoSource(
+                setNativeVideoSource(
                     this.videoPlayer.nativeElement,
                     url,
                     'video/mp4'
                 );
+                this.bindControlsSource({ kind: 'native' });
+                this.videoPlayer.nativeElement.load();
                 this.handlePlayOperation();
             }
         }
-    }
-
-    private clearNativeVideoSources(element: HTMLVideoElement): void {
-        element.removeAttribute('src');
-        element.replaceChildren();
-    }
-
-    private replaceNativeVideoSource(
-        element: HTMLVideoElement,
-        url: string,
-        type: string
-    ): void {
-        this.clearNativeVideoSources(element);
-        const source = document.createElement('source');
-        source.src = url;
-        source.type = type;
-        element.appendChild(source);
-        this.bindControlsSource({ kind: 'native' });
-        element.load();
     }
 
     private bindControlsSource(source: HtmlVideoControlsSource): void {
@@ -299,6 +289,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         hls?.destroy();
     }
 
+    private getShakaSession(): ShakaVideoSession {
+        this.shakaSession ??= new ShakaVideoSession({
+            player: InlinePlaybackPlayer.Html5,
+            emitPlaybackIssue: (issue) => this.playbackIssue.emit(issue),
+            showCaptions: () => this.showCaptions(),
+        });
+        return this.shakaSession;
+    }
+
     /**
      * Disables text based captions based on the global settings
      */
@@ -317,54 +316,15 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         url: string,
         data: ManifestParsedData
     ): void {
-        const metadata = this.createSourceMetadata(
-            url,
-            'application/x-mpegURL',
-            data.levels
-                .map((level) => level.audioCodec)
-                .filter((codec): codec is string => Boolean(codec)),
-            data.levels
-                .map((level) => level.videoCodec)
-                .filter((codec): codec is string => Boolean(codec))
+        emitUnsupportedHlsManifestCodecs(url, data, (issue) =>
+            this.playbackIssue.emit(issue)
         );
-        const issue = classifyUnsupportedHlsManifestCodecs(metadata);
-        if (issue) {
-            this.playbackIssue.emit(issue);
-        }
     }
 
     private handleHlsError(url: string, data: ErrorData): void {
-        if (!data.fatal) {
-            return;
-        }
-
-        this.playbackIssue.emit(
-            classifyHlsPlaybackIssue(
-                {
-                    type: data.type,
-                    details: data.details,
-                    fatal: data.fatal,
-                    message: data.error?.message,
-                    error: data.error,
-                },
-                this.createSourceMetadata(url, 'application/x-mpegURL')
-            )
+        emitFatalHlsPlaybackError(url, data, (issue) =>
+            this.playbackIssue.emit(issue)
         );
-    }
-
-    private createSourceMetadata(
-        url: string,
-        mimeType?: string,
-        audioCodecs: readonly string[] = [],
-        videoCodecs: readonly string[] = []
-    ) {
-        return createPlaybackSourceMetadata({
-            url,
-            mimeType,
-            player: InlinePlaybackPlayer.Html5,
-            audioCodecs,
-            videoCodecs,
-        });
     }
 
     /**
@@ -378,6 +338,8 @@ export class HtmlVideoPlayerComponent implements OnInit, OnChanges, OnDestroy {
         this.videoSession = null;
         this.destroyMpegtsPlayer();
         this.destroyHls();
+        this.shakaSession?.destroy();
+        this.shakaSession = null;
     }
 
     private getVideoSession(): HtmlVideoElementSession {

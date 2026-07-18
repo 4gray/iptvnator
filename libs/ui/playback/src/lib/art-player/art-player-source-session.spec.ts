@@ -1,6 +1,11 @@
 import type Artplayer from 'artplayer';
+import type { ChannelDrm } from '@iptvnator/shared/interfaces';
 import type { PlaybackDiagnostic } from '../playback-diagnostics/playback-diagnostics.util';
 import { WebVideoControlsAdapter } from '../player-controls';
+import type {
+    ShakaModuleLike,
+    ShakaModuleLoader,
+} from '../shaka-engine/shaka-module.types';
 import type { ArtPlayerSourceSession as ArtPlayerSourceSessionInstance } from './art-player-source-session';
 
 const hlsInstances: MockHls[] = [];
@@ -335,16 +340,159 @@ describe('ArtPlayerSourceSession', () => {
 
         expect(refresh).toHaveBeenCalled();
     });
+
+    it('starts the Shaka engine with channel DRM for the mpd custom type', async () => {
+        const fakeShaka = createFakeShakaModule();
+        const drm: ChannelDrm = {
+            licenseType: 'clearkey',
+            supported: true,
+            clearKeys: { abc: 'def' },
+        };
+        const { session, player, video } = createSession({
+            sharedControls: true,
+            getDrm: () => drm,
+            loadShaka: fakeShaka.loader,
+        });
+        session.attach(player);
+
+        session.customType['mpd']?.(
+            video,
+            'https://example.test/live.mpd',
+            player
+        );
+        await flushAsync();
+
+        expect(fakeShaka.loader).toHaveBeenCalledTimes(1);
+        expect(fakeShaka.instances).toHaveLength(1);
+        expect(fakeShaka.instances[0].attachedTo).toBe(video);
+        expect(fakeShaka.instances[0].loadedUrls).toEqual([
+            'https://example.test/live.mpd',
+        ]);
+        expect(fakeShaka.instances[0].configureCalls).toEqual([
+            { drm: { clearKeys: { abc: 'def' } } },
+        ]);
+        expect(hlsInstances).toHaveLength(0);
+        expect(mpegTsInstances).toHaveLength(0);
+    });
+
+    it('destroys the Shaka engine when the source changes or the session dies', async () => {
+        const fakeShaka = createFakeShakaModule();
+        const { session, player, video } = createSession({
+            sharedControls: false,
+            loadShaka: fakeShaka.loader,
+        });
+        session.attach(player);
+
+        session.customType['mpd']?.(
+            video,
+            'https://example.test/live.mpd',
+            player
+        );
+        await flushAsync();
+        session.customType['m3u8']?.(
+            video,
+            'https://example.test/live.m3u8',
+            player
+        );
+        await flushAsync();
+
+        expect(fakeShaka.instances[0].destroyCount).toBe(1);
+        expect(hlsInstances).toHaveLength(1);
+
+        session.destroy();
+        await flushAsync();
+        expect(fakeShaka.instances).toHaveLength(1);
+    });
 });
+
+async function flushAsync(): Promise<void> {
+    for (let index = 0; index < 10; index += 1) {
+        await Promise.resolve();
+    }
+}
+
+interface FakeShakaPlayerInstance {
+    attachedTo: HTMLMediaElement | null;
+    loadedUrls: string[];
+    configureCalls: Record<string, unknown>[];
+    destroyCount: number;
+}
+
+function createFakeShakaModule(): {
+    loader: jest.Mock;
+    instances: FakeShakaPlayerInstance[];
+} {
+    const instances: FakeShakaPlayerInstance[] = [];
+
+    class FakePlayer {
+        static isBrowserSupported = () => true;
+        attachedTo: HTMLMediaElement | null = null;
+        loadedUrls: string[] = [];
+        configureCalls: Record<string, unknown>[] = [];
+        destroyCount = 0;
+
+        constructor() {
+            instances.push(this);
+        }
+
+        attach(mediaElement: HTMLMediaElement): Promise<unknown> {
+            this.attachedTo = mediaElement;
+            return Promise.resolve();
+        }
+        configure(config: Record<string, unknown>): boolean {
+            this.configureCalls.push(config);
+            return true;
+        }
+        load(assetUri: string): Promise<unknown> {
+            this.loadedUrls.push(assetUri);
+            return Promise.resolve();
+        }
+        destroy(): Promise<unknown> {
+            this.destroyCount += 1;
+            return Promise.resolve();
+        }
+        addEventListener(): void {}
+        removeEventListener(): void {}
+        getAudioTracks() {
+            return [];
+        }
+        selectAudioTrack(): void {}
+        getTextTracks() {
+            return [];
+        }
+        selectTextTrack(): void {}
+        setTextTrackVisibility(): void {}
+        isTextVisible(): boolean {
+            return false;
+        }
+        isLive(): boolean {
+            return false;
+        }
+    }
+
+    const module = {
+        Player: FakePlayer,
+        polyfill: { installAll: () => undefined },
+    } as unknown as ShakaModuleLike;
+
+    return {
+        loader: jest.fn().mockResolvedValue(module),
+        instances,
+    };
+}
 
 function createSession({
     sharedControls,
     isLive = true,
     emitPlaybackIssue = () => undefined,
+    getDrm,
+    loadShaka,
 }: {
     sharedControls: boolean;
     isLive?: boolean;
     emitPlaybackIssue?: (issue: PlaybackDiagnostic) => void;
+    getDrm?: () => ChannelDrm | undefined;
+    loadShaka?: ShakaModuleLoader;
 }): {
     session: ArtPlayerSourceSessionInstance;
     player: Artplayer;
@@ -368,6 +516,8 @@ function createSession({
             isLive: () => isLive,
             showCaptions: () => false,
             emitPlaybackIssue,
+            getDrm,
+            loadShaka,
         }),
         player,
         video,
