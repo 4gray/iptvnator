@@ -190,9 +190,12 @@ controlled status `1`, then reconnects the provider and requires a successful
 diagnostic. This keeps the canonical layouts and missing-provider fallback in
 the same regression contract.
 
-Profiles cannot share one Electron Builder pass because its targets reuse the
-same unpacked application directory. A missing or unsupported profile, or a
-target from another profile, fails packaging.
+Flatpak is an isolated packaging pass and keeps `iptvnator` as the real
+Electron ELF so Electron Builder's `electron-wrapper` passes it directly to
+Zypak. Other Linux targets retain the conditional `iptvnator` wrapper and
+`iptvnator.bin`. Mixed Flatpak/non-Flatpak target sets fail before mutation. A
+missing or unsupported profile, or a target from another profile, fails
+packaging.
 
 Linux frame-copy release artifacts are x64-only. Non-x64 packages are always
 marker-only even if environment variables point at the x64 staged runtime.

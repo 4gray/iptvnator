@@ -56,6 +56,10 @@ const packageLayoutVerifier = fs.readFileSync(
     join(currentDir, 'verify-electron-package-layout.mjs'),
     'utf8'
 );
+const flatpakLauncherValidationSource = fs.readFileSync(
+    join(currentDir, 'flatpak-launcher-validation.cjs'),
+    'utf8'
+);
 const electronAfterPackSource = fs.readFileSync(
     join(currentDir, 'electron-after-pack.cjs'),
     'utf8'
@@ -308,6 +312,94 @@ test('package layout verifier uses canonical helpers and direct dependencies', (
     assert.match(packageLayoutVerifier, /dirArch !== 'x64'/);
     assert.doesNotMatch(packageLayoutVerifier, /getEmbeddedMpvAddonArch/);
     assert.match(electronAfterPackSource, /targetArch !== 'x64'/);
+    assert.match(
+        packageLayoutVerifier,
+        /const\s*{\s*resolveLinuxLauncherLayout\s*}\s*=\s*require\(['"]\.\/linux-launcher-layout\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /const\s*{\s*validateFlatpakLauncher\s*,?\s*}\s*=\s*require\(['"]\.\/flatpak-launcher-validation\.cjs['"]\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /function verifyLinuxLauncher\(\s*resourceDir,\s*targetNames,\s*errors\s*\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /resolveLinuxLauncherLayout\(\s*targetNames,\s*linuxExecutableName\s*\)/
+    );
+    assert.match(
+        packageLayoutVerifier,
+        /verifyLinuxLauncher\(\s*resourceDir,\s*linuxTargetNames,\s*errors\s*\)/
+    );
+
+    const launcherVerifier = packageLayoutVerifier.match(
+        /function verifyLinuxLauncher\([\s\S]*?\n}\n\nfunction verifyFlatpakPermissions/
+    )?.[0];
+    assert.ok(launcherVerifier);
+    assert.ok(
+        launcherVerifier.indexOf('resolveLinuxLauncherLayout(') <
+            launcherVerifier.indexOf('const launcherBinaryPath')
+    );
+    assert.match(
+        launcherVerifier,
+        /if \(!launcherLayout\.wrapperRequired\) \{\s*errors\.push\(\s*\.\.\.validateFlatpakLauncher\(\s*appDir,\s*linuxExecutableName\s*\)\s*\);\s*return;\s*\}\s*const launcherBinaryPath[\s\S]*?fs\.readFileSync\(launcherPath,\s*['"]utf8['"]\)/
+    );
+});
+
+test('Flatpak launcher validation locks descriptor-based ELF inspection', () => {
+    assert.match(
+        flatpakLauncherValidationSource,
+        /const expectedElfMagic = Buffer\.from\(\[\s*0x7f,\s*0x45,\s*0x4c,\s*0x46,?\s*\]\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /descriptor = fs\.openSync\(\s*launcherPath,\s*fs\.constants\.O_RDONLY\s*\|\s*fs\.constants\.O_NOFOLLOW\s*\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /launcherStat = fs\.fstatSync\(descriptor\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /const elfMagic = Buffer\.alloc\(expectedElfMagic\.length\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /bytesRead = fs\.readSync\(\s*descriptor,\s*elfMagic,\s*0,\s*elfMagic\.length,\s*0\s*\)/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /bytesRead !== expectedElfMagic\.length/
+    );
+    assert.match(
+        flatpakLauncherValidationSource,
+        /finally\s*{\s*try\s*{\s*fs\.closeSync\(descriptor\)/
+    );
+
+    const openOffset = flatpakLauncherValidationSource.indexOf(
+        'descriptor = fs.openSync('
+    );
+    const statOffset = flatpakLauncherValidationSource.indexOf(
+        'launcherStat = fs.fstatSync(descriptor)'
+    );
+    const readOffset = flatpakLauncherValidationSource.indexOf(
+        'bytesRead = fs.readSync('
+    );
+    const finallyOffset = flatpakLauncherValidationSource.indexOf(
+        '} finally {',
+        readOffset
+    );
+    const closeOffset = flatpakLauncherValidationSource.indexOf(
+        'fs.closeSync(descriptor)',
+        finallyOffset
+    );
+    assert.ok(
+        openOffset < statOffset &&
+            statOffset < readOffset &&
+            readOffset < finallyOffset &&
+            finallyOffset < closeOffset
+    );
 });
 
 test('nx-electron packaging does not copy duplicate root package metadata', () => {

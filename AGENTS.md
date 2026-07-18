@@ -229,6 +229,10 @@ Key files:
       Pacman=`mpv,libglvnd,mesa`
     - `portable`: AppImage/Snap with the pinned LGPL-compatible closure
     - `flatpak`: Flatpak with the same pinned closure
+- Flatpak is an isolated packaging pass and keeps `iptvnator` as the real
+  Electron ELF so Electron Builder's `electron-wrapper` passes it directly to
+  Zypak. Other Linux targets retain the conditional `iptvnator` wrapper and
+  `iptvnator.bin`. Mixed Flatpak/non-Flatpak target sets fail before mutation.
 - The DEB system-runtime contract is Ubuntu 24.04+ (`libmpv2`). Ubuntu 22.04
   provides `libmpv1`, so use the x64 AppImage on Jammy instead of weakening the
   package dependency or advertising frame-copy without a compatible runtime.

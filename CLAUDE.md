@@ -639,8 +639,12 @@ engine` (restart required) or
   Official x64 packages use three separate profiles:
   DEB/RPM/Pacman depend on system libmpv plus the helper's direct
   EGL/GL/GBM interfaces, AppImage/Snap bundle the pinned LGPL closure, and
-  Flatpak bundles the same closure. Exact system dependencies are
-  DEB=`libmpv2,libegl1,libgl1,libgbm1`,
+  Flatpak bundles the same closure. Flatpak is an isolated packaging pass and
+  keeps `iptvnator` as the real Electron ELF so Electron Builder's
+  `electron-wrapper` passes it directly to Zypak. Other Linux targets retain the
+  conditional `iptvnator` wrapper and `iptvnator.bin`. Mixed
+  Flatpak/non-Flatpak target sets fail before mutation. Exact system
+  dependencies are DEB=`libmpv2,libegl1,libgl1,libgbm1`,
   RPM=`mpv-libs,libglvnd-egl,libglvnd-glx,mesa-libgbm`, and
   Pacman=`mpv,libglvnd,mesa`. The DEB contract is verified on Ubuntu 24.04+;
   Ubuntu 22.04 users need the x64 AppImage because Jammy provides `libmpv1`.

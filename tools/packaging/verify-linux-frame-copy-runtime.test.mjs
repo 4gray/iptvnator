@@ -219,7 +219,10 @@ function elfHeader(architecture) {
     return image;
 }
 
-function createSystemPayload({ architecture = 'x64' } = {}) {
+function createSystemPayload({
+    architecture = 'x64',
+    electronBinaryName = 'iptvnator.bin',
+} = {}) {
     const root = fs.mkdtempSync(
         path.join(os.tmpdir(), 'iptvnator-verifier-layout-')
     );
@@ -233,7 +236,7 @@ function createSystemPayload({ architecture = 'x64' } = {}) {
     );
     fs.mkdirSync(nativeDir, { recursive: true });
     fs.writeFileSync(
-        path.join(appDir, 'iptvnator.bin'),
+        path.join(appDir, electronBinaryName),
         elfHeader(architecture)
     );
 
@@ -1574,6 +1577,64 @@ test('artifact verification enforces Snap metadata for x64 and ARM payloads', ()
     }
 });
 
+test('verifies an outer Flatpak artifact with an unwrapped Electron ELF', () => {
+    const root = fs.mkdtempSync(
+        path.join(os.tmpdir(), 'iptvnator-verifier-flatpak-artifact-')
+    );
+    const artifactPath = path.join(root, 'IPTVnator.flatpak');
+    fs.writeFileSync(artifactPath, 'flatpak fixture');
+
+    try {
+        assert.deepEqual(
+            verifyLinuxFrameCopyArtifact({
+                artifactPath,
+                profileName: 'flatpak',
+                extractArtifact({ destination }) {
+                    const appDir = path.join(
+                        destination,
+                        'files',
+                        'lib',
+                        'com.fourgray.iptvnator'
+                    );
+                    const resourceDir = path.join(appDir, 'resources');
+                    const nativeDir = path.join(
+                        resourceDir,
+                        'app.asar.unpacked',
+                        'electron-backend',
+                        'native'
+                    );
+                    fs.mkdirSync(nativeDir, { recursive: true });
+                    fs.writeFileSync(
+                        path.join(appDir, 'iptvnator'),
+                        elfHeader('arm64')
+                    );
+                    fs.writeFileSync(
+                        path.join(nativeDir, 'embedded-mpv-unavailable.txt'),
+                        'Unavailable for arm64\n'
+                    );
+                    return destination;
+                },
+                metadataReader: () => ({
+                    declaredArch: 'arm64',
+                    dependencies: [],
+                }),
+                elfInspector: validElfInspector,
+                probeRunner() {
+                    assert.fail('foreign Flatpak must not probe');
+                },
+            }),
+            {
+                artifactPath: path.resolve(artifactPath),
+                format: 'flatpak',
+                profileName: 'flatpak',
+                architecture: 'arm64',
+            }
+        );
+    } finally {
+        fs.rmSync(root, { recursive: true, force: true });
+    }
+});
+
 test('bundled probes remove ambient loader paths and use only packaged libraries', () => {
     assert.deepEqual(
         createRuntimeProbeEnvironment({
@@ -1819,6 +1880,32 @@ test('requires marker-only foreign packages, scans Electron, and never probes', 
                 )
             );
         }
+    } finally {
+        fs.rmSync(fixture.root, { recursive: true, force: true });
+    }
+});
+
+test('validates a marker-only Flatpak with an unwrapped Electron ELF', () => {
+    const fixture = createSystemPayload({
+        architecture: 'arm64',
+        electronBinaryName: 'iptvnator',
+    });
+    try {
+        assert.deepEqual(
+            verifyExtractedLinuxFrameCopyRuntime({
+                resourceDir: fixture.resourceDir,
+                artifactFormat: 'flatpak',
+                profileName: 'flatpak',
+                packageDependencies: [],
+                elfInspector: validElfInspector,
+                probeRunner() {
+                    assert.fail(
+                        'foreign Flatpak must not run the helper probe'
+                    );
+                },
+            }),
+            []
+        );
     } finally {
         fs.rmSync(fixture.root, { recursive: true, force: true });
     }

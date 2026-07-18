@@ -279,6 +279,7 @@ function pureValidationOptions(options = {}) {
 function validElfInspector(nativeDir, manifest, overrides = {}) {
     const libDir = join(nativeDir, 'lib');
     const records = new Map([
+        ['iptvnator', { needed: ['libc.so.6'], rpath: [], runpath: [] }],
         ['iptvnator.bin', { needed: ['libc.so.6'], rpath: [], runpath: [] }],
         [
             FRAME_COPY_ARTIFACTS.addon,
@@ -598,6 +599,10 @@ test('prepares a normalized system profile with no private runtime', (t) => {
 test('prepares portable and Flatpak manifests with the exact bundled closure', (t) => {
     const portable = createNativeFixture();
     const flatpak = createNativeFixture();
+    fs.renameSync(
+        join(flatpak.appOutDir, 'iptvnator.bin'),
+        join(flatpak.appOutDir, 'iptvnator')
+    );
     t.after(() => {
         for (const fixture of [portable, flatpak]) {
             fs.rmSync(fixture.fixtureRoot, { recursive: true, force: true });
@@ -699,6 +704,11 @@ test('prepares portable and Flatpak manifests with the exact bundled closure', (
             pureValidationOptions({
                 profile: 'flatpak',
                 targetNames: ['flatpak'],
+                hostPlatform: 'linux',
+                elfInspector: validElfInspector(
+                    flatpak.nativeDir,
+                    flatpakManifest
+                ),
             })
         ),
         []

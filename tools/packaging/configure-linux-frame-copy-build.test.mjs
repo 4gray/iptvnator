@@ -555,6 +555,52 @@ test('Flatpak application runtime probe runs under an isolated D-Bus session', (
     );
 });
 
+test('Flatpak CI verifies the direct Zypak ELF and preserves probe status', () => {
+    const flatpakVerificationStep = workflowStep(
+        'Verify Flatpak payload, launcher, and sandboxed runtime'
+    );
+
+    assert.match(
+        flatpakVerificationStep,
+        /LAUNCHER_PATH="\$\(readlink -f \/app\/bin\/iptvnator\)"/
+    );
+    assert.match(
+        flatpakVerificationStep,
+        /test -f "\$\{LAUNCHER_PATH\}"[\s\S]*test -x "\$\{LAUNCHER_PATH\}"/
+    );
+    assert.match(
+        flatpakVerificationStep,
+        /if \[ -e "\$\{LAUNCHER_PATH\}\.bin" \] \|\| \[ -L "\$\{LAUNCHER_PATH\}\.bin" \]; then/
+    );
+    assert.match(
+        flatpakVerificationStep,
+        /ELF_MAGIC="\$\(od -An -tx1 -N4 "\$\{LAUNCHER_PATH\}" \| tr -d "\[:space:\]"\)"[\s\S]*test "\$\{ELF_MAGIC\}" = "7f454c46"/
+    );
+    assert.doesNotMatch(
+        flatpakVerificationStep,
+        /grep -q .*readlink -f "\$SCRIPT_PATH"/
+    );
+    assert.doesNotMatch(
+        flatpakVerificationStep,
+        /grep -q .*exec "\$SCRIPT_DIR\/iptvnator\.bin"/
+    );
+
+    assert.match(
+        flatpakVerificationStep,
+        /set \+e[\s\S]*PROBE_OUTPUT="\$\([\s\S]*xvfb-run -a dbus-run-session -- flatpak run[\s\S]*--embedded-mpv-runtime-probe 2>&1[\s\S]*\)"[\s\S]*PROBE_STATUS=\$\?[\s\S]*set -e/
+    );
+    assert.match(
+        flatpakVerificationStep,
+        /PROBE_OUTPUT_LIMIT=16384[\s\S]*"\$\{PROBE_OUTPUT:0:PROBE_OUTPUT_LIMIT\}"/
+    );
+    assert.match(flatpakVerificationStep, /not an ELF file/);
+    assert.match(flatpakVerificationStep, /Zypak needs to be called directly/);
+    assert.match(
+        flatpakVerificationStep,
+        /if \[ "\$\{PROBE_STATUS\}" -ne 0 \]; then[\s\S]*exit "\$\{PROBE_STATUS\}"/
+    );
+});
+
 test('foreign DEB CI explicitly selects both marker-only ARM architectures', () => {
     const foreignDebStep = workflowStep(
         'Make marker-only foreign-architecture DEB packages'

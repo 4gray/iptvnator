@@ -18,6 +18,10 @@ const {
 const {
     validateLinuxProfileTargets,
 } = require('./linux-frame-copy-profile.cjs');
+const { resolveLinuxLauncherLayout } = require('./linux-launcher-layout.cjs');
+const {
+    validateFlatpakLauncher,
+} = require('./flatpak-launcher-validation.cjs');
 const args = process.argv.slice(2);
 const normalizedArgs = args[0] === '--' ? args.slice(1) : args;
 const [platform, arch = ''] = normalizedArgs;
@@ -468,10 +472,34 @@ function verifyPackagedPackageMetadata(resourceDir, errors) {
     }
 }
 
-function verifyLinuxLauncher(resourceDir, errors) {
+function verifyLinuxLauncher(resourceDir, targetNames, errors) {
+    let launcherLayout;
+    try {
+        launcherLayout = resolveLinuxLauncherLayout(
+            targetNames,
+            linuxExecutableName
+        );
+    } catch (error) {
+        errors.push(
+            `Unable to resolve Linux launcher layout: ${
+                error instanceof Error ? error.message : String(error)
+            }`
+        );
+        return;
+    }
+
     const appDir = path.dirname(resourceDir);
     const launcherPath = path.join(appDir, linuxExecutableName);
-    const launcherBinaryPath = `${launcherPath}.bin`;
+
+    if (!launcherLayout.wrapperRequired) {
+        errors.push(...validateFlatpakLauncher(appDir, linuxExecutableName));
+        return;
+    }
+
+    const launcherBinaryPath = path.join(
+        appDir,
+        launcherLayout.electronBinaryName
+    );
 
     if (!fileExists(launcherBinaryPath)) {
         errors.push(
@@ -733,7 +761,7 @@ function verifyResourceDir(resourceDir) {
         verifyLinuxExecutableArgs(errors);
         verifyFlatpakPermissions(errors);
         verifySnapPackagingConfig(errors);
-        verifyLinuxLauncher(resourceDir, errors);
+        verifyLinuxLauncher(resourceDir, linuxTargetNames, errors);
     }
 
     errors.push(
