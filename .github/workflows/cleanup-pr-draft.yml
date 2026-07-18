@@ -19,12 +19,26 @@ jobs:
         if: github.event.pull_request.head.repo.full_name == github.repository
         runs-on: ubuntu-latest
         steps:
+            # A closed PR can be reopened while this job is still queued or
+            # waiting; a reopened PR's fresh build must not be cancelled and
+            # its draft must not be deleted. Check the live state up front
+            # (and again right before deleting below).
+            - name: Check PR is still closed
+              id: pr-state
+              env:
+                  GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+              run: |
+                  set -euo pipefail
+                  echo "state=$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.state')" >> "${GITHUB_OUTPUT}"
+
             # A build for this PR may still be running and would recreate the
             # rolling draft after we delete it. Cancel those runs (dead work
             # for a closed PR anyway) and wait for them to wind down. The
             # release job additionally re-checks the live PR state, so this
             # wait is defense in depth, not the only guard.
             - name: Cancel in-progress builds for the closed PR
+              if: steps.pr-state.outputs.state == 'closed'
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   HEAD_BRANCH: ${{ github.event.pull_request.head.ref }}
@@ -57,13 +71,21 @@ jobs:
 
             # Draft releases have no real git tag, so a lookup via
             # releases/tags/<tag> returns 404. List releases and match the
-            # draft by its stored tag_name (test-pr-<n>) instead.
+            # draft by its stored tag_name (test-pr-<n>) instead. The PR state
+            # is re-checked one last time right before deleting, in case the
+            # PR was reopened during the cancellation wait above.
             - name: Delete draft release for closed PR
+              if: steps.pr-state.outputs.state == 'closed'
               env:
                   GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
                   PR_NUMBER: ${{ github.event.pull_request.number }}
               run: |
                   set -euo pipefail
+
+                  if [ "$(gh api "repos/${GITHUB_REPOSITORY}/pulls/${PR_NUMBER}" --jq '.state')" != "closed" ]; then
+                      echo "PR #${PR_NUMBER} was reopened; keeping its draft."
+                      exit 0
+                  fi
 
                   gh api "repos/${GITHUB_REPOSITORY}/releases?per_page=100" --paginate \
                       --jq ".[] | select(.draft and .tag_name == \"test-pr-${PR_NUMBER}\") | .id" |
