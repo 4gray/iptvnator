@@ -35,7 +35,7 @@ describe('recently-viewed.operations', () => {
                 { id: 2, title: 'Newest', viewed_at: '2026-07-02 10:00:00' },
                 { id: 1, title: 'Older', viewed_at: '2026-07-01 10:00:00' },
             ];
-            const { db, queries } = createDbMock([rows]);
+            const { db, queries, select } = createDbMock([rows]);
 
             await expect(getRecentlyViewed(db)).resolves.toEqual(rows);
 
@@ -47,11 +47,19 @@ describe('recently-viewed.operations', () => {
             );
             expect(queries[0].limit).toHaveBeenCalledWith(100);
             expect(queries[0].innerJoin).toHaveBeenCalledTimes(3);
+            // Regression for issue #1138: archive metadata must survive the
+            // recent projections so catch-up stays available outside Live TV.
+            expect(select).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tv_archive: schema.content.tvArchive,
+                    tv_archive_duration: schema.content.tvArchiveDuration,
+                })
+            );
         });
 
         it('scopes playlist history to the playlist, newest-first with a 100 cap', async () => {
             const rows = [{ id: 5, title: 'Recent Movie' }];
-            const { db, queries } = createDbMock([rows]);
+            const { db, queries, select } = createDbMock([rows]);
 
             await expect(getRecentItems(db, 'playlist-1')).resolves.toEqual(
                 rows
@@ -65,6 +73,12 @@ describe('recently-viewed.operations', () => {
                 schema.recentlyViewed.viewedAt
             );
             expect(queries[0].limit).toHaveBeenCalledWith(100);
+            expect(select).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    tv_archive: schema.content.tvArchive,
+                    tv_archive_duration: schema.content.tvArchiveDuration,
+                })
+            );
         });
     });
 

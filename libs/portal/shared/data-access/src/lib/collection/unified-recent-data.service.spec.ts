@@ -355,6 +355,8 @@ describe('UnifiedRecentDataService', () => {
                 poster_url: 'https://example.com/live.png',
                 xtream_id: 290,
                 type: 'live',
+                tv_archive: 1,
+                tv_archive_duration: 3,
                 viewed_at: '2026-04-21T20:42:27.000Z',
             },
             {
@@ -380,6 +382,10 @@ describe('UnifiedRecentDataService', () => {
                     uid: 'xtream::xtream-1::live:290',
                     contentType: 'live',
                     contentId: 3867578,
+                    // Regression for issue #1138: archive metadata must
+                    // survive the recent mapping for catch-up.
+                    tvArchive: 1,
+                    tvArchiveDuration: 3,
                 }),
                 expect.objectContaining({
                     uid: 'xtream::xtream-1::series:290',
@@ -697,16 +703,42 @@ describe('UnifiedRecentDataService', () => {
                 playlist_name: 'Xtream One',
                 viewed_at: '2026-04-21 22:49:02',
             },
+            {
+                id: 3867578,
+                category_id: 11,
+                title: 'Live With Archive',
+                poster_url: 'https://example.com/live.png',
+                xtream_id: 290,
+                type: 'live',
+                tv_archive: 1,
+                tv_archive_duration: 3,
+                playlist_id: 'xtream-1',
+                playlist_name: 'Xtream One',
+                viewed_at: '2026-04-21 20:42:27',
+            },
         ]);
 
         const items = await service.getRecentItems('all');
-        const xtreamItem = items.find((item) => item.sourceType === 'xtream');
+        const xtreamItem = items.find(
+            (item) => item.name === 'Unter Nachbarn - 2011'
+        );
 
         expect(xtreamItem).toEqual(
             expect.objectContaining({
                 name: 'Unter Nachbarn - 2011',
                 viewedAt: '2026-04-21T22:49:02.000Z',
             })
+        );
+        // Regression for issue #1138: archive metadata must survive the
+        // global recent mapping for catch-up.
+        expect(items).toEqual(
+            expect.arrayContaining([
+                expect.objectContaining({
+                    name: 'Live With Archive',
+                    tvArchive: 1,
+                    tvArchiveDuration: 3,
+                }),
+            ])
         );
     });
 });
