@@ -139,6 +139,7 @@ describe('UnifiedLiveTabComponent', () => {
     let streamResolver: {
         resolveLiveDetail: jest.Mock;
         resolveM3uPlaybackDetail: jest.Mock;
+        resolveXtreamCatchupUrl: jest.Mock;
         loadM3uProgramsForItem: jest.Mock;
         loadEpgForItems: jest.Mock;
     };
@@ -163,6 +164,7 @@ describe('UnifiedLiveTabComponent', () => {
         streamResolver = {
             resolveLiveDetail: jest.fn(),
             resolveM3uPlaybackDetail: jest.fn(),
+            resolveXtreamCatchupUrl: jest.fn().mockResolvedValue(null),
             loadM3uProgramsForItem: jest.fn().mockResolvedValue([]),
             loadEpgForItems: jest.fn().mockResolvedValue(new Map()),
         };
@@ -1059,6 +1061,108 @@ describe('UnifiedLiveTabComponent', () => {
                     ),
                 })
             );
+        });
+    });
+
+    describe('Xtream (portal) catch-up (timeshift) playback', () => {
+        const selectXtreamArchiveChannel = async (
+            archive: Partial<UnifiedCollectionItem> = {
+                tvArchive: 1,
+                tvArchiveDuration: 5,
+            }
+        ) => {
+            const item = { ...buildLiveItem('xtream'), ...archive };
+            streamResolver.resolveLiveDetail.mockResolvedValue({
+                epgMode: 'portal',
+                playback: {
+                    streamUrl: 'https://example.com/xtream.m3u8',
+                    title: 'Xtream Live',
+                },
+                epgItems: [buildEpgItem('Xtream Show')],
+            });
+            recentData.recordLivePlayback.mockResolvedValue(item);
+
+            fixture.componentRef.setInput('items', [item]);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            await component.onChannelSelected(component.channelsForList()[0]);
+            fixture.detectChanges();
+            await fixture.whenStable();
+
+            return item;
+        };
+
+        const timeshiftEvent = (): EpgProgramActivationEvent => ({
+            program: buildProgram('Xtream Show'),
+            type: 'timeshift',
+        });
+
+        const queryTimeline = () =>
+            fixture.debugElement.query(By.directive(StubEpgTimelineComponent))
+                .componentInstance as StubEpgTimelineComponent;
+
+        it('exposes the provider archive window to the timeline in days', async () => {
+            // Regression: tv_archive_duration is days (matching
+            // live-stream-layout.controlledArchiveDays), not hours — a
+            // 5-day window must not collapse to ceil(5 / 24) = 1 day.
+            await selectXtreamArchiveChannel({
+                tvArchive: 1,
+                tvArchiveDuration: 5,
+            });
+
+            const timeline = queryTimeline();
+            expect(timeline.archivePlaybackAvailable()).toBe(true);
+            expect(timeline.archiveDays()).toBe(5);
+        });
+
+        it('keeps the archive gate closed when the provider has no archive', async () => {
+            await selectXtreamArchiveChannel({
+                tvArchive: 0,
+                tvArchiveDuration: 0,
+            });
+
+            const timeline = queryTimeline();
+            expect(timeline.archivePlaybackAvailable()).toBe(false);
+            expect(timeline.archiveDays()).toBe(0);
+        });
+
+        it('resolves the catch-up stream with epoch seconds and switches inline playback', async () => {
+            portalPlayer.isEmbeddedPlayer.mockReturnValue(true);
+            streamResolver.resolveXtreamCatchupUrl.mockResolvedValue(
+                'https://example.com/timeshift.m3u8'
+            );
+            const item = await selectXtreamArchiveChannel();
+
+            component.onTimelineProgramActivated(timeshiftEvent());
+            await fixture.whenStable();
+            fixture.detectChanges();
+
+            const program = timeshiftEvent().program;
+            expect(streamResolver.resolveXtreamCatchupUrl).toHaveBeenCalledWith(
+                expect.objectContaining({ xtreamId: item.xtreamId }),
+                Math.floor(Date.parse(program.start) / 1000),
+                Math.floor(Date.parse(program.stop) / 1000)
+            );
+            expect(component.inlinePlayback()?.streamUrl).toBe(
+                'https://example.com/timeshift.m3u8'
+            );
+            expect(component.inlinePlayback()?.isLive).toBe(false);
+            expect(component.activeTimeshiftProgram()?.title).toBe(
+                'Xtream Show'
+            );
+            expect(snackBar.open).not.toHaveBeenCalled();
+        });
+
+        it('shows feedback instead of failing silently when the provider rejects catch-up', async () => {
+            streamResolver.resolveXtreamCatchupUrl.mockResolvedValue(null);
+            await selectXtreamArchiveChannel();
+
+            component.onTimelineProgramActivated(timeshiftEvent());
+            await fixture.whenStable();
+
+            expect(component.activeTimeshift()).toBeNull();
+            expect(snackBar.open).toHaveBeenCalledTimes(1);
         });
     });
 });

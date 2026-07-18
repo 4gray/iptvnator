@@ -208,7 +208,10 @@ export class UnifiedLiveTabComponent {
         // Portal archive: tvArchive === 1 means the provider has
         // timeshift / archive enabled for this channel.
         const item = this.activeItem();
-        return item?.tvArchive === 1 && (item.tvArchiveDuration ?? 0) > 0;
+        return (
+            Number(item?.tvArchive ?? 0) === 1 &&
+            Number(item?.tvArchiveDuration ?? 0) > 0
+        );
     });
     /**
      * Catch-up window (days) for the active channel, so the timeline can
@@ -217,7 +220,8 @@ export class UnifiedLiveTabComponent {
      * programmes older than the real archive window.
      *
      * M3U: reads catchup-days / timeshift / tvg-rec from the channel attrs.
-     * Portal: tvArchiveDuration is stored in hours — convert to days.
+     * Portal: tvArchiveDuration is already in days — pass it through,
+     * matching `live-stream-layout.controlledArchiveDays`.
      */
     readonly timelineArchiveDays = computed(() => {
         if (!this.timelineArchiveAvailable()) return 0;
@@ -226,9 +230,10 @@ export class UnifiedLiveTabComponent {
             return getM3uArchiveDays(this.currentM3uChannel());
         }
 
-        // Portal: tvArchiveDuration is in hours — divide by 24 for days.
-        const hours = Number(this.activeItem()?.tvArchiveDuration ?? 0);
-        return Math.max(1, Math.ceil(hours / 24));
+        return Math.max(
+            0,
+            Number(this.activeItem()?.tvArchiveDuration ?? 0) || 0
+        );
     });
     readonly activeRadioChannel = computed(() => {
         const channel = this.activeDetail()?.channel ?? null;
