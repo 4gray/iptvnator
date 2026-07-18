@@ -11,6 +11,10 @@ on:
             - master
     workflow_dispatch:
 
+concurrency:
+    group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+    cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
     build:
         name: Build on ${{ matrix.os }} ${{ matrix.arch }}
@@ -797,13 +801,67 @@ jobs:
               id: package-version
               run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
 
+            # Test drafts (PR/master) get a self-describing title plus a context
+            # header linking the PR, real head commit, and workflow run. A stable
+            # tag per PR (test-pr-<n>) / branch (test-master) makes the action
+            # update one rolling draft in place instead of piling up a new draft
+            # for every push. PR builds must not use github.sha here: that is the
+            # ephemeral merge-commit SHA, which resolves to nothing in the repo.
+            - name: Compose release metadata
+              id: release-meta
+              shell: bash
+              env:
+                  VERSION: ${{ steps.package-version.outputs.version }}
+                  EVENT_NAME: ${{ github.event_name }}
+                  IS_TAG_BUILD: ${{ startsWith(github.ref, 'refs/tags/') }}
+                  PR_NUMBER: ${{ github.event.pull_request.number }}
+                  PR_TITLE: ${{ github.event.pull_request.title }}
+                  PR_URL: ${{ github.event.pull_request.html_url }}
+                  HEAD_SHA: ${{ github.event.pull_request.head.sha || github.sha }}
+                  SOURCE_BRANCH: ${{ github.head_ref || github.ref_name }}
+                  REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+                  RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+              run: |
+                  set -euo pipefail
+
+                  SHORT_SHA="${HEAD_SHA:0:7}"
+                  SAFE_BRANCH="${SOURCE_BRANCH//\//-}"
+
+                  if [ "${IS_TAG_BUILD}" = "true" ]; then
+                      NAME="Release v${VERSION}"
+                      TAG="${GITHUB_REF_NAME}"
+                      BODY=""
+                  elif [ "${EVENT_NAME}" = "pull_request" ]; then
+                      NAME="v${VERSION} — PR #${PR_NUMBER} @ ${SHORT_SHA} [test]"
+                      TAG="test-pr-${PR_NUMBER}"
+                      BODY="$(printf '🧪 Test build for PR [#%s](%s) — %s\n\nCommit [`%s`](%s/commit/%s) · branch `%s` · [workflow run](%s)' \
+                          "${PR_NUMBER}" "${PR_URL}" "${PR_TITLE}" \
+                          "${SHORT_SHA}" "${REPO_URL}" "${HEAD_SHA}" "${SOURCE_BRANCH}" "${RUN_URL}")"
+                  else
+                      NAME="v${VERSION} — ${SAFE_BRANCH} @ ${SHORT_SHA} [test]"
+                      TAG="test-${SAFE_BRANCH}"
+                      BODY="$(printf '🧪 Test build from `%s` — commit [`%s`](%s/commit/%s) · [workflow run](%s)' \
+                          "${SOURCE_BRANCH}" "${SHORT_SHA}" "${REPO_URL}" "${HEAD_SHA}" "${RUN_URL}")"
+                  fi
+
+                  {
+                      echo "name=${NAME}"
+                      echo "tag=${TAG}"
+                      echo "commitish=${HEAD_SHA}"
+                      echo "body<<RELEASE_BODY_EOF"
+                      echo "${BODY}"
+                      echo "RELEASE_BODY_EOF"
+                  } >> "${GITHUB_OUTPUT}"
+
             - name: Create Draft Release
               uses: softprops/action-gh-release@v2
               with:
                   draft: true
-                  prerelease: ${{ github.event_name == 'pull_request' }}
-                  name: Release v${{ steps.package-version.outputs.version }}
-                  tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || format('test-{0}', github.sha) }}
+                  prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+                  name: ${{ steps.release-meta.outputs.name }}
+                  tag_name: ${{ steps.release-meta.outputs.tag }}
+                  target_commitish: ${{ steps.release-meta.outputs.commitish }}
+                  body: ${{ steps.release-meta.outputs.body }}
                   generate_release_notes: true
                   files: |
                       artifacts/macos-x64-artifacts/*-x64.dmg
