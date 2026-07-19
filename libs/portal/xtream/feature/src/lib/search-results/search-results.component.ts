@@ -135,6 +135,14 @@ export class SearchResultsComponent implements AfterViewInit {
         'global-search-group-by-playlist';
     private static readonly GROUP_SIMILAR_STORAGE_KEY =
         'global-search-group-similar';
+    /**
+     * Grouping can collapse a full page into a handful of cards that never
+     * overflow the viewport, so the scroll-driven `nearEnd` pager never
+     * fires. Keep pulling pages until there are plausibly enough cards to
+     * scroll, bounded so a heavily-collapsed result set can't page forever.
+     */
+    private static readonly MIN_CARDS_BEFORE_SCROLL = 24;
+    private static readonly MAX_AUTO_FILL_PAGES = 5;
     private static readonly EXCLUDE_HIDDEN_STORAGE_KEY =
         'xtream-search-exclude-hidden';
     private static readonly TYPE_FILTERS_STORAGE_KEY =
@@ -203,7 +211,13 @@ export class SearchResultsComponent implements AfterViewInit {
         return this.groupedResults().map((group) => ({
             ...group,
             variantGroups: collapse
-                ? groupResultsByVariant(group.items, this.displayType)
+                ? groupResultsByVariant(
+                      group.items,
+                      this.displayType,
+                      // Scope keys per playlist so the same title expands
+                      // independently across sections.
+                      `${group.playlistId}::`
+                  )
                 : [],
         }));
     });
@@ -446,6 +460,44 @@ export class SearchResultsComponent implements AfterViewInit {
                 }
             }
         }
+
+        if (!append && requestVersion === this.globalSearchRequestVersion) {
+            await this.autoFillWhileSparse();
+        }
+    }
+
+    /** Top-level cards currently rendered (groups when collapsing). */
+    private topLevelCardCount(): number {
+        if (!this.groupSimilar()) {
+            return this.xtreamStore.searchResults().length;
+        }
+        return this.groupByPlaylist()
+            ? this.playlistSections().reduce(
+                  (total, section) => total + section.variantGroups.length,
+                  0
+              )
+            : this.flatVariantGroups().length;
+    }
+
+    /**
+     * When grouping leaves too few cards to scroll, pull further pages so
+     * the hidden remainder becomes reachable. Bounded by page count and
+     * short-circuits as soon as enough cards exist or no more pages remain.
+     */
+    private async autoFillWhileSparse(): Promise<void> {
+        let pages = 0;
+        while (
+            this.groupSimilar() &&
+            this.hasMoreGlobalResults() &&
+            !this.isLoadingMoreGlobalResults() &&
+            !this.xtreamStore.isSearching() &&
+            this.topLevelCardCount() <
+                SearchResultsComponent.MIN_CARDS_BEFORE_SCROLL &&
+            pages < SearchResultsComponent.MAX_AUTO_FILL_PAGES
+        ) {
+            pages++;
+            await this.loadMoreGlobalResults();
+        }
     }
 
     async loadMoreGlobalResults(): Promise<void> {
@@ -527,6 +579,10 @@ export class SearchResultsComponent implements AfterViewInit {
             SearchResultsComponent.GROUP_SIMILAR_STORAGE_KEY,
             String(value)
         );
+        // Turning grouping on can leave too few cards to scroll; backfill.
+        if (value) {
+            void this.autoFillWhileSparse();
+        }
     }
 
     isVariantExpanded(key: string): boolean {

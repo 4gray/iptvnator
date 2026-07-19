@@ -526,6 +526,81 @@ describe('SearchResultsComponent variant grouping', () => {
         expect(router.navigate).toHaveBeenCalled();
     });
 
+    it('scopes expansion to each playlist so the same title stays independent', () => {
+        const component = build();
+        const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
+        store.searchResults.set([
+            createSearchItem({
+                id: 1,
+                title: 'DE| The Pitt',
+                xtream_id: 1,
+                playlist_id: 'p1',
+                playlist_name: 'One',
+            }),
+            createSearchItem({
+                id: 2,
+                title: 'FR| The Pitt',
+                xtream_id: 2,
+                playlist_id: 'p1',
+                playlist_name: 'One',
+            }),
+            createSearchItem({
+                id: 3,
+                title: 'DE| The Pitt',
+                xtream_id: 3,
+                playlist_id: 'p2',
+                playlist_name: 'Two',
+            }),
+            createSearchItem({
+                id: 4,
+                title: 'FR| The Pitt',
+                xtream_id: 4,
+                playlist_id: 'p2',
+                playlist_name: 'Two',
+            }),
+        ]);
+        component.groupByPlaylist.set(true);
+
+        const [sectionOne, sectionTwo] = component.playlistSections();
+        expect(sectionOne.variantGroups[0].key).not.toBe(
+            sectionTwo.variantGroups[0].key
+        );
+
+        component.selectVariantGroup(sectionOne.variantGroups[0]);
+        expect(
+            component.isVariantExpanded(sectionOne.variantGroups[0].key)
+        ).toBe(true);
+        expect(
+            component.isVariantExpanded(sectionTwo.variantGroups[0].key)
+        ).toBe(false);
+    });
+
+    it('auto-loads more pages when grouping collapses below the scroll threshold', async () => {
+        const firstPage = Array.from({ length: 101 }, (_, index) =>
+            createSearchItem({
+                id: index + 1,
+                title: 'DE| The Pitt',
+                xtream_id: index + 1,
+            })
+        );
+        const databaseService = TestBed.inject(DatabaseService) as {
+            globalSearchContent: jest.Mock;
+        };
+        databaseService.globalSearchContent
+            .mockResolvedValueOnce(firstPage)
+            .mockResolvedValue([]);
+
+        const component = build();
+        component.groupByPlaylist.set(false);
+
+        await component.searchGlobal('the pitt', ['movie'], false);
+
+        // One collapsed card from 100 items must have triggered backfill.
+        expect(
+            databaseService.globalSearchContent.mock.calls.length
+        ).toBeGreaterThan(1);
+    });
+
     it('persists the toggle and clears expansion when turned off', () => {
         const component = build();
         const store = TestBed.inject(XtreamStore) as unknown as MockXtreamStore;
