@@ -136,6 +136,27 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('get_profile');
     });
 
+    it('redacts credentials embedded in diagnostic text', () => {
+        const token = 'diagnostic-token-secret';
+        const authorization = 'diagnostic-authorization-secret';
+        const authorizationAssignment =
+            'diagnostic-authorization-assignment-secret';
+        const diagnostic = [
+            `Request failed: token=${token}&action=get_profile`,
+            `Upstream response Authorization: Bearer ${authorization}; status=401`,
+            `Retrying with authorization=Bearer ${authorizationAssignment}, attempt=2`,
+        ];
+
+        const output = serialized(redactSensitiveData(diagnostic));
+
+        expect(output).not.toContain(token);
+        expect(output).not.toContain(authorization);
+        expect(output).not.toContain(authorizationAssignment);
+        expect(output).toContain('get_profile');
+        expect(output).toContain('status=401');
+        expect(output).toContain('attempt=2');
+    });
+
     it('does not repeat a redacted Error message secret in its stack', () => {
         const secret = 'error-stack-password-secret';
         const error = new Error(`password=${secret}&operation=get_profile`);

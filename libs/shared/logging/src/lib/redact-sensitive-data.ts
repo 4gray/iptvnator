@@ -176,6 +176,21 @@ function redactUrlStrings(
     );
 }
 
+function redactEmbeddedSensitivePairs(value: string): string {
+    const redactedAssignments = value.replace(
+        /\b([a-z][a-z0-9_.-]*)(\s*=\s*)((?:Bearer\s+)?[^&\s,;]+)/giu,
+        (match, key: string, separator: string) =>
+            isSensitiveKey(key)
+                ? `${key}${separator}${REDACTED_VALUE}`
+                : match
+    );
+    return redactedAssignments.replace(
+        /\b([a-z0-9_.-]*(?:api[-_.]?key|auth(?:orization)?|cookie|credentials|device[-_.]?id2?|login|mac(?:[-_.]?address)?|passwd|password|pwd|secret|set[-_.]?cookie|signature2?|sn|token|username))(\s*:\s*)(?:Bearer\s+)?[^;,\r\n]+/giu,
+        (_match, key: string, separator: string) =>
+            `${key}${separator}${REDACTED_VALUE}`
+    );
+}
+
 function looksLikeSearchParams(value: string): boolean {
     return /^[^=&\s]+=[^&]*(?:&[^=&\s]+=[^&]*)*$/u.test(value);
 }
@@ -186,14 +201,11 @@ export function redactSensitiveData(
 ): unknown {
     const resolved = resolveOptions(options);
     const seen = new WeakSet<object>();
-
     const visitString = (input: string, depth: number): string => {
         const trimmed = input.trim();
-
         if (depth >= resolved.maxDepth) {
             return MAX_DEPTH_VALUE;
         }
-
         if (
             (trimmed.startsWith('{') && trimmed.endsWith('}')) ||
             (trimmed.startsWith('[') && trimmed.endsWith(']'))
@@ -207,7 +219,6 @@ export function redactSensitiveData(
                 // Keep processing malformed or non-JSON diagnostic strings.
             }
         }
-
         if (/^[a-z][a-z0-9+.-]*:\/\//iu.test(trimmed)) {
             try {
                 return truncateString(
@@ -230,8 +241,11 @@ export function redactSensitiveData(
             );
         }
 
+        const redactedText = redactEmbeddedSensitivePairs(input);
         return truncateString(
-            redactUrlStrings(input, (entry) => visitString(entry, depth + 1)),
+            redactUrlStrings(redactedText, (entry) =>
+                visitString(entry, depth + 1)
+            ),
             resolved.maxStringLength
         );
     };
