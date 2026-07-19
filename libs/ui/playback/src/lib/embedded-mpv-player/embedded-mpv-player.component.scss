@@ -294,11 +294,17 @@
     display: flex;
     align-items: center;
     gap: 8px;
+    // Let the actions cell shrink below its content so the inline volume
+    // (a scroll container) clips its own slider instead of pushing the
+    // fullscreen button past the overflow:hidden player edge on narrow
+    // sidebar-constrained widths (viewport wider than the 720px breakpoint).
+    min-width: 0;
 }
 
 .embedded-mpv-player__volume-group {
     display: flex;
     align-items: center;
+    min-width: 0;
 }
 
 .embedded-mpv-player__control-button {

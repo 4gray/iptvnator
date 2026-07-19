@@ -114,6 +114,26 @@ describe('EmbeddedMpvDockPanelComponent', () => {
         document.removeEventListener('keydown', documentKeydown);
     });
 
+    it('lets Space/Enter activate a chip without leaking to global shortcuts', () => {
+        // The global shortcut handler's Space case calls preventDefault() +
+        // togglePaused(); preventing the keydown default would suppress the
+        // chip button's native activation. The panel must stop Space/Enter
+        // from reaching the document without cancelling their default action.
+        const documentKeydown = jest.fn();
+        document.addEventListener('keydown', documentKeydown);
+
+        const space = dispatchPanelKey(' ');
+        const enter = dispatchPanelKey('Enter');
+
+        // Not defaultPrevented → the focused chip button still activates.
+        expect(space.defaultPrevented).toBe(false);
+        expect(enter.defaultPrevented).toBe(false);
+        // stopPropagation → the global handler never sees them.
+        expect(documentKeydown).not.toHaveBeenCalled();
+
+        document.removeEventListener('keydown', documentKeydown);
+    });
+
     it('maps vertical wheel deltas to horizontal ribbon scrolling', () => {
         const ribbonEl = ribbon();
         ribbonEl.scrollLeft = 0;

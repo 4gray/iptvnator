@@ -66,7 +66,11 @@ export class EmbeddedMpvDockPanelState {
     }
 
     toggle(kind: EmbeddedMpvDockPanelKind): void {
-        this.openerKind = this.deps.menus.dockPanelOpen() ? null : kind;
+        // Always remember the button that opened a panel so focus returns to
+        // it when the panel closes. restoreOpenerFocus() only acts when focus
+        // has fallen to document.body, so re-toggling a panel with focus still
+        // on its button never steals focus.
+        this.openerKind = kind;
         this.deps.menus.toggle(kind);
         this.deps.revealControls();
     }

@@ -106,6 +106,15 @@ export class EmbeddedMpvDockPanelComponent implements OnDestroy {
 
     onPanelKeydown(event: KeyboardEvent): void {
         const key = event.key;
+        if (key === ' ' || key === 'Enter') {
+            // Let the focused chip button activate natively (Space/Enter →
+            // click → chipSelected), but stop the keydown before it reaches
+            // the global shortcut handler, whose Space case would otherwise
+            // preventDefault() the activation and toggle playback instead.
+            // No preventDefault here — that would re-suppress the click.
+            event.stopPropagation();
+            return;
+        }
         if (key === 'ArrowUp' || key === 'ArrowDown') {
             // The panel owns the keyboard: never let the global volume
             // shortcuts fire while a chip panel is open.
