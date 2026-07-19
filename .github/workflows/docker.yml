@@ -109,5 +109,7 @@ jobs:
                   push: ${{ steps.docker-meta.outputs.publish == 'true' }}
                   tags: ${{ steps.docker-meta.outputs.tags }}
                   platforms: ${{ steps.docker-meta.outputs.platforms }}
+                  build-args: |
+                      BUILD_COMMIT=${{ github.event.pull_request.head.sha || github.sha }}
                   cache-from: type=gha
                   cache-to: type=gha,mode=max,ignore-error=true
