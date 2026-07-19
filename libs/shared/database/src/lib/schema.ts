@@ -16,6 +16,10 @@ import {
     uniqueIndex,
 } from 'drizzle-orm/sqlite-core';
 
+// Manual EPG-to-channel mappings live in their own schema module; re-export
+// them so `import * as schema from './schema'` keeps a complete namespace.
+export * from './epg-mapping.schema';
+
 // Playlists table
 export const playlists = sqliteTable('playlists', {
     id: text('id').primaryKey(),
@@ -349,26 +353,6 @@ export const downloads = sqliteTable(
         ).on(table.xtreamId, table.playlistId, table.contentType),
     })
 );
-
-// EPG channel mappings (manual user overrides)
-export const epgChannelMappings = sqliteTable(
-    'epg_channel_mappings',
-    {
-        id: integer('id').primaryKey({ autoIncrement: true }),
-        channelKey: text('channel_key').notNull().unique(),
-        epgChannelId: text('epg_channel_id').notNull(),
-        playlistId: text('playlist_id'),
-        updatedAt: text('updated_at').default(sql`CURRENT_TIMESTAMP`),
-    },
-    (table) => ({
-        playlistIdx: index('idx_epg_channel_mappings_playlist').on(
-            table.playlistId
-        ),
-    })
-);
-
-export type EpgChannelMapping = typeof epgChannelMappings.$inferSelect;
-export type NewEpgChannelMapping = typeof epgChannelMappings.$inferInsert;
 
 export type Download = typeof downloads.$inferSelect;
 export type NewDownload = typeof downloads.$inferInsert;
