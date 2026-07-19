@@ -164,6 +164,38 @@ describe('redactSensitiveData', () => {
         expect(output).toContain('profile');
     });
 
+    it('redacts credentials from URL fragments while retaining diagnostics', () => {
+        const token = 'fragment-token-secret';
+        const url = new URL(
+            `https://example.com/callback#access_token=${token}&state=diagnostic`
+        );
+
+        const output = serialized(redactSensitiveData(url));
+
+        expect(output).not.toContain(token);
+        expect(output).toContain('state=diagnostic');
+    });
+
+    it('redacts credentials from Map keys while retaining values', () => {
+        const username = 'map-key-user-secret';
+        const password = 'map-key-password-secret';
+        const token = 'map-key-token-secret';
+        const requests = new Map([
+            [
+                `https://example.com/live/${username}/${password}/101.ts?token=${token}`,
+                { status: 200 },
+            ],
+        ]);
+
+        const output = serialized(redactSensitiveData(requests));
+
+        expect(output).not.toContain(username);
+        expect(output).not.toContain(password);
+        expect(output).not.toContain(token);
+        expect(output).toContain('101.ts');
+        expect(output).toContain('"status":200');
+    });
+
     it('redacts Xtream credentials in playback URL paths', () => {
         const username = 'xtream-path-user-secret';
         const password = 'xtream-path-password-secret';

@@ -148,6 +148,15 @@ function redactUrl(
     ).toString();
     redacted.search = search ? `?${search}` : '';
 
+    const fragment = redacted.hash.slice(1);
+    if (looksLikeSearchParams(fragment)) {
+        const hash = redactSearchParams(
+            new URLSearchParams(fragment),
+            sanitizeValue
+        ).toString();
+        redacted.hash = hash ? `#${hash}` : '';
+    }
+
     return redacted.toString();
 }
 
@@ -343,10 +352,21 @@ export function redactSensitiveData(
             }
             if (input instanceof Map) {
                 const entries: Record<string, unknown> = {};
-                for (const [key, entry] of input) {
-                    entries[String(key)] = entry;
+                const mapEntries = Array.from(input).slice(
+                    0,
+                    resolved.maxObjectKeys
+                );
+                for (const [key, entry] of mapEntries) {
+                    entries[visitString(String(key), depth + 1)] = visit(
+                        entry,
+                        depth + 1
+                    );
                 }
-                return visitObject(entries, depth);
+                if (input.size > resolved.maxObjectKeys) {
+                    entries['__truncatedKeys'] =
+                        input.size - resolved.maxObjectKeys;
+                }
+                return entries;
             }
             if (input instanceof Set) {
                 return visit(Array.from(input), depth);
